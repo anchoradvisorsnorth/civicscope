@@ -1,0 +1,370 @@
+/* ═══════════════════════════════════════════════════════
+   CIVICSCOPE DESIGN SYSTEM — civicscope.css
+   Single source of truth. Import on every page.
+   Change here → updates everywhere.
+═══════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400;1,9..144,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
+
+/* ── Tokens ─────────────────────────────────────────── */
+:root {
+
+  /* Typography */
+  --font-display:  'Fraunces', serif;
+  --font-body:     'DM Sans', sans-serif;
+
+  /* Core palette */
+  --cream:         #faf8f4;
+  --cream-dark:    #f2ede4;
+  --white:         #ffffff;
+  --ink:           #1c1917;
+  --ink-light:     #44403c;
+  --muted:         #78716c;
+  --muted-light:   #a8a29e;
+  --rule:          #e7e2d8;
+
+  /* Accent — change this one value to re-theme everything */
+  --accent:        #c2410c;
+  --accent-hover:  #a83509;
+  --accent-light:  #fff3ec;
+  --accent-dim:    rgba(194, 65, 12, 0.10);
+  --accent-glow:   rgba(194, 65, 12, 0.15);
+
+  /* Spacing scale */
+  --space-xs:      8px;
+  --space-sm:      16px;
+  --space-md:      24px;
+  --space-lg:      40px;
+  --space-xl:      64px;
+  --space-2xl:     96px;
+
+  /* Page layout */
+  --page-pad:      80px;
+  --page-max:      1200px;
+  --section-pad:   96px;
+
+  /* Radii */
+  --radius-sm:     3px;
+  --radius-md:     4px;
+
+  /* Shadows */
+  --shadow-sm:     0 1px 3px rgba(28,25,23,0.08);
+  --shadow-md:     0 4px 16px rgba(28,25,23,0.10);
+
+  /* Transitions */
+  --ease:          0.15s ease;
+  --ease-md:       0.25s ease;
+}
+
+/* ── Reset ───────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+img, svg { display: block; }
+a { color: inherit; }
+button { font-family: var(--font-body); cursor: pointer; }
+
+/* ── Typography scale ────────────────────────────────── */
+.cs-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.cs-display-lg { font-size: clamp(2.8rem, 4.5vw, 4rem); }
+.cs-display-md { font-size: clamp(2rem, 3vw, 2.8rem); }
+.cs-display-sm { font-size: 1.4rem; }
+
+.cs-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cs-label::before {
+  content: '';
+  display: block;
+  width: 20px;
+  height: 1.5px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Buttons ─────────────────────────────────────────── */
+.cs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--ease), transform var(--ease);
+  white-space: nowrap;
+  line-height: 1;
+}
+.cs-btn svg { transition: transform var(--ease); }
+.cs-btn:hover svg { transform: translateX(3px); }
+
+.cs-btn-primary {
+  background: var(--accent);
+  color: white;
+  font-size: 0.9rem;
+  padding: 14px 28px;
+}
+.cs-btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.cs-btn-primary-lg {
+  background: var(--accent);
+  color: white;
+  font-size: 0.95rem;
+  padding: 16px 36px;
+}
+.cs-btn-primary-lg:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.cs-btn-nav {
+  background: var(--accent);
+  color: white !important;
+  font-size: 0.82rem;
+  padding: 8px 20px;
+}
+.cs-btn-nav:hover { background: var(--accent-hover) !important; }
+
+.cs-btn-ghost-dark {
+  color: rgba(255,255,255,0.45);
+  font-size: 0.85rem;
+  text-decoration: none;
+  font-weight: 300;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--ease);
+}
+.cs-btn-ghost-dark:hover { color: rgba(255,255,255,0.75); }
+
+/* ── Form elements ───────────────────────────────────── */
+.cs-input {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 300;
+  color: var(--ink);
+  background: var(--white);
+  border: 1.5px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  width: 100%;
+  transition: border-color var(--ease);
+  outline: none;
+}
+.cs-input:focus { border-color: var(--accent); }
+.cs-input::placeholder { color: var(--muted-light); }
+
+.cs-select {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 300;
+  color: var(--ink);
+  background: var(--white);
+  border: 1.5px solid var(--rule);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  width: 100%;
+  appearance: none;
+  outline: none;
+  transition: border-color var(--ease);
+  cursor: pointer;
+}
+.cs-select:focus { border-color: var(--accent); }
+
+.cs-label-field {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  display: block;
+}
+.cs-label-field .required {
+  color: var(--accent);
+  margin-left: 2px;
+}
+
+/* ── Layout helpers ──────────────────────────────────── */
+.cs-page-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 0 var(--page-pad);
+}
+.cs-section {
+  padding: var(--section-pad) var(--page-pad);
+}
+.cs-section-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+}
+
+/* ── Shared nav/header ───────────────────────────────── */
+.cs-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(250,248,244,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--rule);
+}
+.cs-header-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 0 var(--page-pad);
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.cs-wordmark {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cs-wordmark-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+  flex-shrink: 0;
+  margin-bottom: 1px;
+}
+.cs-header-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--rule);
+}
+.cs-header-tagline {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
+.cs-nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.cs-nav a {
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 400;
+  transition: color var(--ease);
+}
+.cs-nav a:hover { color: var(--ink); }
+
+/* ── PRO badge ───────────────────────────────────────── */
+.cs-pro-badge {
+  font-family: var(--font-body);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  padding: 2px 8px;
+  border-radius: 20px;
+  vertical-align: middle;
+  position: relative;
+  top: -2px;
+  margin-left: 4px;
+}
+
+/* ── Cards ───────────────────────────────────────────── */
+.cs-card {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--ease), transform var(--ease-md);
+}
+.cs-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+/* ── Animations ──────────────────────────────────────── */
+@keyframes cs-fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes cs-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.8); }
+}
+.cs-anim-1 { animation: cs-fade-up 0.6s 0.0s ease both; }
+.cs-anim-2 { animation: cs-fade-up 0.6s 0.1s ease both; }
+.cs-anim-3 { animation: cs-fade-up 0.6s 0.2s ease both; }
+.cs-anim-4 { animation: cs-fade-up 0.6s 0.3s ease both; }
+
+/* ── Utility ─────────────────────────────────────────── */
+.cs-rule {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: var(--space-lg) 0;
+}
+.cs-muted  { color: var(--muted); }
+.cs-accent { color: var(--accent); }
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  :root {
+    --page-pad:    32px;
+    --section-pad: 64px;
+  }
+  .cs-header-tagline,
+  .cs-header-divider { display: none; }
+  .cs-nav { gap: 12px; }
+  .cs-nav a:not(.cs-btn-nav) { display: none; }
+}
+@media (max-width: 600px) {
+  :root {
+    --page-pad:    20px;
+    --section-pad: 48px;
+  }
+}
