@@ -193,6 +193,13 @@
   .recommended-ask { font-size: 0.875rem; background: var(--pitch-light); padding: 14px 16px; border-left: 3px solid var(--pitch); line-height: 1.6; }
 
   /* Procurement Comparison */
+  .gate-block { background: white; border: 1.5px solid var(--rule); border-top: 4px solid var(--accent); padding: 32px; margin-bottom: 24px; }
+  .gate-block h3 { font-family: 'Libre Baskerville', serif; font-size: 1.1rem; margin-bottom: 6px; }
+  .gate-block p { font-size: 0.85rem; color: var(--muted); line-height: 1.55; margin-bottom: 24px; max-width: 520px; }
+  .gate-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .gate-form-grid .field.full { grid-column: 1 / -1; }
+  .gate-submit-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .gate-confirmed { display: none; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--green); letter-spacing: 0.04em; padding: 12px 0; }
   .procurement-block { margin-bottom: 24px; }
   .proc-header { background: var(--forest); padding: 20px 28px; }
   .proc-header h3 { font-family: 'Libre Baskerville', serif; font-size: 1.1rem; color: white; margin-bottom: 4px; }
@@ -534,6 +541,47 @@
     </div>
 
     <!-- CTA -->
+    <!-- ── EMAIL REPORT GATE ── -->
+    <div class="gate-block" id="gateBlock">
+      <h3>Email yourself this report</h3>
+      <p>We'll send a complete summary to your inbox — cost range, methodology, timeline, and buyer's guide.</p>
+      <div class="gate-form-grid">
+        <div class="field">
+          <label>First Name *</label>
+          <input type="text" id="gateFirst" placeholder="First name" />
+        </div>
+        <div class="field">
+          <label>Last Name *</label>
+          <input type="text" id="gateLast" placeholder="Last name" />
+        </div>
+        <div class="field">
+          <label>Your Role *</label>
+          <select id="gateRole">
+            <option value="">Select your role</option>
+            <option value="Town/City Manager">Town/City Manager</option>
+            <option value="Mayor">Mayor</option>
+            <option value="Council Member">Council Member</option>
+            <option value="Department Director">Department Director</option>
+            <option value="Finance Director">Finance Director</option>
+            <option value="Clerk/Administrator">Clerk/Administrator</option>
+            <option value="Other Municipal Staff">Other Municipal Staff</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Email Address *</label>
+          <input type="email" id="gateEmail" placeholder="you@municipality.gov" />
+        </div>
+        <div class="field full">
+          <label>Municipality</label>
+          <input type="text" id="gateMunicipality" placeholder="Auto-filled" readonly />
+        </div>
+      </div>
+      <div class="gate-submit-row">
+        <button class="primary" id="gateBtn" onclick="submitLead()">Email Me This Report</button>
+      </div>
+      <div class="gate-confirmed" id="gateConfirmed">✓ Report sent to your inbox — check your email. Someone from JBK Development may follow up.</div>
+    </div>
+
     <div class="cta-block">
       <div class="cta-text">
         <h4>Ready to explore how to deliver this project?</h4>
@@ -578,6 +626,7 @@
 <script>
 // ── Session & Data Capture ───────────────────────────────────────────
 let _sessionId = null;
+let _lastResult = null; // stores last run data for email
 let _runId = null;
 
 async function logAction(action, data) {
@@ -928,6 +977,9 @@ Rules:
     updateProcCallout(rd.low, rd.high);
 
     // Show results
+    _lastResult = { rd, zip, state, location, type, buildType };
+    const gateMuni = document.getElementById('gateMunicipality');
+    if (gateMuni) gateMuni.value = location;
     divider.style.display = 'block';
     resultEl.style.display = 'block';
     resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1119,6 +1171,95 @@ function renderBriefing(b) {
   html += `</div>`;
   html += `<div class="briefing-section"><div class="briefing-section-label">Recommended Ask to Council</div><div class="recommended-ask">${b.next_step}</div></div>`;
   document.getElementById('briefingContent').innerHTML = html;
+}
+
+async function submitLead() {
+  const first = document.getElementById('gateFirst').value.trim();
+  const last  = document.getElementById('gateLast').value.trim();
+  const role  = document.getElementById('gateRole').value;
+  const email = document.getElementById('gateEmail').value.trim();
+  const muni  = document.getElementById('gateMunicipality').value.trim();
+
+  if (!first || !last || !role || !email) {
+    alert('Please fill in all fields to receive your report.');
+    return;
+  }
+
+  const gateBtn = document.getElementById('gateBtn');
+  gateBtn.disabled = true;
+  gateBtn.textContent = 'Sending...';
+
+  try {
+    const rd   = _lastResult ? _lastResult.rd : {};
+    const type = _lastResult ? _lastResult.type : '';
+    const low  = rd.low  ? formatCurrency(rd.low)  : '—';
+    const high = rd.high ? formatCurrency(rd.high) : '—';
+    const mid  = (rd.low && rd.high) ? formatCurrency(Math.round((rd.low + rd.high) / 2)) : '—';
+
+    // 1. Log lead to Supabase
+    logAction('log_lead', {
+      session_id: _sessionId,
+      tool_run_id: _runId,
+      first_name: first,
+      last_name: last,
+      email: email,
+      role: role,
+      municipality: muni
+    });
+
+    // 2. Send report + notify Keith
+    await Promise.all([
+      fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send_report',
+          data: {
+            recipientEmail: email,
+            recipientName: first,
+            municipality: muni,
+            projectType: type,
+            costLow: low,
+            costHigh: high,
+            costMidpoint: mid,
+            confidence: rd.confidence || '—',
+            narrative: rd.narrative || '',
+            assumptions: rd.assumptions || [],
+            product: 'pro'
+          }
+        })
+      }),
+      fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'notify_lead',
+          data: {
+            firstName: first,
+            lastName: last,
+            email: email,
+            role: role,
+            municipality: muni,
+            projectType: type,
+            costLow: low,
+            costHigh: high,
+            confidence: rd.confidence || '—',
+            product: 'pro',
+            sessionId: _sessionId,
+            runId: _runId
+          }
+        })
+      })
+    ]);
+
+    document.getElementById('gateConfirmed').style.display = 'block';
+    document.getElementById('gateBtn').style.display = 'none';
+
+  } catch (err) {
+    gateBtn.disabled = false;
+    gateBtn.textContent = 'Email Me This Report';
+    alert('Something went wrong. Please try again.');
+  }
 }
 </script>
 </body>
