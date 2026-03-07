@@ -34,7 +34,7 @@
 
   /* Spacing */
   --page-pad: 80px;
-  --section-pad: 96px;
+  --section-pad: 68px;
 }
 
 /* ── Reset ── */
@@ -368,11 +368,12 @@ nav a:hover { color: var(--ink); }
 
 .use-case-card {
   background: var(--cream);
-  border: 1px solid var(--rule);
+  border: 2px solid var(--ink);
   border-radius: 4px;
   overflow: hidden;
   position: sticky;
   top: 88px;
+  box-shadow: 6px 6px 0px var(--ink);
 }
 .use-case-header {
   background: var(--ink);
@@ -668,6 +669,8 @@ nav a:hover { color: var(--ink); }
   font-weight: 300;
 }
 .pricing-card.featured .pricing-price { color: rgba(255,255,255,0.45); }
+.pricing-card.featured .pricing-body { background: var(--ink); }
+.pricing-card.featured .pricing-features-pro li { color: rgba(255,255,255,0.8) !important; }
 .pricing-body { padding: 28px 32px; }
 .pricing-features { list-style: none; margin-bottom: 28px; }
 .pricing-features li {
@@ -890,7 +893,7 @@ footer {
    RESPONSIVE
 ══════════════════════════════════════════ */
 @media (max-width: 900px) {
-  :root { --page-pad: 32px; --section-pad: 64px; }
+  :root { --page-pad: 32px; --section-pad: 52px; }
   .hero-inner, .problem-grid, .founder-inner { grid-template-columns: 1fr; gap: 48px; }
   .hero-illustration { display: none; }
   .how-steps, .who-grid { grid-template-columns: 1fr 1fr; }
@@ -925,6 +928,7 @@ footer {
       <a href="#who">Who It's For</a>
       <a href="#pricing">Free vs Pro</a>
       <a href="https://app.civicscope.io/civicscope" class="btn-nav">Use It Free →</a>
+
     </nav>
   </div>
 </header>
@@ -1071,13 +1075,13 @@ footer {
               </svg>
             </div>
             <div>
-              <div class="use-case-title">Sarah, Parks Director</div>
-              <div class="use-case-subtitle">Town of 8,200 · Indiana</div>
+              <div class="use-case-title">Sarah K., Parks Director</div>
+              <div class="use-case-subtitle">Town of Elwood · Indiana</div>
             </div>
           </div>
           <!-- Splash pad editorial illustration -->
           <div class="use-case-illustration">
-            <svg width="280" height="160" viewBox="0 0 280 160" fill="none">
+            <svg width="380" height="230" viewBox="0 0 280 160" fill="none">
               <!-- Ground / pad surface -->
               <ellipse cx="140" cy="128" rx="110" ry="18" fill="none" stroke="rgba(28,25,23,0.12)" stroke-width="1.5"/>
               <ellipse cx="140" cy="126" rx="88" ry="12" fill="rgba(194,65,12,0.06)" stroke="rgba(194,65,12,0.2)" stroke-width="1"/>
@@ -1124,7 +1128,7 @@ footer {
             </svg>
           </div>
           <div class="use-case-body">
-            <p class="use-case-story">"Residents have been asking about a splash pad for two years. I have $380,000 in the capital improvement fund. I have no idea if that's realistic — or if I'm about to embarrass myself at the next council meeting."</p>
+            <p class="use-case-story">"Residents have been asking about a splash pad for two years. I have $380,000 in the capital improvement fund. I have no idea if that's realistic — or if I'm about to embarrass myself at the next council meeting in Elwood."</p>
             <div class="use-case-outcome">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
               CivicScope answers this in 30 seconds.
