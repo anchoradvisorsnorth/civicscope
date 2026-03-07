@@ -24,7 +24,7 @@
   header { border-bottom: 2px solid var(--ink); padding: 18px 40px; display: flex; align-items: baseline; gap: 20px; background: var(--paper); }
   .wordmark { font-family: 'Libre Baskerville', serif; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
   .wordmark span { color: var(--accent); }
-  .pro-badge { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; background: var(--pro); color: white; padding: 3px 8px; border-radius: 2px; font-weight: 500; margin-left: -8px; }
+  .pro-badge { font-family: 'IBM Plex Mono', monospace; font-size: 0.55rem; letter-spacing: 0.15em; text-transform: uppercase; border: 1.5px solid var(--accent); color: var(--accent); padding: 2px 7px; border-radius: 2px; font-weight: 600; margin-left: 6px; vertical-align: middle; position: relative; top: -2px; }
   .tagline { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; border-left: 1px solid var(--rule); padding-left: 20px; }
 
   /* ── Layout ── */
@@ -34,11 +34,13 @@
   .intro { font-size: 0.95rem; color: var(--muted); line-height: 1.6; max-width: 580px; margin-bottom: 40px; border-left: 3px solid var(--accent); padding-left: 16px; }
 
   /* ── Pro Banner ── */
-  .pro-banner { background: var(--pro); color: white; padding: 14px 24px; margin-bottom: 32px; display: flex; align-items: center; gap: 16px; border-radius: 2px; }
+  .pro-banner { background: var(--ink); color: white; padding: 18px 24px; margin-bottom: 32px; border-radius: 2px; }
+  .pro-banner-title { font-family: 'Libre Baskerville', serif; font-size: 0.9rem; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .pro-banner-title span { color: #a8b8d8; font-style: italic; font-weight: 400; font-size: 0.85rem; margin-left: 6px; }
   .pro-banner-text { font-size: 0.85rem; line-height: 1.5; }
   .pro-banner-text strong { font-weight: 500; }
-  .pro-features-list { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 6px; }
-  .pro-feat { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; letter-spacing: 0.06em; color: rgba(255,255,255,0.75); }
+  .pro-features-list { display: flex; gap: 0; flex-wrap: wrap; margin-top: 0; }
+  .pro-feat { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; letter-spacing: 0.06em; color: rgba(255,255,255,0.75); padding: 3px 10px 3px 0; text-transform: uppercase; }
   .pro-feat::before { content: '✓ '; color: rgba(255,255,255,0.5); }
 
   /* ── Form ── */
@@ -294,7 +296,7 @@
 
 <header>
   <div class="wordmark">Civic<span>Scope</span> <span class="pro-badge">Pro</span></div>
-  <div class="tagline">Municipal Project Feasibility — JBK Development</div>
+  <div class="tagline">Municipal Project Feasibility</div>
 </header>
 
 <main>
@@ -304,16 +306,14 @@
 
   <!-- Pro Feature Banner -->
   <div class="pro-banner">
-    <div class="pro-banner-text">
-      <strong>CivicScope Pro</strong> — built for experienced municipal buyers
-      <div class="pro-features-list">
-        <span class="pro-feat">Always-on clarifying questions</span>
-        <span class="pro-feat">Cost methodology</span>
-        <span class="pro-feat">Project timeline</span>
-        <span class="pro-feat">Buyer advocate</span>
-        <span class="pro-feat">Edit &amp; re-run</span>
-        <span class="pro-feat">Print report</span>
-      </div>
+    <div class="pro-banner-title">CivicScope Pro <span>— built for experienced municipal buyers</span></div>
+    <div class="pro-features-list">
+      <span class="pro-feat">✓ Clarifying questions</span>
+      <span class="pro-feat">✓ Cost methodology</span>
+      <span class="pro-feat">✓ Project timeline</span>
+      <span class="pro-feat">✓ Buyer advocate</span>
+      <span class="pro-feat">✓ Edit &amp; re-run</span>
+      <span class="pro-feat">✓ Print report</span>
     </div>
   </div>
 
@@ -579,7 +579,7 @@
       <div class="gate-submit-row">
         <button class="primary" id="gateBtn" onclick="submitLead()">Email Me This Report</button>
       </div>
-      <div class="gate-confirmed" id="gateConfirmed">✓ Report sent to your inbox — check your email. Someone from JBK Development may follow up.</div>
+      <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. You may hear from JBK Development.</div>
     </div>
 
     <div class="cta-block">
@@ -595,7 +595,7 @@
     </div>
 
     <p class="disclaimer">
-      This is a preliminary feasibility indicator only, not a formal cost estimate. It is intended to support early internal go/no-go decisions and should not be used for budgeting, procurement, or council appropriations without professional verification. Actual costs depend on site conditions, design requirements, local labor markets, and material prices at time of bid. CivicScope is a tool of JBK Development.
+      This is a preliminary feasibility indicator only, not a formal cost estimate. It is intended to support early internal go/no-go decisions and should not be used for budgeting, procurement, or council appropriations without professional verification. Actual costs depend on site conditions, design requirements, local labor markets, and material prices at time of bid. civicscope.io
     </p>
 
   </div><!-- /#result -->
@@ -618,8 +618,8 @@
 </main>
 
 <footer>
-  <span style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--muted);letter-spacing:0.06em;">v2.0.0 — Pro</span>
-  <span>CivicScope &nbsp;·&nbsp; JBK Development &nbsp;·&nbsp; keith@jbkdevelopment.com</span>
+  <span style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--muted);letter-spacing:0.06em;">v2.1.0 — Pro</span>
+  <span>CivicScope &nbsp;·&nbsp; <a href="mailto:info@civicscope.io" style="color:var(--muted);text-decoration:none;">info@civicscope.io</a></span>
   <span>For planning purposes only — not a licensed cost estimate</span>
 </footer>
 
