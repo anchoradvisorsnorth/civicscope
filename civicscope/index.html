@@ -486,7 +486,7 @@
         <button class="primary" id="gateBtn" onclick="submitLead()">Email Me This Report</button>
         <div class="submit-note">Your information is only shared with JBK Development</div>
       </div>
-      <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. Keith Plummer from JBK Development will follow up shortly.</div>
+      <div class="gate-confirmed" id="gateConfirmed">✓ Report sent to your inbox — check your email. Someone from JBK Development may follow up.</div>
     </div>
 
     <!-- CTA -->
@@ -537,6 +537,7 @@
 // ── Session & Data Capture ───────────────────────────────────────────
 let _sessionId = null;
 let _runId = null;
+let _lastResult = null; // stores last run data for email
 
 async function logAction(action, data) {
   try {
@@ -811,6 +812,9 @@ Rules:
       run_duration_ms: runDuration
     }).then(r => { if (r && r.run_id) _runId = r.run_id; });
 
+    // Store result for email
+    _lastResult = { rd, zip, state, location, type, buildType };
+
     // Populate header
     document.getElementById('resultTitle').textContent = rd.project_label || 'Preliminary Feasibility Indicator';
     document.getElementById('resultMeta').innerHTML =
@@ -934,8 +938,6 @@ async function submitLead() {
   const role  = document.getElementById('gateRole').value;
   const email = document.getElementById('gateEmail').value.trim();
   const muni  = document.getElementById('gateMunicipality').value.trim();
-  const project = document.getElementById('resultTitle').textContent;
-  const costRange = document.getElementById('costRange').textContent;
 
   if (!first || !last || !role || !email) {
     alert('Please fill in all fields to receive your report.');
@@ -947,7 +949,13 @@ async function submitLead() {
   gateBtn.textContent = 'Sending...';
 
   try {
-    // Log lead to Supabase
+    const rd = _lastResult ? _lastResult.rd : {};
+    const type = _lastResult ? _lastResult.type : '';
+    const low  = rd.low  ? formatCurrency(rd.low)  : '—';
+    const high = rd.high ? formatCurrency(rd.high) : '—';
+    const mid  = (rd.low && rd.high) ? formatCurrency(Math.round((rd.low + rd.high) / 2)) : '—';
+
+    // 1. Log lead to Supabase
     logAction('log_lead', {
       session_id: _sessionId,
       tool_run_id: _runId,
@@ -958,28 +966,50 @@ async function submitLead() {
       municipality: muni
     });
 
-    await fetch('https://formspree.io/f/mykngqwq', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: `${first} ${last}`,
-        role: role,
-        email: email,
-        municipality: muni,
-        project: project,
-        cost_range: costRange,
-        zip: document.getElementById('zip').value,
-        state: document.getElementById('state').value,
-        project_type: document.getElementById('projectType').value,
-        scope: document.getElementById('scope').value.trim(),
-        _subject: `CivicScope Lead — ${first} ${last}, ${role}, ${muni}`
+    // 2. Send report email to user + notify Keith via Resend
+    const [reportRes, notifyRes] = await Promise.all([
+      fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send_report',
+          data: {
+            recipientEmail: email,
+            recipientName: first,
+            municipality: muni,
+            projectType: type,
+            costLow: low,
+            costHigh: high,
+            costMidpoint: mid,
+            confidence: rd.confidence || '—',
+            narrative: rd.narrative || '',
+            assumptions: rd.assumptions || [],
+            product: 'free'
+          }
+        })
+      }),
+      fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'notify_lead',
+          data: {
+            firstName: first,
+            lastName: last,
+            email: email,
+            role: role,
+            municipality: muni,
+            projectType: type,
+            costLow: low,
+            costHigh: high,
+            confidence: rd.confidence || '—',
+            product: 'free',
+            sessionId: _sessionId,
+            runId: _runId
+          }
+        })
       })
-      });
-
-    // Log lead to Supabase
-    await logAction('log_lead', {
-      first, last, role, email, municipality: muni
-    });
+    ]);
 
     document.getElementById('gateConfirmed').style.display = 'block';
     document.getElementById('gateBtn').style.display = 'none';
