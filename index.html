@@ -373,11 +373,14 @@ nav a:hover { color: var(--ink); }
   overflow: hidden;
   position: sticky;
   top: 88px;
-  box-shadow: 6px 6px 0px var(--ink);
+  box-shadow: 5px 5px 0px var(--ink);
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .use-case-header {
   background: var(--ink);
-  padding: 20px 28px;
+  padding: 16px 22px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -414,12 +417,12 @@ nav a:hover { color: var(--ink); }
   letter-spacing: 0.03em;
   margin-top: 2px;
 }
-.use-case-body { padding: 28px; }
+.use-case-body { padding: 20px 22px; }
 
 /* SVG illustration container */
 .use-case-illustration {
   border-bottom: 1px solid var(--rule);
-  padding: 32px 28px;
+  padding: 22px 20px;
   background: var(--cream-dark);
   display: flex;
   justify-content: center;
@@ -1089,7 +1092,7 @@ footer {
           </div>
           <!-- Splash pad editorial illustration -->
           <div class="use-case-illustration">
-            <svg width="420" height="250" viewBox="0 0 320 180" fill="none">
+            <svg width="360" height="210" viewBox="0 0 320 180" fill="none">
               <!-- Ground / pad surface — bolder -->
               <ellipse cx="160" cy="148" rx="128" ry="20" fill="none" stroke="rgba(28,25,23,0.2)" stroke-width="2"/>
               <ellipse cx="160" cy="145" rx="100" ry="13" fill="rgba(194,65,12,0.08)" stroke="rgba(194,65,12,0.35)" stroke-width="1.5"/>
