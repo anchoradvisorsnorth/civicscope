@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CivicScope — Municipal Project Feasibility</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #1a1a18; --paper: #f5f2eb; --rule: #c8c2b4; --muted: #7a7568;
+    --accent: #2b4c7e; --accent-light: #d6e4f7;
+    --green: #2d6a4f; --green-light: #d8f3dc;
+    --amber: #7d5a00; --amber-light: #fff3cd;
+    --red: #7d2d2d; --red-light: #fde8e8;
+    --pitch: #3d2b6b; --pitch-light: #ede8f8;
+    --forest: #1e3d2f; --forest-light: #d8f3dc;
+  }
+
+  body { font-family: 'IBM Plex Sans', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; }
+
+  /* ── Header ── */
+  header { border-bottom: 2px solid var(--ink); padding: 18px 40px; display: flex; align-items: baseline; gap: 20px; background: var(--paper); }
+  .wordmark { font-family: 'Libre Baskerville', serif; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+  .wordmark span { color: var(--accent); }
+  .tagline { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; border-left: 1px solid var(--rule); padding-left: 20px; }
+
+  /* ── Layout ── */
+  main { max-width: 880px; margin: 0 auto; padding: 48px 40px 80px; }
+  .page-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  h1 { font-family: 'Libre Baskerville', serif; font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 10px; }
+  .intro { font-size: 0.95rem; color: var(--muted); line-height: 1.6; max-width: 580px; margin-bottom: 40px; border-left: 3px solid var(--accent); padding-left: 16px; }
+
+  /* ── Form ── */
+  .form-section { margin-bottom: 32px; }
+  .form-section-title { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-bottom: 10px; border-bottom: 1px solid var(--rule); margin-bottom: 18px; }
+  .optional-note { font-style: italic; font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field.full { grid-column: 1 / -1; }
+
+  label { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); font-weight: 500; }
+  label .req { color: var(--accent); margin-left: 2px; }
+
+  input[type="text"], input[type="email"], input[type="tel"], select, textarea {
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 0.9rem; color: var(--ink);
+    background: white; border: 1.5px solid var(--rule); border-radius: 2px;
+    padding: 10px 14px; outline: none; transition: border-color 0.15s; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  input[readonly] { background: #f0ede6; color: var(--muted); cursor: default; }
+  textarea { min-height: 100px; resize: vertical; line-height: 1.55; }
+  .field-hint { font-size: 0.73rem; color: var(--muted); line-height: 1.4; }
+
+  /* ── Project type grid ── */
+  .type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .type-btn {
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 0.8rem;
+    border: 1.5px solid var(--rule); background: white; color: var(--ink);
+    padding: 10px 8px; cursor: pointer; border-radius: 2px;
+    transition: all 0.12s; text-align: center; line-height: 1.3;
+  }
+  .type-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .type-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .type-btn .type-icon { display: block; font-size: 1.1rem; margin-bottom: 4px; }
+
+  /* ── Toggle groups ── */
+  .toggle-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .toggle-btn {
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 0.8rem;
+    border: 1.5px solid var(--rule); background: white; color: var(--ink);
+    padding: 7px 14px; cursor: pointer; border-radius: 2px; transition: all 0.12s;
+  }
+  .toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .toggle-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  /* ── Checkboxes ── */
+  .checkbox-group { display: flex; flex-wrap: wrap; gap: 16px; }
+  .checkbox-item { display: flex; align-items: center; gap: 7px; font-size: 0.875rem; cursor: pointer; }
+  .checkbox-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+  /* ── Submit ── */
+  .submit-row { display: flex; align-items: center; gap: 20px; margin-top: 8px; }
+  button.primary {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; letter-spacing: 0.06em;
+    text-transform: uppercase; background: var(--accent); color: white; border: none;
+    padding: 13px 32px; cursor: pointer; border-radius: 2px; transition: background 0.15s;
+  }
+  button.primary:hover { background: #1e3a6e; }
+  button.primary:disabled { background: var(--rule); cursor: not-allowed; }
+  .submit-note { font-size: 0.75rem; color: var(--muted); }
+
+  /* ── Loading / Error ── */
+  .divider { border: none; border-top: 1px solid var(--rule); margin: 40px 0; }
+  .loading-state { display: none; align-items: center; gap: 12px; padding: 24px 0; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--muted); }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--rule); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-block { display: none; background: var(--red-light); border: 1.5px solid #f5c2c2; padding: 16px 20px; font-size: 0.875rem; color: var(--red); border-radius: 2px; margin-top: 16px; }
+
+  /* ── Results ── */
+  #result { display: none; }
+  .result-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 20px; }
+  .result-title { font-family: 'Libre Baskerville', serif; font-size: 1.3rem; margin-bottom: 4px; }
+  .result-meta { font-size: 0.78rem; color: var(--muted); font-family: 'IBM Plex Mono', monospace; line-height: 1.6; }
+  .confidence-badge { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 5px 12px; border-radius: 2px; white-space: nowrap; font-weight: 500; flex-shrink: 0; }
+  .confidence-high { background: var(--green-light); color: var(--green); }
+  .confidence-moderate { background: var(--amber-light); color: var(--amber); }
+  .confidence-low { background: var(--red-light); color: var(--red); }
+
+  .print-btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; background: transparent; color: var(--muted); border: 1px solid var(--rule); padding: 8px 18px; cursor: pointer; border-radius: 2px; transition: all 0.15s; margin-bottom: 24px; }
+  .print-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  /* Reference images */
+  .images-block { margin-bottom: 24px; display: none; }
+  .images-block h3 { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .image-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .img-wrapper { display: flex; flex-direction: column; }
+  .img-wrapper img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 2px; border: 1px solid var(--rule); background: #e8e4dc; }
+  .image-caption { font-size: 0.68rem; color: var(--muted); margin-top: 5px; font-style: italic; text-align: center; }
+
+  /* Cost range */
+  .cost-range-block { background: white; border: 1.5px solid var(--rule); border-top: 4px solid var(--accent); padding: 28px 32px; margin-bottom: 24px; }
+  .cost-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .cost-range { font-family: 'Libre Baskerville', serif; font-size: 2.4rem; font-weight: 700; color: var(--ink); line-height: 1; margin-bottom: 6px; }
+  .cost-midpoint { font-size: 0.85rem; color: var(--muted); }
+  .cost-midpoint strong { color: var(--ink); font-weight: 500; }
+
+  /* Narrative */
+  .narrative-block { font-size: 0.9rem; line-height: 1.65; color: var(--ink); margin-bottom: 24px; padding: 20px 24px; background: var(--accent-light); border-left: 3px solid var(--accent); }
+
+  /* Assumptions */
+  .assumptions-block { background: white; border: 1.5px solid var(--rule); padding: 20px 24px; margin-bottom: 24px; }
+  .block-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .assumption-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .assumption-list li { font-size: 0.875rem; line-height: 1.5; padding-left: 16px; position: relative; }
+  .assumption-list li::before { content: '—'; position: absolute; left: 0; color: var(--rule); }
+
+  /* Council Briefing Guide */
+  .briefing-block { background: white; border: 1.5px solid var(--rule); border-top: 4px solid var(--pitch); padding: 28px 32px; margin-bottom: 24px; }
+  .briefing-block > .block-label { color: var(--pitch); }
+  .briefing-intro { font-size: 0.78rem; color: var(--muted); font-style: italic; margin-bottom: 20px; }
+  .briefing-section { margin-bottom: 22px; }
+  .briefing-section:last-child { margin-bottom: 0; }
+  .briefing-section-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-bottom: 7px; border-bottom: 1px solid var(--rule); margin-bottom: 12px; }
+  .opening-quote { font-size: 0.95rem; font-style: italic; color: var(--pitch); line-height: 1.55; }
+  .pitch-points { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .pitch-points li { font-size: 0.875rem; line-height: 1.55; padding-left: 18px; position: relative; }
+  .pitch-points li::before { content: '→'; position: absolute; left: 0; color: var(--pitch); font-size: 0.8rem; top: 1px; }
+  .qa-item { margin-bottom: 14px; }
+  .qa-item:last-child { margin-bottom: 0; }
+  .qa-q { font-size: 0.82rem; font-weight: 500; color: var(--ink); margin-bottom: 5px; }
+  .qa-a { font-size: 0.875rem; color: var(--muted); padding-left: 14px; border-left: 2px solid var(--rule); line-height: 1.55; }
+  .recommended-ask { font-size: 0.875rem; background: var(--pitch-light); padding: 14px 16px; border-left: 3px solid var(--pitch); line-height: 1.6; }
+  .section-loading { display: flex; align-items: center; gap: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: var(--muted); padding: 8px 0; }
+
+  /* Procurement Comparison */
+  .procurement-block { margin-bottom: 24px; }
+  .proc-header { background: var(--forest); padding: 20px 28px; }
+  .proc-header h3 { font-family: 'Libre Baskerville', serif; font-size: 1.1rem; color: white; margin-bottom: 4px; }
+  .proc-header p { font-size: 0.8rem; color: rgba(255,255,255,0.65); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.03em; }
+  .proc-paths { display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid var(--rule); border-top: none; }
+  .proc-path { padding: 24px; }
+  .proc-path.traditional { background: var(--red-light); border-right: 1px solid var(--rule); }
+  .proc-path.bot { background: var(--forest-light); }
+  .proc-path-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; margin-bottom: 10px; padding: 4px 10px; display: inline-block; border-radius: 2px; }
+  .proc-path.traditional .proc-path-label { background: var(--red); color: white; }
+  .proc-path.bot .proc-path-label { background: var(--forest); color: white; }
+  .proc-path h4 { font-family: 'Libre Baskerville', serif; font-size: 1rem; margin-bottom: 14px; }
+  .proc-path.traditional h4 { color: var(--red); }
+  .proc-path.bot h4 { color: var(--forest); }
+  .proc-steps { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+  .proc-steps li { font-size: 0.85rem; line-height: 1.5; padding-left: 20px; position: relative; }
+  .proc-path.traditional .proc-steps li::before { content: '✕'; position: absolute; left: 0; color: var(--red); font-size: 0.75rem; top: 2px; }
+  .proc-path.bot .proc-steps li::before { content: '✓'; position: absolute; left: 0; color: var(--forest); font-size: 0.8rem; top: 1px; font-weight: bold; }
+  .proc-callout { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; padding: 10px 14px; border-radius: 2px; line-height: 1.5; }
+  .proc-path.traditional .proc-callout { background: rgba(125,45,45,0.1); color: var(--red); border-left: 3px solid var(--red); }
+  .proc-path.bot .proc-callout { background: rgba(30,61,47,0.1); color: var(--forest); border-left: 3px solid var(--forest); }
+
+  /* Lead Gate */
+  .gate-block { background: white; border: 1.5px solid var(--rule); border-top: 4px solid var(--accent); padding: 32px; margin-bottom: 24px; }
+  .gate-block h3 { font-family: 'Libre Baskerville', serif; font-size: 1.1rem; margin-bottom: 6px; }
+  .gate-block p { font-size: 0.85rem; color: var(--muted); line-height: 1.55; margin-bottom: 24px; max-width: 520px; }
+  .gate-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .gate-form-grid .field.full { grid-column: 1 / -1; }
+  .gate-submit-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .gate-confirmed { display: none; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--green); letter-spacing: 0.04em; padding: 12px 0; }
+
+  /* CTA */
+  .cta-block { background: var(--ink); padding: 32px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .cta-text h4 { font-family: 'Libre Baskerville', serif; font-size: 1.1rem; color: white; margin-bottom: 6px; }
+  .cta-text p { font-size: 0.85rem; color: rgba(255,255,255,0.65); line-height: 1.55; max-width: 440px; }
+  .cta-action { flex-shrink: 0; text-align: center; }
+  .cta-name { font-family: 'Libre Baskerville', serif; font-size: 1rem; color: white; margin-bottom: 2px; }
+  .cta-company { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: rgba(255,255,255,0.5); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
+  .cta-btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; background: white; color: var(--ink); border: none; padding: 12px 24px; cursor: pointer; border-radius: 2px; text-decoration: none; display: inline-block; font-weight: 500; transition: background 0.15s; }
+  .cta-btn:hover { background: #e8e4dc; }
+
+  /* Disclaimer */
+  .disclaimer { font-size: 0.72rem; color: var(--muted); line-height: 1.5; border-top: 1px solid var(--rule); padding-top: 16px; font-style: italic; margin-bottom: 24px; }
+
+  /* Clarifying Questions Modal */
+  .clarify-overlay { position: fixed; inset: 0; background: rgba(26,26,24,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(2px); }
+  .clarify-modal { background: var(--paper); border: 2px solid var(--ink); max-width: 560px; width: 100%; padding: 36px; position: relative; }
+  .clarify-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); margin-bottom: 10px; }
+  .clarify-title { font-family: 'Libre Baskerville', serif; font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+  .clarify-subtitle { font-size: 0.85rem; color: var(--muted); line-height: 1.55; margin-bottom: 28px; }
+  .clarify-questions { display: flex; flex-direction: column; gap: 20px; margin-bottom: 28px; }
+  .clarify-q { display: flex; flex-direction: column; gap: 7px; }
+  .clarify-q label { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink); font-weight: 500; }
+  .clarify-q textarea { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.9rem; color: var(--ink); background: white; border: 1.5px solid var(--rule); border-radius: 2px; padding: 10px 14px; outline: none; transition: border-color 0.15s; width: 100%; resize: vertical; min-height: 64px; }
+  .clarify-q textarea:focus { border-color: var(--accent); }
+  .clarify-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .clarify-skip { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: transparent; border: 1px solid var(--rule); padding: 10px 18px; cursor: pointer; border-radius: 2px; transition: all 0.15s; }
+  .clarify-skip:hover { border-color: var(--ink); color: var(--ink); }
+  .clarify-hint { font-size: 0.75rem; color: var(--muted); font-style: italic; }
+
+    /* Footer */
+  footer { border-top: 1px solid var(--rule); padding: 20px 40px; font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--muted); letter-spacing: 0.06em; display: flex; justify-content: space-between; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    main { padding: 32px 20px 60px; }
+    header { padding: 16px 20px; flex-direction: column; gap: 6px; }
+    .form-grid, .form-grid-3, .gate-form-grid { grid-template-columns: 1fr; }
+    .type-grid { grid-template-columns: repeat(2, 1fr); }
+    .image-grid { grid-template-columns: repeat(2, 1fr); }
+    .proc-paths { grid-template-columns: 1fr; }
+    .proc-path.traditional { border-right: none; border-bottom: 1px solid var(--rule); }
+    .cta-block { flex-direction: column; text-align: center; }
+    .cta-text p { max-width: 100%; }
+    .cost-range { font-size: 1.8rem; }
+    footer { flex-direction: column; gap: 8px; padding: 16px 20px; }
+  }
+
+  @media print {
+    header .tagline, .form-section, h1, .intro, .page-label, .submit-row,
+    .loading-state, .print-btn, footer { display: none !important; }
+    main { padding: 0; }
+    body { background: white; }
+    #result { display: block !important; }
+    .cta-block { background: #f5f5f5 !important; }
+    .proc-header { background: #2d4a3a !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">Civic<span>Scope</span></div>
+  <div class="tagline">Municipal Project Feasibility — JBK Development</div>
+</header>
+
+<main>
+  <div class="page-label">Feasibility Screening Tool</div>
+  <h1>Is your project worth pursuing?</h1>
+  <p class="intro">Get a preliminary cost range before making your first phone call. Describe the project in plain language — no architect, no engineer, no commitment.</p>
+
+  <!-- ── SECTION 1: Location ── -->
+  <div class="form-section">
+    <div class="form-section-title">Your Location</div>
+    <div class="form-grid-3">
+      <div class="field">
+        <label>ZIP Code <span class="req">*</span></label>
+        <input type="text" id="zip" maxlength="5" placeholder="e.g. 46032" oninput="handleZip(this.value)" />
+        <div class="field-hint" id="zipStatus"></div>
+      </div>
+      <div class="field">
+        <label>State</label>
+        <input type="text" id="state" readonly placeholder="Auto-filled from ZIP" />
+      </div>
+      <div class="field">
+        <label>Municipality <span class="req">*</span></label>
+        <input type="text" id="location" placeholder="Auto-filled from ZIP" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 2: Project ── -->
+  <div class="form-section">
+    <div class="form-section-title">Project Type &amp; Scope</div>
+    <div class="form-grid">
+      <div class="field full">
+        <label>Project Type <span class="req">*</span></label>
+        <div class="type-grid" id="typeGrid">
+          <button class="type-btn" data-type="DPW / Public Works Garage" data-search="municipal DPW public works equipment garage exterior">
+            <span class="type-icon">🏗️</span>DPW / Public Works Garage
+          </button>
+          <button class="type-btn" data-type="Fire or EMS Station" data-search="small town fire station EMS building exterior">
+            <span class="type-icon">🚒</span>Fire or EMS Station
+          </button>
+          <button class="type-btn" data-type="Municipal Office / Town Hall" data-search="small town hall municipal office building exterior">
+            <span class="type-icon">🏛️</span>Municipal Office / Town Hall
+          </button>
+          <button class="type-btn" data-type="Community Center or Library" data-search="municipal community center library building exterior">
+            <span class="type-icon">📚</span>Community Center or Library
+          </button>
+          <button class="type-btn" data-type="Courts (Pickleball, Tennis, Basketball)" data-search="municipal pickleball tennis courts park">
+            <span class="type-icon">🎾</span>Courts (Pickleball, Tennis, Basketball)
+          </button>
+          <button class="type-btn" data-type="Park Building (Restroom, Pavilion, Shelter)" data-search="park restroom pavilion shelter outbuilding municipal">
+            <span class="type-icon">🌳</span>Park Building (Restroom, Pavilion, Shelter)
+          </button>
+          <button class="type-btn" data-type="Other Municipal Project" data-search="municipal government public building construction">
+            <span class="type-icon">🏢</span>Something Else
+          </button>
+        </div>
+        <input type="hidden" id="projectType" value="" />
+        <input type="hidden" id="imageSearch" value="" />
+      </div>
+
+      <div class="field full">
+        <label>New Build or Renovation?</label>
+        <div class="toggle-group" id="buildTypeGroup">
+          <button class="toggle-btn active" data-val="New construction">New Construction</button>
+          <button class="toggle-btn" data-val="Renovation / addition to existing structure">Renovation / Addition</button>
+        </div>
+        <input type="hidden" id="buildType" value="New construction" />
+      </div>
+
+      <div class="field full">
+        <label>Describe the Project <span class="req">*</span></label>
+        <textarea id="scope" placeholder="Describe what you have in mind in plain language. For example: We need a simple garage for our street department — two or three bays, one large enough for a plow truck, basic heat and lighting, no office space. We have an existing town-owned site."></textarea>
+        <div class="field-hint">No technical specs needed. Plain language is fine. More detail improves the confidence level of your estimate.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 3: Site Conditions ── -->
+  <div class="form-section">
+    <div class="form-section-title">Site Conditions <span class="optional-note">— optional, improves accuracy</span></div>
+    <div class="form-grid">
+      <div class="field full">
+        <label>Site Topography</label>
+        <div class="toggle-group" id="topoGroup">
+          <button class="toggle-btn" data-val="Flat / level site">Flat / Level</button>
+          <button class="toggle-btn" data-val="Gently sloped">Gently Sloped</button>
+          <button class="toggle-btn" data-val="Steeply sloped">Steeply Sloped</button>
+          <button class="toggle-btn" data-val="Wooded / clearing required">Wooded / Clearing Required</button>
+          <button class="toggle-btn" data-val="Existing structure requires demolition">Demo of Existing Structure</button>
+        </div>
+        <input type="hidden" id="topography" value="" />
+      </div>
+      <div class="field full">
+        <label>Utilities Available On-Site</label>
+        <div class="checkbox-group">
+          <label class="checkbox-item"><input type="checkbox" id="util-water" value="Municipal water"> Municipal Water</label>
+          <label class="checkbox-item"><input type="checkbox" id="util-sewer" value="Municipal sewer"> Municipal Sewer</label>
+          <label class="checkbox-item"><input type="checkbox" id="util-electric" value="Electric service"> Electric Service</label>
+          <label class="checkbox-item"><input type="checkbox" id="util-none" value="No utilities on site"> No Utilities On-Site</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="submit-row">
+    <button class="primary" id="submitBtn" onclick="runFeasibility()">Run Feasibility Check</button>
+    <div class="submit-note">Takes about 20 seconds &nbsp;·&nbsp; No account required</div>
+  </div>
+
+  <div class="loading-state" id="loading">
+    <div class="spinner"></div>
+    <span id="loadingMsg">Analyzing regional cost data and project parameters...</span>
+  </div>
+  <div class="error-block" id="errorBlock"></div>
+
+  <hr class="divider" id="resultDivider" style="display:none">
+
+  <!-- ── RESULTS ── -->
+  <div id="result">
+
+    <div class="result-header">
+      <div>
+        <div class="result-title" id="resultTitle">Preliminary Feasibility Indicator</div>
+        <div class="result-meta" id="resultMeta"></div>
+      </div>
+      <div class="confidence-badge" id="confidenceBadge"></div>
+    </div>
+
+    <button class="print-btn" onclick="window.print()">↓ Print / Save as PDF</button>
+
+    <!-- Reference Images -->
+    <div class="images-block" id="imagesBlock">
+      <h3>Reference Projects — Similar Construction Type</h3>
+      <div class="image-grid" id="imageGrid"></div>
+      <div class="field-hint" style="margin-top:8px;">Visual reference only — example projects of similar type and scale.</div>
+    </div>
+
+    <!-- Cost Range -->
+    <div class="cost-range-block">
+      <div class="cost-label">Estimated Project Cost Range</div>
+      <div class="cost-range" id="costRange">—</div>
+      <div class="cost-midpoint" id="costMidpoint"></div>
+    </div>
+
+    <!-- Narrative -->
+    <div class="narrative-block" id="narrativeBlock"></div>
+
+    <!-- Assumptions -->
+    <div class="assumptions-block">
+      <div class="block-label">Assumptions Behind This Estimate</div>
+      <ul class="assumption-list" id="assumptionList"></ul>
+    </div>
+
+    <!-- Council Briefing Guide -->
+    <div class="briefing-block">
+      <div class="block-label">Council Briefing Guide</div>
+      <p class="briefing-intro">AI-generated talking points tailored to your project. Review and edit before using.</p>
+      <div id="briefingContent">
+        <div class="section-loading">
+          <div class="spinner" style="border-top-color:var(--pitch);"></div>
+          Drafting your council briefing guide...
+        </div>
+      </div>
+    </div>
+
+    <!-- Procurement Comparison -->
+    <div class="procurement-block">
+      <div class="proc-header">
+        <h3>Understanding Your Path to Getting This Built</h3>
+        <p>The procurement path you choose affects your total cost, your timeline, and how much risk your municipality carries</p>
+      </div>
+      <div class="proc-paths">
+        <div class="proc-path traditional">
+          <div class="proc-path-label">Traditional Path</div>
+          <h4>Plan-Spec-Low Bid</h4>
+          <ul class="proc-steps">
+            <li>Design and engineering fees paid <strong>before any commitment</strong> — typically 8–12% of project cost spent before a shovel hits the ground</li>
+            <li>Public bid advertising required — <strong>12–18 months</strong> from design start to groundbreaking</li>
+            <li>Legally required to accept the <strong>lowest bidder</strong> regardless of track record or fit</li>
+            <li>Change orders average <strong>11% cost growth</strong> after award on public low-bid projects</li>
+            <li>If bids exceed budget, design fees are <strong>spent with nothing to show</strong></li>
+          </ul>
+          <div class="proc-callout" id="tradCallout">On a project in this range, design fees and change order risk can add significantly to your final cost.</div>
+        </div>
+        <div class="proc-path bot">
+          <div class="proc-path-label">Alternative Path</div>
+          <h4>Build-Operate-Transfer (BOT) / P3</h4>
+          <ul class="proc-steps">
+            <li><strong>No upfront design spend.</strong> Receive a Guaranteed Maximum Price before committing to design dollars</li>
+            <li>Design and contractor teams engaged together <strong>from day one</strong> — maximizing value engineering before costs are locked</li>
+            <li>In Indiana, BOT statute allows GMP procurement — <strong>no low-bid requirement</strong></li>
+            <li><strong>No change orders</strong> — cost overrun risk stays with the developer, not your municipality</li>
+            <li>Privately delivered — <strong>reduced administrative burden</strong> on municipal staff throughout the project</li>
+          </ul>
+          <div class="proc-callout">Developer fee ~4% of project cost. No change orders. Budget certainty from day one.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lead Gate -->
+    <div class="gate-block" id="gateBlock">
+      <h3>Get Your Full Feasibility Report</h3>
+      <p>Enter your information below and we'll email you a complete PDF summary of this report — including cost range, assumptions, council briefing guide, and procurement options.</p>
+      <div class="gate-form-grid">
+        <div class="field">
+          <label>First Name <span class="req">*</span></label>
+          <input type="text" id="gateFirst" placeholder="First name" />
+        </div>
+        <div class="field">
+          <label>Last Name <span class="req">*</span></label>
+          <input type="text" id="gateLast" placeholder="Last name" />
+        </div>
+        <div class="field">
+          <label>Your Role <span class="req">*</span></label>
+          <select id="gateRole">
+            <option value="">— Select your role —</option>
+            <option>Town / City Manager</option>
+            <option>Mayor</option>
+            <option>Council Member</option>
+            <option>Department Director</option>
+            <option>Clerk / Administrator</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Email Address <span class="req">*</span></label>
+          <input type="email" id="gateEmail" placeholder="you@municipality.gov" />
+        </div>
+        <div class="field full">
+          <label>Municipality</label>
+          <input type="text" id="gateMunicipality" placeholder="Auto-filled" readonly />
+        </div>
+      </div>
+      <div class="gate-submit-row">
+        <button class="primary" id="gateBtn" onclick="submitLead()">Email Me This Report</button>
+        <div class="submit-note">Your information is only shared with JBK Development</div>
+      </div>
+      <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. Keith Plummer from JBK Development will follow up shortly.</div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-block">
+      <div class="cta-text">
+        <h4>Ready to explore how to deliver this project?</h4>
+        <p>JBK Development helps Indiana and Michigan municipalities evaluate feasibility and structure projects from concept through construction — often avoiding the risks of the traditional design&#8211;bid&#8211;build process.</p>
+      </div>
+      <div class="cta-action">
+        <div class="cta-name">Keith Plummer</div>
+        <div class="cta-company">JBK Development</div>
+        <a href="/cdn-cgi/l/email-protection#7c17191508143c161e1718190a1910130c11191208521f1311430f091e16191f08413f150a151f2f1f130c19594e4c3a191d0f151e1510150805594e4c35120d09150e05" class="cta-btn">Start a Conversation →</a>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      This is a preliminary feasibility indicator only, not a formal cost estimate. It is intended to support early internal go/no-go decisions and should not be used for budgeting, procurement, or council appropriations without professional verification. Actual costs depend on site conditions, design requirements, local labor markets, and material prices at time of bid. CivicScope is a tool of JBK Development.
+    </div>
+
+  </div>
+
+<!-- ── CLARIFYING QUESTIONS MODAL ── -->
+<div class="clarify-overlay" id="clarifyOverlay" style="display:none">
+  <div class="clarify-modal">
+    <div class="clarify-eyebrow">One moment — quick clarification</div>
+    <div class="clarify-title" id="clarifyTitle">A few details will sharpen your estimate</div>
+    <div class="clarify-subtitle" id="clarifySubtitle">Your description gives us a good starting point. Answering these questions will move your confidence level from <strong>Low</strong> to <strong>Moderate or High</strong> — and narrow the cost range.</div>
+    <div class="clarify-questions" id="clarifyQuestions">
+      <!-- Populated dynamically -->
+    </div>
+    <div class="clarify-actions">
+      <button class="primary" onclick="submitClarifications()">Sharpen My Estimate</button>
+      <button class="clarify-skip" onclick="skipClarifications()">Skip — run with what I have</button>
+      <span class="clarify-hint">Takes 30 seconds</span>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <span style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--muted);letter-spacing:0.06em;">v1.2.0 — Free</span>
+  <span>CivicScope &nbsp;·&nbsp; JBK Development &nbsp;·&nbsp; <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="573c323e233f173d353c333221323b38273a3239237934383a">[email&#160;protected]</a></span>
+  <span>For planning purposes only — not a licensed cost estimate</span>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ── Session & Data Capture ───────────────────────────────────────────
+let _sessionId = null;
+let _runId = null;
+
+async function logAction(action, data) {
+  try {
+    const r = await fetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, data })
+    });
+    const json = await r.json();
+    return json;
+  } catch (e) {
+    // Never block UX on logging failures
+    return null;
+  }
+}
+
+async function initSession() {
+  const result = await logAction('create_session', {
+    referrer: document.referrer || null,
+    userAgent: navigator.userAgent
+  });
+  if (result && result.session_id) {
+    _sessionId = result.session_id;
+  }
+}
+
+// Init session on page load
+initSession();
+
+// ── ZIP Code lookup ──────────────────────────────────────────────────
+const ZIP_DATA = {};
+
+async function handleZip(zip) {
+  if (zip.length !== 5) {
+    if (zip.length < 5) {
+      document.getElementById('state').value = '';
+      document.getElementById('location').value = '';
+      document.getElementById('zipStatus').textContent = '';
+    }
+    return;
+  }
+  try {
+    const resp = await fetch(`https://api.zippopotam.us/us/${zip}`);
+    if (!resp.ok) throw new Error('Not found');
+    const data = await resp.json();
+    const place = data.places[0];
+    document.getElementById('state').value = place['state'];
+    document.getElementById('gateMunicipality').value = '';
+    document.getElementById('zipStatus').textContent = `✓ ${place['place name']}, ${place['state abbreviation']}`;
+    document.getElementById('zipStatus').style.color = 'var(--green)';
+  } catch {
+    document.getElementById('zipStatus').textContent = 'ZIP not found — enter state and municipality manually';
+    document.getElementById('zipStatus').style.color = 'var(--amber)';
+    document.getElementById('state').removeAttribute('readonly');
+  }
+}
+
+// ── Toggle groups ────────────────────────────────────────────────────
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('projectType').value = btn.dataset.type;
+    document.getElementById('imageSearch').value = btn.dataset.search;
+  });
+});
+
+document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('buildType').value = btn.dataset.val;
+  });
+});
+
+document.querySelectorAll('#topoGroup .toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#topoGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('topography').value = btn.dataset.val;
+  });
+});
+
+// ── Helpers ──────────────────────────────────────────────────────────
+function formatCurrency(n) {
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M';
+  return '$' + n.toLocaleString('en-US');
+}
+
+function getUtilities() {
+  const vals = ['util-water','util-sewer','util-electric','util-none']
+    .filter(id => document.getElementById(id).checked)
+    .map(id => document.getElementById(id).value);
+  return vals.length ? vals.join(', ') : 'Not specified';
+}
+
+function loadImages(searchQuery) {
+  const grid = document.getElementById('imageGrid');
+  const block = document.getElementById('imagesBlock');
+  grid.innerHTML = '';
+  const terms = [
+    encodeURIComponent(searchQuery),
+    encodeURIComponent(searchQuery.split(' ').slice(0,4).join(' ') + ' building'),
+    encodeURIComponent(searchQuery.split(' ').slice(0,3).join(' ') + ' architecture')
+  ];
+  terms.forEach((kw, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'img-wrapper';
+    const img = document.createElement('img');
+    img.src = `https://source.unsplash.com/400x300/?${kw}&sig=${Date.now()+i}`;
+    img.alt = 'Reference project';
+    img.onerror = () => { wrap.style.display = 'none'; };
+    const cap = document.createElement('div');
+    cap.className = 'image-caption';
+    cap.textContent = 'Reference only — similar project type';
+    wrap.appendChild(img);
+    wrap.appendChild(cap);
+    grid.appendChild(wrap);
+  });
+  block.style.display = 'block';
+}
+
+function updateProcCallout(low, high) {
+  const designLow = formatCurrency(Math.round(low * 0.08));
+  const designHigh = formatCurrency(Math.round(high * 0.12));
+  const changeRisk = formatCurrency(Math.round(((low + high) / 2) * 0.11));
+  document.getElementById('tradCallout').textContent =
+    `On a project in this range: design fees ${designLow}–${designHigh} before commitment, plus ~${changeRisk} in estimated change order exposure after low-bid award.`;
+}
+
+// ── API call ─────────────────────────────────────────────────────────
+async function callClaude(prompt) {
+  const resp = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await resp.json();
+  const text = data.content.map(i => i.text || '').join('');
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
+// ── Feasibility estimate ─────────────────────────────────────────────
+async function runFeasibility() {
+  const zip      = document.getElementById('zip').value.trim();
+  const location = document.getElementById('location').value.trim();
+  const state    = document.getElementById('state').value.trim();
+  const type     = document.getElementById('projectType').value;
+  const buildType = document.getElementById('buildType').value;
+  const scope    = document.getElementById('scope').value.trim();
+  const topo     = document.getElementById('topography').value;
+  const utils    = getUtilities();
+  const imgSearch = document.getElementById('imageSearch').value;
+
+  if (!location || !state || !type || !scope) {
+    alert('Please fill in your location, select a project type, and describe your project.');
+    return;
+  }
+
+  // Bundle run data for potential clarify flow
+  _pendingRunData = { zip, location, state, type, buildType, scope, topo, utils, imgSearch };
+
+  // Check if description is too vague to get a confident estimate
+  const vagueness = scoreVagueness(scope, type);
+  if (vagueness >= 0.45) {
+    // Show loading indicator while generating questions
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Preparing clarifying questions...';
+    try {
+      const questions = await callClaudeRaw(`You are helping a municipal official get a better construction cost estimate. They described their project as:\n\nPROJECT TYPE: ${type}\nSTATE: ${state}\nDESCRIPTION: "${scope}"\n\nGenerate exactly 2 clarifying questions that would most improve the accuracy of a construction cost estimate. Focus on the single highest-impact unknown — usually size/scale, then functional specifics.\n\nRules:\n- Only ask what is NOT already answered above\n- Short, plain-language question labels (5-8 words)\n- Conversational placeholder examples\n\nRespond ONLY with valid JSON array, no markdown:\n[\n  { "id": "q1", "label": "Short question label", "placeholder": "e.g. example answer..." },\n  { "id": "q2", "label": "Short question label", "placeholder": "e.g. example answer..." }\n]`);
+      if (questions && questions.length > 0) {
+        btn.disabled = false;
+        btn.textContent = 'Run Feasibility Check';
+        showClarifyModal(questions);
+        return;
+      }
+    } catch(e) {
+      // If question generation fails, just run normally
+    }
+    btn.disabled = false;
+    btn.textContent = 'Run Feasibility Check';
+  }
+
+  await executeRun(_pendingRunData);
+}
+
+// ── Execute the actual feasibility run ───────────────────────────────
+async function executeRun(runData) {
+  const { zip, location, state, type, buildType, scope, topo, utils, imgSearch } = runData;
+
+  const btn = document.getElementById('submitBtn');
+  const loading = document.getElementById('loading');
+  const loadingMsg = document.getElementById('loadingMsg');
+  const errorBlock = document.getElementById('errorBlock');
+  const resultEl = document.getElementById('result');
+  const divider = document.getElementById('resultDivider');
+
+  btn.disabled = true;
+  loading.style.display = 'flex';
+  loadingMsg.textContent = 'Analyzing regional cost data and project parameters...';
+  errorBlock.style.display = 'none';
+  resultEl.style.display = 'none';
+  divider.style.display = 'none';
+  document.getElementById('imagesBlock').style.display = 'none';
+
+  const prompt = `You are a municipal construction cost advisor helping local government officials in the Midwest assess project feasibility before engaging architects or contractors.
+
+LOCATION: ${location}, ${state} (ZIP: ${zip})
+PROJECT TYPE: ${type}
+BUILD TYPE: ${buildType}
+DESCRIPTION: ${scope}
+SITE TOPOGRAPHY: ${topo || 'Not specified'}
+UTILITIES ON SITE: ${utils}
+
+Provide an honest preliminary cost range based on regional construction costs for ${state}. Factor in all site conditions provided.
+
+Respond ONLY with valid JSON, no markdown, no preamble:
+{
+  "low": <integer dollar amount>,
+  "high": <integer dollar amount>,
+  "confidence": "<High|Moderate|Low>",
+  "confidence_reason": "<one sentence>",
+  "narrative": "<2-3 sentences for a non-technical town manager — is this feasible, what drives the cost, any watch-outs?>",
+  "assumptions": [
+    "<specific assumption 1>",
+    "<specific assumption 2>",
+    "<specific assumption 3>",
+    "<specific assumption 4>",
+    "<site or utility assumption>"
+  ],
+  "project_label": "<3-6 word label, e.g. 'DPW 3-Bay Equipment Garage' or '6-Court Pickleball Complex'>"
+}
+
+Rules:
+- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance
+- Exclude land acquisition
+- If no utilities on site, add realistic extension costs to range
+- If demo required, include demo costs
+- Renovation projects typically cost 60-80% of new construction per SF
+- Vague descriptions get Low confidence and wider ranges
+- ${state} regional labor market costs should be reflected
+- Write for a town manager, not a contractor`;
+
+  const runStart = Date.now();
+
+  try {
+    const rd = await callClaude(prompt);
+    const runDuration = Date.now() - runStart;
+
+    // Log run to Supabase — fire and forget, never blocks UX
+    logAction('log_run', {
+      session_id: _sessionId,
+      zip, state, municipality: location,
+      project_type: type,
+      build_type: buildType,
+      scope_description: scope,
+      topography: topo,
+      utilities: utils.split(', ').filter(Boolean),
+      cost_low: rd.low,
+      cost_high: rd.high,
+      cost_midpoint: Math.round((rd.low + rd.high) / 2),
+      confidence: rd.confidence,
+      confidence_reason: rd.confidence_reason,
+      narrative: rd.narrative,
+      assumptions: rd.assumptions,
+      project_label: rd.project_label,
+      run_duration_ms: runDuration
+    }).then(r => { if (r && r.run_id) _runId = r.run_id; });
+
+    // Populate header
+    document.getElementById('resultTitle').textContent = rd.project_label || 'Preliminary Feasibility Indicator';
+    document.getElementById('resultMeta').innerHTML =
+      `${location}, ${state} &nbsp;·&nbsp; ${type} &nbsp;·&nbsp; ${buildType}`;
+
+    const badge = document.getElementById('confidenceBadge');
+    badge.textContent = rd.confidence + ' Confidence';
+    badge.className = 'confidence-badge confidence-' + rd.confidence.toLowerCase();
+
+    // Cost range
+    document.getElementById('costRange').textContent =
+      formatCurrency(rd.low) + ' – ' + formatCurrency(rd.high);
+    const mid = Math.round((rd.low + rd.high) / 2);
+    document.getElementById('costMidpoint').innerHTML =
+      `Midpoint: <strong>${formatCurrency(mid)}</strong> &nbsp;·&nbsp; ${rd.confidence_reason}`;
+
+    document.getElementById('narrativeBlock').textContent = rd.narrative;
+
+    // Assumptions
+    const ul = document.getElementById('assumptionList');
+    ul.innerHTML = '';
+    rd.assumptions.forEach(a => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+
+    // Procurement callout
+    updateProcCallout(rd.low, rd.high);
+
+    // Pre-fill gate municipality
+    document.getElementById('gateMunicipality').value = location;
+
+    // Show results
+    divider.style.display = 'block';
+    resultEl.style.display = 'block';
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Load images
+    if (imgSearch) loadImages(imgSearch);
+
+    // Load briefing guide async
+    document.getElementById('briefingContent').innerHTML =
+      `<div class="section-loading"><div class="spinner" style="border-top-color:var(--pitch);"></div> Drafting your council briefing guide...</div>`;
+
+    fetchBriefing(rd.project_label, rd.low, rd.high, state, location, type, scope, buildType)
+      .then(b => renderBriefing(b))
+      .catch(() => {
+        document.getElementById('briefingContent').innerHTML =
+          '<p style="font-size:0.85rem;color:var(--muted);">Could not generate briefing guide. Try re-running the feasibility check.</p>';
+      });
+
+  } catch (err) {
+    errorBlock.textContent = 'Something went wrong. Please check your inputs and try again — more detail in the description usually helps.';
+    errorBlock.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    loading.style.display = 'none';
+  }
+}
+
+// ── Council Briefing Guide ───────────────────────────────────────────
+async function fetchBriefing(label, low, high, state, location, type, scope, buildType) {
+  const prompt = `You are a municipal communications advisor helping a town manager prepare to present a capital project to their council for the first time.
+
+PROJECT: ${label}
+LOCATION: ${location}, ${state}
+TYPE: ${type} — ${buildType}
+DESCRIPTION: ${scope}
+ESTIMATED COST RANGE: ${formatCurrency(low)} – ${formatCurrency(high)} (midpoint ~${formatCurrency(Math.round((low+high)/2))})
+
+Respond ONLY with valid JSON, no markdown, no preamble:
+{
+  "opening": "<One natural sentence the manager can say to open this topic at a council meeting — confident, not salesy>",
+  "talking_points": [
+    "<why this project matters to residents — specific to this project type>",
+    "<why now is a reasonable time to explore it — practical, not urgent>",
+    "<what the cost range means and how to frame it — reassuring, not technical>"
+  ],
+  "likely_questions": [
+    { "q": "<most likely skeptical council question>", "a": "<brief, direct answer>" },
+    { "q": "<second likely question>", "a": "<brief answer>" },
+    { "q": "<third likely question>", "a": "<brief answer>" }
+  ],
+  "next_step": "<One sentence — the lowest-commitment ask you can make to council to move this forward. Easy to say yes to.>"
+}`;
+
+  return await callClaude(prompt);
+}
+
+function renderBriefing(b) {
+  let html = '';
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Opening Line</div>
+    <div class="opening-quote">"${b.opening}"</div>
+  </div>`;
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Key Talking Points</div>
+    <ul class="pitch-points">${b.talking_points.map(p => `<li>${p}</li>`).join('')}</ul>
+  </div>`;
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Likely Council Questions &amp; Suggested Answers</div>`;
+  b.likely_questions.forEach(qa => {
+    html += `<div class="qa-item">
+      <div class="qa-q">Q: ${qa.q}</div>
+      <div class="qa-a">${qa.a}</div>
+    </div>`;
+  });
+  html += `</div>`;
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Recommended Ask to Council</div>
+    <div class="recommended-ask">${b.next_step}</div>
+  </div>`;
+  document.getElementById('briefingContent').innerHTML = html;
+}
+
+// ── Lead Gate ────────────────────────────────────────────────────────
+async function submitLead() {
+  const first = document.getElementById('gateFirst').value.trim();
+  const last  = document.getElementById('gateLast').value.trim();
+  const role  = document.getElementById('gateRole').value;
+  const email = document.getElementById('gateEmail').value.trim();
+  const muni  = document.getElementById('gateMunicipality').value.trim();
+  const project = document.getElementById('resultTitle').textContent;
+  const costRange = document.getElementById('costRange').textContent;
+
+  if (!first || !last || !role || !email) {
+    alert('Please fill in all fields to receive your report.');
+    return;
+  }
+
+  const gateBtn = document.getElementById('gateBtn');
+  gateBtn.disabled = true;
+  gateBtn.textContent = 'Sending...';
+
+  try {
+    // Log lead to Supabase
+    logAction('log_lead', {
+      session_id: _sessionId,
+      tool_run_id: _runId,
+      first_name: first,
+      last_name: last,
+      email: email,
+      role: role,
+      municipality: muni
+    });
+
+    await fetch('https://formspree.io/f/mykngqwq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: `${first} ${last}`,
+        role: role,
+        email: email,
+        municipality: muni,
+        project: project,
+        cost_range: costRange,
+        zip: document.getElementById('zip').value,
+        state: document.getElementById('state').value,
+        project_type: document.getElementById('projectType').value,
+        scope: document.getElementById('scope').value.trim(),
+        _subject: `CivicScope Lead — ${first} ${last}, ${role}, ${muni}`
+      })
+      });
+
+    // Log lead to Supabase
+    await logAction('log_lead', {
+      first, last, role, email, municipality: muni
+    });
+
+    document.getElementById('gateConfirmed').style.display = 'block';
+    document.getElementById('gateBtn').style.display = 'none';
+
+  } catch (err) {
+    gateBtn.disabled = false;
+    gateBtn.textContent = 'Email Me This Report';
+    alert('Something went wrong. Please try again.');
+  }
+}
+
+
+// ── Clarifying Questions System ─────────────────────────────────────
+// State
+let _clarifyQuestions = [];
+let _pendingRunData = null;
+
+// Score how vague a scope description is (0 = very detailed, 1 = very vague)
+function scoreVagueness(scope, projectType) {
+  const words = scope.trim().split(/\s+/).length;
+  const hasNumbers = /\d/.test(scope);
+  const hasSF = /sq\s*ft|square\s*feet|sf|bays?|stall|court|room/i.test(scope);
+  const hasSize = /small|large|medium|\d+[x-]\d+|\d+\s*(bay|stall|court)/i.test(scope);
+  const hasPurpose = /storage|office|vehicle|equipment|meeting|restroom/i.test(scope);
+
+  let score = 0;
+  if (words < 15) score += 0.35;
+  if (words < 8)  score += 0.25;
+  if (!hasNumbers) score += 0.15;
+  if (!hasSF)      score += 0.15;
+  if (!hasSize)    score += 0.10;
+  if (!hasPurpose) score += 0.10;
+
+  return Math.min(score, 1.0);
+}
+
+// Ask Claude what questions to ask
+async function generateClarifyingQuestions(scope, projectType, state) {
+  const prompt = `You are helping a municipal official get a better construction cost estimate. They described their project as:
+
+PROJECT TYPE: ${projectType}
+STATE: ${state}
+DESCRIPTION: "${scope}"
+
+Generate exactly 2-3 clarifying questions that would most improve the accuracy of a construction cost estimate for this specific project. Focus on the highest-impact unknowns — things like size/square footage, number of functional units, specific amenities, or site constraints.
+
+Rules:
+- Ask only what is NOT already answered in the description above
+- Questions must be answerable by a non-technical town manager
+- Be specific to the project type
+- Short question labels, conversational placeholder text
+
+Respond ONLY with valid JSON array, no markdown:
+[
+  {
+    "id": "q1",
+    "label": "Short question label (5-8 words)",
+    "placeholder": "e.g. example answer to guide them..."
+  },
+  {
+    "id": "q2", 
+    "label": "Short question label (5-8 words)",
+    "placeholder": "e.g. example answer..."
+  }
+]`;
+
+  try {
+    const data = await callClaude(prompt);
+    // callClaude returns parsed JSON — but this is an array
+    return data;
+  } catch(e) {
+    return null;
+  }
+}
+
+// Override callClaude to handle array responses
+async function callClaudeRaw(prompt) {
+  const resp = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await resp.json();
+  const text = data.content.map(i => i.text || '').join('');
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
+// Show the clarifying modal
+function showClarifyModal(questions) {
+  _clarifyQuestions = questions;
+  const container = document.getElementById('clarifyQuestions');
+  container.innerHTML = '';
+  questions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'clarify-q';
+    div.innerHTML = `
+      <label>${q.label}</label>
+      <textarea id="clarify_${q.id}" placeholder="${q.placeholder}" rows="2"></textarea>
+    `;
+    container.appendChild(div);
+  });
+  document.getElementById('clarifyOverlay').style.display = 'flex';
+}
+
+// Submit clarifications — append answers to scope and run
+async function submitClarifications() {
+  if (!_pendingRunData) return;
+  const answers = _clarifyQuestions.map(q => {
+    const val = document.getElementById('clarify_' + q.id)?.value?.trim();
+    return val ? `${q.label}: ${val}` : null;
+  }).filter(Boolean);
+
+  document.getElementById('clarifyOverlay').style.display = 'none';
+
+  // Append clarifications to the original scope
+  if (answers.length > 0) {
+    const extra = '\n\nAdditional details: ' + answers.join('. ');
+    _pendingRunData.scope = _pendingRunData.scope + extra;
+  }
+
+  await executeRun(_pendingRunData);
+}
+
+// Skip clarifications — run as-is
+async function skipClarifications() {
+  document.getElementById('clarifyOverlay').style.display = 'none';
+  if (_pendingRunData) await executeRun(_pendingRunData);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // ZIP auto-fill state only
+  document.getElementById('zip').addEventListener('blur', async function() {
+    const zip = this.value.trim();
+    if (zip.length !== 5) return;
+    try {
+      const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      document.getElementById('state').value = data.places[0]['state abbreviation'];
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>
