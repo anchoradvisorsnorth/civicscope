@@ -4,24 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CivicScope — Municipal Project Feasibility</title>
-<!-- Design system: /civicscope.css -->
-<!-- Page-specific styles below. When migrating app to app.civicscope.io,
-     replace :root block + shared styles with: <link rel="stylesheet" href="/civicscope.css"> -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400;1,9..144,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
-
 <style>
 /* ═══════════════════════════════════════════
    CIVICSCOPE DESIGN SYSTEM
-   Single source of truth — all pages import this
 ═══════════════════════════════════════════ */
 :root {
-  /* Typography */
   --font-display: 'Fraunces', serif;
   --font-body: 'DM Sans', sans-serif;
-
-  /* Colors */
   --cream:        #faf8f4;
   --cream-dark:   #f2ede4;
   --white:        #ffffff;
@@ -34,13 +26,13 @@
   --accent-hover: #a83509;
   --accent-light: #fff3ec;
   --accent-dim:   rgba(194, 65, 12, 0.1);
-
-  /* Spacing */
-  --page-pad: 80px;
-  --section-pad: 96px;
+  --green:        #15803d;
+  --green-light:  #dcfce7;
+  --amber:        #92400e;
+  --amber-light:  #fef3c7;
+  --page-pad: 48px;
 }
 
-/* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
@@ -51,33 +43,28 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Utility ── */
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-
-/* ══════════════════════════════════════════
-   HEADER / NAV
-══════════════════════════════════════════ */
+/* ── Header ── */
 header {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(250, 248, 244, 0.92);
+  background: rgba(250, 248, 244, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--rule);
 }
 .header-inner {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 0 var(--page-pad);
-  height: 64px;
+  height: 60px;
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 24px;
 }
 .wordmark {
   font-family: var(--font-display);
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   font-weight: 600;
   color: var(--ink);
   letter-spacing: -0.03em;
@@ -87,1498 +74,1358 @@ header {
   gap: 6px;
 }
 .wordmark-dot {
-  width: 7px;
-  height: 7px;
+  width: 7px; height: 7px;
   border-radius: 50%;
   background: var(--accent);
   display: inline-block;
   margin-bottom: 2px;
   flex-shrink: 0;
 }
-.header-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--rule);
-}
+.header-divider { width: 1px; height: 18px; background: var(--rule); }
 .header-tagline {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--muted);
   font-weight: 300;
   letter-spacing: 0.02em;
 }
-nav {
+.header-badge {
   margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 28px;
-}
-nav a {
-  font-size: 0.82rem;
-  color: var(--muted);
-  text-decoration: none;
-  font-weight: 400;
-  letter-spacing: 0.01em;
-  transition: color 0.15s;
-}
-nav a:hover { color: var(--ink); }
-.btn-nav {
-  background: var(--accent);
-  color: white !important;
-  padding: 8px 20px;
-  border-radius: 3px;
-  font-size: 0.82rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: background 0.15s;
-  white-space: nowrap;
-}
-.btn-nav:hover { background: var(--accent-hover) !important; }
-
-/* ══════════════════════════════════════════
-   HERO
-══════════════════════════════════════════ */
-.hero {
-  background: var(--ink);
-  padding: 100px var(--page-pad) 0;
-  overflow: hidden;
-  position: relative;
-}
-.hero::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background:
-    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(194,65,12,0.12) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(194,65,12,0.06) 0%, transparent 50%);
-  pointer-events: none;
-}
-.hero-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 80px;
-  align-items: end;
-  position: relative;
-}
-.hero-content { padding-bottom: 80px; }
-.hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(194,65,12,0.15);
-  border: 1px solid rgba(194,65,12,0.3);
-  color: #f97316;
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 5px 12px;
+  font-size: 0.72rem;
+  color: var(--green);
+  background: var(--green-light);
+  padding: 4px 10px;
   border-radius: 20px;
-  margin-bottom: 28px;
-  animation: fadeUp 0.6s ease both;
-}
-.hero-eyebrow-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #f97316;
-  animation: pulse 2s ease infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
-}
-.hero h1 {
-  font-family: var(--font-display);
-  font-size: clamp(2.8rem, 4.5vw, 4rem);
-  font-weight: 600;
-  line-height: 1.1;
-  color: white;
-  letter-spacing: -0.03em;
-  margin-bottom: 24px;
-  animation: fadeUp 0.6s 0.1s ease both;
-}
-.hero h1 em {
-  font-style: italic;
-  font-weight: 300;
-  color: rgba(255,255,255,0.55);
-}
-.hero h1 strong {
-  font-style: normal;
-  font-weight: 600;
-  color: #fb923c;
-}
-.hero-sub {
-  font-size: 1.05rem;
-  color: rgba(255,255,255,0.55);
-  max-width: 500px;
-  line-height: 1.75;
-  margin-bottom: 40px;
-  font-weight: 300;
-  animation: fadeUp 0.6s 0.2s ease both;
-}
-.hero-cta {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  animation: fadeUp 0.6s 0.3s ease both;
-}
-.btn-primary {
-  background: var(--accent);
-  color: white;
-  font-family: var(--font-body);
-  font-size: 0.9rem;
   font-weight: 500;
-  padding: 14px 28px;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.15s, transform 0.1s;
-}
-.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
-.btn-primary svg { transition: transform 0.15s; }
-.btn-primary:hover svg { transform: translateX(3px); }
-.btn-secondary {
-  color: rgba(255,255,255,0.45);
-  font-size: 0.85rem;
-  text-decoration: none;
-  font-weight: 300;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: color 0.15s;
-}
-.btn-secondary:hover { color: rgba(255,255,255,0.7); }
-
-/* Hero illustration */
-.hero-illustration {
-  align-self: end;
-  animation: fadeUp 0.8s 0.15s ease both;
+  letter-spacing: 0.01em;
 }
 
-/* ══════════════════════════════════════════
-   TRUST BAR
-══════════════════════════════════════════ */
-.trust-bar {
-  background: var(--cream-dark);
-  border-bottom: 1px solid var(--rule);
-  padding: 20px var(--page-pad);
-}
-.trust-bar-inner {
-  max-width: 1200px;
+/* ── Page layout ── */
+.page-wrap {
+  max-width: 1100px;
   margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 48px;
-}
-.trust-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.78rem;
-  color: var(--muted);
-  font-weight: 400;
-  white-space: nowrap;
-}
-.trust-item svg { color: var(--accent); flex-shrink: 0; }
-.trust-divider {
-  width: 1px;
-  height: 16px;
-  background: var(--rule);
-}
-
-/* ══════════════════════════════════════════
-   SECTIONS — shared
-══════════════════════════════════════════ */
-.section {
-  padding: var(--section-pad) var(--page-pad);
-}
-.section-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.section-label {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.section-label::before {
-  content: '';
-  display: block;
-  width: 20px;
-  height: 1.5px;
-  background: var(--accent);
-  flex-shrink: 0;
-}
-.section-heading {
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 3vw, 2.8rem);
-  font-weight: 600;
-  color: var(--ink);
-  line-height: 1.15;
-  letter-spacing: -0.03em;
-  max-width: 640px;
-  margin-bottom: 16px;
-}
-.section-heading em {
-  font-style: italic;
-  font-weight: 300;
-  color: var(--muted);
-}
-.section-intro {
-  font-size: 1rem;
-  color: var(--muted);
-  line-height: 1.75;
-  max-width: 560px;
-  font-weight: 300;
-  margin-bottom: 56px;
-}
-
-/* ══════════════════════════════════════════
-   PROBLEM SECTION
-══════════════════════════════════════════ */
-.problem-section { background: var(--white); }
-
-.problem-grid {
+  padding: 40px var(--page-pad) 80px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 80px;
+  grid-template-columns: 1fr 360px;
+  gap: 48px;
   align-items: start;
 }
-.problem-text p {
-  font-size: 0.97rem;
-  color: var(--ink-light);
-  line-height: 1.85;
-  margin-bottom: 20px;
-  font-weight: 300;
-}
-.problem-text p strong {
-  font-weight: 500;
-  color: var(--ink);
-}
-.problem-text p:last-child { margin-bottom: 0; }
+.form-column { min-width: 0; }
+.sidebar-column { position: sticky; top: 80px; }
 
-.use-case-card {
+/* ── Page intro ── */
+.page-intro { margin-bottom: 36px; }
+.page-eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.page-intro h1 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+.page-intro p {
+  font-size: 0.95rem;
+  color: var(--ink-light);
+  max-width: 560px;
+  font-weight: 300;
+  line-height: 1.65;
+}
+
+/* ── Form sections ── */
+.form-section {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 28px;
+  margin-bottom: 20px;
+}
+.form-section-title {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.optional-note { font-weight: 300; text-transform: none; letter-spacing: 0; font-size: 0.8rem; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.field.full { grid-column: 1 / -1; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-light);
+  letter-spacing: 0.01em;
+}
+.req { color: var(--accent); }
+.field input, .field select, .field textarea {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--ink);
   background: var(--cream);
   border: 1px solid var(--rule);
   border-radius: 4px;
-  overflow: hidden;
-  position: sticky;
-  top: 88px;
+  padding: 10px 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  width: 100%;
 }
-.use-case-header {
-  background: var(--ink);
-  padding: 20px 28px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
-.use-case-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(251,146,60,0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.field input[readonly] { color: var(--muted); cursor: default; }
+.field textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
+.field-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.5;
 }
-.use-case-title {
-  font-family: var(--font-display);
-  font-size: 0.9rem;
-  font-weight: 400;
-  color: white;
-  letter-spacing: -0.01em;
-}
-.use-case-subtitle {
-  font-size: 0.68rem;
-  color: rgba(255,255,255,0.4);
-  font-weight: 300;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin-top: 2px;
-}
-.use-case-body { padding: 28px; }
 
-/* SVG illustration container */
-.use-case-illustration {
-  border-bottom: 1px solid var(--rule);
-  padding: 32px 28px;
-  background: var(--cream-dark);
-  display: flex;
-  justify-content: center;
+/* ── Project type grid ── */
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
 }
-.use-case-story {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-style: italic;
-  font-weight: 300;
-  color: var(--ink);
-  line-height: 1.65;
-  margin-bottom: 20px;
-}
-.use-case-outcome {
+.type-btn {
+  font-family: var(--font-body);
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 12px 10px;
+  font-size: 0.78rem;
+  color: var(--ink-light);
+  cursor: pointer;
+  text-align: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  line-height: 1.3;
+}
+.type-btn:hover { border-color: var(--accent); color: var(--ink); }
+.type-btn.active {
+  border-color: var(--accent);
   background: var(--accent-light);
-  border: 1px solid rgba(194,65,12,0.15);
-  padding: 12px 16px;
-  border-radius: 3px;
-  font-size: 0.8rem;
   color: var(--accent);
   font-weight: 500;
 }
-.use-case-outcome svg { flex-shrink: 0; }
+.type-icon { font-size: 1.2rem; }
 
-/* ══════════════════════════════════════════
-   WHY TRUST THE NUMBER
-══════════════════════════════════════════ */
-.trust-section { background: var(--cream); }
-
-.trust-compare {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 2px;
-  background: var(--rule);
+/* ── Toggle groups ── */
+.toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.toggle-btn {
+  font-family: var(--font-body);
+  background: var(--cream);
+  border: 1px solid var(--rule);
   border-radius: 4px;
-  overflow: hidden;
-  margin-top: 48px;
+  padding: 7px 16px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
 }
-.trust-col {
-  background: var(--white);
-  padding: 36px 32px;
+.toggle-btn:hover { border-color: var(--ink-light); color: var(--ink); }
+.toggle-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 500;
 }
-.trust-col-header {
+
+/* ── Checkbox group ── */
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
+.checkbox-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--rule);
+  gap: 7px;
+  font-size: 0.83rem;
+  color: var(--ink-light);
+  cursor: pointer;
 }
-.trust-col-icon {
-  width: 32px;
-  height: 32px;
+.checkbox-item input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
+
+/* ── Submit row ── */
+.submit-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.btn-primary {
+  font-family: var(--font-body);
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 13px 28px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: background 0.15s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.submit-note { font-size: 0.78rem; color: var(--muted); }
+
+/* ── Loading ── */
+.loading-state {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--accent);
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  animation: spin 0.7s linear infinite;
   flex-shrink: 0;
 }
-.trust-col-icon.bad { background: rgba(220,38,38,0.08); }
-.trust-col-icon.ok { background: rgba(234,179,8,0.1); }
-.trust-col-icon.good { background: rgba(194,65,12,0.1); }
-.trust-col-name {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--ink);
-  letter-spacing: 0.02em;
-}
-.trust-col-sub {
-  font-size: 0.68rem;
-  color: var(--muted);
-  font-weight: 300;
-  margin-top: 2px;
-}
-.trust-col.highlight {
-  background: var(--ink);
-}
-.trust-col.highlight .trust-col-name { color: white; }
-.trust-col.highlight .trust-col-sub { color: rgba(255,255,255,0.4); }
-.trust-col.highlight .trust-col-header { border-color: rgba(255,255,255,0.1); }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.trust-point {
+.error-block {
+  display: none;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 14px 18px;
+  font-size: 0.85rem;
+  color: #991b1b;
+  margin-bottom: 16px;
+}
+
+/* ── Divider ── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 32px 0;
+}
+
+/* ── Results ── */
+#result { display: none; }
+
+.result-header {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.result-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.result-meta { font-size: 0.8rem; color: var(--muted); }
+
+.confidence-badge {
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.confidence-high   { background: var(--green-light); color: var(--green); }
+.confidence-moderate { background: var(--amber-light); color: var(--amber); }
+.confidence-low    { background: #fef2f2; color: #991b1b; }
+
+.print-btn {
+  font-family: var(--font-body);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 7px 16px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 24px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.print-btn:hover { border-color: var(--ink-light); color: var(--ink); }
+
+/* ── Images block ── */
+.images-block { display: none; margin-bottom: 24px; }
+.images-block h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+.image-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.img-wrapper { border-radius: 4px; overflow: hidden; background: var(--cream-dark); }
+.img-wrapper img { width: 100%; height: 140px; object-fit: cover; display: block; }
+.image-caption {
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding: 6px 8px;
+  text-align: center;
+}
+
+/* ── Cost range block ── */
+.cost-range-block {
+  background: var(--ink);
+  border-radius: 6px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.cost-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 8px;
+}
+.cost-range {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 600;
+  color: white;
+  letter-spacing: -0.03em;
+  margin-bottom: 6px;
+}
+.cost-midpoint {
+  font-size: 0.83rem;
+  color: rgba(255,255,255,0.55);
+}
+.cost-midpoint strong { color: rgba(255,255,255,0.85); }
+
+/* ── Result content blocks ── */
+.result-block {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.block-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
   margin-bottom: 14px;
-  font-size: 0.82rem;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.narrative-block {
+  font-size: 0.92rem;
+  color: var(--ink-light);
+  line-height: 1.7;
+  padding: 20px 24px;
+  background: var(--cream-dark);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent);
+  margin-bottom: 16px;
+}
+.assumption-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.assumption-list li {
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  padding-left: 18px;
+  position: relative;
   line-height: 1.5;
 }
-.trust-point:last-child { margin-bottom: 0; }
-.trust-point-check { flex-shrink: 0; margin-top: 2px; }
-.trust-point-text { color: var(--ink-light); font-weight: 300; }
-.trust-col.highlight .trust-point-text { color: rgba(255,255,255,0.65); }
-.trust-point-text strong { font-weight: 500; }
-.trust-col.highlight .trust-point-text strong { color: white; }
-
-/* ══════════════════════════════════════════
-   HOW IT WORKS
-══════════════════════════════════════════ */
-.how-section { background: var(--white); }
-
-.how-steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 48px;
-  margin-top: 48px;
-  position: relative;
-}
-.how-steps::before {
-  content: '';
+.assumption-list li::before {
+  content: '—';
   position: absolute;
-  top: 28px;
-  left: calc(33% - 24px);
-  right: calc(33% - 24px);
-  height: 1px;
-  background: var(--rule);
-  z-index: 0;
+  left: 0;
+  color: var(--muted-light);
 }
-.how-step { position: relative; }
-.how-step-num {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--cream);
-  border: 1.5px solid var(--rule);
+
+/* ── Council Briefing ── */
+.section-loading {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 8px 0;
+}
+.briefing-section { margin-bottom: 18px; }
+.briefing-section:last-child { margin-bottom: 0; }
+.briefing-section-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-light);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.opening-quote {
   font-family: var(--font-display);
-  font-size: 1.2rem;
-  font-weight: 400;
-  color: var(--accent);
-  margin-bottom: 24px;
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.55;
+  padding: 14px 18px;
+  background: var(--cream-dark);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+.pitch-points { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.pitch-points li {
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  padding-left: 16px;
   position: relative;
-  z-index: 1;
-  transition: background 0.2s, border-color 0.2s;
+  line-height: 1.55;
 }
-.how-step:hover .how-step-num {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: white;
+.pitch-points li::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-size: 0.8rem; top: 1px; }
+.qa-item { margin-bottom: 12px; }
+.qa-q { font-size: 0.83rem; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+.qa-a { font-size: 0.83rem; color: var(--ink-light); line-height: 1.5; }
+.recommended-ask {
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.6;
+  padding: 14px 18px;
+  background: var(--accent-light);
+  border: 1px solid rgba(194,65,12,0.2);
+  border-radius: 4px;
 }
-.how-step-illus {
-  margin-bottom: 20px;
-  opacity: 0.85;
-}
-.how-step h3 {
+
+/* ── Procurement block ── */
+.proc-header { margin-bottom: 20px; }
+.proc-header h3 {
   font-family: var(--font-display);
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--ink);
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
 }
-.how-step p {
-  font-size: 0.88rem;
-  color: var(--muted);
-  line-height: 1.7;
-  font-weight: 300;
-}
-
-/* ══════════════════════════════════════════
-   WHO IT'S FOR
-══════════════════════════════════════════ */
-.who-section { background: var(--cream-dark); }
-
-.who-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  margin-top: 48px;
-}
-.who-card {
-  background: var(--white);
+.proc-header p { font-size: 0.85rem; color: var(--muted); }
+.proc-paths { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.proc-path {
   border: 1px solid var(--rule);
-  border-radius: 4px;
-  padding: 32px 28px;
-  transition: border-color 0.2s, transform 0.2s;
+  border-radius: 6px;
+  padding: 18px;
 }
-.who-card:hover {
-  border-color: var(--accent);
-  transform: translateY(-2px);
-}
-.who-card-illus {
-  margin-bottom: 20px;
-}
-.who-card h3 {
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--ink);
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
-}
-.who-card p {
-  font-size: 0.83rem;
-  color: var(--muted);
-  line-height: 1.65;
-  font-weight: 300;
-}
-
-/* ══════════════════════════════════════════
-   PRICING / FREE VS PRO
-══════════════════════════════════════════ */
-.pricing-section { background: var(--white); }
-
-.pricing-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  max-width: 800px;
-  margin-top: 48px;
-}
-.pricing-card {
-  border: 1.5px solid var(--rule);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.pricing-card.featured {
-  border-color: var(--ink);
-}
-.pricing-header {
-  padding: 28px 32px;
-  border-bottom: 1px solid var(--rule);
-}
-.pricing-card.featured .pricing-header {
-  background: var(--ink);
-  border-color: transparent;
-}
-.pricing-tier {
+.proc-path.alternative { border-color: var(--accent); background: var(--accent-light); }
+.proc-path-label {
   font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
-.pricing-card.featured .pricing-tier { color: rgba(255,255,255,0.4); }
-.pricing-name {
+.proc-path.alternative .proc-path-label { color: var(--accent); }
+.proc-path h4 {
   font-family: var(--font-display);
-  font-size: 1.6rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: var(--ink);
-  letter-spacing: -0.03em;
-  margin-bottom: 4px;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
 }
-.pricing-card.featured .pricing-name { color: white; }
-.pricing-price {
-  font-size: 0.85rem;
+.proc-steps { list-style: none; display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+.proc-steps li { font-size: 0.8rem; color: var(--ink-light); line-height: 1.5; }
+.proc-steps li strong { color: var(--ink); }
+.proc-callout {
+  font-size: 0.78rem;
   color: var(--muted);
-  font-weight: 300;
+  padding: 10px 14px;
+  background: var(--cream-dark);
+  border-radius: 4px;
+  line-height: 1.5;
 }
-.pricing-card.featured .pricing-price { color: rgba(255,255,255,0.45); }
-.pricing-body { padding: 28px 32px; }
-.pricing-features { list-style: none; margin-bottom: 28px; }
-.pricing-features li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.proc-path.alternative .proc-callout { background: rgba(194,65,12,0.06); color: var(--accent); }
+
+/* ── Lead Gate ── */
+.gate-block {
+  background: var(--white);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  padding: 28px;
+  margin-bottom: 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.gate-block h3 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+.gate-block > p {
   font-size: 0.85rem;
   color: var(--ink-light);
-  font-weight: 300;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--rule);
+  margin-bottom: 20px;
+  line-height: 1.6;
 }
-.pricing-features li:last-child { border-bottom: none; }
-.pricing-features li svg { flex-shrink: 0; }
-.pricing-features .missing { color: var(--muted-light); }
-.pricing-features .missing svg { opacity: 0.3; }
-.pricing-cta-free {
-  display: block;
-  text-align: center;
+.gate-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.gate-submit-row { display: flex; align-items: center; gap: 16px; }
+.gate-confirmed {
+  display: none;
+  font-size: 0.88rem;
+  color: var(--green);
+  font-weight: 500;
+  padding: 12px 0;
+}
+
+/* ── CTA block ── */
+.cta-block {
+  background: var(--ink);
+  border-radius: 6px;
+  padding: 28px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.cta-text h4 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: white;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.cta-text p { font-size: 0.83rem; color: rgba(255,255,255,0.55); line-height: 1.6; }
+.cta-action { flex-shrink: 0; text-align: right; }
+.cta-name { font-family: var(--font-display); font-size: 1rem; color: white; font-weight: 600; }
+.cta-company { font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-bottom: 12px; }
+.cta-btn {
+  display: inline-block;
   background: var(--accent);
   color: white;
-  font-weight: 500;
-  font-size: 0.88rem;
-  padding: 12px;
-  border-radius: 3px;
   text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 0.83rem;
+  font-weight: 500;
   transition: background 0.15s;
 }
-.pricing-cta-free:hover { background: var(--accent-hover); }
-/* Pro card feature list - explicit white text */
-.pricing-features-pro {
-  list-style: none;
-  margin-bottom: 28px;
-}
-.pricing-features-pro li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.85rem;
-  color: rgba(255,255,255,0.75);
-  font-weight: 300;
-  padding: 7px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-}
-.pricing-features-pro li:last-child { border-bottom: none; }
-.pricing-features-pro li svg { flex-shrink: 0; }
+.cta-btn:hover { background: var(--accent-hover); }
 
-.pricing-cta-soon {
-  display: block;
-  text-align: center;
-  border: 1.5px solid var(--rule);
-  color: var(--muted);
-  font-weight: 400;
-  font-size: 0.88rem;
-  padding: 12px;
-  border-radius: 3px;
-  text-decoration: none;
-  font-style: italic;
-  font-family: var(--font-display);
-  cursor: default;
+/* ── Disclaimer ── */
+.disclaimer {
+  font-size: 0.72rem;
+  color: var(--muted-light);
+  line-height: 1.65;
+  padding: 16px 0;
+  border-top: 1px solid var(--rule);
 }
 
-/* ══════════════════════════════════════════
-   FOUNDER / WHY
-══════════════════════════════════════════ */
-.founder-section {
-  background: var(--ink);
-  padding: var(--section-pad) var(--page-pad);
-}
-.founder-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 80px;
-  align-items: center;
-}
-.founder-label {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #fb923c;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.founder-label::before {
-  content: '';
-  display: block;
-  width: 20px;
-  height: 1.5px;
-  background: #fb923c;
-}
-.founder-quote {
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 2.5vw, 2rem);
-  font-weight: 300;
-  font-style: italic;
-  color: white;
-  line-height: 1.4;
-  letter-spacing: -0.02em;
-  margin-bottom: 32px;
-}
-.founder-quote strong {
-  font-style: normal;
-  font-weight: 600;
-  color: #fb923c;
-}
-.founder-body p {
-  font-size: 0.92rem;
-  color: rgba(255,255,255,0.55);
-  line-height: 1.8;
-  font-weight: 300;
+/* ── Sidebar ── */
+.sidebar-card {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 24px;
   margin-bottom: 16px;
 }
-.founder-body p:last-child { margin-bottom: 0; }
-.founder-body strong { color: rgba(255,255,255,0.8); font-weight: 500; }
-
-/* ══════════════════════════════════════════
-   FINAL CTA
-══════════════════════════════════════════ */
-.cta-section {
-  background: var(--cream-dark);
-  padding: var(--section-pad) var(--page-pad);
-  text-align: center;
+.sidebar-card-title {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 14px;
 }
-.cta-inner {
-  max-width: 600px;
-  margin: 0 auto;
+.sidebar-step {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
 }
-.cta-section .section-heading {
-  max-width: 100%;
-  text-align: center;
-  margin: 0 auto 16px;
-}
-.cta-section .section-intro {
-  max-width: 480px;
-  text-align: center;
-  margin: 0 auto 40px;
-}
-.cta-buttons {
+.sidebar-step:last-child { margin-bottom: 0; }
+.step-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
-.btn-primary-lg {
-  background: var(--accent);
-  color: white;
-  font-size: 0.95rem;
-  font-weight: 500;
-  padding: 16px 36px;
-  border-radius: 3px;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
+.step-text { font-size: 0.83rem; color: var(--ink-light); line-height: 1.5; }
+.step-text strong { color: var(--ink); font-weight: 500; }
+
+.trust-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.trust-list li {
+  font-size: 0.82rem;
+  color: var(--ink-light);
+  display: flex;
+  align-items: flex-start;
   gap: 8px;
-  transition: background 0.15s, transform 0.1s;
+  line-height: 1.45;
 }
-.btn-primary-lg:hover { background: var(--accent-hover); transform: translateY(-1px); }
-.cta-note {
-  margin-top: 16px;
-  font-size: 0.75rem;
-  color: var(--muted-light);
-  font-weight: 300;
+.trust-list li::before {
+  content: '✓';
+  color: var(--green);
+  font-size: 0.78rem;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
-/* ══════════════════════════════════════════
-   FOOTER
-══════════════════════════════════════════ */
+/* ── Footer ── */
 footer {
-  background: var(--ink);
-  padding: 40px var(--page-pad);
-}
-.footer-inner {
-  max-width: 1200px;
+  border-top: 1px solid var(--rule);
+  padding: 20px var(--page-pad);
+  max-width: 1100px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+}
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .footer-wordmark {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: white;
-  letter-spacing: -0.03em;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.footer-links {
-  display: flex;
-  gap: 24px;
-}
-.footer-links a {
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.35);
+  color: var(--ink);
   text-decoration: none;
-  transition: color 0.15s;
+  letter-spacing: -0.02em;
 }
-.footer-links a:hover { color: rgba(255,255,255,0.7); }
-.footer-copy {
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.25);
-  font-weight: 300;
+footer span {
+  font-size: 0.75rem;
+  color: var(--muted-light);
 }
+.footer-note { font-size: 0.72rem; color: var(--muted-light); }
 
-/* ══════════════════════════════════════════
-   ANIMATIONS
-══════════════════════════════════════════ */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ══════════════════════════════════════════
-   RESPONSIVE
-══════════════════════════════════════════ */
-@media (max-width: 900px) {
-  :root { --page-pad: 32px; --section-pad: 64px; }
-  .hero-inner, .problem-grid, .founder-inner { grid-template-columns: 1fr; gap: 48px; }
-  .hero-illustration { display: none; }
-  .how-steps, .who-grid { grid-template-columns: 1fr 1fr; }
-  .trust-compare { grid-template-columns: 1fr; }
-  .pricing-grid { grid-template-columns: 1fr; max-width: 420px; }
-  .header-tagline, .header-divider { display: none; }
-  .how-steps::before { display: none; }
+/* ── Responsive ── */
+@media (max-width: 860px) {
+  .page-wrap { grid-template-columns: 1fr; }
+  .sidebar-column { position: static; }
+  .type-grid { grid-template-columns: repeat(2, 1fr); }
+  .form-grid-3 { grid-template-columns: 1fr 1fr; }
+  .proc-paths { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
-  .how-steps, .who-grid { grid-template-columns: 1fr; }
-  .trust-bar-inner { flex-wrap: wrap; gap: 16px; }
-  .trust-divider { display: none; }
-  .footer-inner { flex-direction: column; gap: 16px; text-align: center; }
-  .footer-links { flex-wrap: wrap; justify-content: center; }
-  nav { gap: 12px; }
-  nav a:not(.btn-nav) { display: none; }
+  :root { --page-pad: 20px; }
+  .form-grid, .gate-form-grid { grid-template-columns: 1fr; }
+  .type-grid { grid-template-columns: repeat(2, 1fr); }
+  .cta-block { flex-direction: column; }
+  .cta-action { text-align: left; }
+  .header-tagline, .header-divider { display: none; }
 }
 </style>
 </head>
 <body>
 
-<!-- ═══ HEADER ═══ -->
 <header>
   <div class="header-inner">
-    <a href="/" class="wordmark">
+    <a href="https://www.civicscope.io" class="wordmark">
       <span class="wordmark-dot"></span>CivicScope
     </a>
     <div class="header-divider"></div>
     <span class="header-tagline">Municipal Project Feasibility</span>
-    <nav>
-      <a href="#how-it-works">How It Works</a>
-      <a href="#who">Who It's For</a>
-      <a href="#pricing">Free vs Pro</a>
-      <a href="https://app.civicscope.io/civicscope" class="btn-nav">Use It Free →</a>
-    </nav>
+    <div class="header-badge">Free — No Account Required</div>
   </div>
 </header>
 
-<!-- ═══ HERO ═══ -->
-<section class="hero">
-  <div class="hero-inner">
-    <div class="hero-content">
-      <div class="hero-eyebrow">
-        <span class="hero-eyebrow-dot"></span>
-        Built for local government
-      </div>
-      <h1>The system wasn't<br>built for you.<br><strong>We fixed that.</strong></h1>
-      <p class="hero-sub">Local government employees deserve a cost reality check in 30 seconds — before the first phone call to a design firm or contractor that wants your budget.</p>
-      <div class="hero-cta">
-        <a href="https://app.civicscope.io/civicscope" class="btn-primary">
-          Use CivicScope Free
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </a>
-        <a href="#how-it-works" class="btn-secondary">Always free — no signup ↓</a>
-      </div>
-    </div>
-    <!-- Hero SVG Illustration — Town Hall editorial sketch -->
-    <div class="hero-illustration">
-      <svg width="480" height="360" viewBox="0 0 480 360" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- Ground -->
-        <line x1="40" y1="318" x2="440" y2="318" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-linecap="round"/>
-        <!-- Main building body -->
-        <rect x="120" y="160" width="240" height="158" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-linejoin="round"/>
-        <!-- Roof / pediment -->
-        <path d="M100 160 L240 90 L380 160" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linejoin="round"/>
-        <!-- Pediment detail -->
-        <path d="M155 160 L240 108 L325 160" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-linejoin="round"/>
-        <!-- Columns -->
-        <line x1="160" y1="160" x2="160" y2="318" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-        <line x1="200" y1="160" x2="200" y2="318" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-        <line x1="240" y1="160" x2="240" y2="318" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-        <line x1="280" y1="160" x2="280" y2="318" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-        <line x1="320" y1="160" x2="320" y2="318" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
-        <!-- Column caps -->
-        <line x1="148" y1="162" x2="172" y2="162" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-        <line x1="188" y1="162" x2="212" y2="162" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-        <line x1="228" y1="162" x2="252" y2="162" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-        <line x1="268" y1="162" x2="292" y2="162" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-        <line x1="308" y1="162" x2="332" y2="162" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-        <!-- Entablature -->
-        <line x1="120" y1="168" x2="360" y2="168" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-        <!-- Front door -->
-        <rect x="210" y="248" width="60" height="70" rx="30" ry="0" fill="none" stroke="rgba(251,146,60,0.6)" stroke-width="1.5"/>
-        <path d="M210 248 Q240 220 270 248" fill="none" stroke="rgba(251,146,60,0.6)" stroke-width="1.5"/>
-        <!-- Door handle -->
-        <circle cx="225" cy="283" r="2.5" fill="rgba(251,146,60,0.7)"/>
-        <!-- Windows -->
-        <rect x="138" y="195" width="36" height="44" rx="2" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-        <rect x="196" y="195" width="36" height="44" rx="2" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-        <rect x="288" y="195" width="36" height="44" rx="2" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-        <rect x="306" y="195" width="36" height="44" rx="2" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-        <!-- Window panes -->
-        <line x1="156" y1="195" x2="156" y2="239" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-        <line x1="138" y1="217" x2="174" y2="217" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-        <line x1="214" y1="195" x2="214" y2="239" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-        <line x1="196" y1="217" x2="232" y2="217" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-        <line x1="306" y1="195" x2="306" y2="239" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-        <line x1="288" y1="217" x2="324" y2="217" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-        <!-- Flag pole -->
-        <line x1="240" y1="90" x2="240" y2="44" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round"/>
-        <!-- Flag -->
-        <path d="M240 44 L272 52 L240 60 Z" fill="rgba(251,146,60,0.5)" stroke="rgba(251,146,60,0.6)" stroke-width="1" stroke-linejoin="round"/>
-        <!-- Steps -->
-        <line x1="100" y1="318" x2="380" y2="318" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
-        <line x1="110" y1="312" x2="370" y2="312" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
-        <line x1="118" y1="306" x2="362" y2="306" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-        <!-- Trees -->
-        <line x1="68" y1="318" x2="68" y2="252" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round"/>
-        <ellipse cx="68" cy="240" rx="22" ry="28" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-        <path d="M60 248 Q68 228 76 248" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-        <line x1="412" y1="318" x2="412" y2="260" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round"/>
-        <ellipse cx="412" cy="248" rx="22" ry="28" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-        <!-- Cost callout -->
-        <rect x="310" y="52" width="148" height="72" rx="4" fill="rgba(194,65,12,0.9)" stroke="rgba(251,146,60,0.3)" stroke-width="1"/>
-        <text x="326" y="74" font-family="'DM Sans', sans-serif" font-size="9" fill="rgba(255,255,255,0.65)" letter-spacing="1">ESTIMATED RANGE</text>
-        <text x="326" y="98" font-family="'Fraunces', serif" font-size="20" font-weight="600" fill="white">$1.2M–$1.8M</text>
-        <text x="326" y="113" font-family="'DM Sans', sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">Granger, IN · Municipal Office</text>
-        <!-- Arrow from callout to building -->
-        <path d="M310 88 Q290 88 278 130" fill="none" stroke="rgba(251,146,60,0.4)" stroke-width="1" stroke-dasharray="3 3"/>
-        <circle cx="278" cy="130" r="3" fill="rgba(251,146,60,0.5)"/>
-      </svg>
-    </div>
-  </div>
-</section>
+<div class="page-wrap">
+  <div class="form-column">
 
-<!-- ═══ TRUST BAR ═══ -->
-<div class="trust-bar">
-  <div class="trust-bar-inner">
-    <div class="trust-item">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1l1.5 3.5L12 5l-2.5 2.5.6 3.5L7 9.5 3.9 11l.6-3.5L2 5l3.5-.5z" fill="currentColor"/></svg>
-      Regionally calibrated estimates
+    <div class="page-intro">
+      <div class="page-eyebrow">Feasibility Screening Tool</div>
+      <h1>Is your project<br>worth pursuing?</h1>
+      <p>Get a preliminary cost range before making your first phone call. Describe the project in plain language — no architect, no engineer, no commitment.</p>
     </div>
-    <div class="trust-divider"></div>
-    <div class="trust-item">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M7 4v3.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      Results in 30 seconds
-    </div>
-    <div class="trust-divider"></div>
-    <div class="trust-item">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Free to use — always
-    </div>
-    <div class="trust-divider"></div>
-    <div class="trust-item">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="4" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 4V3a2 2 0 014 0v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      No architect or engineer needed
-    </div>
-    <div class="trust-divider"></div>
-    <div class="trust-item">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v2M7 11v2M1 7h2M11 7h2M3.05 3.05l1.41 1.41M9.54 9.54l1.41 1.41M3.05 10.95l1.41-1.41M9.54 4.46l1.41-1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      Built for all local government roles
-    </div>
-  </div>
-</div>
 
-<!-- ═══ PROBLEM SECTION ═══ -->
-<section class="section problem-section" id="problem">
-  <div class="section-inner">
-    <div class="section-label">The Problem</div>
-    <div class="problem-grid">
-      <div>
-        <h2 class="section-heading">The system left you with <em>nowhere to start.</em></h2>
-        <div class="problem-text">
-          <p>Local government employees exist to do one thing: <strong>help their communities</strong>. But when a project idea forms — a splash pad, a new fire station, a public works garage — the system gives you nowhere to turn.</p>
-          <p>Call a design firm? You're now in their process. They're sizing up your budget before you've asked a single question. Call a general contractor? Same thing. Spend hours researching online? You'll find national averages from years ago that mean nothing for your town, your project, your market.</p>
-          <p><strong>Design firms and contractors benefit from this confusion.</strong> The moment you pick up the phone, you've handed over your leverage. The feasibility question — the one that should come first — has never had a good answer.</p>
-          <p>Until now. CivicScope gives any local government employee a regionally-calibrated cost reality check in 30 seconds. Before the first call. Before the first meeting. When the dream is still yours.</p>
+    <!-- SECTION 1: Location -->
+    <div class="form-section">
+      <div class="form-section-title">Your Location</div>
+      <div class="form-grid-3">
+        <div class="field">
+          <label>ZIP Code <span class="req">*</span></label>
+          <input type="text" id="zip" maxlength="5" placeholder="e.g. 46032" oninput="handleZip(this.value)" />
+          <div class="field-hint" id="zipStatus"></div>
+        </div>
+        <div class="field">
+          <label>State</label>
+          <input type="text" id="state" readonly placeholder="Auto-filled from ZIP" />
+        </div>
+        <div class="field">
+          <label>Municipality <span class="req">*</span></label>
+          <input type="text" id="location" placeholder="Auto-filled from ZIP" />
         </div>
       </div>
-      <div>
-        <div class="use-case-card">
-          <div class="use-case-header">
-            <div class="use-case-icon">
-              <!-- Park bench editorial sketch icon -->
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M3 12h12M5 12V9M13 12V9M2 9h14" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round"/>
-                <path d="M6 9V7a3 3 0 016 0v2" stroke="#fb923c" stroke-width="1.2" stroke-linecap="round"/>
-              </svg>
-            </div>
-            <div>
-              <div class="use-case-title">Sarah, Parks Director</div>
-              <div class="use-case-subtitle">Town of 8,200 · Indiana</div>
-            </div>
+    </div>
+
+    <!-- SECTION 2: Project -->
+    <div class="form-section">
+      <div class="form-section-title">Project Type &amp; Scope</div>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Project Type <span class="req">*</span></label>
+          <div class="type-grid" id="typeGrid">
+            <button class="type-btn" data-type="DPW / Public Works Garage" data-search="municipal DPW public works equipment garage exterior">
+              <span class="type-icon">🏗️</span>DPW / Public Works Garage
+            </button>
+            <button class="type-btn" data-type="Fire or EMS Station" data-search="small town fire station EMS building exterior">
+              <span class="type-icon">🚒</span>Fire or EMS Station
+            </button>
+            <button class="type-btn" data-type="Municipal Office / Town Hall" data-search="small town hall municipal office building exterior">
+              <span class="type-icon">🏛️</span>Municipal Office / Town Hall
+            </button>
+            <button class="type-btn" data-type="Community Center or Library" data-search="municipal community center library building exterior">
+              <span class="type-icon">📚</span>Community Center or Library
+            </button>
+            <button class="type-btn" data-type="Courts (Pickleball, Tennis, Basketball)" data-search="municipal pickleball tennis courts park">
+              <span class="type-icon">🎾</span>Courts
+            </button>
+            <button class="type-btn" data-type="Park Building (Restroom, Pavilion, Shelter)" data-search="park restroom pavilion shelter outbuilding municipal">
+              <span class="type-icon">🌳</span>Park Building
+            </button>
+            <button class="type-btn" data-type="Splash Pad" data-search="municipal splash pad water park">
+              <span class="type-icon">💧</span>Splash Pad
+            </button>
+            <button class="type-btn" data-type="Other Municipal Project" data-search="municipal government public building construction">
+              <span class="type-icon">🏢</span>Something Else
+            </button>
           </div>
-          <!-- Splash pad editorial illustration -->
-          <div class="use-case-illustration">
-            <svg width="280" height="160" viewBox="0 0 280 160" fill="none">
-              <!-- Ground / pad surface -->
-              <ellipse cx="140" cy="128" rx="110" ry="18" fill="none" stroke="rgba(28,25,23,0.12)" stroke-width="1.5"/>
-              <ellipse cx="140" cy="126" rx="88" ry="12" fill="rgba(194,65,12,0.06)" stroke="rgba(194,65,12,0.2)" stroke-width="1"/>
+          <input type="hidden" id="projectType" value="" />
+          <input type="hidden" id="imageSearch" value="" />
+        </div>
 
-              <!-- Water spray elements - loose editorial style -->
-              <!-- Center mushroom spray -->
-              <path d="M140 126 C140 126 136 108 134 96 C132 86 130 82 136 80 C142 78 144 82 146 90 C148 100 144 118 140 126Z" fill="none" stroke="rgba(28,25,23,0.18)" stroke-width="1" stroke-linejoin="round"/>
-              <!-- Water arcs -->
-              <path d="M130 100 Q110 72 96 78" fill="none" stroke="rgba(28,25,23,0.15)" stroke-width="1.2" stroke-linecap="round"/>
-              <path d="M148 96 Q168 68 182 76" fill="none" stroke="rgba(28,25,23,0.15)" stroke-width="1.2" stroke-linecap="round"/>
-              <!-- Water drops -->
-              <circle cx="94" cy="79" r="2.5" fill="rgba(28,25,23,0.12)"/>
-              <circle cx="184" cy="77" r="2.5" fill="rgba(28,25,23,0.12)"/>
-              <circle cx="120" cy="66" r="1.5" fill="rgba(28,25,23,0.1)"/>
-              <circle cx="162" cy="64" r="1.5" fill="rgba(28,25,23,0.1)"/>
-              <!-- Splash arcs from ground -->
-              <path d="M108 122 Q102 108 106 100" fill="none" stroke="rgba(28,25,23,0.12)" stroke-width="1" stroke-linecap="round"/>
-              <path d="M170 122 Q176 108 172 100" fill="none" stroke="rgba(28,25,23,0.12)" stroke-width="1" stroke-linecap="round"/>
-              <!-- Kids (simplified editorial figures) -->
-              <!-- Kid 1 -->
-              <circle cx="105" cy="108" r="5" fill="none" stroke="rgba(28,25,23,0.25)" stroke-width="1.2"/>
-              <path d="M105 113 L105 124 M101 117 L109 117 M105 124 L102 130 M105 124 L108 130" stroke="rgba(28,25,23,0.2)" stroke-width="1" stroke-linecap="round"/>
-              <!-- Kid 2 - arms up -->
-              <circle cx="175" cy="106" r="5" fill="none" stroke="rgba(28,25,23,0.25)" stroke-width="1.2"/>
-              <path d="M175 111 L175 122 M169 109 L181 109 M175 122 L172 128 M175 122 L178 128" stroke="rgba(28,25,23,0.2)" stroke-width="1" stroke-linecap="round"/>
-              <!-- Kid arms up detail -->
-              <path d="M169 109 L165 104 M181 109 L185 104" stroke="rgba(28,25,23,0.18)" stroke-width="1" stroke-linecap="round"/>
-
-              <!-- Bench in background -->
-              <line x1="56" y1="120" x2="76" y2="120" stroke="rgba(28,25,23,0.2)" stroke-width="1.5"/>
-              <line x1="60" y1="114" x2="72" y2="114" stroke="rgba(28,25,23,0.15)" stroke-width="1"/>
-              <line x1="59" y1="120" x2="59" y2="130" stroke="rgba(28,25,23,0.2)" stroke-width="1" stroke-linecap="round"/>
-              <line x1="73" y1="120" x2="73" y2="130" stroke="rgba(28,25,23,0.2)" stroke-width="1" stroke-linecap="round"/>
-
-              <!-- Trees bg -->
-              <line x1="218" y1="130" x2="218" y2="100" stroke="rgba(28,25,23,0.15)" stroke-width="1.5" stroke-linecap="round"/>
-              <ellipse cx="218" cy="93" rx="12" ry="14" fill="none" stroke="rgba(28,25,23,0.1)" stroke-width="1"/>
-              <line x1="240" y1="130" x2="240" y2="105" stroke="rgba(28,25,23,0.12)" stroke-width="1.2" stroke-linecap="round"/>
-              <ellipse cx="240" cy="99" rx="9" ry="10" fill="none" stroke="rgba(28,25,23,0.08)" stroke-width="1"/>
-
-              <!-- Caption line -->
-              <line x1="40" y1="148" x2="240" y2="148" stroke="rgba(28,25,23,0.08)" stroke-width="1"/>
-              <text x="140" y="158" font-family="'DM Sans', sans-serif" font-size="8" fill="rgba(28,25,23,0.3)" text-anchor="middle" letter-spacing="0.08em">PROPOSED SPLASH PAD · RIVERSIDE PARK</text>
-            </svg>
+        <div class="field full">
+          <label>New Build or Renovation?</label>
+          <div class="toggle-group" id="buildTypeGroup">
+            <button class="toggle-btn active" data-val="New construction">New Construction</button>
+            <button class="toggle-btn" data-val="Renovation / addition to existing structure">Renovation / Addition</button>
           </div>
-          <div class="use-case-body">
-            <p class="use-case-story">"Residents have been asking about a splash pad for two years. I have $380,000 in the capital improvement fund. I have no idea if that's realistic — or if I'm about to embarrass myself at the next council meeting."</p>
-            <div class="use-case-outcome">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              CivicScope answers this in 30 seconds.
-            </div>
+          <input type="hidden" id="buildType" value="New construction" />
+        </div>
+
+        <div class="field full">
+          <label>Describe the Project <span class="req">*</span></label>
+          <textarea id="scope" placeholder="Describe what you have in mind in plain language. For example: We need a simple garage for our street department — two or three bays, one large enough for a plow truck, basic heat and lighting, no office space. We have an existing town-owned site."></textarea>
+          <div class="field-hint">No technical specs needed. Plain language is fine. More detail improves the confidence level of your estimate.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: Site Conditions -->
+    <div class="form-section">
+      <div class="form-section-title">Site Conditions <span class="optional-note">— optional, improves accuracy</span></div>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Site Topography</label>
+          <div class="toggle-group" id="topoGroup">
+            <button class="toggle-btn" data-val="Flat / level site">Flat / Level</button>
+            <button class="toggle-btn" data-val="Gently sloped">Gently Sloped</button>
+            <button class="toggle-btn" data-val="Steeply sloped">Steeply Sloped</button>
+            <button class="toggle-btn" data-val="Wooded / clearing required">Wooded / Clearing Required</button>
+            <button class="toggle-btn" data-val="Existing structure requires demolition">Demo of Existing Structure</button>
+          </div>
+          <input type="hidden" id="topography" value="" />
+        </div>
+        <div class="field full">
+          <label>Utilities Available On-Site</label>
+          <div class="checkbox-group">
+            <label class="checkbox-item"><input type="checkbox" id="util-water" value="Municipal water"> Municipal Water</label>
+            <label class="checkbox-item"><input type="checkbox" id="util-sewer" value="Municipal sewer"> Municipal Sewer</label>
+            <label class="checkbox-item"><input type="checkbox" id="util-electric" value="Electric service"> Electric Service</label>
+            <label class="checkbox-item"><input type="checkbox" id="util-none" value="No utilities on site"> No Utilities On-Site</label>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</section>
 
-<!-- ═══ WHY TRUST THE NUMBER ═══ -->
-<section class="section trust-section" id="why-trust">
-  <div class="section-inner">
-    <div class="section-label">Why Trust the Number</div>
-    <h2 class="section-heading">Not a Google average.<br><em>Not an AI guess.</em></h2>
-    <p class="section-intro">A Google search gives you a national average from a 2019 article. An AI gives you a confident number pulled from nowhere. CivicScope is different.</p>
-
-    <div class="trust-compare">
-      <div class="trust-col">
-        <div class="trust-col-header">
-          <div class="trust-col-icon bad">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </div>
-          <div>
-            <div class="trust-col-name">Google Search</div>
-            <div class="trust-col-sub">National averages, stale data</div>
-          </div>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="trust-point-text">National cost averages with no geographic context</span>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="trust-point-text">Data from articles 3–7 years old</span>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="trust-point-text">No project-type specificity</span>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="trust-point-text">Hours to compile, still inconclusive</span>
-        </div>
-      </div>
-
-      <div class="trust-col">
-        <div class="trust-col-header">
-          <div class="trust-col-icon ok">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v5l3 3" stroke="#ca8a04" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="7" r="5.5" stroke="#ca8a04" stroke-width="1.2"/></svg>
-          </div>
-          <div>
-            <div class="trust-col-name">Ask an AI</div>
-            <div class="trust-col-sub">Confident, but ungrounded</div>
-          </div>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#ca8a04" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="trust-point-text">A confident number with no methodology behind it</span>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#ca8a04" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="trust-point-text">No geographic or market calibration</span>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#ca8a04" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="trust-point-text">No confidence rating or reasoning</span>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#ca8a04" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="trust-point-text">Not built for municipal project types</span>
-        </div>
-      </div>
-
-      <div class="trust-col highlight">
-        <div class="trust-col-header">
-          <div class="trust-col-icon good">
-            <span class="wordmark-dot" style="width:8px;height:8px;"></span>
-          </div>
-          <div>
-            <div class="trust-col-name">CivicScope</div>
-            <div class="trust-col-sub">Built for this exact problem</div>
-          </div>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span class="trust-point-text"><strong>Regionally calibrated</strong> to your ZIP code and market</span>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span class="trust-point-text"><strong>Historical construction benchmarks</strong> by project type</span>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span class="trust-point-text"><strong>Confidence rating</strong> and plain-language reasoning</span>
-        </div>
-        <div class="trust-point">
-          <svg class="trust-point-check" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span class="trust-point-text">Built <strong>specifically for municipal project types</strong></span>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ HOW IT WORKS ═══ -->
-<section class="section how-section" id="how-it-works">
-  <div class="section-inner">
-    <div class="section-label">How It Works</div>
-    <h2 class="section-heading">Three steps.<br><em>Thirty seconds.</em></h2>
-    <p class="section-intro">No architect. No engineer. No commitment. Just an honest number before you make any calls.</p>
-
-    <div class="how-steps">
-      <!-- Step 1 -->
-      <div class="how-step">
-        <div class="how-step-num">1</div>
-        <!-- Clipboard editorial sketch -->
-        <div class="how-step-illus">
-          <svg width="120" height="100" viewBox="0 0 120 100" fill="none">
-            <rect x="28" y="18" width="64" height="76" rx="3" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round" opacity="0.25"/>
-            <rect x="44" y="12" width="32" height="14" rx="7" fill="none" stroke="var(--ink)" stroke-width="1.5" opacity="0.3"/>
-            <line x1="40" y1="40" x2="80" y2="40" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
-            <line x1="40" y1="52" x2="72" y2="52" stroke="var(--ink)" stroke-width="1" stroke-linecap="round" opacity="0.2"/>
-            <line x1="40" y1="62" x2="76" y2="62" stroke="var(--ink)" stroke-width="1" stroke-linecap="round" opacity="0.2"/>
-            <line x1="40" y1="72" x2="68" y2="72" stroke="var(--ink)" stroke-width="1" stroke-linecap="round" opacity="0.2"/>
-            <!-- Pencil -->
-            <path d="M72 76 L82 54 L88 58 L78 80 Z" fill="none" stroke="var(--ink)" stroke-width="1.2" stroke-linejoin="round" opacity="0.3"/>
-            <path d="M78 80 L76 84 L82 82 Z" fill="var(--accent)" opacity="0.4"/>
-            <line x1="82" y1="54" x2="88" y2="58" stroke="var(--ink)" stroke-width="1" opacity="0.25"/>
-          </svg>
-        </div>
-        <h3>Describe your project</h3>
-        <p>Plain language. No specs, no drawings, no RFPs. Tell us what you're thinking about building — a sentence or two is enough.</p>
-      </div>
-
-      <!-- Step 2 -->
-      <div class="how-step">
-        <div class="how-step-num">2</div>
-        <!-- Gauge / meter editorial sketch -->
-        <div class="how-step-illus">
-          <svg width="120" height="100" viewBox="0 0 120 100" fill="none">
-            <!-- Gauge arc -->
-            <path d="M24 76 A36 36 0 0 1 96 76" fill="none" stroke="var(--rule)" stroke-width="8" stroke-linecap="round"/>
-            <path d="M24 76 A36 36 0 0 1 76 42" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
-            <!-- Needle -->
-            <path d="M60 76 L74 44" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-            <circle cx="60" cy="76" r="5" fill="var(--ink)" opacity="0.25"/>
-            <circle cx="60" cy="76" r="2.5" fill="var(--accent)" opacity="0.7"/>
-            <!-- Range labels -->
-            <text x="18" y="90" font-family="'DM Sans',sans-serif" font-size="8" fill="var(--muted)" opacity="0.6">LOW</text>
-            <text x="88" y="90" font-family="'DM Sans',sans-serif" font-size="8" fill="var(--muted)" opacity="0.6">HIGH</text>
-            <!-- Cost range display -->
-            <text x="60" y="60" font-family="'Fraunces',serif" font-size="11" fill="var(--ink)" text-anchor="middle" font-weight="600" opacity="0.7">$380K–$520K</text>
-            <text x="60" y="72" font-family="'DM Sans',sans-serif" font-size="7" fill="var(--muted)" text-anchor="middle" letter-spacing="0.06em" opacity="0.5">CONFIDENCE: HIGH</text>
-          </svg>
-        </div>
-        <h3>Get your estimate</h3>
-        <p>A regionally-calibrated cost range, confidence level, and plain-language narrative. Built from historical construction benchmarks, not guesswork.</p>
-      </div>
-
-      <!-- Step 3 -->
-      <div class="how-step">
-        <div class="how-step-num">3</div>
-        <!-- Meeting room editorial sketch -->
-        <div class="how-step-illus">
-          <svg width="120" height="100" viewBox="0 0 120 100" fill="none">
-            <!-- Table -->
-            <ellipse cx="60" cy="68" rx="40" ry="14" fill="none" stroke="var(--ink)" stroke-width="1.5" opacity="0.2"/>
-            <line x1="20" y1="68" x2="20" y2="82" stroke="var(--ink)" stroke-width="1.2" stroke-linecap="round" opacity="0.15"/>
-            <line x1="100" y1="68" x2="100" y2="82" stroke="var(--ink)" stroke-width="1.2" stroke-linecap="round" opacity="0.15"/>
-            <line x1="20" y1="82" x2="100" y2="82" stroke="var(--ink)" stroke-width="1.2" opacity="0.15"/>
-            <!-- People around table -->
-            <circle cx="60" cy="52" r="5.5" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.3"/>
-            <path d="M52 66 Q60 60 68 66" fill="none" stroke="var(--ink)" stroke-width="1" stroke-linecap="round" opacity="0.25"/>
-            <circle cx="26" cy="62" r="4.5" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.2"/>
-            <path d="M20 72 Q26 68 32 72" fill="none" stroke="var(--ink)" stroke-width="1" stroke-linecap="round" opacity="0.18"/>
-            <circle cx="94" cy="62" r="4.5" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.2"/>
-            <path d="M88 72 Q94 68 100 72" fill="none" stroke="var(--ink)" stroke-width="1" stroke-linecap="round" opacity="0.18"/>
-            <!-- Document on table -->
-            <rect x="48" y="64" width="24" height="16" rx="1.5" fill="var(--accent)" opacity="0.12" stroke="var(--accent)" stroke-width="1" stroke-opacity="0.3"/>
-            <line x1="52" y1="69" x2="68" y2="69" stroke="var(--accent)" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
-            <line x1="52" y1="73" x2="64" y2="73" stroke="var(--accent)" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
-            <!-- Checkmark badge -->
-            <circle cx="84" cy="30" r="14" fill="rgba(194,65,12,0.08)" stroke="var(--accent)" stroke-width="1" stroke-opacity="0.3"/>
-            <path d="M77 30 L82 35 L91 24" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
-          </svg>
-        </div>
-        <h3>Walk in informed</h3>
-        <p>Council meeting. Budget conversation. Vendor call. You know your number before anyone else does — and you didn't have to call anyone to get it.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ WHO IT'S FOR ═══ -->
-<section class="section who-section" id="who" style="background: var(--cream-dark);">
-  <div class="section-inner">
-    <div class="section-label">Who It's For</div>
-    <h2 class="section-heading">Anyone in local government<br><em>with a project idea.</em></h2>
-    <p class="section-intro">Not just town managers. If you've ever had a project dream and wondered "is this even possible?" — CivicScope was built for you.</p>
-
-    <div class="who-grid">
-      <!-- Parks Director -->
-      <div class="who-card">
-        <div class="who-card-illus">
-          <svg width="64" height="48" viewBox="0 0 64 48" fill="none">
-            <path d="M8 40 Q8 28 20 24 Q28 20 32 12 Q36 20 44 24 Q56 28 56 40" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
-            <path d="M22 40 L22 28 M42 40 L42 28" stroke="var(--ink)" stroke-width="1" stroke-linecap="round" opacity="0.2"/>
-            <line x1="8" y1="40" x2="56" y2="40" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" opacity="0.25"/>
-            <ellipse cx="32" cy="40" rx="8" ry="4" fill="rgba(194,65,12,0.1)" stroke="var(--accent)" stroke-width="1" stroke-opacity="0.3"/>
-          </svg>
-        </div>
-        <h3>Parks Directors</h3>
-        <p>Splash pads, pavilions, trail expansions. Know if the capital fund covers it before the residents ask at the next board meeting.</p>
-      </div>
-
-      <!-- Town Manager -->
-      <div class="who-card">
-        <div class="who-card-illus">
-          <svg width="64" height="48" viewBox="0 0 64 48" fill="none">
-            <rect x="12" y="16" width="40" height="28" rx="2" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.5"/>
-            <path d="M12 24 L32 8 L52 24" fill="none" stroke="var(--ink)" stroke-width="1.5" opacity="0.3"/>
-            <rect x="24" y="28" width="16" height="16" rx="1" fill="none" stroke="var(--ink)" stroke-width="1" opacity="0.2"/>
-            <line x1="32" y1="28" x2="32" y2="44" stroke="var(--ink)" stroke-width="1" opacity="0.15"/>
-          </svg>
-        </div>
-        <h3>Town Managers</h3>
-        <p>Fielding proposals from every department. Get a fast reality check on any capital project before it goes to the council agenda.</p>
-      </div>
-
-      <!-- DPW Director -->
-      <div class="who-card">
-        <div class="who-card-illus">
-          <svg width="64" height="48" viewBox="0 0 64 48" fill="none">
-            <rect x="8" y="22" width="48" height="22" rx="2" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.5"/>
-            <path d="M8 22 L8 16 L20 16 L20 22" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.3"/>
-            <path d="M28 22 L28 12 L48 12 L48 22" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.3"/>
-            <rect x="16" y="30" width="10" height="14" rx="1" fill="none" stroke="var(--ink)" stroke-width="1" opacity="0.18"/>
-            <rect x="36" y="28" width="14" height="10" rx="1" fill="none" stroke="var(--ink)" stroke-width="1" opacity="0.18"/>
-            <circle cx="20" cy="44" r="4" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.2"/>
-            <circle cx="44" cy="44" r="4" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.2"/>
-          </svg>
-        </div>
-        <h3>DPW Directors</h3>
-        <p>New garage, salt shed, or maintenance facility. Estimate costs before writing the capital improvement request that will get laughed out of the room.</p>
-      </div>
-
-      <!-- Clerks -->
-      <div class="who-card">
-        <div class="who-card-illus">
-          <svg width="64" height="48" viewBox="0 0 64 48" fill="none">
-            <rect x="14" y="10" width="36" height="30" rx="2" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.5"/>
-            <line x1="22" y1="19" x2="42" y2="19" stroke="var(--ink)" stroke-width="1.2" stroke-linecap="round" opacity="0.25"/>
-            <line x1="22" y1="25" x2="38" y2="25" stroke="var(--ink)" stroke-width="1" stroke-linecap="round" opacity="0.2"/>
-            <line x1="22" y1="31" x2="40" y2="31" stroke="var(--ink)" stroke-width="1" stroke-linecap="round" opacity="0.2"/>
-            <circle cx="48" cy="38" r="8" fill="rgba(194,65,12,0.08)" stroke="var(--accent)" stroke-width="1" stroke-opacity="0.4"/>
-            <path d="M44 38 L47 41 L52 34" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
-          </svg>
-        </div>
-        <h3>Clerks &amp; Administrators</h3>
-        <p>Supporting elected officials who have big ideas. Give them a reality check before the idea becomes a motion on the floor.</p>
-      </div>
-
-      <!-- Finance Director -->
-      <div class="who-card">
-        <div class="who-card-illus">
-          <svg width="64" height="48" viewBox="0 0 64 48" fill="none">
-            <rect x="10" y="36" width="8" height="8" fill="rgba(194,65,12,0.3)" stroke="var(--accent)" stroke-width="1" opacity="0.6"/>
-            <rect x="22" y="28" width="8" height="16" fill="rgba(194,65,12,0.2)" stroke="var(--accent)" stroke-width="1" opacity="0.5"/>
-            <rect x="34" y="20" width="8" height="24" fill="rgba(194,65,12,0.15)" stroke="var(--accent)" stroke-width="1" opacity="0.4"/>
-            <rect x="46" y="12" width="8" height="32" fill="rgba(194,65,12,0.1)" stroke="var(--accent)" stroke-width="1" opacity="0.3"/>
-            <path d="M14 32 Q22 22 38 18 Q46 14 50 10" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" opacity="0.3" stroke-dasharray="3 2"/>
-            <line x1="8" y1="44" x2="58" y2="44" stroke="var(--ink)" stroke-width="1" opacity="0.2"/>
-          </svg>
-        </div>
-        <h3>Finance Directors</h3>
-        <p>Stress-testing the capital budget. Know the order of magnitude before you model it — and before you tell the mayor it won't fit.</p>
-      </div>
-
-      <!-- Council Members -->
-      <div class="who-card">
-        <div class="who-card-illus">
-          <svg width="64" height="48" viewBox="0 0 64 48" fill="none">
-            <!-- Council arc of seats -->
-            <path d="M10 40 Q32 18 54 40" fill="none" stroke="var(--ink)" stroke-width="1" stroke-linecap="round" opacity="0.2"/>
-            <circle cx="12" cy="38" r="5" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.25"/>
-            <circle cx="24" cy="27" r="5" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.25"/>
-            <circle cx="32" cy="22" r="5" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.5"/>
-            <circle cx="40" cy="27" r="5" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.25"/>
-            <circle cx="52" cy="38" r="5" fill="none" stroke="var(--ink)" stroke-width="1.2" opacity="0.25"/>
-            <!-- Podium -->
-            <rect x="26" y="40" width="12" height="6" rx="1" fill="none" stroke="var(--ink)" stroke-width="1" opacity="0.2"/>
-          </svg>
-        </div>
-        <h3>Council Members</h3>
-        <p>Fielding constituent requests, weighing in on staff proposals. A 30-second gut check before you vote to pursue something.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ PRICING ═══ -->
-<section class="section pricing-section" id="pricing">
-  <div class="section-inner">
-    <div class="section-label">Free vs Pro</div>
-    <h2 class="section-heading">Always free to use.<br><em>Pro coming soon.</em></h2>
-    <p class="section-intro">The free tool is yours — no account, no time limit, no catch. Pro adds methodology transparency, timeline projections, and deeper analysis for teams that need more.</p>
-
-    <div class="pricing-grid">
-      <div class="pricing-card">
-        <div class="pricing-header">
-          <div class="pricing-tier">Free</div>
-          <div class="pricing-name">CivicScope</div>
-          <div class="pricing-price">Free — always. No account required.</div>
-        </div>
-        <div class="pricing-body">
-          <ul class="pricing-features">
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Cost range estimate
-            </li>
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Confidence rating
-            </li>
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Plain-language narrative
-            </li>
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Results emailed to you
-            </li>
-            <li class="missing">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="var(--muted-light)" stroke-width="1.5" stroke-linecap="round"/></svg>
-              Cost methodology transparency
-            </li>
-            <li class="missing">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="var(--muted-light)" stroke-width="1.5" stroke-linecap="round"/></svg>
-              Project timeline projection
-            </li>
-            <li class="missing">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="var(--muted-light)" stroke-width="1.5" stroke-linecap="round"/></svg>
-              Buyer's advocate guide
-            </li>
-            <li class="missing">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="var(--muted-light)" stroke-width="1.5" stroke-linecap="round"/></svg>
-              Saved projects + login
-            </li>
-          </ul>
-          <a href="https://app.civicscope.io/civicscope" class="pricing-cta-free">Use CivicScope Free →</a>
-        </div>
-      </div>
-
-      <div class="pricing-card featured">
-        <div class="pricing-header">
-          <div class="pricing-tier">Pro</div>
-          <div class="pricing-name">CivicScope Pro</div>
-          <div class="pricing-price">Coming soon — currently in beta</div>
-        </div>
-        <div class="pricing-body">
-          <ul class="pricing-features-pro">
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Everything in Free
-            </li>
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Cost methodology transparency
-            </li>
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Project timeline projection
-            </li>
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Buyer's advocate guide
-            </li>
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Edit &amp; re-run estimates
-            </li>
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Saved projects + login
-            </li>
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Print-ready report
-            </li>
-            <li>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="#fb923c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Always-on clarifying questions
-            </li>
-          </ul>
-          <a class="pricing-cta-soon">Notify me when Pro launches →</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ FOUNDER / WHY ═══ -->
-<section class="founder-section" id="why">
-  <div class="founder-inner">
-    <div>
-      <div class="founder-label">Why This Exists</div>
-      <div class="founder-quote">
-        "I walked into this industry with <strong>fresh eyes</strong> — and I couldn't believe there was nothing like this already."
-      </div>
-    </div>
-    <div class="founder-body">
-      <p>CivicScope was built by someone who entered the development world without a construction background — an attorney who spent a decade leading customer success at fast-moving SaaS companies. When you come in from the outside, you see things clearly that insiders stopped noticing long ago.</p>
-      <p>What was obvious: <strong>the people responsible for delivering projects to citizens had been left completely in the dark at the most critical moment.</strong> The feasibility question — the one that should come first, before any calls, before any commitments — had never had a good answer.</p>
-      <p>The industry wasn't built to empower municipal employees. It was built for design firms and contractors who benefit from being the first call. CivicScope was built for the other side — for every parks director, every clerk, every council member who just wants to know if their idea is worth pursuing.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ FINAL CTA ═══ -->
-<section class="cta-section">
-  <div class="cta-inner">
-    <div class="section-label" style="justify-content:center;">Get Started</div>
-    <h2 class="section-heading" style="text-align:center; max-width:100%;">Start dreaming.<br><em>We'll tell you if it's possible.</em></h2>
-    <p class="section-intro" style="text-align:center;">Free to use, always. No signup, no commitment, no architect required. Just an honest cost reality check in 30 seconds — so you can walk into any meeting with a number.</p>
-    <div class="cta-buttons">
-      <a href="https://app.civicscope.io/civicscope" class="btn-primary-lg">
-        Use CivicScope Free
+    <div class="submit-row">
+      <button class="btn-primary" id="submitBtn" onclick="runFeasibility()">
+        Run Feasibility Check
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
-      <a href="https://app.civicscope.io/civicscope-pro" style="font-size:0.85rem; color:var(--muted); text-decoration:none;">Explore Pro →</a>
+      </button>
+      <div class="submit-note">Takes about 20 seconds &nbsp;·&nbsp; No account required</div>
     </div>
-    <p class="cta-note">Always free. No account needed. Results emailed to you.</p>
-  </div>
-</section>
 
-<!-- ═══ FOOTER ═══ -->
-<footer>
-  <div class="footer-inner">
-    <div class="footer-wordmark">
-      <span class="wordmark-dot"></span>CivicScope
+    <div class="loading-state" id="loading">
+      <div class="spinner"></div>
+      <span id="loadingMsg">Analyzing regional cost data and project parameters...</span>
     </div>
-    <div class="footer-links">
-      <a href="https://app.civicscope.io/civicscope">Free Tool</a>
-      <a href="https://app.civicscope.io/civicscope-pro">Pro Tool</a>
-      <a href="mailto:info@civicscope.io">info@civicscope.io</a>
+    <div class="error-block" id="errorBlock"></div>
+
+    <hr class="divider" id="resultDivider" style="display:none">
+
+    <!-- RESULTS -->
+    <div id="result">
+
+      <div class="result-header">
+        <div>
+          <div class="result-title" id="resultTitle">Preliminary Feasibility Indicator</div>
+          <div class="result-meta" id="resultMeta"></div>
+        </div>
+        <div class="confidence-badge" id="confidenceBadge"></div>
+      </div>
+
+      <button class="print-btn" onclick="window.print()">↓ Print / Save as PDF</button>
+
+      <div class="images-block" id="imagesBlock">
+        <h3>Reference Projects — Similar Construction Type</h3>
+        <div class="image-grid" id="imageGrid"></div>
+        <div class="field-hint" style="margin-top:8px;">Visual reference only — example projects of similar type and scale.</div>
+      </div>
+
+      <div class="cost-range-block">
+        <div class="cost-label">Estimated Project Cost Range</div>
+        <div class="cost-range" id="costRange">—</div>
+        <div class="cost-midpoint" id="costMidpoint"></div>
+      </div>
+
+      <div class="narrative-block" id="narrativeBlock"></div>
+
+      <div class="result-block">
+        <div class="block-label">Assumptions Behind This Estimate</div>
+        <ul class="assumption-list" id="assumptionList"></ul>
+      </div>
+
+      <div class="result-block">
+        <div class="block-label">Council Briefing Guide</div>
+        <p class="field-hint" style="margin-bottom:14px;">AI-generated talking points tailored to your project. Review and edit before using.</p>
+        <div id="briefingContent">
+          <div class="section-loading">
+            <div class="spinner"></div>
+            Drafting your council briefing guide...
+          </div>
+        </div>
+      </div>
+
+      <div class="result-block">
+        <div class="block-label">Understanding Your Path to Getting This Built</div>
+        <div class="proc-header">
+          <p>The procurement path you choose affects your total cost, timeline, and how much risk your municipality carries.</p>
+        </div>
+        <div class="proc-paths">
+          <div class="proc-path traditional">
+            <div class="proc-path-label">Traditional Path</div>
+            <h4>Plan-Spec-Low Bid</h4>
+            <ul class="proc-steps">
+              <li>Design and engineering fees paid <strong>before any commitment</strong> — typically 8–12% of project cost</li>
+              <li>Public bid advertising required — <strong>12–18 months</strong> from design start to groundbreaking</li>
+              <li>Legally required to accept the <strong>lowest bidder</strong> regardless of track record</li>
+              <li>Change orders average <strong>11% cost growth</strong> after award</li>
+            </ul>
+            <div class="proc-callout" id="tradCallout">On a project in this range, design fees and change order risk can add significantly to your final cost.</div>
+          </div>
+          <div class="proc-path alternative">
+            <div class="proc-path-label">Alternative Path</div>
+            <h4>Design-Build / GMP</h4>
+            <ul class="proc-steps">
+              <li><strong>No upfront design spend.</strong> Receive a Guaranteed Maximum Price before committing</li>
+              <li>Design and contractor teams engaged <strong>from day one</strong> — maximizing value engineering</li>
+              <li>Indiana statute allows GMP procurement — <strong>no low-bid requirement</strong></li>
+              <li><strong>Budget certainty</strong> — cost overrun risk stays with the developer</li>
+            </ul>
+            <div class="proc-callout">Developer fee ~4% of project cost. No change orders. Budget certainty from day one.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lead Gate -->
+      <div class="gate-block" id="gateBlock">
+        <h3>Get Your Full Report by Email</h3>
+        <p>Enter your information below and we'll email you a complete summary — including cost range, assumptions, council briefing guide, and procurement options.</p>
+        <div class="gate-form-grid">
+          <div class="field">
+            <label>First Name <span class="req">*</span></label>
+            <input type="text" id="gateFirst" placeholder="First name" />
+          </div>
+          <div class="field">
+            <label>Last Name <span class="req">*</span></label>
+            <input type="text" id="gateLast" placeholder="Last name" />
+          </div>
+          <div class="field">
+            <label>Your Role <span class="req">*</span></label>
+            <select id="gateRole">
+              <option value="">— Select your role —</option>
+              <option>Town / City Manager</option>
+              <option>Mayor</option>
+              <option>Council Member</option>
+              <option>Department Director</option>
+              <option>Clerk / Administrator</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Email Address <span class="req">*</span></label>
+            <input type="email" id="gateEmail" placeholder="you@municipality.gov" />
+          </div>
+          <div class="field full">
+            <label>Municipality</label>
+            <input type="text" id="gateMunicipality" placeholder="Auto-filled" readonly />
+          </div>
+        </div>
+        <div class="gate-submit-row">
+          <button class="btn-primary" id="gateBtn" onclick="submitLead()">
+            Email Me This Report
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="submit-note">Your information is only shared with JBK Development</div>
+        </div>
+        <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. JBK Development will follow up shortly.</div>
+      </div>
+
+      <div class="cta-block">
+        <div class="cta-text">
+          <h4>Ready to explore a smarter path for this project?</h4>
+          <p>JBK Development helps Indiana and Michigan municipalities structure projects from feasibility through construction — on a guaranteed price, without the plan-spec-low-bid risk.</p>
+        </div>
+        <div class="cta-action">
+          <div class="cta-name">Keith Plummer</div>
+          <div class="cta-company">JBK Development</div>
+          <a href="mailto:keith@jbkdevelopment.com?subject=CivicScope%20Feasibility%20Inquiry" class="cta-btn">Start a Conversation →</a>
+        </div>
+      </div>
+
+      <div class="disclaimer">
+        This is a preliminary feasibility indicator only, not a formal cost estimate. It is intended to support early internal go/no-go decisions and should not be used for budgeting, procurement, or council appropriations without professional verification. Actual costs depend on site conditions, design requirements, local labor markets, and material prices at time of bid.
+      </div>
+
+    </div><!-- /result -->
+
+  </div><!-- /form-column -->
+
+  <!-- SIDEBAR -->
+  <div class="sidebar-column">
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">How It Works</div>
+      <div class="sidebar-step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>Enter your location</strong> — we use regional cost data specific to your state and market.</div>
+      </div>
+      <div class="sidebar-step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>Describe the project</strong> — plain language is fine. No specs, no drawings needed.</div>
+      </div>
+      <div class="sidebar-step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>Get your range</strong> — a preliminary cost range with confidence rating in about 20 seconds.</div>
+      </div>
+      <div class="sidebar-step">
+        <div class="step-num">4</div>
+        <div class="step-text"><strong>Get the full report</strong> — enter your email to receive a complete PDF summary.</div>
+      </div>
     </div>
-    <div class="footer-copy">© 2026 CivicScope</div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">What You Get</div>
+      <ul class="trust-list">
+        <li>Preliminary cost range with confidence rating</li>
+        <li>Plain-language narrative for your context</li>
+        <li>Key assumptions behind the estimate</li>
+        <li>Council briefing guide — AI-drafted talking points</li>
+        <li>Procurement path comparison</li>
+        <li>Full report emailed to you as PDF</li>
+      </ul>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">Good to Know</div>
+      <ul class="trust-list">
+        <li>Free — always. No account required.</li>
+        <li>Not a licensed cost estimate — use for early go/no-go decisions only</li>
+        <li>More detail in your description improves confidence</li>
+        <li>Results typically within 15–25% of actual bid ranges</li>
+      </ul>
+    </div>
   </div>
+
+</div><!-- /page-wrap -->
+
+<footer>
+  <div class="footer-left">
+    <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
+    <span>·</span>
+    <span>Powered by JBK Development</span>
+  </div>
+  <span class="footer-note">For planning purposes only — not a licensed cost estimate</span>
 </footer>
 
+<script>
+// ── ZIP Code lookup ──────────────────────────────────────────────────
+async function handleZip(zip) {
+  if (zip.length !== 5) {
+    if (zip.length < 5) {
+      document.getElementById('state').value = '';
+      document.getElementById('location').value = '';
+      document.getElementById('zipStatus').textContent = '';
+    }
+    return;
+  }
+  try {
+    const resp = await fetch(`https://api.zippopotam.us/us/${zip}`);
+    if (!resp.ok) throw new Error('Not found');
+    const data = await resp.json();
+    const place = data.places[0];
+    document.getElementById('state').value = place['state'];
+    document.getElementById('location').value = place['place name'];
+    document.getElementById('gateMunicipality').value = place['place name'];
+    document.getElementById('zipStatus').textContent = `✓ ${place['place name']}, ${place['state abbreviation']}`;
+    document.getElementById('zipStatus').style.color = 'var(--green)';
+  } catch {
+    document.getElementById('zipStatus').textContent = 'ZIP not found — enter state and municipality manually';
+    document.getElementById('zipStatus').style.color = 'var(--amber)';
+    document.getElementById('state').removeAttribute('readonly');
+  }
+}
+
+// ── Toggle groups ────────────────────────────────────────────────────
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('projectType').value = btn.dataset.type;
+    document.getElementById('imageSearch').value = btn.dataset.search;
+  });
+});
+
+document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('buildType').value = btn.dataset.val;
+  });
+});
+
+document.querySelectorAll('#topoGroup .toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#topoGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('topography').value = btn.dataset.val;
+  });
+});
+
+// ── Helpers ──────────────────────────────────────────────────────────
+function formatCurrency(n) {
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M';
+  return '$' + n.toLocaleString('en-US');
+}
+
+function getUtilities() {
+  const vals = ['util-water','util-sewer','util-electric','util-none']
+    .filter(id => document.getElementById(id).checked)
+    .map(id => document.getElementById(id).value);
+  return vals.length ? vals.join(', ') : 'Not specified';
+}
+
+function loadImages(searchQuery) {
+  const grid = document.getElementById('imageGrid');
+  const block = document.getElementById('imagesBlock');
+  grid.innerHTML = '';
+  const terms = [
+    encodeURIComponent(searchQuery),
+    encodeURIComponent(searchQuery.split(' ').slice(0,4).join(' ') + ' building'),
+    encodeURIComponent(searchQuery.split(' ').slice(0,3).join(' ') + ' architecture')
+  ];
+  terms.forEach((kw, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'img-wrapper';
+    const img = document.createElement('img');
+    img.src = `https://source.unsplash.com/400x300/?${kw}&sig=${Date.now()+i}`;
+    img.alt = 'Reference project';
+    img.onerror = () => { wrap.style.display = 'none'; };
+    const cap = document.createElement('div');
+    cap.className = 'image-caption';
+    cap.textContent = 'Reference only — similar project type';
+    wrap.appendChild(img);
+    wrap.appendChild(cap);
+    grid.appendChild(wrap);
+  });
+  block.style.display = 'block';
+}
+
+function updateProcCallout(low, high) {
+  const designLow = formatCurrency(Math.round(low * 0.08));
+  const designHigh = formatCurrency(Math.round(high * 0.12));
+  const changeRisk = formatCurrency(Math.round(((low + high) / 2) * 0.11));
+  document.getElementById('tradCallout').textContent =
+    `On a project in this range: design fees ${designLow}–${designHigh} before commitment, plus ~${changeRisk} in estimated change order exposure after low-bid award.`;
+}
+
+// ── API call ─────────────────────────────────────────────────────────
+async function callClaude(prompt) {
+  const resp = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await resp.json();
+  const text = data.content.map(i => i.text || '').join('');
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
+// ── Feasibility estimate ─────────────────────────────────────────────
+async function runFeasibility() {
+  const zip      = document.getElementById('zip').value.trim();
+  const location = document.getElementById('location').value.trim();
+  const state    = document.getElementById('state').value.trim();
+  const type     = document.getElementById('projectType').value;
+  const buildType = document.getElementById('buildType').value;
+  const scope    = document.getElementById('scope').value.trim();
+  const topo     = document.getElementById('topography').value;
+  const utils    = getUtilities();
+  const imgSearch = document.getElementById('imageSearch').value;
+
+  if (!location || !state || !type || !scope) {
+    alert('Please fill in your location, select a project type, and describe your project.');
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  const loading = document.getElementById('loading');
+  const loadingMsg = document.getElementById('loadingMsg');
+  const errorBlock = document.getElementById('errorBlock');
+  const resultEl = document.getElementById('result');
+  const divider = document.getElementById('resultDivider');
+
+  btn.disabled = true;
+  loading.style.display = 'flex';
+  loadingMsg.textContent = 'Analyzing regional cost data and project parameters...';
+  errorBlock.style.display = 'none';
+  resultEl.style.display = 'none';
+  divider.style.display = 'none';
+  document.getElementById('imagesBlock').style.display = 'none';
+
+  const prompt = `You are a municipal construction cost advisor helping local government officials in the Midwest assess project feasibility before engaging architects or contractors.
+
+LOCATION: ${location}, ${state} (ZIP: ${zip})
+PROJECT TYPE: ${type}
+BUILD TYPE: ${buildType}
+DESCRIPTION: ${scope}
+SITE TOPOGRAPHY: ${topo || 'Not specified'}
+UTILITIES ON SITE: ${utils}
+
+Provide an honest preliminary cost range based on regional construction costs for ${state}. Factor in all site conditions provided.
+
+Respond ONLY with valid JSON, no markdown, no preamble:
+{
+  "low": <integer dollar amount>,
+  "high": <integer dollar amount>,
+  "confidence": "<High|Moderate|Low>",
+  "confidence_reason": "<one sentence>",
+  "narrative": "<2-3 sentences for a non-technical town manager — is this feasible, what drives the cost, any watch-outs?>",
+  "assumptions": [
+    "<specific assumption 1>",
+    "<specific assumption 2>",
+    "<specific assumption 3>",
+    "<specific assumption 4>",
+    "<site or utility assumption>"
+  ],
+  "project_label": "<3-6 word label, e.g. 'DPW 3-Bay Equipment Garage' or '6-Court Pickleball Complex'>"
+}
+
+Rules:
+- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance
+- Exclude land acquisition
+- If no utilities on site, add realistic extension costs to range
+- If demo required, include demo costs
+- Renovation projects typically cost 60-80% of new construction per SF
+- Vague descriptions get Low confidence and wider ranges
+- ${state} regional labor market costs should be reflected
+- Write for a town manager, not a contractor`;
+
+  try {
+    const rd = await callClaude(prompt);
+
+    document.getElementById('resultTitle').textContent = rd.project_label || 'Preliminary Feasibility Indicator';
+    document.getElementById('resultMeta').innerHTML =
+      `${location}, ${state} &nbsp;·&nbsp; ${type} &nbsp;·&nbsp; ${buildType}`;
+
+    const badge = document.getElementById('confidenceBadge');
+    badge.textContent = rd.confidence + ' Confidence';
+    badge.className = 'confidence-badge confidence-' + rd.confidence.toLowerCase();
+
+    document.getElementById('costRange').textContent =
+      formatCurrency(rd.low) + ' – ' + formatCurrency(rd.high);
+    const mid = Math.round((rd.low + rd.high) / 2);
+    document.getElementById('costMidpoint').innerHTML =
+      `Midpoint: <strong>${formatCurrency(mid)}</strong> &nbsp;·&nbsp; ${rd.confidence_reason}`;
+
+    document.getElementById('narrativeBlock').textContent = rd.narrative;
+
+    const ul = document.getElementById('assumptionList');
+    ul.innerHTML = '';
+    rd.assumptions.forEach(a => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+
+    updateProcCallout(rd.low, rd.high);
+    document.getElementById('gateMunicipality').value = location;
+
+    divider.style.display = 'block';
+    resultEl.style.display = 'block';
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    if (imgSearch) loadImages(imgSearch);
+
+    document.getElementById('briefingContent').innerHTML =
+      `<div class="section-loading"><div class="spinner"></div> Drafting your council briefing guide...</div>`;
+
+    fetchBriefing(rd.project_label, rd.low, rd.high, state, location, type, scope, buildType)
+      .then(b => renderBriefing(b))
+      .catch(() => {
+        document.getElementById('briefingContent').innerHTML =
+          '<p style="font-size:0.85rem;color:var(--muted);">Could not generate briefing guide. Try re-running the feasibility check.</p>';
+      });
+
+  } catch (err) {
+    errorBlock.textContent = 'Something went wrong. Please check your inputs and try again — more detail in the description usually helps.';
+    errorBlock.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    loading.style.display = 'none';
+  }
+}
+
+// ── Council Briefing Guide ───────────────────────────────────────────
+async function fetchBriefing(label, low, high, state, location, type, scope, buildType) {
+  const prompt = `You are a municipal communications advisor helping a town manager prepare to present a capital project to their council for the first time.
+
+PROJECT: ${label}
+LOCATION: ${location}, ${state}
+TYPE: ${type} — ${buildType}
+DESCRIPTION: ${scope}
+ESTIMATED COST RANGE: ${formatCurrency(low)} – ${formatCurrency(high)} (midpoint ~${formatCurrency(Math.round((low+high)/2))})
+
+Respond ONLY with valid JSON, no markdown, no preamble:
+{
+  "opening": "<One natural sentence the manager can say to open this topic at a council meeting — confident, not salesy>",
+  "talking_points": [
+    "<why this project matters to residents — specific to this project type>",
+    "<why now is a reasonable time to explore it — practical, not urgent>",
+    "<what the cost range means and how to frame it — reassuring, not technical>"
+  ],
+  "likely_questions": [
+    { "q": "<most likely skeptical council question>", "a": "<brief, direct answer>" },
+    { "q": "<second likely question>", "a": "<brief answer>" },
+    { "q": "<third likely question>", "a": "<brief answer>" }
+  ],
+  "next_step": "<One sentence — the lowest-commitment ask you can make to council to move this forward.>"
+}`;
+
+  return await callClaude(prompt);
+}
+
+function renderBriefing(b) {
+  let html = '';
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Opening Line</div>
+    <div class="opening-quote">"${b.opening}"</div>
+  </div>`;
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Key Talking Points</div>
+    <ul class="pitch-points">${b.talking_points.map(p => `<li>${p}</li>`).join('')}</ul>
+  </div>`;
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Likely Council Questions &amp; Suggested Answers</div>`;
+  b.likely_questions.forEach(qa => {
+    html += `<div class="qa-item">
+      <div class="qa-q">Q: ${qa.q}</div>
+      <div class="qa-a">${qa.a}</div>
+    </div>`;
+  });
+  html += `</div>`;
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Recommended Ask to Council</div>
+    <div class="recommended-ask">${b.next_step}</div>
+  </div>`;
+  document.getElementById('briefingContent').innerHTML = html;
+}
+
+// ── Lead Gate — now uses /api/email ─────────────────────────────────
+async function submitLead() {
+  const first = document.getElementById('gateFirst').value.trim();
+  const last  = document.getElementById('gateLast').value.trim();
+  const role  = document.getElementById('gateRole').value;
+  const email = document.getElementById('gateEmail').value.trim();
+  const muni  = document.getElementById('gateMunicipality').value.trim();
+  const project = document.getElementById('resultTitle').textContent;
+  const costRange = document.getElementById('costRange').textContent;
+  const narrative = document.getElementById('narrativeBlock').textContent;
+
+  if (!first || !last || !role || !email) {
+    alert('Please fill in all fields to receive your report.');
+    return;
+  }
+
+  const gateBtn = document.getElementById('gateBtn');
+  gateBtn.disabled = true;
+  gateBtn.textContent = 'Sending...';
+
+  try {
+    await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'free_report',
+        name: `${first} ${last}`,
+        role,
+        email,
+        municipality: muni,
+        project,
+        cost_range: costRange,
+        narrative,
+        zip: document.getElementById('zip').value,
+        state: document.getElementById('state').value,
+        project_type: document.getElementById('projectType').value,
+        scope: document.getElementById('scope').value.trim()
+      })
+    });
+
+    document.getElementById('gateBtn').style.display = 'none';
+    document.getElementById('gateConfirmed').style.display = 'block';
+
+  } catch (err) {
+    gateBtn.disabled = false;
+    gateBtn.textContent = 'Email Me This Report';
+    alert('Something went wrong. Please try again.');
+  }
+}
+</script>
 </body>
 </html>
