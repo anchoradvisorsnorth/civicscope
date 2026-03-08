@@ -247,6 +247,20 @@ const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${table}`, {
 }}
 ```
 
+### Versioning
+
+Convention:
+- Patch (bug fix, copy tweak): v1.4.0 → v1.4.1
+- Minor (new feature, UI change): v1.4.1 → v1.5.0
+- Major (rebuild): v1.5.0 → v2.0.0
+
+Before deploying any change:
+1. Bump version in the file header comment of the changed file (e.g., `<!-- CivicScope Free v1.4.1 -->`)
+2. Bump the version in the "Current versions" section of this file
+3. Push both files together via PUSH_CIVICSCOPE.bat
+
+Claude will state the current version before editing any file, and remind you to bump before deploying.
+
 ### Pending work (CivicScope)
 - **Monitoring dashboard** — NEXT: track runs, leads, errors, API costs (Supabase + Vercel logs)
 - Real GC onboarding — replace ACME placeholder with real GC tenant (logo, CTA URL, contact email)
