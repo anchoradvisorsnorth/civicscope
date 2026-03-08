@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/admin", "destination": "/civicscope-admin/index.html" },
     { "source": "/gc/acme-internal", "destination": "/civicscope-gc/estimator/index.html" },
     { "source": "/gc/:slug", "destination": "/civicscope-gc/index.html" }
   ]
