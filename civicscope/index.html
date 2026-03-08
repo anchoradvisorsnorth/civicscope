@@ -1012,7 +1012,7 @@ footer span {
         <div class="cta-action">
           <div class="cta-name">Keith Plummer</div>
           <div class="cta-company">JBK Development</div>
-          <a href="mailto:keith@jbkdevelopment.com?subject=CivicScope%20Feasibility%20Inquiry" class="cta-btn">Start a Conversation →</a>
+          <a href="/cdn-cgi/l/email-protection#1f747a766b775f757d747b7a697a73706f727a716b317c7072206c6a7d757a7c6b225c7669767c4c7c706f7a3a2d2f597a7e6c767d7673766b663a2d2f56716e6a766d66" class="cta-btn">Start a Conversation →</a>
         </div>
       </div>
 
@@ -1080,7 +1080,7 @@ footer span {
   <span class="footer-note">For planning purposes only — not a licensed cost estimate</span>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ── ZIP Code lookup ──────────────────────────────────────────────────
 async function handleZip(zip) {
   if (zip.length !== 5) {
@@ -1398,31 +1398,65 @@ async function submitLead() {
   gateBtn.textContent = 'Sending...';
 
   try {
+    // Parse cost fields from DOM
+    const costRangeText = document.getElementById('costRange').textContent;
+    const costParts = costRangeText.split('\u2013').map(s => s.trim());
+    const costLow  = costParts[0] || '\u2014';
+    const costHigh = costParts[1] || '\u2014';
+    const costMidEl = document.getElementById('costMidpoint');
+    const costMidpoint = costMidEl ? costMidEl.textContent.replace(/Midpoint:\s*/i,'').split('\u00b7')[0].trim() : '\u2014';
+    const badge = document.getElementById('confidenceBadge');
+    const confidence = badge ? badge.textContent.replace(' Confidence','').trim() : 'Moderate';
+
+    // Send report to user
     await fetch('/api/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        type: 'free_report',
-        name: `${first} ${last}`,
-        role,
-        email,
-        municipality: muni,
-        project,
-        cost_range: costRange,
-        narrative,
-        zip: document.getElementById('zip').value,
-        state: document.getElementById('state').value,
-        project_type: document.getElementById('projectType').value,
-        scope: document.getElementById('scope').value.trim()
+        action: 'send_report',
+        data: {
+          recipientEmail: email,
+          recipientName: `${first} ${last}`,
+          municipality: muni,
+          projectType: project,
+          costLow,
+          costHigh,
+          costMidpoint,
+          confidence,
+          narrative,
+          assumptions: [],
+          product: 'free'
+        }
+      })
+    });
+
+    // Notify Keith of lead
+    await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'notify_lead',
+        data: {
+          firstName: first,
+          lastName: last,
+          email,
+          role,
+          municipality: muni,
+          projectType: project,
+          costLow,
+          costHigh,
+          confidence,
+          product: 'free'
+        }
       })
     });
 
     document.getElementById('gateBtn').style.display = 'none';
     document.getElementById('gateConfirmed').style.display = 'block';
-
   } catch (err) {
-    gateBtn.disabled = false;
-    gateBtn.textContent = 'Email Me This Report';
+    console.error('Lead submit error:', err);
+    document.getElementById('gateBtn').disabled = false;
+    document.getElementById('gateBtn').textContent = 'Send My Report';
     alert('Something went wrong. Please try again.');
   }
 }
