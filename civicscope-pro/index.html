@@ -184,19 +184,6 @@ header {
 .checkbox-item { display: flex; align-items: center; gap: 7px; font-size: 0.83rem; color: var(--ink-light); cursor: pointer; }
 .checkbox-item input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
 
-/* ── Pro: Clarify note ── */
-.clarify-pro-note {
-  font-size: 0.72rem;
-  color: var(--pro);
-  background: var(--pro-light);
-  padding: 8px 14px;
-  border-radius: 4px;
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 /* ── Submit ── */
 .submit-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 .btn-primary { font-family: var(--font-body); background: var(--accent); color: white; border: none; border-radius: 4px; padding: 13px 28px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background 0.15s, transform 0.1s; display: flex; align-items: center; gap: 8px; letter-spacing: 0.01em; }
@@ -341,49 +328,6 @@ header {
 .pro-feat-sidebar li { font-size: 0.82rem; color: var(--ink-light); display: flex; align-items: flex-start; gap: 8px; line-height: 1.45; }
 .pro-feat-sidebar li::before { content: '✓'; color: var(--pro); font-size: 0.78rem; flex-shrink: 0; margin-top: 1px; font-weight: 600; }
 
-/* ── Clarify Modal ── */
-.clarify-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(28,25,23,0.6);
-  z-index: 200;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.clarify-modal {
-  background: var(--white);
-  border-radius: 8px;
-  padding: 32px;
-  max-width: 520px;
-  width: 100%;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.25);
-}
-.clarify-modal-title {
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  font-weight: 600;
-  margin-bottom: 6px;
-  letter-spacing: -0.02em;
-}
-.clarify-modal-sub {
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin-bottom: 24px;
-  line-height: 1.55;
-}
-.clarify-q { margin-bottom: 18px; }
-.clarify-q label { display: block; font-size: 0.83rem; font-weight: 500; color: var(--ink-light); margin-bottom: 6px; }
-.clarify-q textarea {
-  font-family: var(--font-body); font-size: 0.88rem; width: 100%;
-  background: var(--cream); border: 1px solid var(--rule); border-radius: 4px;
-  padding: 10px 14px; resize: vertical; outline: none; transition: border-color 0.15s;
-}
-.clarify-q textarea:focus { border-color: var(--accent); }
-.clarify-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-.clarify-skip { font-family: var(--font-body); background: none; border: none; font-size: 0.82rem; color: var(--muted); cursor: pointer; padding: 4px; }
-.clarify-skip:hover { color: var(--ink); }
 
 /* ── Footer ── */
 footer { border-top: 1px solid var(--rule); padding: 18px var(--page-pad); max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -453,26 +397,30 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
 
     <div class="page-intro">
       <div class="page-eyebrow">Pro Feasibility Tool</div>
-      <h1>Is your project<br>worth pursuing?</h1>
-      <p>Richer output, deeper analysis. Pro asks two clarifying questions before running — improving cost accuracy and confidence. All results stream in as they're ready.</p>
+      <h1>Describe your project.<br>Get your number.</h1>
+      <p>No architect. No engineer. No commitment. Cost range, methodology, timeline, buyer's advocate guide, and council briefing — in about 30 seconds.</p>
     </div>
 
     <!-- SECTION 1: Location -->
     <div class="form-section">
       <div class="form-section-title">Your Location</div>
-      <div class="form-grid-3">
+      <div class="form-grid">
+        <div class="field">
+          <label>Municipality Name <span class="req">*</span></label>
+          <input type="text" id="location" placeholder="e.g. Town of Plainfield" />
+        </div>
         <div class="field">
           <label>ZIP Code <span class="req">*</span></label>
           <input type="text" id="zip" maxlength="5" placeholder="e.g. 46032" oninput="handleZip(this.value)" />
           <div class="field-hint" id="zipStatus"></div>
         </div>
         <div class="field">
-          <label>State</label>
-          <input type="text" id="state" readonly placeholder="Auto-filled from ZIP" />
+          <label>City</label>
+          <input type="text" id="city" readonly placeholder="Auto-filled from ZIP" />
         </div>
         <div class="field">
-          <label>Municipality <span class="req">*</span></label>
-          <input type="text" id="location" placeholder="Auto-filled from ZIP" />
+          <label>State</label>
+          <input type="text" id="state" readonly placeholder="Auto-filled from ZIP" />
         </div>
       </div>
     </div>
@@ -510,10 +458,6 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
           <label>Describe the Project <span class="req">*</span></label>
           <textarea id="scope" placeholder="Describe what you have in mind in plain language. The more detail you provide, the higher the confidence level of your estimate."></textarea>
           <div class="field-hint">No technical specs needed. Plain language is fine.</div>
-          <div class="clarify-pro-note">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5.5" stroke="currentColor"/><path d="M6 5v4M6 3.5v.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-            Pro will ask 2 clarifying questions before running to improve estimate accuracy.
-          </div>
         </div>
       </div>
     </div>
@@ -550,7 +494,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
         Run Feasibility Check
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <div class="submit-note">~30 seconds &nbsp;·&nbsp; Pro asks 2 clarifying questions first</div>
+      <div class="submit-note">~30 seconds &nbsp;·&nbsp; No account required</div>
     </div>
 
     <div class="loading-state" id="loading">
@@ -581,12 +525,6 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
       </div>
 
       <button class="print-btn" onclick="window.print()">↓ Print / Save as PDF</button>
-
-      <div class="images-block" id="imagesBlock">
-        <h3>Reference Projects — Similar Construction Type</h3>
-        <div class="image-grid" id="imageGrid"></div>
-        <div class="field-hint" style="margin-top:8px;">Visual reference only — example projects of similar type and scale.</div>
-      </div>
 
       <div class="cost-range-block">
         <div class="cost-label">Estimated Project Cost Range</div>
@@ -640,7 +578,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
         <div class="proc-paths">
           <div class="proc-path traditional">
             <div class="proc-path-label">Traditional Path</div>
-            <h4>Plan-Spec-Low Bid</h4>
+            <h4>Design-Bid-Build</h4>
             <ul class="proc-steps">
               <li>Design and engineering fees paid <strong>before any commitment</strong> — typically 8–12% of project cost</li>
               <li>Public bid advertising required — <strong>12–18 months</strong> from design start to groundbreaking</li>
@@ -684,7 +622,6 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
             </select>
           </div>
           <div class="field"><label>Email Address <span class="req">*</span></label><input type="email" id="gateEmail" placeholder="you@municipality.gov" /></div>
-          <div class="field full"><label>Municipality</label><input type="text" id="gateMunicipality" placeholder="Auto-filled" readonly /></div>
         </div>
         <div class="gate-submit-row">
           <button class="btn-primary" id="gateBtn" onclick="submitLead()">
@@ -692,18 +629,18 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
-        <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. JBK Development may follow up.</div>
+        <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. &nbsp;<a href="#" onclick="window.print();return false;" style="color:var(--accent);text-decoration:none;font-weight:500;">Print / Save as PDF →</a></div>
       </div>
 
       <div class="cta-block">
         <div class="cta-text">
           <h4>Ready to explore how to deliver this project?</h4>
-          <p>JBK Development helps Indiana and Michigan municipalities structure projects from feasibility through construction — on a guaranteed price, without the plan-spec-low-bid risk.</p>
+          <p>JBK Development helps Indiana and Michigan municipalities structure projects from feasibility through construction — on a guaranteed price, without the design-bid-build risk.</p>
         </div>
         <div class="cta-action">
           <div class="cta-name">Keith Plummer</div>
           <div class="cta-company">JBK Development</div>
-          <a href="mailto:keith@jbkdevelopment.com?subject=CivicScope%20Pro%20Inquiry" class="cta-btn">Start a Conversation →</a>
+          <a href="/cdn-cgi/l/email-protection#741f111d001c341e161f10110211181b0419111a005a171b194b0701161e11170049371d021d1727171b041151464424061b5146443d1a05011d060d" class="cta-btn">Start a Conversation →</a>
         </div>
       </div>
 
@@ -721,8 +658,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
       <div class="sidebar-card-title">Pro Features</div>
       <ul class="pro-feat-sidebar">
         <li>Cost methodology transparency — how the estimate was built</li>
-        <li>2 AI clarifying questions before running for higher accuracy</li>
-        <li>Project timeline projection with regional notes</li>
+                <li>Project timeline projection with regional notes</li>
         <li>Buyer's advocate guide — questions to ask, red flags to watch</li>
         <li>Council briefing guide with Q&amp;A prep</li>
         <li>Edit &amp; re-run without starting over</li>
@@ -734,7 +670,6 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
       <div class="sidebar-card-title">How It Works</div>
       <ul class="pro-feat-sidebar" style="--pro:#c2410c">
         <li>Enter location &amp; describe your project</li>
-        <li>Pro asks 2 clarifying questions to sharpen the estimate</li>
         <li>Get a cost range with methodology in ~30 seconds</li>
         <li>Timeline, briefing guide, and buyer's advocate stream in</li>
         <li>Email yourself the full report</li>
@@ -754,27 +689,13 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
 
 </div><!-- /page-wrap -->
 
-<!-- CLARIFYING QUESTIONS MODAL -->
-<div class="clarify-overlay" id="clarifyOverlay">
-  <div class="clarify-modal">
-    <div class="clarify-modal-title">Two quick questions</div>
-    <div class="clarify-modal-sub">These answers improve estimate accuracy. Skip if you don't have them — you can re-run anytime.</div>
-    <div id="clarifyQuestions"></div>
-    <div class="clarify-actions">
-      <button class="btn-primary" onclick="submitClarifications()">
-        Continue with answers →
-      </button>
-      <button class="clarify-skip" onclick="skipClarifications()">Skip — run without answers</button>
-    </div>
-  </div>
-</div>
 
 <footer>
   <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
-  <span>For planning purposes only — not a licensed cost estimate</span>
+  <span>For planning purposes only — not a licensed cost estimate · v2.2.0</span>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ── Session & Data Capture ───────────────────────────────────────────
 let _sessionId = null;
 let _lastResult = null;
@@ -801,40 +722,6 @@ async function initSession() {
 }
 initSession();
 
-// ── Clarifying Questions ─────────────────────────────────────────────
-let _clarifyQuestions = [];
-let _pendingRunData = null;
-
-function showClarifyModal(questions) {
-  _clarifyQuestions = questions;
-  const container = document.getElementById('clarifyQuestions');
-  container.innerHTML = '';
-  questions.forEach(q => {
-    const div = document.createElement('div');
-    div.className = 'clarify-q';
-    div.innerHTML = `<label>${q.label}</label><textarea id="clarify_${q.id}" placeholder="${q.placeholder}" rows="2"></textarea>`;
-    container.appendChild(div);
-  });
-  document.getElementById('clarifyOverlay').style.display = 'flex';
-}
-
-async function submitClarifications() {
-  if (!_pendingRunData) return;
-  const answers = _clarifyQuestions.map(q => {
-    const val = document.getElementById('clarify_' + q.id)?.value?.trim();
-    return val ? `${q.label}: ${val}` : null;
-  }).filter(Boolean);
-  document.getElementById('clarifyOverlay').style.display = 'none';
-  if (answers.length > 0) {
-    _pendingRunData.scope = _pendingRunData.scope + '\n\nAdditional details: ' + answers.join('. ');
-  }
-  await executeRun(_pendingRunData);
-}
-
-function skipClarifications() {
-  document.getElementById('clarifyOverlay').style.display = 'none';
-  if (_pendingRunData) executeRun(_pendingRunData);
-}
 
 // ── ZIP Code lookup ──────────────────────────────────────────────────
 async function handleZip(zip) {
@@ -845,7 +732,7 @@ async function handleZip(zip) {
     const data = await resp.json();
     const place = data.places[0];
     document.getElementById('state').value = place['state'];
-    document.getElementById('location').value = place['place name'];
+    document.getElementById('city').value = place['place name'];
     document.getElementById('zipStatus').textContent = `✓ ${place['place name']}, ${place['state abbreviation']}`;
     document.getElementById('zipStatus').style.color = 'var(--green)';
   } catch {
@@ -890,31 +777,6 @@ function getUtilities() {
     .map(id => document.getElementById(id).value);
   return vals.length ? vals.join(', ') : 'Not specified';
 }
-function loadImages(searchQuery) {
-  const grid = document.getElementById('imageGrid');
-  const block = document.getElementById('imagesBlock');
-  grid.innerHTML = '';
-  const terms = [
-    encodeURIComponent(searchQuery),
-    encodeURIComponent(searchQuery.split(' ').slice(0,4).join(' ') + ' building'),
-    encodeURIComponent(searchQuery.split(' ').slice(0,3).join(' ') + ' architecture')
-  ];
-  terms.forEach((kw, i) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'img-wrapper';
-    const img = document.createElement('img');
-    img.src = `https://source.unsplash.com/400x300/?${kw}&sig=${Date.now()+i}`;
-    img.alt = 'Reference project';
-    img.onerror = () => { wrap.style.display = 'none'; };
-    const cap = document.createElement('div');
-    cap.className = 'image-caption';
-    cap.textContent = 'Reference only — similar project type';
-    wrap.appendChild(img);
-    wrap.appendChild(cap);
-    grid.appendChild(wrap);
-  });
-  block.style.display = 'block';
-}
 function updateProcCallout(low, high) {
   const designLow = formatCurrency(Math.round(low * 0.08));
   const designHigh = formatCurrency(Math.round(high * 0.12));
@@ -957,35 +819,12 @@ async function runFeasibility() {
   const utils    = getUtilities();
   const imgSearch = document.getElementById('imageSearch').value;
 
-  if (!location || !state || !type || !scope) {
+  if (!location || !zip || !type || !scope) {
     alert('Please fill in your location, select a project type, and describe your project.');
     return;
   }
 
-  _pendingRunData = { zip, location, state, type, buildType, scope, topo, utils, imgSearch };
-
-  const btn = document.getElementById('submitBtn');
-  btn.disabled = true;
-  btn.childNodes[0].textContent = 'Preparing questions...';
-
-  try {
-    const questions = await callClaude(
-      `Generate exactly 2 clarifying questions that would most improve cost estimate accuracy for:\nPROJECT TYPE: ${type}\nSTATE: ${state}\nDESCRIPTION: "${scope}"\nFocus on highest-impact unknowns first. Only ask what is NOT already clearly answered.\nRespond ONLY with valid JSON array, no markdown:\n[{"id":"q1","label":"Short question label","placeholder":"e.g. example answer..."},{"id":"q2","label":"Short question label","placeholder":"e.g. example answer..."}]`,
-      600
-    );
-    btn.disabled = false;
-    btn.childNodes[0].textContent = 'Run Feasibility Check';
-    if (questions && questions.length > 0) {
-      showClarifyModal(questions);
-      return;
-    }
-  } catch(e) {
-    // fallthrough
-  }
-
-  btn.disabled = false;
-  btn.childNodes[0].textContent = 'Run Feasibility Check';
-  await executeRun(_pendingRunData);
+  await executeRun({ zip, location, state, type, buildType, scope, topo, utils, imgSearch });
 }
 
 // ── Execute estimate ─────────────────────────────────────────────────
@@ -1004,7 +843,6 @@ async function executeRun(runData) {
   errorBlock.style.display = 'none';
   resultEl.style.display = 'none';
   divider.style.display = 'none';
-  document.getElementById('imagesBlock').style.display = 'none';
   document.getElementById('methodologyContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Building cost methodology...</div>`;
   document.getElementById('timelineContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Estimating project timeline...</div>`;
   document.getElementById('briefingContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Drafting council briefing guide...</div>`;
@@ -1013,7 +851,7 @@ async function executeRun(runData) {
 
   const prompt = `You are a municipal construction cost advisor helping local government officials assess project feasibility before engaging architects or contractors.
 
-LOCATION: ${location}, ${state} (ZIP: ${zip})
+LOCATION: ${location}${state ? ", " + state : ""} (ZIP: ${zip})
 PROJECT TYPE: ${type}
 BUILD TYPE: ${buildType}
 DESCRIPTION: ${scope}
@@ -1057,7 +895,7 @@ Rules: Include overhead, general conditions, permitting, engineering allowance. 
     }).then(r => { if (r && r.run_id) _runId = r.run_id; });
 
     document.getElementById('resultTitle').textContent = rd.project_label || 'Preliminary Feasibility Indicator';
-    document.getElementById('resultMeta').innerHTML = `${location}, ${state} &nbsp;·&nbsp; ${type} &nbsp;·&nbsp; ${buildType}`;
+    document.getElementById('resultMeta').innerHTML = `${location}${state ? ", " + state : ""} &nbsp;·&nbsp; ${type} &nbsp;·&nbsp; ${buildType}`;
 
     const badge = document.getElementById('confidenceBadge');
     badge.textContent = rd.confidence + ' Confidence';
@@ -1076,13 +914,10 @@ Rules: Include overhead, general conditions, permitting, engineering allowance. 
     updateProcCallout(rd.low, rd.high);
 
     _lastResult = { rd, zip, state, location, type, buildType };
-    const gateMuni = document.getElementById('gateMunicipality');
-    if (gateMuni) gateMuni.value = location;
 
     divider.style.display = 'block';
     resultEl.style.display = 'block';
     resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    if (imgSearch) loadImages(imgSearch);
 
     fetchBriefing(rd.project_label, rd.low, rd.high, state, location, type, scope, buildType)
       .then(b => renderBriefing(b))
@@ -1122,7 +957,9 @@ function renderMethodology(m) {
 }
 
 async function fetchTimeline(label, low, high, state, type, buildType) {
+  const today = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   return await callClaude(`Estimate the realistic timeline for this municipal project:
+TODAY'S DATE: ${today} — use this as the start point for all phases and projected dates.
 PROJECT: ${label} | STATE: ${state} | TYPE: ${type} — ${buildType} | COST: ${formatCurrency(low)}–${formatCurrency(high)}
 Respond ONLY with valid JSON, no markdown:
 {"phases":[{"name":"Pre-Design & Approvals","duration":"<e.g. 2-3 months>","notes":"<what happens>"},{"name":"Design & Permitting","duration":"<e.g. 4-6 months>","notes":"<what happens>"},{"name":"Construction","duration":"<e.g. 6-9 months>","notes":"<what happens>"}],"total":"<e.g. 12-18 months from decision to ribbon-cutting>","regional_flag":"<one sentence about ${state}-specific timing issues, or null>"}`, 600);
@@ -1177,7 +1014,7 @@ async function submitLead() {
   const last  = document.getElementById('gateLast').value.trim();
   const role  = document.getElementById('gateRole').value;
   const email = document.getElementById('gateEmail').value.trim();
-  const muni  = document.getElementById('gateMunicipality').value.trim();
+  const muni  = document.getElementById('location').value.trim();
 
   if (!first || !last || !role || !email) { alert('Please fill in all fields.'); return; }
 
@@ -1197,7 +1034,7 @@ async function submitLead() {
     await Promise.all([
       fetch('/api/email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send_report', data: { recipientEmail: email, recipientName: first, municipality: muni, projectType: type, costLow: low, costHigh: high, costMidpoint: mid, confidence: rd.confidence||'—', narrative: rd.narrative||'', assumptions: rd.assumptions||[], product: 'pro' } })
+        body: JSON.stringify({ action: 'send_report', data: { recipientEmail: email, recipientName: first, municipality: muni, projectType: type, costLow: low, costHigh: high, costMidpoint: mid, confidence: rd.confidence||'—', narrative: rd.narrative||'', assumptions: rd.assumptions||[], briefingHtml: (document.getElementById('briefingContent') && !document.getElementById('briefingContent').querySelector('.spinner')) ? document.getElementById('briefingContent').innerHTML : null, product: 'pro' } })
       }),
       fetch('/api/email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1208,10 +1045,10 @@ async function submitLead() {
     document.getElementById('gateConfirmed').style.display = 'block';
     document.getElementById('gateBtn').style.display = 'none';
 
-  } catch (err) {
+  } catch(err) {
     gateBtn.disabled = false;
     gateBtn.childNodes[0].textContent = 'Email Me This Report';
-    alert('Something went wrong. Please try again.');
+    alert('Could not send report. Please try again.');
   }
 }
 </script>
