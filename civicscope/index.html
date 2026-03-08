@@ -1224,8 +1224,8 @@ async function runFeasibility() {
   const utils    = getUtilities();
   const imgSearch = document.getElementById('imageSearch').value;
 
-  if (!location || !state || !type || !scope) {
-    alert('Please fill in your location, select a project type, and describe your project.');
+  if (!location || !zip || !type || !scope) {
+    alert('Please fill in your municipality, ZIP code, select a project type, and describe your project.');
     return;
   }
 
@@ -1242,11 +1242,9 @@ async function runFeasibility() {
   errorBlock.style.display = 'none';
   resultEl.style.display = 'none';
   divider.style.display = 'none';
-  document.getElementById('imagesBlock').style.display = 'none';
-
   const prompt = `You are a municipal construction cost advisor helping local government officials in the Midwest assess project feasibility before engaging architects or contractors.
 
-LOCATION: ${location}, ${state} (ZIP: ${zip})
+LOCATION: ${location}${state ? ', ' + state : ''} (ZIP: ${zip})
 PROJECT TYPE: ${type}
 BUILD TYPE: ${buildType}
 DESCRIPTION: ${scope}
@@ -1310,13 +1308,10 @@ Rules:
     });
 
     updateProcCallout(rd.low, rd.high);
-    document.getElementById('gateMunicipality').value = location;
-
     divider.style.display = 'block';
     resultEl.style.display = 'block';
     resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    if (imgSearch) loadImages(imgSearch);
 
     document.getElementById('briefingContent').innerHTML =
       `<div class="section-loading"><div class="spinner"></div> Drafting your council briefing guide...</div>`;
@@ -1342,7 +1337,7 @@ async function fetchBriefing(label, low, high, state, location, type, scope, bui
   const prompt = `You are a municipal communications advisor helping a town manager prepare to present a capital project to their council for the first time.
 
 PROJECT: ${label}
-LOCATION: ${location}, ${state}
+LOCATION: ${location}${state ? ', ' + state : ''}
 TYPE: ${type} — ${buildType}
 DESCRIPTION: ${scope}
 ESTIMATED COST RANGE: ${formatCurrency(low)} – ${formatCurrency(high)} (midpoint ~${formatCurrency(Math.round((low+high)/2))})
