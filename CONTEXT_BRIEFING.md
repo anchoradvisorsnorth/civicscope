@@ -75,9 +75,6 @@ Note: api/claude.js and api/log.js are NOT in the push script (deployed separate
 ### vercel.json (current)
 ```json
 {
-  "redirects": [
-    { "source": "/civicscope", "destination": "https://www.civicscope.io", "permanent": false }
-  ],
   "rewrites": [
     { "source": "/gc/acme-internal", "destination": "/civicscope-gc/estimator/index.html" },
     { "source": "/gc/:slug", "destination": "/civicscope-gc/index.html" }
