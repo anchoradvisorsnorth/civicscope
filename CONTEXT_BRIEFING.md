@@ -3,7 +3,7 @@
 
 ## Who You Are Talking To
 Keith Plummer. He is an employee of JBK Development (not owner). He also runs
-Anchor Advisors North (AAN) as a personal brand and product umbrella.
+Anchor Advisors North (AAN) as a personal brand and product umbrella. He is the founder of civicscope.
 
 ---
 
@@ -49,7 +49,7 @@ Anchor Advisors North (AAN) as a personal brand and product umbrella.
 | aanclaude | anchoradvisorsnorth/aanclaude | anchoradvisorsnorth.com | AAN website only |
 | civicscope | anchoradvisorsnorth/civicscope | civicscope.io + app.civicscope.io | CivicScope Free + Pro + GC White Label + APIs |
 
-### Deploy Workflow (Windows, no git installed)
+### Deploy Workflow (Windows, git installed)
 Keith uses PowerShell scripts to push files directly to GitHub via API.
 Scripts live in Downloads\civicscope\ folder alongside the HTML/JS files.
 - `PUSH_CIVICSCOPE.bat` — runs push_civicscope.ps1, deploys all CivicScope files
