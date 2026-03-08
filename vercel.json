@@ -1,9 +1,19 @@
 {
   "redirects": [
-    { "source": "/civicscope", "destination": "https://www.civicscope.io", "permanent": false }
+    {
+      "source": "/civicscope",
+      "destination": "https://www.civicscope.io",
+      "permanent": false
+    }
   ],
   "rewrites": [
-    { "source": "/gc/acme-internal", "destination": "/civicscope-gc/estimator/index.html" },
-    { "source": "/gc/:slug", "destination": "/civicscope-gc/index.html" }
+    {
+      "source": "/gc/acme-internal",
+      "destination": "/civicscope-gc/estimator/index.html"
+    },
+    {
+      "source": "/gc/:slug",
+      "destination": "/civicscope-gc/index.html"
+    }
   ]
 }
