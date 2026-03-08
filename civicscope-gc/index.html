@@ -3,522 +3,470 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Project Estimator</title>
+  <title id="pageTitle">Project Estimator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
       --brand: #1e3a5f;
-      --brand-light: #e8f0f8;
-      --accent: #2563eb;
+      --brand-mid: #2d5a9e;
+      --accent: #c8102e;
+      --warm: #faf8f5;
+      --white: #ffffff;
       --text: #1a1a1a;
       --muted: #6b7280;
-      --border: #e5e7eb;
+      --subtle: #9ca3af;
+      --border: #e8e4df;
+      --border-mid: #d1cdc7;
+      --radius-lg: 16px;
       --radius: 8px;
-      --max: 780px;
+      --max: 680px;
+      --serif: 'Playfair Display', Georgia, serif;
+      --sans: 'DM Sans', sans-serif;
+      --mono: 'DM Mono', monospace;
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--sans); background: var(--warm); color: var(--text); min-height: 100vh; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f8fafc;
-      color: var(--text);
-      min-height: 100vh;
-    }
-
-    /* ── HEADER ── */
     header {
       background: var(--brand);
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      padding: 14px 28px;
+      display: flex; align-items: center; justify-content: space-between;
     }
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    #tenantLogo {
-      height: 36px;
-      width: auto;
-      display: none;
-    }
-    #tenantName {
-      color: #fff;
-      font-size: 1.1rem;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-    }
-    .powered-by {
-      color: rgba(255,255,255,0.55);
-      font-size: 0.72rem;
-      text-align: right;
-      line-height: 1.3;
-    }
-    .powered-by a {
-      color: rgba(255,255,255,0.7);
-      text-decoration: none;
-    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    #tenantLogo { height: 28px; display: none; }
+    #tenantName { color: #fff; font-size: 0.95rem; font-weight: 500; }
+    .powered-by { font-size: 0.68rem; color: rgba(255,255,255,0.35); font-family: var(--mono); }
+    .powered-by a { color: rgba(255,255,255,0.4); text-decoration: none; }
 
-    /* ── HERO ── */
     .hero {
       background: var(--brand);
-      padding: 40px 24px 48px;
-      text-align: center;
-      color: #fff;
+      padding: 28px 28px 52px;
+      text-align: center; position: relative;
+    }
+    .hero::after {
+      content: ''; position: absolute;
+      bottom: 0; left: 0; right: 0; height: 28px;
+      background: var(--warm);
+      clip-path: ellipse(55% 100% at 50% 100%);
+    }
+    .hero-eyebrow {
+      font-family: var(--mono); font-size: 0.65rem;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: rgba(255,255,255,0.4); margin-bottom: 10px;
     }
     .hero h1 {
-      font-size: clamp(1.6rem, 4vw, 2.4rem);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      line-height: 1.2;
-      margin-bottom: 12px;
+      font-family: var(--serif);
+      font-size: clamp(1.65rem, 4vw, 2.3rem);
+      color: #fff; line-height: 1.18; letter-spacing: -0.01em;
+      margin-bottom: 10px; max-width: 540px; margin-left: auto; margin-right: auto;
     }
+    .hero h1 em { font-style: italic; color: rgba(255,255,255,0.72); }
     .hero p {
-      font-size: 1.05rem;
-      color: rgba(255,255,255,0.78);
-      max-width: 560px;
-      margin: 0 auto;
-      line-height: 1.55;
+      font-size: 0.93rem; color: rgba(255,255,255,0.55);
+      max-width: 420px; margin: 0 auto; line-height: 1.65; font-weight: 300;
     }
 
-    /* ── MAIN ── */
-    main {
-      max-width: var(--max);
-      margin: -24px auto 60px;
-      padding: 0 16px;
-    }
+    main { max-width: var(--max); margin: -12px auto 80px; padding: 0 20px; position: relative; z-index: 1; }
 
     .card {
-      background: #fff;
-      border-radius: 12px;
+      background: var(--white); border-radius: var(--radius-lg);
       border: 1px solid var(--border);
-      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-      padding: 32px;
-      margin-bottom: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04);
+      padding: 32px; margin-bottom: 16px;
     }
 
-    .section-label {
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      margin-bottom: 16px;
-    }
+    .field-group { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .field-group.three { grid-template-columns: 1fr 1fr 1fr; }
+    .field-group.one { grid-template-columns: 1fr; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 0.8rem; font-weight: 500; color: var(--muted); }
 
-    /* ── FORM ── */
-    .field-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-    .field-row.full { grid-template-columns: 1fr; }
-    .field-row.thirds { grid-template-columns: 1fr 1fr 1fr; }
-
-    label {
-      display: block;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: 5px;
-    }
-
-    input[type="text"],
-    select,
-    textarea {
-      width: 100%;
+    input[type="text"], select, textarea {
+      font-family: var(--sans); font-size: 0.92rem;
       padding: 10px 13px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      font-size: 0.95rem;
-      color: var(--text);
-      background: #fff;
-      transition: border 0.15s;
-      -webkit-appearance: none;
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      background: var(--white); color: var(--text);
+      transition: border-color 0.15s, box-shadow 0.15s; -webkit-appearance: none;
     }
-    input[type="text"]:focus,
-    select:focus,
-    textarea:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(30,58,95,0.08);
     }
-    textarea {
-      resize: vertical;
-      min-height: 110px;
-      line-height: 1.5;
-    }
-    select { cursor: pointer; }
-
-    input[readonly] {
-      background: #f9fafb;
-      color: var(--muted);
-      cursor: default;
-    }
-
-    .hint {
-      font-size: 0.75rem;
-      color: var(--muted);
-      margin-top: 4px;
-    }
-
-    /* ── BUTTON ── */
-    .btn-primary {
-      display: block;
-      width: 100%;
-      padding: 14px;
-      background: var(--brand);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius);
-      font-size: 1rem;
-      font-weight: 600;
+    input[readonly] { background: var(--warm); color: var(--muted); cursor: default; }
+    select {
       cursor: pointer;
-      transition: background 0.15s, transform 0.1s;
-      letter-spacing: 0.01em;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239ca3af' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center; padding-right: 34px;
     }
-    .btn-primary:hover { filter: brightness(1.1); }
-    .btn-primary:active { transform: scale(0.99); }
-    .btn-primary:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
+    textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
+    .hint { font-size: 0.73rem; color: var(--subtle); }
+
+    .btn-primary {
+      display: block; width: 100%; margin-top: 6px;
+      padding: 14px; background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius);
+      font-family: var(--sans); font-size: 0.97rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(200,16,46,0.25); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    #errorMsg {
+      display: none; margin-top: 10px; padding: 11px 14px;
+      background: #fef2f2; border: 1px solid #fecaca;
+      border-radius: var(--radius); color: #b91c1c; font-size: 0.83rem;
     }
 
-    /* ── LOADING ── */
-    #loadingState {
-      display: none;
-      text-align: center;
-      padding: 40px 20px;
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid var(--brand-light);
-      border-top-color: var(--brand);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 16px;
+    #loadingCard { display: none; text-align: center; padding: 44px 20px; }
+    .loader {
+      width: 38px; height: 38px;
+      border: 3px solid var(--border); border-top-color: var(--brand);
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 18px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    #loadingState p {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
+    #loadingCard p { color: var(--muted); font-size: 0.88rem; font-weight: 300; }
 
-    /* ── RESULTS ── */
+    /* RESULTS */
     #resultsCard { display: none; }
 
-    .cost-block {
-      background: var(--brand-light);
-      border-radius: 10px;
-      padding: 24px;
-      text-align: center;
-      margin-bottom: 24px;
+    .cost-hero {
+      text-align: center; padding: 28px 20px;
+      background: linear-gradient(135deg, var(--brand) 0%, var(--brand-mid) 100%);
+      border-radius: 12px; margin-bottom: 24px; color: #fff;
     }
-    .cost-label {
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--brand);
-      margin-bottom: 8px;
+    .cost-hero-label {
+      font-family: var(--mono); font-size: 0.65rem;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: rgba(255,255,255,0.5); margin-bottom: 8px;
     }
-    .cost-range {
+    .cost-hero-range {
+      font-family: var(--serif);
       font-size: clamp(1.8rem, 5vw, 2.8rem);
-      font-weight: 800;
-      color: var(--brand);
-      letter-spacing: -0.02em;
-      line-height: 1;
+      font-weight: 700; letter-spacing: -0.02em; line-height: 1;
     }
-    .cost-midpoint {
-      font-size: 0.85rem;
-      color: var(--muted);
-      margin-top: 6px;
+    .cost-hero-mid { font-size: 0.83rem; color: rgba(255,255,255,0.55); margin-top: 7px; font-weight: 300; }
+    .conf-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-top: 12px; padding: 4px 12px; border-radius: 20px;
+      font-size: 0.72rem; font-weight: 500;
     }
-    .confidence-badge {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .conf-high { background: #d1fae5; color: #065f46; }
-    .conf-medium { background: #fef3c7; color: #92400e; }
-    .conf-low { background: #fee2e2; color: #991b1b; }
+    .conf-pill::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.8; }
+    .conf-high { background: rgba(209,250,229,0.15); color: #6ee7b7; }
+    .conf-medium { background: rgba(254,243,199,0.15); color: #fcd34d; }
+    .conf-low { background: rgba(254,226,226,0.15); color: #fca5a5; }
 
-    .narrative-block h3 {
-      font-size: 0.82rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: var(--muted);
-      margin-bottom: 10px;
+    .results-section { margin-bottom: 22px; }
+    .results-section-title {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--subtle);
+      margin-bottom: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--border);
     }
-    .narrative-block p {
-      font-size: 0.95rem;
-      line-height: 1.65;
-      color: #374151;
+    .narrative { font-size: 0.95rem; line-height: 1.75; color: #374151; font-weight: 300; }
+    .assumptions-list { list-style: none; }
+    .assumptions-list li {
+      font-size: 0.86rem; color: #4b5563;
+      padding: 7px 0 7px 18px; position: relative;
+      border-bottom: 1px solid var(--border); line-height: 1.5; font-weight: 300;
+    }
+    .assumptions-list li:last-child { border-bottom: none; }
+    .assumptions-list li::before { content: ''; position: absolute; left: 0; top: 15px; width: 6px; height: 6px; border-radius: 50%; background: var(--border-mid); }
+
+    /* WHY GC SECTION */
+    .why-gc-card {
+      background: var(--white); border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--brand);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+      padding: 28px 28px 28px 28px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .why-gc-title {
+      font-family: var(--serif); font-size: 1.15rem;
+      color: var(--brand); margin-bottom: 8px;
+    }
+    .why-gc-statement {
+      font-size: 0.93rem; color: #374151; line-height: 1.7;
+      margin-bottom: 18px; font-weight: 300;
+    }
+    .why-gc-values { display: flex; flex-direction: column; gap: 0; }
+    .why-gc-value {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; color: #374151; line-height: 1.5;
+    }
+    .why-gc-value:last-child { border-bottom: none; }
+    .why-gc-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 6px; }
+
+    /* PROCESS / TIMELINE SECTION */
+    .process-card {
+      background: var(--white); border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+      padding: 28px; margin-bottom: 16px; display: none;
+    }
+    .process-title {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--subtle);
+      margin-bottom: 18px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    .process-steps { display: flex; flex-direction: column; gap: 0; }
+    .process-step {
+      display: grid; grid-template-columns: 32px 1fr; gap: 14px;
+      padding: 14px 0; border-bottom: 1px solid var(--border); align-items: start;
+    }
+    .process-step:last-child { border-bottom: none; padding-bottom: 0; }
+    .step-num {
+      width: 28px; height: 28px; background: var(--brand);
+      border-radius: 50%; color: #fff;
+      font-size: 0.72rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); flex-shrink: 0; margin-top: 1px;
+    }
+    .step-body {}
+    .step-title { font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+    .step-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.55; font-weight: 300; }
+    .step-timeline {
+      display: inline-block; margin-top: 5px;
+      font-family: var(--mono); font-size: 0.68rem;
+      color: var(--accent); background: rgba(200,16,46,0.06);
+      padding: 2px 8px; border-radius: 3px;
     }
 
-    .assumptions-block {
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
+    /* EMAIL GATE */
+    #emailCard { display: none; }
+    .email-card-header { margin-bottom: 20px; }
+    .email-card-header h2 {
+      font-family: var(--serif); font-size: 1.35rem; color: var(--brand);
+      margin-bottom: 6px; letter-spacing: -0.01em;
     }
-    .assumptions-block h3 {
-      font-size: 0.82rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: var(--muted);
-      margin-bottom: 10px;
+    .email-card-header p { font-size: 0.87rem; color: var(--muted); line-height: 1.6; font-weight: 300; }
+    .email-what-you-get {
+      background: var(--warm); border-radius: var(--radius);
+      padding: 13px 16px; margin-bottom: 18px;
+      font-size: 0.81rem; color: #4b5563; line-height: 1.8;
     }
-    .assumptions-block ul {
-      list-style: none;
-      padding: 0;
-    }
-    .assumptions-block li {
-      padding: 6px 0 6px 20px;
-      position: relative;
-      font-size: 0.88rem;
-      color: #4b5563;
-      line-height: 1.5;
-      border-bottom: 1px solid #f3f4f6;
-    }
-    .assumptions-block li:last-child { border-bottom: none; }
-    .assumptions-block li::before {
-      content: '→';
-      position: absolute;
-      left: 0;
-      color: var(--brand);
-      font-size: 0.8rem;
-    }
+    .email-what-you-get strong { font-weight: 600; color: var(--text); display: block; margin-bottom: 3px; }
 
-    /* ── CTA BLOCK ── */
+    .btn-email {
+      display: block; width: 100%; margin-top: 6px;
+      padding: 14px; background: var(--brand); color: #fff;
+      border: none; border-radius: var(--radius);
+      font-family: var(--sans); font-size: 0.97rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-email:hover { background: #16304f; }
+    .btn-email:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #emailConfirmed { display: none; text-align: center; padding: 32px 20px; }
+    .confirmed-icon {
+      width: 46px; height: 46px; background: #dcfce7; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 14px; font-size: 1.2rem;
+    }
+    #emailConfirmed h3 { font-family: var(--serif); font-size: 1.2rem; color: var(--text); margin-bottom: 8px; }
+    #emailConfirmed p { font-size: 0.87rem; color: var(--muted); line-height: 1.6; margin-bottom: 18px; font-weight: 300; }
+    .btn-print {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 20px;
+      background: transparent; color: var(--brand);
+      border: 1.5px solid var(--brand); border-radius: var(--radius);
+      font-family: var(--sans); font-size: 0.86rem; font-weight: 500;
+      cursor: pointer; transition: all 0.15s; text-decoration: none;
+    }
+    .btn-print:hover { background: var(--brand); color: #fff; }
+    .reset-link { text-align: center; margin-top: 14px; }
+    .reset-link a { font-size: 0.82rem; color: var(--subtle); text-decoration: none; cursor: pointer; border-bottom: 1px solid var(--border); }
+
+    /* CTA */
     #ctaCard {
-      display: none;
-      background: var(--brand);
-      border-radius: 12px;
-      padding: 32px;
-      color: #fff;
-      text-align: center;
+      display: none; background: var(--brand);
+      border-radius: var(--radius-lg); padding: 32px 28px;
+      text-align: center; color: #fff; margin-bottom: 16px;
     }
-    #ctaCard h2 {
-      font-size: 1.35rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-      letter-spacing: -0.01em;
-    }
-    #ctaCard p {
-      font-size: 0.92rem;
-      color: rgba(255,255,255,0.78);
-      max-width: 480px;
-      margin: 0 auto 20px;
-      line-height: 1.55;
-    }
+    #ctaCard h2 { font-family: var(--serif); font-size: 1.4rem; margin-bottom: 8px; }
+    #ctaCard p { font-size: 0.9rem; color: rgba(255,255,255,0.65); max-width: 380px; margin: 0 auto 20px; line-height: 1.65; font-weight: 300; }
     .btn-cta {
-      display: inline-block;
-      padding: 13px 32px;
-      background: #fff;
-      color: var(--brand);
-      border-radius: var(--radius);
-      font-size: 0.95rem;
-      font-weight: 700;
-      text-decoration: none;
-      transition: transform 0.1s, box-shadow 0.15s;
+      display: inline-block; padding: 12px 30px;
+      background: #fff; color: var(--brand);
+      border-radius: var(--radius); font-size: 0.93rem; font-weight: 600;
+      text-decoration: none; transition: all 0.2s;
     }
-    .btn-cta:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    }
+    .btn-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
 
-    /* ── RESET LINK ── */
-    .reset-row {
-      text-align: center;
-      margin-top: 16px;
-    }
-    .reset-row a {
-      font-size: 0.85rem;
-      color: var(--muted);
-      text-decoration: underline;
-      cursor: pointer;
-    }
-
-    /* ── ERROR ── */
-    #errorMsg {
-      display: none;
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      border-radius: var(--radius);
-      padding: 14px 18px;
-      color: #991b1b;
-      font-size: 0.88rem;
-      margin-top: 12px;
-    }
-
-    /* ── FOOTER ── */
-    footer {
-      text-align: center;
-      padding: 24px 16px;
-      font-size: 0.75rem;
-      color: var(--muted);
-      border-top: 1px solid var(--border);
-    }
-    footer a { color: var(--muted); }
-
-    /* ── LOADING OVERLAY (tenant config) ── */
+    /* CONFIG OVERLAY */
     #configLoading {
-      position: fixed;
-      inset: 0;
-      background: #f8fafc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
+      position: fixed; inset: 0; background: var(--warm);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
     }
     #configError {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: #f8fafc;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      flex-direction: column;
-      gap: 12px;
-      color: #991b1b;
-      font-size: 1rem;
-      text-align: center;
-      padding: 24px;
+      display: none; position: fixed; inset: 0; background: var(--warm);
+      align-items: center; justify-content: center; z-index: 100;
+      flex-direction: column; gap: 8px; text-align: center; padding: 24px;
     }
 
-    @media (max-width: 600px) {
-      .field-row { grid-template-columns: 1fr; }
-      .field-row.thirds { grid-template-columns: 1fr 1fr; }
-      .card { padding: 20px; }
-      header { padding: 12px 16px; }
+    footer {
+      text-align: center; padding: 24px 16px;
+      font-size: 0.72rem; color: var(--subtle);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--subtle); text-decoration: none; }
+
+    @media (max-width: 560px) {
+      .field-group, .field-group.three { grid-template-columns: 1fr; }
+      .card { padding: 22px 18px; }
+      header { padding: 12px 18px; }
+    }
+
+    @media print {
+      header, .hero, #inputCard, #emailCard, #ctaCard, footer { display: none !important; }
+      #resultsCard, .why-gc-card, .process-card { display: block !important; }
+      body { background: white; }
+      .card { box-shadow: none; border: 1px solid #e5e5e5; }
     }
   </style>
 </head>
 <body>
 
-<!-- Config loading overlay -->
-<div id="configLoading">
-  <div style="text-align:center;">
-    <div class="spinner" style="margin:0 auto 12px;"></div>
-    <p style="color:#6b7280;font-size:0.9rem;">Loading...</p>
-  </div>
-</div>
+<div id="configLoading"><div class="loader"></div></div>
 <div id="configError">
-  <p>⚠️ This estimator link is not valid or has been deactivated.</p>
-  <p style="font-size:0.85rem;color:#6b7280;">Please contact the company that shared this link.</p>
+  <p style="font-size:1rem;color:#374151;">This estimator link is not active.</p>
+  <p>Please contact the company that shared this link with you.</p>
 </div>
 
-<!-- ── HEADER ── -->
 <header>
   <div class="header-left">
     <img id="tenantLogo" src="" alt="" />
     <span id="tenantName"></span>
   </div>
-  <div class="powered-by">
-    Powered by<br><a href="https://civicscope.io" target="_blank">CivicScope</a>
-  </div>
+  <div class="powered-by">Powered by <a href="https://civicscope.io" target="_blank">CivicScope</a></div>
 </header>
 
-<!-- ── HERO ── -->
 <div class="hero">
-  <h1 id="heroHeadline">Get a project cost range in 30 seconds.</h1>
-  <p id="heroSubhead">Describe your project, answer a few quick questions, and get a rough cost range — before the estimate, before the proposal.</p>
+  <div class="hero-eyebrow">Project Cost Estimator</div>
+  <h1 id="heroHeadline">You're building something.<br><em>Let's talk about what it will take.</em></h1>
+  <p id="heroSubhead">Tell us what you have in mind. We'll give you an honest cost picture so you can move forward with confidence.</p>
 </div>
 
-<!-- ── MAIN ── -->
 <main>
 
-  <!-- Input card -->
+  <!-- INPUT -->
   <div class="card" id="inputCard">
-    <div class="section-label">Project Details</div>
-
-    <div class="field-row">
-      <div>
-        <label for="municipality">Municipality / Client Name</label>
-        <input type="text" id="municipality" placeholder="e.g. City of Elkhart or Acme Warehousing LLC" />
+    <div class="field-group">
+      <div class="field">
+        <label for="municipality">Your Name or Organization</label>
+        <input type="text" id="municipality" placeholder="e.g. City of Elkhart, Acme Logistics" />
       </div>
-      <div>
-        <label for="projectType">Project Type</label>
-        <select id="projectType">
-          <option value="">Select a type...</option>
-        </select>
+      <div class="field">
+        <label for="projectType">What are you building?</label>
+        <select id="projectType"><option value="">Select a type...</option></select>
       </div>
     </div>
-
-    <div class="field-row thirds">
-      <div>
+    <div class="field-group three">
+      <div class="field">
         <label for="zip">ZIP Code</label>
         <input type="text" id="zip" placeholder="e.g. 46514" maxlength="5" />
       </div>
-      <div>
+      <div class="field">
         <label for="city">City</label>
         <input type="text" id="city" placeholder="Auto-fill" readonly />
       </div>
-      <div>
+      <div class="field">
         <label for="state">State</label>
         <input type="text" id="state" placeholder="Auto-fill" readonly />
       </div>
     </div>
-
-    <div class="field-row full">
-      <div>
-        <label for="description">Describe the project</label>
-        <textarea id="description" placeholder="What are you building? Size, scope, key features, any constraints. The more detail, the better the estimate."></textarea>
-        <div class="hint">Include square footage, site conditions, or anything that affects cost.</div>
+    <div class="field-group one">
+      <div class="field">
+        <label for="description">Describe your vision</label>
+        <textarea id="description" placeholder="What does this building need to do? How big, what's the site like, what matters most to you? No technical specs needed — just tell us what you're imagining."></textarea>
+        <div class="hint">The more you share, the more accurate your range.</div>
       </div>
     </div>
-
-    <button class="btn-primary" id="estimateBtn" onclick="runEstimate()">Get Cost Range</button>
+    <button class="btn-primary" id="estimateBtn" onclick="runEstimate()">See What This Could Cost →</button>
     <div id="errorMsg"></div>
   </div>
 
-  <!-- Loading state -->
-  <div class="card" id="loadingState">
-    <div style="text-align:center;padding:20px 0;">
-      <div class="spinner"></div>
-      <p style="color:#6b7280;font-size:0.9rem;margin-top:4px;">Analyzing your project...</p>
-    </div>
+  <!-- LOADING -->
+  <div class="card" id="loadingCard">
+    <div class="loader"></div>
+    <p>Pulling together your cost picture...</p>
   </div>
 
-  <!-- Results card -->
+  <!-- RESULTS -->
   <div class="card" id="resultsCard">
-    <div class="section-label">Cost Estimate</div>
-
-    <div class="cost-block">
-      <div class="cost-label">Estimated Construction Cost</div>
-      <div class="cost-range" id="costRange">—</div>
-      <div class="cost-midpoint" id="costMidpoint"></div>
-      <div><span class="confidence-badge" id="confidenceBadge"></span></div>
+    <div class="cost-hero">
+      <div class="cost-hero-label">Estimated Construction Cost</div>
+      <div class="cost-hero-range" id="costRange">—</div>
+      <div class="cost-hero-mid" id="costMid"></div>
+      <div><span class="conf-pill" id="confPill"></span></div>
     </div>
-
-    <div class="narrative-block">
-      <h3>Analysis</h3>
-      <p id="narrativeText"></p>
+    <div class="results-section">
+      <div class="results-section-title">What this range reflects</div>
+      <p class="narrative" id="narrativeText"></p>
     </div>
-
-    <div class="assumptions-block">
-      <h3>Key Assumptions</h3>
-      <ul id="assumptionsList"></ul>
-    </div>
-
-    <div class="reset-row">
-      <a onclick="resetForm()">← Run another estimate</a>
+    <div class="results-section">
+      <div class="results-section-title">Key assumptions</div>
+      <ul class="assumptions-list" id="assumptionsList"></ul>
     </div>
   </div>
 
-  <!-- CTA card -->
+  <!-- WHY GC -->
+  <div class="why-gc-card" id="whyGCCard">
+    <div class="why-gc-title" id="whyGCTitle"></div>
+    <div class="why-gc-statement" id="whyGCStatement"></div>
+    <div class="why-gc-values" id="whyGCValues"></div>
+  </div>
+
+  <!-- PROCESS / TIMELINE -->
+  <div class="process-card" id="processCard">
+    <div class="process-title">What Happens Next</div>
+    <div class="process-steps" id="processSteps"></div>
+  </div>
+
+  <!-- EMAIL GATE -->
+  <div class="card" id="emailCard">
+    <div id="emailForm">
+      <div class="email-card-header">
+        <h2 id="emailHeadline">Get this sent to your inbox.</h2>
+        <p id="emailSubhead">Enter your info and we'll email you a complete summary you can save, share, or bring to your next meeting.</p>
+      </div>
+      <div class="email-what-you-get">
+        <strong>Your report includes:</strong>
+        Cost range · Key assumptions · Why <span class="gc-name-inline"></span> · What to expect in the process · Next steps
+      </div>
+      <div class="field-group">
+        <div class="field">
+          <label for="gateFirst">First Name</label>
+          <input type="text" id="gateFirst" placeholder="First" />
+        </div>
+        <div class="field">
+          <label for="gateLast">Last Name</label>
+          <input type="text" id="gateLast" placeholder="Last" />
+        </div>
+      </div>
+      <div class="field-group one" style="margin-bottom:16px;">
+        <div class="field">
+          <label for="gateEmail">Email Address</label>
+          <input type="text" id="gateEmail" placeholder="you@yourcompany.com" />
+        </div>
+      </div>
+      <button class="btn-email" id="emailBtn" onclick="submitEmail()">Email Me This Report →</button>
+    </div>
+
+    <div id="emailConfirmed">
+      <div class="confirmed-icon">✓</div>
+      <h3>On its way.</h3>
+      <p id="emailConfirmedMsg">Check your inbox — your cost summary is headed there now.</p>
+      <button class="btn-print" onclick="window.print()">⎙ Print / Save as PDF</button>
+      <div class="reset-link" style="margin-top:16px;">
+        <a onclick="resetForm()">← Start a new estimate</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
   <div id="ctaCard">
     <h2 id="ctaHeadline"></h2>
     <p id="ctaBody"></p>
@@ -527,306 +475,334 @@
 
 </main>
 
-<!-- ── FOOTER ── -->
 <footer>
-  <span id="tenantNameFooter"></span> &mdash; Estimates are for planning purposes only and do not constitute a bid or proposal. &nbsp;|&nbsp;
-  <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a> &nbsp;|&nbsp; v1.0.0-gc
+  <span id="tenantNameFooter"></span> &mdash; Estimates are for planning purposes only and do not constitute a bid or proposal.
+  &nbsp;·&nbsp; <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a> &nbsp;·&nbsp; v1.2.0-gc
 </footer>
 
 <script>
-// ── STATE ──
-let tenant = null;
-let sessionId = null;
+  let tenant = null, sessionId = null;
+  let lastResult = null;
 
-// ── BOOT: read slug from URL, load tenant config ──
-(async function boot() {
-  const slug = getSlug();
-  if (!slug) return showConfigError();
+  // Today's date — passed into API prompt to prevent past-date projections
+  const TODAY = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const TODAY_ISO = new Date().toISOString().split('T')[0];
 
-  try {
-    const res = await fetch(`/api/gc-config?slug=${encodeURIComponent(slug)}`);
-    if (!res.ok) return showConfigError();
-    tenant = await res.json();
-  } catch {
-    return showConfigError();
+  (async function boot() {
+    const slug = getSlug();
+    if (!slug) return showConfigError();
+    try {
+      const res = await fetch(`/api/gc-config?slug=${encodeURIComponent(slug)}`);
+      if (!res.ok) return showConfigError();
+      tenant = await res.json();
+    } catch { return showConfigError(); }
+    applyTenantConfig(tenant);
+    await createSession(slug);
+    document.getElementById('configLoading').style.display = 'none';
+  })();
+
+  function getSlug() {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'gc' && parts[1]) return parts[1];
+    return new URLSearchParams(window.location.search).get('slug');
+  }
+  function showConfigError() {
+    document.getElementById('configLoading').style.display = 'none';
+    document.getElementById('configError').style.display = 'flex';
   }
 
-  applyTenantConfig(tenant);
-  await createSession(slug, tenant.id);
-
-  document.getElementById('configLoading').style.display = 'none';
-})();
-
-function getSlug() {
-  // Expects path: /gc/[slug]
-  const parts = window.location.pathname.split('/').filter(Boolean);
-  if (parts[0] === 'gc' && parts[1]) return parts[1];
-  // Fallback: ?slug=acme
-  return new URLSearchParams(window.location.search).get('slug');
-}
-
-function showConfigError() {
-  document.getElementById('configLoading').style.display = 'none';
-  const el = document.getElementById('configError');
-  el.style.display = 'flex';
-}
-
-function applyTenantConfig(t) {
-  // CSS brand color
-  document.documentElement.style.setProperty('--brand', t.primary_color || '#1e3a5f');
-
-  // Header
-  const logo = document.getElementById('tenantLogo');
-  if (t.logo_url) {
-    logo.src = t.logo_url;
-    logo.style.display = 'block';
+  function applyTenantConfig(t) {
+    if (t.primary_color) document.documentElement.style.setProperty('--accent', t.primary_color);
+    const logo = document.getElementById('tenantLogo');
+    if (t.logo_url) { logo.src = t.logo_url; logo.style.display = 'block'; }
+    document.getElementById('tenantName').textContent = t.gc_name;
+    document.getElementById('tenantNameFooter').textContent = t.gc_name;
+    document.getElementById('pageTitle').textContent = `${t.gc_name} — Project Estimator`;
+    if (t.hero_headline) document.getElementById('heroHeadline').innerHTML = t.hero_headline;
+    if (t.hero_subhead)  document.getElementById('heroSubhead').textContent = t.hero_subhead;
+    const sel = document.getElementById('projectType');
+    (t.project_types || []).forEach(pt => {
+      const opt = document.createElement('option'); opt.value = pt; opt.textContent = pt; sel.appendChild(opt);
+    });
+    // Inline GC name in email gate
+    document.querySelectorAll('.gc-name-inline').forEach(el => el.textContent = t.gc_name);
+    if (t.email_headline) document.getElementById('emailHeadline').textContent = t.email_headline;
+    if (t.email_subhead)  document.getElementById('emailSubhead').textContent = t.email_subhead;
   }
-  document.getElementById('tenantName').textContent = t.gc_name;
 
-  // Hero
-  if (t.hero_headline) document.getElementById('heroHeadline').textContent = t.hero_headline;
-  if (t.hero_subhead) document.getElementById('heroSubhead').textContent = t.hero_subhead;
+  async function createSession(slug) {
+    try {
+      const res = await fetch('/api/gc-log', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_session', data: { slug } })
+      });
+      const d = await res.json(); sessionId = d.sessionId;
+    } catch {}
+  }
 
-  // Project type dropdown
-  const sel = document.getElementById('projectType');
-  (t.project_types || []).forEach(pt => {
-    const opt = document.createElement('option');
-    opt.value = pt;
-    opt.textContent = pt;
-    sel.appendChild(opt);
+  document.getElementById('zip').addEventListener('input', async function(e) {
+    const zip = e.target.value.replace(/\D/g,''); e.target.value = zip;
+    if (zip.length !== 5) { document.getElementById('city').value = ''; document.getElementById('state').value = ''; return; }
+    try {
+      const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
+      if (!res.ok) return;
+      const d = await res.json();
+      document.getElementById('city').value = d.places[0]['place name'] || '';
+      document.getElementById('state').value = d.places[0]['state abbreviation'] || '';
+    } catch {}
   });
 
-  // Footer
-  document.getElementById('tenantNameFooter').textContent = t.gc_name;
-}
-
-// ── SESSION ──
-async function createSession(slug, tenantId) {
-  try {
-    const res = await fetch('/api/gc-log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create_session', data: { slug, tenant_id: tenantId } })
-    });
-    const d = await res.json();
-    sessionId = d.sessionId;
-  } catch {}
-}
-
-// ── ZIP AUTOFILL ──
-document.getElementById('zip').addEventListener('input', handleZip);
-
-async function handleZip(e) {
-  const zip = e.target.value.replace(/\D/g, '');
-  document.getElementById('zip').value = zip;
-  if (zip.length !== 5) {
-    document.getElementById('city').value = '';
-    document.getElementById('state').value = '';
-    return;
+  async function runEstimate() {
+    const municipality   = document.getElementById('municipality').value.trim();
+    const projectType    = document.getElementById('projectType').value;
+    const zip            = document.getElementById('zip').value.trim();
+    const city           = document.getElementById('city').value.trim();
+    const state          = document.getElementById('state').value.trim();
+    const description    = document.getElementById('description').value.trim();
+    hideError();
+    if (!municipality)  return showError('Please enter your name or organization.');
+    if (!projectType)   return showError('Please select a project type.');
+    if (!description)   return showError('Please tell us a bit about your project.');
+    const location = [city, state, zip].filter(Boolean).join(', ') || tenant?.region || 'Midwest';
+    setLoading(true);
+    try {
+      const res = await fetch('/api/claude', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514', max_tokens: 1200,
+          messages: [{ role: 'user', content: buildPrompt({ municipality, projectType, location, description }) }]
+        })
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const parsed = parseResponse(data?.content?.[0]?.text || '');
+      lastResult = { municipality, projectType, location, description, ...parsed };
+      renderResults(parsed);
+      logRun({ municipality, projectType, description, parsed });
+    } catch { setLoading(false); showError('Something went wrong. Please try again.'); }
   }
-  try {
-    const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
-    if (!res.ok) return;
-    const d = await res.json();
-    document.getElementById('city').value = d.places[0]['place name'] || '';
-    document.getElementById('state').value = d.places[0]['state abbreviation'] || '';
-  } catch {}
-}
 
-// ── ESTIMATE ──
-async function runEstimate() {
-  const municipality = document.getElementById('municipality').value.trim();
-  const projectType  = document.getElementById('projectType').value;
-  const zip          = document.getElementById('zip').value.trim();
-  const city         = document.getElementById('city').value.trim();
-  const state        = document.getElementById('state').value.trim();
-  const description  = document.getElementById('description').value.trim();
+  function buildPrompt({ municipality, projectType, location, description }) {
+    const region = tenant?.region || 'Midwest (Indiana / Michigan)';
+    return `You are a senior construction cost estimator helping a general contractor give a prospective client a warm, honest cost picture before any formal process begins. Your tone is confident and human — like a trusted advisor, not a spreadsheet.
 
-  hideError();
+TODAY'S DATE: ${TODAY} — all timeline projections must reference dates AFTER ${TODAY_ISO}. Never project timelines into the past.
 
-  if (!municipality) return showError('Please enter a municipality or client name.');
-  if (!projectType)  return showError('Please select a project type.');
-  if (!description)  return showError('Please describe the project.');
-
-  const location = [city, state, zip].filter(Boolean).join(', ') || tenant.region || 'Midwest';
-
-  setLoading(true);
-
-  try {
-    const prompt = buildPrompt({ municipality, projectType, location, description });
-
-    const res = await fetch('/api/claude', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    if (!res.ok) throw new Error('API error');
-    const data = await res.json();
-    const raw = data?.content?.[0]?.text || '';
-    const parsed = parseResponse(raw);
-
-    renderResults(parsed);
-    logRun({ municipality, projectType, description, parsed });
-
-  } catch (err) {
-    setLoading(false);
-    showError('Something went wrong. Please try again.');
-    console.error(err);
-  }
-}
-
-function buildPrompt({ municipality, projectType, location, description }) {
-  const region = tenant?.region || 'Midwest (Indiana / Michigan)';
-  return `You are a senior construction cost estimator with deep expertise in ${region} construction markets. A general contractor's business development team is using this tool to quickly orient a client on project cost — before formal estimating begins.
-
-PROJECT INFORMATION:
-- Client / Municipality: ${municipality}
-- Project Type: ${projectType}
+PROJECT:
+- Client: ${municipality}
+- Type: ${projectType}
 - Location: ${location}
-- Region context: ${region}
+- Region: ${region}
 - Description: ${description}
 
-Provide a construction cost estimate using the following structured format EXACTLY:
+Respond in this exact format:
 
-COST_LOW: [dollar amount, no decimals, e.g. $1,200,000]
+COST_LOW: [dollar amount, no decimals]
 COST_HIGH: [dollar amount, no decimals]
 COST_MIDPOINT: [dollar amount, no decimals]
 CONFIDENCE: [High / Medium / Low]
-NARRATIVE: [2-3 sentences explaining the estimate, cost drivers, and any major variables. Write for a client audience — clear, plain language, no jargon.]
+NARRATIVE: [2-3 sentences. Warm, direct. Help the client understand what's driving their number and what would push it up or down. Acknowledge the significance of what they're undertaking — this is a major investment. No jargon.]
 ASSUMPTIONS:
-- [assumption 1]
-- [assumption 2]
-- [assumption 3]
-- [assumption 4]
-- [assumption 5]
+- [assumption]
+- [assumption]
+- [assumption]
+- [assumption]
+- [assumption]
+PROCESS_STEPS:
+- TITLE: [short step name] | DESC: [1-2 sentence description of what happens] | TIMELINE: [realistic timeframe, e.g. "Weeks 1–2" or "Month 1" — all dates must be after ${TODAY_ISO}]
+- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
+- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
+- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
+- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
 
 Rules:
-- Base costs on current ${region} construction market conditions
-- Use Design-Bid-Build delivery method assumptions
-- Include hard construction costs only (exclude land, soft costs, FF&E unless central to the project type)
-- Be direct and useful — this is a business development conversation tool, not a formal estimate
-- If the description is too vague to estimate responsibly, set CONFIDENCE: Low and explain what information would tighten the range
-- Do not reference any proprietary cost databases by name`;
-}
+- Current ${region} pricing. Design-Bid-Build. Hard construction costs only. No proprietary database names.
+- Process steps should reflect a realistic pre-construction and construction path for this project type and size.
+- All timeline references must be relative (e.g., "Weeks 1–3", "Months 2–4") OR use specific future months/years after ${TODAY_ISO}. Never use past dates.`;
+  }
 
-function parseResponse(raw) {
-  const get = (key) => {
-    const match = raw.match(new RegExp(`${key}:\\s*(.+)`));
-    return match ? match[1].trim() : '';
-  };
+  function parseResponse(raw) {
+    const get = k => { const m = raw.match(new RegExp(`${k}:\\s*(.+)`)); return m ? m[1].trim() : ''; };
+    const aMatch = raw.match(/ASSUMPTIONS:\s*([\s\S]*?)(?:\nPROCESS_STEPS:|$)/);
+    const assumptions = aMatch ? aMatch[1].split('\n').map(l=>l.replace(/^[-•]\s*/,'').trim()).filter(Boolean) : [];
+    const pMatch = raw.match(/PROCESS_STEPS:\s*([\s\S]*?)(?:\n[A-Z_]+:|$)/);
+    let processSteps = [];
+    if (pMatch) {
+      processSteps = pMatch[1].split('\n').map(l => l.replace(/^[-•]\s*/,'').trim()).filter(Boolean).map(line => {
+        const tm = line.match(/TITLE:\s*(.+?)\s*\|\s*DESC:\s*(.+?)(?:\s*\|\s*TIMELINE:\s*(.+))?$/);
+        return tm ? { title: tm[1].trim(), description: tm[2].trim(), timeline: tm[3]?.trim() || '' } : null;
+      }).filter(Boolean);
+    }
+    return {
+      costLow: get('COST_LOW'), costHigh: get('COST_HIGH'), costMidpoint: get('COST_MIDPOINT'),
+      confidence: get('CONFIDENCE'), narrative: get('NARRATIVE'),
+      assumptions, processSteps
+    };
+  }
 
-  const assumptionsMatch = raw.match(/ASSUMPTIONS:\s*([\s\S]*?)(?:\n[A-Z_]+:|$)/);
-  const assumptions = assumptionsMatch
-    ? assumptionsMatch[1].split('\n').map(l => l.replace(/^[-•]\s*/, '').trim()).filter(Boolean)
-    : [];
+  function renderResults(p) {
+    setLoading(false);
 
-  return {
-    costLow:      get('COST_LOW'),
-    costHigh:     get('COST_HIGH'),
-    costMidpoint: get('COST_MIDPOINT'),
-    confidence:   get('CONFIDENCE'),
-    narrative:    get('NARRATIVE'),
-    assumptions
-  };
-}
+    // Cost display
+    document.getElementById('costRange').textContent = `${p.costLow} – ${p.costHigh}`;
+    document.getElementById('costMid').textContent = `Midpoint: ${p.costMidpoint}`;
+    const pill = document.getElementById('confPill');
+    pill.textContent = p.confidence + ' Confidence';
+    pill.className = 'conf-pill ' + (p.confidence === 'High' ? 'conf-high' : p.confidence === 'Medium' ? 'conf-medium' : 'conf-low');
 
-function renderResults(p) {
-  setLoading(false);
+    // Narrative
+    document.getElementById('narrativeText').textContent = p.narrative;
 
-  document.getElementById('costRange').textContent = `${p.costLow} – ${p.costHigh}`;
-  document.getElementById('costMidpoint').textContent = `Midpoint: ${p.costMidpoint}`;
+    // Assumptions
+    const list = document.getElementById('assumptionsList');
+    list.innerHTML = '';
+    p.assumptions.forEach(a => { const li = document.createElement('li'); li.textContent = a; list.appendChild(li); });
 
-  const badge = document.getElementById('confidenceBadge');
-  badge.textContent = `${p.confidence} Confidence`;
-  badge.className = 'confidence-badge';
-  if (p.confidence === 'High')   badge.classList.add('conf-high');
-  if (p.confidence === 'Medium') badge.classList.add('conf-medium');
-  if (p.confidence === 'Low')    badge.classList.add('conf-low');
+    document.getElementById('inputCard').style.display = 'none';
+    document.getElementById('resultsCard').style.display = 'block';
 
-  document.getElementById('narrativeText').textContent = p.narrative;
+    // Why GC
+    renderWhyGC();
 
-  const list = document.getElementById('assumptionsList');
-  list.innerHTML = '';
-  p.assumptions.forEach(a => {
-    const li = document.createElement('li');
-    li.textContent = a;
-    list.appendChild(li);
-  });
+    // Process steps
+    renderProcessSteps(p.processSteps);
 
-  document.getElementById('inputCard').style.display = 'none';
-  document.getElementById('resultsCard').style.display = 'block';
+    document.getElementById('emailCard').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
-  renderCTA();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+  function renderWhyGC() {
+    if (!tenant) return;
+    const card = document.getElementById('whyGCCard');
+    const hasContent = tenant.brand_statement || (tenant.brand_values && tenant.brand_values.length);
+    if (!hasContent) return;
 
-function renderCTA() {
-  if (!tenant) return;
-  const card = document.getElementById('ctaCard');
-  document.getElementById('ctaHeadline').textContent = tenant.cta_headline || `Talk to ${tenant.gc_name}`;
-  document.getElementById('ctaBody').textContent = tenant.cta_body || '';
-  const btn = document.getElementById('ctaButton');
-  btn.textContent = tenant.cta_button_label || 'Get in Touch';
-  btn.href = tenant.cta_url || '#';
-  card.style.display = 'block';
-}
-
-// ── LOGGING ──
-async function logRun({ municipality, projectType, description, parsed }) {
-  if (!tenant) return;
-  try {
-    await fetch('/api/gc-log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'log_run',
-        data: {
-          session_id:        sessionId,
-          slug:              tenant.slug,
-          municipality:      municipality,
-          project_type:      projectType,
-          scope_description: description,
-          cost_low:          parsed.costLow,
-          cost_high:         parsed.costHigh,
-          cost_midpoint:     parsed.costMidpoint,
-          confidence:        parsed.confidence,
-          narrative:         parsed.narrative,
-          assumptions:       parsed.assumptions
-        }
-      })
+    document.getElementById('whyGCTitle').textContent = `Why ${tenant.gc_name}`;
+    if (tenant.brand_statement) {
+      document.getElementById('whyGCStatement').textContent = tenant.brand_statement;
+    }
+    const valContainer = document.getElementById('whyGCValues');
+    valContainer.innerHTML = '';
+    (tenant.brand_values || []).forEach(v => {
+      const div = document.createElement('div');
+      div.className = 'why-gc-value';
+      div.innerHTML = `<span class="why-gc-dot"></span><span>${v}</span>`;
+      valContainer.appendChild(div);
     });
-  } catch {}
-}
+    card.style.display = 'block';
+  }
 
-// ── UI HELPERS ──
-function setLoading(on) {
-  document.getElementById('loadingState').style.display = on ? 'block' : 'none';
-  document.getElementById('inputCard').style.display = on ? 'none' : 'block';
-  document.getElementById('estimateBtn').disabled = on;
-}
+  function renderProcessSteps(steps) {
+    if (!steps || steps.length === 0) return;
+    const container = document.getElementById('processSteps');
+    container.innerHTML = '';
+    steps.forEach((s, i) => {
+      const div = document.createElement('div');
+      div.className = 'process-step';
+      div.innerHTML = `
+        <div class="step-num">${i + 1}</div>
+        <div class="step-body">
+          <div class="step-title">${s.title}</div>
+          <div class="step-desc">${s.description}</div>
+          ${s.timeline ? `<span class="step-timeline">${s.timeline}</span>` : ''}
+        </div>`;
+      container.appendChild(div);
+    });
+    document.getElementById('processCard').style.display = 'block';
+  }
 
-function showError(msg) {
-  const el = document.getElementById('errorMsg');
-  el.textContent = msg;
-  el.style.display = 'block';
-}
+  async function submitEmail() {
+    const first = document.getElementById('gateFirst').value.trim();
+    const last  = document.getElementById('gateLast').value.trim();
+    const email = document.getElementById('gateEmail').value.trim();
+    if (!first || !last || !email) return showError('Please fill in all fields to receive your report.');
+    if (!email.includes('@')) return showError('Please enter a valid email address.');
+    hideError();
+    const btn = document.getElementById('emailBtn');
+    btn.disabled = true; btn.textContent = 'Sending...';
 
-function hideError() {
-  document.getElementById('errorMsg').style.display = 'none';
-}
+    // Build whyGC object for email
+    const whyGC = (tenant?.brand_statement || tenant?.brand_values?.length) ? {
+      statement: tenant.brand_statement || '',
+      values: tenant.brand_values || []
+    } : null;
 
-function resetForm() {
-  document.getElementById('resultsCard').style.display = 'none';
-  document.getElementById('ctaCard').style.display = 'none';
-  document.getElementById('inputCard').style.display = 'block';
-  hideError();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+    try {
+      await fetch('/api/email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send_report', data: {
+          recipientEmail: email, recipientName: first,
+          municipality: lastResult?.municipality, projectType: lastResult?.projectType,
+          costLow: lastResult?.costLow, costHigh: lastResult?.costHigh, costMidpoint: lastResult?.costMidpoint,
+          confidence: lastResult?.confidence, narrative: lastResult?.narrative,
+          assumptions: lastResult?.assumptions, processSteps: lastResult?.processSteps,
+          whyGC, gcName: tenant?.gc_name,
+          product: `gc-${tenant?.slug}`
+        }})
+      });
+      await fetch('/api/email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'notify_lead', data: {
+          firstName: first, lastName: last, email,
+          municipality: lastResult?.municipality, projectType: lastResult?.projectType,
+          costLow: lastResult?.costLow, costHigh: lastResult?.costHigh,
+          confidence: lastResult?.confidence,
+          gcName: tenant?.gc_name, gcNotifyEmail: tenant?.notify_email,
+          product: `gc-${tenant?.slug}`
+        }})
+      });
+      await logRun({ municipality: lastResult?.municipality, projectType: lastResult?.projectType, description: lastResult?.description, parsed: lastResult, leadEmail: email });
+    } catch {}
+
+    document.getElementById('emailForm').style.display = 'none';
+    document.getElementById('emailConfirmed').style.display = 'block';
+    document.getElementById('emailConfirmedMsg').textContent = `Check your inbox, ${first} — your cost summary is on its way.`;
+    renderCTA();
+  }
+
+  function renderCTA() {
+    if (!tenant) return;
+    document.getElementById('ctaHeadline').textContent = tenant.cta_headline || `Ready to talk next steps?`;
+    document.getElementById('ctaBody').textContent = tenant.cta_body || `${tenant.gc_name} would love to hear more about what you're building.`;
+    const btn = document.getElementById('ctaButton');
+    btn.textContent = tenant.cta_button_label || 'Start a Conversation';
+    btn.href = tenant.cta_url || '#';
+    document.getElementById('ctaCard').style.display = 'block';
+  }
+
+  async function logRun({ municipality, projectType, description, parsed, leadEmail }) {
+    if (!tenant) return;
+    try {
+      await fetch('/api/gc-log', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'log_run', data: {
+          session_id: sessionId, slug: tenant.slug, municipality,
+          project_type: projectType, scope_description: description,
+          cost_low: parsed?.costLow, cost_high: parsed?.costHigh, cost_midpoint: parsed?.costMidpoint,
+          confidence: parsed?.confidence, narrative: parsed?.narrative, assumptions: parsed?.assumptions,
+          lead_email: leadEmail || null
+        }})
+      });
+    } catch {}
+  }
+
+  function setLoading(on) {
+    document.getElementById('loadingCard').style.display = on ? 'block' : 'none';
+    document.getElementById('inputCard').style.display   = on ? 'none' : 'block';
+    document.getElementById('estimateBtn').disabled = on;
+  }
+  function showError(msg) { const e = document.getElementById('errorMsg'); e.textContent = msg; e.style.display = 'block'; }
+  function hideError() { document.getElementById('errorMsg').style.display = 'none'; }
+
+  function resetForm() {
+    ['resultsCard','whyGCCard','processCard','emailCard','ctaCard'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+    document.getElementById('emailForm').style.display = 'block';
+    document.getElementById('emailConfirmed').style.display = 'none';
+    document.getElementById('inputCard').style.display = 'block';
+    hideError(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 </script>
 </body>
 </html>
