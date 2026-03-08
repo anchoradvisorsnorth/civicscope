@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CivicScope — Municipal Project Feasibility</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400;1,9..144,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   CIVICSCOPE DESIGN SYSTEM
+═══════════════════════════════════════════ */
+:root {
+  --font-display: 'Fraunces', serif;
+  --font-body: 'DM Sans', sans-serif;
+  --cream:        #faf8f4;
+  --cream-dark:   #f2ede4;
+  --white:        #ffffff;
+  --ink:          #1c1917;
+  --ink-light:    #44403c;
+  --muted:        #78716c;
+  --muted-light:  #a8a29e;
+  --rule:         #e7e2d8;
+  --accent:       #c2410c;
+  --accent-hover: #a83509;
+  --accent-light: #fff3ec;
+  --accent-dim:   rgba(194, 65, 12, 0.1);
+  --green:        #15803d;
+  --green-light:  #dcfce7;
+  --amber:        #92400e;
+  --amber-light:  #fef3c7;
+  --page-pad: 48px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(250, 248, 244, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--rule);
+}
+.header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 var(--page-pad);
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wordmark-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+}
+.header-divider { width: 1px; height: 18px; background: var(--rule); }
+.header-tagline {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
+.header-badge {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--green);
+  background: var(--green-light);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* ── Page layout ── */
+.page-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px var(--page-pad) 80px;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 48px;
+  align-items: start;
+}
+.form-column { min-width: 0; }
+.sidebar-column { position: sticky; top: 80px; }
+
+/* ── Page intro ── */
+.page-intro { margin-bottom: 36px; }
+.page-eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.page-intro h1 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+.page-intro p {
+  font-size: 0.95rem;
+  color: var(--ink-light);
+  max-width: 560px;
+  font-weight: 300;
+  line-height: 1.65;
+}
+
+/* ── Form sections ── */
+.form-section {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 28px;
+  margin-bottom: 20px;
+}
+.form-section-title {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.optional-note { font-weight: 300; text-transform: none; letter-spacing: 0; font-size: 0.8rem; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.field.full { grid-column: 1 / -1; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-light);
+  letter-spacing: 0.01em;
+}
+.req { color: var(--accent); }
+.field input, .field select, .field textarea {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--ink);
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 10px 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  width: 100%;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.field input[readonly] { color: var(--muted); cursor: default; }
+.field textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
+.field-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ── Project type grid ── */
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.type-btn {
+  font-family: var(--font-body);
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 12px 10px;
+  font-size: 0.78rem;
+  color: var(--ink-light);
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  line-height: 1.3;
+}
+.type-btn:hover { border-color: var(--accent); color: var(--ink); }
+.type-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 500;
+}
+.type-icon { font-size: 1.2rem; }
+
+/* ── Toggle groups ── */
+.toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.toggle-btn {
+  font-family: var(--font-body);
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 7px 16px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toggle-btn:hover { border-color: var(--ink-light); color: var(--ink); }
+.toggle-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ── Checkbox group ── */
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.83rem;
+  color: var(--ink-light);
+  cursor: pointer;
+}
+.checkbox-item input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
+
+/* ── Submit row ── */
+.submit-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.btn-primary {
+  font-family: var(--font-body);
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 13px 28px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: background 0.15s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.submit-note { font-size: 0.78rem; color: var(--muted); }
+
+/* ── Loading ── */
+.loading-state {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-block {
+  display: none;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 14px 18px;
+  font-size: 0.85rem;
+  color: #991b1b;
+  margin-bottom: 16px;
+}
+
+/* ── Divider ── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 32px 0;
+}
+
+/* ── Results ── */
+#result { display: none; }
+
+.result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.result-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.result-meta { font-size: 0.8rem; color: var(--muted); }
+
+.confidence-badge {
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.confidence-high   { background: var(--green-light); color: var(--green); }
+.confidence-moderate { background: var(--amber-light); color: var(--amber); }
+.confidence-low    { background: #fef2f2; color: #991b1b; }
+
+.print-btn {
+  font-family: var(--font-body);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 7px 16px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 24px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.print-btn:hover { border-color: var(--ink-light); color: var(--ink); }
+
+/* ── Images block ── */
+.images-block { display: none; margin-bottom: 24px; }
+.images-block h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+.image-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.img-wrapper { border-radius: 4px; overflow: hidden; background: var(--cream-dark); }
+.img-wrapper img { width: 100%; height: 140px; object-fit: cover; display: block; }
+.image-caption {
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding: 6px 8px;
+  text-align: center;
+}
+
+/* ── Cost range block ── */
+.cost-range-block {
+  background: var(--ink);
+  border-radius: 6px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.cost-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 8px;
+}
+.cost-range {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 600;
+  color: white;
+  letter-spacing: -0.03em;
+  margin-bottom: 6px;
+}
+.cost-midpoint {
+  font-size: 0.83rem;
+  color: rgba(255,255,255,0.55);
+}
+.cost-midpoint strong { color: rgba(255,255,255,0.85); }
+
+/* ── Result content blocks ── */
+.result-block {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.block-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.narrative-block {
+  font-size: 0.92rem;
+  color: var(--ink-light);
+  line-height: 1.7;
+  padding: 20px 24px;
+  background: var(--cream-dark);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent);
+  margin-bottom: 16px;
+}
+.assumption-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.assumption-list li {
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  padding-left: 18px;
+  position: relative;
+  line-height: 1.5;
+}
+.assumption-list li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--muted-light);
+}
+
+/* ── Council Briefing ── */
+.section-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 8px 0;
+}
+.briefing-section { margin-bottom: 18px; }
+.briefing-section:last-child { margin-bottom: 0; }
+.briefing-section-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-light);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.opening-quote {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.55;
+  padding: 14px 18px;
+  background: var(--cream-dark);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+.pitch-points { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.pitch-points li {
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  padding-left: 16px;
+  position: relative;
+  line-height: 1.55;
+}
+.pitch-points li::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-size: 0.8rem; top: 1px; }
+.qa-item { margin-bottom: 12px; }
+.qa-q { font-size: 0.83rem; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+.qa-a { font-size: 0.83rem; color: var(--ink-light); line-height: 1.5; }
+.recommended-ask {
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.6;
+  padding: 14px 18px;
+  background: var(--accent-light);
+  border: 1px solid rgba(194,65,12,0.2);
+  border-radius: 4px;
+}
+
+/* ── Procurement block ── */
+.proc-header { margin-bottom: 20px; }
+.proc-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.proc-header p { font-size: 0.85rem; color: var(--muted); }
+.proc-paths { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.proc-path {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 18px;
+}
+.proc-path.alternative { border-color: var(--accent); background: var(--accent-light); }
+.proc-path-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.proc-path.alternative .proc-path-label { color: var(--accent); }
+.proc-path h4 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+.proc-steps { list-style: none; display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+.proc-steps li { font-size: 0.8rem; color: var(--ink-light); line-height: 1.5; }
+.proc-steps li strong { color: var(--ink); }
+.proc-callout {
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding: 10px 14px;
+  background: var(--cream-dark);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.proc-path.alternative .proc-callout { background: rgba(194,65,12,0.06); color: var(--accent); }
+
+/* ── Lead Gate ── */
+.gate-block {
+  background: var(--white);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  padding: 28px;
+  margin-bottom: 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.gate-block h3 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+.gate-block > p {
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+.gate-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.gate-submit-row { display: flex; align-items: center; gap: 16px; }
+.gate-confirmed {
+  display: none;
+  font-size: 0.88rem;
+  color: var(--green);
+  font-weight: 500;
+  padding: 12px 0;
+}
+
+/* ── CTA block ── */
+.cta-block {
+  background: var(--ink);
+  border-radius: 6px;
+  padding: 28px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.cta-text h4 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: white;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.cta-text p { font-size: 0.83rem; color: rgba(255,255,255,0.55); line-height: 1.6; }
+.cta-action { flex-shrink: 0; text-align: right; }
+.cta-name { font-family: var(--font-display); font-size: 1rem; color: white; font-weight: 600; }
+.cta-company { font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-bottom: 12px; }
+.cta-btn {
+  display: inline-block;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 0.83rem;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+.cta-btn:hover { background: var(--accent-hover); }
+
+/* ── Disclaimer ── */
+.disclaimer {
+  font-size: 0.72rem;
+  color: var(--muted-light);
+  line-height: 1.65;
+  padding: 16px 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* ── Sidebar ── */
+.sidebar-card {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.sidebar-card-title {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+.sidebar-step {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.sidebar-step:last-child { margin-bottom: 0; }
+.step-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.step-text { font-size: 0.83rem; color: var(--ink-light); line-height: 1.5; }
+.step-text strong { color: var(--ink); font-weight: 500; }
+
+.trust-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.trust-list li {
+  font-size: 0.82rem;
+  color: var(--ink-light);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.45;
+}
+.trust-list li::before {
+  content: '✓';
+  color: var(--green);
+  font-size: 0.78rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--rule);
+  padding: 20px var(--page-pad);
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.footer-wordmark {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+footer span {
+  font-size: 0.75rem;
+  color: var(--muted-light);
+}
+.footer-note { font-size: 0.72rem; color: var(--muted-light); }
+
+/* ── Responsive ── */
+@media (max-width: 860px) {
+  .page-wrap { grid-template-columns: 1fr; }
+  .sidebar-column { position: static; }
+  .type-grid { grid-template-columns: repeat(2, 1fr); }
+  .form-grid-3 { grid-template-columns: 1fr 1fr; }
+  .proc-paths { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  :root { --page-pad: 20px; }
+  .form-grid, .gate-form-grid { grid-template-columns: 1fr; }
+  .type-grid { grid-template-columns: repeat(2, 1fr); }
+  .cta-block { flex-direction: column; }
+  .cta-action { text-align: left; }
+  .header-tagline, .header-divider { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="https://www.civicscope.io" class="wordmark">
+      <span class="wordmark-dot"></span>CivicScope
+    </a>
+    <div class="header-divider"></div>
+    <span class="header-tagline">Municipal Project Feasibility</span>
+    <div class="header-badge">Free — No Account Required</div>
+  </div>
+</header>
+
+<div class="page-wrap">
+  <div class="form-column">
+
+    <div class="page-intro">
+      <div class="page-eyebrow">Feasibility Screening Tool</div>
+      <h1>Is your project<br>worth pursuing?</h1>
+      <p>Get a preliminary cost range before making your first phone call. Describe the project in plain language — no architect, no engineer, no commitment.</p>
+    </div>
+
+    <!-- SECTION 1: Location -->
+    <div class="form-section">
+      <div class="form-section-title">Your Location</div>
+      <div class="form-grid-3">
+        <div class="field">
+          <label>ZIP Code <span class="req">*</span></label>
+          <input type="text" id="zip" maxlength="5" placeholder="e.g. 46032" oninput="handleZip(this.value)" />
+          <div class="field-hint" id="zipStatus"></div>
+        </div>
+        <div class="field">
+          <label>State</label>
+          <input type="text" id="state" readonly placeholder="Auto-filled from ZIP" />
+        </div>
+        <div class="field">
+          <label>Municipality <span class="req">*</span></label>
+          <input type="text" id="location" placeholder="Auto-filled from ZIP" />
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: Project -->
+    <div class="form-section">
+      <div class="form-section-title">Project Type &amp; Scope</div>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Project Type <span class="req">*</span></label>
+          <div class="type-grid" id="typeGrid">
+            <button class="type-btn" data-type="DPW / Public Works Garage" data-search="municipal DPW public works equipment garage exterior">
+              <span class="type-icon">🏗️</span>DPW / Public Works Garage
+            </button>
+            <button class="type-btn" data-type="Fire or EMS Station" data-search="small town fire station EMS building exterior">
+              <span class="type-icon">🚒</span>Fire or EMS Station
+            </button>
+            <button class="type-btn" data-type="Municipal Office / Town Hall" data-search="small town hall municipal office building exterior">
+              <span class="type-icon">🏛️</span>Municipal Office / Town Hall
+            </button>
+            <button class="type-btn" data-type="Community Center or Library" data-search="municipal community center library building exterior">
+              <span class="type-icon">📚</span>Community Center or Library
+            </button>
+            <button class="type-btn" data-type="Courts (Pickleball, Tennis, Basketball)" data-search="municipal pickleball tennis courts park">
+              <span class="type-icon">🎾</span>Courts
+            </button>
+            <button class="type-btn" data-type="Park Building (Restroom, Pavilion, Shelter)" data-search="park restroom pavilion shelter outbuilding municipal">
+              <span class="type-icon">🌳</span>Park Building
+            </button>
+            <button class="type-btn" data-type="Splash Pad" data-search="municipal splash pad water park">
+              <span class="type-icon">💧</span>Splash Pad
+            </button>
+            <button class="type-btn" data-type="Other Municipal Project" data-search="municipal government public building construction">
+              <span class="type-icon">🏢</span>Something Else
+            </button>
+          </div>
+          <input type="hidden" id="projectType" value="" />
+          <input type="hidden" id="imageSearch" value="" />
+        </div>
+
+        <div class="field full">
+          <label>New Build or Renovation?</label>
+          <div class="toggle-group" id="buildTypeGroup">
+            <button class="toggle-btn active" data-val="New construction">New Construction</button>
+            <button class="toggle-btn" data-val="Renovation / addition to existing structure">Renovation / Addition</button>
+          </div>
+          <input type="hidden" id="buildType" value="New construction" />
+        </div>
+
+        <div class="field full">
+          <label>Describe the Project <span class="req">*</span></label>
+          <textarea id="scope" placeholder="Describe what you have in mind in plain language. For example: We need a simple garage for our street department — two or three bays, one large enough for a plow truck, basic heat and lighting, no office space. We have an existing town-owned site."></textarea>
+          <div class="field-hint">No technical specs needed. Plain language is fine. More detail improves the confidence level of your estimate.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: Site Conditions -->
+    <div class="form-section">
+      <div class="form-section-title">Site Conditions <span class="optional-note">— optional, improves accuracy</span></div>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Site Topography</label>
+          <div class="toggle-group" id="topoGroup">
+            <button class="toggle-btn" data-val="Flat / level site">Flat / Level</button>
+            <button class="toggle-btn" data-val="Gently sloped">Gently Sloped</button>
+            <button class="toggle-btn" data-val="Steeply sloped">Steeply Sloped</button>
+            <button class="toggle-btn" data-val="Wooded / clearing required">Wooded / Clearing Required</button>
+            <button class="toggle-btn" data-val="Existing structure requires demolition">Demo of Existing Structure</button>
+          </div>
+          <input type="hidden" id="topography" value="" />
+        </div>
+        <div class="field full">
+          <label>Utilities Available On-Site</label>
+          <div class="checkbox-group">
+            <label class="checkbox-item"><input type="checkbox" id="util-water" value="Municipal water"> Municipal Water</label>
+            <label class="checkbox-item"><input type="checkbox" id="util-sewer" value="Municipal sewer"> Municipal Sewer</label>
+            <label class="checkbox-item"><input type="checkbox" id="util-electric" value="Electric service"> Electric Service</label>
+            <label class="checkbox-item"><input type="checkbox" id="util-none" value="No utilities on site"> No Utilities On-Site</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-row">
+      <button class="btn-primary" id="submitBtn" onclick="runFeasibility()">
+        Run Feasibility Check
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="submit-note">Takes about 20 seconds &nbsp;·&nbsp; No account required</div>
+    </div>
+
+    <div class="loading-state" id="loading">
+      <div class="spinner"></div>
+      <span id="loadingMsg">Analyzing regional cost data and project parameters...</span>
+    </div>
+    <div class="error-block" id="errorBlock"></div>
+
+    <hr class="divider" id="resultDivider" style="display:none">
+
+    <!-- RESULTS -->
+    <div id="result">
+
+      <div class="result-header">
+        <div>
+          <div class="result-title" id="resultTitle">Preliminary Feasibility Indicator</div>
+          <div class="result-meta" id="resultMeta"></div>
+        </div>
+        <div class="confidence-badge" id="confidenceBadge"></div>
+      </div>
+
+      <button class="print-btn" onclick="window.print()">↓ Print / Save as PDF</button>
+
+      <div class="images-block" id="imagesBlock">
+        <h3>Reference Projects — Similar Construction Type</h3>
+        <div class="image-grid" id="imageGrid"></div>
+        <div class="field-hint" style="margin-top:8px;">Visual reference only — example projects of similar type and scale.</div>
+      </div>
+
+      <div class="cost-range-block">
+        <div class="cost-label">Estimated Project Cost Range</div>
+        <div class="cost-range" id="costRange">—</div>
+        <div class="cost-midpoint" id="costMidpoint"></div>
+      </div>
+
+      <div class="narrative-block" id="narrativeBlock"></div>
+
+      <div class="result-block">
+        <div class="block-label">Assumptions Behind This Estimate</div>
+        <ul class="assumption-list" id="assumptionList"></ul>
+      </div>
+
+      <div class="result-block">
+        <div class="block-label">Council Briefing Guide</div>
+        <p class="field-hint" style="margin-bottom:14px;">AI-generated talking points tailored to your project. Review and edit before using.</p>
+        <div id="briefingContent">
+          <div class="section-loading">
+            <div class="spinner"></div>
+            Drafting your council briefing guide...
+          </div>
+        </div>
+      </div>
+
+      <div class="result-block">
+        <div class="block-label">Understanding Your Path to Getting This Built</div>
+        <div class="proc-header">
+          <p>The procurement path you choose affects your total cost, timeline, and how much risk your municipality carries.</p>
+        </div>
+        <div class="proc-paths">
+          <div class="proc-path traditional">
+            <div class="proc-path-label">Traditional Path</div>
+            <h4>Plan-Spec-Low Bid</h4>
+            <ul class="proc-steps">
+              <li>Design and engineering fees paid <strong>before any commitment</strong> — typically 8–12% of project cost</li>
+              <li>Public bid advertising required — <strong>12–18 months</strong> from design start to groundbreaking</li>
+              <li>Legally required to accept the <strong>lowest bidder</strong> regardless of track record</li>
+              <li>Change orders average <strong>11% cost growth</strong> after award</li>
+            </ul>
+            <div class="proc-callout" id="tradCallout">On a project in this range, design fees and change order risk can add significantly to your final cost.</div>
+          </div>
+          <div class="proc-path alternative">
+            <div class="proc-path-label">Alternative Path</div>
+            <h4>BOT / P3 Delivery</h4>
+            <ul class="proc-steps">
+              <li><strong>No upfront design spend.</strong> Receive a Guaranteed Maximum Price before committing to any design dollars</li>
+              <li>Developer, designer, and contractor work together <strong>from day one</strong> — value engineering before costs are locked</li>
+              <li>Indiana BOT statute enables GMP procurement — <strong>no low-bid requirement</strong></li>
+              <li>Cost overrun risk stays with the developer, <strong>not your municipality</strong></li>
+            </ul>
+            <div class="proc-callout">Developer fee ~4% of project cost. No change orders. Budget certainty from day one.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lead Gate -->
+      <div class="gate-block" id="gateBlock">
+        <h3>Get Your Full Report by Email</h3>
+        <p>Enter your information below and we'll email you a complete summary — including cost range, assumptions, council briefing guide, and procurement options.</p>
+        <div class="gate-form-grid">
+          <div class="field">
+            <label>First Name <span class="req">*</span></label>
+            <input type="text" id="gateFirst" placeholder="First name" />
+          </div>
+          <div class="field">
+            <label>Last Name <span class="req">*</span></label>
+            <input type="text" id="gateLast" placeholder="Last name" />
+          </div>
+          <div class="field">
+            <label>Your Role <span class="req">*</span></label>
+            <select id="gateRole">
+              <option value="">— Select your role —</option>
+              <option>Town / City Manager</option>
+              <option>Mayor</option>
+              <option>Council Member</option>
+              <option>Department Director</option>
+              <option>Clerk / Administrator</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Email Address <span class="req">*</span></label>
+            <input type="email" id="gateEmail" placeholder="you@municipality.gov" />
+          </div>
+          <div class="field full">
+            <label>Municipality</label>
+            <input type="text" id="gateMunicipality" placeholder="Auto-filled" readonly />
+          </div>
+        </div>
+        <div class="gate-submit-row">
+          <button class="btn-primary" id="gateBtn" onclick="submitLead()">
+            Email Me This Report
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="submit-note">Your information is only shared with JBK Development</div>
+        </div>
+        <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. JBK Development will follow up shortly.</div>
+      </div>
+
+      <div class="cta-block">
+        <div class="cta-text">
+          <h4>Ready to explore a smarter path for this project?</h4>
+          <p>JBK Development helps Indiana and Michigan municipalities structure projects from feasibility through construction — on a guaranteed price, without the plan-spec-low-bid risk.</p>
+        </div>
+        <div class="cta-action">
+          <div class="cta-name">Keith Plummer</div>
+          <div class="cta-company">JBK Development</div>
+          <a href="/cdn-cgi/l/email-protection#6c07090518042c060e0708091a0900031c01090218420f0301531f190e06090f18512f051a050f3f0f031c09495e5c2a090d1f050e0500051815495e5c25021d19051e15" class="cta-btn">Start a Conversation →</a>
+        </div>
+      </div>
+
+      <div class="disclaimer">
+        This is a preliminary feasibility indicator only, not a formal cost estimate. It is intended to support early internal go/no-go decisions and should not be used for budgeting, procurement, or council appropriations without professional verification. Actual costs depend on site conditions, design requirements, local labor markets, and material prices at time of bid.
+      </div>
+
+    </div><!-- /result -->
+
+  </div><!-- /form-column -->
+
+  <!-- SIDEBAR -->
+  <div class="sidebar-column">
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">How It Works</div>
+      <div class="sidebar-step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>Enter your location</strong> — we use regional cost data specific to your state and market.</div>
+      </div>
+      <div class="sidebar-step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>Describe the project</strong> — plain language is fine. No specs, no drawings needed.</div>
+      </div>
+      <div class="sidebar-step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>Get your range</strong> — a preliminary cost range with confidence rating in about 20 seconds.</div>
+      </div>
+      <div class="sidebar-step">
+        <div class="step-num">4</div>
+        <div class="step-text"><strong>Get the full report</strong> — enter your email to receive a complete PDF summary.</div>
+      </div>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">What You Get</div>
+      <ul class="trust-list">
+        <li>Preliminary cost range with confidence rating</li>
+        <li>Plain-language narrative for your context</li>
+        <li>Key assumptions behind the estimate</li>
+        <li>Council briefing guide — AI-drafted talking points</li>
+        <li>Procurement path comparison</li>
+        <li>Full report emailed to you as PDF</li>
+      </ul>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">Good to Know</div>
+      <ul class="trust-list">
+        <li>Free — always. No account required.</li>
+        <li>Not a licensed cost estimate — use for early go/no-go decisions only</li>
+        <li>More detail in your description improves confidence</li>
+        <li>Results typically within 15–25% of actual bid ranges</li>
+      </ul>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<footer>
+  <div class="footer-left">
+    <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
+    <span>·</span>
+    <span>Powered by JBK Development</span>
+  </div>
+  <span class="footer-note">For planning purposes only — not a licensed cost estimate</span>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ── ZIP Code lookup ──────────────────────────────────────────────────
+async function handleZip(zip) {
+  if (zip.length !== 5) {
+    if (zip.length < 5) {
+      document.getElementById('state').value = '';
+      document.getElementById('location').value = '';
+      document.getElementById('zipStatus').textContent = '';
+    }
+    return;
+  }
+  try {
+    const resp = await fetch(`https://api.zippopotam.us/us/${zip}`);
+    if (!resp.ok) throw new Error('Not found');
+    const data = await resp.json();
+    const place = data.places[0];
+    document.getElementById('state').value = place['state'];
+    document.getElementById('location').value = place['place name'];
+    document.getElementById('gateMunicipality').value = place['place name'];
+    document.getElementById('zipStatus').textContent = `✓ ${place['place name']}, ${place['state abbreviation']}`;
+    document.getElementById('zipStatus').style.color = 'var(--green)';
+  } catch {
+    document.getElementById('zipStatus').textContent = 'ZIP not found — enter state and municipality manually';
+    document.getElementById('zipStatus').style.color = 'var(--amber)';
+    document.getElementById('state').removeAttribute('readonly');
+  }
+}
+
+// ── Toggle groups ────────────────────────────────────────────────────
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('projectType').value = btn.dataset.type;
+    document.getElementById('imageSearch').value = btn.dataset.search;
+  });
+});
+
+document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('buildType').value = btn.dataset.val;
+  });
+});
+
+document.querySelectorAll('#topoGroup .toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#topoGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('topography').value = btn.dataset.val;
+  });
+});
+
+// ── Helpers ──────────────────────────────────────────────────────────
+function formatCurrency(n) {
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M';
+  return '$' + n.toLocaleString('en-US');
+}
+
+function getUtilities() {
+  const vals = ['util-water','util-sewer','util-electric','util-none']
+    .filter(id => document.getElementById(id).checked)
+    .map(id => document.getElementById(id).value);
+  return vals.length ? vals.join(', ') : 'Not specified';
+}
+
+function loadImages(searchQuery) {
+  const grid = document.getElementById('imageGrid');
+  const block = document.getElementById('imagesBlock');
+  grid.innerHTML = '';
+  const terms = [
+    encodeURIComponent(searchQuery),
+    encodeURIComponent(searchQuery.split(' ').slice(0,4).join(' ') + ' building'),
+    encodeURIComponent(searchQuery.split(' ').slice(0,3).join(' ') + ' architecture')
+  ];
+  terms.forEach((kw, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'img-wrapper';
+    const img = document.createElement('img');
+    img.src = `https://source.unsplash.com/400x300/?${kw}&sig=${Date.now()+i}`;
+    img.alt = 'Reference project';
+    img.onerror = () => { wrap.style.display = 'none'; };
+    const cap = document.createElement('div');
+    cap.className = 'image-caption';
+    cap.textContent = 'Reference only — similar project type';
+    wrap.appendChild(img);
+    wrap.appendChild(cap);
+    grid.appendChild(wrap);
+  });
+  block.style.display = 'block';
+}
+
+function updateProcCallout(low, high) {
+  const designLow = formatCurrency(Math.round(low * 0.08));
+  const designHigh = formatCurrency(Math.round(high * 0.12));
+  const changeRisk = formatCurrency(Math.round(((low + high) / 2) * 0.11));
+  document.getElementById('tradCallout').textContent =
+    `On a project in this range: design fees ${designLow}–${designHigh} before commitment, plus ~${changeRisk} in estimated change order exposure after low-bid award.`;
+}
+
+// ── API call ─────────────────────────────────────────────────────────
+async function callClaude(prompt) {
+  const resp = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await resp.json();
+  const text = data.content.map(i => i.text || '').join('');
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
+// ── Feasibility estimate ─────────────────────────────────────────────
+async function runFeasibility() {
+  const zip      = document.getElementById('zip').value.trim();
+  const location = document.getElementById('location').value.trim();
+  const state    = document.getElementById('state').value.trim();
+  const type     = document.getElementById('projectType').value;
+  const buildType = document.getElementById('buildType').value;
+  const scope    = document.getElementById('scope').value.trim();
+  const topo     = document.getElementById('topography').value;
+  const utils    = getUtilities();
+  const imgSearch = document.getElementById('imageSearch').value;
+
+  if (!location || !state || !type || !scope) {
+    alert('Please fill in your location, select a project type, and describe your project.');
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  const loading = document.getElementById('loading');
+  const loadingMsg = document.getElementById('loadingMsg');
+  const errorBlock = document.getElementById('errorBlock');
+  const resultEl = document.getElementById('result');
+  const divider = document.getElementById('resultDivider');
+
+  btn.disabled = true;
+  loading.style.display = 'flex';
+  loadingMsg.textContent = 'Analyzing regional cost data and project parameters...';
+  errorBlock.style.display = 'none';
+  resultEl.style.display = 'none';
+  divider.style.display = 'none';
+  document.getElementById('imagesBlock').style.display = 'none';
+
+  const prompt = `You are a municipal construction cost advisor helping local government officials in the Midwest assess project feasibility before engaging architects or contractors.
+
+LOCATION: ${location}, ${state} (ZIP: ${zip})
+PROJECT TYPE: ${type}
+BUILD TYPE: ${buildType}
+DESCRIPTION: ${scope}
+SITE TOPOGRAPHY: ${topo || 'Not specified'}
+UTILITIES ON SITE: ${utils}
+
+Provide an honest preliminary cost range based on regional construction costs for ${state}. Factor in all site conditions provided.
+
+Respond ONLY with valid JSON, no markdown, no preamble:
+{
+  "low": <integer dollar amount>,
+  "high": <integer dollar amount>,
+  "confidence": "<High|Moderate|Low>",
+  "confidence_reason": "<one sentence>",
+  "narrative": "<2-3 sentences for a non-technical town manager — is this feasible, what drives the cost, any watch-outs?>",
+  "assumptions": [
+    "<specific assumption 1>",
+    "<specific assumption 2>",
+    "<specific assumption 3>",
+    "<specific assumption 4>",
+    "<site or utility assumption>"
+  ],
+  "project_label": "<3-6 word label, e.g. 'DPW 3-Bay Equipment Garage' or '6-Court Pickleball Complex'>"
+}
+
+Rules:
+- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance
+- Exclude land acquisition
+- If no utilities on site, add realistic extension costs to range
+- If demo required, include demo costs
+- Renovation projects typically cost 60-80% of new construction per SF
+- Vague descriptions get Low confidence and wider ranges
+- ${state} regional labor market costs should be reflected
+- Write for a town manager, not a contractor`;
+
+  try {
+    const rd = await callClaude(prompt);
+
+    document.getElementById('resultTitle').textContent = rd.project_label || 'Preliminary Feasibility Indicator';
+    document.getElementById('resultMeta').innerHTML =
+      `${location}, ${state} &nbsp;·&nbsp; ${type} &nbsp;·&nbsp; ${buildType}`;
+
+    const badge = document.getElementById('confidenceBadge');
+    badge.textContent = rd.confidence + ' Confidence';
+    badge.className = 'confidence-badge confidence-' + rd.confidence.toLowerCase();
+
+    document.getElementById('costRange').textContent =
+      formatCurrency(rd.low) + ' – ' + formatCurrency(rd.high);
+    const mid = Math.round((rd.low + rd.high) / 2);
+    document.getElementById('costMidpoint').innerHTML =
+      `Midpoint: <strong>${formatCurrency(mid)}</strong> &nbsp;·&nbsp; ${rd.confidence_reason}`;
+
+    document.getElementById('narrativeBlock').textContent = rd.narrative;
+
+    const ul = document.getElementById('assumptionList');
+    ul.innerHTML = '';
+    rd.assumptions.forEach(a => {
+      const li = document.createElement('li');
+      li.textContent = a;
+      ul.appendChild(li);
+    });
+
+    updateProcCallout(rd.low, rd.high);
+    document.getElementById('gateMunicipality').value = location;
+
+    divider.style.display = 'block';
+    resultEl.style.display = 'block';
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    if (imgSearch) loadImages(imgSearch);
+
+    document.getElementById('briefingContent').innerHTML =
+      `<div class="section-loading"><div class="spinner"></div> Drafting your council briefing guide...</div>`;
+
+    fetchBriefing(rd.project_label, rd.low, rd.high, state, location, type, scope, buildType)
+      .then(b => renderBriefing(b))
+      .catch(() => {
+        document.getElementById('briefingContent').innerHTML =
+          '<p style="font-size:0.85rem;color:var(--muted);">Could not generate briefing guide. Try re-running the feasibility check.</p>';
+      });
+
+  } catch (err) {
+    errorBlock.textContent = 'Something went wrong. Please check your inputs and try again — more detail in the description usually helps.';
+    errorBlock.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    loading.style.display = 'none';
+  }
+}
+
+// ── Council Briefing Guide ───────────────────────────────────────────
+async function fetchBriefing(label, low, high, state, location, type, scope, buildType) {
+  const prompt = `You are a municipal communications advisor helping a town manager prepare to present a capital project to their council for the first time.
+
+PROJECT: ${label}
+LOCATION: ${location}, ${state}
+TYPE: ${type} — ${buildType}
+DESCRIPTION: ${scope}
+ESTIMATED COST RANGE: ${formatCurrency(low)} – ${formatCurrency(high)} (midpoint ~${formatCurrency(Math.round((low+high)/2))})
+
+Respond ONLY with valid JSON, no markdown, no preamble:
+{
+  "opening": "<One natural sentence the manager can say to open this topic at a council meeting — confident, not salesy>",
+  "talking_points": [
+    "<why this project matters to residents — specific to this project type>",
+    "<why now is a reasonable time to explore it — practical, not urgent>",
+    "<what the cost range means and how to frame it — reassuring, not technical>"
+  ],
+  "likely_questions": [
+    { "q": "<most likely skeptical council question>", "a": "<brief, direct answer>" },
+    { "q": "<second likely question>", "a": "<brief answer>" },
+    { "q": "<third likely question>", "a": "<brief answer>" }
+  ],
+  "next_step": "<One sentence — the lowest-commitment ask you can make to council to move this forward.>"
+}`;
+
+  return await callClaude(prompt);
+}
+
+function renderBriefing(b) {
+  let html = '';
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Opening Line</div>
+    <div class="opening-quote">"${b.opening}"</div>
+  </div>`;
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Key Talking Points</div>
+    <ul class="pitch-points">${b.talking_points.map(p => `<li>${p}</li>`).join('')}</ul>
+  </div>`;
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Likely Council Questions &amp; Suggested Answers</div>`;
+  b.likely_questions.forEach(qa => {
+    html += `<div class="qa-item">
+      <div class="qa-q">Q: ${qa.q}</div>
+      <div class="qa-a">${qa.a}</div>
+    </div>`;
+  });
+  html += `</div>`;
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Recommended Ask to Council</div>
+    <div class="recommended-ask">${b.next_step}</div>
+  </div>`;
+  document.getElementById('briefingContent').innerHTML = html;
+}
+
+// ── Lead Gate — now uses /api/email ─────────────────────────────────
+async function submitLead() {
+  const first = document.getElementById('gateFirst').value.trim();
+  const last  = document.getElementById('gateLast').value.trim();
+  const role  = document.getElementById('gateRole').value;
+  const email = document.getElementById('gateEmail').value.trim();
+  const muni  = document.getElementById('gateMunicipality').value.trim();
+  const projectType = document.getElementById('resultTitle').textContent;
+  const narrative   = document.getElementById('narrativeBlock').textContent;
+
+  // Parse cost range and confidence from DOM
+  const costRangeText = document.getElementById('costRange').textContent; // e.g. "$1.2M – $1.8M"
+  const costParts = costRangeText.split('–').map(s => s.trim());
+  const costLow  = costParts[0] || '—';
+  const costHigh = costParts[1] || '—';
+  const costMidpointEl = document.getElementById('costMidpoint');
+  const costMidpoint = costMidpointEl ? costMidpointEl.textContent.replace(/Midpoint:\s*/i,'').split('·')[0].trim() : '—';
+  const confidenceBadge = document.getElementById('confidenceBadge');
+  const confidence = confidenceBadge ? confidenceBadge.textContent.replace(' Confidence','').trim() : 'Moderate';
+
+  if (!first || !last || !role || !email) {
+    alert('Please fill in all fields to receive your report.');
+    return;
+  }
+
+  const gateBtn = document.getElementById('gateBtn');
+  gateBtn.disabled = true;
+  gateBtn.textContent = 'Sending...';
+
+  try {
+    // Send report to user
+    await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'send_report',
+        data: {
+          recipientEmail: email,
+          recipientName: `${first} ${last}`,
+          municipality: muni,
+          projectType,
+          costLow,
+          costHigh,
+          costMidpoint,
+          confidence,
+          narrative,
+          assumptions: [],
+          product: 'free'
+        }
+      })
+    });
+
+    // Notify Keith of lead
+    await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'notify_lead',
+        data: {
+          firstName: first,
+          lastName: last,
+          email,
+          role,
+          municipality: muni,
+          projectType,
+          costLow,
+          costHigh,
+          confidence,
+          product: 'free'
+        }
+      })
+    });
+
+    document.getElementById('gateBtn').style.display = 'none';
+    document.getElementById('gateConfirmed').style.displa
