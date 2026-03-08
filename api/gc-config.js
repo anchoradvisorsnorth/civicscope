@@ -1,13 +1,6 @@
 // api/gc-config.js
-// Fetches tenant config from the shared CivicScope Supabase project by slug
-// Called on page load: GET /api/gc-config?slug=acme
-
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+// Fetches tenant config from Supabase by slug
+// GET /api/gc-config?slug=acme
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,19 +13,37 @@ export default async function handler(req, res) {
   const { slug } = req.query;
   if (!slug) return res.status(400).json({ error: 'Missing slug' });
 
-  const { data, error } = await supabase
-    .from('tenants')
-    .select('*')
-    .eq('slug', slug)
-    .eq('active', true)
-    .single();
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-  if (error || !data) {
-    return res.status(404).json({ error: 'Tenant not found' });
+  try {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/tenants?slug=eq.${slug}&active=eq.true&limit=1`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Accept': 'application/json'
+        }
+      }
+    );
+
+    if (!r.ok) {
+      const err = await r.text();
+      throw new Error(`Supabase error: ${err}`);
+    }
+
+    const rows = await r.json();
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    // Strip sensitive fields before sending to browser
+    const { contact_email, from_email, ...safeConfig } = rows[0];
+    return res.status(200).json(safeConfig);
+
+  } catch (err) {
+    console.error('gc-config error:', err);
+    return res.status(500).json({ error: err.message });
   }
-
-  // Never expose contact_email or from_email to the browser
-  const { contact_email, from_email, ...safeConfig } = data;
-
-  return res.status(200).json(safeConfig);
 }
