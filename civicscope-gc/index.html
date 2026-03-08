@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Estimator</title>
+  <style>
+    :root {
+      --brand: #1e3a5f;
+      --brand-light: #e8f0f8;
+      --accent: #2563eb;
+      --text: #1a1a1a;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 8px;
+      --max: 780px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8fafc;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--brand);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    #tenantLogo {
+      height: 36px;
+      width: auto;
+      display: none;
+    }
+    #tenantName {
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .powered-by {
+      color: rgba(255,255,255,0.55);
+      font-size: 0.72rem;
+      text-align: right;
+      line-height: 1.3;
+    }
+    .powered-by a {
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      background: var(--brand);
+      padding: 40px 24px 48px;
+      text-align: center;
+      color: #fff;
+    }
+    .hero h1 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    .hero p {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.78);
+      max-width: 560px;
+      margin: 0 auto;
+      line-height: 1.55;
+    }
+
+    /* ── MAIN ── */
+    main {
+      max-width: var(--max);
+      margin: -24px auto 60px;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      padding: 32px;
+      margin-bottom: 20px;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── FORM ── */
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .field-row.full { grid-template-columns: 1fr; }
+    .field-row.thirds { grid-template-columns: 1fr 1fr 1fr; }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      color: var(--text);
+      background: #fff;
+      transition: border 0.15s;
+      -webkit-appearance: none;
+    }
+    input[type="text"]:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+    textarea {
+      resize: vertical;
+      min-height: 110px;
+      line-height: 1.5;
+    }
+    select { cursor: pointer; }
+
+    input[readonly] {
+      background: #f9fafb;
+      color: var(--muted);
+      cursor: default;
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── BUTTON ── */
+    .btn-primary {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: 0.01em;
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-primary:active { transform: scale(0.99); }
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ── LOADING ── */
+    #loadingState {
+      display: none;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--brand-light);
+      border-top-color: var(--brand);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loadingState p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* ── RESULTS ── */
+    #resultsCard { display: none; }
+
+    .cost-block {
+      background: var(--brand-light);
+      border-radius: 10px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .cost-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--brand);
+      margin-bottom: 8px;
+    }
+    .cost-range {
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      font-weight: 800;
+      color: var(--brand);
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .cost-midpoint {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .confidence-badge {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .conf-high { background: #d1fae5; color: #065f46; }
+    .conf-medium { background: #fef3c7; color: #92400e; }
+    .conf-low { background: #fee2e2; color: #991b1b; }
+
+    .narrative-block h3 {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .narrative-block p {
+      font-size: 0.95rem;
+      line-height: 1.65;
+      color: #374151;
+    }
+
+    .assumptions-block {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .assumptions-block h3 {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .assumptions-block ul {
+      list-style: none;
+      padding: 0;
+    }
+    .assumptions-block li {
+      padding: 6px 0 6px 20px;
+      position: relative;
+      font-size: 0.88rem;
+      color: #4b5563;
+      line-height: 1.5;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .assumptions-block li:last-child { border-bottom: none; }
+    .assumptions-block li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--brand);
+      font-size: 0.8rem;
+    }
+
+    /* ── CTA BLOCK ── */
+    #ctaCard {
+      display: none;
+      background: var(--brand);
+      border-radius: 12px;
+      padding: 32px;
+      color: #fff;
+      text-align: center;
+    }
+    #ctaCard h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      letter-spacing: -0.01em;
+    }
+    #ctaCard p {
+      font-size: 0.92rem;
+      color: rgba(255,255,255,0.78);
+      max-width: 480px;
+      margin: 0 auto 20px;
+      line-height: 1.55;
+    }
+    .btn-cta {
+      display: inline-block;
+      padding: 13px 32px;
+      background: #fff;
+      color: var(--brand);
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: transform 0.1s, box-shadow 0.15s;
+    }
+    .btn-cta:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+
+    /* ── RESET LINK ── */
+    .reset-row {
+      text-align: center;
+      margin-top: 16px;
+    }
+    .reset-row a {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    /* ── ERROR ── */
+    #errorMsg {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      color: #991b1b;
+      font-size: 0.88rem;
+      margin-top: 12px;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 24px 16px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--muted); }
+
+    /* ── LOADING OVERLAY (tenant config) ── */
+    #configLoading {
+      position: fixed;
+      inset: 0;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #configError {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #f8fafc;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      flex-direction: column;
+      gap: 12px;
+      color: #991b1b;
+      font-size: 1rem;
+      text-align: center;
+      padding: 24px;
+    }
+
+    @media (max-width: 600px) {
+      .field-row { grid-template-columns: 1fr; }
+      .field-row.thirds { grid-template-columns: 1fr 1fr; }
+      .card { padding: 20px; }
+      header { padding: 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Config loading overlay -->
+<div id="configLoading">
+  <div style="text-align:center;">
+    <div class="spinner" style="margin:0 auto 12px;"></div>
+    <p style="color:#6b7280;font-size:0.9rem;">Loading...</p>
+  </div>
+</div>
+<div id="configError">
+  <p>⚠️ This estimator link is not valid or has been deactivated.</p>
+  <p style="font-size:0.85rem;color:#6b7280;">Please contact the company that shared this link.</p>
+</div>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="header-left">
+    <img id="tenantLogo" src="" alt="" />
+    <span id="tenantName"></span>
+  </div>
+  <div class="powered-by">
+    Powered by<br><a href="https://civicscope.io" target="_blank">CivicScope</a>
+  </div>
+</header>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <h1 id="heroHeadline">Get a project cost range in 30 seconds.</h1>
+  <p id="heroSubhead">Describe your project, answer a few quick questions, and get a rough cost range — before the estimate, before the proposal.</p>
+</div>
+
+<!-- ── MAIN ── -->
+<main>
+
+  <!-- Input card -->
+  <div class="card" id="inputCard">
+    <div class="section-label">Project Details</div>
+
+    <div class="field-row">
+      <div>
+        <label for="municipality">Municipality / Client Name</label>
+        <input type="text" id="municipality" placeholder="e.g. City of Elkhart or Acme Warehousing LLC" />
+      </div>
+      <div>
+        <label for="projectType">Project Type</label>
+        <select id="projectType">
+          <option value="">Select a type...</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-row thirds">
+      <div>
+        <label for="zip">ZIP Code</label>
+        <input type="text" id="zip" placeholder="e.g. 46514" maxlength="5" />
+      </div>
+      <div>
+        <label for="city">City</label>
+        <input type="text" id="city" placeholder="Auto-fill" readonly />
+      </div>
+      <div>
+        <label for="state">State</label>
+        <input type="text" id="state" placeholder="Auto-fill" readonly />
+      </div>
+    </div>
+
+    <div class="field-row full">
+      <div>
+        <label for="description">Describe the project</label>
+        <textarea id="description" placeholder="What are you building? Size, scope, key features, any constraints. The more detail, the better the estimate."></textarea>
+        <div class="hint">Include square footage, site conditions, or anything that affects cost.</div>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="estimateBtn" onclick="runEstimate()">Get Cost Range</button>
+    <div id="errorMsg"></div>
+  </div>
+
+  <!-- Loading state -->
+  <div class="card" id="loadingState">
+    <div style="text-align:center;padding:20px 0;">
+      <div class="spinner"></div>
+      <p style="color:#6b7280;font-size:0.9rem;margin-top:4px;">Analyzing your project...</p>
+    </div>
+  </div>
+
+  <!-- Results card -->
+  <div class="card" id="resultsCard">
+    <div class="section-label">Cost Estimate</div>
+
+    <div class="cost-block">
+      <div class="cost-label">Estimated Construction Cost</div>
+      <div class="cost-range" id="costRange">—</div>
+      <div class="cost-midpoint" id="costMidpoint"></div>
+      <div><span class="confidence-badge" id="confidenceBadge"></span></div>
+    </div>
+
+    <div class="narrative-block">
+      <h3>Analysis</h3>
+      <p id="narrativeText"></p>
+    </div>
+
+    <div class="assumptions-block">
+      <h3>Key Assumptions</h3>
+      <ul id="assumptionsList"></ul>
+    </div>
+
+    <div class="reset-row">
+      <a onclick="resetForm()">← Run another estimate</a>
+    </div>
+  </div>
+
+  <!-- CTA card -->
+  <div id="ctaCard">
+    <h2 id="ctaHeadline"></h2>
+    <p id="ctaBody"></p>
+    <a id="ctaButton" href="#" target="_blank" class="btn-cta"></a>
+  </div>
+
+</main>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <span id="tenantNameFooter"></span> &mdash; Estimates are for planning purposes only and do not constitute a bid or proposal. &nbsp;|&nbsp;
+  <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a> &nbsp;|&nbsp; v1.0.0-gc
+</footer>
+
+<script>
+// ── STATE ──
+let tenant = null;
+let sessionId = null;
+
+// ── BOOT: read slug from URL, load tenant config ──
+(async function boot() {
+  const slug = getSlug();
+  if (!slug) return showConfigError();
+
+  try {
+    const res = await fetch(`/api/gc-config?slug=${encodeURIComponent(slug)}`);
+    if (!res.ok) return showConfigError();
+    tenant = await res.json();
+  } catch {
+    return showConfigError();
+  }
+
+  applyTenantConfig(tenant);
+  await createSession(slug, tenant.id);
+
+  document.getElementById('configLoading').style.display = 'none';
+})();
+
+function getSlug() {
+  // Expects path: /gc/[slug]
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  if (parts[0] === 'gc' && parts[1]) return parts[1];
+  // Fallback: ?slug=acme
+  return new URLSearchParams(window.location.search).get('slug');
+}
+
+function showConfigError() {
+  document.getElementById('configLoading').style.display = 'none';
+  const el = document.getElementById('configError');
+  el.style.display = 'flex';
+}
+
+function applyTenantConfig(t) {
+  // CSS brand color
+  document.documentElement.style.setProperty('--brand', t.primary_color || '#1e3a5f');
+
+  // Header
+  const logo = document.getElementById('tenantLogo');
+  if (t.logo_url) {
+    logo.src = t.logo_url;
+    logo.style.display = 'block';
+  }
+  document.getElementById('tenantName').textContent = t.gc_name;
+
+  // Hero
+  if (t.hero_headline) document.getElementById('heroHeadline').textContent = t.hero_headline;
+  if (t.hero_subhead) document.getElementById('heroSubhead').textContent = t.hero_subhead;
+
+  // Project type dropdown
+  const sel = document.getElementById('projectType');
+  (t.project_types || []).forEach(pt => {
+    const opt = document.createElement('option');
+    opt.value = pt;
+    opt.textContent = pt;
+    sel.appendChild(opt);
+  });
+
+  // Footer
+  document.getElementById('tenantNameFooter').textContent = t.gc_name;
+}
+
+// ── SESSION ──
+async function createSession(slug, tenantId) {
+  try {
+    const res = await fetch('/api/gc-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create_session', data: { slug, tenant_id: tenantId } })
+    });
+    const d = await res.json();
+    sessionId = d.sessionId;
+  } catch {}
+}
+
+// ── ZIP AUTOFILL ──
+document.getElementById('zip').addEventListener('input', handleZip);
+
+async function handleZip(e) {
+  const zip = e.target.value.replace(/\D/g, '');
+  document.getElementById('zip').value = zip;
+  if (zip.length !== 5) {
+    document.getElementById('city').value = '';
+    document.getElementById('state').value = '';
+    return;
+  }
+  try {
+    const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
+    if (!res.ok) return;
+    const d = await res.json();
+    document.getElementById('city').value = d.places[0]['place name'] || '';
+    document.getElementById('state').value = d.places[0]['state abbreviation'] || '';
+  } catch {}
+}
+
+// ── ESTIMATE ──
+async function runEstimate() {
+  const municipality = document.getElementById('municipality').value.trim();
+  const projectType  = document.getElementById('projectType').value;
+  const zip          = document.getElementById('zip').value.trim();
+  const city         = document.getElementById('city').value.trim();
+  const state        = document.getElementById('state').value.trim();
+  const description  = document.getElementById('description').value.trim();
+
+  hideError();
+
+  if (!municipality) return showError('Please enter a municipality or client name.');
+  if (!projectType)  return showError('Please select a project type.');
+  if (!description)  return showError('Please describe the project.');
+
+  const location = [city, state, zip].filter(Boolean).join(', ') || tenant.region || 'Midwest';
+
+  setLoading(true);
+
+  try {
+    const prompt = buildPrompt({ municipality, projectType, location, description });
+
+    const res = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    const raw = data?.content?.[0]?.text || '';
+    const parsed = parseResponse(raw);
+
+    renderResults(parsed);
+    logRun({ municipality, projectType, description, parsed });
+
+  } catch (err) {
+    setLoading(false);
+    showError('Something went wrong. Please try again.');
+    console.error(err);
+  }
+}
+
+function buildPrompt({ municipality, projectType, location, description }) {
+  const region = tenant?.region || 'Midwest (Indiana / Michigan)';
+  return `You are a senior construction cost estimator with deep expertise in ${region} construction markets. A general contractor's business development team is using this tool to quickly orient a client on project cost — before formal estimating begins.
+
+PROJECT INFORMATION:
+- Client / Municipality: ${municipality}
+- Project Type: ${projectType}
+- Location: ${location}
+- Region context: ${region}
+- Description: ${description}
+
+Provide a construction cost estimate using the following structured format EXACTLY:
+
+COST_LOW: [dollar amount, no decimals, e.g. $1,200,000]
+COST_HIGH: [dollar amount, no decimals]
+COST_MIDPOINT: [dollar amount, no decimals]
+CONFIDENCE: [High / Medium / Low]
+NARRATIVE: [2-3 sentences explaining the estimate, cost drivers, and any major variables. Write for a client audience — clear, plain language, no jargon.]
+ASSUMPTIONS:
+- [assumption 1]
+- [assumption 2]
+- [assumption 3]
+- [assumption 4]
+- [assumption 5]
+
+Rules:
+- Base costs on current ${region} construction market conditions
+- Use Design-Bid-Build delivery method assumptions
+- Include hard construction costs only (exclude land, soft costs, FF&E unless central to the project type)
+- Be direct and useful — this is a business development conversation tool, not a formal estimate
+- If the description is too vague to estimate responsibly, set CONFIDENCE: Low and explain what information would tighten the range
+- Do not reference any proprietary cost databases by name`;
+}
+
+function parseResponse(raw) {
+  const get = (key) => {
+    const match = raw.match(new RegExp(`${key}:\\s*(.+)`));
+    return match ? match[1].trim() : '';
+  };
+
+  const assumptionsMatch = raw.match(/ASSUMPTIONS:\s*([\s\S]*?)(?:\n[A-Z_]+:|$)/);
+  const assumptions = assumptionsMatch
+    ? assumptionsMatch[1].split('\n').map(l => l.replace(/^[-•]\s*/, '').trim()).filter(Boolean)
+    : [];
+
+  return {
+    costLow:      get('COST_LOW'),
+    costHigh:     get('COST_HIGH'),
+    costMidpoint: get('COST_MIDPOINT'),
+    confidence:   get('CONFIDENCE'),
+    narrative:    get('NARRATIVE'),
+    assumptions
+  };
+}
+
+function renderResults(p) {
+  setLoading(false);
+
+  document.getElementById('costRange').textContent = `${p.costLow} – ${p.costHigh}`;
+  document.getElementById('costMidpoint').textContent = `Midpoint: ${p.costMidpoint}`;
+
+  const badge = document.getElementById('confidenceBadge');
+  badge.textContent = `${p.confidence} Confidence`;
+  badge.className = 'confidence-badge';
+  if (p.confidence === 'High')   badge.classList.add('conf-high');
+  if (p.confidence === 'Medium') badge.classList.add('conf-medium');
+  if (p.confidence === 'Low')    badge.classList.add('conf-low');
+
+  document.getElementById('narrativeText').textContent = p.narrative;
+
+  const list = document.getElementById('assumptionsList');
+  list.innerHTML = '';
+  p.assumptions.forEach(a => {
+    const li = document.createElement('li');
+    li.textContent = a;
+    list.appendChild(li);
+  });
+
+  document.getElementById('inputCard').style.display = 'none';
+  document.getElementById('resultsCard').style.display = 'block';
+
+  renderCTA();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderCTA() {
+  if (!tenant) return;
+  const card = document.getElementById('ctaCard');
+  document.getElementById('ctaHeadline').textContent = tenant.cta_headline || `Talk to ${tenant.gc_name}`;
+  document.getElementById('ctaBody').textContent = tenant.cta_body || '';
+  const btn = document.getElementById('ctaButton');
+  btn.textContent = tenant.cta_button_label || 'Get in Touch';
+  btn.href = tenant.cta_url || '#';
+  card.style.display = 'block';
+}
+
+// ── LOGGING ──
+async function logRun({ municipality, projectType, description, parsed }) {
+  if (!tenant) return;
+  try {
+    await fetch('/api/gc-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'log_run',
+        data: {
+          session_id:        sessionId,
+          slug:              tenant.slug,
+          municipality:      municipality,
+          project_type:      projectType,
+          scope_description: description,
+          cost_low:          parsed.costLow,
+          cost_high:         parsed.costHigh,
+          cost_midpoint:     parsed.costMidpoint,
+          confidence:        parsed.confidence,
+          narrative:         parsed.narrative,
+          assumptions:       parsed.assumptions
+        }
+      })
+    });
+  } catch {}
+}
+
+// ── UI HELPERS ──
+function setLoading(on) {
+  document.getElementById('loadingState').style.display = on ? 'block' : 'none';
+  document.getElementById('inputCard').style.display = on ? 'none' : 'block';
+  document.getElementById('estimateBtn').disabled = on;
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideError() {
+  document.getElementById('errorMsg').style.display = 'none';
+}
+
+function resetForm() {
+  document.getElementById('resultsCard').style.display = 'none';
+  document.getElementById('ctaCard').style.display = 'none';
+  document.getElementById('inputCard').style.display = 'block';
+  hideError();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
