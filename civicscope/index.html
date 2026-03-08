@@ -902,11 +902,7 @@ footer span {
         <div class="confidence-badge" id="confidenceBadge"></div>
       </div>
 
-      <div class="images-block" id="imagesBlock">
-        <h3>Reference Projects — Similar Construction Type</h3>
-        <div class="image-grid" id="imageGrid"></div>
-        <div class="field-hint" style="margin-top:8px;">Visual reference only — example projects of similar type and scale.</div>
-      </div>
+
 
       <div class="cost-range-block">
         <div class="cost-label">Estimated Project Cost Range</div>
@@ -992,17 +988,12 @@ footer span {
             <label>Email Address <span class="req">*</span></label>
             <input type="email" id="gateEmail" placeholder="you@municipality.gov" />
           </div>
-          <div class="field full">
-            <label>Municipality</label>
-            <input type="text" id="gateMunicipality" placeholder="Auto-filled" readonly />
-          </div>
         </div>
         <div class="gate-submit-row">
           <button class="btn-primary" id="gateBtn" onclick="submitLead()">
             Email Me This Report
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <div class="submit-note">Your information is only shared with JBK Development</div>
         </div>
         <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. <a href="javascript:window.print()" style="color:var(--accent);text-decoration:none;margin-left:8px;">Print / Save as PDF →</a></div>
       </div>
@@ -1077,10 +1068,8 @@ footer span {
 <footer>
   <div class="footer-left">
     <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
-    <span>·</span>
-    <span>Powered by JBK Development</span>
   </div>
-  <span class="footer-note">For planning purposes only — not a licensed cost estimate</span>
+  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v1.4.0</span>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
@@ -1409,10 +1398,18 @@ async function submitLead() {
   const last  = document.getElementById('gateLast').value.trim();
   const role  = document.getElementById('gateRole').value;
   const email = document.getElementById('gateEmail').value.trim();
-  const muni  = document.getElementById('gateMunicipality').value.trim();
+  const muni  = document.getElementById('location').value.trim();
   const project = document.getElementById('resultTitle').textContent;
-  const costRange = document.getElementById('costRange').textContent;
   const narrative = document.getElementById('narrativeBlock').textContent;
+
+  // Collect assumptions
+  const assumptionEls = document.querySelectorAll('#assumptionList li');
+  const assumptions = Array.from(assumptionEls).map(li => li.textContent.trim());
+
+  // Collect briefing content if loaded
+  const briefingEl = document.getElementById('briefingContent');
+  const briefingSpinner = briefingEl ? briefingEl.querySelector('.section-loading') : null;
+  const briefingHtml = (briefingEl && !briefingSpinner) ? briefingEl.innerHTML : null;
 
   if (!first || !last || !role || !email) {
     alert('Please fill in all fields to receive your report.');
@@ -1442,7 +1439,7 @@ async function submitLead() {
         action: 'send_report',
         data: {
           recipientEmail: email,
-          recipientName: `${first} ${last}`,
+          recipientName: first,
           municipality: muni,
           projectType: project,
           costLow,
@@ -1450,13 +1447,14 @@ async function submitLead() {
           costMidpoint,
           confidence,
           narrative,
-          assumptions: [],
+          assumptions,
+          briefingHtml,
           product: 'free'
         }
       })
     });
 
-    // Notify Keith of lead
+    // Notify Keith of lead (BCC — handled server side)
     await fetch('/api/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
