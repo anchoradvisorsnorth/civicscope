@@ -570,6 +570,7 @@ header {
 
 /* ── Lead Gate ── */
 .gate-block {
+  scroll-margin-top: 20px;
   background: var(--white);
   border: 2px solid var(--ink);
   border-radius: 6px;
@@ -766,8 +767,8 @@ footer span {
 
     <div class="page-intro">
       <div class="page-eyebrow">Feasibility Screening Tool</div>
-      <h1>Is your project<br>worth pursuing?</h1>
-      <p>Get a preliminary cost range before making your first phone call. Describe the project in plain language — no architect, no engineer, no commitment.</p>
+      <h1>Describe your project.<br>Get your number.</h1>
+      <p>No architect. No engineer. No commitment. Just an honest cost range before you make any calls.</p>
     </div>
 
     <!-- SECTION 1: Location -->
@@ -775,17 +776,21 @@ footer span {
       <div class="form-section-title">Your Location</div>
       <div class="form-grid-3">
         <div class="field">
+          <label>Municipality Name <span class="req">*</span></label>
+          <input type="text" id="location" placeholder="e.g. City of La Porte" />
+        </div>
+        <div class="field">
           <label>ZIP Code <span class="req">*</span></label>
           <input type="text" id="zip" maxlength="5" placeholder="e.g. 46032" oninput="handleZip(this.value)" />
           <div class="field-hint" id="zipStatus"></div>
         </div>
         <div class="field">
-          <label>State</label>
-          <input type="text" id="state" readonly placeholder="Auto-filled from ZIP" />
+          <label>City</label>
+          <input type="text" id="city" readonly placeholder="Auto-filled from ZIP" />
         </div>
         <div class="field">
-          <label>Municipality <span class="req">*</span></label>
-          <input type="text" id="location" placeholder="Auto-filled from ZIP" />
+          <label>State</label>
+          <input type="text" id="state" readonly placeholder="Auto-filled from ZIP" />
         </div>
       </div>
     </div>
@@ -897,8 +902,6 @@ footer span {
         <div class="confidence-badge" id="confidenceBadge"></div>
       </div>
 
-      <button class="print-btn" onclick="window.print()">↓ Print / Save as PDF</button>
-
       <div class="images-block" id="imagesBlock">
         <h3>Reference Projects — Similar Construction Type</h3>
         <div class="image-grid" id="imageGrid"></div>
@@ -937,7 +940,7 @@ footer span {
         <div class="proc-paths">
           <div class="proc-path traditional">
             <div class="proc-path-label">Traditional Path</div>
-            <h4>Plan-Spec-Low Bid</h4>
+            <h4>Design-Bid-Build</h4>
             <ul class="proc-steps">
               <li>Design and engineering fees paid <strong>before any commitment</strong> — typically 8–12% of project cost</li>
               <li>Public bid advertising required — <strong>12–18 months</strong> from design start to groundbreaking</li>
@@ -1001,18 +1004,18 @@ footer span {
           </button>
           <div class="submit-note">Your information is only shared with JBK Development</div>
         </div>
-        <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. JBK Development will follow up shortly.</div>
+        <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. <a href="javascript:window.print()" style="color:var(--accent);text-decoration:none;margin-left:8px;">Print / Save as PDF →</a></div>
       </div>
 
       <div class="cta-block">
         <div class="cta-text">
           <h4>Ready to explore a smarter path for this project?</h4>
-          <p>JBK Development helps Indiana and Michigan municipalities structure projects from feasibility through construction — on a guaranteed price, without the plan-spec-low-bid risk.</p>
+          <p>JBK Development helps Indiana and Michigan municipalities structure projects from feasibility through construction — on a guaranteed price, without the design-bid-build risk.</p>
         </div>
         <div class="cta-action">
           <div class="cta-name">Keith Plummer</div>
           <div class="cta-company">JBK Development</div>
-          <a href="/cdn-cgi/l/email-protection#1f747a766b775f757d747b7a697a73706f727a716b317c7072206c6a7d757a7c6b225c7669767c4c7c706f7a3a2d2f597a7e6c767d7673766b663a2d2f56716e6a766d66" class="cta-btn">Start a Conversation →</a>
+          <a href="/cdn-cgi/l/email-protection#c9a2aca0bda189a3aba2adacbfaca5a6b9a4aca7bde7aaa6a4f6babcaba3acaabdf48aa0bfa0aa9aaaa6b9acecfbf98faca8baa0aba0a5a0bdb0ecfbf980a7b8bca0bbb0" class="cta-btn">Start a Conversation →</a>
         </div>
       </div>
 
@@ -1086,7 +1089,7 @@ async function handleZip(zip) {
   if (zip.length !== 5) {
     if (zip.length < 5) {
       document.getElementById('state').value = '';
-      document.getElementById('location').value = '';
+      document.getElementById('city').value = '';
       document.getElementById('zipStatus').textContent = '';
     }
     return;
@@ -1097,8 +1100,8 @@ async function handleZip(zip) {
     const data = await resp.json();
     const place = data.places[0];
     document.getElementById('state').value = place['state'];
-    document.getElementById('location').value = place['place name'];
-    document.getElementById('gateMunicipality').value = place['place name'];
+    document.getElementById('city').value = place['place name'];
+    document.getElementById('city').value = place['place name'];
     document.getElementById('zipStatus').textContent = `✓ ${place['place name']}, ${place['state abbreviation']}`;
     document.getElementById('zipStatus').style.color = 'var(--green)';
   } catch {
@@ -1151,16 +1154,39 @@ function loadImages(searchQuery) {
   const grid = document.getElementById('imageGrid');
   const block = document.getElementById('imagesBlock');
   grid.innerHTML = '';
-  const terms = [
-    encodeURIComponent(searchQuery),
-    encodeURIComponent(searchQuery.split(' ').slice(0,4).join(' ') + ' building'),
-    encodeURIComponent(searchQuery.split(' ').slice(0,3).join(' ') + ' architecture')
+  // Use Unsplash source API with topic-based fallback
+  const q = encodeURIComponent(searchQuery);
+  const urls = [
+    `https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&q=60`,
+    `https://images.unsplash.com/photo-1531834685032-c34bf0d84c77?w=400&h=300&fit=crop&q=60`,
+    `https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop&q=60`
   ];
-  terms.forEach((kw, i) => {
+  // Map search query to curated Unsplash photo IDs by project type
+  const photoSets = {
+    'garage': ['1581094794329-c8112a89af12','1558618666-fcd25c85cd64','1504307651254-35680f356dfd'],
+    'fire': ['1517248135467-4c7edcad34c4','1504307651254-35680f356dfd','1596394516093-501ba68a0ba6'],
+    'office': ['1497366216548-37526070297c','1497366754035-f200968a7efa','1431540015161-0bf868a2d407'],
+    'community': ['1497366216548-37526070297c','1504307651254-35680f356dfd','1431540015161-0bf868a2d407'],
+    'court': ['1564415489516-c28daac521da','1574629810360-7efbbe195018','1546519638-68e109498ffc'],
+    'park': ['1441974231531-c6227db76b6e','1558618666-fcd25c85cd64','1504307651254-35680f356dfd'],
+    'splash': ['1530549387789-4c8a0f8e5f6a','1504307651254-35680f356dfd','1531834685032-c34bf0d84c77'],
+    'default': ['1504307651254-35680f356dfd','1431540015161-0bf868a2d407','1497366216548-37526070297c']
+  };
+  const q_lower = searchQuery.toLowerCase();
+  let set = photoSets.default;
+  if (q_lower.includes('garage') || q_lower.includes('dpw')) set = photoSets.garage;
+  else if (q_lower.includes('fire') || q_lower.includes('ems')) set = photoSets.fire;
+  else if (q_lower.includes('office') || q_lower.includes('town hall')) set = photoSets.office;
+  else if (q_lower.includes('community') || q_lower.includes('library')) set = photoSets.community;
+  else if (q_lower.includes('court')) set = photoSets.court;
+  else if (q_lower.includes('park') || q_lower.includes('pavilion')) set = photoSets.park;
+  else if (q_lower.includes('splash')) set = photoSets.splash;
+
+  set.forEach((photoId, i) => {
     const wrap = document.createElement('div');
     wrap.className = 'img-wrapper';
     const img = document.createElement('img');
-    img.src = `https://source.unsplash.com/400x300/?${kw}&sig=${Date.now()+i}`;
+    img.src = `https://images.unsplash.com/photo-${photoId}?w=400&h=300&fit=crop&q=60`;
     img.alt = 'Reference project';
     img.onerror = () => { wrap.style.display = 'none'; };
     const cap = document.createElement('div');
@@ -1400,11 +1426,11 @@ async function submitLead() {
   try {
     // Parse cost fields from DOM
     const costRangeText = document.getElementById('costRange').textContent;
-    const costParts = costRangeText.split('\u2013').map(s => s.trim());
-    const costLow  = costParts[0] || '\u2014';
-    const costHigh = costParts[1] || '\u2014';
+    const costParts = costRangeText.split('–').map(s => s.trim());
+    const costLow  = costParts[0] || '—';
+    const costHigh = costParts[1] || '—';
     const costMidEl = document.getElementById('costMidpoint');
-    const costMidpoint = costMidEl ? costMidEl.textContent.replace(/Midpoint:\s*/i,'').split('\u00b7')[0].trim() : '\u2014';
+    const costMidpoint = costMidEl ? costMidEl.textContent.replace(/Midpoint:\s*/i,'').split('\u00b7')[0].trim() : '—';
     const badge = document.getElementById('confidenceBadge');
     const confidence = badge ? badge.textContent.replace(' Confidence','').trim() : 'Moderate';
 
