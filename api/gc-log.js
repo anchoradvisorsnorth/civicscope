@@ -1,14 +1,5 @@
 // api/gc-log.js
-// Logs GC white label sessions and tool runs to the shared CivicScope Supabase project
-// Uses same env vars as Free/Pro: SUPABASE_URL + SUPABASE_SERVICE_KEY
-// Product field is set to "gc-[slug]" (e.g. "gc-acme") to distinguish GC runs
-
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+// Logs GC white label sessions and tool runs to shared CivicScope Supabase project
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,59 +9,59 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { action, data } = req.body;
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+  async function supabase(table, body) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) {
+      const err = await r.text();
+      throw new Error(`Supabase error: ${err}`);
+    }
+    return r.json();
+  }
 
   try {
+    const { action, data } = req.body;
+
     if (action === 'create_session') {
-      const { data: session, error } = await supabase
-        .from('sessions')
-        .insert({})
-        .select()
-        .single();
-      if (error) throw error;
-      return res.status(200).json({ sessionId: session.id });
+      const rows = await supabase('sessions', {
+        referrer: data.referrer || null,
+        user_agent: data.userAgent || null
+      });
+      return res.status(200).json({ session_id: rows[0].id });
     }
 
     if (action === 'log_run') {
-      const {
-        session_id,
-        slug,
-        municipality,
-        project_type,
-        scope_description,
-        cost_low,
-        cost_high,
-        cost_midpoint,
-        confidence,
-        narrative,
-        assumptions
-      } = data;
-
-      const { data: run, error } = await supabase
-        .from('tool_runs')
-        .insert({
-          session_id:        session_id || null,
-          municipality:      municipality || null,
-          project_type:      project_type || null,
-          scope_description: scope_description || null,
-          cost_low:          cost_low || null,
-          cost_high:         cost_high || null,
-          cost_midpoint:     cost_midpoint || null,
-          confidence:        confidence || null,
-          narrative:         narrative || null,
-          assumptions:       assumptions || [],
-          product:           `gc-${slug}`
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return res.status(200).json({ runId: run.id });
+      const rows = await supabase('tool_runs', {
+        session_id:        data.session_id || null,
+        municipality:      data.municipality || null,
+        project_type:      data.project_type || null,
+        scope_description: data.scope_description || null,
+        cost_low:          data.cost_low || null,
+        cost_high:         data.cost_high || null,
+        cost_midpoint:     data.cost_midpoint || null,
+        confidence:        data.confidence || null,
+        narrative:         data.narrative || null,
+        assumptions:       data.assumptions || [],
+        product:           `gc-${data.slug}`
+      });
+      return res.status(200).json({ run_id: rows[0].id });
     }
 
     return res.status(400).json({ error: 'Unknown action' });
 
   } catch (err) {
     console.error('gc-log error:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(200).json({ error: err.message, logged: false });
   }
 }
