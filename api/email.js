@@ -31,6 +31,7 @@ export default async function handler(req, res) {
         confidence,
         narrative,
         assumptions,
+        briefingHtml,
         product
       } = data;
 
@@ -44,13 +45,14 @@ export default async function handler(req, res) {
         confidence,
         narrative,
         assumptions,
+        briefingHtml,
         product
       });
 
       const emailPayload = {
         from: FROM_EMAIL,
         to: [recipientEmail],
-        cc: [KEITH_EMAIL],
+        bcc: [KEITH_EMAIL],
         subject: `Your CivicScope Feasibility Report — ${projectType} in ${municipality}`,
         html: reportHtml
       };
@@ -140,7 +142,7 @@ async function sendEmail(apiKey, payload) {
 }
 
 // ── Report email HTML ─────────────────────────────────────────────
-function buildReportEmail({ recipientName, municipality, projectType, costLow, costHigh, costMidpoint, confidence, narrative, assumptions, product }) {
+function buildReportEmail({ recipientName, municipality, projectType, costLow, costHigh, costMidpoint, confidence, narrative, assumptions, briefingHtml, product }) {
   const tier = product === 'pro' ? 'CivicScope Pro' : 'CivicScope';
   const confidenceColor = confidence === 'High' ? '#2d6a4f' : confidence === 'Medium' ? '#b5860d' : '#c0392b';
 
@@ -182,6 +184,13 @@ function buildReportEmail({ recipientName, municipality, projectType, costLow, c
         <ul style="margin:0;padding-left:20px;color:#555;font-size:14px;line-height:1.8;">
           ${assumptions.map(a => `<li>${a}</li>`).join('')}
         </ul>
+      </div>` : ''}
+
+      <!-- Council Briefing -->
+      ${briefingHtml ? `
+      <div style="margin-bottom:28px;border-top:1px solid #eee;padding-top:28px;">
+        <div style="font-size:11px;letter-spacing:2px;color:#888;text-transform:uppercase;margin-bottom:16px;">Council Briefing Guide</div>
+        <div style="font-size:14px;color:#333;line-height:1.7;">${briefingHtml}</div>
       </div>` : ''}
 
       <!-- CTA -->
