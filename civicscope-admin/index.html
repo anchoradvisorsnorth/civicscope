@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CivicScope — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #1a1d23;
+    --surface:  #22262f;
+    --surface2: #2a2f3a;
+    --border:   #333844;
+    --border2:  #404857;
+    --text:     #d4dbe8;
+    --muted:    #6b7a94;
+    --accent:   #00d4aa;
+    --accent2:  #4a9eff;
+    --warn:     #f59e0b;
+    --danger:   #ef4444;
+    --green:    #22c55e;
+    --purple:   #a78bfa;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'IBM Plex Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── AUTH ── */
+  #auth-gate {
+    position: fixed; inset: 0; z-index: 1000;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 20px;
+  }
+  #auth-gate .logo { font-size: 11px; letter-spacing: 0.25em; color: var(--muted); text-transform: uppercase; }
+  #auth-gate .title { font-size: 20px; font-weight: 500; color: var(--accent); letter-spacing: 0.05em; }
+  #auth-gate input {
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); font-family: var(--mono); font-size: 14px;
+    padding: 10px 16px; width: 280px; outline: none; letter-spacing: 0.1em;
+  }
+  #auth-gate input:focus { border-color: var(--accent); }
+  #auth-gate button {
+    background: var(--accent); color: #000; border: none;
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 10px 28px; cursor: pointer; width: 280px;
+  }
+  #auth-gate button:hover { opacity: 0.85; }
+  #auth-gate .err { color: var(--danger); font-size: 11px; height: 16px; }
+
+  /* ── APP ── */
+  #app { display: none; }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    display: flex; align-items: center; gap: 0;
+  }
+  .header-brand {
+    font-size: 11px; letter-spacing: 0.2em; color: var(--muted);
+    text-transform: uppercase; padding: 16px 0; margin-right: 20px;
+  }
+  .header-brand span { color: var(--accent); }
+
+  /* ── TABS ── */
+  .tabs { display: flex; align-items: stretch; flex: 1; gap: 0; }
+  .tab {
+    padding: 0 22px; height: 52px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.15s; user-select: none;
+    background: none; border-top: none; border-left: none; border-right: none;
+    font-family: var(--mono);
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .tab .tab-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border2);
+  }
+  .tab.t-overview .tab-dot { background: var(--accent); }
+  .tab.t-tenants .tab-dot  { background: var(--warn); }
+  .tab.t-activity .tab-dot { background: var(--accent2); }
+
+  .header-right {
+    margin-left: auto; display: flex; align-items: center; gap: 12px;
+    padding: 0 0 0 20px;
+  }
+  .ts { font-size: 10px; color: var(--muted); }
+  .refresh-btn {
+    background: none; border: 1px solid var(--border2);
+    color: var(--muted); font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.1em; padding: 5px 12px; cursor: pointer;
+    text-transform: uppercase; transition: all 0.15s;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── TAB PANELS ── */
+  .panel { display: none; padding: 24px 28px; max-width: 1400px; }
+  .panel.active { display: block; }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── STAT BAR ── */
+  .stat-bar {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); margin-bottom: 28px;
+  }
+  .stat-cell { background: var(--surface); padding: 16px 20px; }
+  .stat-cell .label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .stat-cell .value { font-size: 26px; font-weight: 600; color: var(--text); line-height: 1; }
+  .stat-cell .sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  /* ── PRODUCT GRID ── */
+  .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 28px; }
+  .product-card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 18px; position: relative; overflow: hidden;
+  }
+  .product-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .product-card.free::before   { background: var(--accent); }
+  .product-card.pro::before    { background: var(--accent2); }
+  .product-card.gc-ext::before { background: var(--warn); }
+  .product-card.gc-int::before { background: var(--purple); }
+
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+  .card-name { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+  .card-tier { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .status-pill { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.08em; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .dot.live { background: var(--green); animation: pulse 2s infinite; }
+  .dot.checking { background: var(--warn); }
+  .dot.error { background: var(--danger); }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+    70%  { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+    100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+  }
+  .card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .meta-item .mlabel { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
+  .meta-item .mval { font-size: 13px; color: var(--text); font-weight: 500; }
+  .meta-item .mval.loading { color: var(--muted); }
+  .card-last-run { background: var(--surface2); border: 1px solid var(--border); padding: 9px 12px; margin-bottom: 12px; }
+  .clr-label { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .clr-project { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .clr-time { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .card-actions { display: flex; gap: 8px; }
+  .btn-smoke {
+    flex: 1; padding: 7px; background: none; border: 1px solid var(--border2);
+    color: var(--muted); font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-smoke:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-smoke.running { border-color: var(--warn); color: var(--warn); }
+  .btn-smoke.pass { border-color: var(--green); color: var(--green); }
+  .btn-smoke.fail { border-color: var(--danger); color: var(--danger); }
+  .btn-open {
+    padding: 7px 12px; background: none; border: 1px solid var(--border2);
+    color: var(--muted); font-family: var(--mono); font-size: 10px;
+    cursor: pointer; transition: all 0.15s; text-decoration: none;
+    display: inline-flex; align-items: center;
+  }
+  .btn-open:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── ACTIVITY FEED ── */
+  .two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+  .feed-table { background: var(--surface); border: 1px solid var(--border); }
+  .feed-header {
+    display: grid; grid-template-columns: 80px 90px 1fr 100px 110px 80px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+  }
+  .feed-row {
+    display: grid; grid-template-columns: 80px 90px 1fr 100px 110px 80px;
+    padding: 9px 16px; border-bottom: 1px solid var(--border);
+    font-size: 11px; transition: background 0.1s;
+  }
+  .feed-row:last-child { border-bottom: none; }
+  .feed-row:hover { background: rgba(255,255,255,0.02); }
+  .badge {
+    display: inline-block; padding: 2px 7px;
+    font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .badge.free   { background: rgba(0,212,170,0.12); color: var(--accent); }
+  .badge.pro    { background: rgba(74,158,255,0.12); color: var(--accent2); }
+  .badge.gc-ext { background: rgba(245,158,11,0.12); color: var(--warn); }
+  .badge.gc-int { background: rgba(167,139,250,0.12); color: var(--purple); }
+  .conf-bar { display: flex; align-items: center; gap: 6px; }
+  .conf-track { flex: 1; height: 3px; background: var(--border2); max-width: 55px; }
+  .conf-fill { height: 100%; background: var(--accent); }
+  .conf-fill.med { background: var(--warn); }
+  .conf-fill.low { background: var(--danger); }
+
+  .side-panel { display: flex; flex-direction: column; gap: 14px; }
+  .mini-card { background: var(--surface); border: 1px solid var(--border); padding: 16px; }
+  .mini-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .lead-row { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
+  .lead-row:last-child { border-bottom: none; }
+  .lead-name { color: var(--text); font-weight: 500; }
+  .lead-meta { color: var(--muted); font-size: 10px; margin-top: 2px; }
+
+  /* ── TENANTS TAB ── */
+  .tenants-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+
+  /* Tenant list */
+  .tenant-list-card { background: var(--surface); border: 1px solid var(--border); }
+  .tenant-list-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+  }
+  .tenant-list-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .btn-add-tenant {
+    background: var(--accent); color: #000; border: none;
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 6px 14px; cursor: pointer; transition: opacity 0.15s;
+  }
+  .btn-add-tenant:hover { opacity: 0.85; }
+
+  .tenant-item {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background 0.12s;
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .tenant-item:last-child { border-bottom: none; }
+  .tenant-item:hover { background: var(--surface2); }
+  .tenant-item.selected { background: var(--surface2); border-left: 2px solid var(--accent); }
+  .t-slug { font-size: 12px; font-weight: 600; color: var(--accent); }
+  .t-name { font-size: 11px; color: var(--text); margin-top: 2px; }
+  .t-warnings { font-size: 9px; color: var(--warn); margin-top: 4px; }
+  .t-badge {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 2px 8px;
+  }
+  .t-badge.active { background: rgba(34,197,94,0.12); color: var(--green); }
+  .t-badge.inactive { background: rgba(107,122,148,0.12); color: var(--muted); }
+
+  /* Tenant form */
+  .tenant-form-card {
+    background: var(--surface); border: 1px solid var(--border);
+    max-height: calc(100vh - 120px); overflow-y: auto;
+  }
+  .form-header {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--surface); z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .form-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .form-title span { color: var(--accent); }
+  .form-body { padding: 18px; }
+
+  .form-section {
+    margin-bottom: 20px;
+  }
+  .form-section-title {
+    font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 12px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .form-row.full { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 8px 10px; outline: none; transition: border-color 0.15s;
+    width: 100%;
+  }
+  .form-group input:focus,
+  .form-group textarea:focus,
+  .form-group select:focus { border-color: var(--accent); }
+  .form-group textarea { resize: vertical; min-height: 70px; }
+  .form-group .hint { font-size: 9px; color: var(--muted); }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  .toggle-label { font-size: 11px; color: var(--text); }
+  .toggle-sub { font-size: 10px; color: var(--muted); }
+  .toggle {
+    width: 36px; height: 20px; background: var(--border2);
+    border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s;
+    border: none; flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(16px); }
+
+  .project-types-input { display: flex; flex-direction: column; gap: 6px; }
+  .pt-tags { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; }
+  .pt-tag {
+    background: var(--surface2); border: 1px solid var(--border2);
+    padding: 3px 8px; font-size: 11px; color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pt-tag .remove { color: var(--muted); cursor: pointer; font-size: 12px; line-height: 1; }
+  .pt-tag .remove:hover { color: var(--danger); }
+  .pt-add-row { display: flex; gap: 6px; }
+  .pt-add-row input { flex: 1; }
+  .btn-pt-add {
+    background: none; border: 1px solid var(--border2);
+    color: var(--muted); font-family: var(--mono); font-size: 11px;
+    padding: 6px 10px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-pt-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  .brand-values-input { display: flex; flex-direction: column; gap: 6px; }
+  .bv-list { display: flex; flex-direction: column; gap: 4px; }
+  .bv-item { display: flex; align-items: center; gap: 6px; }
+  .bv-item input { flex: 1; }
+  .btn-bv-remove {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 14px; padding: 0 4px; transition: color 0.15s;
+  }
+  .btn-bv-remove:hover { color: var(--danger); }
+  .btn-bv-add {
+    background: none; border: 1px dashed var(--border2);
+    color: var(--muted); font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.1em; padding: 6px; cursor: pointer; transition: all 0.15s;
+    text-align: center; text-transform: uppercase;
+  }
+  .btn-bv-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  .color-row { display: flex; align-items: center; gap: 10px; }
+  .color-preview { width: 32px; height: 32px; border: 1px solid var(--border2); flex-shrink: 0; }
+  .color-row input[type="text"] { flex: 1; }
+
+  .form-actions {
+    display: flex; gap: 10px; padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    position: sticky; bottom: 0; background: var(--surface);
+  }
+  .btn-save {
+    flex: 1; background: var(--accent); color: #000; border: none;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 10px; cursor: pointer; transition: opacity 0.15s;
+  }
+  .btn-save:hover { opacity: 0.85; }
+  .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-cancel {
+    background: none; border: 1px solid var(--border2);
+    color: var(--muted); font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 10px 18px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-cancel:hover { border-color: var(--danger); color: var(--danger); }
+
+  .save-status { font-size: 11px; display: flex; align-items: center; }
+  .save-status.ok { color: var(--green); }
+  .save-status.err { color: var(--danger); }
+
+  /* ── ACTIVITY TAB ── */
+  .activity-full .feed-header { grid-template-columns: 80px 100px 1fr 110px 120px 90px; }
+  .activity-full .feed-row    { grid-template-columns: 80px 100px 1fr 110px 120px 90px; }
+
+  /* ── SMOKE MODAL ── */
+  #smoke-modal {
+    display: none; position: fixed; inset: 0; z-index: 500;
+    background: rgba(0,0,0,0.6); align-items: center; justify-content: center;
+  }
+  #smoke-modal.open { display: flex; }
+  .modal-box { background: var(--surface); border: 1px solid var(--border2); padding: 24px; width: 480px; max-width: 90vw; }
+  .modal-title { font-size: 11px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); margin-bottom: 18px; }
+  .test-line { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
+  .test-line:last-of-type { border-bottom: none; }
+  .test-icon { width: 16px; text-align: center; }
+  .test-label { flex: 1; color: var(--text); }
+  .test-result { font-size: 10px; color: var(--muted); }
+  .test-result.pass { color: var(--green); }
+  .test-result.fail { color: var(--danger); }
+  .modal-close {
+    margin-top: 18px; background: none; border: 1px solid var(--border2);
+    color: var(--muted); font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase; padding: 7px 18px; cursor: pointer;
+  }
+  .modal-close:hover { border-color: var(--danger); color: var(--danger); }
+
+  .spin { display: inline-block; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { color: var(--muted); font-size: 11px; padding: 8px 0; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-gate">
+  <div class="logo">civicscope.io</div>
+  <div class="title">// ADMIN</div>
+  <input type="password" id="pass-input" placeholder="passphrase" autocomplete="off" />
+  <button onclick="checkAuth()">ENTER</button>
+  <div class="err" id="auth-err"></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="header-brand">Civic<span>Scope</span></div>
+    <div class="tabs">
+      <button class="tab t-overview active" onclick="switchTab('overview')">
+        <span class="tab-dot"></span> Overview
+      </button>
+      <button class="tab t-tenants" onclick="switchTab('tenants')">
+        <span class="tab-dot"></span> Tenants
+      </button>
+      <button class="tab t-activity" onclick="switchTab('activity')">
+        <span class="tab-dot"></span> Activity
+      </button>
+    </div>
+    <div class="header-right">
+      <span class="ts" id="last-refresh">—</span>
+      <button class="refresh-btn" onclick="loadAll()">↺ Refresh</button>
+    </div>
+  </header>
+
+  <!-- OVERVIEW TAB -->
+  <div class="panel active" id="panel-overview">
+    <div class="stat-bar">
+      <div class="stat-cell">
+        <div class="label">Total Runs</div>
+        <div class="value" id="stat-runs">—</div>
+        <div class="sub">all products</div>
+      </div>
+      <div class="stat-cell">
+        <div class="label">Leads</div>
+        <div class="value" id="stat-leads">—</div>
+        <div class="sub">captured</div>
+      </div>
+      <div class="stat-cell">
+        <div class="label">Sessions</div>
+        <div class="value" id="stat-sessions">—</div>
+        <div class="sub">unique</div>
+      </div>
+      <div class="stat-cell">
+        <div class="label">Active Tenants</div>
+        <div class="value" id="stat-tenants">—</div>
+        <div class="sub">GC white label</div>
+      </div>
+    </div>
+
+    <div class="section-label">Product Status</div>
+    <div class="product-grid">
+
+      <div class="product-card free">
+        <div class="card-top">
+          <div><div class="card-name">CivicScope Free</div><div class="card-tier">app.civicscope.io/civicscope</div></div>
+          <div class="status-pill"><div class="dot checking" id="dot-free"></div><span id="status-free" style="color:var(--muted)">checking</span></div>
+        </div>
+        <div class="card-meta">
+          <div class="meta-item"><div class="mlabel">Version</div><div class="mval">v1.4.0</div></div>
+          <div class="meta-item"><div class="mlabel">Runs (30d)</div><div class="mval loading" id="runs-free">—</div></div>
+          <div class="meta-item"><div class="mlabel">Leads (30d)</div><div class="mval loading" id="leads-free">—</div></div>
+          <div class="meta-item"><div class="mlabel">Avg Duration</div><div class="mval loading" id="dur-free">—</div></div>
+        </div>
+        <div class="card-last-run">
+          <div class="clr-label">Last Run</div>
+          <div class="clr-project loading" id="last-free">Loading…</div>
+          <div class="clr-time" id="time-free">—</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-smoke" onclick="smokeTest('free','https://app.civicscope.io/civicscope')">▶ Smoke Test</button>
+          <a class="btn-open" href="https://app.civicscope.io/civicscope" target="_blank">↗ Open</a>
+        </div>
+      </div>
+
+      <div class="product-card pro">
+        <div class="card-top">
+          <div><div class="card-name">CivicScope Pro</div><div class="card-tier">app.civicscope.io/civicscope-pro</div></div>
+          <div class="status-pill"><div class="dot checking" id="dot-pro"></div><span id="status-pro" style="color:var(--muted)">checking</span></div>
+        </div>
+        <div class="card-meta">
+          <div class="meta-item"><div class="mlabel">Version</div><div class="mval">v2.2.0</div></div>
+          <div class="meta-item"><div class="mlabel">Runs (30d)</div><div class="mval loading" id="runs-pro">—</div></div>
+          <div class="meta-item"><div class="mlabel">Leads (30d)</div><div class="mval loading" id="leads-pro">—</div></div>
+          <div class="meta-item"><div class="mlabel">Avg Duration</div><div class="mval loading" id="dur-pro">—</div></div>
+        </div>
+        <div class="card-last-run">
+          <div class="clr-label">Last Run</div>
+          <div class="clr-project loading" id="last-pro">Loading…</div>
+          <div class="clr-time" id="time-pro">—</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-smoke" onclick="smokeTest('pro','https://app.civicscope.io/civicscope-pro')">▶ Smoke Test</button>
+          <a class="btn-open" href="https://app.civicscope.io/civicscope-pro" target="_blank">↗ Open</a>
+        </div>
+      </div>
+
+      <div class="product-card gc-ext">
+        <div class="card-top">
+          <div><div class="card-name">GC White Label — External</div><div class="card-tier">app.civicscope.io/gc/acme</div></div>
+          <div class="status-pill"><div class="dot checking" id="dot-gc-ext"></div><span id="status-gc-ext" style="color:var(--muted)">checking</span></div>
+        </div>
+        <div class="card-meta">
+          <div class="meta-item"><div class="mlabel">Version</div><div class="mval">v1.2.0-gc</div></div>
+          <div class="meta-item"><div class="mlabel">Runs (30d)</div><div class="mval loading" id="runs-gc-ext">—</div></div>
+          <div class="meta-item"><div class="mlabel">Tenant</div><div class="mval">ACME</div></div>
+          <div class="meta-item"><div class="mlabel">Gate</div><div class="mval" id="gate-gc-ext">—</div></div>
+        </div>
+        <div class="card-last-run">
+          <div class="clr-label">Last Run</div>
+          <div class="clr-project loading" id="last-gc-ext">Loading…</div>
+          <div class="clr-time" id="time-gc-ext">—</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-smoke" onclick="smokeTest('gc-ext','https://app.civicscope.io/gc/acme')">▶ Smoke Test</button>
+          <a class="btn-open" href="https://app.civicscope.io/gc/acme" target="_blank">↗ Open</a>
+        </div>
+      </div>
+
+      <div class="product-card gc-int">
+        <div class="card-top">
+          <div><div class="card-name">GC White Label — Internal</div><div class="card-tier">app.civicscope.io/gc/acme-internal</div></div>
+          <div class="status-pill"><div class="dot checking" id="dot-gc-int"></div><span id="status-gc-int" style="color:var(--muted)">checking</span></div>
+        </div>
+        <div class="card-meta">
+          <div class="meta-item"><div class="mlabel">Version</div><div class="mval">v1.0.0-gc-int</div></div>
+          <div class="meta-item"><div class="mlabel">Runs (30d)</div><div class="mval loading" id="runs-gc-int">—</div></div>
+          <div class="meta-item"><div class="mlabel">Tenant</div><div class="mval">ACME</div></div>
+          <div class="meta-item"><div class="mlabel">Access</div><div class="mval" style="color:var(--purple)">Internal Only</div></div>
+        </div>
+        <div class="card-last-run">
+          <div class="clr-label">Last Run</div>
+          <div class="clr-project loading" id="last-gc-int">Loading…</div>
+          <div class="clr-time" id="time-gc-int">—</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-smoke" onclick="smokeTest('gc-int','https://app.civicscope.io/gc/acme-internal')">▶ Smoke Test</button>
+          <a class="btn-open" href="https://app.civicscope.io/gc/acme-internal" target="_blank">↗ Open</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Recent Activity</div>
+    <div class="two-col">
+      <div class="feed-table">
+        <div class="feed-header">
+          <div>Product</div><div>Where</div><div>Project</div><div>Cost Range</div><div>Confidence</div><div>When</div>
+        </div>
+        <div id="feed-body-overview"><div style="padding:16px;color:var(--muted);font-size:11px">Loading…</div></div>
+      </div>
+      <div class="side-panel">
+        <div class="mini-card">
+          <div class="mini-title">Recent Leads</div>
+          <div id="leads-list"><div class="empty-state">Loading…</div></div>
+        </div>
+        <div class="mini-card">
+          <div class="mini-title">GC Tenants</div>
+          <div id="tenants-summary"><div class="empty-state">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TENANTS TAB -->
+  <div class="panel" id="panel-tenants">
+    <div class="tenants-layout">
+
+      <!-- Left: tenant list -->
+      <div class="tenant-list-card">
+        <div class="tenant-list-header">
+          <div class="tenant-list-title">GC Tenants</div>
+          <button class="btn-add-tenant" onclick="newTenant()">+ Add Tenant</button>
+        </div>
+        <div id="tenant-list-body"><div style="padding:16px;color:var(--muted);font-size:11px">Loading…</div></div>
+      </div>
+
+      <!-- Right: form -->
+      <div class="tenant-form-card" id="tenant-form-card">
+        <div class="form-header">
+          <div class="form-title">— <span id="form-mode-label">select a tenant to edit</span></div>
+          <div class="save-status" id="save-status"></div>
+        </div>
+        <div class="form-body" id="form-body">
+          <div style="color:var(--muted);font-size:11px;padding:20px 0">Select a tenant from the list to edit, or click + Add Tenant to create a new one.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ACTIVITY TAB -->
+  <div class="panel" id="panel-activity">
+    <div class="section-label">All Runs</div>
+    <div class="feed-table activity-full">
+      <div class="feed-header">
+        <div>Product</div><div>Where</div><div>Project</div><div>Cost Range</div><div>Confidence</div><div>When</div>
+      </div>
+      <div id="feed-body-activity"><div style="padding:16px;color:var(--muted);font-size:11px">Loading…</div></div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- SMOKE MODAL -->
+<div id="smoke-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title">// SMOKE TEST</div>
+    <div id="modal-tests"></div>
+    <button class="modal-close" onclick="closeModal()">✕ Close</button>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────
+const PASSPHRASE     = 'cs24';       // ← change this
+const SUPABASE_URL   = 'https://tyvtmqzaydrbjwzvjoei.supabase.co';
+const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dnRtcXpheWRyYmp3enZqb2VpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NDUxMzgsImV4cCI6MjA4ODQyMTEzOH0.YiA4_Oms3Tod2U6NZX74tP92OzrOZZueULCeVRnsIm4'; // ← fill in
+const SUPABASE_SVC   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dnRtcXpheWRyYmp3enZqb2VpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjg0NTEzOCwiZXhwIjoyMDg4NDIxMTM4fQ.SYTKZmis3XPQtIJYbmeOyx7Ldz7Ebe-c6t6q55g0KDY'; // ← fill in (needed to write tenants)
+
+// ── AUTH ─────────────────────────────────────────────────────────
+function checkAuth() {
+  if (document.getElementById('pass-input').value === PASSPHRASE) {
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadAll();
+  } else {
+    document.getElementById('auth-err').textContent = 'incorrect passphrase';
+    document.getElementById('pass-input').value = '';
+  }
+}
+document.getElementById('pass-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkAuth(); });
+
+// ── TABS ─────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.t-${name}`).classList.add('active');
+  document.getElementById(`panel-${name}`).classList.add('active');
+}
+
+// ── SUPABASE ─────────────────────────────────────────────────────
+async function sbRead(path) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
+  });
+  if (!r.ok) throw new Error(`${r.status}`);
+  return r.json();
+}
+
+async function sbWrite(table, body, id = null) {
+  const url = id
+    ? `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`
+    : `${SUPABASE_URL}/rest/v1/${table}`;
+  const method = id ? 'PATCH' : 'POST';
+  const r = await fetch(url, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_SVC,
+      'Authorization': `Bearer ${SUPABASE_SVC}`,
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) { const t = await r.text(); throw new Error(t); }
+  return r.json();
+}
+
+// ── LOAD ALL ─────────────────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('last-refresh').textContent = 'refreshed ' + new Date().toLocaleTimeString();
+  await Promise.allSettled([loadStats(), loadProductData(), loadFeed('overview'), loadFeed('activity'), loadLeads(), loadTenantList(), pingAll()]);
+}
+
+// ── STATS ─────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const [runs, leads, sessions, tenants] = await Promise.all([
+      sbRead('tool_runs?select=id'),
+      sbRead('leads?select=id'),
+      sbRead('sessions?select=id'),
+      sbRead('tenants?select=id&active=eq.true'),
+    ]);
+    document.getElementById('stat-runs').textContent = runs.length;
+    document.getElementById('stat-leads').textContent = leads.length;
+    document.getElementById('stat-sessions').textContent = sessions.length;
+    document.getElementById('stat-tenants').textContent = tenants.length;
+  } catch(e) { console.error('Stats:', e); }
+}
+
+// ── PRODUCT DATA ──────────────────────────────────────────────────
+async function loadProductData() {
+  const ago30 = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+  const map = [
+    { key: 'free',   product: 'free' },
+    { key: 'pro',    product: 'pro' },
+    { key: 'gc-ext', product: 'gc-acme' },
+    { key: 'gc-int', product: 'gc-int-acme' },
+  ];
+  for (const pm of map) {
+    try {
+      const runs30 = await sbRead(`tool_runs?select=id,created_at,municipality,project_type,run_duration_ms&product=eq.${pm.product}&created_at=gte.${ago30}&order=created_at.desc`);
+      document.getElementById(`runs-${pm.key}`).textContent = runs30.length;
+      const withDur = runs30.filter(r => r.run_duration_ms);
+      if (withDur.length) {
+        const avg = Math.round(withDur.reduce((s,r) => s + r.run_duration_ms, 0) / withDur.length / 1000);
+        document.getElementById(`dur-${pm.key}`).textContent = avg + 's';
+      } else { document.getElementById(`dur-${pm.key}`).textContent = 'n/a'; }
+
+      const last = runs30[0] || (await sbRead(`tool_runs?select=created_at,municipality,project_type&product=eq.${pm.product}&order=created_at.desc&limit=1`))[0];
+      if (last) {
+        document.getElementById(`last-${pm.key}`).textContent = `${last.project_type || 'Run'} — ${last.municipality || '—'}`;
+        document.getElementById(`last-${pm.key}`).classList.remove('loading');
+        document.getElementById(`time-${pm.key}`).textContent = timeAgo(last.created_at);
+      } else {
+        document.getElementById(`last-${pm.key}`).textContent = 'No runs yet';
+        document.getElementById(`last-${pm.key}`).classList.remove('loading');
+      }
+      if (pm.key === 'free' || pm.key === 'pro') {
+        const leads30 = await sbRead(`leads?select=id&created_at=gte.${ago30}`);
+        document.getElementById(`leads-${pm.key}`).textContent = leads30.length;
+      }
+    } catch(e) { console.error(`Product data (${pm.key}):`, e); }
+  }
+  try {
+    const t = await sbRead('tenants?select=gate_enabled&slug=eq.acme&limit=1');
+    if (t.length) {
+      const el = document.getElementById('gate-gc-ext');
+      el.textContent = t[0].gate_enabled ? 'On' : 'Off';
+      el.style.color = t[0].gate_enabled ? 'var(--green)' : 'var(--muted)';
+    }
+  } catch(e) {}
+}
+
+// ── FEED ──────────────────────────────────────────────────────────
+async function loadFeed(target) {
+  const elId = target === 'overview' ? 'feed-body-overview' : 'feed-body-activity';
+  const limit = target === 'overview' ? 10 : 50;
+  try {
+    const rows = await sbRead(`tool_runs?select=id,created_at,product,municipality,state,project_type,cost_low,cost_high,confidence&order=created_at.desc&limit=${limit}`);
+    const el = document.getElementById(elId);
+    if (!rows.length) { el.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:11px">No runs yet.</div>'; return; }
+    el.innerHTML = rows.map(r => {
+      const where = r.state ? `${r.municipality||'—'}, ${r.state}` : (r.municipality||'—');
+      const cost = (r.cost_low && r.cost_high) ? `$${fmtM(r.cost_low)}–$${fmtM(r.cost_high)}` : '—';
+      const pct = parseConf(r.confidence);
+      const cc = pct >= 70 ? '' : pct >= 50 ? 'med' : 'low';
+      return `<div class="feed-row">
+        <div><span class="badge ${badgeFor(r.product)}">${productLabel(r.product)}</span></div>
+        <div style="color:var(--muted);font-size:10px;padding-top:3px">${where}</div>
+        <div>${r.project_type||'—'}</div>
+        <div>${cost}</div>
+        <div><div class="conf-bar"><div class="conf-track"><div class="conf-fill ${cc}" style="width:${pct}%"></div></div><span style="font-size:10px;color:var(--muted)">${r.confidence||'—'}</span></div></div>
+        <div style="color:var(--muted);font-size:10px">${timeAgo(r.created_at)}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById(elId).innerHTML = '<div style="padding:16px;color:var(--danger);font-size:11px">Error — check anon key.</div>';
+  }
+}
+
+// ── LEADS ─────────────────────────────────────────────────────────
+async function loadLeads() {
+  try {
+    const rows = await sbRead('leads?select=first_name,last_name,email,municipality,created_at&order=created_at.desc&limit=5');
+    const el = document.getElementById('leads-list');
+    el.innerHTML = rows.length ? rows.map(r => `
+      <div class="lead-row">
+        <div class="lead-name">${r.first_name} ${r.last_name}</div>
+        <div class="lead-meta">${r.municipality||'—'} · ${timeAgo(r.created_at)}</div>
+      </div>`).join('') : '<div class="empty-state">No leads yet.</div>';
+  } catch(e) { document.getElementById('leads-list').innerHTML = '<div class="empty-state" style="color:var(--danger)">Error loading.</div>'; }
+}
+
+// ── PING ─────────────────────────────────────────────────────────
+async function pingAll() {
+  [['free','https://app.civicscope.io/civicscope'],
+   ['pro','https://app.civicscope.io/civicscope-pro'],
+   ['gc-ext','https://app.civicscope.io/gc/acme'],
+   ['gc-int','https://app.civicscope.io/gc/acme-internal']
+  ].forEach(([k,u]) => pingProduct(k,u));
+}
+async function pingProduct(key, url) {
+  const dot = document.getElementById(`dot-${key}`);
+  const lbl = document.getElementById(`status-${key}`);
+  try {
+    const t = Date.now();
+    await fetch(url, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
+    dot.className = 'dot live';
+    lbl.textContent = `live · ${Date.now()-t}ms`;
+    lbl.style.color = 'var(--green)';
+  } catch(e) {
+    dot.className = 'dot error';
+    lbl.textContent = 'unreachable';
+    lbl.style.color = 'var(--danger)';
+  }
+}
+
+// ── TENANT LIST ───────────────────────────────────────────────────
+let allTenants = [];
+async function loadTenantList() {
+  try {
+    allTenants = await sbRead('tenants?select=*&order=created_at.asc');
+    renderTenantList();
+    renderTenantSummary();
+  } catch(e) {
+    document.getElementById('tenant-list-body').innerHTML = '<div style="padding:16px;color:var(--danger);font-size:11px">Error loading tenants.</div>';
+  }
+}
+
+function renderTenantList() {
+  const el = document.getElementById('tenant-list-body');
+  if (!allTenants.length) { el.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:11px">No tenants yet.</div>'; return; }
+  el.innerHTML = allTenants.map(t => {
+    const warnings = [];
+    if (!t.notify_email) warnings.push('notify_email not set');
+    if (!t.brand_statement) warnings.push('brand not set');
+    return `<div class="tenant-item" id="ti-${t.slug}" onclick="selectTenant('${t.slug}')">
+      <div>
+        <div class="t-slug">${t.slug}</div>
+        <div class="t-name">${t.gc_name||'—'}</div>
+        ${warnings.length ? `<div class="t-warnings">⚠ ${warnings.join(' · ')}</div>` : ''}
+      </div>
+      <span class="t-badge ${t.active ? 'active' : 'inactive'}">${t.active ? 'Live' : 'Off'}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderTenantSummary() {
+  const el = document.getElementById('tenants-summary');
+  if (!allTenants.length) { el.innerHTML = '<div class="empty-state">No tenants configured.</div>'; return; }
+  el.innerHTML = allTenants.map(t => {
+    const warnings = [];
+    if (!t.notify_email) warnings.push('⚠ notify_email');
+    if (!t.brand_statement) warnings.push('⚠ brand');
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="color:var(--accent);font-weight:600">${t.slug}</div>
+          <div style="color:var(--muted);font-size:10px;margin-top:2px">${t.gc_name||'—'}</div>
+          ${warnings.length ? `<div style="font-size:9px;color:var(--warn);margin-top:3px">${warnings.join(' · ')}</div>` : ''}
+        </div>
+        <span style="font-size:10px;font-weight:600;${t.active ? 'color:var(--green)' : 'color:var(--muted)'}">${t.active ? '● LIVE' : '○ OFF'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── TENANT FORM ───────────────────────────────────────────────────
+let editingTenant = null; // null = new, string = slug (id lookup)
+let editingId = null;
+
+function newTenant() {
+  editingTenant = null;
+  editingId = null;
+  document.querySelectorAll('.tenant-item').forEach(el => el.classList.remove('selected'));
+  renderForm({});
+}
+
+function selectTenant(slug) {
+  const t = allTenants.find(x => x.slug === slug);
+  if (!t) return;
+  editingTenant = slug;
+  editingId = t.id;
+  document.querySelectorAll('.tenant-item').forEach(el => el.classList.remove('selected'));
+  const el = document.getElementById(`ti-${slug}`);
+  if (el) el.classList.add('selected');
+  renderForm(t);
+}
+
+function renderForm(t) {
+  document.getElementById('form-mode-label').textContent = t.slug ? `editing: ${t.slug}` : 'new tenant';
+  document.getElementById('save-status').textContent = '';
+  document.getElementById('save-status').className = 'save-status';
+
+  const pt = Array.isArray(t.project_types) ? t.project_types : (t.project_types ? JSON.parse(t.project_types) : []);
+  const bv = Array.isArray(t.brand_values) ? t.brand_values : (t.brand_values ? JSON.parse(t.brand_values) : ['']);
+
+  document.getElementById('form-body').innerHTML = `
+    <!-- IDENTITY -->
+    <div class="form-section">
+      <div class="form-section-title">Identity</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Slug <span style="color:var(--danger)">*</span></label>
+          <input type="text" id="f-slug" value="${t.slug||''}" placeholder="acme" ${t.slug ? 'readonly style="opacity:0.6"' : ''} />
+          <span class="hint">URL-safe, lowercase. Cannot change after creation.</span>
+        </div>
+        <div class="form-group">
+          <label>GC Name <span style="color:var(--danger)">*</span></label>
+          <input type="text" id="f-gc_name" value="${esc(t.gc_name||'')}" placeholder="ACME General Contractor" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Primary Color</label>
+          <div class="color-row">
+            <div class="color-preview" id="color-preview" style="background:${t.primary_color||'#333844'}"></div>
+            <input type="text" id="f-primary_color" value="${t.primary_color||''}" placeholder="#d4232a" oninput="updateColorPreview(this.value)" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Region</label>
+          <input type="text" id="f-region" value="${esc(t.region||'')}" placeholder="Midwest (Indiana / Michigan)" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Logo URL</label>
+          <input type="text" id="f-logo_url" value="${esc(t.logo_url||'')}" placeholder="https://…/logo.png" />
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO -->
+    <div class="form-section">
+      <div class="form-section-title">Hero Copy</div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Hero Headline</label>
+          <input type="text" id="f-hero_headline" value="${esc(t.hero_headline||'')}" placeholder="Fast, accurate project cost estimates" />
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Hero Subhead</label>
+          <input type="text" id="f-hero_subhead" value="${esc(t.hero_subhead||'')}" placeholder="Before you hire an architect…" />
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="form-section">
+      <div class="form-section-title">CTA Block</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>CTA Headline</label>
+          <input type="text" id="f-cta_headline" value="${esc(t.cta_headline||'')}" placeholder="Ready to move forward?" />
+        </div>
+        <div class="form-group">
+          <label>CTA Button Label</label>
+          <input type="text" id="f-cta_button_label" value="${esc(t.cta_button_label||'')}" placeholder="Request a Formal Estimate" />
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>CTA Body</label>
+          <textarea id="f-cta_body" placeholder="Our team will review your project and provide a detailed proposal…">${esc(t.cta_body||'')}</textarea>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>CTA Button URL</label>
+          <input type="text" id="f-cta_url" value="${esc(t.cta_url||'')}" placeholder="https://acme.com/contact" />
+        </div>
+      </div>
+    </div>
+
+    <!-- EMAILS -->
+    <div class="form-section">
+      <div class="form-section-title">Email Config</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Contact Email</label>
+          <input type="email" id="f-contact_email" value="${esc(t.contact_email||'')}" placeholder="contact@acme.com" />
+          <span class="hint">Shown to users in tool. Never sent to browser via gc-config.</span>
+        </div>
+        <div class="form-group">
+          <label>From Email</label>
+          <input type="email" id="f-from_email" value="${esc(t.from_email||'')}" placeholder="estimates@acme.com" />
+          <span class="hint">Sender name for GC emails. Never sent to browser.</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Notify Email</label>
+          <input type="email" id="f-notify_email" value="${esc(t.notify_email||'')}" placeholder="leads@acme.com" />
+          <span class="hint">Lead notifications go here. Keith BCC'd. If blank, Keith only.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROJECT TYPES -->
+    <div class="form-section">
+      <div class="form-section-title">Project Types</div>
+      <div class="project-types-input">
+        <div class="pt-tags" id="pt-tags">
+          ${pt.map(p => ptTag(p)).join('')}
+        </div>
+        <div class="pt-add-row">
+          <input type="text" id="pt-new-input" placeholder="e.g. Municipal / Public" onkeydown="if(event.key==='Enter'){addPT();event.preventDefault();}" />
+          <button class="btn-pt-add" onclick="addPT()">+ Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BRAND -->
+    <div class="form-section">
+      <div class="form-section-title">Brand Content ("Why [GC]" Section)</div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Brand Statement</label>
+          <textarea id="f-brand_statement" placeholder="1–2 sentence GC positioning statement shown in the 'Why Us' section…">${esc(t.brand_statement||'')}</textarea>
+          <span class="hint">Hidden from tool until populated.</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Brand Values (3–5 short strings)</label>
+        <div class="brand-values-input">
+          <div class="bv-list" id="bv-list">
+            ${bv.map((v,i) => bvItem(v,i)).join('')}
+          </div>
+          <button class="btn-bv-add" onclick="addBV()">+ Add Value</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOGGLES -->
+    <div class="form-section">
+      <div class="form-section-title">Settings</div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Gate Enabled</div>
+          <div class="toggle-sub">Require email before showing results</div>
+        </div>
+        <button class="toggle ${t.gate_enabled ? 'on' : ''}" id="toggle-gate" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="toggle-row" style="margin-top:10px">
+        <div>
+          <div class="toggle-label">Active</div>
+          <div class="toggle-sub">Tenant is live and accessible</div>
+        </div>
+        <button class="toggle ${t.active !== false ? 'on' : ''}" id="toggle-active" onclick="this.classList.toggle('on')"></button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('form-body').insertAdjacentHTML('afterend', '');
+  // Inject form actions after body
+  const existingActions = document.querySelector('.form-actions');
+  if (existingActions) existingActions.remove();
+  document.getElementById('tenant-form-card').insertAdjacentHTML('beforeend', `
+    <div class="form-actions">
+      <button class="btn-save" id="btn-save" onclick="saveTenant()">
+        ${editingId ? '✓ Save Changes' : '+ Create Tenant'}
+      </button>
+      <button class="btn-cancel" onclick="cancelForm()">Cancel</button>
+    </div>
+  `);
+}
+
+function ptTag(val) {
+  return `<div class="pt-tag"><span>${esc(val)}</span><span class="remove" onclick="removePT(this)">×</span></div>`;
+}
+function bvItem(val, i) {
+  return `<div class="bv-item"><input type="text" value="${esc(val)}" placeholder="e.g. 30 years regional work" /><button class="btn-bv-remove" onclick="removeBV(this)">×</button></div>`;
+}
+function addPT() {
+  const inp = document.getElementById('pt-new-input');
+  if (!inp.value.trim()) return;
+  document.getElementById('pt-tags').insertAdjacentHTML('beforeend', ptTag(inp.value.trim()));
+  inp.value = '';
+}
+function removePT(el) { el.closest('.pt-tag').remove(); }
+function addBV() { document.getElementById('bv-list').insertAdjacentHTML('beforeend', bvItem('', document.querySelectorAll('.bv-item').length)); }
+function removeBV(el) { el.closest('.bv-item').remove(); }
+function updateColorPreview(val) {
+  const p = document.getElementById('color-preview');
+  if (p && /^#[0-9a-fA-F]{3,6}$/.test(val)) p.style.background = val;
+}
+function cancelForm() {
+  editingTenant = null; editingId = null;
+  document.querySelectorAll('.tenant-item').forEach(el => el.classList.remove('selected'));
+  document.getElementById('form-mode-label').textContent = 'select a tenant to edit';
+  document.getElementById('form-body').innerHTML = '<div style="color:var(--muted);font-size:11px;padding:20px 0">Select a tenant from the list to edit, or click + Add Tenant to create a new one.</div>';
+  const fa = document.querySelector('.form-actions');
+  if (fa) fa.remove();
+}
+
+async function saveTenant() {
+  const btn = document.getElementById('btn-save');
+  const status = document.getElementById('save-status');
+  btn.disabled = true;
+  btn.textContent = '…saving';
+  status.textContent = '';
+
+  // Collect project_types
+  const ptTags = [...document.querySelectorAll('#pt-tags .pt-tag span:first-child')].map(el => el.textContent.trim()).filter(Boolean);
+  // Collect brand_values
+  const bvVals = [...document.querySelectorAll('#bv-list .bv-item input')].map(el => el.value.trim()).filter(Boolean);
+
+  const payload = {
+    slug:              document.getElementById('f-slug')?.value.trim(),
+    gc_name:           document.getElementById('f-gc_name')?.value.trim(),
+    primary_color:     document.getElementById('f-primary_color')?.value.trim() || null,
+    region:            document.getElementById('f-region')?.value.trim() || null,
+    logo_url:          document.getElementById('f-logo_url')?.value.trim() || null,
+    hero_headline:     document.getElementById('f-hero_headline')?.value.trim() || null,
+    hero_subhead:      document.getElementById('f-hero_subhead')?.value.trim() || null,
+    cta_headline:      document.getElementById('f-cta_headline')?.value.trim() || null,
+    cta_body:          document.getElementById('f-cta_body')?.value.trim() || null,
+    cta_button_label:  document.getElementById('f-cta_button_label')?.value.trim() || null,
+    cta_url:           document.getElementById('f-cta_url')?.value.trim() || null,
+    contact_email:     document.getElementById('f-contact_email')?.value.trim() || null,
+    from_email:        document.getElementById('f-from_email')?.value.trim() || null,
+    notify_email:      document.getElementById('f-notify_email')?.value.trim() || null,
+    brand_statement:   document.getElementById('f-brand_statement')?.value.trim() || null,
+    brand_values:      bvVals.length ? bvVals : null,
+    project_types:     ptTags.length ? ptTags : null,
+    gate_enabled:      document.getElementById('toggle-gate')?.classList.contains('on'),
+    active:            document.getElementById('toggle-active')?.classList.contains('on'),
+  };
+
+  if (!payload.slug || !payload.gc_name) {
+    status.textContent = '✗ Slug and GC Name required';
+    status.className = 'save-status err';
+    btn.disabled = false;
+    btn.textContent = editingId ? '✓ Save Changes' : '+ Create Tenant';
+    return;
+  }
+
+  try {
+    await sbWrite('tenants', payload, editingId);
+    status.textContent = '✓ Saved';
+    status.className = 'save-status ok';
+    btn.textContent = '✓ Saved';
+    await loadTenantList();
+    if (!editingId) { editingId = allTenants.find(t => t.slug === payload.slug)?.id || null; editingTenant = payload.slug; }
+    document.getElementById('form-mode-label').textContent = `editing: ${payload.slug}`;
+    const saveBtn = document.getElementById('btn-save');
+    if (saveBtn) saveBtn.textContent = '✓ Save Changes';
+  } catch(e) {
+    status.textContent = `✗ ${e.message}`;
+    status.className = 'save-status err';
+    btn.textContent = editingId ? '✓ Save Changes' : '+ Create Tenant';
+  }
+  btn.disabled = false;
+}
+
+// ── SMOKE TEST ────────────────────────────────────────────────────
+const PRODUCTS = {
+  'free':   { label: 'Free',        product_prefix: 'free' },
+  'pro':    { label: 'Pro',         product_prefix: 'pro' },
+  'gc-ext': { label: 'GC External', product_prefix: 'gc-acme' },
+  'gc-int': { label: 'GC Internal', product_prefix: 'gc-int-acme' },
+};
+async function smokeTest(key, url) {
+  const btn = event.target;
+  btn.classList.add('running'); btn.textContent = '⏳ Running…';
+  const modal = document.getElementById('smoke-modal');
+  document.getElementById('modal-title').textContent = `// SMOKE TEST — ${PRODUCTS[key].label.toUpperCase()}`;
+  document.getElementById('modal-tests').innerHTML = '';
+  modal.classList.add('open');
+  const checks = [
+    { label: 'Page reachable', fn: () => fetch(url, { method:'HEAD', mode:'no-cors' }).then(() => 'reachable') },
+    { label: 'Supabase REST reachable', fn: async () => { const r = await fetch(`${SUPABASE_URL}/rest/v1/tool_runs?select=id&limit=1`,{headers:{'apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`}}); if(!r.ok) throw new Error(`HTTP ${r.status}`); return 'connected'; }},
+    { label: 'Recent runs in DB', fn: async () => { const rows = await sbRead(`tool_runs?select=id&product=eq.${PRODUCTS[key].product_prefix}&order=created_at.desc&limit=1`); if(!rows.length) throw new Error('no runs'); return `found`; }},
+    { label: 'gc-config API', fn: () => key.startsWith('gc') ? fetch('https://app.civicscope.io/api/gc-config?slug=acme').then(async r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); const d=await r.json(); if(!d.gc_name) throw new Error('empty config'); return d.gc_name; }) : Promise.resolve('skip') },
+  ];
+  let allPass = true;
+  for (const c of checks) {
+    const line = document.createElement('div'); line.className = 'test-line';
+    line.innerHTML = `<div class="test-icon"><span class="spin">◌</span></div><div class="test-label">${c.label}</div><div class="test-result">running…</div>`;
+    document.getElementById('modal-tests').appendChild(line);
+    const icon = line.querySelector('.test-icon'), res = line.querySelector('.test-result');
+    try {
+      const result = await c.fn();
+      if (result === 'skip') { icon.textContent = '—'; res.textContent = 'skipped'; }
+      else { icon.textContent = '✓'; res.textContent = result||'pass'; res.classList.add('pass'); }
+    } catch(e) { allPass = false; icon.textContent = '✗'; res.textContent = e.message||'fail'; res.classList.add('fail'); }
+  }
+  btn.classList.remove('running'); btn.classList.add(allPass ? 'pass':'fail');
+  btn.textContent = allPass ? '✓ Passed' : '✗ Failed';
+  setTimeout(() => { btn.classList.remove('pass','fail'); btn.textContent = '▶ Smoke Test'; }, 5000);
+}
+function closeModal() { document.getElementById('smoke-modal').classList.remove('open'); }
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function timeAgo(iso) {
+  if (!iso) return '—';
+  const m = Math.floor((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m/60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h/24)}d ago`;
+}
+function fmtM(n) {
+  if (!n) return '—';
+  if (n >= 1000000) return (n/1000000).toFixed(1)+'M';
+  if (n >= 1000) return (n/1000).toFixed(0)+'K';
+  return n.toString();
+}
+function parseConf(s) {
+  if (!s) return 0;
+  const m = String(s).match(/(\d+)/);
+  return m ? parseInt(m[1]) : 50;
+}
+function badgeFor(p) {
+  if (!p) return 'free';
+  if (p==='free') return 'free';
+  if (p==='pro') return 'pro';
+  if (p.startsWith('gc-int')) return 'gc-int';
+  if (p.startsWith('gc-')) return 'gc-ext';
+  return 'free';
+}
+function productLabel(p) {
+  if (!p) return '?';
+  if (p==='free') return 'Free';
+  if (p==='pro') return 'Pro';
+  if (p.startsWith('gc-int')) return 'GC Int';
+  if (p.startsWith('gc-')) return 'GC Ext';
+  return p;
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+</script>
+</body>
+</html>
