@@ -65,10 +65,10 @@ ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY, RESEND_API_KEY
   - Standardized confidence language: "Vague or incomplete descriptions → Low confidence with wider ranges"
   - Added proprietary database prohibition to Free version (others already had it)
 - **QA Tool**: Headless validation framework at /qa — runs test scenarios against all 4 prompts, compares results
-
-## Pending — Next Batch Update
-- [ ] **max_tokens alignment**: Free has 1000, others have 1200 — align to 1200
-- [ ] **Confidence scale**: Free/Pro use "High/Moderate/Low", GC uses "High/Medium/Low" — pick one
+- **Temperature**: Set temperature: 0.3 on all 4 versions + QA tool for run-to-run consistency
+- **max_tokens alignment**: Free bumped from 1000 → 1200 (all versions now 1200)
+- **Confidence scale**: Standardized all 4 versions to High/Medium/Low (Free/Pro had "Moderate" → changed to "Medium")
+- **QA Tool v2**: Manual entry mode, GC Internal separated from spread analysis, persistent Supabase logging (qa_runs table)
 
 ## API Pattern — IMPORTANT
 All api/*.js files use raw fetch to Supabase REST API. Do NOT use @supabase/supabase-js.

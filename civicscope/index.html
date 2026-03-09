@@ -358,7 +358,7 @@ header {
   flex-shrink: 0;
 }
 .confidence-high   { background: var(--green-light); color: var(--green); }
-.confidence-moderate { background: var(--amber-light); color: var(--amber); }
+.confidence-medium { background: var(--amber-light); color: var(--amber); }
 .confidence-low    { background: #fef2f2; color: #991b1b; }
 
 .print-btn {
@@ -1203,7 +1203,7 @@ async function callClaude(prompt) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
+      max_tokens: 1200,
       temperature: 0.3,
       messages: [{ role: 'user', content: prompt }]
     })
@@ -1258,7 +1258,7 @@ Respond ONLY with valid JSON, no markdown, no preamble:
 {
   "low": <integer dollar amount>,
   "high": <integer dollar amount>,
-  "confidence": "<High|Moderate|Low>",
+  "confidence": "<High|Medium|Low>",
   "confidence_reason": "<one sentence>",
   "narrative": "<2-3 sentences for a non-technical town manager — is this feasible, what drives the cost, any watch-outs?>",
   "assumptions": [
@@ -1425,7 +1425,7 @@ async function submitLead() {
     const costMidEl = document.getElementById('costMidpoint');
     const costMidpoint = costMidEl ? costMidEl.textContent.replace(/Midpoint:\s*/i,'').split('\u00b7')[0].trim() : '—';
     const badge = document.getElementById('confidenceBadge');
-    const confidence = badge ? badge.textContent.replace(' Confidence','').trim() : 'Moderate';
+    const confidence = badge ? badge.textContent.replace(' Confidence','').trim() : 'Medium';
 
     // Send report to user
     await fetch('/api/email', {

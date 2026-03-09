@@ -212,7 +212,7 @@ header {
 .result-meta { font-size: 0.8rem; color: var(--muted); }
 .confidence-badge { padding: 5px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; }
 .confidence-high   { background: var(--green-light); color: var(--green); }
-.confidence-moderate { background: var(--amber-light); color: var(--amber); }
+.confidence-medium { background: var(--amber-light); color: var(--amber); }
 .confidence-low    { background: #fef2f2; color: #991b1b; }
 .print-btn { font-family: var(--font-body); background: none; border: 1px solid var(--rule); border-radius: 4px; padding: 7px 16px; font-size: 0.78rem; color: var(--muted); cursor: pointer; margin-bottom: 20px; transition: border-color 0.15s, color 0.15s; }
 .print-btn:hover { border-color: var(--ink-light); color: var(--ink); }
@@ -862,7 +862,7 @@ Respond ONLY with valid JSON, no markdown, no preamble:
 {
   "low": <integer>,
   "high": <integer>,
-  "confidence": "<High|Moderate|Low>",
+  "confidence": "<High|Medium|Low>",
   "confidence_reason": "<one sentence>",
   "narrative": "<2-3 sentences for a non-technical town manager>",
   "assumptions": ["<assumption 1>","<assumption 2>","<assumption 3>","<assumption 4>","<site/utility assumption>"],
