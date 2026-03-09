@@ -616,7 +616,10 @@ PROCESS_STEPS:
 - TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
 
 Rules:
-- Current ${region} pricing. Design-Bid-Build. Hard construction costs only. No proprietary database names.
+- Current ${region} pricing. Design-Bid-Build. Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%). Exclude land acquisition.
+- If no utilities on site, add realistic extension costs to range. If demo required, include demo costs.
+- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges.
+- No proprietary database names (RSMeans, Gordian, etc.).
 - Process steps should reflect a realistic pre-construction and construction path for this project type and size.
 - All timeline references must be relative (e.g., "Weeks 1–3", "Months 2–4") OR use specific future months/years after ${TODAY_ISO}. Never use past dates.`;
   }

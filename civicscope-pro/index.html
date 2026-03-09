@@ -876,7 +876,14 @@ Respond ONLY with valid JSON, no markdown, no preamble:
   }
 }
 
-Rules: Include overhead, general conditions, permitting, engineering allowance. Exclude land. Vague = Low confidence. ${state} regional costs.`;
+Rules:
+- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%)
+- Exclude land acquisition
+- If no utilities on site, add realistic extension costs to range
+- If demo required, include demo costs
+- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges
+- ${state} regional labor market costs should be reflected
+- Do NOT reference RSMeans, Gordian, or any proprietary database by name`;
 
   const runStart = Date.now();
 

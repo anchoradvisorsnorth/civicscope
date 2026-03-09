@@ -787,7 +787,11 @@ GAP_QUESTIONS:
 - [question]? (±$[impact])
 [3–6 questions, ordered by dollar impact. Only genuine unknowns. If all parameters known, write: GAP_QUESTIONS: none]
 
-Rules: Current ${region} pricing. Design-Bid-Build. Hard costs only. No proprietary database names.`;
+Rules:
+- Current ${region} pricing. Design-Bid-Build. Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%). Exclude land acquisition.
+- If no utilities on site, add realistic extension costs to range. If demo required, include demo costs.
+- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges.
+- No proprietary database names (RSMeans, Gordian, etc.).`;
   }
 
   function parseResponse(raw) {
