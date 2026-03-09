@@ -47,7 +47,7 @@ Anchor Advisors North (AAN) as a personal brand and product umbrella. He is the 
 | Project | Repo | Domain | What it serves |
 |---|---|---|---|
 | aanclaude | anchoradvisorsnorth/aanclaude | anchoradvisorsnorth.com | AAN website only |
-| civicscope | anchoradvisorsnorth/civicscope | civicscope.io + app.civicscope.io | CivicScope Free + Pro + GC White Label + APIs |
+| civicscope | anchoradvisorsnorth/civicscope | civicscope.io + app.civicscope.io | CivicScope Free + Pro + GC White Label + Admin + APIs |
 
 ### Deploy Workflow (Windows, no git installed)
 Keith uses PowerShell scripts to push files directly to GitHub via API.
@@ -58,17 +58,18 @@ Scripts live in Downloads\civicscope\ folder alongside the HTML/JS files.
 
 ### Files pushed by PUSH_CIVICSCOPE.bat
 ```
-CONTEXT_BRIEFING.md                     — Project context (this file)
-vercel.json                             — Routing rules (rewrites + redirects)
-index.html                              — Landing page
-civicscope.css                          — Shared styles
-civicscope/index.html                   — Free tool (v1.4.0)
-civicscope-pro/index.html               — Pro tool (v2.2.0)
-civicscope-gc/index.html                — GC White Label external (v1.2.0-gc)
-civicscope-gc/estimator/index.html      — GC White Label internal estimator (v1.0.0-gc-int)
-api/email.js                            — Resend transactional email (Free + Pro + GC)
-api/gc-config.js                        — Tenant config fetch (GC)
-api/gc-log.js                           — GC session + run logging
+CONTEXT_BRIEFING.md                          — Project context (this file)
+vercel.json                                  — Routing rules (rewrites + redirects)
+index.html                                   — Landing page
+civicscope.css                               — Shared styles
+civicscope/index.html                        — Free tool (v1.4.0)
+civicscope-pro/index.html                    — Pro tool (v2.2.0)
+civicscope-gc/index.html                     — GC White Label external (v1.2.0-gc)
+civicscope-gc/estimator/index.html           — GC White Label internal estimator (v1.0.0-gc-int)
+civicscope-admin/index.html                  — Admin dashboard (v1.0.0-admin)
+api/email.js                                 — Resend transactional email (Free + Pro + GC)
+api/gc-config.js                             — Tenant config fetch (GC)
+api/gc-log.js                                — GC session + run logging
 ```
 Note: api/claude.js and api/log.js are NOT in the push script (deployed separately, rarely change).
 
@@ -76,12 +77,14 @@ Note: api/claude.js and api/log.js are NOT in the push script (deployed separate
 ```json
 {
   "rewrites": [
+    { "source": "/admin", "destination": "/civicscope-admin/index.html" },
     { "source": "/gc/acme-internal", "destination": "/civicscope-gc/estimator/index.html" },
     { "source": "/gc/:slug", "destination": "/civicscope-gc/index.html" }
   ]
 }
 ```
 IMPORTANT routing notes:
+- `/admin` rewrite must come before the GC rewrites.
 - Internal tool rewrites use LITERAL paths (e.g. `/gc/acme-internal`) not wildcards.
   Vercel's `:param` syntax cannot match hyphenated suffixes reliably.
 - When onboarding a new GC tenant with an internal tool, add a new literal line above the `:slug` wildcard.
@@ -91,10 +94,21 @@ IMPORTANT routing notes:
 Keith has a local sandbox for testing before deploy:
 - `START_SANDBOX.bat` — double-click, launches Python server at localhost:8888
 - `START_SANDBOX_SEND.bat` — same but real emails fire
-- Serves Free/Pro locally, proxies /api/* to live Vercel
+- Serves all products locally, proxies /api/* to live Vercel
 - Python 3.12.10 installed, found via `py` launcher
 - ZIP autofill does NOT work in sandbox (external API blocked locally)
 - Hard refresh (Ctrl+Shift+R) after every file replacement
+- Both .bat files fixed 3/8/26 to cd into Downloads\civicscope\ (previously pointed to wrong folder)
+
+### Sandbox URLs
+```
+http://localhost:8888/                   → Landing page
+http://localhost:8888/civicscope         → Free tool
+http://localhost:8888/civicscope-pro     → Pro tool
+http://localhost:8888/civicscope-admin   → Admin dashboard
+http://localhost:8888/gc/acme            → GC External (ACME)
+http://localhost:8888/gc/acme-internal   → GC Internal (ACME)
+```
 
 ---
 
@@ -108,12 +122,13 @@ get a cost range + narrative in 30 seconds. No architect, no engineer, no commit
 - **Free / Pro:** End user is town manager/council member. Operator is JBK Development (only operator, intentional long-term). JBK CTA appears in tool, JBK receives leads.
 - **GC White Label:** End user is a property owner or developer being oriented on project cost by a GC's BD team before formal estimating. Operator is the GC (multi-tenant). Email gate captures lead.
 
-### Three product tiers
+### Four product tiers
 1. **Free** — app.civicscope.io/civicscope — no login, lead capture gate
 2. **Pro** — app.civicscope.io/civicscope-pro — richer output, same gate, login coming
 3. **GC White Label** — two URLs per tenant:
    - **External** (client-facing): app.civicscope.io/gc/[slug]
    - **Internal** (estimating team): app.civicscope.io/gc/[slug]-internal
+4. **Admin Dashboard** — app.civicscope.io/admin — Keith only, passphrase gated
 
 ### Live URLs
 - Landing: https://www.civicscope.io
@@ -121,12 +136,14 @@ get a cost range + narrative in 30 seconds. No architect, no engineer, no commit
 - Pro: https://app.civicscope.io/civicscope-pro
 - GC External (ACME demo): https://app.civicscope.io/gc/acme
 - GC Internal (ACME demo): https://app.civicscope.io/gc/acme-internal
+- Admin Dashboard: https://app.civicscope.io/admin
 
 ### Current versions
 - Free: v1.4.0
 - Pro: v2.2.0
 - GC White Label External: v1.2.0-gc
 - GC White Label Internal: v1.0.0-gc-int
+- Admin Dashboard: v1.0.0-admin
 
 ### File structure (civicscope repo)
 ```
@@ -137,12 +154,22 @@ civicscope/index.html                — Free tool
 civicscope-pro/index.html            — Pro tool
 civicscope-gc/index.html             — GC White Label external (client-facing)
 civicscope-gc/estimator/index.html   — GC White Label internal (estimating team)
+civicscope-admin/index.html          — Admin dashboard (Keith only)
 api/claude.js                        — Anthropic API proxy (shared by all tiers)
 api/log.js                           — Supabase data capture (Free + Pro)
 api/email.js                         — Resend transactional email (Free + Pro + GC)
 api/gc-config.js                     — Tenant config fetch (GC only)
 api/gc-log.js                        — Session + run logging (GC only)
 ```
+
+### Admin Dashboard — what it does
+- Passphrase gated (hardcoded, Keith only)
+- Uses Supabase anon key for reads, service key for tenant writes
+- Three tabs: Overview, Tenants, Activity
+- Overview: stat bar (runs/leads/sessions/tenants), 4 product cards (live ping, version, runs/leads 30d, last run, smoke test, open link), recent activity feed, leads list, tenant summary
+- Tenants tab: list all GC tenants with warnings for missing fields, full add/edit form for all tenant fields including toggles, project type tags, brand values
+- Activity tab: last 50 runs across all products
+- Smoke test modal: checks page reachable, Supabase connected, recent DB runs, gc-config API
 
 ### Vercel Environment Variables (civicscope project)
 - ANTHROPIC_API_KEY
@@ -194,9 +221,9 @@ const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${table}`, {
   contact_email, from_email, project_types (jsonb), region,
   gate_enabled (boolean), active (boolean), created_at
 - contact_email and from_email are NEVER sent to the browser (stripped in gc-config.js)
-- notify_email — where GC lead notifications go (BCC Keith if set; Keith only if null)
-- brand_statement (text) — 1–2 sentence GC positioning for "Why [GC]" section on screen + in email
-- brand_values (jsonb array) — 3–5 short strings e.g. ["30 years regional work", "Fixed-price delivery"]
+- notify_email (added 3/8/26) — where GC lead notifications go (BCC Keith if set; Keith only if null)
+- brand_statement (added 3/8/26, text) — 1–2 sentence GC positioning for "Why [GC]" section on screen + in email
+- brand_values (added 3/8/26, jsonb array) — 3–5 short strings e.g. ["30 years regional work", "Fixed-price delivery"]
 
 ### ACME tenant (demo/seed row)
 - slug: acme
@@ -207,9 +234,9 @@ const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${table}`, {
 - gate_enabled: false
 - active: true
 - logo_url, cta_url, contact_email: placeholder values — update for real GC onboarding
-- notify_email: needs to be set (leads go to Keith only until populated)
-- brand_statement: needs to be set ("Why ACME" section hidden until populated)
-- brand_values: needs to be set ("Why ACME" section hidden until populated)
+- notify_email: NULL — leads go to Keith only until populated
+- brand_statement: NULL — "Why ACME" section hidden until populated
+- brand_values: NULL — "Why ACME" section hidden until populated
 
 ### GC White Label — how it works (External / Client-facing)
 1. Page loads, reads slug from URL path (`/gc/acme` → slug = `acme`)
@@ -292,12 +319,9 @@ const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${table}`, {
 ```
 
 ### Pending work (CivicScope)
-- **Monitoring dashboard** — NEXT: track runs, leads, errors, API costs
-- Supabase: add notify_email, brand_statement, brand_values columns to tenants table
 - Real GC onboarding — replace ACME placeholder (logo, CTA URL, brand content, notify_email)
 - Pro login — Supabase Auth, magic link
 - PDF report download
-- Admin dashboard — Retool or Metabase → Supabase
 - GC project history upload — anonymized pool → prompt injection (Phase 2)
 
 ---
