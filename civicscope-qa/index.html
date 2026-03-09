@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CivicScope QA — Estimate Validation</title>
 <style>
-  :root { --navy: #1a2332; --accent: #e8513d; --green: #27ae60; --yellow: #f39c12; --red: #e74c3c; --bg: #f5f6fa; --card: #fff; --border: #e0e3eb; --text: #2c3e50; --muted: #7f8c8d; }
+  :root { --navy: #1a2332; --accent: #e8513d; --green: #27ae60; --yellow: #f39c12; --red: #e74c3c; --bg: #f5f6fa; --card: #fff; --border: #e0e3eb; --text: #2c3e50; --muted: #7f8c8d; --pink: #db2777; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
   .header { background: var(--navy); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
@@ -23,8 +23,12 @@
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-primary:hover { background: #d4432f; }
   .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-  .btn-secondary { background: var(--navy); color: #fff; }
   .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+  /* Mode toggle */
+  .mode-toggle { display: flex; gap: 0; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; width: fit-content; }
+  .mode-btn { padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; background: var(--card); border: none; color: var(--muted); transition: 0.2s; }
+  .mode-btn.active { background: var(--navy); color: #fff; }
 
   /* Scenario presets */
   .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
@@ -32,13 +36,14 @@
   .preset-btn:hover, .preset-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
 
   /* Results */
-  .results-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+  .results-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 900px) { .results-grid { grid-template-columns: 1fr; } }
   .result-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
   .result-header { padding: 10px 16px; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
   .result-header.free { background: #eef5ff; color: #2563eb; }
   .result-header.pro { background: #f0fdf4; color: #16a34a; }
   .result-header.gc-ext { background: #fef3c7; color: #d97706; }
-  .result-header.gc-int { background: #fce7f3; color: #db2777; }
+  .result-header.gc-int { background: #fce7f3; color: var(--pink); }
   .result-body { padding: 16px; }
   .cost-row { display: flex; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
   .cost-item { text-align: center; }
@@ -60,6 +65,13 @@
   .flag-warn { color: var(--yellow); font-weight: 600; }
   .flag-critical { color: var(--red); font-weight: 700; }
 
+  /* GC Internal separate panel */
+  .gc-int-panel { border: 2px solid #fbcfe8; border-radius: 8px; overflow: hidden; margin-top: 16px; }
+  .gc-int-panel-header { background: #fce7f3; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .gc-int-panel-header h3 { font-size: 14px; font-weight: 600; color: var(--pink); }
+  .gc-int-panel-body { padding: 16px; }
+  .gc-int-note { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px; }
+
   /* Progress */
   .progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin: 12px 0; overflow: hidden; }
   .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
@@ -67,14 +79,16 @@
   .run-timer { font-size: 12px; color: var(--muted); }
 
   /* History */
-  .history-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .history-row:last-child { border-bottom: none; }
+  .history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .history-table th, .history-table td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--border); }
+  .history-table th { text-align: left; font-weight: 600; background: #f8f9fc; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .history-table td:first-child, .history-table td:nth-child(2) { text-align: left; }
 
   .hidden { display: none !important; }
 
   /* GC Internal extra fields */
   .gc-int-fields { background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 6px; padding: 12px; margin-top: 12px; }
-  .gc-int-fields h3 { font-size: 13px; font-weight: 600; color: #db2777; margin-bottom: 8px; }
+  .gc-int-fields h3 { font-size: 13px; font-weight: 600; color: var(--pink); margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -82,7 +96,7 @@
 <div class="header">
   <h1>CivicScope QA</h1>
   <span class="badge">INTERNAL</span>
-  <span class="version">v1.0.0-qa</span>
+  <span class="version">v1.1.0-qa</span>
 </div>
 
 <div class="container">
@@ -90,10 +104,16 @@
   <!-- Scenario Input -->
   <div class="card">
     <h2>Test Scenario</h2>
-    <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Select a preset or enter custom inputs. Runs all 4 version prompts against /api/claude.js and compares results.</p>
+    <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Runs Free, Pro, and GC External prompts for spread analysis. GC Internal (Estimator) runs separately — different input model.</p>
 
-    <label>Presets</label>
-    <div class="presets" id="presets"></div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modePreset" onclick="setMode('preset')">Presets</button>
+      <button class="mode-btn" id="modeManual" onclick="setMode('manual')">Manual Entry</button>
+    </div>
+
+    <div id="presetArea">
+      <div class="presets" id="presets"></div>
+    </div>
 
     <div class="form-row">
       <div><label>Municipality</label><input id="municipality" placeholder="Town of Granger"></div>
@@ -151,7 +171,7 @@
 
     <!-- GC Internal additional fields -->
     <div class="gc-int-fields">
-      <h3>GC Internal Parameters (used only for Estimator version)</h3>
+      <h3>GC Internal / Estimator Parameters</h3>
       <div class="form-row">
         <div><label>Square Footage</label><input id="sqft" type="number" placeholder="3000"></div>
         <div><label>Construction Type</label>
@@ -186,10 +206,10 @@
     </div>
   </div>
 
-  <!-- Results -->
+  <!-- Results: Main 3 versions -->
   <div id="resultsSection" class="hidden">
     <div class="card">
-      <h2>Comparison Summary</h2>
+      <h2>Comparison Summary — Free / Pro / GC External</h2>
       <table class="comparison-table" id="comparisonTable">
         <thead>
           <tr><th>Version</th><th>Low</th><th>High</th><th>Midpoint</th><th>Confidence</th><th>Time</th></tr>
@@ -205,20 +225,52 @@
     </div>
 
     <div class="results-grid" id="detailCards"></div>
+
+    <!-- GC Internal separate panel -->
+    <div class="gc-int-panel" id="gcIntPanel">
+      <div class="gc-int-panel-header">
+        <div>
+          <h3>GC Internal — Estimator</h3>
+          <div class="gc-int-note">Structured inputs (SF, construction type, stories). Not included in spread analysis.</div>
+        </div>
+        <span id="gcIntTime" style="font-size:12px; color:var(--pink);"></span>
+      </div>
+      <div class="gc-int-panel-body" id="gcIntBody"></div>
+    </div>
   </div>
 
-  <!-- History -->
+  <!-- Run History (from Supabase) -->
   <div class="card">
     <h2>Run History</h2>
-    <div id="history"><p style="font-size:13px; color:var(--muted);">No runs yet.</p></div>
+    <div id="history"><p style="font-size:13px; color:var(--muted);">Loading...</p></div>
   </div>
 
 </div>
 
 <script>
 const API_URL = '/api/claude.js';
+const QA_LOG_URL = '/api/qa-log';
 const TODAY = new Date().toISOString().split('T')[0];
 const TODAY_ISO = TODAY;
+let currentMode = 'preset';
+let activePreset = null;
+
+// ── Mode Toggle ──
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('modePreset').classList.toggle('active', mode === 'preset');
+  document.getElementById('modeManual').classList.toggle('active', mode === 'manual');
+  document.getElementById('presetArea').classList.toggle('hidden', mode === 'manual');
+  if (mode === 'manual') {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    activePreset = null;
+    document.getElementById('municipality').value = '';
+    document.getElementById('state').value = '';
+    document.getElementById('zip').value = '';
+    document.getElementById('description').value = '';
+    document.getElementById('sqft').value = '';
+  }
+}
 
 // ── Presets ──
 const PRESETS = [
@@ -242,6 +294,7 @@ PRESETS.forEach((p, i) => {
 
 function loadPreset(i) {
   const p = PRESETS[i];
+  activePreset = p.name;
   document.querySelectorAll('.preset-btn').forEach((b, j) => b.classList.toggle('active', j === i));
   document.getElementById('municipality').value = p.municipality;
   document.getElementById('state').value = p.state;
@@ -257,7 +310,7 @@ function loadPreset(i) {
   document.getElementById('stories').value = p.stories || 'Unknown';
 }
 
-// ── Prompt Builders ──
+// ── Prompt Builders (unchanged) ──
 function getInputs() {
   return {
     municipality: document.getElementById('municipality').value,
@@ -276,123 +329,16 @@ function getInputs() {
 }
 
 function buildFreePrompt(d) {
-  return `You are a municipal construction cost advisor helping local government officials in the Midwest assess project feasibility before engaging architects or contractors.
-
-LOCATION: ${d.municipality}${d.state ? ', ' + d.state : ''} (ZIP: ${d.zip})
-PROJECT TYPE: ${d.projectType}
-BUILD TYPE: ${d.buildType}
-DESCRIPTION: ${d.description}
-SITE TOPOGRAPHY: ${d.topography || 'Not specified'}
-UTILITIES ON SITE: ${d.utilities}
-
-Provide an honest preliminary cost range based on regional construction costs for ${d.state}. Factor in all site conditions provided.
-
-Respond ONLY with valid JSON, no markdown, no preamble:
-{
-  "low": <integer dollar amount>,
-  "high": <integer dollar amount>,
-  "confidence": "<High|Moderate|Low>",
-  "confidence_reason": "<one sentence>",
-  "narrative": "<2-3 sentences for a non-technical town manager — is this feasible, what drives the cost, any watch-outs?>",
-  "assumptions": [
-    "<specific assumption 1>",
-    "<specific assumption 2>",
-    "<specific assumption 3>",
-    "<specific assumption 4>",
-    "<site or utility assumption>"
-  ],
-  "project_label": "<3-6 word label, e.g. 'DPW 3-Bay Equipment Garage' or '6-Court Pickleball Complex'>"
-}
-
-Rules:
-- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%)
-- Exclude land acquisition
-- If no utilities on site, add realistic extension costs to range
-- If demo required, include demo costs
-- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges
-- ${d.state} regional labor market costs should be reflected
-- Do NOT reference RSMeans, Gordian, or any proprietary database by name
-- Write for a town manager, not a contractor`;
+  return `You are a municipal construction cost advisor helping local government officials in the Midwest assess project feasibility before engaging architects or contractors.\n\nLOCATION: ${d.municipality}${d.state ? ', ' + d.state : ''} (ZIP: ${d.zip})\nPROJECT TYPE: ${d.projectType}\nBUILD TYPE: ${d.buildType}\nDESCRIPTION: ${d.description}\nSITE TOPOGRAPHY: ${d.topography || 'Not specified'}\nUTILITIES ON SITE: ${d.utilities}\n\nProvide an honest preliminary cost range based on regional construction costs for ${d.state}. Factor in all site conditions provided.\n\nRespond ONLY with valid JSON, no markdown, no preamble:\n{\n  "low": <integer dollar amount>,\n  "high": <integer dollar amount>,\n  "confidence": "<High|Moderate|Low>",\n  "confidence_reason": "<one sentence>",\n  "narrative": "<2-3 sentences for a non-technical town manager — is this feasible, what drives the cost, any watch-outs?>",\n  "assumptions": [\n    "<specific assumption 1>",\n    "<specific assumption 2>",\n    "<specific assumption 3>",\n    "<specific assumption 4>",\n    "<site or utility assumption>"\n  ],\n  "project_label": "<3-6 word label, e.g. 'DPW 3-Bay Equipment Garage' or '6-Court Pickleball Complex'>"\n}\n\nRules:\n- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%)\n- Exclude land acquisition\n- If no utilities on site, add realistic extension costs to range\n- If demo required, include demo costs\n- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges\n- ${d.state} regional labor market costs should be reflected\n- Do NOT reference RSMeans, Gordian, or any proprietary database by name\n- Write for a town manager, not a contractor`;
 }
 
 function buildProPrompt(d) {
-  return `You are a municipal construction cost advisor helping local government officials assess project feasibility before engaging architects or contractors.
-
-LOCATION: ${d.municipality}${d.state ? ", " + d.state : ""} (ZIP: ${d.zip})
-PROJECT TYPE: ${d.projectType}
-BUILD TYPE: ${d.buildType}
-DESCRIPTION: ${d.description}
-SITE TOPOGRAPHY: ${d.topography || 'Not specified'}
-UTILITIES ON SITE: ${d.utilities}
-
-Respond ONLY with valid JSON, no markdown, no preamble:
-{
-  "low": <integer>,
-  "high": <integer>,
-  "confidence": "<High|Moderate|Low>",
-  "confidence_reason": "<one sentence>",
-  "narrative": "<2-3 sentences for a non-technical town manager>",
-  "assumptions": ["<assumption 1>","<assumption 2>","<assumption 3>","<assumption 4>","<site/utility assumption>"],
-  "project_label": "<3-6 word label>",
-  "methodology": {
-    "basis": "<one sentence — what cost basis was used, in plain terms. Do NOT reference RSMeans, Gordian, or any proprietary database by name>",
-    "sf_range": "<estimated SF range or 'N/A'>",
-    "cost_per_sf": "<estimated cost per SF range or 'N/A'>",
-    "key_drivers": ["<driver 1>","<driver 2>","<driver 3>"],
-    "exclusions": ["<exclusion 1>","<exclusion 2>"]
-  }
-}
-
-Rules:
-- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%)
-- Exclude land acquisition
-- If no utilities on site, add realistic extension costs to range
-- If demo required, include demo costs
-- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges
-- ${d.state} regional labor market costs should be reflected
-- Do NOT reference RSMeans, Gordian, or any proprietary database by name`;
+  return `You are a municipal construction cost advisor helping local government officials assess project feasibility before engaging architects or contractors.\n\nLOCATION: ${d.municipality}${d.state ? ", " + d.state : ""} (ZIP: ${d.zip})\nPROJECT TYPE: ${d.projectType}\nBUILD TYPE: ${d.buildType}\nDESCRIPTION: ${d.description}\nSITE TOPOGRAPHY: ${d.topography || 'Not specified'}\nUTILITIES ON SITE: ${d.utilities}\n\nRespond ONLY with valid JSON, no markdown, no preamble:\n{\n  "low": <integer>,\n  "high": <integer>,\n  "confidence": "<High|Moderate|Low>",\n  "confidence_reason": "<one sentence>",\n  "narrative": "<2-3 sentences for a non-technical town manager>",\n  "assumptions": ["<assumption 1>","<assumption 2>","<assumption 3>","<assumption 4>","<site/utility assumption>"],\n  "project_label": "<3-6 word label>",\n  "methodology": {\n    "basis": "<one sentence — what cost basis was used, in plain terms. Do NOT reference RSMeans, Gordian, or any proprietary database by name>",\n    "sf_range": "<estimated SF range or 'N/A'>",\n    "cost_per_sf": "<estimated cost per SF range or 'N/A'>",\n    "key_drivers": ["<driver 1>","<driver 2>","<driver 3>"],\n    "exclusions": ["<exclusion 1>","<exclusion 2>"]\n  }\n}\n\nRules:\n- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%)\n- Exclude land acquisition\n- If no utilities on site, add realistic extension costs to range\n- If demo required, include demo costs\n- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges\n- ${d.state} regional labor market costs should be reflected\n- Do NOT reference RSMeans, Gordian, or any proprietary database by name`;
 }
 
 function buildGCExtPrompt(d) {
   const region = 'Midwest (Indiana / Michigan)';
-  return `You are a senior construction cost estimator helping a general contractor give a prospective client a warm, honest cost picture before any formal process begins. Your tone is confident and human — like a trusted advisor, not a spreadsheet.
-
-TODAY'S DATE: ${TODAY} — all timeline projections must reference dates AFTER ${TODAY_ISO}. Never project timelines into the past.
-
-PROJECT:
-- Client: ${d.municipality}
-- Type: ${d.projectType}
-- Location: ${d.municipality}, ${d.state}
-- Region: ${region}
-- Description: ${d.description}
-
-Respond in this exact format:
-
-COST_LOW: [dollar amount, no decimals]
-COST_HIGH: [dollar amount, no decimals]
-COST_MIDPOINT: [dollar amount, no decimals]
-CONFIDENCE: [High / Medium / Low]
-NARRATIVE: [2-3 sentences. Warm, direct. Help the client understand what's driving their number and what would push it up or down. Acknowledge the significance of what they're undertaking — this is a major investment. No jargon.]
-ASSUMPTIONS:
-- [assumption]
-- [assumption]
-- [assumption]
-- [assumption]
-- [assumption]
-PROCESS_STEPS:
-- TITLE: [short step name] | DESC: [1-2 sentence description of what happens] | TIMELINE: [realistic timeframe, e.g. "Weeks 1–2" or "Month 1" — all dates must be after ${TODAY_ISO}]
-- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
-- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
-- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
-- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
-
-Rules:
-- Current ${region} pricing. Design-Bid-Build. Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%). Exclude land acquisition.
-- If no utilities on site, add realistic extension costs to range. If demo required, include demo costs.
-- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges.
-- No proprietary database names (RSMeans, Gordian, etc.).
-- Process steps should reflect a realistic pre-construction and construction path for this project type and size.
-- All timeline references must be relative (e.g., "Weeks 1–3", "Months 2–4") OR use specific future months/years after ${TODAY_ISO}. Never use past dates.`;
+  return `You are a senior construction cost estimator helping a general contractor give a prospective client a warm, honest cost picture before any formal process begins. Your tone is confident and human — like a trusted advisor, not a spreadsheet.\n\nTODAY'S DATE: ${TODAY} — all timeline projections must reference dates AFTER ${TODAY_ISO}. Never project timelines into the past.\n\nPROJECT:\n- Client: ${d.municipality}\n- Type: ${d.projectType}\n- Location: ${d.municipality}, ${d.state}\n- Region: ${region}\n- Description: ${d.description}\n\nRespond in this exact format:\n\nCOST_LOW: [dollar amount, no decimals]\nCOST_HIGH: [dollar amount, no decimals]\nCOST_MIDPOINT: [dollar amount, no decimals]\nCONFIDENCE: [High / Medium / Low]\nNARRATIVE: [2-3 sentences. Warm, direct. Help the client understand what's driving their number and what would push it up or down. Acknowledge the significance of what they're undertaking — this is a major investment. No jargon.]\nASSUMPTIONS:\n- [assumption]\n- [assumption]\n- [assumption]\n- [assumption]\n- [assumption]\nPROCESS_STEPS:\n- TITLE: [short step name] | DESC: [1-2 sentence description of what happens] | TIMELINE: [realistic timeframe, e.g. "Weeks 1–2" or "Month 1" — all dates must be after ${TODAY_ISO}]\n- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]\n- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]\n- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]\n- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]\n\nRules:\n- Current ${region} pricing. Design-Bid-Build. Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%). Exclude land acquisition.\n- If no utilities on site, add realistic extension costs to range. If demo required, include demo costs.\n- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges.\n- No proprietary database names (RSMeans, Gordian, etc.).\n- Process steps should reflect a realistic pre-construction and construction path for this project type and size.\n- All timeline references must be relative (e.g., "Weeks 1–3", "Months 2–4") OR use specific future months/years after ${TODAY_ISO}. Never use past dates.`;
 }
 
 function buildGCIntPrompt(d) {
@@ -405,49 +351,12 @@ function buildGCIntPrompt(d) {
     d.utilities !== 'Unknown' ? `- Utilities to Site: ${d.utilities}` : null,
     d.description ? `- Notes: ${d.description}` : null
   ].filter(Boolean).join('\n');
-
   const unknowns = [
     d.stories === 'Unknown' ? 'Stories' : null,
     d.siteCondition === 'Unknown' ? 'Site Condition' : null,
     d.utilities === 'Unknown' ? 'Utilities to Site' : null
   ].filter(Boolean);
-
-  return `You are a senior construction cost estimator working directly with a GC's estimating team. Estimator-to-estimator tone — precise, direct, no hand-holding.
-
-PROJECT:
-- Client: ${d.municipality}
-- Type: ${d.projectType}
-- Location: ${d.municipality}, ${d.state}
-- Region: ${region}
-
-KNOWN PARAMETERS:
-${knownParams}
-${unknowns.length > 0 ? `\nUNKNOWN / TBD:\n${unknowns.map(u => `- ${u}`).join('\n')}` : '\nAll key parameters provided.'}
-
-Respond in this exact format:
-
-COST_LOW: [dollar amount, no decimals]
-COST_HIGH: [dollar amount, no decimals]
-COST_MIDPOINT: [dollar amount, no decimals]
-CONFIDENCE: [High / Medium / Low]
-NARRATIVE: [2-3 sentences. Estimator tone. What's driving the range, key risk factors, what the team should know. Direct.]
-ASSUMPTIONS:
-- [assumption]
-- [assumption]
-- [assumption]
-- [assumption]
-- [assumption]
-GAP_QUESTIONS:
-- [Specific question the estimating team needs answered to tighten this number]? (±$[impact])
-- [question]? (±$[impact])
-- [question]? (±$[impact])
-[3–6 questions, ordered by dollar impact. Only genuine unknowns. If all parameters known, write: GAP_QUESTIONS: none]
-
-Rules:
-- Current ${region} pricing. Design-Bid-Build. Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%). Exclude land acquisition.
-- If no utilities on site, add realistic extension costs to range. If demo required, include demo costs.
-- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges.
-- No proprietary database names (RSMeans, Gordian, etc.).`;
+  return `You are a senior construction cost estimator working directly with a GC's estimating team. Estimator-to-estimator tone — precise, direct, no hand-holding.\n\nPROJECT:\n- Client: ${d.municipality}\n- Type: ${d.projectType}\n- Location: ${d.municipality}, ${d.state}\n- Region: ${region}\n\nKNOWN PARAMETERS:\n${knownParams}\n${unknowns.length > 0 ? `\nUNKNOWN / TBD:\n${unknowns.map(u => '- ' + u).join('\n')}` : '\nAll key parameters provided.'}\n\nRespond in this exact format:\n\nCOST_LOW: [dollar amount, no decimals]\nCOST_HIGH: [dollar amount, no decimals]\nCOST_MIDPOINT: [dollar amount, no decimals]\nCONFIDENCE: [High / Medium / Low]\nNARRATIVE: [2-3 sentences. Estimator tone. What's driving the range, key risk factors, what the team should know. Direct.]\nASSUMPTIONS:\n- [assumption]\n- [assumption]\n- [assumption]\n- [assumption]\n- [assumption]\nGAP_QUESTIONS:\n- [Specific question the estimating team needs answered to tighten this number]? (±$[impact])\n- [question]? (±$[impact])\n- [question]? (±$[impact])\n[3–6 questions, ordered by dollar impact. Only genuine unknowns. If all parameters known, write: GAP_QUESTIONS: none]\n\nRules:\n- Current ${region} pricing. Design-Bid-Build. Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%). Exclude land acquisition.\n- If no utilities on site, add realistic extension costs to range. If demo required, include demo costs.\n- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges.\n- No proprietary database names (RSMeans, Gordian, etc.).`;
 }
 
 // ── API Call ──
@@ -458,6 +367,7 @@ async function callClaude(prompt, maxTokens = 1200) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: maxTokens,
+      temperature: 0.3,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -483,19 +393,34 @@ function parsePlainText(raw) {
   const costStr = s => parseInt(s.replace(/[$,]/g, '')) || 0;
   const aMatch = raw.match(/ASSUMPTIONS:\s*([\s\S]*?)(?:\n(?:PROCESS_STEPS|GAP_QUESTIONS)|$)/);
   const assumptions = aMatch ? aMatch[1].split('\n').map(l => l.replace(/^[-•]\s*/, '').trim()).filter(Boolean) : [];
-  return {
-    low: costStr(get('COST_LOW')),
-    high: costStr(get('COST_HIGH')),
-    midpoint: costStr(get('COST_MIDPOINT')),
-    confidence: get('CONFIDENCE'),
-    narrative: get('NARRATIVE'),
-    assumptions
-  };
+  return { low: costStr(get('COST_LOW')), high: costStr(get('COST_HIGH')), midpoint: costStr(get('COST_MIDPOINT')), confidence: get('CONFIDENCE'), narrative: get('NARRATIVE'), assumptions };
+}
+
+// ── Supabase QA Log ──
+async function logRun(payload) {
+  try {
+    await fetch(QA_LOG_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'log_run', data: payload })
+    });
+  } catch (e) { console.warn('QA log failed:', e); }
+}
+
+async function loadHistory() {
+  try {
+    const res = await fetch(QA_LOG_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get_history', limit: 30 })
+    });
+    const rows = await res.json();
+    if (Array.isArray(rows) && rows.length) { renderHistory(rows); }
+    else { document.getElementById('history').innerHTML = '<p style="font-size:13px; color:var(--muted);">No runs yet.</p>'; }
+  } catch { document.getElementById('history').innerHTML = '<p style="font-size:13px; color:var(--muted);">Could not load history. Create qa_runs table in Supabase.</p>'; }
 }
 
 // ── Run Logic ──
-let runHistory = [];
-
 async function runAll() {
   const d = getInputs();
   if (!d.municipality || !d.description) { alert('Municipality and Description are required.'); return; }
@@ -505,12 +430,12 @@ async function runAll() {
   document.getElementById('progressArea').classList.remove('hidden');
   document.getElementById('resultsSection').classList.add('hidden');
 
-  const versions = [
+  const mainVersions = [
     { key: 'free', label: 'Free', cls: 'free', builder: buildFreePrompt, parser: 'json', tokens: 1000 },
     { key: 'pro', label: 'Pro', cls: 'pro', builder: buildProPrompt, parser: 'json', tokens: 1200 },
-    { key: 'gc-ext', label: 'GC External', cls: 'gc-ext', builder: buildGCExtPrompt, parser: 'text', tokens: 1200 },
-    { key: 'gc-int', label: 'GC Internal', cls: 'gc-int', builder: buildGCIntPrompt, parser: 'text', tokens: 1200 }
+    { key: 'gc-ext', label: 'GC External', cls: 'gc-ext', builder: buildGCExtPrompt, parser: 'text', tokens: 1200 }
   ];
+  const gcInt = { key: 'gc-int', label: 'GC Internal', cls: 'gc-int', builder: buildGCIntPrompt, parser: 'text', tokens: 1200 };
 
   const results = {};
   const startTime = Date.now();
@@ -523,23 +448,21 @@ async function runAll() {
   }
 
   // Run all 4 in parallel
-  const promises = versions.map(async (v) => {
+  const allVersions = [...mainVersions, gcInt];
+  const promises = allVersions.map(async (v) => {
     updateProgress(`Running ${v.label}...`);
     const t0 = Date.now();
     try {
       const raw = await callClaude(v.builder(d), v.tokens);
       const parsed = v.parser === 'json' ? parseJSON(raw) : parsePlainText(raw);
       const duration = Date.now() - t0;
-
-      // Normalize
-      const low = parsed.low || parsed.cost_low || 0;
-      const high = parsed.high || parsed.cost_high || 0;
-      const mid = parsed.midpoint || parsed.cost_midpoint || Math.round((low + high) / 2);
+      const low = parsed.low || 0;
+      const high = parsed.high || 0;
+      const mid = parsed.midpoint || Math.round((low + high) / 2);
       const conf = (parsed.confidence || '').replace(/\s/g, '');
-
-      results[v.key] = { low, high, mid, confidence: conf, narrative: parsed.narrative || '', assumptions: parsed.assumptions || [], duration, error: null, raw };
+      results[v.key] = { low, high, mid, confidence: conf, narrative: parsed.narrative || '', assumptions: parsed.assumptions || [], duration, error: null };
     } catch (err) {
-      results[v.key] = { low: 0, high: 0, mid: 0, confidence: 'Error', narrative: err.message, assumptions: [], duration: Date.now() - t0, error: err.message, raw: '' };
+      results[v.key] = { low: 0, high: 0, mid: 0, confidence: 'Error', narrative: err.message, assumptions: [], duration: Date.now() - t0, error: err.message };
     }
     completed++;
     updateProgress(`Completed ${v.label} (${completed}/4)`);
@@ -551,11 +474,32 @@ async function runAll() {
   updateProgress(`All 4 complete in ${(totalTime / 1000).toFixed(1)}s`);
   document.getElementById('progressFill').style.width = '100%';
 
-  renderResults(versions, results, d, totalTime);
+  renderResults(mainVersions, results, d, totalTime);
 
-  // Save to history
-  runHistory.unshift({ timestamp: new Date().toISOString(), scenario: d.municipality + ' — ' + d.projectType, results, totalTime });
-  renderHistory();
+  // Log to Supabase
+  const mainMids = mainVersions.map(v => results[v.key].mid).filter(m => m > 0);
+  const avg3 = mainMids.length ? Math.round(mainMids.reduce((a, b) => a + b, 0) / mainMids.length) : 0;
+  const spread3 = mainMids.length >= 2 ? Math.max(...mainMids) - Math.min(...mainMids) : 0;
+  const spreadPct = avg3 ? parseFloat(((spread3 / avg3) * 100).toFixed(1)) : 0;
+
+  const logPayload = {
+    preset: activePreset || 'Manual',
+    municipality: d.municipality,
+    state: d.state,
+    project_type: d.projectType,
+    build_type: d.buildType,
+    free_low: results.free?.low || 0, free_high: results.free?.high || 0, free_mid: results.free?.mid || 0,
+    pro_low: results.pro?.low || 0, pro_high: results.pro?.high || 0, pro_mid: results.pro?.mid || 0,
+    gc_ext_low: results['gc-ext']?.low || 0, gc_ext_high: results['gc-ext']?.high || 0, gc_ext_mid: results['gc-ext']?.mid || 0,
+    gc_int_low: results['gc-int']?.low || 0, gc_int_high: results['gc-int']?.high || 0, gc_int_mid: results['gc-int']?.mid || 0,
+    avg_mid_3: avg3,
+    spread_pct: spreadPct,
+    total_time_ms: totalTime
+  };
+  logRun(logPayload);
+
+  // Reload history
+  setTimeout(loadHistory, 1000);
 
   btn.disabled = false;
 }
@@ -563,14 +507,14 @@ async function runAll() {
 // ── Render ──
 function fmt(n) { return n ? '$' + n.toLocaleString() : '—'; }
 
-function renderResults(versions, results, inputs, totalTime) {
+function renderResults(mainVersions, results, inputs, totalTime) {
   document.getElementById('resultsSection').classList.remove('hidden');
 
-  // Comparison table
+  // Main comparison table (Free/Pro/GC External only)
   const tbody = document.getElementById('comparisonBody');
   tbody.innerHTML = '';
   const mids = [];
-  versions.forEach(v => {
+  mainVersions.forEach(v => {
     const r = results[v.key];
     if (r.mid > 0) mids.push(r.mid);
     const tr = document.createElement('tr');
@@ -578,7 +522,7 @@ function renderResults(versions, results, inputs, totalTime) {
     tbody.appendChild(tr);
   });
 
-  // Spread analysis
+  // Spread analysis (3 versions only)
   const foot = document.getElementById('comparisonFoot');
   foot.innerHTML = '';
   if (mids.length >= 2) {
@@ -589,28 +533,21 @@ function renderResults(versions, results, inputs, totalTime) {
     const flagLabel = pct > 30 ? 'CRITICAL' : pct > 20 ? 'WARNING' : 'OK';
     foot.innerHTML = `<tr style="font-weight:600; background:#f8f9fc;"><td>Spread</td><td colspan="2"></td><td class="${flagClass}">${fmt(spread)} (${pct}%)</td><td class="${flagClass}">${flagLabel}</td><td>${(totalTime / 1000).toFixed(1)}s total</td></tr>`;
 
-    const analysisEl = document.getElementById('analysisContent');
-    analysisEl.innerHTML = `
-      <p style="font-size:14px; margin-bottom:8px;"><strong>Midpoint spread:</strong> <span class="${flagClass}">${fmt(spread)} — ${pct}% variance (${flagLabel})</span></p>
-      <p style="font-size:13px; color:var(--muted);">
-        Range: ${fmt(Math.min(...mids))} to ${fmt(Math.max(...mids))}. Average midpoint: ${fmt(Math.round(avg))}.
-        ${pct > 20 ? ' Variance exceeds 20% threshold — investigate prompt differences or input handling.' : ' Within acceptable tolerance.'}
-      </p>
+    document.getElementById('analysisContent').innerHTML = `
+      <p style="font-size:14px; margin-bottom:8px;"><strong>Midpoint spread (Free/Pro/GC Ext):</strong> <span class="${flagClass}">${fmt(spread)} — ${pct}% variance (${flagLabel})</span></p>
+      <p style="font-size:13px; color:var(--muted);">Range: ${fmt(Math.min(...mids))} to ${fmt(Math.max(...mids))}. Average midpoint: ${fmt(Math.round(avg))}.${pct > 20 ? ' Variance exceeds 20% threshold — investigate prompt differences.' : ' Within acceptable tolerance.'}</p>
     `;
   }
 
-  // Detail cards
+  // Detail cards for main 3
   const cards = document.getElementById('detailCards');
   cards.innerHTML = '';
-  versions.forEach(v => {
+  mainVersions.forEach(v => {
     const r = results[v.key];
     const card = document.createElement('div');
     card.className = 'result-card';
     card.innerHTML = `
-      <div class="result-header ${v.cls}">
-        <span>${v.label}</span>
-        <span style="font-size:12px;">${(r.duration / 1000).toFixed(1)}s</span>
-      </div>
+      <div class="result-header ${v.cls}"><span>${v.label}</span><span style="font-size:12px;">${(r.duration / 1000).toFixed(1)}s</span></div>
       <div class="result-body">
         <div class="cost-row">
           <div class="cost-item"><div class="label">Low</div><div class="value">${fmt(r.low)}</div></div>
@@ -624,20 +561,46 @@ function renderResults(versions, results, inputs, totalTime) {
       </div>`;
     cards.appendChild(card);
   });
+
+  // GC Internal separate panel
+  const gi = results['gc-int'];
+  document.getElementById('gcIntTime').textContent = `${(gi.duration / 1000).toFixed(1)}s`;
+  document.getElementById('gcIntBody').innerHTML = `
+    <div class="cost-row">
+      <div class="cost-item"><div class="label">Low</div><div class="value">${fmt(gi.low)}</div></div>
+      <div class="cost-item"><div class="label">High</div><div class="value">${fmt(gi.high)}</div></div>
+      <div class="cost-item"><div class="label">Midpoint</div><div class="value" style="color:var(--pink);">${fmt(gi.mid)}</div></div>
+      <div class="cost-item"><div class="label">Confidence</div><div class="value"><span class="confidence-badge confidence-${gi.confidence}">${gi.confidence}</span></div></div>
+    </div>
+    <div class="narrative">${gi.narrative}</div>
+    ${gi.assumptions.length ? `<ul class="assumptions">${gi.assumptions.map(a => `<li>${a}</li>`).join('')}</ul>` : ''}
+    ${gi.error ? `<p style="color:var(--red); font-size:13px; margin-top:8px;">Error: ${gi.error}</p>` : ''}
+  `;
 }
 
-function renderHistory() {
+function renderHistory(rows) {
   const el = document.getElementById('history');
-  if (!runHistory.length) { el.innerHTML = '<p style="font-size:13px; color:var(--muted);">No runs yet.</p>'; return; }
-  el.innerHTML = runHistory.slice(0, 10).map((h, i) => {
-    const mids = Object.values(h.results).filter(r => r.mid > 0).map(r => r.mid);
-    const spread = mids.length >= 2 ? Math.max(...mids) - Math.min(...mids) : 0;
-    const avg = mids.length ? mids.reduce((a, b) => a + b, 0) / mids.length : 0;
-    const pct = avg ? ((spread / avg) * 100).toFixed(1) : '0.0';
-    const flagClass = pct > 30 ? 'flag-critical' : pct > 20 ? 'flag-warn' : 'flag-ok';
-    const time = new Date(h.timestamp).toLocaleTimeString();
-    return `<div class="history-row"><span>${time} — ${h.scenario}</span><span class="${flagClass}">${pct}% spread</span><span>${(h.totalTime / 1000).toFixed(1)}s</span></div>`;
-  }).join('');
+  if (!rows || !rows.length) { el.innerHTML = '<p style="font-size:13px; color:var(--muted);">No runs yet.</p>'; return; }
+  let html = `<table class="history-table"><thead><tr><th>Date</th><th>Scenario</th><th>Free Mid</th><th>Pro Mid</th><th>GC Ext Mid</th><th>Avg (3)</th><th>Spread</th><th>GC Int Mid</th><th>Time</th></tr></thead><tbody>`;
+  rows.forEach(r => {
+    const dt = new Date(r.created_at);
+    const date = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const time = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const flagClass = r.spread_pct > 30 ? 'flag-critical' : r.spread_pct > 20 ? 'flag-warn' : 'flag-ok';
+    html += `<tr>
+      <td>${date} ${time}</td>
+      <td>${r.preset || 'Manual'} — ${r.municipality || ''}</td>
+      <td>${fmt(r.free_mid)}</td>
+      <td>${fmt(r.pro_mid)}</td>
+      <td>${fmt(r.gc_ext_mid)}</td>
+      <td><strong>${fmt(r.avg_mid_3)}</strong></td>
+      <td class="${flagClass}">${r.spread_pct}%</td>
+      <td style="color:var(--pink);">${fmt(r.gc_int_mid)}</td>
+      <td>${(r.total_time_ms / 1000).toFixed(1)}s</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
 }
 
 function clearResults() {
@@ -645,6 +608,9 @@ function clearResults() {
   document.getElementById('progressArea').classList.add('hidden');
   document.getElementById('timer').textContent = '';
 }
+
+// Load history on page load
+loadHistory();
 </script>
 </body>
 </html>

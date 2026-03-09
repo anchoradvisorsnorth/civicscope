@@ -593,7 +593,7 @@
 <footer>
   <span id="tenantNameFooter"></span> — Internal use only. Not a formal bid or proposal.
   &nbsp;|&nbsp; <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a>
-  &nbsp;|&nbsp; v1.0.0-gc-int
+  &nbsp;|&nbsp; v1.1.0-gc-int
 </footer>
 
 <script>
@@ -698,7 +698,7 @@
       const prompt = buildPrompt({ ...inp, location, confirmedAnswers });
       const res = await fetch('/api/claude', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1200, temperature: 0.3, messages: [{ role: 'user', content: prompt }] })
       });
       if (!res.ok) throw new Error();
       const data = await res.json();

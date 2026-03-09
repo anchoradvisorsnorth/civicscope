@@ -33,9 +33,26 @@ All call same `api/claude.js` proxy → Anthropic claude-sonnet-4-20250514
 - **Repo**: anchoradvisorsnorth/civicscope (GitHub)
 - **DB**: Supabase (sessions, tool_runs, leads, tenants) — raw fetch, NOT @supabase/supabase-js
 - **Email**: Resend (info@civicscope.io)
-- **Deploy**: PUSH_CIVICSCOPE.bat → push_civicscope.ps1 → GitHub Trees API → Vercel
-- **Sandbox**: START_SANDBOX.bat → Python server at localhost:8888
+- **Deploy**: Cowork edits files → PUSH_CIVICSCOPE.bat → GitHub Trees API → Vercel (~60s)
+- **Sandbox**: START_SANDBOX.bat → Python server at localhost:8888 (legacy — pre-Cowork workflow, keep for risky changes)
 - **Model**: claude-sonnet-4-20250514
+
+## Dev Workflow (as of March 2026)
+Cowork mode replaced project chat + sandbox as the primary workflow.
+- **Cowork** reads/edits local files directly in the civicscope folder
+- **Keith** runs PUSH_CIVICSCOPE.bat to deploy
+- **QA tool** at /qa validates on production (no sandbox needed for routine changes)
+- **Sandbox** retained for edge cases — testing risky changes before they hit prod
+
+## Current Versions
+- Free: v1.5.0
+- Pro: v2.3.0
+- GC White-Label External: v1.3.0-gc
+- GC White-Label Internal: v1.1.0-gc-int
+- QA Tool: v1.0.0-qa
+- Admin: v1.0.0-admin
+
+Note: Versions are hardcoded in each HTML file footer AND in civicscope-admin/index.html product cards. Bump both on every release.
 
 ## Vercel Env Vars
 ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY, RESEND_API_KEY

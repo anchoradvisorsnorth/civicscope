@@ -692,7 +692,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
 
 <footer>
   <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
-  <span>For planning purposes only — not a licensed cost estimate · v2.2.0</span>
+  <span>For planning purposes only — not a licensed cost estimate · v2.3.0</span>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
@@ -790,7 +790,7 @@ async function callClaude(prompt, maxTokens = 1200) {
   const resp = await fetch('/api/claude', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, temperature: 0.3, messages: [{ role: 'user', content: prompt }] })
   });
   const data = await resp.json();
   const text = data.content.map(i => i.text || '').join('');

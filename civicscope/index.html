@@ -1069,7 +1069,7 @@ footer span {
   <div class="footer-left">
     <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
   </div>
-  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v1.4.0</span>
+  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v1.5.0</span>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
@@ -1204,6 +1204,7 @@ async function callClaude(prompt) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
+      temperature: 0.3,
       messages: [{ role: 'user', content: prompt }]
     })
   });
