@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CivicScope QA — Estimate Validation</title>
+<style>
+  :root { --navy: #1a2332; --accent: #e8513d; --green: #27ae60; --yellow: #f39c12; --red: #e74c3c; --bg: #f5f6fa; --card: #fff; --border: #e0e3eb; --text: #2c3e50; --muted: #7f8c8d; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+  .header { background: var(--navy); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  .header h1 { font-size: 18px; font-weight: 600; }
+  .header .badge { background: var(--accent); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+  .header .version { margin-left: auto; font-size: 12px; color: #8899aa; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--navy); }
+  .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px; font-family: inherit; }
+  textarea { resize: vertical; min-height: 60px; }
+  .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #d4432f; }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+  .btn-secondary { background: var(--navy); color: #fff; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+  /* Scenario presets */
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .preset-btn { padding: 6px 12px; border: 1px solid var(--border); border-radius: 20px; font-size: 12px; cursor: pointer; background: var(--card); transition: 0.2s; }
+  .preset-btn:hover, .preset-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+  /* Results */
+  .results-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+  .result-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .result-header { padding: 10px 16px; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+  .result-header.free { background: #eef5ff; color: #2563eb; }
+  .result-header.pro { background: #f0fdf4; color: #16a34a; }
+  .result-header.gc-ext { background: #fef3c7; color: #d97706; }
+  .result-header.gc-int { background: #fce7f3; color: #db2777; }
+  .result-body { padding: 16px; }
+  .cost-row { display: flex; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+  .cost-item { text-align: center; }
+  .cost-item .label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .cost-item .value { font-size: 20px; font-weight: 700; }
+  .confidence-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .confidence-High, .confidence-Moderate, .confidence-Medium { background: #d1fae5; color: #065f46; }
+  .confidence-Low { background: #fee2e2; color: #991b1b; }
+  .narrative { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+  .assumptions { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .assumptions li { margin-bottom: 2px; }
+
+  /* Comparison */
+  .comparison-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+  .comparison-table th, .comparison-table td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+  .comparison-table th { text-align: left; font-weight: 600; background: #f8f9fc; }
+  .comparison-table td:first-child { text-align: left; font-weight: 500; }
+  .flag-ok { color: var(--green); }
+  .flag-warn { color: var(--yellow); font-weight: 600; }
+  .flag-critical { color: var(--red); font-weight: 700; }
+
+  /* Progress */
+  .progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin: 12px 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+  .status-msg { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .run-timer { font-size: 12px; color: var(--muted); }
+
+  /* History */
+  .history-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .history-row:last-child { border-bottom: none; }
+
+  .hidden { display: none !important; }
+
+  /* GC Internal extra fields */
+  .gc-int-fields { background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 6px; padding: 12px; margin-top: 12px; }
+  .gc-int-fields h3 { font-size: 13px; font-weight: 600; color: #db2777; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>CivicScope QA</h1>
+  <span class="badge">INTERNAL</span>
+  <span class="version">v1.0.0-qa</span>
+</div>
+
+<div class="container">
+
+  <!-- Scenario Input -->
+  <div class="card">
+    <h2>Test Scenario</h2>
+    <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Select a preset or enter custom inputs. Runs all 4 version prompts against /api/claude.js and compares results.</p>
+
+    <label>Presets</label>
+    <div class="presets" id="presets"></div>
+
+    <div class="form-row">
+      <div><label>Municipality</label><input id="municipality" placeholder="Town of Granger"></div>
+      <div><label>State</label><input id="state" placeholder="Indiana"></div>
+      <div><label>ZIP</label><input id="zip" placeholder="46530"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Project Type</label>
+        <select id="projectType">
+          <option>Parks & Recreation</option>
+          <option>Public Safety</option>
+          <option>Public Works / Utilities</option>
+          <option>Municipal Buildings</option>
+          <option>Roads & Bridges</option>
+          <option>Water / Sewer</option>
+          <option>Community Facilities</option>
+          <option>Commercial</option>
+          <option>Industrial</option>
+        </select>
+      </div>
+      <div><label>Build Type</label>
+        <select id="buildType">
+          <option>New Construction</option>
+          <option>Renovation</option>
+          <option>Addition</option>
+          <option>Site Work Only</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div style="grid-column: 1 / -1;">
+        <label>Description</label>
+        <textarea id="description" placeholder="Medium-sized splash pad with 8-10 water features..."></textarea>
+      </div>
+    </div>
+    <div class="form-row">
+      <div><label>Topography</label>
+        <select id="topography">
+          <option>Flat</option>
+          <option>Slight Slope</option>
+          <option>Moderate Slope</option>
+          <option>Steep</option>
+          <option>Not specified</option>
+        </select>
+      </div>
+      <div><label>Utilities on Site</label>
+        <select id="utilities">
+          <option>All Available</option>
+          <option>Partial</option>
+          <option>None</option>
+          <option>Unknown</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- GC Internal additional fields -->
+    <div class="gc-int-fields">
+      <h3>GC Internal Parameters (used only for Estimator version)</h3>
+      <div class="form-row">
+        <div><label>Square Footage</label><input id="sqft" type="number" placeholder="3000"></div>
+        <div><label>Construction Type</label>
+          <select id="constructionType">
+            <option>Type V-B (Wood Frame)</option>
+            <option>Type III-B (Masonry/Wood)</option>
+            <option>Type II-B (Non-combustible)</option>
+            <option>Type I-A (Fire Resistive)</option>
+            <option>Pre-Engineered Metal</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div><label>Stories</label>
+          <select id="stories"><option>1</option><option>2</option><option>3+</option><option>Unknown</option></select>
+        </div>
+        <div><label>Site Condition</label>
+          <select id="siteCondition"><option>Greenfield</option><option>Developed / Infill</option><option>Brownfield</option><option>Unknown</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center;">
+      <button class="btn btn-primary" id="runBtn" onclick="runAll()">Run All 4 Versions</button>
+      <button class="btn btn-outline" onclick="clearResults()">Clear</button>
+      <span class="run-timer" id="timer"></span>
+    </div>
+
+    <div id="progressArea" class="hidden" style="margin-top: 12px;">
+      <div class="status-msg" id="statusMsg">Initializing...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsSection" class="hidden">
+    <div class="card">
+      <h2>Comparison Summary</h2>
+      <table class="comparison-table" id="comparisonTable">
+        <thead>
+          <tr><th>Version</th><th>Low</th><th>High</th><th>Midpoint</th><th>Confidence</th><th>Time</th></tr>
+        </thead>
+        <tbody id="comparisonBody"></tbody>
+        <tfoot id="comparisonFoot"></tfoot>
+      </table>
+    </div>
+
+    <div class="card" id="analysisCard">
+      <h2>Spread Analysis</h2>
+      <div id="analysisContent"></div>
+    </div>
+
+    <div class="results-grid" id="detailCards"></div>
+  </div>
+
+  <!-- History -->
+  <div class="card">
+    <h2>Run History</h2>
+    <div id="history"><p style="font-size:13px; color:var(--muted);">No runs yet.</p></div>
+  </div>
+
+</div>
+
+<script>
+const API_URL = '/api/claude.js';
+const TODAY = new Date().toISOString().split('T')[0];
+const TODAY_ISO = TODAY;
+
+// ── Presets ──
+const PRESETS = [
+  { name: 'Splash Pad', municipality: 'Town of Granger', state: 'Indiana', zip: '46530', projectType: 'Parks & Recreation', buildType: 'New Construction', description: 'Medium-sized splash pad with 8-10 water features, rubber safety surface, shade structure, and small changing area. Adjacent to existing park.', topography: 'Flat', utilities: 'All Available', sqft: '3000', constructionType: 'Type V-B (Wood Frame)', siteCondition: 'Developed / Infill', stories: '1' },
+  { name: 'Fire Station', municipality: 'City of Goshen', state: 'Indiana', zip: '46526', projectType: 'Public Safety', buildType: 'New Construction', description: '2-bay fire station with living quarters for 6, training room, decontamination area, and apparatus storage. Approximately 8,000 SF.', topography: 'Flat', utilities: 'All Available', sqft: '8000', constructionType: 'Type II-B (Non-combustible)', siteCondition: 'Greenfield', stories: '2' },
+  { name: 'DPW Garage', municipality: 'Town of Middlebury', state: 'Indiana', zip: '46540', projectType: 'Public Works / Utilities', buildType: 'New Construction', description: '3-bay DPW equipment garage with wash bay, parts storage, small office. Pre-engineered metal building approximately 5,000 SF.', topography: 'Flat', utilities: 'Partial', sqft: '5000', constructionType: 'Pre-Engineered Metal', siteCondition: 'Greenfield', stories: '1' },
+  { name: 'Town Hall Reno', municipality: 'Town of Bristol', state: 'Indiana', zip: '46507', projectType: 'Municipal Buildings', buildType: 'Renovation', description: 'Complete interior renovation of 1960s-era town hall. New HVAC, electrical, ADA compliance, council chambers refresh. Approximately 4,500 SF.', topography: 'Flat', utilities: 'All Available', sqft: '4500', constructionType: 'Type III-B (Masonry/Wood)', siteCondition: 'Developed / Infill', stories: '2' },
+  { name: 'Community Center', municipality: 'City of Niles', state: 'Michigan', zip: '49120', projectType: 'Community Facilities', buildType: 'New Construction', description: 'Multi-use community center with gymnasium, meeting rooms, commercial kitchen, and lobby. Approximately 15,000 SF.', topography: 'Slight Slope', utilities: 'All Available', sqft: '15000', constructionType: 'Type II-B (Non-combustible)', siteCondition: 'Greenfield', stories: '1' },
+  { name: 'Small Park Building', municipality: 'Osceola Town', state: 'Indiana', zip: '46561', projectType: 'Parks & Recreation', buildType: 'New Construction', description: 'Small park restroom and shelter building. Block construction, 2 ADA-compliant restrooms, covered picnic area. About 800 SF.', topography: 'Flat', utilities: 'Partial', sqft: '800', constructionType: 'Type III-B (Masonry/Wood)', siteCondition: 'Greenfield', stories: '1' },
+  { name: 'Water Tower', municipality: 'Town of Wakarusa', state: 'Indiana', zip: '46573', projectType: 'Water / Sewer', buildType: 'New Construction', description: '500,000-gallon elevated water storage tank with concrete foundation, telemetry, and site piping connections.', topography: 'Flat', utilities: 'Partial', sqft: '0', constructionType: 'Type I-A (Fire Resistive)', siteCondition: 'Greenfield', stories: '1' }
+];
+
+const presetsEl = document.getElementById('presets');
+PRESETS.forEach((p, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'preset-btn';
+  btn.textContent = p.name;
+  btn.onclick = () => loadPreset(i);
+  presetsEl.appendChild(btn);
+});
+
+function loadPreset(i) {
+  const p = PRESETS[i];
+  document.querySelectorAll('.preset-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  document.getElementById('municipality').value = p.municipality;
+  document.getElementById('state').value = p.state;
+  document.getElementById('zip').value = p.zip;
+  document.getElementById('projectType').value = p.projectType;
+  document.getElementById('buildType').value = p.buildType;
+  document.getElementById('description').value = p.description;
+  document.getElementById('topography').value = p.topography;
+  document.getElementById('utilities').value = p.utilities;
+  document.getElementById('sqft').value = p.sqft || '';
+  document.getElementById('constructionType').value = p.constructionType || 'Type V-B (Wood Frame)';
+  document.getElementById('siteCondition').value = p.siteCondition || 'Unknown';
+  document.getElementById('stories').value = p.stories || 'Unknown';
+}
+
+// ── Prompt Builders ──
+function getInputs() {
+  return {
+    municipality: document.getElementById('municipality').value,
+    state: document.getElementById('state').value,
+    zip: document.getElementById('zip').value,
+    projectType: document.getElementById('projectType').value,
+    buildType: document.getElementById('buildType').value,
+    description: document.getElementById('description').value,
+    topography: document.getElementById('topography').value,
+    utilities: document.getElementById('utilities').value,
+    sqft: document.getElementById('sqft').value || '0',
+    constructionType: document.getElementById('constructionType').value,
+    siteCondition: document.getElementById('siteCondition').value,
+    stories: document.getElementById('stories').value
+  };
+}
+
+function buildFreePrompt(d) {
+  return `You are a municipal construction cost advisor helping local government officials in the Midwest assess project feasibility before engaging architects or contractors.
+
+LOCATION: ${d.municipality}${d.state ? ', ' + d.state : ''} (ZIP: ${d.zip})
+PROJECT TYPE: ${d.projectType}
+BUILD TYPE: ${d.buildType}
+DESCRIPTION: ${d.description}
+SITE TOPOGRAPHY: ${d.topography || 'Not specified'}
+UTILITIES ON SITE: ${d.utilities}
+
+Provide an honest preliminary cost range based on regional construction costs for ${d.state}. Factor in all site conditions provided.
+
+Respond ONLY with valid JSON, no markdown, no preamble:
+{
+  "low": <integer dollar amount>,
+  "high": <integer dollar amount>,
+  "confidence": "<High|Moderate|Low>",
+  "confidence_reason": "<one sentence>",
+  "narrative": "<2-3 sentences for a non-technical town manager — is this feasible, what drives the cost, any watch-outs?>",
+  "assumptions": [
+    "<specific assumption 1>",
+    "<specific assumption 2>",
+    "<specific assumption 3>",
+    "<specific assumption 4>",
+    "<site or utility assumption>"
+  ],
+  "project_label": "<3-6 word label, e.g. 'DPW 3-Bay Equipment Garage' or '6-Court Pickleball Complex'>"
+}
+
+Rules:
+- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%)
+- Exclude land acquisition
+- If no utilities on site, add realistic extension costs to range
+- If demo required, include demo costs
+- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges
+- ${d.state} regional labor market costs should be reflected
+- Do NOT reference RSMeans, Gordian, or any proprietary database by name
+- Write for a town manager, not a contractor`;
+}
+
+function buildProPrompt(d) {
+  return `You are a municipal construction cost advisor helping local government officials assess project feasibility before engaging architects or contractors.
+
+LOCATION: ${d.municipality}${d.state ? ", " + d.state : ""} (ZIP: ${d.zip})
+PROJECT TYPE: ${d.projectType}
+BUILD TYPE: ${d.buildType}
+DESCRIPTION: ${d.description}
+SITE TOPOGRAPHY: ${d.topography || 'Not specified'}
+UTILITIES ON SITE: ${d.utilities}
+
+Respond ONLY with valid JSON, no markdown, no preamble:
+{
+  "low": <integer>,
+  "high": <integer>,
+  "confidence": "<High|Moderate|Low>",
+  "confidence_reason": "<one sentence>",
+  "narrative": "<2-3 sentences for a non-technical town manager>",
+  "assumptions": ["<assumption 1>","<assumption 2>","<assumption 3>","<assumption 4>","<site/utility assumption>"],
+  "project_label": "<3-6 word label>",
+  "methodology": {
+    "basis": "<one sentence — what cost basis was used, in plain terms. Do NOT reference RSMeans, Gordian, or any proprietary database by name>",
+    "sf_range": "<estimated SF range or 'N/A'>",
+    "cost_per_sf": "<estimated cost per SF range or 'N/A'>",
+    "key_drivers": ["<driver 1>","<driver 2>","<driver 3>"],
+    "exclusions": ["<exclusion 1>","<exclusion 2>"]
+  }
+}
+
+Rules:
+- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%)
+- Exclude land acquisition
+- If no utilities on site, add realistic extension costs to range
+- If demo required, include demo costs
+- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges
+- ${d.state} regional labor market costs should be reflected
+- Do NOT reference RSMeans, Gordian, or any proprietary database by name`;
+}
+
+function buildGCExtPrompt(d) {
+  const region = 'Midwest (Indiana / Michigan)';
+  return `You are a senior construction cost estimator helping a general contractor give a prospective client a warm, honest cost picture before any formal process begins. Your tone is confident and human — like a trusted advisor, not a spreadsheet.
+
+TODAY'S DATE: ${TODAY} — all timeline projections must reference dates AFTER ${TODAY_ISO}. Never project timelines into the past.
+
+PROJECT:
+- Client: ${d.municipality}
+- Type: ${d.projectType}
+- Location: ${d.municipality}, ${d.state}
+- Region: ${region}
+- Description: ${d.description}
+
+Respond in this exact format:
+
+COST_LOW: [dollar amount, no decimals]
+COST_HIGH: [dollar amount, no decimals]
+COST_MIDPOINT: [dollar amount, no decimals]
+CONFIDENCE: [High / Medium / Low]
+NARRATIVE: [2-3 sentences. Warm, direct. Help the client understand what's driving their number and what would push it up or down. Acknowledge the significance of what they're undertaking — this is a major investment. No jargon.]
+ASSUMPTIONS:
+- [assumption]
+- [assumption]
+- [assumption]
+- [assumption]
+- [assumption]
+PROCESS_STEPS:
+- TITLE: [short step name] | DESC: [1-2 sentence description of what happens] | TIMELINE: [realistic timeframe, e.g. "Weeks 1–2" or "Month 1" — all dates must be after ${TODAY_ISO}]
+- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
+- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
+- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
+- TITLE: [step] | DESC: [description] | TIMELINE: [timeframe]
+
+Rules:
+- Current ${region} pricing. Design-Bid-Build. Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%). Exclude land acquisition.
+- If no utilities on site, add realistic extension costs to range. If demo required, include demo costs.
+- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges.
+- No proprietary database names (RSMeans, Gordian, etc.).
+- Process steps should reflect a realistic pre-construction and construction path for this project type and size.
+- All timeline references must be relative (e.g., "Weeks 1–3", "Months 2–4") OR use specific future months/years after ${TODAY_ISO}. Never use past dates.`;
+}
+
+function buildGCIntPrompt(d) {
+  const region = 'Midwest (Indiana / Michigan)';
+  const knownParams = [
+    `- Square Footage: ${d.sqft} SF`,
+    `- Construction Type: ${d.constructionType}`,
+    d.stories !== 'Unknown' ? `- Stories: ${d.stories}` : null,
+    d.siteCondition !== 'Unknown' ? `- Site Condition: ${d.siteCondition}` : null,
+    d.utilities !== 'Unknown' ? `- Utilities to Site: ${d.utilities}` : null,
+    d.description ? `- Notes: ${d.description}` : null
+  ].filter(Boolean).join('\n');
+
+  const unknowns = [
+    d.stories === 'Unknown' ? 'Stories' : null,
+    d.siteCondition === 'Unknown' ? 'Site Condition' : null,
+    d.utilities === 'Unknown' ? 'Utilities to Site' : null
+  ].filter(Boolean);
+
+  return `You are a senior construction cost estimator working directly with a GC's estimating team. Estimator-to-estimator tone — precise, direct, no hand-holding.
+
+PROJECT:
+- Client: ${d.municipality}
+- Type: ${d.projectType}
+- Location: ${d.municipality}, ${d.state}
+- Region: ${region}
+
+KNOWN PARAMETERS:
+${knownParams}
+${unknowns.length > 0 ? `\nUNKNOWN / TBD:\n${unknowns.map(u => `- ${u}`).join('\n')}` : '\nAll key parameters provided.'}
+
+Respond in this exact format:
+
+COST_LOW: [dollar amount, no decimals]
+COST_HIGH: [dollar amount, no decimals]
+COST_MIDPOINT: [dollar amount, no decimals]
+CONFIDENCE: [High / Medium / Low]
+NARRATIVE: [2-3 sentences. Estimator tone. What's driving the range, key risk factors, what the team should know. Direct.]
+ASSUMPTIONS:
+- [assumption]
+- [assumption]
+- [assumption]
+- [assumption]
+- [assumption]
+GAP_QUESTIONS:
+- [Specific question the estimating team needs answered to tighten this number]? (±$[impact])
+- [question]? (±$[impact])
+- [question]? (±$[impact])
+[3–6 questions, ordered by dollar impact. Only genuine unknowns. If all parameters known, write: GAP_QUESTIONS: none]
+
+Rules:
+- Current ${region} pricing. Design-Bid-Build. Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%). Exclude land acquisition.
+- If no utilities on site, add realistic extension costs to range. If demo required, include demo costs.
+- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges.
+- No proprietary database names (RSMeans, Gordian, etc.).`;
+}
+
+// ── API Call ──
+async function callClaude(prompt, maxTokens = 1200) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  return data.content?.[0]?.text || '';
+}
+
+// ── Response Parsers ──
+function parseJSON(raw) {
+  try {
+    const clean = raw.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
+    return JSON.parse(clean);
+  } catch {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (m) return JSON.parse(m[0]);
+    throw new Error('Could not parse JSON response');
+  }
+}
+
+function parsePlainText(raw) {
+  const get = k => { const m = raw.match(new RegExp(`${k}:\\s*(.+)`)); return m ? m[1].trim() : ''; };
+  const costStr = s => parseInt(s.replace(/[$,]/g, '')) || 0;
+  const aMatch = raw.match(/ASSUMPTIONS:\s*([\s\S]*?)(?:\n(?:PROCESS_STEPS|GAP_QUESTIONS)|$)/);
+  const assumptions = aMatch ? aMatch[1].split('\n').map(l => l.replace(/^[-•]\s*/, '').trim()).filter(Boolean) : [];
+  return {
+    low: costStr(get('COST_LOW')),
+    high: costStr(get('COST_HIGH')),
+    midpoint: costStr(get('COST_MIDPOINT')),
+    confidence: get('CONFIDENCE'),
+    narrative: get('NARRATIVE'),
+    assumptions
+  };
+}
+
+// ── Run Logic ──
+let runHistory = [];
+
+async function runAll() {
+  const d = getInputs();
+  if (!d.municipality || !d.description) { alert('Municipality and Description are required.'); return; }
+
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  document.getElementById('progressArea').classList.remove('hidden');
+  document.getElementById('resultsSection').classList.add('hidden');
+
+  const versions = [
+    { key: 'free', label: 'Free', cls: 'free', builder: buildFreePrompt, parser: 'json', tokens: 1000 },
+    { key: 'pro', label: 'Pro', cls: 'pro', builder: buildProPrompt, parser: 'json', tokens: 1200 },
+    { key: 'gc-ext', label: 'GC External', cls: 'gc-ext', builder: buildGCExtPrompt, parser: 'text', tokens: 1200 },
+    { key: 'gc-int', label: 'GC Internal', cls: 'gc-int', builder: buildGCIntPrompt, parser: 'text', tokens: 1200 }
+  ];
+
+  const results = {};
+  const startTime = Date.now();
+  let completed = 0;
+
+  function updateProgress(msg) {
+    document.getElementById('statusMsg').textContent = msg;
+    document.getElementById('progressFill').style.width = `${(completed / 4) * 100}%`;
+    document.getElementById('timer').textContent = `${((Date.now() - startTime) / 1000).toFixed(1)}s`;
+  }
+
+  // Run all 4 in parallel
+  const promises = versions.map(async (v) => {
+    updateProgress(`Running ${v.label}...`);
+    const t0 = Date.now();
+    try {
+      const raw = await callClaude(v.builder(d), v.tokens);
+      const parsed = v.parser === 'json' ? parseJSON(raw) : parsePlainText(raw);
+      const duration = Date.now() - t0;
+
+      // Normalize
+      const low = parsed.low || parsed.cost_low || 0;
+      const high = parsed.high || parsed.cost_high || 0;
+      const mid = parsed.midpoint || parsed.cost_midpoint || Math.round((low + high) / 2);
+      const conf = (parsed.confidence || '').replace(/\s/g, '');
+
+      results[v.key] = { low, high, mid, confidence: conf, narrative: parsed.narrative || '', assumptions: parsed.assumptions || [], duration, error: null, raw };
+    } catch (err) {
+      results[v.key] = { low: 0, high: 0, mid: 0, confidence: 'Error', narrative: err.message, assumptions: [], duration: Date.now() - t0, error: err.message, raw: '' };
+    }
+    completed++;
+    updateProgress(`Completed ${v.label} (${completed}/4)`);
+  });
+
+  await Promise.all(promises);
+
+  const totalTime = Date.now() - startTime;
+  updateProgress(`All 4 complete in ${(totalTime / 1000).toFixed(1)}s`);
+  document.getElementById('progressFill').style.width = '100%';
+
+  renderResults(versions, results, d, totalTime);
+
+  // Save to history
+  runHistory.unshift({ timestamp: new Date().toISOString(), scenario: d.municipality + ' — ' + d.projectType, results, totalTime });
+  renderHistory();
+
+  btn.disabled = false;
+}
+
+// ── Render ──
+function fmt(n) { return n ? '$' + n.toLocaleString() : '—'; }
+
+function renderResults(versions, results, inputs, totalTime) {
+  document.getElementById('resultsSection').classList.remove('hidden');
+
+  // Comparison table
+  const tbody = document.getElementById('comparisonBody');
+  tbody.innerHTML = '';
+  const mids = [];
+  versions.forEach(v => {
+    const r = results[v.key];
+    if (r.mid > 0) mids.push(r.mid);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${v.label}</td><td>${fmt(r.low)}</td><td>${fmt(r.high)}</td><td><strong>${fmt(r.mid)}</strong></td><td><span class="confidence-badge confidence-${r.confidence}">${r.confidence}</span></td><td>${(r.duration / 1000).toFixed(1)}s</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Spread analysis
+  const foot = document.getElementById('comparisonFoot');
+  foot.innerHTML = '';
+  if (mids.length >= 2) {
+    const spread = Math.max(...mids) - Math.min(...mids);
+    const avg = mids.reduce((a, b) => a + b, 0) / mids.length;
+    const pct = ((spread / avg) * 100).toFixed(1);
+    const flagClass = pct > 30 ? 'flag-critical' : pct > 20 ? 'flag-warn' : 'flag-ok';
+    const flagLabel = pct > 30 ? 'CRITICAL' : pct > 20 ? 'WARNING' : 'OK';
+    foot.innerHTML = `<tr style="font-weight:600; background:#f8f9fc;"><td>Spread</td><td colspan="2"></td><td class="${flagClass}">${fmt(spread)} (${pct}%)</td><td class="${flagClass}">${flagLabel}</td><td>${(totalTime / 1000).toFixed(1)}s total</td></tr>`;
+
+    const analysisEl = document.getElementById('analysisContent');
+    analysisEl.innerHTML = `
+      <p style="font-size:14px; margin-bottom:8px;"><strong>Midpoint spread:</strong> <span class="${flagClass}">${fmt(spread)} — ${pct}% variance (${flagLabel})</span></p>
+      <p style="font-size:13px; color:var(--muted);">
+        Range: ${fmt(Math.min(...mids))} to ${fmt(Math.max(...mids))}. Average midpoint: ${fmt(Math.round(avg))}.
+        ${pct > 20 ? ' Variance exceeds 20% threshold — investigate prompt differences or input handling.' : ' Within acceptable tolerance.'}
+      </p>
+    `;
+  }
+
+  // Detail cards
+  const cards = document.getElementById('detailCards');
+  cards.innerHTML = '';
+  versions.forEach(v => {
+    const r = results[v.key];
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML = `
+      <div class="result-header ${v.cls}">
+        <span>${v.label}</span>
+        <span style="font-size:12px;">${(r.duration / 1000).toFixed(1)}s</span>
+      </div>
+      <div class="result-body">
+        <div class="cost-row">
+          <div class="cost-item"><div class="label">Low</div><div class="value">${fmt(r.low)}</div></div>
+          <div class="cost-item"><div class="label">High</div><div class="value">${fmt(r.high)}</div></div>
+          <div class="cost-item"><div class="label">Midpoint</div><div class="value" style="color:var(--accent);">${fmt(r.mid)}</div></div>
+          <div class="cost-item"><div class="label">Confidence</div><div class="value"><span class="confidence-badge confidence-${r.confidence}">${r.confidence}</span></div></div>
+        </div>
+        <div class="narrative">${r.narrative}</div>
+        ${r.assumptions.length ? `<ul class="assumptions">${r.assumptions.map(a => `<li>${a}</li>`).join('')}</ul>` : ''}
+        ${r.error ? `<p style="color:var(--red); font-size:13px; margin-top:8px;">Error: ${r.error}</p>` : ''}
+      </div>`;
+    cards.appendChild(card);
+  });
+}
+
+function renderHistory() {
+  const el = document.getElementById('history');
+  if (!runHistory.length) { el.innerHTML = '<p style="font-size:13px; color:var(--muted);">No runs yet.</p>'; return; }
+  el.innerHTML = runHistory.slice(0, 10).map((h, i) => {
+    const mids = Object.values(h.results).filter(r => r.mid > 0).map(r => r.mid);
+    const spread = mids.length >= 2 ? Math.max(...mids) - Math.min(...mids) : 0;
+    const avg = mids.length ? mids.reduce((a, b) => a + b, 0) / mids.length : 0;
+    const pct = avg ? ((spread / avg) * 100).toFixed(1) : '0.0';
+    const flagClass = pct > 30 ? 'flag-critical' : pct > 20 ? 'flag-warn' : 'flag-ok';
+    const time = new Date(h.timestamp).toLocaleTimeString();
+    return `<div class="history-row"><span>${time} — ${h.scenario}</span><span class="${flagClass}">${pct}% spread</span><span>${(h.totalTime / 1000).toFixed(1)}s</span></div>`;
+  }).join('');
+}
+
+function clearResults() {
+  document.getElementById('resultsSection').classList.add('hidden');
+  document.getElementById('progressArea').classList.add('hidden');
+  document.getElementById('timer').textContent = '';
+}
+</script>
+</body>
+</html>
