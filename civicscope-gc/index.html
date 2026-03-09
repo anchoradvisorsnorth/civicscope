@@ -477,7 +477,7 @@
 
 <footer>
   <span id="tenantNameFooter"></span> &mdash; Estimates are for planning purposes only and do not constitute a bid or proposal.
-  &nbsp;·&nbsp; <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a> &nbsp;·&nbsp; v1.2.0-gc
+  &nbsp;·&nbsp; <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a> &nbsp;·&nbsp; v1.3.0-gc
 </footer>
 
 <script>
@@ -569,7 +569,7 @@
       const res = await fetch('/api/claude', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514', max_tokens: 1200,
+          model: 'claude-sonnet-4-20250514', max_tokens: 1200, temperature: 0.3,
           messages: [{ role: 'user', content: buildPrompt({ municipality, projectType, location, description }) }]
         })
       });
