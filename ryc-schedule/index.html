@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>RYC Weekly Schedule</title>
+<style>
+:root {
+  --bg: #f5f5f4;
+  --white: #ffffff;
+  --ink: #1c1917;
+  --ink-light: #44403c;
+  --muted: #78716c;
+  --muted-light: #a8a29e;
+  --rule: #e7e5e4;
+  --rule-light: #f5f5f4;
+  --blue: #2563eb;
+  --blue-light: #eff6ff;
+  --green: #059669;
+  --green-light: #ecfdf5;
+  --amber: #d97706;
+  --amber-light: #fffbeb;
+  --red: #dc2626;
+  --red-light: #fef2f2;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.5; }
+
+/* Auth Screen */
+.auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg); }
+.auth-box { background: var(--white); border-radius: 12px; padding: 40px; width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); text-align: center; }
+.auth-box h1 { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+.auth-box .sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 24px; }
+.auth-box input { width: 100%; padding: 10px 14px; border: 1px solid var(--rule); border-radius: 6px; font-size: 0.9rem; margin-bottom: 12px; }
+.auth-box input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+.auth-error { color: var(--red); font-size: 0.78rem; margin-bottom: 8px; display: none; }
+
+/* Header */
+.header { background: var(--ink); color: white; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+.header-sub { font-size: 0.78rem; color: var(--muted-light); margin-top: 2px; }
+.header-actions { display: flex; gap: 10px; align-items: center; }
+
+/* Buttons */
+.btn { padding: 8px 18px; border-radius: 6px; font-size: 0.8rem; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+.btn-primary { background: var(--blue); color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-outline { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); }
+.btn-outline:hover { border-color: white; }
+.btn-green { background: var(--green); color: white; }
+.btn-green:hover { background: #047857; }
+.btn-sm { padding: 5px 12px; font-size: 0.72rem; }
+.btn-cancel { background: var(--rule-light); color: var(--ink-light); border: 1px solid var(--rule); }
+
+/* Week Nav */
+.week-nav { background: var(--white); border-bottom: 1px solid var(--rule); padding: 14px 32px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.week-nav button { background: none; border: 1px solid var(--rule); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 0.8rem; color: var(--ink-light); }
+.week-nav button:hover { background: var(--rule-light); }
+.week-label { font-size: 0.9rem; font-weight: 600; color: var(--ink); min-width: 280px; text-align: center; }
+.week-badge { font-size: 0.68rem; background: var(--blue-light); color: var(--blue); padding: 3px 10px; border-radius: 99px; font-weight: 500; margin-left: 8px; }
+.publish-status { margin-left: auto; font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.publish-dot { width: 8px; height: 8px; border-radius: 50%; }
+.publish-dot.published { background: var(--green); }
+.publish-dot.draft { background: var(--amber); }
+
+/* Table */
+.table-wrap { padding: 24px 32px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+thead th { background: var(--rule-light); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+thead th.day-col { text-align: center; min-width: 180px; }
+tbody tr { border-bottom: 1px solid var(--rule-light); }
+tbody tr:hover { background: #fafaf9; }
+tbody td { padding: 8px 12px; font-size: 0.82rem; vertical-align: middle; }
+.emp-name { font-weight: 500; color: var(--ink); white-space: nowrap; }
+.emp-role { display: inline-block; font-size: 0.65rem; font-weight: 600; padding: 2px 7px; border-radius: 4px; margin-left: 6px; }
+.role-srss { background: #dbeafe; color: #1e40af; }
+.role-ss { background: #e0e7ff; color: #3730a3; }
+.role-ssit { background: #fef3c7; color: #92400e; }
+.role-fc { background: #d1fae5; color: #065f46; }
+.role-fm { background: #fce7f3; color: #9d174d; }
+
+/* Assignment Cells */
+td.day-cell { text-align: center; padding: 6px 8px; }
+td.day-cell.weekend { background: #f9fafb; }
+.assignment { font-size: 0.78rem; color: var(--ink-light); padding: 4px 8px; border-radius: 4px; background: var(--blue-light); border: 1px solid #dbeafe; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; display: inline-block; }
+.assignment.vac { background: var(--amber-light); border-color: #fde68a; color: var(--amber); }
+.assignment.training { background: #f3e8ff; border-color: #e9d5ff; color: #7c3aed; }
+.assignment.shop { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+.assignment.off { background: var(--rule-light); border-color: var(--rule); color: var(--muted-light); font-style: italic; }
+
+/* Edit Mode */
+.edit-select { width: 100%; font-size: 0.78rem; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 4px; background: white; cursor: pointer; }
+.edit-select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+
+/* Modal */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: white; border-radius: 12px; padding: 28px; width: 640px; max-width: 95vw; max-height: 85vh; overflow-y: auto; }
+.modal h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--rule); margin-bottom: 16px; }
+.tab { padding: 10px 18px; font-size: 0.8rem; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+/* Employee Form */
+.emp-add-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--rule-light); }
+.emp-add-form.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 3px; }
+.form-group label { font-size: 0.68rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.form-group input, .form-group select { padding: 7px 10px; border: 1px solid var(--rule); border-radius: 5px; font-size: 0.8rem; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--blue); }
+.form-row { grid-column: 1 / -1; display: flex; gap: 10px; align-items: end; }
+.form-row .form-group { flex: 1; }
+
+/* Employee List */
+.emp-list { list-style: none; max-height: 400px; overflow-y: auto; }
+.emp-list li { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--rule-light); font-size: 0.82rem; gap: 12px; }
+.emp-list li:hover { background: var(--rule-light); }
+.emp-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.emp-info .name { font-weight: 500; }
+.emp-info .email { font-size: 0.72rem; color: var(--muted); }
+.tag { display: inline-block; font-size: 0.62rem; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-left: 6px; }
+.tag-notify { background: #fef3c7; color: #92400e; }
+.btn-remove { background: none; border: none; color: var(--red); cursor: pointer; font-size: 0.75rem; font-weight: 500; padding: 4px 8px; white-space: nowrap; }
+.btn-remove:hover { background: var(--red-light); border-radius: 4px; }
+.emp-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* Project List */
+.proj-list { list-style: none; max-height: 400px; overflow-y: auto; }
+.proj-list li { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--rule-light); font-size: 0.82rem; }
+.proj-list li:hover { background: var(--rule-light); }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.82rem; z-index: 2000; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: var(--green); }
+.toast.error { background: var(--red); }
+
+/* Read Only Banner */
+.readonly-banner { background: var(--blue-light); border-bottom: 1px solid #dbeafe; padding: 10px 32px; font-size: 0.8rem; color: var(--blue); text-align: center; font-weight: 500; }
+
+@media (max-width: 900px) {
+  .header, .week-nav, .table-wrap { padding-left: 16px; padding-right: 16px; }
+  .emp-add-form { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen" class="auth-screen" style="display:none;">
+  <div class="auth-box">
+    <h1>R. Yoder Construction</h1>
+    <p class="sub">Weekly Field Schedule — Manager Access</p>
+    <div id="authError" class="auth-error">Incorrect password. Try again.</div>
+    <input type="password" id="authPass" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkAuth()">
+    <button class="btn btn-primary" style="width:100%;" onclick="checkAuth()">Sign In</button>
+  </div>
+</div>
+
+<!-- READ-ONLY BANNER -->
+<div id="readonlyBanner" class="readonly-banner" style="display:none;">
+  You are viewing the published schedule. This is a read-only view.
+</div>
+
+<!-- MAIN APP -->
+<div id="appMain" style="display:none;">
+
+<div class="header">
+  <div>
+    <h1>R. Yoder Construction</h1>
+    <div class="header-sub">Weekly Field Schedule</div>
+  </div>
+  <div class="header-actions" id="managerActions" style="display:none;">
+    <button class="btn btn-outline" onclick="openManageModal()">Manage Lists</button>
+    <button class="btn btn-primary" id="editBtn" onclick="toggleEdit()">Edit Schedule</button>
+  </div>
+</div>
+
+<div class="week-nav">
+  <button onclick="changeWeek(-1)">&larr; Prev</button>
+  <span class="week-label" id="weekLabel"></span>
+  <button onclick="changeWeek(1)">Next &rarr;</button>
+  <button onclick="goToday()" class="btn btn-sm" style="margin-left:4px;">Today</button>
+  <div class="publish-status" id="publishStatus"></div>
+  <button class="btn btn-green btn-sm" id="publishBtn" onclick="publishWeek()" style="display:none;">Publish Week</button>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead id="thead"></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+</div>
+
+<!-- MANAGE MODAL -->
+<div class="modal-overlay" id="manageModal">
+  <div class="modal">
+    <h2>Manage</h2>
+    <div class="tabs" id="manageTabs">
+      <div class="tab active" data-tab="employees" onclick="switchManageTab('employees', this)">Employees</div>
+      <div class="tab" data-tab="projects" onclick="switchManageTab('projects', this)">Projects</div>
+      <div class="tab" data-tab="notify" onclick="switchManageTab('notify', this)">Notification List</div>
+    </div>
+    <div id="manageContent"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeManageModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- PUBLISH MODAL -->
+<div class="modal-overlay" id="publishModal">
+  <div class="modal">
+    <h2>Publish Schedule</h2>
+    <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;" id="publishMsg"></p>
+    <div id="changeList" style="margin-bottom:16px;"></div>
+    <div id="recipientPreview" style="margin-bottom:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closePublishModal()">Cancel</button>
+      <button class="btn btn-green" id="confirmPublishBtn" onclick="confirmPublish()">Publish &amp; Notify</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════
+
+const CONFIG = {
+  managerPassword: "ryc2026",
+  emailDomain: "@ryoderconstruction.com",
+  apiBase: "https://app.civicscope.io",
+  readOnlyBase: "https://app.civicscope.io/ryc/schedule",
+};
+
+const ROLES = [
+  { id: "SR SS", label: "Sr. Site Super", css: "role-srss" },
+  { id: "SS",    label: "Site Super",     css: "role-ss" },
+  { id: "SSIT",  label: "SS In Training", css: "role-ssit" },
+  { id: "FC",    label: "Field Crew",     css: "role-fc" },
+  { id: "FM",    label: "Field Manager",  css: "role-fm" },
+];
+
+const SPECIAL = ["", "VAC", "Training", "Shop"];
+
+// ══════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════
+
+let employees = [
+  { first: "S.", last: "Truex", role: "SR SS", email: "struex@ryoderconstruction.com" },
+  { first: "K.", last: "Roberts", role: "SR SS", email: "kroberts@ryoderconstruction.com" },
+  { first: "L.", last: "Jennings", role: "SS", email: "ljennings@ryoderconstruction.com" },
+  { first: "J.", last: "Montague", role: "SS", email: "jmontague@ryoderconstruction.com" },
+  { first: "G.", last: "Kincade", role: "SS", email: "gkincade@ryoderconstruction.com" },
+  { first: "J.", last: "Ford", role: "SS", email: "jford@ryoderconstruction.com" },
+  { first: "B.", last: "Hubbard", role: "SS", email: "bhubbard@ryoderconstruction.com" },
+  { first: "F.", last: "Cencelewski", role: "SS", email: "fcencelewski@ryoderconstruction.com" },
+  { first: "N.", last: "Lechlitner", role: "SS", email: "nlechlitner@ryoderconstruction.com" },
+  { first: "N.", last: "Rethlake", role: "SS", email: "nrethlake@ryoderconstruction.com" },
+  { first: "G.", last: "Rager", role: "SS", email: "grager@ryoderconstruction.com" },
+  { first: "E.", last: "Harris", role: "SSIT", email: "eharris@ryoderconstruction.com" },
+  { first: "D.", last: "Jones", role: "SSIT", email: "djones@ryoderconstruction.com" },
+  { first: "N.", last: "Watts", role: "SSIT", email: "nwatts@ryoderconstruction.com" },
+  { first: "A.", last: "Multari", role: "SSIT", email: "amultari@ryoderconstruction.com" },
+  { first: "K.", last: "Rodesiler", role: "FC", email: "krodesiler@ryoderconstruction.com" },
+  { first: "E.", last: "Nelson", role: "FC", email: "enelson@ryoderconstruction.com" },
+  { first: "O.", last: "Bustamante", role: "FC", email: "obustamante@ryoderconstruction.com" },
+  { first: "K.", last: "Alverado", role: "FC", email: "kalverado@ryoderconstruction.com" },
+  { first: "J.", last: "Yoder", role: "FC", email: "jyoder@ryoderconstruction.com" },
+  { first: "A.", last: "Yoder", role: "FM", email: "ayoder@ryoderconstruction.com" },
+];
+
+let notifyOnly = [];
+let projects = [
+  "Beth Yoder", "Coldwater WWTP", "Greencroft (G,MB,SB)",
+  "Greencroft - Southfield 6570 Chestnut", "Helix Orchard Wallen Road",
+  "Huntertown Wastewater Treatment Plan Expansion: Phase 3",
+  "Jomar - Crane Bay Addition (Rebid) 2025", "Michiana Eye Center",
+  'Milford Division "A" Water Improvements', "Shipshewana WWTP - Project A",
+  "South Wellfield 2A", "The Monreaux Apartments", "Wabash Pickleball Court",
+  "Wakarusa WTP", "Welcome Home Youth Advocacy - Build out",
+];
+
+let schedule = {};
+let published = {};
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+
+let currentWeekStart = getMonday(new Date());
+let editMode = false;
+let manageTab = "employees";
+let isManager = false;
+let isReadOnly = false;
+
+// ══════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════
+
+function dn(emp) { return emp.first + " " + emp.last; }
+
+function autoEmail(first, last) {
+  return (first.replace(/\./g,'').toLowerCase().trim() + last.toLowerCase().trim().replace(/\s+/g,'')).replace(/[^a-z0-9]/g,'') + CONFIG.emailDomain;
+}
+
+function getMonday(d) {
+  const dt = new Date(d); const day = dt.getDay();
+  dt.setDate(dt.getDate() - day + (day === 0 ? -6 : 1));
+  dt.setHours(0,0,0,0); return dt;
+}
+
+function dateKey(d) { return d.toISOString().split('T')[0]; }
+
+function weekKey(mon) {
+  const jan1 = new Date(mon.getFullYear(), 0, 1);
+  const days = Math.floor((mon - jan1) / 86400000);
+  return mon.getFullYear() + "-W" + String(Math.ceil((days + jan1.getDay() + 1) / 7)).padStart(2,'0');
+}
+
+function getWeekDays(mon) {
+  const d = []; for (let i = 0; i < 7; i++) { const x = new Date(mon); x.setDate(x.getDate()+i); d.push(x); } return d;
+}
+
+function fmtDate(d) { return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); }
+
+function fmtWeekRange(mon) {
+  const fri = new Date(mon); fri.setDate(fri.getDate()+4);
+  return mon.toLocaleDateString('en-US',{month:'long',day:'numeric'}) + " \u2014 " + fri.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show' + (type ? ' '+type : '');
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ══════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════
+
+function initApp() {
+  const params = new URLSearchParams(location.search);
+  loadData();
+
+  if (params.get('view') === 'readonly') {
+    isReadOnly = true;
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('readonlyBanner').style.display = 'block';
+    document.getElementById('appMain').style.display = 'block';
+    const wp = params.get('week');
+    if (wp) { const d = new Date(wp+'T00:00:00'); if (!isNaN(d)) currentWeekStart = getMonday(d); }
+    render();
+    return;
+  }
+
+  document.getElementById('authScreen').style.display = 'flex';
+  if (sessionStorage.getItem('ryc_auth') === 'true') unlock();
+}
+
+function checkAuth() {
+  if (document.getElementById('authPass').value === CONFIG.managerPassword) {
+    sessionStorage.setItem('ryc_auth','true'); unlock();
+  } else {
+    document.getElementById('authError').style.display = 'block';
+    document.getElementById('authPass').value = '';
+  }
+}
+
+function unlock() {
+  isManager = true;
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appMain').style.display = 'block';
+  document.getElementById('managerActions').style.display = 'flex';
+  render();
+}
+
+// ══════════════════════════════════════════════
+//  PERSISTENCE
+// ══════════════════════════════════════════════
+
+function saveData() {
+  localStorage.setItem('ryc_sched_v2', JSON.stringify({ employees, notifyOnly, projects, schedule, published }));
+}
+
+function loadData() {
+  const raw = localStorage.getItem('ryc_sched_v2');
+  if (raw) {
+    const d = JSON.parse(raw);
+    employees = d.employees || employees;
+    notifyOnly = d.notifyOnly || [];
+    projects = d.projects || projects;
+    schedule = d.schedule || {};
+    published = d.published || {};
+  } else {
+    seedWeek(); saveData();
+  }
+}
+
+function seedWeek() {
+  const a = {
+    "S. Truex":"Shipshewana WWTP - Project A","K. Roberts":"Wakarusa WTP",
+    "L. Jennings":"Huntertown Wastewater Treatment Plan Expansion: Phase 3",
+    "J. Montague":"Greencroft (G,MB,SB)","G. Kincade":"Coldwater WWTP",
+    "J. Ford":'Milford Division "A" Water Improvements',"B. Hubbard":"Training",
+    "F. Cencelewski":"South Wellfield 2A","N. Lechlitner":"Jomar - Crane Bay Addition (Rebid) 2025",
+    "N. Rethlake":"The Monreaux Apartments","G. Rager":"Helix Orchard Wallen Road",
+    "E. Harris":'Milford Division "A" Water Improvements',"D. Jones":"Wabash Pickleball Court",
+    "N. Watts":'Milford Division "A" Water Improvements',"A. Multari":"Michiana Eye Center",
+    "K. Rodesiler":"Greencroft (G,MB,SB)","E. Nelson":'Milford Division "A" Water Improvements',
+    "O. Bustamante":'Milford Division "A" Water Improvements',
+    "K. Alverado":"Welcome Home Youth Advocacy - Build out",
+    "J. Yoder":'Milford Division "A" Water Improvements',
+    "A. Yoder":"Welcome Home Youth Advocacy - Build out",
+  };
+  const mon = getMonday(new Date(2026,2,9));
+  getWeekDays(mon).forEach(d => {
+    const dk = dateKey(d), dow = d.getDay();
+    if (dow===0||dow===6) return;
+    schedule[dk] = schedule[dk] || {};
+    Object.entries(a).forEach(([e,p]) => schedule[dk][e] = p);
+  });
+}
+
+// ══════════════════════════════════════════════
+//  RENDER SCHEDULE
+// ══════════════════════════════════════════════
+
+function render() {
+  const days = getWeekDays(currentWeekStart);
+  const wk = weekKey(currentWeekStart);
+  const isPub = !!published[wk];
+  const isThis = dateKey(currentWeekStart) === dateKey(getMonday(new Date()));
+
+  document.getElementById('weekLabel').innerHTML = fmtWeekRange(currentWeekStart) + (isThis ? '<span class="week-badge">Current Week</span>' : '');
+
+  const ps = document.getElementById('publishStatus');
+  ps.innerHTML = isPub
+    ? '<span class="publish-dot published"></span> Published ' + (published[wk].date||'')
+    : '<span class="publish-dot draft"></span> Draft';
+
+  document.getElementById('publishBtn').style.display = (editMode && isManager) ? 'inline-block' : 'none';
+  document.getElementById('editBtn').textContent = editMode ? 'Done Editing' : 'Edit Schedule';
+
+  const thead = document.getElementById('thead');
+  thead.innerHTML = '<tr><th style="min-width:180px">Employee</th>' +
+    days.map(d => {
+      const we = d.getDay()===0||d.getDay()===6;
+      return '<th class="day-col"' + (we?' style="color:var(--muted-light)"':'') + '>' + fmtDate(d) + '</th>';
+    }).join('') + '</tr>';
+
+  const order = ["SR SS","SS","SSIT","FC","FM"];
+  const sorted = [...employees].sort((a,b) => order.indexOf(a.role) - order.indexOf(b.role));
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = sorted.map(emp => {
+    const name = dn(emp);
+    const ri = ROLES.find(r => r.id===emp.role) || {css:'',label:emp.role};
+    return '<tr><td><span class="emp-name">' + esc(name) + '</span><span class="emp-role '+ri.css+'">' + emp.role + '</span></td>' +
+      days.map(d => {
+        const dk = dateKey(d), we = d.getDay()===0||d.getDay()===6;
+        const val = (schedule[dk]&&schedule[dk][name]) || '';
+
+        if (editMode && !we && isManager) {
+          const se = name.replace(/'/g,"\\'");
+          return '<td class="day-cell"><select class="edit-select" onchange="setA(\''+dk+"','"+se+"',this.value)\">" +
+            SPECIAL.map(s => '<option value="'+esc(s)+'"'+(val===s?' selected':'')+'>'+( s||'\u2014 none \u2014')+'</option>').join('') +
+            '<optgroup label="Projects">' +
+            projects.map(p => '<option value="'+esc(p)+'"'+(val===p?' selected':'')+'>'+esc(p)+'</option>').join('') +
+            '</optgroup></select></td>';
+        }
+
+        let cls = 'assignment';
+        if (val==='VAC') cls += ' vac';
+        else if (val==='Training') cls += ' training';
+        else if (val==='Shop') cls += ' shop';
+        else if (!val) cls += ' off';
+
+        return '<td class="day-cell'+(we?' weekend':'')+'">' +
+          (val ? '<span class="'+cls+'" title="'+esc(val)+'">'+esc(val)+'</span>' : (we ? '' : '<span class="assignment off">\u2014</span>')) +
+          '</td>';
+      }).join('') + '</tr>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+//  SCHEDULE ACTIONS
+// ══════════════════════════════════════════════
+
+function changeWeek(dir) { currentWeekStart.setDate(currentWeekStart.getDate() + dir*7); render(); }
+function goToday() { currentWeekStart = getMonday(new Date()); render(); }
+function toggleEdit() { editMode = !editMode; render(); }
+function setA(dk, emp, val) {
+  if (!schedule[dk]) schedule[dk] = {};
+  if (val) schedule[dk][emp] = val; else delete schedule[dk][emp];
+  saveData();
+}
+
+// ══════════════════════════════════════════════
+//  PUBLISH & EMAIL
+// ══════════════════════════════════════════════
+
+function publishWeek() {
+  const wk = weekKey(currentWeekStart);
+  const days = getWeekDays(currentWeekStart).filter(d => d.getDay()!==0 && d.getDay()!==6);
+  const prev = published[wk]?.snapshot || {};
+  const isRep = !!published[wk];
+
+  const changes = [];
+  employees.forEach(emp => {
+    const name = dn(emp);
+    days.forEach(d => {
+      const dk = dateKey(d);
+      const now = (schedule[dk]&&schedule[dk][name])||'';
+      const was = (prev[dk]&&prev[dk][name])||'';
+      if (now !== was) changes.push({ employee: name, email: emp.email, date: fmtDate(d), from: was||'(none)', to: now||'(none)' });
+    });
+  });
+
+  let msg;
+  if (isRep) {
+    msg = changes.length > 0
+      ? 'This week was already published. ' + changes.length + ' change(s) detected. Only affected employees will be emailed.'
+      : 'This week was already published and no changes detected.';
+  } else {
+    msg = 'This will publish the schedule for ' + fmtWeekRange(currentWeekStart) + ' and email all employees and notification recipients.';
+  }
+  document.getElementById('publishMsg').textContent = msg;
+
+  const cl = document.getElementById('changeList');
+  const rp = document.getElementById('recipientPreview');
+
+  if (isRep && changes.length > 0) {
+    cl.innerHTML = '<div style="font-size:.78rem;font-weight:600;margin-bottom:6px">Changed assignments:</div>' +
+      '<div style="max-height:200px;overflow-y:auto">' +
+      changes.map(c => '<div style="font-size:.75rem;padding:4px 0;border-bottom:1px solid var(--rule-light)"><strong>'+esc(c.employee)+'</strong> on '+c.date+': '+esc(c.from)+' &rarr; '+esc(c.to)+'</div>').join('') + '</div>';
+    const emails = [...new Set(changes.map(c=>c.email))];
+    rp.innerHTML = '<div style="font-size:.78rem;font-weight:600;margin-bottom:4px">Will email ('+emails.length+'):</div><div style="font-size:.72rem;color:var(--muted)">'+emails.join(', ')+'</div>';
+  } else if (isRep) {
+    cl.innerHTML = '<div style="font-size:.8rem;color:var(--green)">No changes since last publish.</div>';
+    rp.innerHTML = '';
+  } else {
+    cl.innerHTML = '';
+    const all = [...employees.map(e=>e.email), ...notifyOnly.map(n=>n.email)];
+    rp.innerHTML = '<div style="font-size:.78rem;font-weight:600;margin-bottom:4px">Will email ('+all.length+' recipients):</div><div style="font-size:.72rem;color:var(--muted);max-height:100px;overflow-y:auto">'+all.join(', ')+'</div>';
+  }
+
+  document.getElementById('publishModal').classList.add('show');
+}
+
+async function confirmPublish() {
+  const wk = weekKey(currentWeekStart);
+  const days = getWeekDays(currentWeekStart).filter(d => d.getDay()!==0 && d.getDay()!==6);
+  const isRep = !!published[wk];
+  const prev = published[wk]?.snapshot || {};
+
+  const snapshot = {};
+  days.forEach(d => { const dk = dateKey(d); snapshot[dk] = {...(schedule[dk]||{})}; });
+
+  // Build email payload
+  let payload;
+  if (isRep) {
+    const changes = [];
+    employees.forEach(emp => {
+      const name = dn(emp);
+      days.forEach(d => {
+        const dk = dateKey(d);
+        const now = (schedule[dk]&&schedule[dk][name])||'';
+        const was = (prev[dk]&&prev[dk][name])||'';
+        if (now !== was) changes.push({ employee: name, email: emp.email, date: fmtDate(d), from: was, to: now });
+      });
+    });
+    payload = {
+      type: 'change',
+      weekLabel: fmtWeekRange(currentWeekStart),
+      weekParam: dateKey(currentWeekStart),
+      recipients: [...new Set(changes.map(c=>c.email))],
+      changes,
+      schedule: snapshot,
+      employees: employees.map(e => ({name:dn(e),role:e.role,email:e.email})),
+    };
+  } else {
+    payload = {
+      type: 'weekly',
+      weekLabel: fmtWeekRange(currentWeekStart),
+      weekParam: dateKey(currentWeekStart),
+      recipients: [...employees.map(e=>e.email), ...notifyOnly.map(n=>n.email)],
+      schedule: snapshot,
+      employees: employees.map(e => ({name:dn(e),role:e.role,email:e.email})),
+    };
+  }
+
+  published[wk] = {
+    date: new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),
+    snapshot
+  };
+  saveData();
+
+  if (CONFIG.apiBase) {
+    try {
+      const btn = document.getElementById('confirmPublishBtn');
+      btn.textContent = 'Sending...'; btn.disabled = true;
+      const r = await fetch(CONFIG.apiBase + '/api/schedule-notify', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      btn.textContent = 'Publish & Notify'; btn.disabled = false;
+      toast(r.ok ? 'Published! '+payload.recipients.length+' email(s) sent.' : 'Published but email failed.', r.ok?'success':'error');
+    } catch(e) {
+      toast('Published locally. Email API not reachable.','error');
+    }
+  } else {
+    toast('Published! (Email API not configured yet)','success');
+  }
+
+  closePublishModal();
+  editMode = false;
+  render();
+}
+
+function closePublishModal() { document.getElementById('publishModal').classList.remove('show'); }
+
+// ══════════════════════════════════════════════
+//  MANAGE MODAL
+// ══════════════════════════════════════════════
+
+function openManageModal() { document.getElementById('manageModal').classList.add('show'); renderManage(); }
+function closeManageModal() { document.getElementById('manageModal').classList.remove('show'); render(); }
+
+function switchManageTab(tab, el) {
+  manageTab = tab;
+  document.querySelectorAll('#manageTabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderManage();
+}
+
+function renderManage() {
+  const mc = document.getElementById('manageContent');
+
+  if (manageTab === 'employees') {
+    mc.innerHTML =
+      '<div class="emp-add-form">' +
+        '<div class="form-group"><label>First Name</label><input id="empFirst" placeholder="Joe" oninput="eprev()"></div>' +
+        '<div class="form-group"><label>Last Name</label><input id="empLast" placeholder="Smith" oninput="eprev()"></div>' +
+        '<div class="form-group"><label>Role</label><select id="empRole">' + ROLES.map(r=>'<option value="'+r.id+'">'+r.id+' \u2014 '+r.label+'</option>').join('') + '</select></div>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label>Email <span style="font-weight:400;text-transform:none;color:var(--muted-light)">(auto-generated, editable)</span></label><input id="empEmail" placeholder="will auto-fill"></div>' +
+          '<button class="btn btn-primary btn-sm" style="height:34px;margin-bottom:1px" onclick="addEmp()">Add</button>' +
+        '</div>' +
+      '</div>' +
+      '<ul class="emp-list">' +
+      employees.map((e,i) => {
+        const ri = ROLES.find(r=>r.id===e.role)||{css:''};
+        return '<li><div class="emp-info"><span class="name">'+esc(dn(e))+' <span class="emp-role '+ri.css+'">'+e.role+'</span></span><span class="email">'+esc(e.email)+'</span></div>' +
+          '<div class="emp-actions">' +
+          '<select onchange="chRole('+i+',this.value)" style="font-size:.72rem;padding:4px 6px;border:1px solid var(--rule);border-radius:4px;width:70px">' +
+          ROLES.map(r=>'<option value="'+r.id+'"'+(e.role===r.id?' selected':'')+'>'+r.id+'</option>').join('') +
+          '</select><button class="btn-remove" onclick="rmEmp('+i+')">Remove</button></div></li>';
+      }).join('') + '</ul>';
+  } else if (manageTab === 'projects') {
+    mc.innerHTML =
+      '<div style="display:flex;gap:8px;margin-bottom:16px"><input id="newProj" placeholder="Project name" style="flex:1;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;font-size:.82rem" onkeydown="if(event.key===\'Enter\')addProj()"><button class="btn btn-primary btn-sm" onclick="addProj()">Add</button></div>' +
+      '<ul class="proj-list">' +
+      [...projects].sort().map((p,i) => '<li><span>'+esc(p)+'</span><button class="btn-remove" onclick="rmProj('+i+')">Remove</button></li>').join('') +
+      '</ul>';
+  } else if (manageTab === 'notify') {
+    mc.innerHTML =
+      '<p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">People who receive the weekly schedule email but are <strong>not</strong> on the schedule grid. All employees on the schedule already receive emails automatically.</p>' +
+      '<div class="emp-add-form">' +
+        '<div class="form-group"><label>First Name</label><input id="nFirst" placeholder="Jane" oninput="nprev()"></div>' +
+        '<div class="form-group"><label>Last Name</label><input id="nLast" placeholder="Doe" oninput="nprev()"></div>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label>Email <span style="font-weight:400;text-transform:none;color:var(--muted-light)">(auto-generated, editable)</span></label><input id="nEmail" placeholder="will auto-fill"></div>' +
+          '<button class="btn btn-primary btn-sm" style="height:34px;margin-bottom:1px" onclick="addNotify()">Add</button>' +
+        '</div>' +
+      '</div>' +
+      '<ul class="emp-list">' +
+      (notifyOnly.length === 0 ? '<li style="color:var(--muted);font-style:italic;justify-content:center">No notification-only recipients yet</li>' : '') +
+      notifyOnly.map((n,i) =>
+        '<li><div class="emp-info"><span class="name">'+esc(n.first)+' '+esc(n.last)+' <span class="tag tag-notify">Notify Only</span></span><span class="email">'+esc(n.email)+'</span></div>' +
+        '<div class="emp-actions"><button class="btn-remove" onclick="rmNotify('+i+')">Remove</button></div></li>'
+      ).join('') + '</ul>';
+  }
+}
+
+// Auto-preview emails
+function eprev() {
+  const f = document.getElementById('empFirst')?.value, l = document.getElementById('empLast')?.value, e = document.getElementById('empEmail');
+  if (f && l && e && !e.dataset.dirty) e.value = autoEmail(f, l);
+}
+function nprev() {
+  const f = document.getElementById('nFirst')?.value, l = document.getElementById('nLast')?.value, e = document.getElementById('nEmail');
+  if (f && l && e && !e.dataset.dirty) e.value = autoEmail(f, l);
+}
+document.addEventListener('input', e => {
+  if (e.target.id === 'empEmail' || e.target.id === 'nEmail') e.target.dataset.dirty = '1';
+});
+
+function addEmp() {
+  const first = document.getElementById('empFirst').value.trim();
+  const last = document.getElementById('empLast').value.trim();
+  const role = document.getElementById('empRole').value;
+  let email = document.getElementById('empEmail').value.trim();
+  if (!first || !last) { toast('First and last name required','error'); return; }
+  if (!email) email = autoEmail(first, last);
+  employees.push({first, last, role, email});
+  saveData(); renderManage();
+  toast('Added '+first+' '+last, 'success');
+}
+
+function rmEmp(i) {
+  if (confirm('Remove '+dn(employees[i])+' from the schedule?')) { employees.splice(i,1); saveData(); renderManage(); }
+}
+
+function chRole(i, role) { employees[i].role = role; saveData(); renderManage(); }
+
+function addProj() {
+  const name = document.getElementById('newProj').value.trim();
+  if (!name) return;
+  projects.push(name); saveData(); renderManage();
+  toast('Added: '+name,'success');
+}
+
+function rmProj(i) {
+  if (confirm('Remove "'+projects[i]+'"?')) { projects.splice(i,1); saveData(); renderManage(); }
+}
+
+function addNotify() {
+  const first = document.getElementById('nFirst').value.trim();
+  const last = document.getElementById('nLast').value.trim();
+  let email = document.getElementById('nEmail').value.trim();
+  if (!first || !last) { toast('First and last name required','error'); return; }
+  if (!email) email = autoEmail(first, last);
+  notifyOnly.push({first, last, email});
+  saveData(); renderManage();
+  toast('Added '+first+' '+last+' to notifications','success');
+}
+
+function rmNotify(i) {
+  if (confirm('Remove '+notifyOnly[i].first+' '+notifyOnly[i].last+'?')) { notifyOnly.splice(i,1); saveData(); renderManage(); }
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+initApp();
+</script>
+</body>
+</html>
