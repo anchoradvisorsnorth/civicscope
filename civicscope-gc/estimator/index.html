@@ -6,6 +6,7 @@
   <title>Estimator — Internal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     :root {
       --brand: #1e3a5f;
@@ -556,7 +557,7 @@
         <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
           <div class="upload-icon">📄</div>
           <div class="upload-text"><strong>Drop files here</strong> or click to browse</div>
-          <div class="upload-hint">PDF, PNG, JPG — plans, specs, drawings, scope docs (max 20 MB each)</div>
+          <div class="upload-hint">PDF, PNG, JPG — plans, specs, drawings, scope docs (PDFs auto-compressed)</div>
           <input type="file" id="fileInput" multiple accept=".pdf,.png,.jpg,.jpeg" style="display:none" />
           <div class="file-list" id="fileList"></div>
           <div class="upload-error" id="uploadError" style="display:none"></div>
@@ -733,30 +734,92 @@
   });
   fileInput.addEventListener('change', e => handleFiles(e.target.files));
 
-  function handleFiles(fileList) {
+  // PDF.js worker
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  async function handleFiles(fileList) {
     const errEl = document.getElementById('uploadError');
     errEl.style.display = 'none';
     const allowed = ['application/pdf', 'image/png', 'image/jpeg'];
-    const maxSize = 20 * 1024 * 1024; // 20MB
+    const maxFileSize = 50 * 1024 * 1024; // 50MB raw — we compress before sending
+    const maxPdfPages = 15;
+    const jpegQuality = 0.65;
+    const maxImageWidth = 1400; // px — enough for Claude to read plan details
 
-    Array.from(fileList).forEach(file => {
+    for (const file of Array.from(fileList)) {
       if (!allowed.includes(file.type)) {
         errEl.textContent = `"${file.name}" — unsupported format. Use PDF, PNG, or JPG.`;
-        errEl.style.display = 'block'; return;
+        errEl.style.display = 'block'; continue;
       }
-      if (file.size > maxSize) {
-        errEl.textContent = `"${file.name}" exceeds 20 MB limit.`;
-        errEl.style.display = 'block'; return;
+      if (file.size > maxFileSize) {
+        errEl.textContent = `"${file.name}" exceeds 50 MB limit.`;
+        errEl.style.display = 'block'; continue;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result.split(',')[1]; // strip data:...;base64, prefix
-        uploadedFiles.push({ name: file.name, size: file.size, type: file.type, base64 });
-        renderFileList();
+
+      try {
+        if (file.type === 'application/pdf') {
+          // Convert PDF pages to JPEG images via PDF.js
+          const arrayBuf = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+          const pageCount = Math.min(pdf.numPages, maxPdfPages);
+          if (pdf.numPages > maxPdfPages) {
+            errEl.textContent = `"${file.name}" has ${pdf.numPages} pages — using first ${maxPdfPages}.`;
+            errEl.style.display = 'block';
+          }
+          for (let p = 1; p <= pageCount; p++) {
+            const page = await pdf.getPage(p);
+            const vp = page.getViewport({ scale: 1 });
+            const scale = Math.min(maxImageWidth / vp.width, 2); // cap at 2x
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            const jpegDataUrl = canvas.toDataURL('image/jpeg', jpegQuality);
+            const base64 = jpegDataUrl.split(',')[1];
+            const approxBytes = Math.round(base64.length * 0.75);
+            uploadedFiles.push({
+              name: `${file.name} (p${p})`,
+              size: approxBytes,
+              type: 'image/jpeg',
+              base64
+            });
+          }
+          renderFileList();
+        } else {
+          // Image file — compress via canvas if large
+          const base64 = await compressImage(file, maxImageWidth, jpegQuality);
+          const approxBytes = Math.round(base64.length * 0.75);
+          uploadedFiles.push({ name: file.name, size: approxBytes, type: 'image/jpeg', base64 });
+          renderFileList();
+        }
+      } catch (err) {
+        errEl.textContent = `Error processing "${file.name}": ${err.message || 'unknown error'}`;
+        errEl.style.display = 'block';
+      }
+    }
+    fileInput.value = '';
+  }
+
+  function compressImage(file, maxWidth, quality) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(maxWidth / img.width, 1);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl.split(',')[1]);
       };
-      reader.readAsDataURL(file);
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.src = URL.createObjectURL(file);
     });
-    fileInput.value = ''; // reset so same file can be re-added
   }
 
   function removeFile(index) {
@@ -822,16 +885,21 @@
       // Build message content — multimodal when files are attached
       let messageContent;
       if (uploadedFiles.length > 0) {
+        // All files are now JPEG images (PDFs converted client-side)
         const contentBlocks = [];
         uploadedFiles.forEach(f => {
-          if (f.type === 'application/pdf') {
-            contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.base64 } });
-          } else {
-            contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: f.type, data: f.base64 } });
-          }
+          contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: f.base64 } });
         });
         contentBlocks.push({ type: 'text', text: prompt });
         messageContent = contentBlocks;
+
+        // Check total payload size — Vercel has a 4.5MB request limit
+        const totalBase64 = uploadedFiles.reduce((sum, f) => sum + f.base64.length, 0);
+        const estimatedPayloadMB = (totalBase64 + prompt.length + 500) / (1024 * 1024);
+        if (estimatedPayloadMB > 3.8) {
+          setLoading(false);
+          return showError(`Total payload ~${estimatedPayloadMB.toFixed(1)} MB — exceeds server limit. Remove some files or use lower-resolution originals.`);
+        }
       } else {
         messageContent = prompt;
       }
@@ -841,14 +909,18 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, temperature: 0.3, messages: [{ role: 'user', content: messageContent }] })
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        const detail = errData?.error?.message || errData?.error || `HTTP ${res.status}`;
+        throw new Error(detail);
+      }
       const data = await res.json();
       const parsed = parseResponse(data?.content?.[0]?.text || '');
       lastParsed = parsed;
       runCount++;
       renderResults(parsed, inp);
       logRun({ municipality: inp.municipality, projectType: inp.projectType, description: inp.description, parsed });
-    } catch { setLoading(false); showError('Something went wrong. Please try again.'); }
+    } catch (e) { setLoading(false); showError(e.message || 'Something went wrong. Please try again.'); }
   }
 
   async function rerunWithAnswers() {
