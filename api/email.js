@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
       const subject = isGC
         ? `Your Project Cost Summary — ${projectType}${municipality ? ' in ' + municipality : ''}`
-        : `Your CivicScope Feasibility Report — ${projectType} in ${municipality}`;
+        : `Your ${product === 'pro' ? 'CivicScope Pro' : 'CivicScope Free'} Feasibility Report — ${projectType} in ${municipality}`;
 
       const emailPayload = {
         from: FROM_EMAIL,
@@ -73,7 +73,7 @@ export default async function handler(req, res) {
 
       const subject = isGC
         ? `New Lead from Your Project Estimator — ${firstName} ${lastName} | ${municipality || projectType}`
-        : `New CivicScope Lead — ${firstName} ${lastName} | ${municipality}`;
+        : `New CivicScope ${product === 'pro' ? 'Pro' : 'Free'} Lead — ${firstName} ${lastName} | ${municipality}`;
 
       const emailPayload = {
         from: FROM_EMAIL,
@@ -251,7 +251,7 @@ function buildReportEmail({ recipientName, municipality, projectType, costLow, c
 <body style="margin:0;padding:0;background:#f5f0eb;font-family:Georgia,serif;">
 <div style="max-width:600px;margin:0 auto;background:#fff;">
   <div style="background:#1a2744;padding:32px 40px;">
-    <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">CivicScope</div>
+    <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">${tier}</div>
     <div style="color:#9aa5c4;font-size:11px;letter-spacing:2px;margin-top:4px;text-transform:uppercase;">Municipal Project Feasibility</div>
   </div>
   <div style="padding:40px;">
