@@ -825,7 +825,7 @@
         const contentBlocks = [];
         uploadedFiles.forEach(f => {
           if (f.type === 'application/pdf') {
-            contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.base64 }, cache_control: { type: 'ephemeral' } });
+            contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.base64 } });
           } else {
             contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: f.type, data: f.base64 } });
           }
