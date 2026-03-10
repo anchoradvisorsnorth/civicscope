@@ -324,6 +324,49 @@
     }
     #configError p { color: var(--muted); font-size: 0.9rem; }
 
+    /* FILE UPLOAD */
+    .upload-zone {
+      border: 2px dashed var(--border-mid);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--warm);
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+    .upload-zone.has-files {
+      border-color: var(--green);
+      background: var(--green-bg);
+      border-style: solid;
+    }
+    .upload-icon { font-size: 1.5rem; margin-bottom: 6px; color: var(--muted); }
+    .upload-zone.has-files .upload-icon { color: var(--green); }
+    .upload-text { font-size: 0.82rem; color: var(--muted); }
+    .upload-text strong { color: var(--text); }
+    .upload-hint { font-size: 0.72rem; color: var(--subtle); margin-top: 4px; }
+    .file-list { margin-top: 12px; display: grid; gap: 6px; }
+    .file-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.78rem;
+    }
+    .file-item-icon { font-size: 0.9rem; }
+    .file-item-name { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-item-size { font-family: var(--mono); font-size: 0.68rem; color: var(--subtle); }
+    .file-item-remove {
+      background: none; border: none; color: var(--subtle); cursor: pointer;
+      font-size: 0.9rem; padding: 0 4px; transition: color 0.15s;
+    }
+    .file-item-remove:hover { color: var(--red); }
+    .upload-error { font-size: 0.75rem; color: var(--red); margin-top: 8px; }
+
     /* FOOTER */
     footer {
       text-align: center; padding: 20px 16px;
@@ -508,6 +551,18 @@
         </div>
       </div>
 
+      <div class="form-section">
+        <div class="section-label">Plan / Spec Upload</div>
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <div class="upload-icon">📄</div>
+          <div class="upload-text"><strong>Drop files here</strong> or click to browse</div>
+          <div class="upload-hint">PDF, PNG, JPG — plans, specs, drawings, scope docs (max 20 MB each)</div>
+          <input type="file" id="fileInput" multiple accept=".pdf,.png,.jpg,.jpeg" style="display:none" />
+          <div class="file-list" id="fileList"></div>
+          <div class="upload-error" id="uploadError" style="display:none"></div>
+        </div>
+      </div>
+
       <div id="errorMsg"></div>
 
       <div class="action-row">
@@ -593,12 +648,13 @@
 <footer>
   <span id="tenantNameFooter"></span> — Internal use only. Not a formal bid or proposal.
   &nbsp;|&nbsp; <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a>
-  &nbsp;|&nbsp; v1.1.0-gc-int
+  &nbsp;|&nbsp; v1.2.0-gc-int
 </footer>
 
 <script>
   let tenant = null, sessionId = null, runCount = 0;
   let lastParsed = null; // store last results for gap rerun
+  let uploadedFiles = []; // {name, size, type, base64}
 
   (async function boot() {
     const slug = getSlug();
@@ -664,6 +720,72 @@
     }
   });
 
+  // ── File Upload Handling ──
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    handleFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  function handleFiles(fileList) {
+    const errEl = document.getElementById('uploadError');
+    errEl.style.display = 'none';
+    const allowed = ['application/pdf', 'image/png', 'image/jpeg'];
+    const maxSize = 20 * 1024 * 1024; // 20MB
+
+    Array.from(fileList).forEach(file => {
+      if (!allowed.includes(file.type)) {
+        errEl.textContent = `"${file.name}" — unsupported format. Use PDF, PNG, or JPG.`;
+        errEl.style.display = 'block'; return;
+      }
+      if (file.size > maxSize) {
+        errEl.textContent = `"${file.name}" exceeds 20 MB limit.`;
+        errEl.style.display = 'block'; return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1]; // strip data:...;base64, prefix
+        uploadedFiles.push({ name: file.name, size: file.size, type: file.type, base64 });
+        renderFileList();
+      };
+      reader.readAsDataURL(file);
+    });
+    fileInput.value = ''; // reset so same file can be re-added
+  }
+
+  function removeFile(index) {
+    uploadedFiles.splice(index, 1);
+    renderFileList();
+  }
+  window.removeFile = removeFile; // expose for onclick
+
+  function renderFileList() {
+    const list = document.getElementById('fileList');
+    const zone = document.getElementById('uploadZone');
+    if (uploadedFiles.length === 0) {
+      list.innerHTML = '';
+      zone.classList.remove('has-files');
+      return;
+    }
+    zone.classList.add('has-files');
+    list.innerHTML = uploadedFiles.map((f, i) => {
+      const icon = f.type === 'application/pdf' ? '📄' : '🖼️';
+      const size = f.size > 1024*1024 ? (f.size/1024/1024).toFixed(1)+' MB' : Math.round(f.size/1024)+' KB';
+      return `<div class="file-item">
+        <span class="file-item-icon">${icon}</span>
+        <span class="file-item-name">${f.name}</span>
+        <span class="file-item-size">${size}</span>
+        <button class="file-item-remove" onclick="event.stopPropagation(); removeFile(${i})" title="Remove">✕</button>
+      </div>`;
+    }).join('');
+  }
+
   function getInputs() {
     return {
       municipality:   document.getElementById('municipality').value.trim(),
@@ -696,9 +818,28 @@
 
     try {
       const prompt = buildPrompt({ ...inp, location, confirmedAnswers });
+
+      // Build message content — multimodal when files are attached
+      let messageContent;
+      if (uploadedFiles.length > 0) {
+        const contentBlocks = [];
+        uploadedFiles.forEach(f => {
+          if (f.type === 'application/pdf') {
+            contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.base64 }, cache_control: { type: 'ephemeral' } });
+          } else {
+            contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: f.type, data: f.base64 } });
+          }
+        });
+        contentBlocks.push({ type: 'text', text: prompt });
+        messageContent = contentBlocks;
+      } else {
+        messageContent = prompt;
+      }
+
+      const maxTokens = uploadedFiles.length > 0 ? 4096 : 1200;
       const res = await fetch('/api/claude', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1200, temperature: 0.3, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, temperature: 0.3, messages: [{ role: 'user', content: messageContent }] })
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -755,8 +896,14 @@
       ? `\nCONFIRMED ANSWERS FROM PREVIOUS RUN:\n${confirmedAnswers.map(ca => `- ${ca.question} → ${ca.answer}`).join('\n')}`
       : '';
 
-    return `You are a senior construction cost estimator working directly with a GC's estimating team. Estimator-to-estimator tone — precise, direct, no hand-holding.
+    const hasFiles = uploadedFiles.length > 0;
+    const fileBlock = hasFiles
+      ? `\nUPLOADED DOCUMENTS: ${uploadedFiles.length} file(s) attached (${uploadedFiles.map(f=>f.name).join(', ')}).
+Analyze these plan/spec documents thoroughly. Extract all cost-relevant details: square footage, building dimensions, structural systems, MEP scope, site work, finishes, special requirements, phasing, and any other scope items. Use these details to produce the most accurate estimate possible. Where the documents provide specifics, use them — override the form inputs below if the documents are more detailed.`
+      : '';
 
+    return `You are a senior construction cost estimator working directly with a GC's estimating team. Estimator-to-estimator tone — precise, direct, no hand-holding.
+${fileBlock}
 PROJECT:
 - Client: ${municipality}
 - Type: ${projectType}
@@ -871,6 +1018,8 @@ Rules:
     document.getElementById('inputPanel').style.display = 'block';
     document.getElementById('refineBanner').classList.remove('show');
     clearForm();
+    uploadedFiles = [];
+    renderFileList();
     runCount = 0;
     document.getElementById('statusMeta').textContent = 'Ready';
     window.scrollTo({ top: 0, behavior: 'smooth' });
