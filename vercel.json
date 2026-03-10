@@ -3,7 +3,6 @@
     { "source": "/admin", "destination": "/civicscope-admin/index.html" },
     { "source": "/qa", "destination": "/civicscope-qa/index.html" },
     { "source": "/gc/acme-internal", "destination": "/civicscope-gc/estimator/index.html" },
-        { "source": "/ryc/schedule", "destination": "/ryc-schedule/index.html" },
     { "source": "/gc/:slug", "destination": "/civicscope-gc/index.html" }
   ]
 }
