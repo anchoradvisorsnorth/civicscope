@@ -58,7 +58,7 @@ header {
   max-width: 1100px;
   margin: 0 auto;
   padding: 0 var(--page-pad);
-  height: 60px;
+  height: 80px;
   display: flex;
   align-items: center;
   gap: 24px;
@@ -744,6 +744,46 @@ footer span {
   .cta-action { text-align: left; }
   .header-tagline, .header-divider { display: none; }
 }
+
+.free-banner {
+  background: var(--accent);
+  padding: 11px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+.free-banner-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-right: 28px;
+  white-space: nowrap;
+}
+.free-banner-items {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.free-banner-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.83rem;
+  font-weight: 400;
+  color: rgba(255,255,255,0.92);
+  white-space: nowrap;
+}
+.free-banner-check {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
 </style>
 </head>
 <body>
@@ -751,7 +791,7 @@ footer span {
 <header>
   <div class="header-inner">
     <a href="https://www.civicscope.io" class="wordmark">
-      <svg class="wordmark-svg" width="148" height="36" viewBox="0 0 148 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="CivicScope">
+      <svg class="wordmark-svg" width="185" height="45" viewBox="0 0 148 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="CivicScope">
         <circle cx="4"  cy="4"  r="0.9" fill="#d6cfc4"/>
         <circle cx="16" cy="4"  r="0.9" fill="#d6cfc4"/>
         <circle cx="28" cy="4"  r="0.9" fill="#d6cfc4"/>
@@ -776,6 +816,27 @@ footer span {
     <div class="header-badge">Free — No Account Required</div>
   </div>
 </header>
+<div class="free-banner">
+  <span class="free-banner-label">Free Tool</span>
+  <div class="free-banner-items">
+    <span class="free-banner-item">
+      <svg class="free-banner-check" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="6" stroke="rgba(255,255,255,0.6)" stroke-width="1.4"/><path d="M4.5 7l2 2 3-3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      No account required
+    </span>
+    <span class="free-banner-item">
+      <svg class="free-banner-check" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="6" stroke="rgba(255,255,255,0.6)" stroke-width="1.4"/><path d="M4.5 7l2 2 3-3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Results in 30 seconds
+    </span>
+    <span class="free-banner-item">
+      <svg class="free-banner-check" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="6" stroke="rgba(255,255,255,0.6)" stroke-width="1.4"/><path d="M4.5 7l2 2 3-3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Private cost estimate
+    </span>
+    <span class="free-banner-item">
+      <svg class="free-banner-check" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="6" stroke="rgba(255,255,255,0.6)" stroke-width="1.4"/><path d="M4.5 7l2 2 3-3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Before the first contractor call
+    </span>
+  </div>
+</div>
 
 <div class="page-wrap">
   <div class="form-column">
@@ -1084,10 +1145,35 @@ footer span {
   <div class="footer-left">
     <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
   </div>
-  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v1.7.0</span>
+  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v1.8.0</span>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ── Session & Data Capture ───────────────────────────────────────────
+let _sessionId = null;
+let _runId = null;
+
+async function logAction(action, data) {
+  try {
+    const r = await fetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, data })
+    });
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+async function initSession() {
+  const result = await logAction('create_session', {
+    referrer: document.referrer || null,
+    userAgent: navigator.userAgent,
+    product: 'free'
+  });
+  if (result && result.session_id) _sessionId = result.session_id;
+}
+initSession();
+
 // ── ZIP Code lookup ──────────────────────────────────────────────────
 async function handleZip(zip) {
   if (zip.length !== 5) {
@@ -1258,6 +1344,7 @@ async function runFeasibility() {
   errorBlock.style.display = 'none';
   resultEl.style.display = 'none';
   divider.style.display = 'none';
+  const runStart = Date.now();
   const prompt = `You are a municipal construction cost advisor helping local government officials in the Midwest assess project feasibility before engaging architects or contractors.
 
 LOCATION: ${location}${state ? ', ' + state : ''} (ZIP: ${zip})
@@ -1298,6 +1385,17 @@ Rules:
 
   try {
     const rd = await callClaude(prompt);
+    const runDuration = Date.now() - runStart;
+
+    logAction('log_run', {
+      session_id: _sessionId, zip, state, municipality: location,
+      project_type: type, build_type: buildType, scope_description: scope,
+      topography: topo, utilities: utils.split(', ').filter(Boolean),
+      cost_low: rd.low, cost_high: rd.high, cost_midpoint: Math.round((rd.low + rd.high) / 2),
+      confidence: rd.confidence, confidence_reason: rd.confidence_reason,
+      narrative: rd.narrative, assumptions: rd.assumptions, project_label: rd.project_label,
+      run_duration_ms: runDuration, product: 'free'
+    }).then(r => { if (r && r.run_id) _runId = r.run_id; });
 
     document.getElementById('resultTitle').textContent = rd.project_label || 'Preliminary Feasibility Indicator';
     document.getElementById('resultMeta').innerHTML =
@@ -1484,6 +1582,11 @@ async function submitLead() {
           product: 'free'
         }
       })
+    });
+
+    logAction('log_lead', {
+      session_id: _sessionId, tool_run_id: _runId,
+      first_name: first, last_name: last, email, role, municipality: muni
     });
 
     document.getElementById('gateBtn').style.display = 'none';

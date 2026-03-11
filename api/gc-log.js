@@ -53,7 +53,7 @@ export default async function handler(req, res) {
         confidence:        data.confidence || null,
         narrative:         data.narrative || null,
         assumptions:       data.assumptions || [],
-        product:           `gc-${data.slug}`
+        product:           data.product || `gc-${data.slug}`
       });
       return res.status(200).json({ run_id: rows[0].id });
     }
