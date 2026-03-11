@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Estimator — Internal</title>
+  <title>Internal Estimator</title>
+  <link id="dynamicFavicon" rel="icon" href="">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -35,7 +36,8 @@
     header {
       background: var(--brand);
       padding: 0 28px;
-      display: flex; align-items: stretch; justify-content: space-between;
+      height: 72px;
+      display: flex; align-items: center; justify-content: space-between;
       border-bottom: 2px solid var(--accent);
     }
     .header-left { display: flex; align-items: center; gap: 12px; padding: 13px 0; }
@@ -402,7 +404,17 @@
     <span class="int-badge">internal</span>
   </div>
   <div class="header-right">
-    <div class="powered-by">Powered by <a href="https://civicscope.io" target="_blank">CivicScope</a></div>
+    <div class="powered-by">
+      <svg width="14" height="14" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-right:5px;opacity:0.5;">
+        <rect x="5" y="20" width="22" height="8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="10" y1="20" x2="10" y2="14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="16" y1="20" x2="16" y2="14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="22" y1="20" x2="22" y2="14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="6" y1="14" x2="26" y2="14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <polyline points="7,14 16,4 25,14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <rect x="13" y="22" width="6" height="6" rx="3" fill="currentColor"/>
+      </svg>Powered by <a href="https://civicscope.io" target="_blank">CivicScope</a>
+    </div>
   </div>
 </header>
 
@@ -649,7 +661,7 @@
 <footer>
   <span id="tenantNameFooter"></span> — Internal use only. Not a formal bid or proposal.
   &nbsp;|&nbsp; <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a>
-  &nbsp;|&nbsp; v1.3.0-gc-int
+  &nbsp;|&nbsp; v1.4.0-gc-int
 </footer>
 
 <script>
@@ -686,10 +698,17 @@
     if (t.logo_url) { logo.src = t.logo_url; logo.style.display = 'block'; }
     document.getElementById('tenantName').textContent = t.gc_name;
     document.getElementById('tenantNameFooter').textContent = t.gc_name;
+    document.title = `${t.gc_name} — Internal Estimator`;
     const sel = document.getElementById('projectType');
     (t.project_types || []).forEach(pt => {
       const opt = document.createElement('option'); opt.value = pt; opt.textContent = pt; sel.appendChild(opt);
     });
+    // Dynamic favicon using tenant primary color
+    (function() {
+      const c = t.primary_color || '#c2410c';
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='20' width='22' height='8' fill='none' stroke='%231c1917' stroke-width='2' stroke-linejoin='round'/><line x1='10' y1='20' x2='10' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='16' y1='20' x2='16' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='22' y1='20' x2='22' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='6' y1='14' x2='26' y2='14' stroke='%231c1917' stroke-width='2' stroke-linecap='round'/><polyline points='7,14 16,4 25,14' fill='none' stroke='${c}' stroke-width='2.5' stroke-linejoin='round' stroke-linecap='round'/><rect x='13' y='22' width='6' height='6' rx='3' fill='${c}'/></svg>`;
+      document.getElementById('dynamicFavicon').href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+    })();
   }
   async function createSession(slug) {
     try {
