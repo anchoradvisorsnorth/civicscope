@@ -96,11 +96,14 @@ Cowork mode replaced project chat + sandbox as the primary workflow.
 - **Keith** runs PUSH_CIVICSCOPE.bat to deploy CivicScope, PUSH_RYC_SCHEDULE.bat to deploy RYC scheduler
 - **QA tool** at /qa validates on production (no sandbox needed for routine changes)
 - **Sandbox** retained for edge cases — testing risky changes before they hit prod
-- **CLAUDE.md** is NOT in PUSH_CIVICSCOPE.bat — push manually via UPDATE_CLAUDE_MD.ps1 when updated
+- **CLAUDE.md** is NOT in PUSH_CIVICSCOPE.bat — Cowork always updates it in BOTH places at end of session:
+  1. Local: C:\Users\kmplu\Cowork\CLAUDE.md
+  2. GitHub: push via GitHub Contents API PUT (commit msg: "Update CLAUDE.md: [brief description]")
+  Retire UPDATE_CLAUDE_MD.ps1 — it has proven unreliable.
 
 ## Current Versions
-- Free: v1.7.0
-- Pro: v2.5.0
+- Free: v1.8.0
+- Pro: v2.6.0
 - GC White-Label External: v1.3.0-gc
 - GC White-Label Internal: v1.1.0-gc-int
 - QA Tool: v1.0.0-qa
@@ -113,6 +116,10 @@ Note: Versions are hardcoded in each HTML file footer AND in civicscope-admin/in
 ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY, RESEND_API_KEY
 
 ## Recent Changes (March 2026)
+- **Header sizing + Free feature bar (Free v1.8.0, Pro v2.6.0)**: Increased header height to 80px
+  across landing, Free, and Pro. Logo SVG scaled to 185x45px. Added orange feature bar below
+  Free tool header (4 items: No account required, Results in 30 seconds, Private cost estimate,
+  Before the first contractor call). Added vertical padding to Pro banner.
 - **Tab titles, favicons, email branding (Free v1.7.0, Pro v2.5.0)**: Added inline SVG favicon (civic building mark) to landing page, Free, and Pro. Orange favicon on landing/Free, navy on Pro. Tab titles updated to "CivicScope - Free | Municipal Project Feasibility" and "CivicScope - Pro | Municipal Project Feasibility". Email subject lines now include tier (Free/Pro). Pro email header now reads "CivicScope Pro". CLAUDE.md removed from PUSH_CIVICSCOPE.bat — pushed separately via UPDATE_CLAUDE_MD.ps1.
 - **Logo Implementation (Free v1.6.0, Pro v2.4.0)**: Replaced dot + text wordmark with SVG civic building mark across landing page, Free tool, and Pro tool. Orange variant (#c2410c) on landing + Free; navy variant (#1e3a5f) on Pro. Grid dots color-coded to match. .wordmark-dot CSS replaced with .wordmark-svg. Brand guide and SVG reference files saved to G:\Drive\civicscope.
 - **RYC Scheduler v1**: Built and deployed crew scheduling tool for RYC at /ryc/schedule
@@ -153,6 +160,8 @@ api/schedule-notify.js uses raw fetch to Resend API (same pattern).
 - Concise, direct communication
 - Prefers structured testing/validation
 - Values pricing consistency across product versions
+- **CLAUDE.md always stays current**: Cowork updates both local (C:\Users\kmplu\Cowork\CLAUDE.md)
+  and GitHub at the end of every session that changes versions, workflow, or architecture.
 
 ## Deep Reference
 See memory/ directory for: glossary, project details, company structure, Supabase schemas, email flows
