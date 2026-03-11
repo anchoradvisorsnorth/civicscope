@@ -383,24 +383,24 @@
       font-weight: 600;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: var(--muted, #78716c);
+      color: var(--primary-color, #c2410c);
       display: block;
       margin-bottom: 6px;
     }
     .sketch-upload-sub {
-      font-size: 0.78rem;
-      color: var(--muted, #78716c);
+      font-size: 0.85rem;
+      color: var(--ink-light, #44403c);
       margin-bottom: 12px;
       line-height: 1.5;
     }
     .sketch-zone {
-      border: 2px dashed #d6cfc4;
+      border: 2px dashed #b8b0a6;
       border-radius: 8px;
       padding: 20px 24px;
       text-align: center;
       cursor: pointer;
       transition: all 0.2s;
-      background: #faf8f4;
+      background: #f5f0e8;
       position: relative;
     }
     .sketch-zone:hover, .sketch-zone.drag-over {
@@ -551,7 +551,7 @@
     </div>
     <div class="sketch-upload-wrap">
       <span class="sketch-upload-label">Sketches, Plans, or Photos <span style="font-weight:400;color:var(--muted);font-size:0.75rem;margin-left:4px;">(optional)</span></span>
-      <p class="sketch-upload-sub">Got a sketch on a napkin? A rough floor plan? A photo of something you love? Drop it here — our AI will factor it into your estimate.</p>
+      <p class="sketch-upload-sub">Got a sketch on a napkin? A rough floor plan? A photo of something you love? Drop it here — we'll do the rest!</p>
       <div class="sketch-zone" id="sketchZone" onclick="document.getElementById('sketchInput').click()">
         <span class="sketch-zone-icon">🗂</span>
         <div class="sketch-zone-main">Drop files here or click to browse</div>
@@ -653,7 +653,7 @@
 
 <footer>
   <span id="tenantNameFooter"></span> &mdash; Estimates are for planning purposes only and do not constitute a bid or proposal.
-  &nbsp;·&nbsp; <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a> &nbsp;·&nbsp; v1.5.0-gc
+  &nbsp;·&nbsp; <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a> &nbsp;·&nbsp; v1.6.0-gc
 </footer>
 
 <script>
