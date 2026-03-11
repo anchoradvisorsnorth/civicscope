@@ -327,6 +327,133 @@
       body { background: white; }
       .card { box-shadow: none; border: 1px solid #e5e5e5; }
     }
+
+    /* Project mode toggle */
+    .mode-toggle-wrap {
+      margin-bottom: 20px;
+    }
+    .mode-toggle-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted, #78716c);
+      display: block;
+      margin-bottom: 10px;
+    }
+    .mode-toggle {
+      display: inline-flex;
+      border: 1.5px solid var(--border, #e7e2d8);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--white, #fff);
+    }
+    .mode-btn {
+      padding: 9px 24px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--muted, #78716c);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .mode-btn.active {
+      background: var(--brand);
+      color: #fff;
+    }
+    .mode-btn:not(.active):hover {
+      background: #f2ede4;
+      color: #1c1917;
+    }
+
+    .sf-hint {
+      font-size: 0.72rem;
+      color: var(--muted, #78716c);
+      margin-top: 4px;
+    }
+
+    /* ── Sketch upload ───────────────── */
+    .sketch-upload-wrap {
+      margin-top: 20px;
+    }
+    .sketch-upload-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted, #78716c);
+      display: block;
+      margin-bottom: 6px;
+    }
+    .sketch-upload-sub {
+      font-size: 0.78rem;
+      color: var(--muted, #78716c);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .sketch-zone {
+      border: 2px dashed #d6cfc4;
+      border-radius: 8px;
+      padding: 20px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #faf8f4;
+      position: relative;
+    }
+    .sketch-zone:hover, .sketch-zone.drag-over {
+      border-color: var(--accent);
+      background: #fff3ec;
+    }
+    .sketch-zone.has-files {
+      border-color: #15803d;
+      background: #f0fdf4;
+      border-style: solid;
+    }
+    .sketch-zone-icon {
+      font-size: 1.6rem;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .sketch-zone-main {
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: #44403c;
+      margin-bottom: 3px;
+    }
+    .sketch-zone-hint {
+      font-size: 0.75rem;
+      color: var(--muted, #78716c);
+    }
+    .sketch-file-list {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+    .sketch-file-chip {
+      font-size: 0.75rem;
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sketch-file-chip button {
+      background: none;
+      border: none;
+      color: #0369a1;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0;
+      line-height: 1;
+    }
+    .sketch-zone.has-files .sketch-zone-icon { display: none; }
   </style>
 </head>
 <body>
@@ -365,14 +492,33 @@
 
   <!-- INPUT -->
   <div class="card" id="inputCard">
+    <div class="mode-toggle-wrap">
+      <span class="mode-toggle-label">What type of project?</span>
+      <div class="mode-toggle">
+        <button type="button" class="mode-btn active" id="modeNew" onclick="setMode('new')">New Construction</button>
+        <button type="button" class="mode-btn" id="modeReno" onclick="setMode('renovation')">Renovation / Addition</button>
+      </div>
+    </div>
     <div class="field-group">
       <div class="field">
-        <label for="municipality">Your Name or Organization</label>
-        <input type="text" id="municipality" placeholder="e.g. City of Elkhart, Acme Logistics" />
+        <label for="municipality">Your Name or Company</label>
+        <input type="text" id="municipality" placeholder="e.g. John Smith, Riverside Holdings LLC" />
       </div>
       <div class="field">
         <label for="projectType">What are you building?</label>
-        <select id="projectType"><option value="">Select a type...</option></select>
+        <select id="projectType">
+          <option value="">Select a type...</option>
+          <option value="Commercial">Commercial</option>
+          <option value="Industrial">Industrial</option>
+          <option value="Mixed-Use">Mixed-Use</option>
+          <option value="Office">Office</option>
+          <option value="Retail">Retail</option>
+          <option value="Warehouse / Distribution">Warehouse / Distribution</option>
+          <option value="Hospitality">Hospitality</option>
+          <option value="Healthcare / Medical">Healthcare / Medical</option>
+          <option value="Education">Education</option>
+          <option value="Municipal / Public">Municipal / Public</option>
+        </select>
       </div>
     </div>
     <div class="field-group three">
@@ -389,11 +535,29 @@
         <input type="text" id="state" placeholder="Auto-fill" readonly />
       </div>
     </div>
+    <div class="field-group one" style="margin-top: 16px;">
+      <div class="field">
+        <label for="squareFootage">Approximate Square Footage <span style="font-weight:400; color: var(--muted); font-size: 0.75rem; margin-left: 6px;">(optional)</span></label>
+        <input type="text" id="squareFootage" placeholder="e.g. 8,000" inputmode="numeric" />
+        <div class="sf-hint">Total conditioned SF — your best estimate is fine</div>
+      </div>
+    </div>
     <div class="field-group one">
       <div class="field">
         <label for="description">Describe your vision</label>
         <textarea id="description" placeholder="What does this building need to do? How big, what's the site like, what matters most to you? No technical specs needed — just tell us what you're imagining."></textarea>
         <div class="hint">The more you share, the more accurate your range.</div>
+      </div>
+    </div>
+    <div class="sketch-upload-wrap">
+      <span class="sketch-upload-label">Sketches, Plans, or Photos <span style="font-weight:400;color:var(--muted);font-size:0.75rem;margin-left:4px;">(optional)</span></span>
+      <p class="sketch-upload-sub">Got a sketch on a napkin? A rough floor plan? A photo of something you love? Drop it here — our AI will factor it into your estimate.</p>
+      <div class="sketch-zone" id="sketchZone" onclick="document.getElementById('sketchInput').click()">
+        <span class="sketch-zone-icon">🗂</span>
+        <div class="sketch-zone-main">Drop files here or click to browse</div>
+        <div class="sketch-zone-hint">Images & PDFs accepted · Max 10MB each</div>
+        <input type="file" id="sketchInput" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif" style="display:none" />
+        <div class="sketch-file-list" id="sketchFileList"></div>
       </div>
     </div>
     <button class="btn-primary" id="estimateBtn" onclick="runEstimate()">Let's See What's Possible →</button>
@@ -489,12 +653,78 @@
 
 <footer>
   <span id="tenantNameFooter"></span> &mdash; Estimates are for planning purposes only and do not constitute a bid or proposal.
-  &nbsp;·&nbsp; <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a> &nbsp;·&nbsp; v1.4.0-gc
+  &nbsp;·&nbsp; <a href="https://civicscope.io" target="_blank">Powered by CivicScope</a> &nbsp;·&nbsp; v1.5.0-gc
 </footer>
 
 <script>
   let tenant = null, sessionId = null;
   let lastResult = null;
+  let projectMode = 'new';
+  let sketchFiles = [];
+
+  function setMode(mode) {
+    projectMode = mode;
+    document.getElementById('modeNew').classList.toggle('active', mode === 'new');
+    document.getElementById('modeReno').classList.toggle('active', mode === 'renovation');
+  }
+
+  // Sketch file upload
+  document.addEventListener('DOMContentLoaded', function() {
+    const zone = document.getElementById('sketchZone');
+    const input = document.getElementById('sketchInput');
+    input.addEventListener('change', e => handleSketchFiles(e.target.files));
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      handleSketchFiles(e.dataTransfer.files);
+    });
+  });
+
+  function handleSketchFiles(fileList) {
+    const MAX_SIZE = 10 * 1024 * 1024;
+    Array.from(fileList).forEach(file => {
+      if (file.size > MAX_SIZE) return;
+      if (sketchFiles.find(f => f.name === file.name)) return;
+      sketchFiles.push(file);
+    });
+    renderSketchFileList();
+  }
+
+  function removeSketchFile(name) {
+    sketchFiles = sketchFiles.filter(f => f.name !== name);
+    renderSketchFileList();
+  }
+
+  function renderSketchFileList() {
+    const zone = document.getElementById('sketchZone');
+    const list = document.getElementById('sketchFileList');
+    zone.classList.toggle('has-files', sketchFiles.length > 0);
+    if (sketchFiles.length === 0) { list.innerHTML = ''; return; }
+    list.innerHTML = sketchFiles.map(f =>
+      `<span class="sketch-file-chip">${f.name} <button type="button" onclick="event.stopPropagation();removeSketchFile('${f.name.replace(/'/g,"\\'")}')">×</button></span>`
+    ).join('');
+  }
+
+  async function prepareSketchContent() {
+    if (sketchFiles.length === 0) return [];
+    const content = [];
+    for (const file of sketchFiles) {
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = e => resolve(e.target.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        if (file.type.startsWith('image/')) {
+          content.push({ type: 'image', source: { type: 'base64', media_type: file.type, data: base64 } });
+        }
+      } catch(e) {}
+    }
+    return content;
+  }
 
   // Today's date — passed into API prompt to prevent past-date projections
   const TODAY = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -533,9 +763,13 @@
     if (t.hero_headline) document.getElementById('heroHeadline').innerHTML = t.hero_headline;
     if (t.hero_subhead)  document.getElementById('heroSubhead').textContent = t.hero_subhead;
     const sel = document.getElementById('projectType');
-    (t.project_types || []).forEach(pt => {
-      const opt = document.createElement('option'); opt.value = pt; opt.textContent = pt; sel.appendChild(opt);
-    });
+    if (t.project_types && t.project_types.length) {
+      // Clear static fallback options, keep placeholder
+      while (sel.options.length > 1) sel.remove(1);
+      t.project_types.forEach(pt => {
+        const opt = document.createElement('option'); opt.value = pt; opt.textContent = pt; sel.appendChild(opt);
+      });
+    }
     // Inline GC name in email gate
     document.querySelectorAll('.gc-name-inline').forEach(el => el.textContent = t.gc_name);
     if (t.email_headline) document.getElementById('emailHeadline').textContent = t.email_headline;
@@ -577,18 +811,27 @@
     const city           = document.getElementById('city').value.trim();
     const state          = document.getElementById('state').value.trim();
     const description    = document.getElementById('description').value.trim();
+    const squareFootage  = document.getElementById('squareFootage').value.trim();
     hideError();
-    if (!municipality)  return showError('Please enter your name or organization.');
+    if (!municipality)  return showError('Please enter your name or company.');
     if (!projectType)   return showError('Please select a project type.');
     if (!description)   return showError('Please tell us a bit about your project.');
     const location = [city, state, zip].filter(Boolean).join(', ') || tenant?.region || 'Midwest';
     setLoading(true);
     try {
+      const sketchContent = await prepareSketchContent();
+      const promptText = buildPrompt({ municipality, projectType, location, description, squareFootage });
+      const userContent = [];
+      sketchContent.forEach(item => userContent.push(item));
+      userContent.push({ type: 'text', text: promptText });
+      const finalContent = userContent.length > 1 ? userContent : promptText;
+      const maxTokens = sketchContent.length > 0 ? 4096 : 1200;
+
       const res = await fetch('/api/claude', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514', max_tokens: 1200, temperature: 0.3,
-          messages: [{ role: 'user', content: buildPrompt({ municipality, projectType, location, description }) }]
+          model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, temperature: 0.3,
+          messages: [{ role: 'user', content: finalContent }]
         })
       });
       if (!res.ok) throw new Error();
@@ -600,8 +843,9 @@
     } catch { setLoading(false); showError('Something went wrong. Please try again.'); }
   }
 
-  function buildPrompt({ municipality, projectType, location, description }) {
+  function buildPrompt({ municipality, projectType, location, description, squareFootage }) {
     const region = tenant?.region || 'Midwest (Indiana / Michigan)';
+    const sfVal = squareFootage || document.getElementById('squareFootage').value.trim();
     return `You are a senior construction cost estimator helping a general contractor give a prospective client a warm, honest cost picture before any formal process begins. Your tone is confident and human — like a trusted advisor, not a spreadsheet.
 
 TODAY'S DATE: ${TODAY} — all timeline projections must reference dates AFTER ${TODAY_ISO}. Never project timelines into the past.
@@ -611,7 +855,8 @@ PROJECT:
 - Type: ${projectType}
 - Location: ${location}
 - Region: ${region}
-- Description: ${description}
+- Project Mode: ${projectMode === 'new' ? 'New Construction' : 'Renovation / Addition'}${sfVal ? `\n- Approximate Square Footage: ${sfVal} SF` : ''}
+- Description: ${description}${sketchFiles.length > 0 ? `\nClient has provided ${sketchFiles.filter(f=>f.type.startsWith('image/')).length} image(s) attached. Review them and incorporate any relevant details into your estimate context and assumptions.` : ''}${sketchFiles.filter(f=>!f.type.startsWith('image/')).length > 0 ? `\nClient also provided PDF document(s): ${sketchFiles.filter(f=>!f.type.startsWith('image/')).map(f=>f.name).join(', ')} — note their existence in assumptions but you cannot read them directly.` : ''}
 
 Respond in this exact format:
 
