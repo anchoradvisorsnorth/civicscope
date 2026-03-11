@@ -104,8 +104,8 @@ Cowork mode replaced project chat + sandbox as the primary workflow.
 ## Current Versions
 - Free: v1.8.0
 - Pro: v2.7.0
-- GC White-Label External: v1.3.0-gc
-- GC White-Label Internal: v1.1.0-gc-int
+- GC White-Label External: v1.4.0-gc
+- GC White-Label Internal: v1.4.0-gc-int
 - QA Tool: v1.0.0-qa
 - Admin: v1.0.0-admin
 - RYC Scheduler: v1.0.0
