@@ -784,6 +784,110 @@ footer span {
   flex-shrink: 0;
   opacity: 0.75;
 }
+
+    /* ── NEXT STEPS CTA ─────────────────────────── */
+    .cta-block.next-steps {
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 28px 32px;
+      margin-top: 24px;
+    }
+    .cta-block.next-steps h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+    .cta-block.next-steps > p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .next-steps-list {
+      padding-left: 20px;
+      margin: 0 0 20px 0;
+    }
+    .next-steps-list li {
+      font-size: 13px;
+      color: var(--ink-light);
+      margin-bottom: 12px;
+      line-height: 1.55;
+    }
+    .next-steps-list li strong {
+      color: var(--ink);
+      display: block;
+      margin-bottom: 2px;
+    }
+    .pro-nudge {
+      font-size: 12px;
+      color: var(--muted);
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .pro-nudge a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .pro-nudge a:hover { text-decoration: underline; }
+
+    /* ── TIMELINE TEASE ─────────────────────────── */
+    .timeline-tease .tease-locked {
+      position: relative;
+    }
+    .tease-blur {
+      filter: blur(4px);
+      user-select: none;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+    .tease-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .tease-phase { color: var(--ink-light); }
+    .tease-dur { color: var(--muted); letter-spacing: 0.02em; }
+    .tease-unlock-msg {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 14px;
+      padding: 10px;
+      background: var(--bg-alt);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .pro-tag {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(194,65,12,0.08);
+      padding: 2px 7px;
+      border-radius: 3px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    #timelineContent .tl-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    #timelineContent .tl-phase { color: var(--ink-light); font-weight: 500; }
+    #timelineContent .tl-dur { color: var(--accent); font-weight: 600; }
+    #timelineContent .tl-note {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
 </style>
 </head>
 <body>
@@ -1007,38 +1111,55 @@ footer span {
       <div class="result-block">
         <div class="block-label">Understanding Your Path to Getting This Built</div>
         <div class="proc-header">
-          <p>The procurement path you choose affects your total cost, timeline, and how much risk your municipality carries.</p>
+          <p>The procurement method you choose affects your total cost, timeline, risk exposure, and how much design work you commit to before costs are established. There is no universally right answer — the best path depends on your project, your municipality's capacity, and your risk tolerance.</p>
         </div>
         <div class="proc-paths">
           <div class="proc-path traditional">
-            <div class="proc-path-label">Traditional Path</div>
+            <div class="proc-path-label">Design-Bid-Build (Traditional)</div>
             <h4>Design-Bid-Build</h4>
             <ul class="proc-steps">
-              <li>Design and engineering fees paid <strong>before any commitment</strong> — typically 8–12% of project cost</li>
-              <li>Public bid advertising required — <strong>12–18 months</strong> from design start to groundbreaking</li>
-              <li>Legally required to accept the <strong>lowest bidder</strong> regardless of track record</li>
-              <li>Change orders average <strong>11% cost growth</strong> after award</li>
+              <li>Your municipality hires a designer, develops construction documents, publicly advertises for bids, and awards to the lowest qualified bidder</li>
+              <li>Design fees are paid before construction bids are received — typically 8–12% of project</li>
+              <li>Public advertising is required; timeline from design start to groundbreaking is typically 12–18 months</li>
+              <li>Changes after award are handled through change orders, which can increase final cost</li>
             </ul>
-            <div class="proc-callout" id="tradCallout">On a project in this range, design fees and change order risk can add significantly to your final cost.</div>
+            <div class="proc-callout" id="tradCallout">Most common path. Familiar to most municipal attorneys and councils.</div>
           </div>
           <div class="proc-path alternative">
-            <div class="proc-path-label">Alternative Path</div>
-            <h4>BOT / P3 Delivery</h4>
+            <div class="proc-path-label">Alternative Delivery</div>
+            <h4>CM at Risk / Design-Build / BOT / P3</h4>
             <ul class="proc-steps">
-              <li><strong>No upfront design spend.</strong> Receive a Guaranteed Maximum Price before committing to any design dollars</li>
-              <li>Developer, designer, and contractor work together <strong>from day one</strong> — value engineering before costs are locked</li>
-              <li>Indiana BOT statute enables GMP procurement — <strong>no low-bid requirement</strong></li>
-              <li>Cost overrun risk stays with the developer, <strong>not your municipality</strong></li>
+              <li>Several methods allow earlier cost certainty and closer collaboration between design and construction</li>
+              <li>A Guaranteed Maximum Price can be established before full construction documents are complete</li>
+              <li>Risk allocation varies by contract structure — some methods shift cost overrun risk to the developer or contractor</li>
+              <li>Indiana statute enables a range of these approaches for municipal projects</li>
             </ul>
-            <div class="proc-callout">Developer fee ~4% of project cost. No change orders. Budget certainty from day one.</div>
+            <div class="proc-callout">Requires more upfront evaluation of the delivery team, not just the bid price. Your municipal attorney should advise on which path fits your procurement requirements.</div>
           </div>
+        </div>
+      </div>
+
+      <!-- Timeline Tease -->
+      <div class="result-block timeline-tease" id="timelineTease">
+        <div class="block-label">Estimated Delivery Timeline <span class="pro-tag">Included in your report</span></div>
+        <div class="tease-locked">
+          <div class="tease-blur">
+            <div class="tease-row"><span class="tease-phase">Pre-Design &amp; Authorization</span><span class="tease-dur">&#9608;&#9608;&#9608;&#9608; months</span></div>
+            <div class="tease-row"><span class="tease-phase">Design &amp; Document Phase</span><span class="tease-dur">&#9608;&#9608;&#9608;&#9608; months</span></div>
+            <div class="tease-row"><span class="tease-phase">Procurement &amp; Award</span><span class="tease-dur">&#9608;&#9608;&#9608; months</span></div>
+            <div class="tease-row"><span class="tease-phase">Construction</span><span class="tease-dur">&#9608;&#9608;&#9608;&#9608;&#9608; months</span></div>
+          </div>
+          <div class="tease-unlock-msg">&#128274; Included when you get your report below</div>
+        </div>
+        <div class="timeline-content" id="timelineContent" style="display:none">
+          <!-- Populated by JS after gate submission -->
         </div>
       </div>
 
       <!-- Lead Gate -->
       <div class="gate-block" id="gateBlock">
-        <h3>Get Your Full Report by Email</h3>
-        <p>Enter your information below and we'll email you a complete summary — including cost range, assumptions, council briefing guide, and procurement options.</p>
+        <h3>Get everything above in your inbox</h3>
+        <p>Enter your information and we'll email you everything above plus your estimated delivery timeline — a section not shown on screen.</p>
         <div class="gate-form-grid">
           <div class="field">
             <label>First Name <span class="req">*</span></label>
@@ -1067,22 +1188,37 @@ footer span {
         </div>
         <div class="gate-submit-row">
           <button class="btn-primary" id="gateBtn" onclick="submitLead()">
-            Email Me This Report
+            Email me everything above plus my delivery timeline
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
         <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. <a href="javascript:window.print()" style="color:var(--accent);text-decoration:none;margin-left:8px;">Print / Save as PDF →</a></div>
       </div>
 
-      <div class="cta-block">
-        <div class="cta-text">
-          <h4>Ready to explore a smarter path for this project?</h4>
-          <p>JBK Development helps Indiana and Michigan municipalities structure projects from feasibility through construction — on a guaranteed price, without the design-bid-build risk.</p>
-        </div>
-        <div class="cta-action">
-          <div class="cta-name">Keith Plummer</div>
-          <div class="cta-company">JBK Development</div>
-          <a href="/cdn-cgi/l/email-protection#c9a2aca0bda189a3aba2adacbfaca5a6b9a4aca7bde7aaa6a4f6babcaba3acaabdf48aa0bfa0aa9aaaa6b9acecfbf98faca8baa0aba0a5a0bdb0ecfbf980a7b8bca0bbb0" class="cta-btn">Start a Conversation →</a>
+      <div class="cta-block next-steps">
+        <h4>What to Do With This Number</h4>
+        <p>A preliminary cost range is the starting point, not the finish line. Here's how to move a real project forward from here.</p>
+        <ol class="next-steps-list">
+          <li>
+            <strong>Pressure-test the number internally.</strong>
+            Share this with your finance director or administrator before any outside conversations. Knowing your range before the first contractor call puts you in a stronger position.
+          </li>
+          <li>
+            <strong>Understand your delivery options.</strong>
+            How you procure this project affects total cost, timeline, and how much risk your municipality carries. Review the delivery path comparison above before engaging any design or construction professionals.
+          </li>
+          <li>
+            <strong>Get a formal opinion of probable cost.</strong>
+            When you're ready to move forward, engage a licensed architect or cost professional for a formal OPC. This cost range is a directional indicator — not a substitute for professional verification.
+          </li>
+          <li>
+            <strong>Bring it to council.</strong>
+            Use the briefing guide above to frame the conversation. A cost range with a confidence rating and a clear delivery path gives council what they need to authorize next steps.
+          </li>
+        </ol>
+        <div class="pro-nudge">
+          Need to run multiple scenarios, save this project, or dig deeper into site-specific factors?
+          <a href="https://civicscope.io/pro">CivicScope Pro →</a>
         </div>
       </div>
 
@@ -1145,7 +1281,7 @@ footer span {
   <div class="footer-left">
     <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
   </div>
-  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v1.8.0</span>
+  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v1.9.0</span>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
@@ -1356,6 +1492,12 @@ UTILITIES ON SITE: ${utils}
 
 Provide an honest preliminary cost range based on regional construction costs for ${state}. Factor in all site conditions provided.
 
+Include a realistic project timeline broken into phases
+(pre-design/authorization, design, procurement, construction).
+Base durations on the project type, delivery path context, and
+Indiana/Midwest regional norms. Do not reference specific
+statutes by name.
+
 Respond ONLY with valid JSON, no markdown, no preamble:
 {
   "low": <integer dollar amount>,
@@ -1370,7 +1512,14 @@ Respond ONLY with valid JSON, no markdown, no preamble:
     "<specific assumption 4>",
     "<site or utility assumption>"
   ],
-  "project_label": "<3-6 word label, e.g. 'DPW 3-Bay Equipment Garage' or '6-Court Pickleball Complex'>"
+  "project_label": "<3-6 word label, e.g. 'DPW 3-Bay Equipment Garage' or '6-Court Pickleball Complex'>",
+  "timeline": {
+    "phases": [
+      { "phase": "Phase name", "duration": "X-Y months", "note": "brief context" }
+    ],
+    "total": "X-Y months total",
+    "note": "One sentence on key regional or delivery-path factors that affect this timeline"
+  }
 }
 
 Rules:
@@ -1386,6 +1535,9 @@ Rules:
   try {
     const rd = await callClaude(prompt);
     const runDuration = Date.now() - runStart;
+
+    // Store timeline for later use
+    window._lastTimeline = rd.timeline || null;
 
     logAction('log_run', {
       session_id: _sessionId, zip, state, municipality: location,
@@ -1558,6 +1710,7 @@ async function submitLead() {
           narrative,
           assumptions,
           briefingHtml,
+          timeline: window._lastTimeline || null,
           product: 'free'
         }
       })
@@ -1591,6 +1744,23 @@ async function submitLead() {
 
     document.getElementById('gateBtn').style.display = 'none';
     document.getElementById('gateConfirmed').style.display = 'block';
+
+    // Reveal timeline tease
+    const tease = document.getElementById('timelineTease');
+    const content = document.getElementById('timelineContent');
+    const locked = document.querySelector('.tease-locked');
+    if (tease && window._lastTimeline) {
+      const tl = window._lastTimeline;
+      locked.style.display = 'none';
+      content.style.display = 'block';
+      content.innerHTML = tl.phases.map(p =>
+        `<div class="tl-row">
+          <span class="tl-phase">${p.phase}</span>
+          <span class="tl-dur">${p.duration}</span>
+        </div>`
+      ).join('') +
+      `<div class="tl-note">${tl.total} total &mdash; ${tl.note}</div>`;
+    }
   } catch (err) {
     console.error('Lead submit error:', err);
     document.getElementById('gateBtn').disabled = false;
