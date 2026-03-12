@@ -30,6 +30,7 @@ All CivicScope AI tools call same `api/claude.js` proxy → Anthropic claude-son
 | QA Tool | app.civicscope.io/qa | Headless validation (Keith only) |
 | Admin | app.civicscope.io/admin | Dashboard (Keith only) |
 | **RYC Scheduler** | **app.civicscope.io/ryc/schedule** | **RYC field crew scheduling** |
+| **Pro Landing** | **civicscope.io/pro** | **Early access signup** |
 
 ## RYC Scheduler (v1 — deployed March 2026)
 
@@ -102,9 +103,9 @@ Cowork mode replaced project chat + sandbox as the primary workflow.
   Retire UPDATE_CLAUDE_MD.ps1 — it has proven unreliable.
 
 ## Current Versions
-- Free: v1.8.0
-- Pro: v2.7.0
-- GC White-Label External: v1.4.0-gc
+- Free: v1.9.0
+- Pro: v2.8.0
+- GC White-Label External: v1.6.0-gc
 - GC White-Label Internal: v1.4.0-gc-int
 - QA Tool: v1.0.0-qa
 - Admin: v1.0.0-admin
@@ -116,6 +117,10 @@ Note: Versions are hardcoded in each HTML file footer AND in civicscope-admin/in
 ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY, RESEND_API_KEY
 
 ## Recent Changes (March 2026)
+- **GC External form redesign (GC External v1.6.0-gc)**: Added New Construction / Renovation toggle, updated field labels for private developer audience (Name or Company), expanded project type dropdown (Commercial, Industrial, Mixed-Use, Office, Retail, Warehouse/Distribution, Hospitality, Healthcare/Medical, Education, Municipal/Public), added optional square footage field, added file upload zone (sketches/plans/photos) with Claude Vision integration for images. Prompt updated with projectMode, squareFootage, and sketch context. Static dropdown options serve as fallback when tenant config doesn't provide project_types. v1.6.0-gc polish: sketch upload label uses accent color, sub-copy updated ("we'll do the rest!"), upload zone border/bg darkened for visibility.
+- **GC polish pass (GC External v1.4.0-gc, GC Internal v1.4.0-gc-int)**: Dynamic tab titles using tenant gc_name, dynamic favicons using tenant primary_color, header height increased to 72px on both, powered-by CivicScope icon added, CTA button text changed to "Let's See What's Possible →".
+- **Pro banner fix (Pro v2.7.0)**: Removed "CivicScope Pro" label from navy feature banner.
+- **Logging fixes**: Fixed api/log.js hardcoded product:'free' (Pro runs were tagged as Free). Fixed api/gc-log.js ignoring client product value (GC Internal tagged as External). Added full logging pipeline to Free tool (was completely missing).
 - **Header sizing + Free feature bar (Free v1.8.0, Pro v2.6.0)**: Increased header height to 80px
   across landing, Free, and Pro. Logo SVG scaled to 185x45px. Added orange feature bar below
   Free tool header (4 items: No account required, Results in 30 seconds, Private cost estimate,
@@ -138,6 +143,20 @@ ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY, RESEND_API_KEY
 - **max_tokens alignment**: Free bumped from 1000 → 1200 (all versions now 1200)
 - **Confidence scale**: Standardized all 4 versions to High/Medium/Low (Free/Pro had "Moderate" → changed to "Medium")
 - **QA Tool v2**: Manual entry mode, GC Internal separated from spread analysis, persistent Supabase logging (qa_runs table)
+- **2026-03-12 Deploy 1 (HTML)**:
+  - Free v1.8.0 → v1.9.0: Removed JBK CTA block; replaced with "What to Do Next" 4-step action list. Replaced BOT/P3-slanted delivery path section with neutral two-path comparison. Added timeline tease block with gate-unlock reveal. Added timeline field to Claude API prompt. Updated gate heading and button copy. Added Pro nudge linking to civicscope.io/pro.
+  - Pro v2.7.0 → v2.8.0: Removed JBK CTA block; replaced with "What to Do Next" 4-step action list. Replaced BOT/P3-slanted delivery path section with neutral two-path comparison.
+  - Landing page: updated Pro links from app.civicscope.io/civicscope-pro → civicscope.io/pro
+  - New: pro/index.html — Pro early access landing page
+  - vercel.json: added /pro rewrite
+- **2026-03-12 Deploy 2 (API)**:
+  - api/email.js: routed Free/Pro lead notifications from keith@jbkdevelopment.com → info@civicscope.io
+  - api/email.js: added timeline section to Free/Pro report email
+  - api/email.js: removed remaining JBK references from email templates
+
+## Key Learnings
+- Cloudflare Email Address Obfuscation rewrites mailto: links into cdn-cgi/l/email-protection URLs at the CDN layer, even in static HTML served from Vercel. The workaround is adding data-cfEmail="" to the anchor tag in source. The JBK CTA block was replaced entirely in v1.9.0 so this no longer applies to Free/Pro.
+- CivicScope is a standalone SaaS product. JBK Development, Keith Plummer name, and keith@jbkdevelopment.com have been removed from all user-facing surfaces as of Deploy 1+2 on 2026-03-12. Lead notifications now route to info@civicscope.io.
 
 ## API Pattern — IMPORTANT
 All api/*.js files use raw fetch to Supabase REST API. Do NOT use @supabase/supabase-js.
@@ -146,6 +165,7 @@ api/schedule-notify.js uses raw fetch to Resend API (same pattern).
 
 ## Routing (vercel.json)
 - Literal rewrites for internal tools (e.g., /gc/acme-internal) ABOVE wildcard :slug
+- `/pro` → `pro/index.html`
 - `/ryc/schedule` → `ryc-schedule/index.html`
 - :slug wildcard LAST
 - /admin, /qa are literal rewrites
