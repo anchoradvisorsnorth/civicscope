@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CivicScope Pro — Early Access</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,300;1,9..144,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --accent:     #c2410c;
+      --accent-h:   #a83509;
+      --pro:        #1e3a5f;
+      --pro-light:  #dbeafe;
+      --ink:        #1c1917;
+      --ink-light:  #44403c;
+      --muted:      #78716c;
+      --cream:      #faf8f4;
+      --cream-dark: #f2ede4;
+      --border:     #e7e2d8;
+      --white:      #ffffff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      line-height: 1.6;
+    }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--cream);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .nav-logo-text {
+      font-family: 'Fraunces', serif;
+      font-size: 18px;
+      color: var(--ink);
+    }
+    .nav-logo-text em {
+      font-style: italic;
+      font-weight: 300;
+    }
+    .nav-logo-text span {
+      font-style: normal;
+      color: var(--pro);
+      letter-spacing: 0.08em;
+      font-size: 14px;
+    }
+    .nav-back {
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .nav-back:hover { color: var(--ink); }
+
+    /* ── HERO ── */
+    .hero {
+      background: var(--pro);
+      padding: 80px 40px 72px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--pro-light);
+      opacity: 0.7;
+      margin-bottom: 24px;
+    }
+    .hero-headline {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: clamp(36px, 5vw, 56px);
+      color: var(--white);
+      line-height: 1.1;
+      margin-bottom: 16px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .hero-sub {
+      font-size: 16px;
+      color: var(--pro-light);
+      opacity: 0.85;
+      max-width: 520px;
+      margin: 0 auto 40px;
+      line-height: 1.65;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--pro-light);
+      padding: 6px 16px;
+      margin-bottom: 32px;
+    }
+
+    /* ── CAPTURE FORM ── */
+    .capture-section {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 36px 40px;
+      max-width: 480px;
+      margin: -40px auto 0;
+      position: relative;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    }
+    .capture-label {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .capture-heading {
+      font-family: 'Fraunces', serif;
+      font-size: 22px;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    .capture-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .capture-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .capture-form input {
+      width: 100%;
+      padding: 11px 14px;
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--cream);
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .capture-form input:focus {
+      border-color: var(--pro);
+    }
+    .capture-btn {
+      width: 100%;
+      padding: 13px 20px;
+      background: var(--pro);
+      color: var(--white);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .capture-btn:hover { background: #162e4d; }
+    .capture-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .capture-note {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 8px;
+    }
+    .capture-success {
+      display: none;
+      text-align: center;
+      padding: 20px 0 8px;
+    }
+    .capture-success-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    .capture-success h3 {
+      font-family: 'Fraunces', serif;
+      font-size: 20px;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    .capture-success p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── FEATURES ── */
+    .features-section {
+      max-width: 860px;
+      margin: 80px auto;
+      padding: 0 40px;
+    }
+    .section-eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .section-headline {
+      font-family: 'Fraunces', serif;
+      font-size: 30px;
+      color: var(--ink);
+      margin-bottom: 40px;
+      line-height: 1.25;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px 26px;
+    }
+    .feature-icon {
+      font-size: 22px;
+      margin-bottom: 12px;
+    }
+    .feature-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    .feature-desc {
+      font-size: 13px;
+      color: var(--ink-light);
+      line-height: 1.55;
+    }
+    .feature-tag {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--pro);
+      background: var(--pro-light);
+      padding: 2px 7px;
+      border-radius: 3px;
+      margin-top: 10px;
+    }
+
+    /* ── PRICING PREVIEW ── */
+    .pricing-section {
+      background: var(--cream-dark);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 64px 40px;
+      text-align: center;
+    }
+    .pricing-inner {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+    .pricing-pill {
+      display: inline-block;
+      background: var(--pro);
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+    .pricing-headline {
+      font-family: 'Fraunces', serif;
+      font-size: 26px;
+      color: var(--ink);
+      margin-bottom: 12px;
+      line-height: 1.25;
+    }
+    .pricing-body {
+      font-size: 14px;
+      color: var(--ink-light);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .pricing-detail {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+    .pricing-cta-btn {
+      display: inline-block;
+      background: var(--pro);
+      color: var(--white);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px 28px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .pricing-cta-btn:hover { background: #162e4d; }
+
+    /* ── FREE CTA ── */
+    .free-cta {
+      text-align: center;
+      padding: 60px 40px;
+    }
+    .free-cta p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .free-cta a {
+      font-size: 14px;
+      color: var(--accent);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .free-cta a:hover { text-decoration: underline; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--ink);
+      padding: 28px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .footer-brand {
+      font-family: 'Fraunces', serif;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .footer-brand em { font-style: italic; }
+    .footer-links {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .footer-links a {
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .footer-links a:hover { color: var(--cream); }
+
+    @media (max-width: 600px) {
+      .hero { padding: 56px 24px 60px; }
+      .capture-section { margin: -32px 16px 0; padding: 28px 24px; }
+      .features-section { margin: 56px auto; padding: 0 24px; }
+      nav { padding: 0 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="https://civicscope.io" class="nav-logo">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+      <rect x="5" y="20" width="22" height="8" fill="none" stroke="#1c1917" stroke-width="1.8" stroke-linejoin="round"/>
+      <line x1="10" y1="20" x2="10" y2="14" stroke="#1c1917" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="16" y1="20" x2="16" y2="14" stroke="#1c1917" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="22" y1="20" x2="22" y2="14" stroke="#1c1917" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="6" y1="14" x2="26" y2="14" stroke="#1c1917" stroke-width="1.8" stroke-linecap="round"/>
+      <polyline points="7,14 16,4 25,14" fill="none" stroke="#1e3a5f" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      <rect x="13" y="22" width="6" height="6" rx="3" fill="#1e3a5f"/>
+    </svg>
+    <span class="nav-logo-text"><em>Civic</em><span>SCOPE</span></span>
+  </a>
+  <a href="https://civicscope.io" class="nav-back">&larr; Back to civicscope.io</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <p class="hero-eyebrow">Coming Soon</p>
+  <h1 class="hero-headline">A full project workspace for municipal teams.</h1>
+  <p class="hero-sub">Save projects, edit inputs, run comparison scenarios, and get address-level analysis &mdash; all in one place.</p>
+  <div class="hero-badge">Early access members get a reduced rate when we launch</div>
+</div>
+
+<!-- CAPTURE FORM (floats up over hero) -->
+<div class="capture-section">
+  <p class="capture-label">Early Access</p>
+  <h2 class="capture-heading">Join the list</h2>
+  <p class="capture-sub">We&rsquo;ll email you when Pro is ready &mdash; and early members get a reduced rate at launch.</p>
+
+  <div class="capture-form" id="captureForm">
+    <input type="email" id="captureEmail" placeholder="Your work email" autocomplete="email" />
+    <input type="text" id="captureName" placeholder="Your name (optional)" autocomplete="name" />
+    <button class="capture-btn" onclick="submitCapture()" id="captureBtn">
+      Join the early access list
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <p class="capture-note">No spam. One email when Pro is ready.</p>
+  </div>
+
+  <div class="capture-success" id="captureSuccess">
+    <div class="capture-success-icon">&#10003;</div>
+    <h3>You&rsquo;re on the list.</h3>
+    <p>We&rsquo;ll reach out when Pro is ready. Early members get a reduced rate.</p>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features-section">
+  <p class="section-eyebrow">What&rsquo;s in Pro</p>
+  <h2 class="section-headline">Everything in Free, plus a<br>full project workspace.</h2>
+
+  <div class="features-grid">
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128190;</div>
+      <div class="feature-title">Saved Projects</div>
+      <div class="feature-desc">Every run is saved to your account. Return to any project, review your history, and track how your thinking evolved.</div>
+      <div class="feature-tag">Pro</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#9998;</div>
+      <div class="feature-title">Edit &amp; Re-Run</div>
+      <div class="feature-desc">Change one variable &mdash; scope, footprint, construction type &mdash; and re-run instantly. No re-entering all your inputs from scratch.</div>
+      <div class="feature-tag">Pro</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#9654;</div>
+      <div class="feature-title">Scenario Comparison</div>
+      <div class="feature-desc">Run multiple options side by side. Present the cost delta between a 20,000 SF and 30,000 SF facility to council in one view.</div>
+      <div class="feature-tag">Pro</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128205;</div>
+      <div class="feature-title">Address-Level Analysis</div>
+      <div class="feature-desc">Site-specific factors &mdash; zoning, permitting environment, known utility constraints &mdash; layered into your cost range, not just regional averages.</div>
+      <div class="feature-tag">Pro</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128196;</div>
+      <div class="feature-title">Print-Ready Reports</div>
+      <div class="feature-desc">Export a clean PDF formatted for council packets, department briefings, or pre-design budget conversations.</div>
+      <div class="feature-tag">Pro</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128270;</div>
+      <div class="feature-title">Methodology Transparency</div>
+      <div class="feature-desc">See the cost drivers behind your number &mdash; what&rsquo;s pulling cost up, what&rsquo;s pulling it down, and where uncertainty lives in this estimate.</div>
+      <div class="feature-tag">Pro</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- PRICING PREVIEW -->
+<section class="pricing-section">
+  <div class="pricing-inner">
+    <div class="pricing-pill">Pricing</div>
+    <h2 class="pricing-headline">Priced per department,<br>not per seat.</h2>
+    <p class="pricing-body">One subscription covers your entire department &mdash; parks, public works, administration, whoever needs to run a number. No per-user billing, no usage limits.</p>
+    <p class="pricing-detail">Pricing announced at launch. Early access members receive a reduced rate.</p>
+    <a href="#captureForm" class="pricing-cta-btn" onclick="document.getElementById('captureEmail').focus(); return false;">Join the early access list &rarr;</a>
+  </div>
+</section>
+
+<!-- FREE CTA -->
+<div class="free-cta">
+  <p>Need a number today?</p>
+  <a href="https://app.civicscope.io/civicscope">Use the Free tool &rarr;</a>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <span class="footer-brand"><em>Civic</em>SCOPE &mdash; Municipal Project Feasibility</span>
+  <div class="footer-links">
+    <a href="https://civicscope.io">Home</a>
+    <a href="https://app.civicscope.io/civicscope">Free Tool</a>
+    <a href="mailto:info@civicscope.io">info@civicscope.io</a>
+  </div>
+</footer>
+
+<script>
+  // ── EARLY ACCESS FORM ──────────────────────────────────────
+  async function submitCapture() {
+    const emailEl = document.getElementById('captureEmail');
+    const nameEl  = document.getElementById('captureName');
+    const btn     = document.getElementById('captureBtn');
+    const email   = emailEl.value.trim();
+    const name    = nameEl.value.trim();
+
+    if (!email || !email.includes('@')) {
+      emailEl.style.borderColor = '#dc2626';
+      emailEl.focus();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    try {
+      // Send to Formspree
+      const res = await fetch('https://formspree.io/f/xdkgnkwz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ email, name, _subject: 'CivicScope Pro Early Access' })
+      });
+
+      if (res.ok) {
+        document.getElementById('captureForm').style.display = 'none';
+        document.getElementById('captureSuccess').style.display = 'block';
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Try again';
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = 'Try again';
+    }
+  }
+
+  // Allow Enter key on email field
+  document.getElementById('captureEmail').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitCapture();
+  });
+</script>
+
+</body>
+</html>
