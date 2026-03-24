@@ -1,4 +1,7 @@
 {
+  "crons": [
+    { "path": "/api/digest", "schedule": "0 11 * * *" }
+  ],
   "rewrites": [
     { "source": "/admin", "destination": "/civicscope-admin/index.html" },
     { "source": "/pro",   "destination": "/pro/index.html" },
