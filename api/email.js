@@ -23,14 +23,14 @@ export default async function handler(req, res) {
       const {
         recipientEmail, recipientName, municipality, projectType,
         costLow, costHigh, costMidpoint, confidence, narrative, assumptions,
-        briefingHtml, whyGC, processSteps, product, gcName, gcSlug
+        briefingHtml, timeline, whyGC, processSteps, product, gcName, gcSlug
       } = data;
 
       const isGC = product && product.startsWith('gc-');
 
       const reportHtml = isGC
         ? buildGCReportEmail({ recipientName, municipality, projectType, costLow, costHigh, costMidpoint, confidence, narrative, assumptions, whyGC, processSteps, gcName })
-        : buildReportEmail({ recipientName, municipality, projectType, costLow, costHigh, costMidpoint, confidence, narrative, assumptions, briefingHtml, product });
+        : buildReportEmail({ recipientName, municipality, projectType, costLow, costHigh, costMidpoint, confidence, narrative, assumptions, briefingHtml, timeline, product });
 
       const subject = isGC
         ? `Your Project Cost Summary — ${projectType}${municipality ? ' in ' + municipality : ''}`
