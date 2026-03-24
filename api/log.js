@@ -65,7 +65,8 @@ export default async function handler(req, res) {
         assumptions: data.assumptions || [],
         project_label: data.project_label,
         run_duration_ms: data.run_duration_ms,
-        product: 'free'
+        product: data.product || 'free',
+        ref: data.ref || null
       });
       return res.status(200).json({ run_id: rows[0].id });
     }
