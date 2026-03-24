@@ -787,8 +787,8 @@ footer span {
 
     /* ── NEXT STEPS CTA ─────────────────────────── */
     .cta-block.next-steps {
-      background: var(--bg-alt);
-      border: 1px solid var(--border);
+      background: var(--cream-dark);
+      border: 1px solid var(--rule);
       border-radius: 8px;
       padding: 28px 32px;
       margin-top: 24px;
@@ -823,7 +823,7 @@ footer span {
       font-size: 12px;
       color: var(--muted);
       padding-top: 16px;
-      border-top: 1px solid var(--border);
+      border-top: 1px solid var(--rule);
     }
     .pro-nudge a {
       color: var(--accent);
@@ -1193,6 +1193,14 @@ footer span {
           </button>
         </div>
         <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. <a href="javascript:window.print()" style="color:var(--accent);text-decoration:none;margin-left:8px;">Print / Save as PDF →</a></div>
+        <div class="gate-post-cta" id="gatePostCta" style="display:none;">
+          <div style="margin-top:20px;padding:20px 24px;background:var(--cream-dark);border:1px solid var(--rule);border-radius:8px;">
+            <p style="font-size:14px;color:var(--ink);font-weight:600;margin-bottom:6px;">Want to go deeper?</p>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.55;">CivicScope Pro lets you run multiple scenarios, compare delivery paths side-by-side, and save projects — built for officials moving from "what if" to "what's next."</p>
+            <a href="https://civicscope.io/pro" style="display:inline-block;background:var(--accent);color:#fff;padding:10px 20px;border-radius:5px;text-decoration:none;font-size:13px;font-weight:600;">Learn about CivicScope Pro →</a>
+            <p style="font-size:12px;color:var(--muted-light);margin-top:12px;">Or reach us at <a href="mailto:info@civicscope.io" style="color:var(--accent);text-decoration:none;">info@civicscope.io</a> — we're happy to talk through your project.</p>
+          </div>
+        </div>
       </div>
 
       <div class="cta-block next-steps">
@@ -1747,6 +1755,7 @@ async function submitLead() {
 
     document.getElementById('gateBtn').style.display = 'none';
     document.getElementById('gateConfirmed').style.display = 'block';
+    document.getElementById('gatePostCta').style.display = 'block';
 
     // Reveal timeline tease
     const tease = document.getElementById('timelineTease');
