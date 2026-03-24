@@ -1300,6 +1300,9 @@ async function logAction(action, data) {
   } catch (e) { return null; }
 }
 
+// Read ref param from URL for campaign attribution
+const _refParam = new URLSearchParams(window.location.search).get('ref') || null;
+
 async function initSession() {
   const result = await logAction('create_session', {
     referrer: document.referrer || null,
@@ -1546,7 +1549,7 @@ Rules:
       cost_low: rd.low, cost_high: rd.high, cost_midpoint: Math.round((rd.low + rd.high) / 2),
       confidence: rd.confidence, confidence_reason: rd.confidence_reason,
       narrative: rd.narrative, assumptions: rd.assumptions, project_label: rd.project_label,
-      run_duration_ms: runDuration, product: 'free'
+      run_duration_ms: runDuration, product: 'free', ref: _refParam
     }).then(r => { if (r && r.run_id) _runId = r.run_id; });
 
     document.getElementById('resultTitle').textContent = rd.project_label || 'Preliminary Feasibility Indicator';
