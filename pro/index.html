@@ -529,11 +529,10 @@
     btn.textContent = 'Sending...';
 
     try {
-      // Send to Formspree
-      const res = await fetch('https://formspree.io/f/xdkgnkwz', {
+      const res = await fetch('/api/email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ email, name, _subject: 'CivicScope Pro Early Access' })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pro_capture', data: { email, name } })
       });
 
       if (res.ok) {
