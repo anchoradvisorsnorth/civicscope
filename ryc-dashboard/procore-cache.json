@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-03-25T22:36:14.586Z",
+  "refreshed": "2026-03-25T22:37:48.448Z",
   "jobs": [
     {
       "slug": "michiana-eye-center",
@@ -17,7 +17,12 @@
         "total": 76,
         "open": 53
       },
-      "budget": null,
+      "budget": {
+        "original": 3552279.87,
+        "revised": 3552279.87,
+        "committed": 0,
+        "direct": 488076.64
+      },
       "contractValue": "3970739.0"
     },
     {
@@ -36,27 +41,37 @@
         "total": 90,
         "open": 71
       },
-      "budget": null,
+      "budget": {
+        "original": 15960965.520000003,
+        "revised": 15960965.520000003,
+        "committed": 0,
+        "direct": 269103.94
+      },
       "contractValue": "0.0"
     },
     {
       "slug": "phm-fieldhouse",
-      "procoreId": 598134326053700,
-      "name": "2504GO04 - Northern Heights Elementary",
+      "procoreId": 598134325689249,
+      "name": "2413GO02 - 222130.00 PHM Fieldhouse",
       "active": true,
-      "start": "2025-04-14",
-      "projectedFinish": "2025-09-30",
+      "start": "2024-04-08",
+      "projectedFinish": "2025-10-18T21:00:00Z",
       "pctComplete": null,
       "rfis": {
-        "total": 4,
-        "open": 1
+        "total": 75,
+        "open": 24
       },
       "submittals": {
-        "total": 44,
-        "open": 13
+        "total": 389,
+        "open": 95
       },
-      "budget": null,
-      "contractValue": "1500000.0"
+      "budget": {
+        "original": 15085716.219999999,
+        "revised": 15842068.219999999,
+        "committed": 0,
+        "direct": 16222804.569999998
+      },
+      "contractValue": "15926745.0"
     }
   ]
 }
