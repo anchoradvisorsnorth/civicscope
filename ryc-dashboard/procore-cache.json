@@ -1,14 +1,18 @@
 {
-  "refreshed": "2026-03-25T22:37:48.448Z",
+  "refreshed": "2026-03-25T22:49:17.763Z",
   "jobs": [
     {
       "slug": "michiana-eye-center",
       "procoreId": 598134326177457,
       "name": "2508CO01 - Michiana Eye Center",
       "active": true,
+      "stage": null,
       "start": "2025-08-31",
       "projectedFinish": "2026-08-31",
-      "pctComplete": null,
+      "completionDate": "2026-08-31",
+      "sqft": null,
+      "pctComplete": 12.3,
+      "costOverrun": false,
       "rfis": {
         "total": 4,
         "open": 1
@@ -23,16 +27,30 @@
         "committed": 0,
         "direct": 488076.64
       },
-      "contractValue": "3970739.0"
+      "contractValue": 3970739,
+      "pm": {
+        "name": "Brad Yoder",
+        "email": "brad@ryoderconstruction.com",
+        "title": "Vice President"
+      },
+      "superintendent": {
+        "name": "Brian Hubbard",
+        "email": "bhubbard@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
     },
     {
       "slug": "monreaux-apartments",
       "procoreId": 598134326220700,
       "name": "2413CO08 - The Monreaux Apartments",
       "active": true,
-      "start": "2025-09-05",
+      "stage": "Pre-Construction",
+      "start": "2025-12-01",
       "projectedFinish": "2027-06-30T21:00:00Z",
+      "completionDate": "2027-01-01",
+      "sqft": null,
       "pctComplete": null,
+      "costOverrun": false,
       "rfis": {
         "total": 9,
         "open": 2
@@ -47,16 +65,30 @@
         "committed": 0,
         "direct": 269103.94
       },
-      "contractValue": "0.0"
+      "contractValue": 0,
+      "pm": {
+        "name": "Brad Yoder",
+        "email": "brad@ryoderconstruction.com",
+        "title": "Vice President"
+      },
+      "superintendent": {
+        "name": "Joe Beer",
+        "email": "jbeer@ryoderconstruction.com",
+        "title": "General Superintendent"
+      }
     },
     {
       "slug": "phm-fieldhouse",
       "procoreId": 598134325689249,
       "name": "2413GO02 - 222130.00 PHM Fieldhouse",
       "active": true,
+      "stage": "Course of Construction",
       "start": "2024-04-08",
       "projectedFinish": "2025-10-18T21:00:00Z",
-      "pctComplete": null,
+      "completionDate": "2025-08-30",
+      "sqft": 56000,
+      "pctComplete": 101.9,
+      "costOverrun": true,
       "rfis": {
         "total": 75,
         "open": 24
@@ -71,7 +103,17 @@
         "committed": 0,
         "direct": 16222804.569999998
       },
-      "contractValue": "15926745.0"
+      "contractValue": 15926745,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Dale Jones",
+        "email": "djones@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
     }
   ]
 }
