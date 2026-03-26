@@ -1,12 +1,12 @@
 {
-  "refreshed": "2026-03-26T01:25:26.453Z",
+  "refreshed": "2026-03-26T08:19:52.299Z",
   "jobCount": 33,
   "jobs": [
     {
       "slug": "helix-orchard-wallen-road",
       "procoreId": 598134326115869,
       "projectNumber": "2513CO04",
-      "name": "Helix Orchard Wallen Road",
+      "name": "helix-orchard-wallen-road",
       "client": "Helix",
       "clientType": "commercial",
       "workType": "new_construction",
@@ -18,12 +18,12 @@
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 0,
+        "total": 1,
         "open": 0
       },
       "submittals": {
-        "total": 0,
-        "open": 0
+        "total": 42,
+        "open": 27
       },
       "budget": {
         "original": 19281323.549999997,
@@ -32,8 +32,16 @@
         "direct": 7849322.41
       },
       "contractValue": 19281323.549999997,
-      "pm": null,
-      "superintendent": null
+      "pm": {
+        "name": "Matt Gongwer",
+        "email": "matt@luemfg.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Kyle Roberts",
+        "email": "kyle@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
     },
     {
       "slug": "shipshewana-wwtp-project-a",
@@ -84,46 +92,29 @@
       "slug": "monreaux-apartments",
       "procoreId": 598134326220700,
       "projectNumber": "2413CO08",
-      "name": "The Monreaux Apartments",
+      "name": "monreaux-apartments",
       "client": "Chateaux 14 Development, LLC",
       "clientType": "mixed_use",
       "workType": "new_construction",
       "active": true,
-      "stage": "Pre-Construction",
-      "address": "100 West Monroe Street, South Bend, IN",
-      "start": "2025-12-01",
-      "projectedFinish": "2027-06-30T21:00:00Z",
-      "completionDate": "2027-01-01",
-      "sqft": null,
-      "pctComplete": 1.6,
-      "costOverrun": false,
+      "stage": null,
+      "address": null,
+      "pctComplete": null,
+      "costOverrun": null,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 9,
-        "open": 2
+        "total": 0,
+        "open": 0
       },
       "submittals": {
-        "total": 90,
-        "open": 71
+        "total": 0,
+        "open": 0
       },
-      "budget": {
-        "original": 15960965.520000003,
-        "revised": 15960965.520000003,
-        "committed": 0,
-        "direct": 269103.94
-      },
+      "budget": null,
       "contractValue": 17256996,
-      "pm": {
-        "name": "Matt Gongwer",
-        "email": "matt@luemfg.com",
-        "title": "Project Manager"
-      },
-      "superintendent": {
-        "name": "Nick Rethlake",
-        "email": "nrethlake@ryoderconstruction.com",
-        "title": "Superintendent "
-      }
+      "pm": null,
+      "superintendent": null
     },
     {
       "slug": "phm-fieldhouse",
@@ -219,18 +210,14 @@
       "slug": "wakarusa-wtp",
       "procoreId": 598134325822070,
       "projectNumber": "2402GP09",
-      "name": "Wakarusa WTP",
+      "name": "wakarusa-wtp",
       "client": "Town of Wakarusa",
       "clientType": "municipal_water_wastewater",
       "workType": "renovation",
       "active": true,
-      "stage": "Course of Construction",
-      "address": "459 Maple Lane, Wakarusa, IN",
-      "start": "2024-09-03",
-      "projectedFinish": "2026-04-22T21:00:00Z",
-      "completionDate": "2025-07-01",
-      "sqft": null,
-      "pctComplete": 72.3,
+      "stage": null,
+      "address": null,
+      "pctComplete": 79,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -248,7 +235,7 @@
         "committed": 0,
         "direct": 8646637.35
       },
-      "contractValue": 11967209,
+      "contractValue": 10951924.540000001,
       "pm": {
         "name": "Matt Gongwer",
         "email": "matt@luemfg.com",
@@ -491,7 +478,7 @@
       "projectedFinish": "2026-10-03",
       "completionDate": "2026-10-03",
       "sqft": null,
-      "pctComplete": 31.1,
+      "pctComplete": 34.1,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -507,7 +494,7 @@
         "original": 3309736.6799999997,
         "revised": 3309736.6799999997,
         "committed": 0,
-        "direct": 1151950.6400000001
+        "direct": 1263509.84
       },
       "contractValue": 3709035,
       "pm": {
@@ -581,74 +568,24 @@
       "projectedFinish": "2026-10-01",
       "completionDate": "2026-10-01",
       "sqft": null,
-      "pctComplete": 23.4,
-      "costOverrun": false,
+      "pctComplete": null,
+      "costOverrun": null,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 16,
-        "open": 4
+        "total": 0,
+        "open": 0
       },
       "submittals": {
-        "total": 75,
-        "open": 36
+        "total": 0,
+        "open": 0
       },
-      "budget": {
-        "original": 3089475.19,
-        "revised": 3089475.19,
-        "committed": 0,
-        "direct": 858209.99
-      },
+      "budget": null,
       "contractValue": 3670297,
       "pm": {
         "name": "Ben Whetstone",
         "email": "ben.whetstone@dnd-electric.com",
         "title": "Project Manager "
-      },
-      "superintendent": {
-        "name": "Fred Cencelewski",
-        "email": "fcencelewski@ryoderconstruction.com",
-        "title": "Field Superintendent"
-      }
-    },
-    {
-      "slug": "st-joe-county-garages-combo",
-      "procoreId": 598134325637575,
-      "projectNumber": "2307GO09",
-      "name": "St. Joe County Garages - Combo",
-      "client": "St. Joseph County",
-      "clientType": "municipal",
-      "workType": "new_construction",
-      "active": true,
-      "stage": "Course of Construction",
-      "address": "SEE COMMENTS TAB, IN",
-      "start": "2023-12-01",
-      "projectedFinish": "2025-05-06T21:00:00Z",
-      "completionDate": "2024-10-01",
-      "sqft": 4500,
-      "pctComplete": 108.2,
-      "costOverrun": true,
-      "commitmentsTracked": false,
-      "verifyStatus": false,
-      "rfis": {
-        "total": 40,
-        "open": 0
-      },
-      "submittals": {
-        "total": 176,
-        "open": 47
-      },
-      "budget": {
-        "original": 3290493.28,
-        "revised": 4099820.9299999997,
-        "committed": 0,
-        "direct": 3925951.57
-      },
-      "contractValue": 3627769,
-      "pm": {
-        "name": "Erik Parcell",
-        "email": "eparcell@ryoderconstruction.com",
-        "title": "Project Manager"
       },
       "superintendent": {
         "name": "Fred Cencelewski",
@@ -750,17 +687,13 @@
       "slug": "white-vet-clinic-improvements",
       "procoreId": 598134326466832,
       "projectNumber": "2611CO01",
-      "name": "White Vet Clinic Improvments",
+      "name": "white-vet-clinic-improvements",
       "client": "White Veterinary Clinic",
       "clientType": "commercial",
       "workType": "renovation",
       "active": true,
       "stage": null,
-      "address": "1014 Lincolnway E , Goshen, IN",
-      "start": "2026-01-06",
-      "projectedFinish": "2027-05-04T21:00:00Z",
-      "completionDate": "2027-04-06",
-      "sqft": null,
+      "address": null,
       "pctComplete": 0,
       "costOverrun": false,
       "commitmentsTracked": false,
@@ -779,7 +712,7 @@
         "committed": 0,
         "direct": 0
       },
-      "contractValue": 2280743,
+      "contractValue": 2071633.13,
       "pm": {
         "name": "Troy Jennings",
         "email": "troy@ryoderconstruction.com",
@@ -837,51 +770,6 @@
       }
     },
     {
-      "slug": "wabash-pickleball-courts",
-      "procoreId": 598134326170149,
-      "projectNumber": "2502GO06",
-      "name": "Wabash Pickleball Courts",
-      "client": "City of Wabash",
-      "clientType": "municipal",
-      "workType": "new_construction",
-      "active": true,
-      "stage": "Course of Construction",
-      "address": "370 Harrison Ave, Wabash, IN",
-      "start": "2025-07-28",
-      "projectedFinish": "2025-10-31",
-      "completionDate": "2025-10-31",
-      "sqft": null,
-      "pctComplete": 64.8,
-      "costOverrun": false,
-      "commitmentsTracked": false,
-      "verifyStatus": true,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 26,
-        "open": 3
-      },
-      "budget": {
-        "original": 1033799.5299999999,
-        "revised": 1033799.5299999999,
-        "committed": 0,
-        "direct": 847086.09
-      },
-      "contractValue": 1306310,
-      "pm": {
-        "name": "Logan Moore",
-        "email": "lmoore@ryoderconstruction.com",
-        "title": "Project Engineer"
-      },
-      "superintendent": {
-        "name": "Dale Jones",
-        "email": "djones@ryoderconstruction.com",
-        "title": "Field Superintendent"
-      }
-    },
-    {
       "slug": "jomar-2025-build",
       "procoreId": 598134326162581,
       "projectNumber": "2504CO05",
@@ -896,7 +784,7 @@
       "projectedFinish": "2026-03-31T21:00:00Z",
       "completionDate": "2026-01-02",
       "sqft": 20000,
-      "pctComplete": 77,
+      "pctComplete": 79,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -912,7 +800,7 @@
         "original": 959002.92,
         "revised": 997225.92,
         "committed": 0,
-        "direct": 845146.47
+        "direct": 867832.95
       },
       "contractValue": 1098000,
       "pm": {
@@ -1275,6 +1163,42 @@
       }
     },
     {
+      "slug": "eha-waterfall-sec-upgrades",
+      "procoreId": 598134326178107,
+      "projectNumber": "2520GP01",
+      "name": "EHA Waterfall SEC Upgrades",
+      "client": "Elkhart Housing Authority",
+      "clientType": "municipal",
+      "workType": "renovation",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "303 Waterfall Dr, Elkhart, IN",
+      "start": "2025-10-13",
+      "projectedFinish": "2026-01-09",
+      "completionDate": "2026-01-09",
+      "sqft": null,
+      "pctComplete": null,
+      "costOverrun": null,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 39,
+        "open": 13
+      },
+      "budget": null,
+      "contractValue": 185187,
+      "pm": {
+        "name": "Troy Jennings",
+        "email": "troy@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": null
+    },
+    {
       "slug": "alum-ins-presezzi-fdtn",
       "procoreId": 598134326353356,
       "projectNumber": "2507CO04",
@@ -1289,7 +1213,7 @@
       "projectedFinish": "2026-05-05",
       "completionDate": "2026-05-05",
       "sqft": null,
-      "pctComplete": 91.1,
+      "pctComplete": 92.2,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -1305,7 +1229,7 @@
         "original": 57373.51,
         "revised": 70028.51000000001,
         "committed": 0,
-        "direct": 59823.549999999996
+        "direct": 60562.229999999996
       },
       "contractValue": 65680,
       "pm": {
@@ -1361,13 +1285,13 @@
       "superintendent": null
     },
     {
-      "slug": "eha-waterfall-sec-upgrades",
-      "procoreId": 598134326178107,
-      "projectNumber": "2520GP01",
-      "name": "eha-waterfall-sec-upgrades",
-      "client": "Elkhart Housing Authority",
-      "clientType": "municipal",
-      "workType": "renovation",
+      "slug": "goshen-wwtp-anaerobic-digest",
+      "procoreId": 598134326535436,
+      "projectNumber": "2502GP12",
+      "name": "goshen-wwtp-anaerobic-digest",
+      "client": "City of Goshen",
+      "clientType": "municipal_water_wastewater",
+      "workType": "new_construction",
       "active": true,
       "stage": null,
       "address": null,
@@ -1389,12 +1313,40 @@
       "superintendent": null
     },
     {
-      "slug": "goshen-wwtp-anaerobic-digest",
-      "procoreId": 598134326535436,
-      "projectNumber": "2502GP12",
-      "name": "goshen-wwtp-anaerobic-digest",
-      "client": "City of Goshen",
-      "clientType": "municipal_water_wastewater",
+      "slug": "st-joe-county-garages-combo",
+      "procoreId": 598134325637575,
+      "projectNumber": "2307GO09",
+      "name": "st-joe-county-garages-combo",
+      "client": "St. Joseph County",
+      "clientType": "municipal",
+      "workType": "new_construction",
+      "active": true,
+      "stage": null,
+      "address": null,
+      "pctComplete": null,
+      "costOverrun": null,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": null,
+      "contractValue": 0,
+      "pm": null,
+      "superintendent": null
+    },
+    {
+      "slug": "wabash-pickleball-courts",
+      "procoreId": 598134326170149,
+      "projectNumber": "2502GO06",
+      "name": "wabash-pickleball-courts",
+      "client": "City of Wabash",
+      "clientType": "municipal",
       "workType": "new_construction",
       "active": true,
       "stage": null,
