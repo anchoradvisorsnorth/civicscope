@@ -235,8 +235,6 @@ function dqClass(q) { return 'dq-' + (q || 'missing'); }
 function typeColor(t) { return { school: 'var(--blue-bar)', municipal: 'var(--teal-bar)', municipal_water_wastewater: '#0891b2', commercial: 'var(--amber-bar)', mixed_use: 'var(--purple-bar)', industrial: '#78716c' }[t] || '#9ca3af'; }
 function typeName(t) { return { school: 'School', municipal: 'Municipal', municipal_water_wastewater: 'Municipal \u2013 Water/WW', commercial: 'Commercial', mixed_use: 'Mixed use', industrial: 'Industrial', private: 'Private', new_construction: 'New construction', renovation: 'Renovation', repair: 'Repair', addition: 'Addition', expansion: 'Expansion' }[t] || t; }
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function slugToTitle(slug) { return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\bWwtp\b/g,'WWTP').replace(/\bWtp\b/g,'WTP').replace(/\bEha\b/g,'EHA').replace(/\bPhm\b/g,'PHM').replace(/\bIndot\b/g,'INDOT').replace(/\bNptech\b/g,'NPTech').replace(/\bWrrf\b/g,'WRRF').replace(/\bFp\b/g,'FP').replace(/\bCtb\b/g,'CTB').replace(/\bSec\b/g,'SEC'); }
-function displayName(job) { return (job.name && job.name.length > 3) ? job.name : slugToTitle(job.slug); }
 function contractedMargin(job) { const cv = job.contractValue; const bo = job.budget?.original; return (cv > 0 && bo > 0) ? ((cv - bo) / cv * 100) : null; }
 function marginToDate(job) { const cv = job.contractValue; const dc = job.budget?.direct; return (cv > 0 && dc > 0) ? ((cv - dc) / cv * 100) : null; }
 function marginColorClass(m) { return m == null ? 'margin-missing' : m >= 10 ? 'margin-green' : m >= 5 ? 'margin-amber' : 'margin-red'; }
@@ -442,7 +440,7 @@ function renderActiveCard(job, live) {
     <div class="job-card active-card">
       <div class="job-header">
         <div>
-          <div class="job-name"><span class="stoplight stoplight-${sl.color}"></span>${esc(displayName(job))}</div>
+          <div class="job-name"><span class="stoplight stoplight-${sl.color}"></span>${esc(job.name)}</div>
           <div class="job-client">${esc(job.client)}</div>
         </div>
         <div class="badges">
