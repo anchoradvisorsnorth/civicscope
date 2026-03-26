@@ -143,6 +143,7 @@
   .product-card.pro::before    { background: var(--accent2); }
   .product-card.gc-ext::before { background: var(--warn); }
   .product-card.gc-int::before { background: var(--purple); }
+  .product-card.ryc::before    { background: #0d9488; }
 
   .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
   .card-name { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
@@ -556,6 +557,22 @@
         <div class="card-actions">
           <button class="btn-smoke" onclick="smokeTest('gc-int','https://app.civicscope.io/gc/acme-internal')">▶ Smoke Test</button>
           <a class="btn-open" href="https://app.civicscope.io/gc/acme-internal" target="_blank">↗ Open</a>
+        </div>
+      </div>
+
+      <div class="product-card ryc">
+        <div class="card-top">
+          <div><div class="card-name">RYC Portfolio Dashboard</div><div class="card-tier">app.civicscope.io/ryc/dashboard</div></div>
+          <div class="status-pill"><div class="dot live"></div><span style="color:var(--green)">live</span></div>
+        </div>
+        <div class="card-meta">
+          <div class="meta-item"><div class="mlabel">Version</div><div class="mval">v1.3.0-ryc-dashboard</div></div>
+          <div class="meta-item"><div class="mlabel">Active Jobs</div><div class="mval">33</div></div>
+          <div class="meta-item"><div class="mlabel">Data</div><div class="mval">Procore + SharePoint</div></div>
+          <div class="meta-item"><div class="mlabel">Access</div><div class="mval" style="color:#0d9488">Password Gate</div></div>
+        </div>
+        <div class="card-actions">
+          <a class="btn-open" href="https://app.civicscope.io/ryc/dashboard" target="_blank">↗ Open</a>
         </div>
       </div>
     </div>

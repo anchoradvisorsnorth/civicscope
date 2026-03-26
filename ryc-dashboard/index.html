@@ -130,7 +130,7 @@
 
 <div id="app">
   <header>
-    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.2.1-ryc-dashboard</div></div>
+    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.3.0-ryc-dashboard</div></div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
       <button class="refresh-btn" id="btn-refresh" onclick="triggerRefresh()">Refresh Procore</button>
@@ -151,7 +151,7 @@
   </div>
 
   <div class="footer">
-    v1.2.1-ryc-dashboard — Data from SharePoint + Procore<br>
+    v1.3.0-ryc-dashboard — Data from SharePoint + Procore<br>
     Project team data sourced from Procore. Update assignments in Procore to reflect changes.<br>
     Jobs showing past due with no recent activity may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
@@ -235,6 +235,11 @@ function dqClass(q) { return 'dq-' + (q || 'missing'); }
 function typeColor(t) { return { school: 'var(--blue-bar)', municipal: 'var(--teal-bar)', municipal_water_wastewater: '#0891b2', commercial: 'var(--amber-bar)', mixed_use: 'var(--purple-bar)', industrial: '#78716c' }[t] || '#9ca3af'; }
 function typeName(t) { return { school: 'School', municipal: 'Municipal', municipal_water_wastewater: 'Municipal \u2013 Water/WW', commercial: 'Commercial', mixed_use: 'Mixed use', industrial: 'Industrial', private: 'Private', new_construction: 'New construction', renovation: 'Renovation', repair: 'Repair', addition: 'Addition', expansion: 'Expansion' }[t] || t; }
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function slugToTitle(slug) { return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\bWwtp\b/g,'WWTP').replace(/\bWtp\b/g,'WTP').replace(/\bEha\b/g,'EHA').replace(/\bPhm\b/g,'PHM').replace(/\bIndot\b/g,'INDOT').replace(/\bNptech\b/g,'NPTech').replace(/\bWrrf\b/g,'WRRF').replace(/\bFp\b/g,'FP').replace(/\bCtb\b/g,'CTB').replace(/\bSec\b/g,'SEC'); }
+function displayName(job) { return (job.name && job.name.length > 3) ? job.name : slugToTitle(job.slug); }
+function contractedMargin(job) { const cv = job.contractValue; const bo = job.budget?.original; return (cv > 0 && bo > 0) ? ((cv - bo) / cv * 100) : null; }
+function marginToDate(job) { const cv = job.contractValue; const dc = job.budget?.direct; return (cv > 0 && dc > 0) ? ((cv - dc) / cv * 100) : null; }
+function marginColorClass(m) { return m == null ? 'margin-missing' : m >= 10 ? 'margin-green' : m >= 5 ? 'margin-amber' : 'margin-red'; }
 
 function getLP(pid) { return activeData?.jobs?.find(j => j.procoreId === pid) || null; }
 function getBestMargin(j) { return j.projectedMarginPct ?? j.projectedMargin ?? (j.impliedMarginPct != null && j.impliedMarginPct < 40 ? j.impliedMarginPct : null); }
@@ -395,9 +400,6 @@ function renderActiveCard(job, live) {
   const sup = live?.superintendent;
   const startDate = live?.start;
   const finishDate = live?.completionDate || live?.projectedFinish;
-  const margin = job.projectedMargin ?? getBestMargin(job);
-  const isPreCon = stage === 'Pre-Construction';
-
   const sl = getStoplight(job, live);
 
   // Schedule text — verify-status flag for >90 days past due + <100% complete
@@ -410,14 +412,20 @@ function renderActiveCard(job, live) {
     else { schedText = 'On schedule'; }
   }
 
-  // Margin display — commitments not tracked in Procore
-  let marginDisp = 'Not tracked', marginCls = 'margin-missing', marginNote = '';
-  if (margin != null) {
-    marginDisp = pct(margin);
-    if (isPreCon && margin < 10) { marginCls = 'margin-amber'; marginNote = '<br><span class="note">Pre-construction estimate</span>'; }
-    else { marginCls = marginClass(margin); }
+  // Margin fields — contracted margin + margin to date
+  const cMargin = contractedMargin(job);
+  const mtd = marginToDate(job);
+  let marginHtml = '';
+  if (cMargin != null) {
+    marginHtml += `<span class="v ${marginColorClass(cMargin)}">${pct(cMargin)}</span><br><span class="note">At contract signing</span>`;
+    if (pctComp != null && pctComp >= 70 && mtd != null) {
+      const arrow = mtd >= cMargin ? '<span style="color:var(--green)">↑</span>' : '<span style="color:var(--red)">↓</span>';
+      marginHtml += `<br><span class="v ${marginColorClass(mtd)}">${pct(mtd)} ${arrow}</span><br><span class="note">~Margin to date</span>`;
+    } else {
+      marginHtml += `<br><span class="note" style="margin-top:4px;display:inline-block">Margin to date available at 70% complete</span>`;
+    }
   } else {
-    marginNote = '<br><span class="note">Not in Procore</span>';
+    marginHtml = `<span class="v margin-missing">\u2014</span><br><span class="note">No budget in Procore</span>`;
   }
 
   // % Complete display
@@ -434,7 +442,7 @@ function renderActiveCard(job, live) {
     <div class="job-card active-card">
       <div class="job-header">
         <div>
-          <div class="job-name"><span class="stoplight stoplight-${sl.color}"></span>${esc(job.name)}</div>
+          <div class="job-name"><span class="stoplight stoplight-${sl.color}"></span>${esc(displayName(job))}</div>
           <div class="job-client">${esc(job.client)}</div>
         </div>
         <div class="badges">
@@ -448,7 +456,7 @@ function renderActiveCard(job, live) {
         <div class="job-stat"><span class="k">Contract</span><span class="v">${fmt(contractVal)}</span></div>
         <div class="job-stat"><span class="k">% Complete (by cost)</span><span class="v">${pctDisp}${pctNote}</span></div>
         <div class="job-stat"><span class="k">Direct cost to date</span><span class="v${costOverrun ? ' flag-red' : ''}">${fmt(directCost)}${costOverrun ? ' <span style="font-size:11px">⚠ over contract</span>' : ''}</span></div>
-        <div class="job-stat"><span class="k">Projected margin</span><span class="v ${marginCls}">${marginDisp}${marginNote}</span></div>
+        <div class="job-stat"><span class="k">Contracted margin</span>${marginHtml}</div>
         <div class="job-stat"><span class="k">Schedule</span><span class="v">${fmtShort(startDate)} → ${fmtShort(finishDate)}<br><span class="${schedClass}">${schedText}</span></span></div>
         <div class="job-stat"><span class="k">RFIs / Submittals</span><span class="v"><span class="${sl.reasons.highRfis ? 'flag-' + sl.reasons.highRfis : ''}">${openRfis}/${totalRfis}</span> RFIs &nbsp;<span class="${sl.reasons.highSubs ? 'flag-' + sl.reasons.highSubs : ''}">${openSubs}/${totalSubs}</span> Subs</span></div>
       </div>
