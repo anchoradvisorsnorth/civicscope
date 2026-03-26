@@ -40,11 +40,11 @@
   .view-toggle button.active { background: var(--accent); color: #fff; }
 
   /* Metrics */
-  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 2.5rem; }
-  .metric-card { background: #f1f0eb; border-radius: 10px; padding: 20px; }
-  .metric-card .label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-  .metric-card .value { font-size: 28px; font-weight: 600; }
-  .metric-card .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .metrics { display: flex; gap: 12px; margin-bottom: 2.5rem; }
+  .metric-card { background: #f1f0eb; border-radius: 10px; padding: 14px 16px; flex: 1; min-width: 0; }
+  .metric-card .label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .metric-card .value { font-size: 22px; font-weight: 600; }
+  .metric-card .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
   /* Section headers */
   .section-header { font-size: 18px; font-weight: 500; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
@@ -59,10 +59,10 @@
   .revenue-bar .fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
 
   /* Search & sort controls */
-  .job-controls { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .job-controls { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; max-width: 60%; }
   .job-controls input[type="text"] { flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); outline: none; }
   .job-controls input[type="text"]:focus { border-color: var(--accent); }
-  .job-controls select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); outline: none; cursor: pointer; color: var(--text); }
+  .job-controls select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); outline: none; cursor: pointer; color: var(--text); flex-shrink: 0; }
 
   /* Job cards */
   .job-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px; margin-bottom: 2.5rem; }
