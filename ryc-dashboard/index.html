@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RYC Portfolio Dashboard</title>
+<style>
+  :root {
+    --bg: #f5f3ef; --bg-card: #f1f0eb; --surface: #fff; --text: #1a1a2e; --muted: #6b7280;
+    --border: #e5e7eb; --accent: #2563eb; --green: #16a34a; --amber: #d97706;
+    --red: #dc2626; --green-bg: #f0fdf4; --amber-bg: #fffbeb; --red-bg: #fef2f2;
+    --green-border: #86efac; --amber-border: #fcd34d; --red-border: #fca5a5;
+    --blue-bar: #3b82f6; --teal-bar: #0d9488; --amber-bar: #f59e0b; --purple-bar: #8b5cf6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+
+  /* Lock screen */
+  #lock-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .lock-box { background: var(--surface); border-radius: 12px; padding: 48px 40px; text-align: center; width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+  .lock-box h2 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .lock-box .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .lock-box input { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; background: var(--bg); }
+  .lock-box input:focus { border-color: var(--accent); background: #fff; }
+  .lock-box button { margin-top: 14px; width: 100%; padding: 11px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .lock-box .error { color: var(--red); font-size: 12px; margin-top: 8px; display: none; }
+
+  /* App */
+  #app { display: none; max-width: 1320px; margin: 0 auto; padding: 28px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  header h1 { font-size: 22px; font-weight: 600; }
+  header .meta { font-size: 12px; color: var(--muted); }
+  .refresh-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--surface); cursor: pointer; margin-left: 8px; }
+  .refresh-btn:hover { background: var(--bg-card); }
+
+  /* View toggle */
+  .view-toggle { display: flex; gap: 0; margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .view-toggle button { padding: 8px 20px; border: none; background: var(--surface); font-size: 13px; font-weight: 500; cursor: pointer; color: var(--muted); border-right: 1px solid var(--border); }
+  .view-toggle button:last-child { border-right: none; }
+  .view-toggle button.active { background: var(--accent); color: #fff; }
+
+  /* Metrics */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 2.5rem; }
+  .metric-card { background: #f1f0eb; border-radius: 10px; padding: 20px; }
+  .metric-card .label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .metric-card .value { font-size: 28px; font-weight: 600; }
+  .metric-card .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* Section headers */
+  .section-header { font-size: 18px; font-weight: 500; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+
+  /* Breakdown */
+  .breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 2.5rem; }
+  .breakdown-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .breakdown-card .type-label { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .breakdown-card .stat { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+  .breakdown-card .stat .k { color: var(--muted); }
+  .revenue-bar { height: 6px; border-radius: 3px; background: #e8e7e3; margin-top: 10px; overflow: hidden; }
+  .revenue-bar .fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+
+  /* Job cards */
+  .job-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px; margin-bottom: 2.5rem; }
+  .job-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px; transition: box-shadow 0.15s; position: relative; }
+  .job-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .job-card.active-card { border-left: 4px solid var(--green); }
+  .job-card .job-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .job-card .job-name { font-size: 16px; font-weight: 500; }
+  .job-card .job-client { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .job-card .personnel { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+  .badge-live { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .badge-completed { background: #f3f4f6; color: var(--muted); }
+  .badge-stage { background: #e0e7ff; color: #3730a3; }
+  .badge-school { background: #ede9fe; color: #7c3aed; }
+  .badge-municipal { background: #dbeafe; color: #2563eb; }
+  .badge-commercial { background: #fef3c7; color: #92400e; }
+  .badge-mixed_use { background: #fce7f3; color: #be185d; }
+  .badge-municipal_water_wastewater { background: #ccfbf1; color: #0f766e; }
+  .badge-industrial { background: #e2e8f0; color: #475569; }
+  .badge-private { background: #f3f4f6; color: #374151; }
+  .badge-sp { background: #e0f2fe; color: #0369a1; font-size: 10px; }
+  .badge-procore { background: #fef9c3; color: #854d0e; font-size: 10px; }
+  .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+
+  /* Stoplight */
+  .stoplight { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
+  .stoplight-green { background: var(--green); }
+  .stoplight-amber { background: var(--amber); }
+  .stoplight-red { background: var(--red); }
+
+  .job-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-top: 14px; }
+  .job-stat { font-size: 12px; }
+  .job-stat .k { color: var(--muted); display: block; margin-bottom: 1px; }
+  .job-stat .v { font-weight: 500; font-size: 14px; }
+  .flag-red { color: var(--red) !important; font-weight: 600 !important; }
+  .flag-amber { color: var(--amber) !important; font-weight: 500 !important; }
+  .margin-green { color: var(--green); } .margin-amber { color: var(--amber); } .margin-red { color: var(--red); }
+  .margin-missing { color: var(--muted); font-style: italic; }
+
+  .dq-confirmed::after { content: ' ✓'; color: var(--green); font-size: 10px; }
+  .dq-estimated::after { content: ' ~'; color: var(--amber); font-size: 10px; }
+  .dq-missing::after { content: ' ?'; color: var(--red); font-size: 10px; }
+
+  .live-dot { display: inline-block; width: 8px; height: 8px; background: var(--green); border-radius: 50%; margin-right: 4px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .action-items { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .action-items .label { font-size: 11px; color: var(--muted); }
+  .action-items .count { font-size: 20px; font-weight: 600; }
+  .action-items .touched { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+  .note { font-size: 11px; color: var(--muted); font-style: italic; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 11px; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div id="lock-screen">
+  <div class="lock-box">
+    <h2>RYC Portfolio Dashboard</h2>
+    <div class="subtitle">R. Yoder Construction</div>
+    <input type="password" id="pw-input" placeholder="Password" autofocus>
+    <button onclick="tryLogin()">Enter</button>
+    <div class="error" id="pw-error">Incorrect password</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.2.0-ryc-dashboard</div></div>
+    <div style="display:flex;align-items:center">
+      <div class="meta" id="refresh-status"></div>
+      <button class="refresh-btn" id="btn-refresh" onclick="triggerRefresh()">Refresh Procore</button>
+    </div>
+  </header>
+
+  <div class="view-toggle" id="view-toggle">
+    <button class="active" data-view="active">Active Jobs</button>
+    <button data-view="completed">Completed Jobs</button>
+    <button data-view="analysis">Portfolio Analysis</button>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+  <div id="analysis-section" style="display:none"></div>
+  <div id="jobs-section">
+    <div class="job-grid" id="job-grid"></div>
+  </div>
+
+  <div class="footer">
+    v1.2.0-ryc-dashboard — Data from SharePoint + Procore<br>
+    Project team data sourced from Procore. Update assignments in Procore to reflect changes.
+  </div>
+</div>
+
+<script>
+const PORTFOLIO_URL = '/ryc-dashboard/ryc-portfolio.json';
+const CACHE_URL = '/ryc-dashboard/procore-cache.json';
+const ACTIVE_API = '/api/ryc-active';
+let portfolioData = null, activeData = null, currentView = 'active';
+
+function tryLogin() {
+  if (document.getElementById('pw-input').value === 'ryc2026') {
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    sessionStorage.setItem('ryc-auth', '1');
+    init();
+  } else { document.getElementById('pw-error').style.display = 'block'; }
+}
+document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+if (sessionStorage.getItem('ryc-auth') === '1') {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  init();
+}
+
+async function init() {
+  try { portfolioData = await (await fetch(PORTFOLIO_URL)).json(); } catch { portfolioData = { jobs: [], activeJobs: [] }; }
+  document.getElementById('refresh-status').innerHTML = '<span class="spinner"></span>';
+  try {
+    activeData = await (await fetch(CACHE_URL + '?t=' + Date.now())).json();
+    document.getElementById('refresh-status').textContent = 'Procore data from ' + fmtDate(activeData?.refreshed);
+  } catch { document.getElementById('refresh-status').textContent = 'Procore data unavailable'; activeData = null; }
+  renderView();
+  wireToggle();
+}
+
+async function triggerRefresh() {
+  const btn = document.getElementById('btn-refresh');
+  btn.textContent = 'Refreshing...'; btn.disabled = true;
+  try { const r = await fetch(ACTIVE_API, { method: 'POST' }); const d = await r.json(); document.getElementById('refresh-status').textContent = d.message || 'Triggered'; } catch { document.getElementById('refresh-status').textContent = 'Failed'; }
+  btn.textContent = 'Refresh Procore'; btn.disabled = false;
+}
+
+function wireToggle() {
+  document.querySelectorAll('#view-toggle button').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('#view-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentView = btn.dataset.view;
+      renderView();
+    };
+  });
+}
+
+function renderView() {
+  const jobsEl = document.getElementById('jobs-section');
+  const analysisEl = document.getElementById('analysis-section');
+  if (currentView === 'analysis') {
+    jobsEl.style.display = 'none'; analysisEl.style.display = 'block';
+    renderAnalysisMetrics(); renderAnalysis();
+  } else {
+    jobsEl.style.display = 'block'; analysisEl.style.display = 'none';
+    renderMetrics(); renderJobs();
+  }
+}
+
+// --- Helpers ---
+function fmt(n) { return n == null ? '\u2014' : '$' + Math.round(n).toLocaleString('en-US'); }
+function pct(n) { return n == null ? '\u2014' : n.toFixed(1) + '%'; }
+function fmtDate(d) { if (!d) return '\u2014'; const dt = new Date(d); return isNaN(dt) ? '\u2014' : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+function fmtShort(d) { if (!d) return '\u2014'; const dt = new Date(d); return isNaN(dt) ? '\u2014' : dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); }
+function marginClass(m) { return m == null ? 'margin-missing' : m >= 12 ? 'margin-green' : m >= 8 ? 'margin-amber' : 'margin-red'; }
+function dqClass(q) { return 'dq-' + (q || 'missing'); }
+function typeColor(t) { return { school: 'var(--blue-bar)', municipal: 'var(--teal-bar)', municipal_water_wastewater: '#0891b2', commercial: 'var(--amber-bar)', mixed_use: 'var(--purple-bar)', industrial: '#78716c' }[t] || '#9ca3af'; }
+function typeName(t) { return { school: 'School', municipal: 'Municipal', municipal_water_wastewater: 'Municipal \u2013 Water/WW', commercial: 'Commercial', mixed_use: 'Mixed use', industrial: 'Industrial', private: 'Private', new_construction: 'New construction', renovation: 'Renovation', repair: 'Repair', addition: 'Addition', expansion: 'Expansion' }[t] || t; }
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function getLP(pid) { return activeData?.jobs?.find(j => j.procoreId === pid) || null; }
+function getBestMargin(j) { return j.projectedMarginPct ?? j.projectedMargin ?? (j.impliedMarginPct != null && j.impliedMarginPct < 40 ? j.impliedMarginPct : null); }
+
+// --- Stoplight ---
+function getStoplight(job, live) {
+  const openRfis = live?.rfis?.open ?? 0;
+  const openSubs = live?.submittals?.open ?? 0;
+  const costOverrun = live?.costOverrun;
+  const finishDate = live?.completionDate || live?.projectedFinish;
+  const pastDue = finishDate ? new Date() > new Date(finishDate) : false;
+  const margin = job.projectedMargin ?? getBestMargin(job);
+  const pctComp = live?.pctComplete;
+  const start = live?.start ? new Date(live.start) : null;
+  const finish = finishDate ? new Date(finishDate) : null;
+  const schedElapsed = start && finish ? (Date.now() - start) / (finish - start) : 0;
+
+  const red = costOverrun || pastDue || openRfis > 20 || openSubs > 100;
+  const amber = !red && (
+    (pctComp != null && pctComp < 25 && schedElapsed > 0.3) ||
+    (openRfis >= 10) || (openSubs >= 50) || (margin != null && margin < 10)
+  );
+
+  return {
+    color: red ? 'red' : amber ? 'amber' : 'green',
+    reasons: {
+      costOverrun, pastDue,
+      highRfis: openRfis > 20 ? 'red' : openRfis >= 10 ? 'amber' : null,
+      highSubs: openSubs > 100 ? 'red' : openSubs >= 50 ? 'amber' : null,
+      lowMargin: margin != null && margin < 10 ? (margin < 8 ? 'red' : 'amber') : null,
+      behindSchedule: pctComp != null && pctComp < 25 && schedElapsed > 0.3 ? 'amber' : null,
+    }
+  };
+}
+
+// --- Metrics ---
+function renderMetrics() {
+  const el = document.getElementById('metrics');
+  if (currentView === 'active') {
+    const active = activeData?.jobs || [];
+    const totalContract = active.reduce((s, j) => s + (j.contractValue || 0), 0);
+    let totalDirect = 0, totalRfis = 0, totalSubs = 0, pctVals = [];
+    for (const j of active) {
+      if (j.budget?.direct) totalDirect += j.budget.direct;
+      if (j.rfis?.open) totalRfis += j.rfis.open;
+      if (j.submittals?.open) totalSubs += j.submittals.open;
+      if (j.pctComplete != null) pctVals.push(Math.min(j.pctComplete, 100));
+    }
+    const avgPct = pctVals.length ? pctVals.reduce((s, v) => s + v, 0) / pctVals.length : null;
+    el.innerHTML = `
+      <div class="metric-card"><div class="label">Active contract value</div><div class="value">${fmt(totalContract)}</div><div class="sub">${active.length} active jobs</div></div>
+      <div class="metric-card"><div class="label">Direct cost to date</div><div class="value">${fmt(totalDirect)}</div><div class="sub">Across all active</div></div>
+      <div class="metric-card"><div class="label">Avg % complete</div><div class="value">${avgPct != null ? pct(avgPct) : '\u2014'}</div><div class="sub">(${pctVals.length} of ${active.length} jobs)</div></div>
+      <div class="metric-card"><div class="label">Open RFIs</div><div class="value">${totalRfis}</div><div class="sub">Across all active</div></div>
+      <div class="metric-card"><div class="label">Open submittals</div><div class="value">${totalSubs}</div><div class="sub">Across all active</div></div>`;
+  } else {
+    const completed = portfolioData?.jobs || [];
+    const totalRev = completed.reduce((s, j) => s + (j.contractFinal || 0), 0);
+    const margins = completed.map(getBestMargin).filter(m => m != null);
+    const avgM = margins.length ? margins.reduce((s, m) => s + m, 0) / margins.length : null;
+    const overruns = completed.map(j => j.scheduleOverrunMonths).filter(m => m != null);
+    const avgO = overruns.length ? overruns.reduce((s, m) => s + m, 0) / overruns.length : null;
+    el.innerHTML = `
+      <div class="metric-card"><div class="label">Total revenue</div><div class="value">${fmt(totalRev)}</div><div class="sub">${completed.length} completed jobs</div></div>
+      <div class="metric-card"><div class="label">Avg margin</div><div class="value ${marginClass(avgM)}">${avgM != null ? pct(avgM) : '\u2014'}</div><div class="sub">${margins.length} of ${completed.length} with data</div></div>
+      <div class="metric-card"><div class="label">Avg schedule overrun</div><div class="value">${avgO != null ? avgO.toFixed(1) + ' mo' : '\u2014'}</div><div class="sub">${overruns.length} jobs measured</div></div>`;
+  }
+}
+
+// --- Analysis ---
+function renderAnalysisMetrics() {
+  const completed = portfolioData?.jobs || [];
+  const active = activeData?.jobs || [];
+  const all = [...completed, ...active.map(a => ({ ...a, contractFinal: a.contractValue }))];
+  const totalRev = all.reduce((s, j) => s + (j.contractFinal || j.contractValue || 0), 0);
+  const margins = completed.map(getBestMargin).filter(m => m != null);
+  const avgM = margins.length ? margins.reduce((s, m) => s + m, 0) / margins.length : null;
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric-card"><div class="label">Total portfolio value</div><div class="value">${fmt(totalRev)}</div><div class="sub">${all.length} jobs</div></div>
+    <div class="metric-card"><div class="label">Total jobs</div><div class="value">${all.length}</div><div class="sub">${active.length} active, ${completed.length} completed</div></div>
+    <div class="metric-card"><div class="label">Avg margin (completed)</div><div class="value ${marginClass(avgM)}">${avgM != null ? pct(avgM) : '\u2014'}</div><div class="sub">${margins.length} of ${completed.length} with data</div></div>`;
+}
+
+function renderAnalysis() {
+  const all = [...(portfolioData?.jobs || []), ...(activeData?.jobs || []).map(a => ({ ...a, contractFinal: a.contractValue, clientType: a.clientType, workType: a.workType }))];
+  let totalRev = 0;
+  const byClient = {}, byWork = {};
+  for (const j of all) {
+    const rev = j.contractFinal || j.contractValue || 0;
+    totalRev += rev;
+    const ct = j.clientType || 'other';
+    if (!byClient[ct]) byClient[ct] = { count: 0, revenue: 0, margins: [] };
+    byClient[ct].count++; byClient[ct].revenue += rev;
+    const m = getBestMargin(j); if (m != null) byClient[ct].margins.push(m);
+
+    const wt = j.workType || 'other';
+    if (!byWork[wt]) byWork[wt] = { count: 0, revenue: 0 };
+    byWork[wt].count++; byWork[wt].revenue += rev;
+  }
+
+  let html = '<h3 class="section-header">Client type breakdown</h3><div class="breakdown">';
+  for (const [type, data] of Object.entries(byClient)) {
+    const avgM = data.margins.length ? data.margins.reduce((s, m) => s + m, 0) / data.margins.length : null;
+    const pctRev = totalRev > 0 ? (data.revenue / totalRev * 100) : 0;
+    html += `<div class="breakdown-card"><div class="type-label"><span class="badge badge-${type}">${typeName(type)}</span></div>
+      <div class="stat"><span class="k">Jobs</span><span>${data.count}</span></div>
+      <div class="stat"><span class="k">Revenue</span><span>${fmt(data.revenue)}</span></div>
+      <div class="stat"><span class="k">Avg margin</span><span class="${marginClass(avgM)}">${avgM != null ? pct(avgM) : '\u2014'}</span></div>
+      <div class="revenue-bar"><div class="fill" style="width:${pctRev}%;background:${typeColor(type)}"></div></div></div>`;
+  }
+  html += '</div>';
+
+  html += '<h3 class="section-header" style="margin-top:2.5rem">Work type breakdown</h3><div class="breakdown">';
+  for (const [type, data] of Object.entries(byWork)) {
+    const pctRev = totalRev > 0 ? (data.revenue / totalRev * 100) : 0;
+    html += `<div class="breakdown-card"><div class="type-label">${typeName(type)}</div>
+      <div class="stat"><span class="k">Jobs</span><span>${data.count}</span></div>
+      <div class="stat"><span class="k">Revenue</span><span>${fmt(data.revenue)}</span></div>
+      <div class="revenue-bar"><div class="fill" style="width:${pctRev}%;background:var(--accent)"></div></div></div>`;
+  }
+  html += '</div>';
+  document.getElementById('analysis-section').innerHTML = html;
+}
+
+// --- Jobs ---
+function renderJobs() {
+  const grid = document.getElementById('job-grid');
+  let cards = [];
+  if (currentView === 'active') {
+    for (const job of (activeData?.jobs || [])) {
+      cards.push(renderActiveCard(job, job));
+    }
+  } else if (currentView === 'completed') {
+    for (const job of (portfolioData?.jobs || [])) {
+      cards.push(renderCompletedCard(job));
+    }
+  }
+  grid.innerHTML = cards.length ? cards.join('') : '<div style="color:var(--muted);padding:20px">No jobs to display</div>';
+}
+
+function renderActiveCard(job, live) {
+  const contractVal = job.contractValue || live?.contractValue || (live?.budget?.revised || live?.budget?.original || 0);
+  const directCost = live?.budget?.direct ?? null;
+  const openRfis = live?.rfis?.open ?? 0;
+  const totalRfis = live?.rfis?.total ?? 0;
+  const openSubs = live?.submittals?.open ?? 0;
+  const totalSubs = live?.submittals?.total ?? 0;
+  const pctComp = live?.pctComplete;
+  const costOverrun = live?.costOverrun;
+  const stage = live?.stage || null;
+  const pm = live?.pm;
+  const sup = live?.superintendent;
+  const startDate = live?.start;
+  const finishDate = live?.completionDate || live?.projectedFinish;
+  const margin = job.projectedMargin ?? getBestMargin(job);
+  const isPreCon = stage === 'Pre-Construction';
+
+  const sl = getStoplight(job, live);
+
+  // Schedule text
+  let schedText = '', schedClass = '';
+  if (finishDate) {
+    const diff = Math.round((new Date(finishDate) - new Date()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) { schedText = 'Past due'; schedClass = 'flag-red'; }
+    else if (diff < 30) { schedText = diff + ' days remaining'; schedClass = 'flag-amber'; }
+    else { schedText = 'On schedule'; }
+  }
+
+  // Margin display — Pre-Construction gets amber instead of red
+  let marginDisp = '\u2014', marginCls = 'margin-missing', marginNote = '';
+  if (margin != null) {
+    marginDisp = pct(margin);
+    if (isPreCon && margin < 10) { marginCls = 'margin-amber'; marginNote = '<br><span class="note">Pre-construction estimate</span>'; }
+    else { marginCls = marginClass(margin); }
+  }
+
+  // % Complete display
+  let pctDisp = '\u2014';
+  let pctNote = '';
+  if (pctComp != null) {
+    pctDisp = pct(pctComp);
+    if (pctComp > 100) pctDisp = '<span class="flag-red">' + pct(pctComp) + '</span>';
+  } else {
+    pctNote = '<br><span class="note">Not set in Procore</span>';
+  }
+
+  return `
+    <div class="job-card active-card">
+      <div class="job-header">
+        <div>
+          <div class="job-name"><span class="stoplight stoplight-${sl.color}"></span>${esc(job.name)}</div>
+          <div class="job-client">${esc(job.client)}</div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-live"><span class="live-dot"></span>Live</span>
+          ${stage ? `<span class="badge badge-stage">${esc(stage)}</span>` : ''}
+          <span class="badge badge-${job.clientType}">${typeName(job.clientType)}</span>
+        </div>
+      </div>
+      ${pm || sup ? `<div class="personnel">PM: ${pm ? esc(pm.name) : '\u2014'} &nbsp;|&nbsp; Super: ${sup ? esc(sup.name) : '\u2014'}</div>` : ''}
+      <div class="job-stats">
+        <div class="job-stat"><span class="k">Contract</span><span class="v">${fmt(contractVal)}</span></div>
+        <div class="job-stat"><span class="k">% Complete (by cost)</span><span class="v">${pctDisp}${pctNote}</span></div>
+        <div class="job-stat"><span class="k">Direct cost to date</span><span class="v${costOverrun ? ' flag-red' : ''}">${fmt(directCost)}${costOverrun ? ' <span style="font-size:11px">⚠ over contract</span>' : ''}</span></div>
+        <div class="job-stat"><span class="k">Projected margin</span><span class="v ${marginCls}">${marginDisp}${marginNote}</span></div>
+        <div class="job-stat"><span class="k">Schedule</span><span class="v">${fmtShort(startDate)} → ${fmtShort(finishDate)}<br><span class="${schedClass}">${schedText}</span></span></div>
+        <div class="job-stat"><span class="k">RFIs / Submittals</span><span class="v"><span class="${sl.reasons.highRfis ? 'flag-' + sl.reasons.highRfis : ''}">${openRfis}/${totalRfis}</span> RFIs &nbsp;<span class="${sl.reasons.highSubs ? 'flag-' + sl.reasons.highSubs : ''}">${openSubs}/${totalSubs}</span> Subs</span></div>
+      </div>
+      <div class="action-items">
+        <span class="label">CC action items</span>
+        <span class="count">${job.openItems || 0}</span>
+        <span class="touched">Last CC session ${job.lastTouched || '\u2014'}</span>
+      </div>
+    </div>`;
+}
+
+function renderCompletedCard(job) {
+  const margin = getBestMargin(job);
+  const overrun = job.scheduleOverrunMonths;
+  const sources = [];
+  if (job.dataQuality) sources.push('<span class="badge badge-sp">SP</span>');
+  if (job.procoreId) sources.push('<span class="badge badge-procore">Procore</span>');
+
+  return `
+    <div class="job-card">
+      <div class="job-header">
+        <div><div class="job-name">${esc(job.name)}</div><div class="job-client">${esc(job.client)}</div></div>
+        <div class="badges">
+          <span class="badge badge-completed">Completed</span>
+          <span class="badge badge-${job.clientType}">${typeName(job.clientType)}</span>
+          ${sources.join('')}
+        </div>
+      </div>
+      <div class="job-stats">
+        <div class="job-stat"><span class="k">Contract</span><span class="v">${fmt(job.contractFinal)}</span></div>
+        <div class="job-stat"><span class="k">CO %</span><span class="v">${job.coPct != null ? pct(job.coPct) : '\u2014'}</span></div>
+        <div class="job-stat"><span class="k">Margin</span><span class="v ${marginClass(margin)} ${dqClass(job.dataQuality?.margin)}">${margin != null ? pct(margin) : 'Missing'}</span></div>
+        <div class="job-stat"><span class="k">Schedule</span><span class="v${overrun > 6 ? ' flag-red' : overrun > 2 ? ' flag-amber' : ''}">${overrun != null ? '+' + overrun + ' mo' : '\u2014'}</span></div>
+        <div class="job-stat"><span class="k">RFIs</span><span class="v">${job.rfis ?? '\u2014'}</span></div>
+        <div class="job-stat"><span class="k">Submittals</span><span class="v">${job.submittals ?? '\u2014'}</span></div>
+        <div class="job-stat"><span class="k">Change events</span><span class="v">${job.changeEvents ?? '\u2014'}</span></div>
+        <div class="job-stat"><span class="k">Completed</span><span class="v">${fmtShort(job.actualCompletion)}</span></div>
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>
