@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-03-26T08:25:50.018Z",
+  "refreshed": "2026-03-26T12:13:22.941Z",
   "jobCount": 33,
   "jobs": [
     {
@@ -36,48 +36,35 @@
         "direct": 7849322.41
       },
       "contractValue": 18537636,
-      "pm": {
-        "name": "Matt Gongwer",
-        "email": "matt@luemfg.com",
-        "title": "Project Manager"
-      },
+      "pm": null,
       "superintendent": {
         "name": "Kyle Roberts",
         "email": "kyle@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allSupers": [
-        {
-          "name": "Kyle Roberts",
-          "email": "kyle@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Greg Kincade",
-          "email": "gkincade@ryoderconstruction.com",
-          "title": "Superintendent"
-        },
-        {
-          "name": "Gabriel Rager",
-          "email": "grager@ryoderconstruction.com",
-          "title": "Superintendent "
-        },
-        {
-          "name": "Kenny Alvarado",
-          "email": "kalvarado@ryoderconstruction.com",
-          "title": null
-        },
-        {
-          "name": "Omar Bustamante",
-          "email": "obustamante@ryoderconstruction.com",
-          "title": null
-        },
-        {
-          "name": "Jake Yoder",
-          "email": "jyoder@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 147,
+        "tasksComplete": 1,
+        "overdueCount": 50,
+        "criticalInProgress": [
+          {
+            "name": "Wallen Road ",
+            "finish": "2026-08-27T20:00:00Z",
+            "percentage": 7
+          },
+          {
+            "name": "SiteWork ",
+            "finish": "2026-08-27T20:00:00Z",
+            "percentage": 7
+          },
+          {
+            "name": "2nd Set of Buildings ",
+            "finish": "2026-06-19T20:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "shipshewana-wwtp-project-a",
@@ -123,55 +110,29 @@
         "email": "grager@ryoderconstruction.com",
         "title": "Superintendent "
       },
-      "allPMs": [
-        {
-          "name": "Troy Jennings",
-          "email": "troy@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Benjamin Joy",
-          "email": "bjoy@niblockexc.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "D'Artagnan Engle",
-          "email": "dengle@maddoxindustrial.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Mike Moyer",
-          "email": "mmoyer@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Juan Gomez",
-          "email": "jgomez@ryoderconstruction.com",
-          "title": null
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Gabriel Rager",
-          "email": "grager@ryoderconstruction.com",
-          "title": "Superintendent "
-        },
-        {
-          "name": "Robert Burks",
-          "email": "rburks@maddoxindustrial.com",
-          "title": "Superintendent"
-        },
-        {
-          "name": "Angelo Multari",
-          "email": "amultari@ryoderconstruction.com",
-          "title": "Site Superintendent"
-        },
-        {
-          "name": "Steven Truex",
-          "email": "struex@ryoderconstruction.com",
-          "title": "Senior Site Superintendent"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 111,
+        "tasksComplete": 1,
+        "overdueCount": 29,
+        "criticalInProgress": [
+          {
+            "name": "Form and Pour (From Bottom Out)",
+            "finish": "2026-09-18T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Equipment Installs",
+            "finish": "2026-10-30T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Startup System",
+            "finish": "2026-11-06T22:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "monreaux-apartments",
@@ -208,42 +169,38 @@
       },
       "contractValue": 17256996,
       "pm": {
-        "name": "Matt Gongwer",
-        "email": "matt@luemfg.com",
-        "title": "Project Manager"
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
       },
       "superintendent": {
         "name": "Nick Rethlake",
         "email": "nrethlake@ryoderconstruction.com",
         "title": "Superintendent "
       },
-      "allPMs": [
-        {
-          "name": "Matt Gongwer",
-          "email": "matt@luemfg.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Andrew Beneturski",
-          "email": "abeneturski@altwitzig.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "John Mergenthaler",
-          "email": "jmergenthaler@ryanfp.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 52,
+        "tasksComplete": 0,
+        "overdueCount": 9,
+        "criticalInProgress": [
+          {
+            "name": "Monreaux Apartments ",
+            "finish": "2027-06-30T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Site Work ",
+            "finish": "2027-01-19T22:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Strip Site",
+            "finish": "2026-03-10T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "phm-fieldhouse",
@@ -289,135 +246,29 @@
         "email": "djones@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Shane Feirick",
-          "email": "shanef@twfmi.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Ben Whetstone",
-          "email": "ben.whetstone@dnd-electric.com",
-          "title": "Project Manager "
-        },
-        {
-          "name": "Matt Gongwer",
-          "email": "matt@luemfg.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Steven Tucker",
-          "email": "steven@ussigncrafters.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Rhendon Peppers",
-          "email": "rpeppers@spohnassociates.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Duane LeVoy",
-          "email": "duane@lammco.net",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Gerard Skibinski",
-          "email": "gskibinski@spohnassociates.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Matthew Sease",
-          "email": "msease@scsteel.us",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Anthony Murrietta",
-          "email": "amurrietta@westernsteel.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Andrew Beneturski",
-          "email": "abeneturski@altwitzig.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Gretta Boerding",
-          "email": "gretta.boerding@subsurface.net",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Nick Labere",
-          "email": "nlabere@ejwhiteinc.net",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Diane Doolan",
-          "email": "diane@kieferusa.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Marty Simmons",
-          "email": "marty@midelectric.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Tony Vargo",
-          "email": "tvargo@wolfcroof.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Bill Emmons",
-          "email": "bemmons@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Juan Gomez",
-          "email": "jgomez@ryoderconstruction.com",
-          "title": null
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Dale Jones",
-          "email": "djones@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Brian Hubbard",
-          "email": "bhubbard@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Nick Lechlitner",
-          "email": "nlechlitner@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Greg Kincade",
-          "email": "gkincade@ryoderconstruction.com",
-          "title": "Superintendent"
-        },
-        {
-          "name": "Steven Truex",
-          "email": "struex@ryoderconstruction.com",
-          "title": "Senior Site Superintendent"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 39,
+        "tasksComplete": 14,
+        "overdueCount": 25,
+        "criticalInProgress": [
+          {
+            "name": "Penn Field House ",
+            "finish": "2025-10-18T21:00:00Z",
+            "percentage": 58
+          },
+          {
+            "name": "Finals ",
+            "finish": "2025-10-18T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Final Clean/Punchlist",
+            "finish": "2025-10-18T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "huntertown-wwtp-phase-3",
@@ -453,55 +304,25 @@
         "direct": 6111672.58
       },
       "contractValue": 14055300,
-      "pm": {
-        "name": "D'Artagnan Engle",
-        "email": "dengle@maddoxindustrial.com",
-        "title": "Project Manager"
-      },
+      "pm": null,
       "superintendent": {
         "name": "Kyle Roberts",
         "email": "kyle@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "D'Artagnan Engle",
-          "email": "dengle@maddoxindustrial.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "John Wickey",
-          "email": "john@tt-ph.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Matt Phillips",
-          "email": "matt@wayneasphalt.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Sean Breen",
-          "email": "sbreen@ext-service.com",
-          "title": "Project Manager"
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Kyle Roberts",
-          "email": "kyle@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Larry Jennings",
-          "email": "ljennings@ryoderconstruction.com",
-          "title": "Site Superintendent"
-        },
-        {
-          "name": "Jeff Hoshaw",
-          "email": "jhoshaw@comcast.net",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 118,
+        "tasksComplete": 27,
+        "overdueCount": 40,
+        "criticalInProgress": [
+          {
+            "name": "CONTRACTURAL SUBSTANTIAL COMPLETION DATE",
+            "finish": "2026-11-20T13:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "wakarusa-wtp",
@@ -538,88 +359,42 @@
       },
       "contractValue": 11967209,
       "pm": {
-        "name": "Matt Gongwer",
-        "email": "matt@luemfg.com",
-        "title": "Project Manager"
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
       },
       "superintendent": {
         "name": "Kyle Roberts",
         "email": "kyle@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Matt Gongwer",
-          "email": "matt@luemfg.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Steven Tucker",
-          "email": "steven@ussigncrafters.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Benjamin Joy",
-          "email": "bjoy@niblockexc.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Cassie Harren",
-          "email": "cassie.harren@installed.net",
-          "title": "Project Manager"
-        },
-        {
-          "name": "D'Artagnan Engle",
-          "email": "dengle@maddoxindustrial.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Akbar Moujoodi",
-          "email": "amoujoodi@ryoderconstruction.com",
-          "title": null
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Kyle Roberts",
-          "email": "kyle@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Nick Lechlitner",
-          "email": "nlechlitner@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Larry Jennings",
-          "email": "ljennings@ryoderconstruction.com",
-          "title": "Site Superintendent"
-        },
-        {
-          "name": "Robert Burks",
-          "email": "rburks@maddoxindustrial.com",
-          "title": "Superintendent"
-        },
-        {
-          "name": "Nick Rethlake",
-          "email": "nrethlake@ryoderconstruction.com",
-          "title": "Superintendent "
-        },
-        {
-          "name": "Steven Truex",
-          "email": "struex@ryoderconstruction.com",
-          "title": "Senior Site Superintendent"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 49,
+        "tasksComplete": 17,
+        "overdueCount": 27,
+        "criticalInProgress": [
+          {
+            "name": "SITE",
+            "finish": "2026-04-22T21:00:00Z",
+            "percentage": 62
+          },
+          {
+            "name": "SURFACE ASPHALT",
+            "finish": "2026-04-22T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "EXTERIOR WORK COMPLETED",
+            "finish": "2026-04-22T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "ctb-2026-addition",
-      "procoreId": 598134326535471,
+      "procoreId": 598134326537191,
       "projectNumber": "26X005",
       "name": "CTB 2026 Addition",
       "client": "CTB Inc",
@@ -628,9 +403,9 @@
       "active": true,
       "stage": null,
       "address": "611 N Higbee Street, Milford, IN",
-      "start": "2026-05-01",
-      "projectedFinish": "2027-01-31",
-      "completionDate": "2027-01-31",
+      "start": "2026-03-26",
+      "projectedFinish": null,
+      "completionDate": null,
       "sqft": null,
       "pctComplete": null,
       "costOverrun": null,
@@ -652,23 +427,13 @@
         "title": "Project Manager"
       },
       "superintendent": null,
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "ashley-wwtp",
@@ -714,38 +479,13 @@
         "email": "gkincade@ryoderconstruction.com",
         "title": "Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "D'Artagnan Engle",
-          "email": "dengle@maddoxindustrial.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Joshua Hethcote",
-          "email": "jmhethcote@nooter.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "indot-roselawn-unit-salt-bld",
@@ -791,80 +531,29 @@
         "email": "djones@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Troy Jennings",
-          "email": "troy@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Duane LeVoy",
-          "email": "duane@lammco.net",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Andrew Beneturski",
-          "email": "abeneturski@altwitzig.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Greg Kincade",
-          "email": "gkincade@ryoderconstruction.com",
-          "title": "Superintendent"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Dale Jones",
-          "email": "djones@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Jim Ford",
-          "email": "jford@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Nick Lechlitner",
-          "email": "nlechlitner@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Scott Makinson",
-          "email": "scott@sterlingcontractingllc.com",
-          "title": "Superintendent"
-        },
-        {
-          "name": "Greg Kincade",
-          "email": "gkincade@ryoderconstruction.com",
-          "title": "Superintendent"
-        },
-        {
-          "name": "Michael Marshall",
-          "email": "mmarshall@ryoderconstruction.com",
-          "title": "Superintendent "
-        },
-        {
-          "name": "Steven Truex",
-          "email": "struex@ryoderconstruction.com",
-          "title": "Senior Site Superintendent"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 86,
+        "tasksComplete": 0,
+        "overdueCount": 86,
+        "criticalInProgress": [
+          {
+            "name": "Bench Building Pad AND DIG Footings",
+            "finish": "2024-09-06T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Install Controlled Low Strength Material",
+            "finish": "2024-09-13T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Prep and Pour Footings And Pit Bottoms",
+            "finish": "2024-09-20T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "michiana-eye-center",
@@ -901,89 +590,22 @@
       },
       "contractValue": 3970739,
       "pm": {
-        "name": "Ben Whetstone",
-        "email": "ben.whetstone@dnd-electric.com",
-        "title": "Project Manager "
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
       },
       "superintendent": {
         "name": "Brian Hubbard",
         "email": "bhubbard@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Ben Whetstone",
-          "email": "ben.whetstone@dnd-electric.com",
-          "title": "Project Manager "
-        },
-        {
-          "name": "Matt Gongwer",
-          "email": "matt@luemfg.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Taylor Kierpaul",
-          "email": "taylor.kierpaul@dnd-electric.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Maureen Burns",
-          "email": "maureen@wmbakerco.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Benjamin Joy",
-          "email": "bjoy@niblockexc.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Bill Emmons",
-          "email": "bemmons@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "joe jaske",
-          "email": "joe@bellmanqd.com",
-          "title": "Project manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Juan Gomez",
-          "email": "jgomez@ryoderconstruction.com",
-          "title": null
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Brian Hubbard",
-          "email": "bhubbard@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Kyle Roberts",
-          "email": "kyle@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Angelo Multari",
-          "email": "amultari@ryoderconstruction.com",
-          "title": "Site Superintendent"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "aluminum-insights-north-addn",
@@ -1029,58 +651,29 @@
         "email": "ljennings@ryoderconstruction.com",
         "title": "Site Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Marty Simmons",
-          "email": "marty@midelectric.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "John Mergenthaler",
-          "email": "jmergenthaler@ryanfp.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Jon Erb",
-          "email": "jon@midelectric.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Bill Emmons",
-          "email": "bemmons@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Cory Hostetler",
-          "email": "chostetler@scsteel.us",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "John Skopec",
-          "email": "jskopec@ryoderconstruction.com",
-          "title": null
-        },
-        {
-          "name": "Juan Gomez",
-          "email": "jgomez@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 45,
+        "tasksComplete": 6,
+        "overdueCount": 39,
+        "criticalInProgress": [
+          {
+            "name": "North Addition Bldg.",
+            "finish": "2025-11-06T22:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Building Delivery",
+            "finish": "2025-07-25T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Building Shake Out",
+            "finish": "2025-08-01T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "milford-water-utility-imp",
@@ -1126,45 +719,13 @@
         "email": "jford@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "D'Artagnan Engle",
-          "email": "dengle@maddoxindustrial.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Ryan LaReau",
-          "email": "rlareau@contactcei.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Sean Breen",
-          "email": "sbreen@ext-service.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Jim Ford",
-          "email": "jford@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Nick Lechlitner",
-          "email": "nlechlitner@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "walt-disney-elem-piping",
@@ -1210,43 +771,29 @@
         "email": "fcencelewski@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Steven Tucker",
-          "email": "steven@ussigncrafters.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Patrick Grap",
-          "email": "pgrap@schmidt-arch.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Jacob Smith",
-          "email": "jsmith@inline-painting.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Maureen Burns",
-          "email": "maureen@wmbakerco.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Bill Emmons",
-          "email": "bemmons@ryoderconstruction.com",
-          "title": "Project Manager"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 45,
+        "tasksComplete": 22,
+        "overdueCount": 23,
+        "criticalInProgress": [
+          {
+            "name": "Summer 2025",
+            "finish": "2025-08-08T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Final Clean",
+            "finish": "2025-08-08T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Substantial Completion",
+            "finish": "2025-08-08T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "so-bend-south-well-field-wtp",
@@ -1283,47 +830,22 @@
       },
       "contractValue": 3670297,
       "pm": {
-        "name": "Ben Whetstone",
-        "email": "ben.whetstone@dnd-electric.com",
-        "title": "Project Manager "
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
       },
       "superintendent": {
         "name": "Fred Cencelewski",
         "email": "fcencelewski@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Ben Whetstone",
-          "email": "ben.whetstone@dnd-electric.com",
-          "title": "Project Manager "
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Ryland Geans",
-          "email": "ryland@robertgeanscorp.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "D'Artagnan Engle",
-          "email": "dengle@maddoxindustrial.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "st-joe-county-garages-combo",
@@ -1369,55 +891,24 @@
         "email": "fcencelewski@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Ben Whetstone",
-          "email": "ben.whetstone@dnd-electric.com",
-          "title": "Project Manager "
-        },
-        {
-          "name": "Taylor Kierpaul",
-          "email": "taylor.kierpaul@dnd-electric.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Fred Cencelewski",
-          "email": "fcencelewski@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Kyle Roberts",
-          "email": "kyle@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Nick Rethlake",
-          "email": "nrethlake@ryoderconstruction.com",
-          "title": "Superintendent "
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 115,
+        "tasksComplete": 103,
+        "overdueCount": 12,
+        "criticalInProgress": [
+          {
+            "name": "Exterior & Shop Work",
+            "finish": "2025-05-06T21:00:00Z",
+            "percentage": 89
+          },
+          {
+            "name": "Woodland",
+            "finish": "2025-05-06T21:00:00Z",
+            "percentage": 72
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "byers-softball-complex",
@@ -1463,35 +954,29 @@
         "email": "djones@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Maureen Burns",
-          "email": "maureen@wmbakerco.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Andrew Fischer",
-          "email": "andrew@watersliderestoration.com",
-          "title": "Project Manager"
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Dale Jones",
-          "email": "djones@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Nick Lechlitner",
-          "email": "nlechlitner@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 86,
+        "tasksComplete": 0,
+        "overdueCount": 86,
+        "criticalInProgress": [
+          {
+            "name": "Byers Softball Complex",
+            "finish": "2025-11-10T22:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Construction",
+            "finish": "2025-11-10T22:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Softball Fields",
+            "finish": "2025-11-10T22:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "coldwater-wrrf-upgrades-phase-1",
@@ -1537,18 +1022,29 @@
         "email": "gkincade@ryoderconstruction.com",
         "title": "Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Nicholas Wendling",
-          "email": "nwendling@theliftsolutions.com",
-          "title": "Project Manager"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 30,
+        "tasksComplete": 0,
+        "overdueCount": 13,
+        "criticalInProgress": [
+          {
+            "name": "NEW BUILDING",
+            "finish": "2026-07-02T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "EXCAVATE AND POUR BUILDING FOUNDATION",
+            "finish": "2026-03-13T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "UNDERSLAB ROUGH-INS",
+            "finish": "2026-03-24T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "white-vet-clinic-improvements",
@@ -1594,38 +1090,29 @@
         "email": "eharris@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Troy Jennings",
-          "email": "troy@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Matt Gongwer",
-          "email": "matt@luemfg.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Steven Tucker",
-          "email": "steven@ussigncrafters.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Mike Moyer",
-          "email": "mmoyer@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 74,
+        "tasksComplete": 0,
+        "overdueCount": 11,
+        "criticalInProgress": [
+          {
+            "name": "Install Temp Drive",
+            "finish": "2026-04-21T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Demo House and Grade",
+            "finish": "2026-04-30T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Set CB 101 and Run STM line ",
+            "finish": "2026-05-04T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "northern-heights-elementary",
@@ -1671,40 +1158,13 @@
         "email": "ljennings@ryoderconstruction.com",
         "title": "Site Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Joshua Hethcote",
-          "email": "jmhethcote@nooter.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Lauren Ayres",
-          "email": "lauren.ayres@trane.com",
-          "title": "Project Manager"
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Larry Jennings",
-          "email": "ljennings@ryoderconstruction.com",
-          "title": "Site Superintendent"
-        },
-        {
-          "name": "Gabriel Rager",
-          "email": "grager@ryoderconstruction.com",
-          "title": "Superintendent "
-        },
-        {
-          "name": "Nick Rethlake",
-          "email": "nrethlake@ryoderconstruction.com",
-          "title": "Superintendent "
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "wabash-pickleball-courts",
@@ -1750,28 +1210,13 @@
         "email": "djones@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allSupers": [
-        {
-          "name": "Dale Jones",
-          "email": "djones@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Nick Lechlitner",
-          "email": "nlechlitner@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Greg Kincade",
-          "email": "gkincade@ryoderconstruction.com",
-          "title": "Superintendent"
-        },
-        {
-          "name": "Gabriel Rager",
-          "email": "grager@ryoderconstruction.com",
-          "title": "Superintendent "
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "jomar-2025-build",
@@ -1817,45 +1262,29 @@
         "email": "nlechlitner@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Cory Hostetler",
-          "email": "chostetler@scsteel.us",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Nick Lechlitner",
-          "email": "nlechlitner@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Jameson Montague-DeStafano",
-          "email": "jdestafano@ryoderconstruction.com",
-          "title": null
-        },
-        {
-          "name": "Nathan Watts",
-          "email": "nwatts@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 34,
+        "tasksComplete": 9,
+        "overdueCount": 22,
+        "criticalInProgress": [
+          {
+            "name": "Steel Erection",
+            "finish": "2026-02-12T22:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Electrical",
+            "finish": "2026-03-12T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Punchlist",
+            "finish": "2026-03-26T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "nptech-community-fiber",
@@ -1901,30 +1330,29 @@
         "email": "amultari@ryoderconstruction.com",
         "title": "Site Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Angelo Multari",
-          "email": "amultari@ryoderconstruction.com",
-          "title": "Site Superintendent"
-        },
-        {
-          "name": "Steven Truex",
-          "email": "struex@ryoderconstruction.com",
-          "title": "Senior Site Superintendent"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 30,
+        "tasksComplete": 0,
+        "overdueCount": 13,
+        "criticalInProgress": [
+          {
+            "name": "NEW BUILDING",
+            "finish": "2026-07-02T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "EXCAVATE AND POUR BUILDING FOUNDATION",
+            "finish": "2026-03-13T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "UNDERSLAB ROUGH-INS",
+            "finish": "2026-03-24T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "lacrosse-wwtp-improvements",
@@ -1966,38 +1394,13 @@
         "title": "Project Manager"
       },
       "superintendent": null,
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "D'Artagnan Engle",
-          "email": "dengle@maddoxindustrial.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Bill Emmons",
-          "email": "bemmons@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "beardsley-disc-ctr",
@@ -2043,50 +1446,29 @@
         "email": "eharris@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Andrew Marrs",
-          "email": "amarrs@leecompanyinc.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Bill Emmons",
-          "email": "bemmons@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Emery Harris",
-          "email": "eharris@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Nick Rethlake",
-          "email": "nrethlake@ryoderconstruction.com",
-          "title": "Superintendent "
-        },
-        {
-          "name": "Steven Truex",
-          "email": "struex@ryoderconstruction.com",
-          "title": "Senior Site Superintendent"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 53,
+        "tasksComplete": 4,
+        "overdueCount": 49,
+        "criticalInProgress": [
+          {
+            "name": "Division 22 (Holt Plumbing)",
+            "finish": "2025-07-11T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Plumbing/Gas install per drawings, Interior",
+            "finish": "2025-07-11T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Division 07 (R. Yoder)",
+            "finish": "2025-07-18T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "goshen-wwtp-anaerobic-digest",
@@ -2128,23 +1510,13 @@
         "title": "Project Engineer"
       },
       "superintendent": null,
-      "allPMs": [
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Mike Moyer",
-          "email": "mmoyer@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "ryan-fp-valpo-office-expansion",
@@ -2180,55 +1552,19 @@
         "direct": 0
       },
       "contractValue": 444321,
-      "pm": {
-        "name": "Jake Tauber",
-        "email": "jt@bloomfieldmechanical.com",
-        "title": "Project Manager"
-      },
+      "pm": null,
       "superintendent": {
         "name": "Dale Jones",
         "email": "djones@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Jake Tauber",
-          "email": "jt@bloomfieldmechanical.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Kenny Hayes",
-          "email": "khayes@troutglass.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Anthony Shields",
-          "email": "tonyshields@circlerelec.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Aaron Graber",
-          "email": "graberflooring@maplenet.net",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Dale Jones",
-          "email": "djones@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Steven Truex",
-          "email": "struex@ryoderconstruction.com",
-          "title": "Senior Site Superintendent"
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "akron-wtp-improvements",
@@ -2270,33 +1606,13 @@
         "title": "Project Engineer"
       },
       "superintendent": null,
-      "allPMs": [
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "D'Artagnan Engle",
-          "email": "dengle@maddoxindustrial.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Bill Emmons",
-          "email": "bemmons@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "eha-generator-replacement",
@@ -2337,7 +1653,14 @@
         "email": "lmoore@ryoderconstruction.com",
         "title": "Project Engineer"
       },
-      "superintendent": null
+      "superintendent": null,
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "eha-bannerker-hts-kitchen-reno",
@@ -2378,28 +1701,14 @@
         "email": "lmoore@ryoderconstruction.com",
         "title": "Project Engineer"
       },
-      "superintendent": {
-        "name": "Nathan Watts",
-        "email": "nwatts@ryoderconstruction.com",
-        "title": null
-      },
-      "allPMs": [
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Bill Emmons",
-          "email": "bemmons@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "superintendent": null,
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "phm-educational-svc-elevator",
@@ -2445,45 +1754,29 @@
         "email": "bhubbard@ryoderconstruction.com",
         "title": "Field Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Patrick Grap",
-          "email": "pgrap@schmidt-arch.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Brian Hubbard",
-          "email": "bhubbard@ryoderconstruction.com",
-          "title": "Field Superintendent"
-        },
-        {
-          "name": "Jameson Montague-DeStafano",
-          "email": "jdestafano@ryoderconstruction.com",
-          "title": null
-        },
-        {
-          "name": "Nathan Watts",
-          "email": "nwatts@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 15,
+        "tasksComplete": 0,
+        "overdueCount": 15,
+        "criticalInProgress": [
+          {
+            "name": "Project Duration",
+            "finish": "2025-12-05T22:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Mobilization",
+            "finish": "2025-09-29T21:00:00Z",
+            "percentage": 0
+          },
+          {
+            "name": "Demolition",
+            "finish": "2025-10-06T21:00:00Z",
+            "percentage": 0
+          }
+        ],
+        "dataAvailable": true
+      }
     },
     {
       "slug": "eha-waterfall-sec-upgrades",
@@ -2525,23 +1818,13 @@
         "title": "Project Manager"
       },
       "superintendent": null,
-      "allPMs": [
-        {
-          "name": "Troy Jennings",
-          "email": "troy@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "alum-ins-presezzi-fdtn",
@@ -2587,50 +1870,13 @@
         "email": "ljennings@ryoderconstruction.com",
         "title": "Site Superintendent"
       },
-      "allPMs": [
-        {
-          "name": "Erik Parcell",
-          "email": "eparcell@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Marty Simmons",
-          "email": "marty@midelectric.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Chris Crothers",
-          "email": "ccrothers@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ],
-      "allSupers": [
-        {
-          "name": "Larry Jennings",
-          "email": "ljennings@ryoderconstruction.com",
-          "title": "Site Superintendent"
-        },
-        {
-          "name": "Jameson Montague-DeStafano",
-          "email": "jdestafano@ryoderconstruction.com",
-          "title": null
-        },
-        {
-          "name": "Nathan Watts",
-          "email": "nwatts@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     },
     {
       "slug": "kindig-sloat-office-renovation",
@@ -2672,23 +1918,13 @@
         "title": "Project Engineer"
       },
       "superintendent": null,
-      "allPMs": [
-        {
-          "name": "Logan Moore",
-          "email": "lmoore@ryoderconstruction.com",
-          "title": "Project Engineer"
-        },
-        {
-          "name": "Bill Emmons",
-          "email": "bemmons@ryoderconstruction.com",
-          "title": "Project Manager"
-        },
-        {
-          "name": "Erica McIntosh",
-          "email": "emcintosh@ryoderconstruction.com",
-          "title": null
-        }
-      ]
+      "schedule": {
+        "tasksTotal": 0,
+        "tasksComplete": 0,
+        "overdueCount": 0,
+        "criticalInProgress": [],
+        "dataAvailable": false
+      }
     }
   ]
 }
