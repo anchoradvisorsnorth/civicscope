@@ -1,50 +1,7 @@
 {
-  "refreshed": "2026-03-26T00:04:23.966Z",
+  "refreshed": "2026-03-26T00:07:28.185Z",
   "jobCount": 33,
   "jobs": [
-    {
-      "slug": "helix-orchard-wallen-road",
-      "procoreId": 598134326115869,
-      "projectNumber": "2513CO04",
-      "name": "Helix Orchard Wallen Road",
-      "client": "Helix",
-      "clientType": "commercial",
-      "workType": "new_construction",
-      "active": true,
-      "stage": "Course of Construction",
-      "address": "2200 W Wallen Road , Fort Wayne , IN",
-      "start": "2025-06-09",
-      "projectedFinish": "2026-08-27T20:00:00Z",
-      "completionDate": "2026-08-31",
-      "sqft": null,
-      "pctComplete": 42.3,
-      "costOverrun": false,
-      "rfis": {
-        "total": 1,
-        "open": 0
-      },
-      "submittals": {
-        "total": 42,
-        "open": 27
-      },
-      "budget": {
-        "original": 19281323.549999997,
-        "revised": 19281323.549999997,
-        "committed": 0,
-        "direct": 7849322.41
-      },
-      "contractValue": 18537636,
-      "pm": {
-        "name": "Nate Yoder",
-        "email": "nate@ryoderconstruction.com",
-        "title": "Director of Business Development"
-      },
-      "superintendent": {
-        "name": "Joe Beer",
-        "email": "jbeer@ryoderconstruction.com",
-        "title": "General Superintendent"
-      }
-    },
     {
       "slug": "shipshewana-wwtp-project-a",
       "procoreId": 598134326123927,
@@ -103,7 +60,7 @@
       "projectedFinish": "2027-06-30T21:00:00Z",
       "completionDate": "2027-01-01",
       "sqft": null,
-      "pctComplete": 1.7,
+      "pctComplete": 1.6,
       "costOverrun": false,
       "rfis": {
         "total": 9,
@@ -119,7 +76,7 @@
         "committed": 0,
         "direct": 269103.94
       },
-      "contractValue": 15960965.520000003,
+      "contractValue": 17256996,
       "pm": {
         "name": "Brad Yoder",
         "email": "brad@ryoderconstruction.com",
@@ -146,7 +103,7 @@
       "projectedFinish": "2025-10-18T21:00:00Z",
       "completionDate": "2025-08-30",
       "sqft": 56000,
-      "pctComplete": 101.9,
+      "pctComplete": 101.6,
       "costOverrun": true,
       "rfis": {
         "total": 75,
@@ -162,7 +119,7 @@
         "committed": 0,
         "direct": 16222804.569999998
       },
-      "contractValue": 15926745,
+      "contractValue": 15962778,
       "pm": {
         "name": "Erik Parcell",
         "email": "eparcell@ryoderconstruction.com",
@@ -178,18 +135,14 @@
       "slug": "huntertown-wwtp-phase-3",
       "procoreId": 598134326094112,
       "projectNumber": "2515CO01",
-      "name": "Huntertown Wastewater Treatment Plan Expansion: Phase 3",
+      "name": "3",
       "client": "Town of Huntertown",
       "clientType": "municipal_water_wastewater",
       "workType": "expansion",
       "active": true,
-      "stage": "Course of Construction",
-      "address": "2214 Hathaway Road, Fort Wayne, IN",
-      "start": "2025-05-20",
-      "projectedFinish": "2026-11-20T13:00:00Z",
-      "completionDate": "2026-11-02",
-      "sqft": null,
-      "pctComplete": 43.5,
+      "stage": null,
+      "address": null,
+      "pctComplete": 48.4,
       "costOverrun": false,
       "rfis": {
         "total": 18,
@@ -205,7 +158,7 @@
         "committed": 0,
         "direct": 6111672.58
       },
-      "contractValue": 14055300,
+      "contractValue": 12630570.77,
       "pm": {
         "name": "Brad Yoder",
         "email": "brad@ryoderconstruction.com",
@@ -1030,49 +983,6 @@
       }
     },
     {
-      "slug": "goshen-wwtp-anaerobic-digest",
-      "procoreId": 598134326535436,
-      "projectNumber": "2502GP12",
-      "name": "Goshen WWTP Anaerobic Digest1",
-      "client": "City of Goshen",
-      "clientType": "municipal_water_wastewater",
-      "workType": "new_construction",
-      "active": true,
-      "stage": "Course of Construction",
-      "address": "1000 W. Wilden Ave., Goshen, IN",
-      "start": "2026-03-25",
-      "projectedFinish": "2027-04-30",
-      "completionDate": "2027-04-30",
-      "sqft": null,
-      "pctComplete": 0.6,
-      "costOverrun": false,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 0,
-        "open": 0
-      },
-      "budget": {
-        "original": 561272.01,
-        "revised": 561272.01,
-        "committed": 0,
-        "direct": 3802
-      },
-      "contractValue": 679915,
-      "pm": {
-        "name": "Brad Yoder",
-        "email": "brad@ryoderconstruction.com",
-        "title": "Vice President"
-      },
-      "superintendent": {
-        "name": "Joe Beer",
-        "email": "jbeer@ryoderconstruction.com",
-        "title": "General Superintendent"
-      }
-    },
-    {
       "slug": "ryan-fp-valpo-office-expansion",
       "procoreId": 598134326484944,
       "projectNumber": "26X004",
@@ -1302,8 +1212,8 @@
       "projectedFinish": "2026-01-09",
       "completionDate": "2026-01-09",
       "sqft": null,
-      "pctComplete": 64.1,
-      "costOverrun": false,
+      "pctComplete": null,
+      "costOverrun": null,
       "rfis": {
         "total": 0,
         "open": 0
@@ -1312,12 +1222,7 @@
         "total": 39,
         "open": 13
       },
-      "budget": {
-        "original": 146554.47,
-        "revised": 142323.87,
-        "committed": 0,
-        "direct": 118685.15999999999
-      },
+      "budget": null,
       "contractValue": 185187,
       "pm": {
         "name": "Brad Yoder",
@@ -1415,6 +1320,58 @@
         "email": "jbeer@ryoderconstruction.com",
         "title": "General Superintendent"
       }
+    },
+    {
+      "slug": "goshen-wwtp-anaerobic-digest",
+      "procoreId": 598134326535436,
+      "projectNumber": "2502GP12",
+      "name": "digest",
+      "client": "City of Goshen",
+      "clientType": "municipal_water_wastewater",
+      "workType": "new_construction",
+      "active": true,
+      "stage": null,
+      "address": null,
+      "pctComplete": null,
+      "costOverrun": null,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": null,
+      "contractValue": 0,
+      "pm": null,
+      "superintendent": null
+    },
+    {
+      "slug": "helix-orchard-wallen-road",
+      "procoreId": 598134326115869,
+      "projectNumber": "2513CO04",
+      "name": "road",
+      "client": "Helix",
+      "clientType": "commercial",
+      "workType": "new_construction",
+      "active": true,
+      "stage": null,
+      "address": null,
+      "pctComplete": null,
+      "costOverrun": null,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": null,
+      "contractValue": 0,
+      "pm": null,
+      "superintendent": null
     }
   ]
 }
