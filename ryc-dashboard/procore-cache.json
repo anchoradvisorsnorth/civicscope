@@ -1,7 +1,50 @@
 {
-  "refreshed": "2026-03-26T00:00:18.599Z",
+  "refreshed": "2026-03-26T00:04:23.966Z",
   "jobCount": 33,
   "jobs": [
+    {
+      "slug": "helix-orchard-wallen-road",
+      "procoreId": 598134326115869,
+      "projectNumber": "2513CO04",
+      "name": "Helix Orchard Wallen Road",
+      "client": "Helix",
+      "clientType": "commercial",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "2200 W Wallen Road , Fort Wayne , IN",
+      "start": "2025-06-09",
+      "projectedFinish": "2026-08-27T20:00:00Z",
+      "completionDate": "2026-08-31",
+      "sqft": null,
+      "pctComplete": 42.3,
+      "costOverrun": false,
+      "rfis": {
+        "total": 1,
+        "open": 0
+      },
+      "submittals": {
+        "total": 42,
+        "open": 27
+      },
+      "budget": {
+        "original": 19281323.549999997,
+        "revised": 19281323.549999997,
+        "committed": 0,
+        "direct": 7849322.41
+      },
+      "contractValue": 18537636,
+      "pm": {
+        "name": "Nate Yoder",
+        "email": "nate@ryoderconstruction.com",
+        "title": "Director of Business Development"
+      },
+      "superintendent": {
+        "name": "Joe Beer",
+        "email": "jbeer@ryoderconstruction.com",
+        "title": "General Superintendent"
+      }
+    },
     {
       "slug": "shipshewana-wwtp-project-a",
       "procoreId": 598134326123927,
@@ -34,6 +77,49 @@
         "direct": 2524737.3200000003
       },
       "contractValue": 18070899,
+      "pm": {
+        "name": "Brad Yoder",
+        "email": "brad@ryoderconstruction.com",
+        "title": "Vice President"
+      },
+      "superintendent": {
+        "name": "Joe Beer",
+        "email": "jbeer@ryoderconstruction.com",
+        "title": "General Superintendent"
+      }
+    },
+    {
+      "slug": "monreaux-apartments",
+      "procoreId": 598134326220700,
+      "projectNumber": "2413CO08",
+      "name": "The Monreaux Apartments",
+      "client": "Chateaux 14 Development, LLC",
+      "clientType": "mixed_use",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Pre-Construction",
+      "address": "100 West Monroe Street, South Bend, IN",
+      "start": "2025-12-01",
+      "projectedFinish": "2027-06-30T21:00:00Z",
+      "completionDate": "2027-01-01",
+      "sqft": null,
+      "pctComplete": 1.7,
+      "costOverrun": false,
+      "rfis": {
+        "total": 9,
+        "open": 2
+      },
+      "submittals": {
+        "total": 90,
+        "open": 71
+      },
+      "budget": {
+        "original": 15960965.520000003,
+        "revised": 15960965.520000003,
+        "committed": 0,
+        "direct": 269103.94
+      },
+      "contractValue": 15960965.520000003,
       "pm": {
         "name": "Brad Yoder",
         "email": "brad@ryoderconstruction.com",
@@ -86,6 +172,49 @@
         "name": "Dale Jones",
         "email": "djones@ryoderconstruction.com",
         "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "huntertown-wwtp-phase-3",
+      "procoreId": 598134326094112,
+      "projectNumber": "2515CO01",
+      "name": "Huntertown Wastewater Treatment Plan Expansion: Phase 3",
+      "client": "Town of Huntertown",
+      "clientType": "municipal_water_wastewater",
+      "workType": "expansion",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "2214 Hathaway Road, Fort Wayne, IN",
+      "start": "2025-05-20",
+      "projectedFinish": "2026-11-20T13:00:00Z",
+      "completionDate": "2026-11-02",
+      "sqft": null,
+      "pctComplete": 43.5,
+      "costOverrun": false,
+      "rfis": {
+        "total": 18,
+        "open": 2
+      },
+      "submittals": {
+        "total": 236,
+        "open": 68
+      },
+      "budget": {
+        "original": 12630570.77,
+        "revised": 12630570.77,
+        "committed": 0,
+        "direct": 6111672.58
+      },
+      "contractValue": 14055300,
+      "pm": {
+        "name": "Brad Yoder",
+        "email": "brad@ryoderconstruction.com",
+        "title": "Vice President"
+      },
+      "superintendent": {
+        "name": "Joe Beer",
+        "email": "jbeer@ryoderconstruction.com",
+        "title": "General Superintendent"
       }
     },
     {
@@ -210,6 +339,92 @@
         "name": "Joe Beer",
         "email": "jbeer@ryoderconstruction.com",
         "title": "General Superintendent"
+      }
+    },
+    {
+      "slug": "indot-roselawn-unit-salt-bld",
+      "procoreId": 598134325725563,
+      "projectNumber": "2415GO03",
+      "name": "INDOT Roselawn Unit & Salt Bld",
+      "client": "INDOT",
+      "clientType": "municipal",
+      "workType": "new_construction",
+      "active": true,
+      "stage": null,
+      "address": "5967 SR-10, Demotte, IN",
+      "start": "2024-06-10",
+      "projectedFinish": "2025-06-05T21:00:00Z",
+      "completionDate": "2025-11-23",
+      "sqft": null,
+      "pctComplete": 98.2,
+      "costOverrun": false,
+      "rfis": {
+        "total": 37,
+        "open": 0
+      },
+      "submittals": {
+        "total": 651,
+        "open": 395
+      },
+      "budget": {
+        "original": 6735069.88,
+        "revised": 6773626.929999999,
+        "committed": 0,
+        "direct": 7291813.92
+      },
+      "contractValue": 7425415,
+      "pm": {
+        "name": "Brad Yoder",
+        "email": "brad@ryoderconstruction.com",
+        "title": "Vice President"
+      },
+      "superintendent": {
+        "name": "Dale Jones",
+        "email": "djones@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "michiana-eye-center",
+      "procoreId": 598134326177457,
+      "projectNumber": "2508CO01",
+      "name": "Michiana Eye Center",
+      "client": "K2 Medical Properties, LLC",
+      "clientType": "commercial",
+      "workType": "new_construction",
+      "active": true,
+      "stage": null,
+      "address": "505 Park Place, Mishawaka, IN",
+      "start": "2025-08-31",
+      "projectedFinish": "2026-08-31",
+      "completionDate": "2026-08-31",
+      "sqft": null,
+      "pctComplete": 12.3,
+      "costOverrun": false,
+      "rfis": {
+        "total": 4,
+        "open": 1
+      },
+      "submittals": {
+        "total": 76,
+        "open": 53
+      },
+      "budget": {
+        "original": 3552279.87,
+        "revised": 3552279.87,
+        "committed": 0,
+        "direct": 488076.64
+      },
+      "contractValue": 3970739,
+      "pm": {
+        "name": "Brad Yoder",
+        "email": "brad@ryoderconstruction.com",
+        "title": "Vice President"
+      },
+      "superintendent": {
+        "name": "Brian Hubbard",
+        "email": "bhubbard@ryoderconstruction.com",
+        "title": "Field Superintendent"
       }
     },
     {
@@ -643,6 +858,49 @@
       }
     },
     {
+      "slug": "jomar-2025-build",
+      "procoreId": 598134326162581,
+      "projectNumber": "2504CO05",
+      "name": "Jomar-2025 Build",
+      "client": "Jomar",
+      "clientType": "commercial",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Pre-Construction",
+      "address": "13393 CR 22, Middlebury, IN",
+      "start": "2024-03-15",
+      "projectedFinish": "2026-03-31T21:00:00Z",
+      "completionDate": "2026-01-02",
+      "sqft": 20000,
+      "pctComplete": 77,
+      "costOverrun": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 959002.92,
+        "revised": 997225.92,
+        "committed": 0,
+        "direct": 845146.47
+      },
+      "contractValue": 1098000,
+      "pm": {
+        "name": "Brad Yoder",
+        "email": "brad@ryoderconstruction.com",
+        "title": "Vice President"
+      },
+      "superintendent": {
+        "name": "Joe Beer",
+        "email": "jbeer@ryoderconstruction.com",
+        "title": "General Superintendent"
+      }
+    },
+    {
       "slug": "nptech-community-fiber",
       "procoreId": 598134326311174,
       "projectNumber": "2515CO02",
@@ -674,6 +932,49 @@
         "direct": 217137.57
       },
       "contractValue": 978687,
+      "pm": {
+        "name": "Brad Yoder",
+        "email": "brad@ryoderconstruction.com",
+        "title": "Vice President"
+      },
+      "superintendent": {
+        "name": "Joe Beer",
+        "email": "jbeer@ryoderconstruction.com",
+        "title": "General Superintendent"
+      }
+    },
+    {
+      "slug": "lacrosse-wwtp-improvements",
+      "procoreId": 598134326485904,
+      "projectNumber": "26P001",
+      "name": "LaCrosse WWTP Improvements",
+      "client": "Town of LaCrosse",
+      "clientType": "municipal_water_wastewater",
+      "workType": "renovation",
+      "active": true,
+      "stage": null,
+      "address": "Ostwego Street, La Crosse, IN",
+      "start": "2026-02-16",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 0,
+      "costOverrun": false,
+      "rfis": {
+        "total": 1,
+        "open": 1
+      },
+      "submittals": {
+        "total": 26,
+        "open": 21
+      },
+      "budget": {
+        "original": 775895.84,
+        "revised": 775895.84,
+        "committed": 0,
+        "direct": 0
+      },
+      "contractValue": 938600,
       "pm": {
         "name": "Brad Yoder",
         "email": "brad@ryoderconstruction.com",
@@ -1073,232 +1374,37 @@
       }
     },
     {
-      "slug": "helix-orchard-wallen-road",
-      "procoreId": 598134326115869,
-      "projectNumber": "2513CO04",
-      "name": "road",
-      "client": "Helix",
-      "clientType": "commercial",
-      "workType": "new_construction",
-      "active": true,
-      "stage": null,
-      "address": null,
-      "pctComplete": null,
-      "costOverrun": null,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 0,
-        "open": 0
-      },
-      "budget": null,
-      "contractValue": 0,
-      "pm": null,
-      "superintendent": null
-    },
-    {
-      "slug": "huntertown-wwtp-phase-3",
-      "procoreId": 598134326094112,
-      "projectNumber": "2515CO01",
-      "name": "3",
-      "client": "Town of Huntertown",
-      "clientType": "municipal_water_wastewater",
-      "workType": "expansion",
-      "active": true,
-      "stage": null,
-      "address": null,
-      "pctComplete": null,
-      "costOverrun": null,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 0,
-        "open": 0
-      },
-      "budget": null,
-      "contractValue": 0,
-      "pm": null,
-      "superintendent": null
-    },
-    {
-      "slug": "indot-roselawn-unit-salt-bld",
-      "procoreId": 598134325725563,
-      "projectNumber": "2415GO03",
-      "name": "bld",
-      "client": "INDOT",
-      "clientType": "municipal",
-      "workType": "new_construction",
-      "active": true,
-      "stage": null,
-      "address": null,
-      "pctComplete": null,
-      "costOverrun": null,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 0,
-        "open": 0
-      },
-      "budget": null,
-      "contractValue": 0,
-      "pm": null,
-      "superintendent": null
-    },
-    {
-      "slug": "jomar-2025-build",
-      "procoreId": 598134326162581,
-      "projectNumber": "2504CO05",
-      "name": "build",
-      "client": "Jomar",
-      "clientType": "commercial",
-      "workType": "new_construction",
-      "active": true,
-      "stage": null,
-      "address": null,
-      "pctComplete": null,
-      "costOverrun": null,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 0,
-        "open": 0
-      },
-      "budget": null,
-      "contractValue": 0,
-      "pm": null,
-      "superintendent": null
-    },
-    {
       "slug": "kindig-sloat-office-renovation",
       "procoreId": 598134326429365,
       "projectNumber": "2608CO01",
-      "name": "renovation",
+      "name": "Kindig Sloat Office Renovation",
       "client": "Kindig Sloat",
       "clientType": "commercial",
       "workType": "renovation",
       "active": true,
       "stage": null,
-      "address": null,
-      "pctComplete": null,
-      "costOverrun": null,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 0,
-        "open": 0
-      },
-      "budget": null,
-      "contractValue": 0,
-      "pm": null,
-      "superintendent": null
-    },
-    {
-      "slug": "lacrosse-wwtp-improvements",
-      "procoreId": 598134326485904,
-      "projectNumber": "26P001",
-      "name": "improvements",
-      "client": "Town of LaCrosse",
-      "clientType": "municipal_water_wastewater",
-      "workType": "renovation",
-      "active": true,
-      "stage": null,
-      "address": null,
-      "pctComplete": null,
-      "costOverrun": null,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 0,
-        "open": 0
-      },
-      "budget": null,
-      "contractValue": 0,
-      "pm": null,
-      "superintendent": null
-    },
-    {
-      "slug": "michiana-eye-center",
-      "procoreId": 598134326177457,
-      "projectNumber": "2508CO01",
-      "name": "center",
-      "client": "K2 Medical Properties, LLC",
-      "clientType": "commercial",
-      "workType": "new_construction",
-      "active": true,
-      "stage": null,
-      "address": null,
-      "pctComplete": null,
-      "costOverrun": false,
-      "rfis": {
-        "total": 4,
-        "open": 1
-      },
-      "submittals": {
-        "total": 76,
-        "open": 53
-      },
-      "budget": {
-        "original": 3552279.87,
-        "revised": 3552279.87,
-        "committed": 0,
-        "direct": 488076.64
-      },
-      "contractValue": 0,
-      "pm": {
-        "name": "Brad Yoder",
-        "email": "brad@ryoderconstruction.com",
-        "title": "Vice President"
-      },
-      "superintendent": {
-        "name": "Brian Hubbard",
-        "email": "bhubbard@ryoderconstruction.com",
-        "title": "Field Superintendent"
-      }
-    },
-    {
-      "slug": "monreaux-apartments",
-      "procoreId": 598134326220700,
-      "projectNumber": "2413CO08",
-      "name": "The Monreaux Apartments",
-      "client": "Chateaux 14 Development, LLC",
-      "clientType": "mixed_use",
-      "workType": "new_construction",
-      "active": true,
-      "stage": "Pre-Construction",
-      "address": "100 West Monroe Street, South Bend, IN",
-      "start": "2025-12-01",
-      "projectedFinish": "2027-06-30T21:00:00Z",
-      "completionDate": "2027-01-01",
+      "address": "102 Heritage Pkwy, Nappanee, IN",
+      "start": "2026-01-09",
+      "projectedFinish": null,
+      "completionDate": null,
       "sqft": null,
-      "pctComplete": null,
+      "pctComplete": 39.2,
       "costOverrun": false,
       "rfis": {
-        "total": 9,
-        "open": 2
+        "total": 0,
+        "open": 0
       },
       "submittals": {
-        "total": 90,
-        "open": 71
+        "total": 0,
+        "open": 0
       },
       "budget": {
-        "original": 15960965.520000003,
-        "revised": 15960965.520000003,
+        "original": 41585.270000000004,
+        "revised": 41585.270000000004,
         "committed": 0,
-        "direct": 269103.94
+        "direct": 20223.85
       },
-      "contractValue": 0,
+      "contractValue": 51649,
       "pm": {
         "name": "Brad Yoder",
         "email": "brad@ryoderconstruction.com",
