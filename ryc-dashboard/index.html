@@ -253,11 +253,13 @@ function saveSchedCache() {
   try { localStorage.setItem(SCHED_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: scheduleCache })); } catch {}
 }
 async function fetchScheduleData() {
+  console.log('[Schedule] Lazy fetch starting...');
   scheduleCache = loadSchedCache();
   const jobs = (activeData?.jobs || []).filter(j => j.procoreId);
   // Determine which jobs need fetching
   const toFetch = jobs.filter(j => !scheduleCache[j.procoreId]);
   // Apply any cached data to DOM immediately
+  console.log(`[Schedule] ${Object.keys(scheduleCache).length} cached, ${toFetch.length} to fetch`);
   if (Object.keys(scheduleCache).length > 0) updateScheduleRows();
   // Fetch missing jobs sequentially with delay
   for (let i = 0; i < toFetch.length; i++) {
@@ -265,8 +267,9 @@ async function fetchScheduleData() {
     try {
       const r = await fetch(`${SCHEDULE_API}?projectId=${job.procoreId}`);
       if (r.ok) {
-        scheduleCache[job.procoreId] = await r.json();
-        // Update this job's card immediately
+        const data = await r.json();
+        if (data.rateLimited) { console.warn('Procore rate limited — stopping schedule fetch'); break; }
+        scheduleCache[job.procoreId] = data;
         updateScheduleRow(job.procoreId);
       }
     } catch {}
