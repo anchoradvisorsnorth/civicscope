@@ -58,6 +58,12 @@
   .revenue-bar { height: 6px; border-radius: 3px; background: #e8e7e3; margin-top: 10px; overflow: hidden; }
   .revenue-bar .fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
 
+  /* Search & sort controls */
+  .job-controls { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .job-controls input[type="text"] { flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); outline: none; }
+  .job-controls input[type="text"]:focus { border-color: var(--accent); }
+  .job-controls select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); outline: none; cursor: pointer; color: var(--text); }
+
   /* Job cards */
   .job-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px; margin-bottom: 2.5rem; }
   .job-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px; transition: box-shadow 0.15s; position: relative; }
@@ -145,7 +151,7 @@
 
 <div id="app">
   <header>
-    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.4.0-ryc-dashboard</div></div>
+    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.4.1-ryc-dashboard</div></div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
       <button class="refresh-btn" id="btn-refresh" onclick="triggerRefresh()">Refresh Procore</button>
@@ -162,11 +168,21 @@
   <div class="metrics" id="metrics"></div>
   <div id="analysis-section" style="display:none"></div>
   <div id="jobs-section">
+    <div class="job-controls" id="job-controls" style="display:none">
+      <input type="text" id="job-search" placeholder="Search jobs, clients, PMs..." oninput="renderJobs()">
+      <select id="job-sort" onchange="renderJobs()">
+        <option value="stoplight">Stoplight</option>
+        <option value="contract">Contract Value ↓</option>
+        <option value="finish">Projected Finish ↑</option>
+        <option value="pct">% Complete ↓</option>
+        <option value="pm">PM</option>
+      </select>
+    </div>
     <div class="job-grid" id="job-grid"></div>
   </div>
 
   <div class="footer">
-    v1.4.0-ryc-dashboard — Data from SharePoint + Procore<br>
+    v1.4.1-ryc-dashboard — Data from SharePoint + Procore<br>
     Project team data sourced from Procore. Update assignments in Procore to reflect changes.<br>
     Jobs showing past due with no recent activity may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
@@ -231,11 +247,13 @@ function getCloseoutJobs() { return (activeData?.jobs || []).filter(j => CLOSEOU
 function renderView() {
   const jobsEl = document.getElementById('jobs-section');
   const analysisEl = document.getElementById('analysis-section');
+  const controlsEl = document.getElementById('job-controls');
   if (currentView === 'analysis') {
     jobsEl.style.display = 'none'; analysisEl.style.display = 'block';
     renderAnalysisMetrics(); renderAnalysis();
   } else {
     jobsEl.style.display = 'block'; analysisEl.style.display = 'none';
+    controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
     renderMetrics(); renderJobs();
   }
 }
@@ -296,20 +314,28 @@ function renderMetrics() {
   if (currentView === 'active' || currentView === 'closeout') {
     const active = currentView === 'closeout' ? getCloseoutJobs() : getActiveJobs();
     const totalContract = active.reduce((s, j) => s + (j.contractValue || 0), 0);
-    let totalDirect = 0, totalRfis = 0, totalSubs = 0, pctVals = [];
+    let totalDirect = 0, pctVals = [];
+    let needsAttention = 0, pastDue = 0, finishing90 = 0;
+    const now = new Date(), in90 = new Date(now.getTime() + 90 * 86400000);
     for (const j of active) {
       if (j.budget?.direct) totalDirect += j.budget.direct;
-      if (j.rfis?.open) totalRfis += j.rfis.open;
-      if (j.submittals?.open) totalSubs += j.submittals.open;
       if (j.pctComplete != null) pctVals.push(Math.min(j.pctComplete, 100));
+      if (j.costOverrun || (j.pctComplete != null && j.pctComplete > 100)) needsAttention++;
+      const fin = j.completionDate || j.projectedFinish;
+      if (fin) {
+        const fd = new Date(fin);
+        if (fd < now && (j.pctComplete == null || j.pctComplete < 100)) pastDue++;
+        if (fd >= now && fd <= in90) finishing90++;
+      }
     }
     const avgPct = pctVals.length ? pctVals.reduce((s, v) => s + v, 0) / pctVals.length : null;
     el.innerHTML = `
       <div class="metric-card"><div class="label">Active contract value</div><div class="value">${fmt(totalContract)}</div><div class="sub">${active.length} active jobs</div></div>
       <div class="metric-card"><div class="label">Direct cost to date</div><div class="value">${fmt(totalDirect)}</div><div class="sub">Across all active</div></div>
       <div class="metric-card"><div class="label">Avg % complete</div><div class="value">${avgPct != null ? pct(avgPct) : '\u2014'}</div><div class="sub">(${pctVals.length} of ${active.length} jobs)</div></div>
-      <div class="metric-card"><div class="label">Open RFIs</div><div class="value">${totalRfis}</div><div class="sub">Across all active</div></div>
-      <div class="metric-card"><div class="label">Open submittals</div><div class="value">${totalSubs}</div><div class="sub">Across all active</div></div>`;
+      <div class="metric-card"><div class="label">Jobs needing attention</div><div class="value${needsAttention > 0 ? ' flag-red' : ''}">${needsAttention}</div><div class="sub">Cost overrun or &gt;100% complete</div></div>
+      <div class="metric-card"><div class="label">Past due</div><div class="value${pastDue > 0 ? ' flag-amber' : ''}">${pastDue}</div><div class="sub">Past projected finish</div></div>
+      <div class="metric-card"><div class="label">Finishing in 90 days</div><div class="value" style="${finishing90 > 0 ? 'color:var(--green)' : ''}">${finishing90}</div><div class="sub">Projected finish within 90d</div></div>`;
   } else {
     const completed = portfolioData?.jobs || [];
     const totalRev = completed.reduce((s, j) => s + (j.contractFinal || 0), 0);
@@ -379,16 +405,56 @@ function renderAnalysis() {
   document.getElementById('analysis-section').innerHTML = html;
 }
 
+// --- Search & Sort ---
+function getStoplightOrder(job) {
+  const sl = getStoplight(job, job);
+  return sl.color === 'red' ? 0 : sl.color === 'amber' ? 1 : 2;
+}
+
+function filterAndSortJobs(jobs) {
+  const query = (document.getElementById('job-search')?.value || '').toLowerCase().trim();
+  const sortBy = document.getElementById('job-sort')?.value || 'stoplight';
+
+  let filtered = jobs;
+  if (query) {
+    filtered = jobs.filter(j => {
+      const haystack = [j.name, j.client, j.pm?.name, j.superintendent?.name].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
+  }
+
+  filtered.sort((a, b) => {
+    if (sortBy === 'stoplight') {
+      const sa = getStoplightOrder(a), sb = getStoplightOrder(b);
+      if (sa !== sb) return sa - sb;
+      return (b.contractValue || 0) - (a.contractValue || 0);
+    }
+    if (sortBy === 'contract') return (b.contractValue || 0) - (a.contractValue || 0);
+    if (sortBy === 'finish') {
+      const fa = a.projectedFinish || a.completionDate || '9999', fb = b.projectedFinish || b.completionDate || '9999';
+      return fa < fb ? -1 : fa > fb ? 1 : 0;
+    }
+    if (sortBy === 'pct') return (b.pctComplete || 0) - (a.pctComplete || 0);
+    if (sortBy === 'pm') {
+      const pa = (a.pm?.name || 'zzz').toLowerCase(), pb = (b.pm?.name || 'zzz').toLowerCase();
+      return pa < pb ? -1 : pa > pb ? 1 : 0;
+    }
+    return 0;
+  });
+
+  return filtered;
+}
+
 // --- Jobs ---
 function renderJobs() {
   const grid = document.getElementById('job-grid');
   let cards = [];
   if (currentView === 'active') {
-    for (const job of getActiveJobs()) {
+    for (const job of filterAndSortJobs(getActiveJobs())) {
       cards.push(renderActiveCard(job, job));
     }
   } else if (currentView === 'closeout') {
-    for (const job of getCloseoutJobs()) {
+    for (const job of filterAndSortJobs(getCloseoutJobs())) {
       cards.push(renderActiveCard(job, job));
     }
   } else if (currentView === 'completed') {
