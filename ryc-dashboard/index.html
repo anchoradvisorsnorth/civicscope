@@ -104,10 +104,6 @@
   .margin-green { color: var(--green); } .margin-amber { color: var(--amber); } .margin-red { color: var(--red); }
   .margin-missing { color: var(--muted); font-style: italic; }
 
-  /* Multi-PM/Super badge */
-  .personnel-extra { display: inline-block; background: #e5e7eb; color: #6b7280; font-size: 10px; font-weight: 500; padding: 1px 5px; border-radius: 3px; margin-left: 3px; cursor: default; position: relative; }
-  .personnel-extra .tooltip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: #fff; font-size: 11px; padding: 6px 10px; border-radius: 6px; white-space: nowrap; z-index: 10; margin-bottom: 4px; }
-  .personnel-extra:hover .tooltip { display: block; }
 
   /* Pre-con pending state */
   .precon-pending .job-stat .v { color: #d1d5db; }
@@ -132,6 +128,7 @@
   .action-items .touched { font-size: 11px; color: var(--muted); margin-left: auto; }
 
   .note { font-size: 11px; color: var(--muted); font-style: italic; }
+  .sched-detail { font-size: 11px; color: var(--muted); }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 11px; line-height: 1.8; }
@@ -151,7 +148,7 @@
 
 <div id="app">
   <header>
-    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.4.1-ryc-dashboard</div></div>
+    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.5.0-ryc-dashboard</div></div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
       <button class="refresh-btn" id="btn-refresh" onclick="triggerRefresh()">Refresh Procore</button>
@@ -182,7 +179,7 @@
   </div>
 
   <div class="footer">
-    v1.4.1-ryc-dashboard — Data from SharePoint + Procore<br>
+    v1.5.0-ryc-dashboard — Data from SharePoint + Procore<br>
     Project team data sourced from Procore. Update assignments in Procore to reflect changes.<br>
     Jobs showing past due with no recent activity may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
@@ -192,7 +189,11 @@
 const PORTFOLIO_URL = '/ryc-dashboard/ryc-portfolio.json';
 const CACHE_URL = '/ryc-dashboard/procore-cache.json';
 const ACTIVE_API = '/api/ryc-active';
+const SCHEDULE_API = '/api/ryc-schedule-tasks';
+const SCHED_CACHE_KEY = 'ryc-sched-cache';
+const SCHED_TTL = 24 * 60 * 60 * 1000; // 24 hours
 let portfolioData = null, activeData = null, currentView = 'active';
+let scheduleCache = {}; // procoreId → { dataAvailable, tasksTotal, tasksComplete, overdueCount, criticalCount }
 
 function tryLogin() {
   if (document.getElementById('pw-input').value === 'ryc2026') {
@@ -238,6 +239,55 @@ function wireToggle() {
   });
 }
 
+// --- Schedule lazy fetch with localStorage cache ---
+function loadSchedCache() {
+  try {
+    const raw = localStorage.getItem(SCHED_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed.ts || Date.now() - parsed.ts > SCHED_TTL) { localStorage.removeItem(SCHED_CACHE_KEY); return {}; }
+    return parsed.data || {};
+  } catch { return {}; }
+}
+function saveSchedCache() {
+  try { localStorage.setItem(SCHED_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: scheduleCache })); } catch {}
+}
+async function fetchScheduleData() {
+  scheduleCache = loadSchedCache();
+  const jobs = (activeData?.jobs || []).filter(j => j.procoreId);
+  // Determine which jobs need fetching
+  const toFetch = jobs.filter(j => !scheduleCache[j.procoreId]);
+  // Apply any cached data to DOM immediately
+  if (Object.keys(scheduleCache).length > 0) updateScheduleRows();
+  // Fetch missing jobs sequentially with delay
+  for (let i = 0; i < toFetch.length; i++) {
+    const job = toFetch[i];
+    try {
+      const r = await fetch(`${SCHEDULE_API}?projectId=${job.procoreId}`);
+      if (r.ok) {
+        scheduleCache[job.procoreId] = await r.json();
+        // Update this job's card immediately
+        updateScheduleRow(job.procoreId);
+      }
+    } catch {}
+    if (i < toFetch.length - 1) await new Promise(r => setTimeout(r, 300));
+  }
+  saveSchedCache();
+}
+function updateScheduleRows() {
+  for (const pid of Object.keys(scheduleCache)) updateScheduleRow(pid);
+}
+function updateScheduleRow(procoreId) {
+  const el = document.querySelector(`[data-sched-id="${procoreId}"]`);
+  if (!el) return;
+  const s = scheduleCache[procoreId];
+  if (!s || !s.dataAvailable) { el.textContent = ''; return; }
+  let parts = [`Tasks: ${s.tasksComplete}/${s.tasksTotal} complete`];
+  if (s.overdueCount > 0) parts.push(`<span class="flag-amber">${s.overdueCount} overdue</span>`);
+  if (s.criticalCount > 0) parts.push(`<span class="flag-red">${s.criticalCount} critical</span>`);
+  el.innerHTML = parts.join(' &middot; ');
+}
+
 // Closeout stages — jobs winding down, not active construction
 const CLOSEOUT_STAGES = new Set(['Warranty', 'Post-Construction']);
 
@@ -255,6 +305,7 @@ function renderView() {
     jobsEl.style.display = 'block'; analysisEl.style.display = 'none';
     controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
     renderMetrics(); renderJobs();
+    fetchScheduleData();
   }
 }
 
@@ -541,13 +592,13 @@ function renderActiveCard(job, live) {
           <span class="badge badge-${job.clientType}">${typeName(job.clientType)}</span>
         </div>
       </div>
-      ${pm || sup ? `<div class="personnel">PM: ${pm ? esc(pm.name) : '\u2014'}${job.allPMs && job.allPMs.length > 1 ? ` <span class="personnel-extra">+${job.allPMs.length - 1}<span class="tooltip">${job.allPMs.map(p => esc(p.name)).join(', ')}</span></span>` : ''} &nbsp;|&nbsp; Super: ${sup ? esc(sup.name) : '\u2014'}${job.allSupers && job.allSupers.length > 1 ? ` <span class="personnel-extra">+${job.allSupers.length - 1}<span class="tooltip">${job.allSupers.map(s => esc(s.name)).join(', ')}</span></span>` : ''}</div>` : ''}
+      ${pm || sup ? `<div class="personnel">PM: ${pm ? esc(pm.name) : '\u2014'} &nbsp;|&nbsp; Super: ${sup ? esc(sup.name) : '\u2014'}</div>` : ''}
       <div class="job-stats${isPreconPending ? ' precon-pending' : ''}">
         <div class="job-stat"><span class="k">Contract</span><span class="v">${fmt(contractVal)}</span></div>
         <div class="job-stat"><span class="k">% Complete (by cost)</span><span class="v">${pctDisp}${pctNote}</span></div>
         <div class="job-stat"><span class="k">Direct cost to date</span><span class="v${costOverrun ? ' flag-red' : ''}">${fmt(directCost)}${costOverrun ? ' <span style="font-size:11px">⚠ over contract</span>' : ''}</span></div>
         <div class="job-stat"><span class="k">Contracted margin</span>${marginHtml}</div>
-        <div class="job-stat"><span class="k">Schedule</span><span class="v">${fmtShort(startDate)} → ${fmtShort(finishDate)}<br><span class="${schedClass}">${schedText}</span></span></div>
+        <div class="job-stat"><span class="k">Schedule</span><span class="v">${fmtShort(startDate)} → ${fmtShort(finishDate)}<br><span class="${schedClass}">${schedText}</span>${job.procoreId ? `<br><span class="sched-detail" data-sched-id="${job.procoreId}"></span>` : ''}</span></div>
         <div class="job-stat"><span class="k">RFIs / Submittals</span><span class="v"><span class="${sl.reasons.highRfis ? 'flag-' + sl.reasons.highRfis : ''}">${openRfis}/${totalRfis}</span> RFIs &nbsp;<span class="${sl.reasons.highSubs ? 'flag-' + sl.reasons.highSubs : ''}">${openSubs}/${totalSubs}</span> Subs</span></div>
         ${isPreconPending ? '<div class="precon-note">Financial data will appear once contract is entered in Procore.</div>' : ''}
       </div>
