@@ -58,17 +58,28 @@
   .revenue-bar { height: 6px; border-radius: 3px; background: #e8e7e3; margin-top: 10px; overflow: hidden; }
   .revenue-bar .fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
 
-  /* Search & sort controls */
-  .job-controls { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; max-width: 60%; }
-  .job-controls input[type="text"] { flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); outline: none; }
+  /* Filter bar */
+  .job-controls { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .job-controls input[type="text"] { min-width: 180px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); outline: none; }
   .job-controls input[type="text"]:focus { border-color: var(--accent); }
-  .job-controls select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); outline: none; cursor: pointer; color: var(--text); flex-shrink: 0; }
+  .job-controls select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; background: var(--surface); outline: none; cursor: pointer; color: var(--text); flex-shrink: 0; }
+  .filter-pills { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .filter-pills button { padding: 6px 12px; border: none; background: var(--surface); font-size: 12px; font-weight: 500; cursor: pointer; color: var(--muted); border-right: 1px solid var(--border); }
+  .filter-pills button:last-child { border-right: none; }
+  .filter-pills button.active { background: var(--accent); color: #fff; }
+  .filter-pills button[data-sl="red"].active { background: var(--red); }
+  .filter-pills button[data-sl="amber"].active { background: var(--amber); }
+  .filter-pills button[data-sl="atrisk"].active { background: var(--red); }
+  .sort-right { margin-left: auto; }
 
   /* Job cards */
   .job-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px; margin-bottom: 2.5rem; }
   .job-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px; transition: box-shadow 0.15s; position: relative; }
   .job-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
-  .job-card.active-card { border-left: 4px solid var(--green); }
+  .job-card.sl-green { border-left: 4px solid var(--green); }
+  .job-card.sl-amber { border-left: 4px solid var(--amber); }
+  .job-card.sl-red { border-left: 4px solid var(--red); }
+  .job-card.sl-gray { border-left: 4px solid #d1d5db; }
   .job-card .job-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
   .job-card .job-name { font-size: 16px; font-weight: 500; }
   .job-card .job-client { font-size: 13px; color: var(--muted); margin-top: 2px; }
@@ -94,6 +105,7 @@
   .stoplight-green { background: var(--green); }
   .stoplight-amber { background: var(--amber); }
   .stoplight-red { background: var(--red); }
+  .stoplight-gray { background: #d1d5db; }
 
   .job-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-top: 14px; }
   .job-stat { font-size: 12px; }
@@ -147,7 +159,7 @@
 
 <div id="app">
   <header>
-    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.6.0-ryc-dashboard</div></div>
+    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.7.0-ryc-dashboard</div></div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
       <button class="refresh-btn" id="btn-refresh" onclick="triggerRefresh()">Refresh Procore</button>
@@ -166,19 +178,40 @@
   <div id="jobs-section">
     <div class="job-controls" id="job-controls" style="display:none">
       <input type="text" id="job-search" placeholder="Search jobs, clients, PMs..." oninput="renderJobs()">
-      <select id="job-sort" onchange="renderJobs()">
-        <option value="stoplight">Stoplight</option>
-        <option value="contract">Contract Value ↓</option>
-        <option value="finish">Projected Finish ↑</option>
-        <option value="pct">% Complete ↓</option>
-        <option value="pm">PM</option>
+      <div class="filter-pills" id="sl-filter">
+        <button class="active" data-sl="all" onclick="setSLFilter('all')">All</button>
+        <button data-sl="red" onclick="setSLFilter('red')">Red</button>
+        <button data-sl="amber" onclick="setSLFilter('amber')">Amber</button>
+        <button data-sl="atrisk" onclick="setSLFilter('atrisk')">At risk</button>
+      </div>
+      <select id="filter-stage" onchange="renderJobs()">
+        <option value="">All stages</option>
+        <option value="Pre-Construction">Pre-Construction</option>
+        <option value="Course of Construction">Course of Construction</option>
+        <option value="closeout">Closeout</option>
+      </select>
+      <select id="filter-client" onchange="renderJobs()">
+        <option value="">All types</option>
+        <option value="municipal_water_wastewater">Water/WW</option>
+        <option value="commercial">Commercial</option>
+        <option value="municipal">Municipal</option>
+        <option value="school">School</option>
+        <option value="industrial">Industrial</option>
+        <option value="mixed_use">Mixed use</option>
+      </select>
+      <select id="filter-pm" onchange="renderJobs()"></select>
+      <select id="job-sort" class="sort-right" onchange="renderJobs()">
+        <option value="stoplight">Sort: Stoplight</option>
+        <option value="contract">Sort: Contract value ↓</option>
+        <option value="finish">Sort: Finish date ↑</option>
+        <option value="pct">Sort: % Complete ↓</option>
       </select>
     </div>
     <div class="job-grid" id="job-grid"></div>
   </div>
 
   <div class="footer">
-    v1.6.0-ryc-dashboard — Data from Procore<br>
+    v1.7.0-ryc-dashboard — Data from Procore<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -249,7 +282,7 @@ function renderView() {
   } else {
     jobsEl.style.display = 'block'; analysisEl.style.display = 'none';
     controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
-    renderMetrics(); renderJobs();
+    populatePMFilter(); renderMetrics(); renderJobs();
   }
 }
 
@@ -274,35 +307,38 @@ function getBestMargin(j) { return j.projectedMarginPct ?? j.projectedMargin ?? 
 
 // --- Stoplight ---
 function getStoplight(job, live) {
-  const openRfis = live?.rfis?.open ?? 0;
-  const openSubs = live?.submittals?.open ?? 0;
+  const stage = live?.stage || null;
+  const pctComp = live?.pctComplete;
   const costOverrun = live?.costOverrun;
   const finishDate = live?.projectedFinish || live?.completionDate;
-  const pastDue = finishDate ? new Date() > new Date(finishDate) : false;
   const verifyStatus = live?.verifyStatus;
-  const margin = job.projectedMargin ?? getBestMargin(job);
-  const pctComp = live?.pctComplete;
-  const start = live?.start ? new Date(live.start) : null;
-  const finish = finishDate ? new Date(finishDate) : null;
-  const schedElapsed = start && finish ? (Date.now() - start) / (finish - start) : 0;
+  const cMargin = contractedMargin(job);
+  const mtd = marginToDate(job);
+  const co = live?.changeOrders;
+  const coExposure = (co?.netValue && job.contractValue) ? Math.abs(co.netValue) / job.contractValue : 0;
 
-  // verifyStatus jobs get amber instead of red for pastDue — likely completed but not closed in Procore
-  const red = costOverrun || (pastDue && !verifyStatus) || openRfis > 20 || openSubs > 100;
+  // Gray — Pre-Construction or no data yet
+  const isPrecon = stage === 'Pre-Construction' || (!live?.budget && (pctComp == null || pctComp === 0));
+  if (isPrecon) return { color: 'gray' };
+
+  // Days overdue
+  const daysOverdue = finishDate ? Math.floor((Date.now() - new Date(finishDate)) / 86400000) : 0;
+
+  // Red — action required
+  const red = costOverrun ||
+    (mtd != null && mtd < 0) ||
+    (daysOverdue > 30 && !verifyStatus);
+
+  // Amber — watch closely
   const amber = !red && (
-    (pctComp != null && pctComp < 25 && schedElapsed > 0.3) ||
-    (openRfis >= 10) || (openSubs >= 50) || (margin != null && margin < 10)
+    (cMargin != null && cMargin < 5) ||
+    (pctComp != null && pctComp >= 70 && mtd != null && cMargin != null && mtd < cMargin) ||
+    (daysOverdue >= 1 && daysOverdue <= 30) ||
+    (coExposure > 0.07) ||
+    (finishDate && !verifyStatus && daysOverdue <= 0 && Math.abs(daysOverdue) <= 30)
   );
 
-  return {
-    color: red ? 'red' : amber ? 'amber' : 'green',
-    reasons: {
-      costOverrun, pastDue,
-      highRfis: openRfis > 20 ? 'red' : openRfis >= 10 ? 'amber' : null,
-      highSubs: openSubs > 100 ? 'red' : openSubs >= 50 ? 'amber' : null,
-      lowMargin: margin != null && margin < 10 ? (margin < 8 ? 'red' : 'amber') : null,
-      behindSchedule: pctComp != null && pctComp < 25 && schedElapsed > 0.3 ? 'amber' : null,
-    }
-  };
+  return { color: red ? 'red' : amber ? 'amber' : 'green' };
 }
 
 // --- Metrics ---
@@ -312,16 +348,17 @@ function renderMetrics() {
     const active = currentView === 'closeout' ? getCloseoutJobs() : getActiveJobs();
     const totalContract = active.reduce((s, j) => s + (j.contractValue || 0), 0);
     let totalDirect = 0, pctVals = [];
-    let needsAttention = 0, pastDue = 0, finishing90 = 0;
+    let redCount = 0, amberCount = 0, finishing90 = 0;
     const now = new Date(), in90 = new Date(now.getTime() + 90 * 86400000);
     for (const j of active) {
       if (j.budget?.direct) totalDirect += j.budget.direct;
       if (j.pctComplete != null) pctVals.push(Math.min(j.pctComplete, 100));
-      if (j.costOverrun || (j.pctComplete != null && j.pctComplete > 100)) needsAttention++;
+      const sl = getStoplight(j, j).color;
+      if (sl === 'red') redCount++;
+      if (sl === 'amber') amberCount++;
       const fin = j.projectedFinish || j.completionDate;
       if (fin) {
         const fd = new Date(fin);
-        if (fd < now && (j.pctComplete == null || j.pctComplete < 100)) pastDue++;
         if (fd >= now && fd <= in90) finishing90++;
       }
     }
@@ -330,8 +367,8 @@ function renderMetrics() {
       <div class="metric-card"><div class="label">Active contract value</div><div class="value">${fmt(totalContract)}</div><div class="sub">${active.length} active jobs</div></div>
       <div class="metric-card"><div class="label">Direct cost to date</div><div class="value">${fmt(totalDirect)}</div><div class="sub">Across all active</div></div>
       <div class="metric-card"><div class="label">Avg % complete</div><div class="value">${avgPct != null ? pct(avgPct) : '\u2014'}</div><div class="sub">(${pctVals.length} of ${active.length} jobs)</div></div>
-      <div class="metric-card"><div class="label">Jobs needing attention</div><div class="value${needsAttention > 0 ? ' flag-red' : ''}">${needsAttention}</div><div class="sub">Cost overrun or &gt;100% complete</div></div>
-      <div class="metric-card"><div class="label">Past due</div><div class="value${pastDue > 0 ? ' flag-amber' : ''}">${pastDue}</div><div class="sub">Past projected finish</div></div>
+      <div class="metric-card"><div class="label">Red</div><div class="value${redCount > 0 ? ' flag-red' : ''}">${redCount}</div><div class="sub">Action required</div></div>
+      <div class="metric-card"><div class="label">Amber</div><div class="value${amberCount > 0 ? ' flag-amber' : ''}">${amberCount}</div><div class="sub">Watch closely</div></div>
       <div class="metric-card"><div class="label">Finishing in 90 days</div><div class="value" style="${finishing90 > 0 ? 'color:var(--green)' : ''}">${finishing90}</div><div class="sub">Projected finish within 90d</div></div>`;
   } else {
     const completed = portfolioData?.jobs || [];
@@ -402,24 +439,80 @@ function renderAnalysis() {
   document.getElementById('analysis-section').innerHTML = html;
 }
 
-// --- Search & Sort ---
+// --- Stoplight filter state ---
+let activeSLFilter = 'all';
+function setSLFilter(val) {
+  activeSLFilter = val;
+  document.querySelectorAll('#sl-filter button').forEach(b => b.classList.toggle('active', b.dataset.sl === val));
+  renderJobs();
+}
+
+// --- PM dropdown population ---
+function populatePMFilter() {
+  const sel = document.getElementById('filter-pm');
+  if (!sel) return;
+  const pms = new Set();
+  for (const j of (activeData?.jobs || [])) {
+    if (j.pm?.name) pms.add(j.pm.name);
+  }
+  sel.innerHTML = '<option value="">All PMs</option>' + [...pms].sort().map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+}
+
+// --- Search, Filter & Sort ---
 function getStoplightOrder(job) {
   const sl = getStoplight(job, job);
-  return sl.color === 'red' ? 0 : sl.color === 'amber' ? 1 : 2;
+  return sl.color === 'red' ? 0 : sl.color === 'amber' ? 1 : sl.color === 'green' ? 2 : 3;
 }
 
 function filterAndSortJobs(jobs) {
   const query = (document.getElementById('job-search')?.value || '').toLowerCase().trim();
   const sortBy = document.getElementById('job-sort')?.value || 'stoplight';
+  const stageFilter = document.getElementById('filter-stage')?.value || '';
+  const clientFilter = document.getElementById('filter-client')?.value || '';
+  const pmFilter = document.getElementById('filter-pm')?.value || '';
 
   let filtered = jobs;
+
+  // Text search
   if (query) {
-    filtered = jobs.filter(j => {
+    filtered = filtered.filter(j => {
       const haystack = [j.name, j.client, j.pm?.name, j.superintendent?.name].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(query);
     });
   }
 
+  // Stoplight filter
+  if (activeSLFilter !== 'all') {
+    filtered = filtered.filter(j => {
+      const c = getStoplight(j, j).color;
+      if (activeSLFilter === 'atrisk') return c === 'red' || c === 'amber';
+      return c === activeSLFilter;
+    });
+  }
+
+  // Stage filter
+  if (stageFilter) {
+    if (stageFilter === 'closeout') {
+      filtered = filtered.filter(j => CLOSEOUT_STAGES.has(j.stage));
+    } else {
+      filtered = filtered.filter(j => {
+        const s = j.stage || ((!j.budget && (j.pctComplete == null || j.pctComplete === 0)) ? 'Pre-Construction' : null);
+        return s === stageFilter;
+      });
+    }
+  }
+
+  // Client type filter
+  if (clientFilter) {
+    filtered = filtered.filter(j => j.clientType === clientFilter);
+  }
+
+  // PM filter
+  if (pmFilter) {
+    filtered = filtered.filter(j => j.pm?.name === pmFilter);
+  }
+
+  // Sort
   filtered.sort((a, b) => {
     if (sortBy === 'stoplight') {
       const sa = getStoplightOrder(a), sb = getStoplightOrder(b);
@@ -432,10 +525,6 @@ function filterAndSortJobs(jobs) {
       return fa < fb ? -1 : fa > fb ? 1 : 0;
     }
     if (sortBy === 'pct') return (b.pctComplete || 0) - (a.pctComplete || 0);
-    if (sortBy === 'pm') {
-      const pa = (a.pm?.name || 'zzz').toLowerCase(), pb = (b.pm?.name || 'zzz').toLowerCase();
-      return pa < pb ? -1 : pa > pb ? 1 : 0;
-    }
     return 0;
   });
 
@@ -516,7 +605,7 @@ function renderActiveCard(job, live) {
   const stageDisplay = stage || (isPreconPending ? 'Pre-Construction' : null);
 
   return `
-    <div class="job-card active-card">
+    <div class="job-card sl-${sl.color}">
       <div class="job-header">
         <div>
           <div class="job-name"><span class="stoplight stoplight-${sl.color}"></span>${esc(job.name)}</div>
