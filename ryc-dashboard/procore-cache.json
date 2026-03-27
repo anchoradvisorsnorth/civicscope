@@ -1,18 +1,414 @@
 {
-  "refreshed": "2026-03-27T04:00:40.092Z",
+  "refreshed": "2026-03-27T10:14:45.430Z",
+  "jobCount": 32,
   "jobs": [
+    {
+      "slug": "helix-orchard-wallen-road",
+      "procoreId": 598134326115869,
+      "projectNumber": "2513CO04",
+      "name": "Helix Orchard Wallen Road",
+      "client": "Helix",
+      "clientType": "commercial",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "2200 W Wallen Road , Fort Wayne , IN",
+      "start": "2025-06-09",
+      "projectedFinish": "2026-08-27T20:00:00Z",
+      "completionDate": "2026-08-31",
+      "sqft": null,
+      "pctComplete": 42.5,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 1,
+        "open": 0
+      },
+      "submittals": {
+        "total": 42,
+        "open": 27
+      },
+      "budget": {
+        "original": 19281323.549999997,
+        "revised": 19281323.549999997,
+        "committed": 0,
+        "direct": 7881547.7299999995
+      },
+      "contractValue": 18537636,
+      "pm": null,
+      "superintendent": {
+        "name": "Kyle Roberts",
+        "email": "kyle@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "shipshewana-wwtp-project-a",
+      "procoreId": 598134326123927,
+      "projectNumber": "2510GP04",
+      "name": "Shipshewana WWTP - Project A",
+      "client": "Town of Shipshewana",
+      "clientType": "municipal_water_wastewater",
+      "workType": "renovation",
+      "active": true,
+      "stage": null,
+      "address": "2755 N. 735 W, Shipshewana, IN",
+      "start": "2025-08-01",
+      "projectedFinish": "2027-01-01",
+      "completionDate": "2027-08-01",
+      "sqft": null,
+      "pctComplete": 15.4,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 31,
+        "open": 1
+      },
+      "submittals": {
+        "total": 339,
+        "open": 194
+      },
+      "budget": {
+        "original": 16017608.15,
+        "revised": 16017608.15,
+        "committed": 0,
+        "direct": 2783087.3200000003
+      },
+      "contractValue": 18070899,
+      "pm": {
+        "name": "Troy Jennings",
+        "email": "troy@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Gabriel Rager",
+        "email": "grager@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "monreaux-apartments",
+      "procoreId": 598134326220700,
+      "projectNumber": "2413CO08",
+      "name": "The Monreaux Apartments",
+      "client": "Chateaux 14 Development, LLC",
+      "clientType": "mixed_use",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Pre-Construction",
+      "address": "100 West Monroe Street, South Bend, IN",
+      "start": "2025-12-01",
+      "projectedFinish": "2027-06-30T21:00:00Z",
+      "completionDate": "2027-01-01",
+      "sqft": null,
+      "pctComplete": 1.7,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 9,
+        "open": 2
+      },
+      "submittals": {
+        "total": 91,
+        "open": 72
+      },
+      "budget": {
+        "original": 15960965.520000003,
+        "revised": 15960965.520000003,
+        "committed": 0,
+        "direct": 285559.79000000004
+      },
+      "contractValue": 17256996,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Nick Rethlake",
+        "email": "nrethlake@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "phm-fieldhouse",
+      "procoreId": 598134325689249,
+      "projectNumber": "2413GO02",
+      "name": "PHM Fieldhouse",
+      "client": "Penn-Harris-Madison School Corp",
+      "clientType": "school",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "12641 McKinley Hwy, Mishawaka, IN",
+      "start": "2024-04-08",
+      "projectedFinish": "2025-10-18T21:00:00Z",
+      "completionDate": "2025-08-30",
+      "sqft": 56000,
+      "pctComplete": 101.7,
+      "costOverrun": true,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 75,
+        "open": 24
+      },
+      "submittals": {
+        "total": 389,
+        "open": 95
+      },
+      "budget": {
+        "original": 15085716.219999999,
+        "revised": 15842068.219999999,
+        "committed": 0,
+        "direct": 16227408.03
+      },
+      "contractValue": 15962778,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Dale Jones",
+        "email": "djones@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "huntertown-wwtp-phase-3",
+      "procoreId": 598134326094112,
+      "projectNumber": "2515CO01",
+      "name": "Huntertown Wastewater Treatment Plan Expansion: Phase 3",
+      "client": "Town of Huntertown",
+      "clientType": "municipal_water_wastewater",
+      "workType": "expansion",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "2214 Hathaway Road, Fort Wayne, IN",
+      "start": "2025-05-20",
+      "projectedFinish": "2026-11-20T13:00:00Z",
+      "completionDate": "2026-11-02",
+      "sqft": null,
+      "pctComplete": 43.5,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 18,
+        "open": 2
+      },
+      "submittals": {
+        "total": 236,
+        "open": 68
+      },
+      "budget": {
+        "original": 12630570.77,
+        "revised": 12630570.77,
+        "committed": 0,
+        "direct": 6111672.58
+      },
+      "contractValue": 14055300,
+      "pm": null,
+      "superintendent": {
+        "name": "Kyle Roberts",
+        "email": "kyle@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "wakarusa-wtp",
+      "procoreId": 598134325822070,
+      "projectNumber": "2402GP09",
+      "name": "Wakarusa WTP",
+      "client": "Town of Wakarusa",
+      "clientType": "municipal_water_wastewater",
+      "workType": "renovation",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "459 Maple Lane, Wakarusa, IN",
+      "start": "2024-09-03",
+      "projectedFinish": "2026-04-22T21:00:00Z",
+      "completionDate": "2025-07-01",
+      "sqft": null,
+      "pctComplete": 72.3,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 97,
+        "open": 0
+      },
+      "submittals": {
+        "total": 335,
+        "open": 94
+      },
+      "budget": {
+        "original": 10907043.73,
+        "revised": 10951924.540000001,
+        "committed": 0,
+        "direct": 8646637.35
+      },
+      "contractValue": 11967209,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Kyle Roberts",
+        "email": "kyle@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "ctb-2026-addition",
+      "procoreId": 598134326537191,
+      "projectNumber": "26X005",
+      "name": "CTB 2026 Addition",
+      "client": "CTB Inc",
+      "clientType": "industrial",
+      "workType": "addition",
+      "active": true,
+      "stage": null,
+      "address": "611 N Higbee Street, Milford, IN",
+      "start": "2026-03-26",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": null,
+      "costOverrun": null,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": null,
+      "contractValue": 9098536,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "ashley-wwtp",
+      "procoreId": 598134326372043,
+      "projectNumber": "2502GP10",
+      "name": "Ashley WWTP Improvements",
+      "client": "Town of Ashley",
+      "clientType": "municipal_water_wastewater",
+      "workType": "renovation",
+      "active": true,
+      "stage": "Pre-Construction",
+      "address": "401 N Grand Ave, Ashley, IN",
+      "start": "2026-03-02",
+      "projectedFinish": "2027-12-06",
+      "completionDate": "2027-12-06",
+      "sqft": null,
+      "pctComplete": 0.6,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 4,
+        "open": 1
+      },
+      "submittals": {
+        "total": 501,
+        "open": 498
+      },
+      "budget": {
+        "original": 7730460.510000001,
+        "revised": 7730460.510000001,
+        "committed": 0,
+        "direct": 48545.21
+      },
+      "contractValue": 8522833,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Greg Kincade",
+        "email": "gkincade@ryoderconstruction.com",
+        "title": "Superintendent"
+      }
+    },
+    {
+      "slug": "indot-roselawn-unit-salt-bld",
+      "procoreId": 598134325725563,
+      "projectNumber": "2415GO03",
+      "name": "INDOT Roselawn Unit & Salt Bld",
+      "client": "INDOT",
+      "clientType": "municipal",
+      "workType": "new_construction",
+      "active": true,
+      "stage": null,
+      "address": "5967 SR-10, Demotte, IN",
+      "start": "2024-06-10",
+      "projectedFinish": "2025-06-05T21:00:00Z",
+      "completionDate": "2025-11-23",
+      "sqft": null,
+      "pctComplete": 98.3,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 37,
+        "open": 0
+      },
+      "submittals": {
+        "total": 651,
+        "open": 395
+      },
+      "budget": {
+        "original": 6735069.88,
+        "revised": 6773626.929999999,
+        "committed": 0,
+        "direct": 7297303.92
+      },
+      "contractValue": 7425415,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Dale Jones",
+        "email": "djones@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
     {
       "slug": "michiana-eye-center",
       "procoreId": 598134326177457,
-      "name": "2508CO01 - Michiana Eye Center",
+      "projectNumber": "2508CO01",
+      "name": "Michiana Eye Center",
+      "client": "K2 Medical Properties, LLC",
+      "clientType": "commercial",
+      "workType": "new_construction",
       "active": true,
       "stage": null,
+      "address": "505 Park Place, Mishawaka, IN",
       "start": "2025-08-31",
       "projectedFinish": "2026-08-31",
       "completionDate": "2026-08-31",
       "sqft": null,
       "pctComplete": 12.3,
       "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
       "rfis": {
         "total": 4,
         "open": 1
@@ -29,9 +425,9 @@
       },
       "contractValue": 3970739,
       "pm": {
-        "name": "Brad Yoder",
-        "email": "brad@ryoderconstruction.com",
-        "title": "Vice President"
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
       },
       "superintendent": {
         "name": "Brian Hubbard",
@@ -40,70 +436,579 @@
       }
     },
     {
-      "slug": "monreaux-apartments",
-      "procoreId": 598134326220700,
-      "name": "2413CO08 - The Monreaux Apartments",
+      "slug": "aluminum-insights-north-addn",
+      "procoreId": 598134325960337,
+      "projectNumber": "2504CO01",
+      "name": "Aluminum Insights North Add'n",
+      "client": "Aluminum Insights",
+      "clientType": "commercial",
+      "workType": "addition",
       "active": true,
-      "stage": "Pre-Construction",
-      "start": "2025-12-01",
-      "projectedFinish": "2027-06-30T21:00:00Z",
-      "completionDate": "2027-01-01",
-      "sqft": null,
-      "pctComplete": null,
+      "stage": "Post-Construction",
+      "address": "104 E. Innovation Blvd., Syracuse, IN",
+      "start": "2025-04-14",
+      "projectedFinish": "2025-11-07T22:00:00Z",
+      "completionDate": "2025-11-28",
+      "sqft": 45150,
+      "pctComplete": 84.3,
       "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": true,
       "rfis": {
-        "total": 9,
-        "open": 2
+        "total": 0,
+        "open": 0
       },
       "submittals": {
-        "total": 91,
-        "open": 72
+        "total": 40,
+        "open": 5
       },
       "budget": {
-        "original": 15960965.520000003,
-        "revised": 15960965.520000003,
+        "original": 3393550.6999999997,
+        "revised": 3501631.6999999997,
         "committed": 0,
-        "direct": 269103.94
+        "direct": 3255603.3300000005
       },
-      "contractValue": 0,
+      "contractValue": 3863506.44,
       "pm": {
-        "name": "Brad Yoder",
-        "email": "brad@ryoderconstruction.com",
-        "title": "Vice President"
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
       },
       "superintendent": {
-        "name": "Joe Beer",
-        "email": "jbeer@ryoderconstruction.com",
-        "title": "General Superintendent"
+        "name": "Larry Jennings",
+        "email": "ljennings@ryoderconstruction.com",
+        "title": "Site Superintendent"
       }
     },
     {
-      "slug": "phm-fieldhouse",
-      "procoreId": 598134325689249,
-      "name": "2413GO02 - 222130.00 PHM Fieldhouse",
+      "slug": "milford-water-utility-imp",
+      "procoreId": 598134326118151,
+      "projectNumber": "2507GP03",
+      "name": "Milford Water Utility Imp. Div",
+      "client": "Town of Milford",
+      "clientType": "municipal_water_wastewater",
+      "workType": "renovation",
       "active": true,
       "stage": "Course of Construction",
-      "start": "2024-04-08",
-      "projectedFinish": "2025-10-18T21:00:00Z",
-      "completionDate": "2025-08-30",
-      "sqft": 56000,
-      "pctComplete": 101.9,
-      "costOverrun": true,
+      "address": "11693 IN-15, Milford, IN",
+      "start": "2025-10-03",
+      "projectedFinish": "2026-10-03",
+      "completionDate": "2026-10-03",
+      "sqft": null,
+      "pctComplete": 34.3,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
       "rfis": {
-        "total": 75,
-        "open": 24
+        "total": 29,
+        "open": 12
       },
       "submittals": {
-        "total": 389,
-        "open": 95
+        "total": 283,
+        "open": 199
       },
       "budget": {
-        "original": 15085716.219999999,
-        "revised": 15842068.219999999,
+        "original": 3309736.6799999997,
+        "revised": 3309736.6799999997,
         "committed": 0,
-        "direct": 16222804.569999998
+        "direct": 1273210.62
       },
-      "contractValue": 15926745,
+      "contractValue": 3709035,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Jim Ford",
+        "email": "jford@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "walt-disney-elem-piping",
+      "procoreId": 598134325701652,
+      "projectNumber": "2410GO03",
+      "name": "Walt Disney Elem. Piping",
+      "client": "School City of Mishawaka",
+      "clientType": "school",
+      "workType": "renovation",
+      "active": true,
+      "stage": "Pre-Construction",
+      "address": "4015 Filbert Rd., Mishawaka, IN",
+      "start": "2024-06-03",
+      "projectedFinish": "2025-08-08T21:00:00Z",
+      "completionDate": "2026-09-28",
+      "sqft": 67298,
+      "pctComplete": 54.4,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 30,
+        "open": 3
+      },
+      "submittals": {
+        "total": 175,
+        "open": 106
+      },
+      "budget": {
+        "original": 3393854.23,
+        "revised": 3284503.08,
+        "committed": 0,
+        "direct": 2010994.45
+      },
+      "contractValue": 3695500,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Fred Cencelewski",
+        "email": "fcencelewski@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "so-bend-south-well-field-wtp",
+      "procoreId": 598134326220699,
+      "projectNumber": "2502GP07",
+      "name": "So Bend-South Well Field WTP",
+      "client": "City of South Bend",
+      "clientType": "municipal_water_wastewater",
+      "workType": "new_construction",
+      "active": true,
+      "stage": null,
+      "address": "299 Sherwood St, South Bend, IN",
+      "start": "2025-10-01",
+      "projectedFinish": "2026-10-01",
+      "completionDate": "2026-10-01",
+      "sqft": null,
+      "pctComplete": 24.7,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 16,
+        "open": 4
+      },
+      "submittals": {
+        "total": 75,
+        "open": 36
+      },
+      "budget": {
+        "original": 3089475.19,
+        "revised": 3089475.19,
+        "committed": 0,
+        "direct": 906597.69
+      },
+      "contractValue": 3670297,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Fred Cencelewski",
+        "email": "fcencelewski@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "st-joe-county-garages-combo",
+      "procoreId": 598134325637575,
+      "projectNumber": "2307GO09",
+      "name": "St. Joe County Garages - Combo",
+      "client": "St. Joseph County",
+      "clientType": "municipal",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "SEE COMMENTS TAB, IN",
+      "start": "2023-12-01",
+      "projectedFinish": "2025-05-06T21:00:00Z",
+      "completionDate": "2024-10-01",
+      "sqft": 4500,
+      "pctComplete": 108.2,
+      "costOverrun": true,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 40,
+        "open": 0
+      },
+      "submittals": {
+        "total": 176,
+        "open": 47
+      },
+      "budget": {
+        "original": 3290493.28,
+        "revised": 4099820.9299999997,
+        "committed": 0,
+        "direct": 3925951.57
+      },
+      "contractValue": 3627769,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Fred Cencelewski",
+        "email": "fcencelewski@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "byers-softball-complex",
+      "procoreId": 598134326034332,
+      "projectNumber": "2502GO03",
+      "name": "Byers Softball Complex Improve",
+      "client": "City of South Bend",
+      "clientType": "municipal",
+      "workType": "renovation",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "1300 S. Mayflower Rd., South Bend, IN",
+      "start": "2025-03-11",
+      "projectedFinish": "2025-11-10T22:00:00Z",
+      "completionDate": "2025-09-30",
+      "sqft": null,
+      "pctComplete": 74.9,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 29,
+        "open": 3
+      },
+      "submittals": {
+        "total": 119,
+        "open": 28
+      },
+      "budget": {
+        "original": 2205118.7800000003,
+        "revised": 2205118.7800000003,
+        "committed": 0,
+        "direct": 1926895.3400000003
+      },
+      "contractValue": 2572051,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Dale Jones",
+        "email": "djones@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "coldwater-wrrf-upgrades-phase-1",
+      "procoreId": 598134326144526,
+      "projectNumber": "2502GP09",
+      "name": "Coldwater WRRF Upgrades Phase1",
+      "client": "City of Coldwater",
+      "clientType": "municipal_water_wastewater",
+      "workType": "renovation",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "100 Jay St., Coldwater, MI",
+      "start": "2025-09-22",
+      "projectedFinish": "2026-07-02T21:00:00Z",
+      "completionDate": "2026-06-16",
+      "sqft": null,
+      "pctComplete": 27.3,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 5,
+        "open": 0
+      },
+      "submittals": {
+        "total": 123,
+        "open": 75
+      },
+      "budget": {
+        "original": 2180018.8899999997,
+        "revised": 2181018.8899999997,
+        "committed": 0,
+        "direct": 687986.34
+      },
+      "contractValue": 2519230,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Greg Kincade",
+        "email": "gkincade@ryoderconstruction.com",
+        "title": "Superintendent"
+      }
+    },
+    {
+      "slug": "white-vet-clinic-improvements",
+      "procoreId": 598134326466832,
+      "projectNumber": "2611CO01",
+      "name": "White Vet Clinic Improvments",
+      "client": "White Veterinary Clinic",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "active": true,
+      "stage": null,
+      "address": "1014 Lincolnway E , Goshen, IN",
+      "start": "2026-01-06",
+      "projectedFinish": "2027-05-04T21:00:00Z",
+      "completionDate": "2027-04-06",
+      "sqft": null,
+      "pctComplete": 0,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 139,
+        "open": 139
+      },
+      "budget": {
+        "original": 2071633.13,
+        "revised": 2071633.13,
+        "committed": 0,
+        "direct": 0
+      },
+      "contractValue": 2280743,
+      "pm": {
+        "name": "Troy Jennings",
+        "email": "troy@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Emery Harris",
+        "email": "eharris@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "northern-heights-elementary",
+      "procoreId": 598134326053700,
+      "projectNumber": "2504GO04",
+      "name": "Northern Heights Elementary",
+      "client": "Whitley County Consolidated Schools",
+      "clientType": "school",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "5029 IN-109, Columbia City, IN",
+      "start": "2025-04-14",
+      "projectedFinish": "2025-09-30",
+      "completionDate": "2025-09-30",
+      "sqft": null,
+      "pctComplete": 90.9,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 4,
+        "open": 1
+      },
+      "submittals": {
+        "total": 44,
+        "open": 13
+      },
+      "budget": {
+        "original": 1507345.3599999999,
+        "revised": 1507345.3599999999,
+        "committed": 0,
+        "direct": 1363665.0199999998
+      },
+      "contractValue": 1500000,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Larry Jennings",
+        "email": "ljennings@ryoderconstruction.com",
+        "title": "Site Superintendent"
+      }
+    },
+    {
+      "slug": "wabash-pickleball-courts",
+      "procoreId": 598134326170149,
+      "projectNumber": "2502GO06",
+      "name": "Wabash Pickleball Courts",
+      "client": "City of Wabash",
+      "clientType": "municipal",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "370 Harrison Ave, Wabash, IN",
+      "start": "2025-07-28",
+      "projectedFinish": "2025-10-31",
+      "completionDate": "2025-10-31",
+      "sqft": null,
+      "pctComplete": 64.8,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 26,
+        "open": 3
+      },
+      "budget": {
+        "original": 1033799.5299999999,
+        "revised": 1033799.5299999999,
+        "committed": 0,
+        "direct": 847086.09
+      },
+      "contractValue": 1306310,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Dale Jones",
+        "email": "djones@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "jomar-2025-build",
+      "procoreId": 598134326162581,
+      "projectNumber": "2504CO05",
+      "name": "Jomar-2025 Build",
+      "client": "Jomar",
+      "clientType": "commercial",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Pre-Construction",
+      "address": "13393 CR 22, Middlebury, IN",
+      "start": "2024-03-15",
+      "projectedFinish": "2026-03-31T21:00:00Z",
+      "completionDate": "2026-01-02",
+      "sqft": 20000,
+      "pctComplete": 79.3,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 959002.92,
+        "revised": 997225.92,
+        "committed": 0,
+        "direct": 870176.9099999999
+      },
+      "contractValue": 1098000,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Nick Lechlitner",
+        "email": "nlechlitner@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "nptech-community-fiber",
+      "procoreId": 598134326311174,
+      "projectNumber": "2515CO02",
+      "name": "NPTech Community Fiber",
+      "client": "NPTech",
+      "clientType": "commercial",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Pre-Construction",
+      "address": "67913 SR 15, New Paris, IN",
+      "start": "2025-09-22",
+      "projectedFinish": "2026-07-02T21:00:00Z",
+      "completionDate": "2026-02-24",
+      "sqft": 9600,
+      "pctComplete": 22.2,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 4,
+        "open": 2
+      },
+      "budget": {
+        "original": 823809.7699999999,
+        "revised": 834461.3699999999,
+        "committed": 0,
+        "direct": 217137.57
+      },
+      "contractValue": 978687,
+      "pm": {
+        "name": "Chris Crothers",
+        "email": "ccrothers@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Angelo Multari",
+        "email": "amultari@ryoderconstruction.com",
+        "title": "Site Superintendent"
+      }
+    },
+    {
+      "slug": "lacrosse-wwtp-improvements",
+      "procoreId": 598134326485904,
+      "projectNumber": "26P001",
+      "name": "LaCrosse WWTP Improvements",
+      "client": "Town of LaCrosse",
+      "clientType": "municipal_water_wastewater",
+      "workType": "renovation",
+      "active": true,
+      "stage": null,
+      "address": "Ostwego Street, La Crosse, IN",
+      "start": "2026-02-16",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 0,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 1,
+        "open": 1
+      },
+      "submittals": {
+        "total": 26,
+        "open": 21
+      },
+      "budget": {
+        "original": 775895.84,
+        "revised": 775895.84,
+        "committed": 0,
+        "direct": 0
+      },
+      "contractValue": 938600,
       "pm": {
         "name": "Erik Parcell",
         "email": "eparcell@ryoderconstruction.com",
@@ -114,6 +1019,387 @@
         "email": "djones@ryoderconstruction.com",
         "title": "Field Superintendent"
       }
+    },
+    {
+      "slug": "beardsley-disc-ctr",
+      "procoreId": 598134325920429,
+      "projectNumber": "2419CO02",
+      "name": "Beardsley Disc. Ctr. Mddl. Grd",
+      "client": "Beardsley Discovery Center",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "active": true,
+      "stage": "Warranty",
+      "address": "819 North Main Street, Elkhart, IN",
+      "start": "2024-10-31",
+      "projectedFinish": "2025-06-30",
+      "completionDate": "2025-06-30",
+      "sqft": null,
+      "pctComplete": 94.7,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 11,
+        "open": 11
+      },
+      "submittals": {
+        "total": 45,
+        "open": 45
+      },
+      "budget": {
+        "original": 948196.0599999998,
+        "revised": 1030599.51,
+        "committed": 0,
+        "direct": 868132.9400000001
+      },
+      "contractValue": 916498,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Emery Harris",
+        "email": "eharris@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "goshen-wwtp-anaerobic-digest",
+      "procoreId": 598134326535436,
+      "projectNumber": "2502GP12",
+      "name": "Goshen WWTP Anaerobic Digest1",
+      "client": "City of Goshen",
+      "clientType": "municipal_water_wastewater",
+      "workType": "new_construction",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "1000 W. Wilden Ave., Goshen, IN",
+      "start": "2026-03-25",
+      "projectedFinish": "2027-04-30",
+      "completionDate": "2027-04-30",
+      "sqft": null,
+      "pctComplete": 0.6,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 561272.01,
+        "revised": 561272.01,
+        "committed": 0,
+        "direct": 3802
+      },
+      "contractValue": 679915,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "ryan-fp-valpo-office-expansion",
+      "procoreId": 598134326484944,
+      "projectNumber": "26X004",
+      "name": "Ryan FP Valpo Office Expansion",
+      "client": "Ryan Fire Protection",
+      "clientType": "commercial",
+      "workType": "expansion",
+      "active": true,
+      "stage": "Pre-Construction",
+      "address": "3715 Bowman Drive, Valparaiso, IN",
+      "start": "2026-03-30",
+      "projectedFinish": "2026-07-06",
+      "completionDate": "2026-07-06",
+      "sqft": 1892,
+      "pctComplete": 0,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 361613.19,
+        "revised": 361613.19,
+        "committed": 0,
+        "direct": 0
+      },
+      "contractValue": 444321,
+      "pm": null,
+      "superintendent": {
+        "name": "Dale Jones",
+        "email": "djones@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "akron-wtp-improvements",
+      "procoreId": 598134326213157,
+      "projectNumber": "2502GP08",
+      "name": "Akron WTP Improvements",
+      "client": "Town of Akron",
+      "clientType": "municipal_water_wastewater",
+      "workType": "renovation",
+      "active": true,
+      "stage": null,
+      "address": "324 N Virgil Street, Akron, IN",
+      "start": "2025-08-08",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 0.5,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 15,
+        "open": 15
+      },
+      "budget": {
+        "original": 289123.9,
+        "revised": 289123.9,
+        "committed": 0,
+        "direct": 1967
+      },
+      "contractValue": 374705,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "eha-generator-replacement",
+      "procoreId": 598134326132126,
+      "projectNumber": "2502GP05",
+      "name": "EHA Generator Replacement",
+      "client": "Elkhart Housing Authority",
+      "clientType": "municipal",
+      "workType": "renovation",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "181 E Elkhart Ave, Elkhart, IN",
+      "start": "2025-06-04",
+      "projectedFinish": "2025-11-01",
+      "completionDate": "2025-11-01",
+      "sqft": null,
+      "pctComplete": 2.3,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 3,
+        "open": 0
+      },
+      "budget": {
+        "original": 273622.89,
+        "revised": 273622.89,
+        "committed": 0,
+        "direct": 7651.86
+      },
+      "contractValue": 330975,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "eha-bannerker-hts-kitchen-reno",
+      "procoreId": 598134326403565,
+      "projectNumber": "2508GP02",
+      "name": "EHA Bannerker Hts Kitchen Reno",
+      "client": "Elkhart Housing Authority",
+      "clientType": "municipal",
+      "workType": "renovation",
+      "active": true,
+      "stage": "Pre-Construction",
+      "address": "7 Malcolm Dr, Elkhart, IN",
+      "start": "2026-02-16",
+      "projectedFinish": "2026-03-30",
+      "completionDate": "2026-03-30",
+      "sqft": null,
+      "pctComplete": 1.5,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 1,
+        "open": 0
+      },
+      "submittals": {
+        "total": 15,
+        "open": 12
+      },
+      "budget": {
+        "original": 262510.03,
+        "revised": 262510.03,
+        "committed": 0,
+        "direct": 4626.67
+      },
+      "contractValue": 315000,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "phm-educational-svc-elevator",
+      "procoreId": 598134326133564,
+      "projectNumber": "2507GO04",
+      "name": "PHM Educational Svc Elevator",
+      "client": "Penn-Harris-Madison School Corp",
+      "clientType": "school",
+      "workType": "renovation",
+      "active": true,
+      "stage": null,
+      "address": "55900 Bittersweet Rd., Mishawaka, IN",
+      "start": "2025-08-15",
+      "projectedFinish": "2025-11-01",
+      "completionDate": "2025-11-01",
+      "sqft": null,
+      "pctComplete": 61.3,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 2,
+        "open": 2
+      },
+      "submittals": {
+        "total": 39,
+        "open": 18
+      },
+      "budget": {
+        "original": 187910.22999999998,
+        "revised": 187910.22999999998,
+        "committed": 0,
+        "direct": 132294.63
+      },
+      "contractValue": 215840,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Brian Hubbard",
+        "email": "bhubbard@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
+    },
+    {
+      "slug": "alum-ins-presezzi-fdtn",
+      "procoreId": 598134326353356,
+      "projectNumber": "2507CO04",
+      "name": "Alum Ins Presezzi Fdtn",
+      "client": "Aluminum Insights",
+      "clientType": "commercial",
+      "workType": "new_construction",
+      "active": true,
+      "stage": null,
+      "address": "104 E. Innovation Blvd., Syracuse, IN",
+      "start": "2025-11-01",
+      "projectedFinish": "2026-05-05",
+      "completionDate": "2026-05-05",
+      "sqft": null,
+      "pctComplete": 92.2,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 57373.51,
+        "revised": 70028.51000000001,
+        "committed": 0,
+        "direct": 60562.229999999996
+      },
+      "contractValue": 65680,
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Larry Jennings",
+        "email": "ljennings@ryoderconstruction.com",
+        "title": "Site Superintendent"
+      }
+    },
+    {
+      "slug": "kindig-sloat-office-renovation",
+      "procoreId": 598134326429365,
+      "projectNumber": "2608CO01",
+      "name": "Kindig Sloat Office Renovation",
+      "client": "Kindig Sloat",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "active": true,
+      "stage": null,
+      "address": "102 Heritage Pkwy, Nappanee, IN",
+      "start": "2026-01-09",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 39.2,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 41585.270000000004,
+        "revised": 41585.270000000004,
+        "committed": 0,
+        "direct": 20223.85
+      },
+      "contractValue": 51649,
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": null
     }
   ]
 }
