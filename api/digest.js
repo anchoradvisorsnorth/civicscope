@@ -54,9 +54,28 @@ export default async function handler(req, res) {
     if (!leadsRes.ok) throw new Error(`Supabase leads error: ${await leadsRes.text()}`);
     const leads = await leadsRes.json();
 
-    // ── Skip email if nothing happened ───────────────────────────────
+    // ── Quiet day — send a short "no activity" email ─────────────────
     if (runs.length === 0 && leads.length === 0) {
-      return res.status(200).json({ sent: false, reason: 'No activity in last 24h' });
+      const quietHtml = buildQuietDayEmail({ dateLabel });
+      const quietRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: 'CivicScope <info@civicscope.io>',
+          to: [KEITH_EMAIL],
+          subject: `CivicScope Daily — Quiet day (${now.toLocaleDateString('en-US', { timeZone: 'America/Indiana/Indianapolis', month: 'short', day: 'numeric' })})`,
+          html: quietHtml
+        })
+      });
+      if (!quietRes.ok) {
+        const err = await quietRes.text();
+        throw new Error(`Resend error: ${err}`);
+      }
+      const result = await quietRes.json();
+      return res.status(200).json({ sent: true, id: result.id, runs: 0, leads: 0, quiet: true });
     }
 
     // ── Segment runs ─────────────────────────────────────────────────
@@ -257,4 +276,26 @@ function statCard(label, value, color) {
 function truncate(str, max) {
   if (!str) return '';
   return str.length > max ? str.substring(0, max) + '…' : str;
+}
+
+function buildQuietDayEmail({ dateLabel }) {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:-apple-system,Segoe UI,sans-serif;">
+<div style="max-width:680px;margin:0 auto;background:#fff;">
+  <div style="background:#1a2744;padding:28px 36px;">
+    <div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.3px;">CivicScope Daily Digest</div>
+    <div style="color:#9aa5c4;font-size:12px;margin-top:4px;">${dateLabel}</div>
+  </div>
+  <div style="padding:32px 36px;">
+    <p style="font-size:15px;color:#1a2744;margin:0 0 8px;">No runs or leads in the last 24 hours.</p>
+    <p style="font-size:13px;color:#78716c;margin:0;">Once the commissioner campaign starts sending, this will get more interesting.</p>
+  </div>
+  <div style="background:#f5f0eb;padding:16px 36px;border-top:1px solid #e7e2d8;">
+    <p style="color:#a8a29e;font-size:11px;margin:0;">CivicScope Daily Digest · <a href="https://civicscope.io" style="color:#a8a29e;">civicscope.io</a></p>
+  </div>
+</div>
+</body>
+</html>`;
 }

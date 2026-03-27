@@ -72,7 +72,7 @@
   .job-card .job-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
   .job-card .job-name { font-size: 16px; font-weight: 500; }
   .job-card .job-client { font-size: 13px; color: var(--muted); margin-top: 2px; }
-  .job-card .personnel { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .job-card .personnel { font-size: 12px; color: var(--muted); margin-bottom: 12px; display: none; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
   .badge-live { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
   .badge-completed { background: #f3f4f6; color: var(--muted); }
@@ -128,7 +128,6 @@
   .action-items .touched { font-size: 11px; color: var(--muted); margin-left: auto; }
 
   .note { font-size: 11px; color: var(--muted); font-style: italic; }
-  .sched-detail { font-size: 11px; color: var(--muted); }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 11px; line-height: 1.8; }
@@ -148,7 +147,7 @@
 
 <div id="app">
   <header>
-    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.5.0-ryc-dashboard</div></div>
+    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.6.0-ryc-dashboard</div></div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
       <button class="refresh-btn" id="btn-refresh" onclick="triggerRefresh()">Refresh Procore</button>
@@ -179,9 +178,8 @@
   </div>
 
   <div class="footer">
-    v1.5.0-ryc-dashboard — Data from SharePoint + Procore<br>
-    Project team data sourced from Procore. Update assignments in Procore to reflect changes.<br>
-    Jobs showing past due with no recent activity may need status update in Procore. Margin data not tracked in Procore commitments.
+    v1.6.0-ryc-dashboard — Data from Procore<br>
+    Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
 
@@ -189,11 +187,7 @@
 const PORTFOLIO_URL = '/ryc-dashboard/ryc-portfolio.json';
 const CACHE_URL = '/ryc-dashboard/procore-cache.json';
 const ACTIVE_API = '/api/ryc-active';
-const SCHEDULE_API = '/api/ryc-schedule-tasks';
-const SCHED_CACHE_KEY = 'ryc-sched-cache';
-const SCHED_TTL = 24 * 60 * 60 * 1000; // 24 hours
 let portfolioData = null, activeData = null, currentView = 'active';
-let scheduleCache = {}; // procoreId → { dataAvailable, tasksTotal, tasksComplete, overdueCount, criticalCount }
 
 function tryLogin() {
   if (document.getElementById('pw-input').value === 'ryc2026') {
@@ -239,58 +233,6 @@ function wireToggle() {
   });
 }
 
-// --- Schedule lazy fetch with localStorage cache ---
-function loadSchedCache() {
-  try {
-    const raw = localStorage.getItem(SCHED_CACHE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed.ts || Date.now() - parsed.ts > SCHED_TTL) { localStorage.removeItem(SCHED_CACHE_KEY); return {}; }
-    return parsed.data || {};
-  } catch { return {}; }
-}
-function saveSchedCache() {
-  try { localStorage.setItem(SCHED_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: scheduleCache })); } catch {}
-}
-async function fetchScheduleData() {
-  console.log('[Schedule] Lazy fetch starting...');
-  scheduleCache = loadSchedCache();
-  const jobs = (activeData?.jobs || []).filter(j => j.procoreId);
-  // Determine which jobs need fetching
-  const toFetch = jobs.filter(j => !scheduleCache[j.procoreId]);
-  // Apply any cached data to DOM immediately
-  console.log(`[Schedule] ${Object.keys(scheduleCache).length} cached, ${toFetch.length} to fetch`);
-  if (Object.keys(scheduleCache).length > 0) updateScheduleRows();
-  // Fetch missing jobs sequentially with delay
-  for (let i = 0; i < toFetch.length; i++) {
-    const job = toFetch[i];
-    try {
-      const r = await fetch(`${SCHEDULE_API}?projectId=${job.procoreId}`);
-      if (r.ok) {
-        const data = await r.json();
-        if (data.rateLimited) { console.warn('Procore rate limited — stopping schedule fetch'); break; }
-        scheduleCache[job.procoreId] = data;
-        updateScheduleRow(job.procoreId);
-      }
-    } catch {}
-    if (i < toFetch.length - 1) await new Promise(r => setTimeout(r, 300));
-  }
-  saveSchedCache();
-}
-function updateScheduleRows() {
-  for (const pid of Object.keys(scheduleCache)) updateScheduleRow(pid);
-}
-function updateScheduleRow(procoreId) {
-  const el = document.querySelector(`[data-sched-id="${procoreId}"]`);
-  if (!el) return;
-  const s = scheduleCache[procoreId];
-  if (!s || !s.dataAvailable) { el.textContent = ''; return; }
-  let parts = [`Tasks: ${s.tasksComplete}/${s.tasksTotal} complete`];
-  if (s.overdueCount > 0) parts.push(`<span class="flag-amber">${s.overdueCount} overdue</span>`);
-  if (s.criticalCount > 0) parts.push(`<span class="flag-red">${s.criticalCount} critical</span>`);
-  el.innerHTML = parts.join(' &middot; ');
-}
-
 // Closeout stages — jobs winding down, not active construction
 const CLOSEOUT_STAGES = new Set(['Warranty', 'Post-Construction']);
 
@@ -308,12 +250,13 @@ function renderView() {
     jobsEl.style.display = 'block'; analysisEl.style.display = 'none';
     controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
     renderMetrics(); renderJobs();
-    fetchScheduleData();
   }
 }
 
 // --- Helpers ---
 function fmt(n) { return n == null ? '\u2014' : '$' + Math.round(n).toLocaleString('en-US'); }
+function fmtCompact(n) { if (n == null) return '\u2014'; const abs = Math.abs(n); const sign = n < 0 ? '-' : ''; if (abs >= 1e6) return sign + '$' + (abs / 1e6).toFixed(1) + 'M'; if (abs >= 1e3) return sign + '$' + Math.round(abs / 1e3).toLocaleString('en-US') + 'K'; return sign + '$' + Math.round(abs).toLocaleString('en-US'); }
+function fmtCO(co) { if (!co || co.count === 0) return '\u2014'; const sign = co.netValue >= 0 ? '+' : ''; return co.count + ' COs \u00b7 ' + sign + fmtCompact(co.netValue); }
 function pct(n) { return n == null ? '\u2014' : n.toFixed(1) + '%'; }
 function fmtDate(d) { if (!d) return '\u2014'; const dt = new Date(d); return isNaN(dt) ? '\u2014' : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
 function fmtShort(d) { if (!d) return '\u2014'; const dt = new Date(d); return isNaN(dt) ? '\u2014' : dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); }
@@ -334,7 +277,7 @@ function getStoplight(job, live) {
   const openRfis = live?.rfis?.open ?? 0;
   const openSubs = live?.submittals?.open ?? 0;
   const costOverrun = live?.costOverrun;
-  const finishDate = live?.completionDate || live?.projectedFinish;
+  const finishDate = live?.projectedFinish || live?.completionDate;
   const pastDue = finishDate ? new Date() > new Date(finishDate) : false;
   const verifyStatus = live?.verifyStatus;
   const margin = job.projectedMargin ?? getBestMargin(job);
@@ -375,7 +318,7 @@ function renderMetrics() {
       if (j.budget?.direct) totalDirect += j.budget.direct;
       if (j.pctComplete != null) pctVals.push(Math.min(j.pctComplete, 100));
       if (j.costOverrun || (j.pctComplete != null && j.pctComplete > 100)) needsAttention++;
-      const fin = j.completionDate || j.projectedFinish;
+      const fin = j.projectedFinish || j.completionDate;
       if (fin) {
         const fd = new Date(fin);
         if (fd < now && (j.pctComplete == null || j.pctComplete < 100)) pastDue++;
@@ -521,65 +464,55 @@ function renderJobs() {
 
 function renderActiveCard(job, live) {
   const contractVal = job.contractValue || live?.contractValue || (live?.budget?.revised || live?.budget?.original || 0);
-  const directCost = live?.budget?.direct ?? null;
-  const openRfis = live?.rfis?.open ?? 0;
-  const totalRfis = live?.rfis?.total ?? 0;
-  const openSubs = live?.submittals?.open ?? 0;
-  const totalSubs = live?.submittals?.total ?? 0;
   const pctComp = live?.pctComplete;
   const costOverrun = live?.costOverrun;
   const stage = live?.stage || null;
-  const pm = live?.pm;
-  const sup = live?.superintendent;
   const startDate = live?.start;
-  const finishDate = live?.completionDate || live?.projectedFinish;
+  const finishDate = live?.projectedFinish || live?.completionDate;
   const sl = getStoplight(job, live);
 
-  // Schedule text — verify-status flag for >90 days past due + <100% complete
+  // Schedule text — days remaining or overdue
   let schedText = '', schedClass = '';
   if (finishDate) {
     const diff = Math.round((new Date(finishDate) - new Date()) / (1000 * 60 * 60 * 24));
     if (diff < 0 && live?.verifyStatus) { schedText = 'Verify status in Procore'; schedClass = 'flag-amber'; }
-    else if (diff < 0) { schedText = 'Past due'; schedClass = 'flag-red'; }
-    else if (diff < 30) { schedText = diff + ' days remaining'; schedClass = 'flag-amber'; }
-    else { schedText = 'On schedule'; }
+    else if (diff < 0) { schedText = Math.abs(diff) + ' days overdue'; schedClass = 'flag-red'; }
+    else { schedText = diff + ' days remaining'; schedClass = diff < 30 ? 'flag-amber' : ''; }
   }
 
-  // Margin fields — contracted margin + margin to date
+  // Contracted margin
   const cMargin = contractedMargin(job);
   const mtd = marginToDate(job);
-  let marginHtml = '';
+  let cMarginHtml = '', mtdHtml = '';
   if (cMargin != null) {
-    marginHtml += `<span class="v ${marginColorClass(cMargin)}">${pct(cMargin)}</span>`;
-    // Zero margin — likely Procore data entry issue
-    if (cMargin < 0.1 && cMargin >= 0) {
-      marginHtml += `<br><span class="note" style="color:#9ca3af">Verify budget in Procore</span>`;
-    } else {
-      marginHtml += `<br><span class="note">At contract signing</span>`;
-    }
+    cMarginHtml = `<span class="v ${marginColorClass(cMargin)}">${pct(cMargin)}</span><br><span class="note">${cMargin < 0.1 && cMargin >= 0 ? 'Verify budget in Procore' : 'At signing'}</span>`;
     if (pctComp != null && pctComp >= 70 && mtd != null) {
       const arrow = mtd >= cMargin ? '<span style="color:var(--green)"> ↑</span>' : '<span style="color:var(--red)"> ↓</span>';
-      marginHtml += `<br><span class="v ${marginColorClass(mtd)}">${pct(mtd)}${arrow}</span><br><span class="note">~Margin to date</span>`;
-    } else if (pctComp == null || pctComp < 70) {
-      marginHtml += `<br><span class="note" style="margin-top:4px;display:inline-block">Margin to date available at 70% complete</span>`;
+      mtdHtml = `<span class="v ${marginColorClass(mtd)}">${pct(mtd)}${arrow}</span><br><span class="note">vs ${pct(cMargin)} contracted</span>`;
+    } else {
+      mtdHtml = `<span class="v margin-missing">\u2014</span><br><span class="note">Available at 70% complete</span>`;
     }
   } else {
-    marginHtml = `<span class="v margin-missing">\u2014</span><br><span class="note">No budget in Procore</span>`;
+    cMarginHtml = `<span class="v margin-missing">\u2014</span><br><span class="note">No budget in Procore</span>`;
+    mtdHtml = `<span class="v margin-missing">\u2014</span>`;
   }
 
   // % Complete display
-  let pctDisp = '\u2014';
-  let pctNote = '';
+  let pctDisp = '\u2014', pctNote = '';
   if (pctComp != null) {
     pctDisp = pct(pctComp);
-    if (pctComp > 100) pctDisp = '<span class="flag-red">' + pct(pctComp) + '</span>';
+    if (pctComp > 100) pctDisp = `<span class="flag-red">${pct(pctComp)}</span><br><span class="note">Over contract</span>`;
   } else {
     pctNote = '<br><span class="note">Not set in Procore</span>';
   }
 
-  // Pre-construction pending state: no budget data and 0 or null pctComplete
+  // Change orders
+  const co = live?.changeOrders;
+  const coVal = co?.netValue || 0;
+  const coExceedsThreshold = contractVal > 0 && Math.abs(coVal) > contractVal * 0.05;
+
+  // Pre-construction pending state
   const isPreconPending = !job.budget && (pctComp == null || pctComp === 0);
-  // Stage display: show Pre-Construction for precon-pending jobs instead of "Stage not set"
   const stageDisplay = stage || (isPreconPending ? 'Pre-Construction' : null);
 
   return `
@@ -590,25 +523,18 @@ function renderActiveCard(job, live) {
           <div class="job-client">${esc(job.client)}</div>
         </div>
         <div class="badges">
-          <span class="badge badge-live"><span class="live-dot"></span>Live</span>
           ${stageDisplay ? `<span class="badge badge-stage">${esc(stageDisplay)}</span>${stageDisplay === 'Pre-Construction' && pctComp > 20 ? '<span class="stage-warn" style="color:var(--amber)">⚠<span class="tooltip">Stage may need updating in Procore</span></span>' : ''}` : '<span class="badge badge-stage-null">Stage not set</span>'}
           <span class="badge badge-${job.clientType}">${typeName(job.clientType)}</span>
         </div>
       </div>
-      ${pm || sup ? `<div class="personnel">PM: ${pm ? esc(pm.name) : '\u2014'} &nbsp;|&nbsp; Super: ${sup ? esc(sup.name) : '\u2014'}</div>` : ''}
       <div class="job-stats${isPreconPending ? ' precon-pending' : ''}">
-        <div class="job-stat"><span class="k">Contract</span><span class="v">${fmt(contractVal)}</span></div>
-        <div class="job-stat"><span class="k">% Complete (by cost)</span><span class="v">${pctDisp}${pctNote}</span></div>
-        <div class="job-stat"><span class="k">Direct cost to date</span><span class="v${costOverrun ? ' flag-red' : ''}">${fmt(directCost)}${costOverrun ? ' <span style="font-size:11px">⚠ over contract</span>' : ''}</span></div>
-        <div class="job-stat"><span class="k">Contracted margin</span>${marginHtml}</div>
-        <div class="job-stat"><span class="k">Schedule</span><span class="v">${fmtShort(startDate)} → ${fmtShort(finishDate)}<br><span class="${schedClass}">${schedText}</span>${job.procoreId ? `<br><span class="sched-detail" data-sched-id="${job.procoreId}"></span>` : ''}</span></div>
-        <div class="job-stat"><span class="k">RFIs / Submittals</span><span class="v"><span class="${sl.reasons.highRfis ? 'flag-' + sl.reasons.highRfis : ''}">${openRfis}/${totalRfis}</span> RFIs &nbsp;<span class="${sl.reasons.highSubs ? 'flag-' + sl.reasons.highSubs : ''}">${openSubs}/${totalSubs}</span> Subs</span></div>
+        <div class="job-stat"><span class="k">Contract</span><span class="v">${fmtCompact(contractVal)}</span></div>
+        <div class="job-stat"><span class="k">% complete</span><span class="v">${pctDisp}${pctNote}</span></div>
+        <div class="job-stat"><span class="k">Contracted margin</span>${cMarginHtml}</div>
+        <div class="job-stat"><span class="k">Margin to date</span>${mtdHtml}</div>
+        <div class="job-stat"><span class="k">Change orders</span><span class="v${coExceedsThreshold ? ' flag-amber' : ''}">${fmtCO(co)}</span></div>
+        <div class="job-stat"><span class="v">${fmtShort(startDate)} → ${fmtShort(finishDate)}</span><br><span class="${schedClass}">${schedText}</span></div>
         ${isPreconPending ? '<div class="precon-note">Financial data will appear once contract is entered in Procore.</div>' : ''}
-      </div>
-      <div class="action-items">
-        <span class="label">CC action items</span>
-        <span class="count">${job.openItems || 0}</span>
-        <span class="touched">Last CC session ${job.lastTouched || '\u2014'}</span>
       </div>
     </div>`;
 }
