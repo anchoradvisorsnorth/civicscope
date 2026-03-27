@@ -298,7 +298,7 @@ function dqClass(q) { return 'dq-' + (q || 'missing'); }
 function typeColor(t) { return { school: 'var(--blue-bar)', municipal: 'var(--teal-bar)', municipal_water_wastewater: '#0891b2', commercial: 'var(--amber-bar)', mixed_use: 'var(--purple-bar)', industrial: '#78716c' }[t] || '#9ca3af'; }
 function typeName(t) { return { school: 'School', municipal: 'Municipal', municipal_water_wastewater: 'Municipal \u2013 Water/WW', commercial: 'Commercial', mixed_use: 'Mixed use', industrial: 'Industrial', private: 'Private', new_construction: 'New construction', renovation: 'Renovation', repair: 'Repair', addition: 'Addition', expansion: 'Expansion' }[t] || t; }
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function contractedMargin(job) { const cv = job.contractValue; const bo = job.budget?.original; return (cv > 0 && bo > 0) ? ((cv - bo) / cv * 100) : null; }
+function contractedMargin(job) { const cv = job.contractValue; const bo = job.budget?.original; if (!(cv > 0 && bo > 0)) return null; return bo >= cv ? 0 : ((cv - bo) / cv * 100); }
 function marginToDate(job) { const cv = job.contractValue; const dc = job.budget?.direct; return (cv > 0 && dc > 0) ? ((cv - dc) / cv * 100) : null; }
 function marginColorClass(m) { return m == null ? 'margin-missing' : m >= 10 ? 'margin-green' : m >= 5 ? 'margin-amber' : 'margin-red'; }
 
@@ -331,7 +331,7 @@ function getStoplight(job, live) {
 
   // Amber — watch closely
   const amber = !red && (
-    (cMargin != null && cMargin < 5) ||
+    (cMargin != null && cMargin > 0 && cMargin < 5) ||
     (pctComp != null && pctComp >= 70 && mtd != null && cMargin != null && mtd < cMargin) ||
     (daysOverdue >= 1 && daysOverdue <= 30) ||
     (coExposure > 0.07) ||
@@ -574,7 +574,7 @@ function renderActiveCard(job, live) {
   const mtd = marginToDate(job);
   let cMarginHtml = '', mtdHtml = '';
   if (cMargin != null) {
-    cMarginHtml = `<span class="v ${marginColorClass(cMargin)}">${pct(cMargin)}</span><br><span class="note">${cMargin < 0.1 && cMargin >= 0 ? 'Verify budget in Procore' : 'At signing'}</span>`;
+    cMarginHtml = `<span class="v ${cMargin === 0 ? 'margin-missing' : marginColorClass(cMargin)}">${pct(cMargin)}</span><br><span class="note">${cMargin === 0 ? 'Verify budget in Procore' : 'At signing'}</span>`;
     if (pctComp != null && pctComp >= 70 && mtd != null) {
       const arrow = mtd >= cMargin ? '<span style="color:var(--green)"> ↑</span>' : '<span style="color:var(--red)"> ↓</span>';
       mtdHtml = `<span class="v ${marginColorClass(mtd)}">${pct(mtd)}${arrow}</span><br><span class="note">vs ${pct(cMargin)} contracted</span>`;
