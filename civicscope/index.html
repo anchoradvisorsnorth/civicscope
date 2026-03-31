@@ -1190,9 +1190,9 @@ footer span {
           <input type="hidden" id="topography" value="" />
         </div>
         <div class="field full">
-          <label>Utilities Available On-Site</label>
+          <label>Utilities Available On-Site <span class="req">*</span></label>
           <div class="toggle-group" id="utilitiesGroup">
-            <button type="button" class="toggle-btn active" data-value="yes" onclick="selectUtilities(this)">Yes — water, sewer, and electric available</button>
+            <button type="button" class="toggle-btn" data-value="yes" onclick="selectUtilities(this)">Yes — water, sewer, and electric available</button>
             <button type="button" class="toggle-btn" data-value="no" onclick="selectUtilities(this)">No — site lacks full utility service</button>
           </div>
         </div>
@@ -1234,7 +1234,11 @@ footer span {
           <div class="cost-hero-label">Estimated project cost</div>
           <div class="cost-hero-range" id="costRange">—</div>
         </div>
-        <div class="cost-hero-confidence" id="costConfidence"></div>
+        <div style="text-align:right;">
+          <div class="cost-hero-label">Realistic timeline</div>
+          <div class="cost-hero-range" id="costTimeline" style="font-size:20px;">—</div>
+        </div>
+        <div class="cost-hero-confidence" id="costConfidence" style="width:100%;"></div>
       </div>
 
       <!-- Results Body -->
@@ -1259,10 +1263,10 @@ footer span {
             <div class="dc-eyebrow dc-eyebrow--pref">Recommended path</div>
             <div class="dc-title">BOT / Public-Private Partnership</div>
             <ul class="dc-bullets">
-              <li>Several methods allow earlier cost certainty and closer collaboration between design and construction</li>
-              <li>A Guaranteed Maximum Price can be established before full construction documents are complete</li>
-              <li>Risk allocation varies by contract structure — some methods shift cost overrun risk to the developer or contractor</li>
-              <li>Indiana/Michigan law enables a range of these approaches for municipal projects</li>
+              <li>You select your team based on qualifications and trust — not lowest bid. The municipality chooses who it wants to work with.</li>
+              <li>A Guaranteed Maximum Price can be established before full construction documents are complete — cost certainty earlier, not after you've already spent on design</li>
+              <li>Risk allocation varies by contract structure — some methods shift cost overrun risk to the developer or contractor, not the taxpayer</li>
+              <li>Indiana/Michigan law specifically enables these approaches for municipal projects</li>
             </ul>
             <div class="dc-cost-note dc-cost-note--pref">
               Requires more upfront evaluation of the delivery team, not just the bid price. Your municipal attorney should advise on which path fits your procurement requirements.
@@ -1631,6 +1635,10 @@ async function runFeasibility() {
     alert('Please fill in your municipality, ZIP code, select a project type, and describe your project.');
     return;
   }
+  if (utils === 'Not specified') {
+    alert('Please select whether utilities are available on-site.');
+    return;
+  }
 
   const btn = document.getElementById('submitBtn');
   const loading = document.getElementById('loading');
@@ -1707,6 +1715,10 @@ Rules:
     // Store timeline for later use
     window._lastTimeline = rd.timeline || null;
     window._lastRunData = { low: rd.low, high: rd.high, mid: Math.round((rd.low + rd.high) / 2) };
+
+    // Show total timeline in hero bar
+    document.getElementById('costTimeline').textContent =
+      (rd.timeline && rd.timeline.total) ? rd.timeline.total : '—';
 
     logAction('log_run', {
       session_id: _sessionId, zip, state, municipality: location,
