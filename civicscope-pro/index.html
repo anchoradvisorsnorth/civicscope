@@ -400,6 +400,148 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
   display: block;
   margin-bottom: 2px;
 }
+
+/* ── Cost Hero Bar (v2.9.0 redesign) ── */
+.cost-hero-bar {
+  background: #1c1917;
+  color: #faf8f4;
+  padding: 20px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-radius: 10px 10px 0 0;
+}
+.cost-hero-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin-bottom: 4px;
+}
+.cost-hero-range {
+  font-size: 26px;
+  font-weight: 500;
+  color: #faf8f4;
+}
+.cost-hero-confidence {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  color: #a8a29e;
+}
+
+/* ── Results Body (v2.9.0 redesign) ── */
+.results-body {
+  padding: 24px 28px;
+  background: var(--white);
+  border-radius: 0 0 10px 10px;
+  border: 1px solid #e7e2d8;
+  border-top: none;
+}
+.results-narrative {
+  font-size: 14px;
+  color: #44403c;
+  line-height: 1.7;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e7e2d8;
+}
+
+/* ── Delivery Cards (v2.9.0 redesign) ── */
+.delivery-section-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin-bottom: 10px;
+}
+.delivery-cards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 640px) {
+  .delivery-cards-row { grid-template-columns: 1fr; }
+}
+.delivery-card {
+  border-radius: 8px;
+  padding: 16px 18px;
+  border: 1px solid #e7e2d8;
+}
+.delivery-card--preferred {
+  border: 2px solid #c2410c;
+  background: #fff8f5;
+}
+.dc-eyebrow {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.dc-eyebrow--trad { color: #78716c; }
+.dc-eyebrow--pref { color: #c2410c; }
+.dc-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1c1917;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.dc-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.dc-bullets li {
+  font-size: 12px;
+  color: #44403c;
+  padding: 3px 0 3px 14px;
+  position: relative;
+  line-height: 1.4;
+}
+.dc-bullets li::before {
+  content: '\2014';
+  position: absolute;
+  left: 0;
+  color: #a8a29e;
+}
+.dc-cost-note {
+  font-size: 11px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+.dc-cost-note--trad {
+  background: #f2ede4;
+  color: #44403c;
+}
+.dc-cost-note--pref {
+  background: #fff3ec;
+  color: #a83509;
+}
+
+/* ── Assumptions Chips (v2.9.0 redesign) ── */
+.assumptions-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.assumption-chip {
+  font-size: 12px;
+  color: #44403c;
+  padding: 7px 10px;
+  border: 1px solid #e7e2d8;
+  border-radius: 6px;
+  background: #faf8f4;
+}
 </style>
 </head>
 <body>
@@ -535,12 +677,10 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
           <input type="hidden" id="topography" value="" />
         </div>
         <div class="field full">
-          <label>Utilities Available On-Site</label>
-          <div class="checkbox-group">
-            <label class="checkbox-item"><input type="checkbox" id="util-water" value="Municipal water"> Municipal Water</label>
-            <label class="checkbox-item"><input type="checkbox" id="util-sewer" value="Municipal sewer"> Municipal Sewer</label>
-            <label class="checkbox-item"><input type="checkbox" id="util-electric" value="Electric service"> Electric Service</label>
-            <label class="checkbox-item"><input type="checkbox" id="util-none" value="No utilities on site"> No Utilities On-Site</label>
+          <label>Utilities Available On-Site <span class="req">*</span></label>
+          <div class="toggle-group" id="utilitiesGroup">
+            <button type="button" class="toggle-btn" data-value="yes" onclick="selectUtilities(this)">Yes — water, sewer, and electric available</button>
+            <button type="button" class="toggle-btn" data-value="no" onclick="selectUtilities(this)">No — site lacks full utility service</button>
           </div>
         </div>
       </div>
@@ -583,17 +723,55 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
 
       <button class="print-btn" onclick="window.print()">↓ Print / Save as PDF</button>
 
-      <div class="cost-range-block">
-        <div class="cost-label">Estimated Project Cost Range</div>
-        <div class="cost-range" id="costRange">—</div>
-        <div class="cost-midpoint" id="costMidpoint"></div>
+      <!-- Cost Hero Bar -->
+      <div class="cost-hero-bar">
+        <div>
+          <div class="cost-hero-label">Estimated project cost</div>
+          <div class="cost-hero-range" id="costRange">—</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="cost-hero-label">Realistic timeline</div>
+          <div class="cost-hero-range" id="costTimeline" style="font-size:20px;">—</div>
+        </div>
+        <div class="cost-hero-confidence" id="costConfidence" style="width:100%;"></div>
       </div>
 
-      <div class="narrative-block" id="narrativeBlock"></div>
+      <!-- Results Body -->
+      <div class="results-body">
+        <p class="results-narrative" id="resultNarrative"></p>
 
-      <div class="result-block">
-        <div class="block-label">Assumptions Behind This Estimate</div>
-        <ul class="assumption-list" id="assumptionList"></ul>
+        <!-- Delivery path comparison -->
+        <div class="delivery-section-label">Delivery path comparison</div>
+        <div class="delivery-cards-row">
+          <div class="delivery-card delivery-card--traditional">
+            <div class="dc-eyebrow dc-eyebrow--trad">Traditional</div>
+            <div class="dc-title">Design-Bid-Build</div>
+            <ul class="dc-bullets">
+              <li>Designer hired first; documents completed before bidding</li>
+              <li>Design fees paid before any bids received (8–12% of project)</li>
+              <li>12–18 months from design start to groundbreaking</li>
+              <li>Changes after award handled through change orders, which can increase final cost</li>
+            </ul>
+            <div class="dc-cost-note dc-cost-note--trad" id="dbbCostNote"></div>
+          </div>
+          <div class="delivery-card delivery-card--preferred">
+            <div class="dc-eyebrow dc-eyebrow--pref">Recommended path</div>
+            <div class="dc-title">BOT / Public-Private Partnership</div>
+            <ul class="dc-bullets">
+              <li>You select your team based on qualifications and trust — not lowest bid. The municipality chooses who it wants to work with.</li>
+              <li>A Guaranteed Maximum Price can be established before full construction documents are complete — cost certainty earlier, not after you've spent on design</li>
+              <li>Risk allocation varies by contract structure — some methods shift cost overrun risk to the developer or contractor, not the taxpayer</li>
+              <li>Indiana/Michigan law specifically enables these approaches for municipal projects</li>
+            </ul>
+            <div class="dc-cost-note dc-cost-note--pref">
+              Requires more upfront evaluation of the delivery team, not just the bid price. Your municipal attorney should advise on which path fits your procurement requirements.
+            </div>
+          </div>
+        </div>
+
+        <!-- Key assumptions -->
+        <div class="delivery-section-label">Key assumptions</div>
+        <div class="assumptions-chips" id="assumptionsChips"></div>
       </div>
 
       <div class="result-block pro-block">
@@ -624,37 +802,6 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
         <p class="field-hint" style="margin-bottom:14px;">Questions to ask designers and contractors before committing. Red flags to watch for.</p>
         <div id="advocateContent">
           <div class="section-loading"><div class="spinner"></div> Building buyer advocate guide...</div>
-        </div>
-      </div>
-
-      <div class="result-block">
-        <div class="block-label">Understanding Your Path to Getting This Built</div>
-        <div class="proc-header">
-          <p>The procurement method you choose affects your total cost, timeline, risk exposure, and how much design work you commit to before costs are established. There is no universally right answer — the best path depends on your project, your municipality's capacity, and your risk tolerance.</p>
-        </div>
-        <div class="proc-paths">
-          <div class="proc-path traditional">
-            <div class="proc-path-label">Design-Bid-Build (Traditional)</div>
-            <h4>Design-Bid-Build</h4>
-            <ul class="proc-steps">
-              <li>Your municipality hires a designer, develops construction documents, publicly advertises for bids, and awards to the lowest qualified bidder</li>
-              <li>Design fees are paid before construction bids are received — typically 8–12% of project</li>
-              <li>Public advertising is required; timeline from design start to groundbreaking is typically 12–18 months</li>
-              <li>Changes after award are handled through change orders, which can increase final cost</li>
-            </ul>
-            <div class="proc-callout" id="tradCallout">Most common path. Familiar to most municipal attorneys and councils.</div>
-          </div>
-          <div class="proc-path alternative">
-            <div class="proc-path-label">Alternative Delivery</div>
-            <h4>CM at Risk / Design-Build / BOT / P3</h4>
-            <ul class="proc-steps">
-              <li>Several methods allow earlier cost certainty and closer collaboration between design and construction</li>
-              <li>A Guaranteed Maximum Price can be established before full construction documents are complete</li>
-              <li>Risk allocation varies by contract structure — some methods shift cost overrun risk to the developer or contractor</li>
-              <li>Indiana statute enables a range of these approaches for municipal projects</li>
-            </ul>
-            <div class="proc-callout">Requires more upfront evaluation of the delivery team, not just the bid price. Your municipal attorney should advise on which path fits your procurement requirements.</div>
-          </div>
         </div>
       </div>
 
@@ -700,10 +847,6 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
           <li>
             <strong>Understand your delivery options.</strong>
             How you procure this project affects total cost, timeline, and how much risk your municipality carries. Review the delivery path comparison above before engaging any design or construction professionals.
-          </li>
-          <li>
-            <strong>Get a formal opinion of probable cost.</strong>
-            When you're ready to move forward, engage a licensed architect or cost professional for a formal OPC. This cost range is a directional indicator — not a substitute for professional verification.
           </li>
           <li>
             <strong>Bring it to council.</strong>
@@ -760,7 +903,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
 
 <footer>
   <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
-  <span>For planning purposes only — not a licensed cost estimate · v2.8.0</span>
+  <span>For planning purposes only — not a licensed cost estimate · v2.9.0</span>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
@@ -839,17 +982,22 @@ function formatCurrency(n) {
   if (n >= 1000000) return '$' + (n / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M';
   return '$' + n.toLocaleString('en-US');
 }
+function selectUtilities(btn) {
+  document.querySelectorAll('#utilitiesGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
 function getUtilities() {
-  const vals = ['util-water','util-sewer','util-electric','util-none']
-    .filter(id => document.getElementById(id).checked)
-    .map(id => document.getElementById(id).value);
-  return vals.length ? vals.join(', ') : 'Not specified';
+  const activeBtn = document.querySelector('#utilitiesGroup .toggle-btn.active');
+  if (!activeBtn) return 'Not specified';
+  return activeBtn.dataset.value === 'yes'
+    ? 'Full utilities on site (water, sewer, electric)'
+    : 'No utilities on site';
 }
 function updateProcCallout(low, high) {
   const designLow = formatCurrency(Math.round(low * 0.08));
   const designHigh = formatCurrency(Math.round(high * 0.12));
   const changeRisk = formatCurrency(Math.round(((low + high) / 2) * 0.11));
-  document.getElementById('tradCallout').textContent =
+  document.getElementById('dbbCostNote').textContent =
     `On a project in this range: design fees ${designLow}–${designHigh} before commitment, plus ~${changeRisk} in estimated change order exposure.`;
 }
 
@@ -891,6 +1039,10 @@ async function runFeasibility() {
     alert('Please fill in your location, select a project type, and describe your project.');
     return;
   }
+  if (utils === 'Not specified') {
+    alert('Please select whether utilities are available on-site.');
+    return;
+  }
 
   await executeRun({ zip, location, state, type, buildType, scope, topo, utils, imgSearch });
 }
@@ -911,6 +1063,9 @@ async function executeRun(runData) {
   errorBlock.style.display = 'none';
   resultEl.style.display = 'none';
   divider.style.display = 'none';
+  // Restore two-column layout on re-run
+  document.querySelector('.sidebar-column').style.display = '';
+  document.querySelector('.page-wrap').style.gridTemplateColumns = '';
   document.getElementById('methodologyContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Building cost methodology...</div>`;
   document.getElementById('timelineContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Estimating project timeline...</div>`;
   document.getElementById('briefingContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Drafting council briefing guide...</div>`;
@@ -976,14 +1131,23 @@ Rules:
     badge.textContent = rd.confidence + ' Confidence';
     badge.className = 'confidence-badge confidence-' + rd.confidence.toLowerCase();
 
-    document.getElementById('costRange').textContent = formatCurrency(rd.low) + ' – ' + formatCurrency(rd.high);
-    const mid = Math.round((rd.low + rd.high) / 2);
-    document.getElementById('costMidpoint').innerHTML = `Midpoint: <strong>${formatCurrency(mid)}</strong> &nbsp;·&nbsp; ${rd.confidence_reason}`;
-    document.getElementById('narrativeBlock').textContent = rd.narrative;
+    document.getElementById('costRange').textContent = formatCurrency(rd.low) + ' \u2013 ' + formatCurrency(rd.high);
+    document.getElementById('costConfidence').textContent =
+      rd.confidence + ' Confidence \u00b7 ' + rd.confidence_reason;
+    document.getElementById('resultNarrative').textContent = rd.narrative;
 
-    const ul = document.getElementById('assumptionList');
-    ul.innerHTML = '';
-    rd.assumptions.forEach(a => { const li = document.createElement('li'); li.textContent = a; ul.appendChild(li); });
+    const chipsContainer = document.getElementById('assumptionsChips');
+    chipsContainer.innerHTML = '';
+    rd.assumptions.forEach(a => {
+      const chip = document.createElement('div');
+      chip.className = 'assumption-chip';
+      chip.textContent = a;
+      chipsContainer.appendChild(chip);
+    });
+
+    // Collapse to full-width on results
+    document.querySelector('.sidebar-column').style.display = 'none';
+    document.querySelector('.page-wrap').style.gridTemplateColumns = '1fr';
 
     if (rd.methodology) renderMethodology(rd.methodology);
     updateProcCallout(rd.low, rd.high);
@@ -1041,6 +1205,9 @@ Respond ONLY with valid JSON, no markdown:
 }
 
 function renderTimeline(t) {
+  // Populate hero bar total timeline
+  document.getElementById('costTimeline').textContent = t.total || '—';
+
   let html = '<div class="timeline-phases">';
   t.phases.forEach(p => {
     html += `<div class="timeline-phase"><div><div class="phase-label">${p.name}</div><div class="phase-duration">${p.duration}</div></div><div class="phase-notes">${p.notes}</div></div>`;
