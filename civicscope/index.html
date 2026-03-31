@@ -892,6 +892,148 @@ footer span {
       margin-top: 10px;
       line-height: 1.5;
     }
+
+/* ── Cost Hero Bar (v2.0.0 redesign) ── */
+.cost-hero-bar {
+  background: #1c1917;
+  color: #faf8f4;
+  padding: 20px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-radius: 10px 10px 0 0;
+}
+.cost-hero-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin-bottom: 4px;
+}
+.cost-hero-range {
+  font-size: 26px;
+  font-weight: 500;
+  color: #faf8f4;
+}
+.cost-hero-confidence {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  color: #a8a29e;
+}
+
+/* ── Results Body (v2.0.0 redesign) ── */
+.results-body {
+  padding: 24px 28px;
+  background: var(--white);
+  border-radius: 0 0 10px 10px;
+  border: 1px solid #e7e2d8;
+  border-top: none;
+}
+.results-narrative {
+  font-size: 14px;
+  color: #44403c;
+  line-height: 1.7;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e7e2d8;
+}
+
+/* ── Delivery Cards (v2.0.0 redesign) ── */
+.delivery-section-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin-bottom: 10px;
+}
+.delivery-cards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 640px) {
+  .delivery-cards-row { grid-template-columns: 1fr; }
+}
+.delivery-card {
+  border-radius: 8px;
+  padding: 16px 18px;
+  border: 1px solid #e7e2d8;
+}
+.delivery-card--preferred {
+  border: 2px solid #c2410c;
+  background: #fff8f5;
+}
+.dc-eyebrow {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.dc-eyebrow--trad { color: #78716c; }
+.dc-eyebrow--pref { color: #c2410c; }
+.dc-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1c1917;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.dc-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.dc-bullets li {
+  font-size: 12px;
+  color: #44403c;
+  padding: 3px 0 3px 14px;
+  position: relative;
+  line-height: 1.4;
+}
+.dc-bullets li::before {
+  content: '\2014';
+  position: absolute;
+  left: 0;
+  color: #a8a29e;
+}
+.dc-cost-note {
+  font-size: 11px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+.dc-cost-note--trad {
+  background: #f2ede4;
+  color: #44403c;
+}
+.dc-cost-note--pref {
+  background: #fff3ec;
+  color: #a83509;
+}
+
+/* ── Assumptions Chips (v2.0.0 redesign) ── */
+.assumptions-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.assumption-chip {
+  font-size: 12px;
+  color: #44403c;
+  padding: 7px 10px;
+  border: 1px solid #e7e2d8;
+  border-radius: 6px;
+  background: #faf8f4;
+}
 </style>
 </head>
 <body>
@@ -1049,11 +1191,9 @@ footer span {
         </div>
         <div class="field full">
           <label>Utilities Available On-Site</label>
-          <div class="checkbox-group">
-            <label class="checkbox-item"><input type="checkbox" id="util-water" value="Municipal water"> Municipal Water</label>
-            <label class="checkbox-item"><input type="checkbox" id="util-sewer" value="Municipal sewer"> Municipal Sewer</label>
-            <label class="checkbox-item"><input type="checkbox" id="util-electric" value="Electric service"> Electric Service</label>
-            <label class="checkbox-item"><input type="checkbox" id="util-none" value="No utilities on site"> No Utilities On-Site</label>
+          <div class="toggle-group" id="utilitiesGroup">
+            <button type="button" class="toggle-btn active" data-value="yes" onclick="selectUtilities(this)">Yes — water, sewer, and electric available</button>
+            <button type="button" class="toggle-btn" data-value="no" onclick="selectUtilities(this)">No — site lacks full utility service</button>
           </div>
         </div>
       </div>
@@ -1088,19 +1228,54 @@ footer span {
 
 
 
-      <div class="cost-range-block">
-        <div class="cost-label">Estimated Project Cost Range</div>
-        <div class="cost-range" id="costRange">—</div>
-        <div class="cost-midpoint" id="costMidpoint"></div>
+      <!-- Cost Hero Bar -->
+      <div class="cost-hero-bar">
+        <div>
+          <div class="cost-hero-label">Estimated project cost</div>
+          <div class="cost-hero-range" id="costRange">—</div>
+        </div>
+        <div class="cost-hero-confidence" id="costConfidence"></div>
       </div>
 
-      <div class="narrative-block" id="narrativeBlock"></div>
+      <!-- Results Body -->
+      <div class="results-body">
+        <p class="results-narrative" id="resultNarrative"></p>
 
-      <div class="result-block">
-        <div class="block-label">Assumptions Behind This Estimate</div>
-        <ul class="assumption-list" id="assumptionList"></ul>
+        <!-- Delivery path comparison -->
+        <div class="delivery-section-label">Delivery path comparison</div>
+        <div class="delivery-cards-row">
+          <div class="delivery-card delivery-card--traditional">
+            <div class="dc-eyebrow dc-eyebrow--trad">Traditional</div>
+            <div class="dc-title">Design-Bid-Build</div>
+            <ul class="dc-bullets">
+              <li>Designer hired first; documents completed before bidding</li>
+              <li>Design fees paid before any bids received (8–12% of project)</li>
+              <li>12–18 months from design start to groundbreaking</li>
+              <li>Changes after award handled through change orders, which can increase final cost</li>
+            </ul>
+            <div class="dc-cost-note dc-cost-note--trad" id="dbbCostNote"></div>
+          </div>
+          <div class="delivery-card delivery-card--preferred">
+            <div class="dc-eyebrow dc-eyebrow--pref">Recommended path</div>
+            <div class="dc-title">BOT / Public-Private Partnership</div>
+            <ul class="dc-bullets">
+              <li>Several methods allow earlier cost certainty and closer collaboration between design and construction</li>
+              <li>A Guaranteed Maximum Price can be established before full construction documents are complete</li>
+              <li>Risk allocation varies by contract structure — some methods shift cost overrun risk to the developer or contractor</li>
+              <li>Indiana/Michigan law enables a range of these approaches for municipal projects</li>
+            </ul>
+            <div class="dc-cost-note dc-cost-note--pref">
+              Requires more upfront evaluation of the delivery team, not just the bid price. Your municipal attorney should advise on which path fits your procurement requirements.
+            </div>
+          </div>
+        </div>
+
+        <!-- Key assumptions -->
+        <div class="delivery-section-label">Key assumptions</div>
+        <div class="assumptions-chips" id="assumptionsChips"></div>
       </div>
 
+      <!-- Council Briefing Guide -->
       <div class="result-block">
         <div class="block-label">Council Briefing Guide</div>
         <p class="field-hint" style="margin-bottom:14px;">AI-generated talking points tailored to your project. Review and edit before using.</p>
@@ -1108,37 +1283,6 @@ footer span {
           <div class="section-loading">
             <div class="spinner"></div>
             Drafting your council briefing guide...
-          </div>
-        </div>
-      </div>
-
-      <div class="result-block">
-        <div class="block-label">Understanding Your Path to Getting This Built</div>
-        <div class="proc-header">
-          <p>The procurement method you choose affects your total cost, timeline, risk exposure, and how much design work you commit to before costs are established. There is no universally right answer — the best path depends on your project, your municipality's capacity, and your risk tolerance.</p>
-        </div>
-        <div class="proc-paths">
-          <div class="proc-path traditional">
-            <div class="proc-path-label">Design-Bid-Build (Traditional)</div>
-            <h4>Design-Bid-Build</h4>
-            <ul class="proc-steps">
-              <li>Your municipality hires a designer, develops construction documents, publicly advertises for bids, and awards to the lowest qualified bidder</li>
-              <li>Design fees are paid before construction bids are received — typically 8–12% of project</li>
-              <li>Public advertising is required; timeline from design start to groundbreaking is typically 12–18 months</li>
-              <li>Changes after award are handled through change orders, which can increase final cost</li>
-            </ul>
-            <div class="proc-callout" id="tradCallout">Most common path. Familiar to most municipal attorneys and councils.</div>
-          </div>
-          <div class="proc-path alternative">
-            <div class="proc-path-label">Alternative Delivery</div>
-            <h4>CM at Risk / Design-Build / BOT / P3</h4>
-            <ul class="proc-steps">
-              <li>Several methods allow earlier cost certainty and closer collaboration between design and construction</li>
-              <li>A Guaranteed Maximum Price can be established before full construction documents are complete</li>
-              <li>Risk allocation varies by contract structure — some methods shift cost overrun risk to the developer or contractor</li>
-              <li>Indiana statute enables a range of these approaches for municipal projects</li>
-            </ul>
-            <div class="proc-callout">Requires more upfront evaluation of the delivery team, not just the bid price. Your municipal attorney should advise on which path fits your procurement requirements.</div>
           </div>
         </div>
       </div>
@@ -1293,7 +1437,7 @@ footer span {
   <div class="footer-left">
     <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
   </div>
-  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v1.9.1</span>
+  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v2.0.0</span>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
@@ -1384,11 +1528,17 @@ function formatCurrency(n) {
   return '$' + n.toLocaleString('en-US');
 }
 
+function selectUtilities(btn) {
+  document.querySelectorAll('#utilitiesGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
 function getUtilities() {
-  const vals = ['util-water','util-sewer','util-electric','util-none']
-    .filter(id => document.getElementById(id).checked)
-    .map(id => document.getElementById(id).value);
-  return vals.length ? vals.join(', ') : 'Not specified';
+  const activeBtn = document.querySelector('#utilitiesGroup .toggle-btn.active');
+  if (!activeBtn) return 'Not specified';
+  return activeBtn.dataset.value === 'yes'
+    ? 'Full utilities on site (water, sewer, electric)'
+    : 'No utilities on site';
 }
 
 function loadImages(searchQuery) {
@@ -1444,7 +1594,7 @@ function updateProcCallout(low, high) {
   const designLow = formatCurrency(Math.round(low * 0.08));
   const designHigh = formatCurrency(Math.round(high * 0.12));
   const changeRisk = formatCurrency(Math.round(((low + high) / 2) * 0.11));
-  document.getElementById('tradCallout').textContent =
+  document.getElementById('dbbCostNote').textContent =
     `On a project in this range: design fees ${designLow}–${designHigh} before commitment, plus ~${changeRisk} in estimated change order exposure after low-bid award.`;
 }
 
@@ -1495,6 +1645,9 @@ async function runFeasibility() {
   errorBlock.style.display = 'none';
   resultEl.style.display = 'none';
   divider.style.display = 'none';
+  // Restore two-column layout on re-run
+  document.querySelector('.sidebar-column').style.display = '';
+  document.querySelector('.page-wrap').style.gridTemplateColumns = '';
   const runStart = Date.now();
   const prompt = `You are a municipal construction cost advisor helping local government officials in the Midwest assess project feasibility before engaging architects or contractors.
 
@@ -1553,6 +1706,7 @@ Rules:
 
     // Store timeline for later use
     window._lastTimeline = rd.timeline || null;
+    window._lastRunData = { low: rd.low, high: rd.high, mid: Math.round((rd.low + rd.high) / 2) };
 
     logAction('log_run', {
       session_id: _sessionId, zip, state, municipality: location,
@@ -1573,20 +1727,24 @@ Rules:
     badge.className = 'confidence-badge confidence-' + rd.confidence.toLowerCase();
 
     document.getElementById('costRange').textContent =
-      formatCurrency(rd.low) + ' – ' + formatCurrency(rd.high);
-    const mid = Math.round((rd.low + rd.high) / 2);
-    document.getElementById('costMidpoint').innerHTML =
-      `Midpoint: <strong>${formatCurrency(mid)}</strong> &nbsp;·&nbsp; ${rd.confidence_reason}`;
+      formatCurrency(rd.low) + ' \u2013 ' + formatCurrency(rd.high);
+    document.getElementById('costConfidence').textContent =
+      rd.confidence + ' Confidence \u00b7 ' + rd.confidence_reason;
 
-    document.getElementById('narrativeBlock').textContent = rd.narrative;
+    document.getElementById('resultNarrative').textContent = rd.narrative;
 
-    const ul = document.getElementById('assumptionList');
-    ul.innerHTML = '';
+    const chipsContainer = document.getElementById('assumptionsChips');
+    chipsContainer.innerHTML = '';
     rd.assumptions.forEach(a => {
-      const li = document.createElement('li');
-      li.textContent = a;
-      ul.appendChild(li);
+      const chip = document.createElement('div');
+      chip.className = 'assumption-chip';
+      chip.textContent = a;
+      chipsContainer.appendChild(chip);
     });
+
+    // Collapse to full-width on results
+    document.querySelector('.sidebar-column').style.display = 'none';
+    document.querySelector('.page-wrap').style.gridTemplateColumns = '1fr';
 
     updateProcCallout(rd.low, rd.high);
     divider.style.display = 'block';
@@ -1676,11 +1834,11 @@ async function submitLead() {
   const email = document.getElementById('gateEmail').value.trim();
   const muni  = document.getElementById('location').value.trim();
   const project = document.getElementById('resultTitle').textContent;
-  const narrative = document.getElementById('narrativeBlock').textContent;
+  const narrative = document.getElementById('resultNarrative').textContent;
 
   // Collect assumptions
-  const assumptionEls = document.querySelectorAll('#assumptionList li');
-  const assumptions = Array.from(assumptionEls).map(li => li.textContent.trim());
+  const assumptionEls = document.querySelectorAll('#assumptionsChips .assumption-chip');
+  const assumptions = Array.from(assumptionEls).map(el => el.textContent.trim());
 
   // Collect briefing content if loaded
   const briefingEl = document.getElementById('briefingContent');
@@ -1702,8 +1860,9 @@ async function submitLead() {
     const costParts = costRangeText.split('–').map(s => s.trim());
     const costLow  = costParts[0] || '—';
     const costHigh = costParts[1] || '—';
-    const costMidEl = document.getElementById('costMidpoint');
-    const costMidpoint = costMidEl ? costMidEl.textContent.replace(/Midpoint:\s*/i,'').split('\u00b7')[0].trim() : '—';
+    const costMidpoint = window._lastRunData
+      ? formatCurrency(window._lastRunData.mid)
+      : '—';
     const badge = document.getElementById('confidenceBadge');
     const confidence = badge ? badge.textContent.replace(' Confidence','').trim() : 'Medium';
 
