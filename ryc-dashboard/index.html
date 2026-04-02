@@ -140,6 +140,11 @@
   .action-items .touched { font-size: 11px; color: var(--muted); margin-left: auto; }
 
   .note { font-size: 11px; color: var(--muted); font-style: italic; }
+
+  /* Stoplight reason */
+  .sl-reason { font-size: 11px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .sl-reason-red { color: var(--red); }
+  .sl-reason-amber { color: var(--amber); }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 11px; line-height: 1.8; }
@@ -159,7 +164,7 @@
 
 <div id="app">
   <header>
-    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.7.0-ryc-dashboard</div></div>
+    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.8.0-ryc-dashboard</div></div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
       <button class="refresh-btn" id="btn-refresh" onclick="triggerRefresh()">Refresh Procore</button>
@@ -211,7 +216,7 @@
   </div>
 
   <div class="footer">
-    v1.7.0-ryc-dashboard — Data from Procore<br>
+    v1.8.0-ryc-dashboard — Data from Procore<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -250,9 +255,38 @@ async function init() {
 
 async function triggerRefresh() {
   const btn = document.getElementById('btn-refresh');
+  const status = document.getElementById('refresh-status');
   btn.textContent = 'Refreshing...'; btn.disabled = true;
-  try { const r = await fetch(ACTIVE_API, { method: 'POST' }); const d = await r.json(); document.getElementById('refresh-status').textContent = d.message || 'Triggered'; } catch { document.getElementById('refresh-status').textContent = 'Failed'; }
-  btn.textContent = 'Refresh Procore'; btn.disabled = false;
+  status.textContent = 'Triggering Procore refresh...';
+  try {
+    const r = await fetch(ACTIVE_API, { method: 'POST' });
+    const d = await r.json();
+    if (d.status === 'started' || d.status === 'already_running') {
+      status.textContent = 'Refresh running — data updates in ~2-3 min. Page will reload.';
+      // Poll for completion, then wait for Vercel redeploy
+      const poll = setInterval(async () => {
+        try {
+          const sr = await fetch(ACTIVE_API + '?check=status');
+          const sd = await sr.json();
+          if (sd.last_result === 'completed') {
+            clearInterval(poll);
+            status.textContent = 'Refresh done — waiting for Vercel deploy (~60s)...';
+            setTimeout(async () => { await init(); btn.textContent = 'Refresh Procore'; btn.disabled = false; }, 75000);
+          } else if (sd.last_result && sd.last_result !== null && !sd.running) {
+            clearInterval(poll);
+            status.textContent = 'Refresh finished: ' + sd.last_result;
+            btn.textContent = 'Refresh Procore'; btn.disabled = false;
+          }
+        } catch {}
+      }, 10000);
+    } else {
+      status.textContent = 'Refresh ' + (d.status || 'unknown') + '. Try again.';
+      btn.textContent = 'Refresh Procore'; btn.disabled = false;
+    }
+  } catch {
+    status.textContent = 'Could not reach refresh service.';
+    btn.textContent = 'Refresh Procore'; btn.disabled = false;
+  }
 }
 
 function wireToggle() {
@@ -289,7 +323,7 @@ function renderView() {
 // --- Helpers ---
 function fmt(n) { return n == null ? '\u2014' : '$' + Math.round(n).toLocaleString('en-US'); }
 function fmtCompact(n) { if (n == null) return '\u2014'; const abs = Math.abs(n); const sign = n < 0 ? '-' : ''; if (abs >= 1e6) return sign + '$' + (abs / 1e6).toFixed(1) + 'M'; if (abs >= 1e3) return sign + '$' + Math.round(abs / 1e3).toLocaleString('en-US') + 'K'; return sign + '$' + Math.round(abs).toLocaleString('en-US'); }
-function fmtCO(co) { if (!co || co.count === 0) return '\u2014'; const sign = co.netValue >= 0 ? '+' : ''; return co.count + ' COs \u00b7 ' + sign + fmtCompact(co.netValue); }
+function fmtCO(co) { if (!co || co.count === 0) return '\u2014'; const sign = co.netValue >= 0 ? '+' : ''; let txt = co.count + ' COs \u00b7 ' + sign + fmtCompact(co.netValue); if (co.byType && Object.keys(co.byType).length > 0) { const parts = Object.entries(co.byType).sort((a, b) => b[1] - a[1]).map(([t, n]) => n + ' ' + t); txt += '<br><span class="note">' + parts.join(' \u00b7 ') + '</span>'; } return txt; }
 function pct(n) { return n == null ? '\u2014' : n.toFixed(1) + '%'; }
 function fmtDate(d) { if (!d) return '\u2014'; const dt = new Date(d); return isNaN(dt) ? '\u2014' : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
 function fmtShort(d) { if (!d) return '\u2014'; const dt = new Date(d); return isNaN(dt) ? '\u2014' : dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); }
@@ -319,26 +353,33 @@ function getStoplight(job, live) {
 
   // Gray — Pre-Construction or no data yet
   const isPrecon = stage === 'Pre-Construction' || (!live?.budget && (pctComp == null || pctComp === 0));
-  if (isPrecon) return { color: 'gray' };
+  if (isPrecon) return { color: 'gray', reasons: [] };
 
   // Days overdue
   const daysOverdue = finishDate ? Math.floor((Date.now() - new Date(finishDate)) / 86400000) : 0;
 
+  // Collect reasons
+  const reasons = [];
+
   // Red — action required
-  const red = costOverrun ||
-    (mtd != null && mtd < 0) ||
-    (daysOverdue > 30 && !verifyStatus);
+  if (costOverrun) reasons.push({ level: 'red', text: 'Cost overrun' });
+  if (mtd != null && mtd < 0) reasons.push({ level: 'red', text: 'Margin to date ' + mtd.toFixed(1) + '%' });
+  if (daysOverdue > 30 && !verifyStatus) reasons.push({ level: 'red', text: Math.abs(daysOverdue) + ' days past projected finish' });
+
+  const red = reasons.some(r => r.level === 'red');
 
   // Amber — watch closely
-  const amber = !red && (
-    (cMargin != null && cMargin > 0 && cMargin < 5) ||
-    (pctComp != null && pctComp >= 70 && mtd != null && cMargin != null && mtd < cMargin) ||
-    (daysOverdue >= 1 && daysOverdue <= 30) ||
-    (coExposure > 0.07) ||
-    (finishDate && !verifyStatus && daysOverdue <= 0 && Math.abs(daysOverdue) <= 30)
-  );
+  if (!red) {
+    if (cMargin != null && cMargin > 0 && cMargin < 5) reasons.push({ level: 'amber', text: 'Contracted margin ' + cMargin.toFixed(1) + '% (below 5%)' });
+    if (pctComp != null && pctComp >= 10 && mtd != null && cMargin != null && mtd < cMargin) reasons.push({ level: 'amber', text: 'Margin declining · ' + mtd.toFixed(1) + '% vs ' + cMargin.toFixed(1) + '% contracted' });
+    if (daysOverdue >= 1 && daysOverdue <= 30) reasons.push({ level: 'amber', text: daysOverdue + ' days past projected finish' });
+    if (coExposure > 0.07) reasons.push({ level: 'amber', text: 'CO exposure ' + (coExposure * 100).toFixed(1) + '% of contract' });
+    if (finishDate && !verifyStatus && daysOverdue <= 0 && Math.abs(daysOverdue) <= 30) reasons.push({ level: 'amber', text: 'Finishing in ' + Math.abs(daysOverdue) + ' days' });
+  }
 
-  return { color: red ? 'red' : amber ? 'amber' : 'green' };
+  const amber = !red && reasons.some(r => r.level === 'amber');
+
+  return { color: red ? 'red' : amber ? 'amber' : 'green', reasons };
 }
 
 // --- Metrics ---
@@ -575,11 +616,11 @@ function renderActiveCard(job, live) {
   let cMarginHtml = '', mtdHtml = '';
   if (cMargin != null) {
     cMarginHtml = `<span class="v ${cMargin === 0 ? 'margin-missing' : marginColorClass(cMargin)}">${pct(cMargin)}</span><br><span class="note">${cMargin === 0 ? 'Verify budget in Procore' : 'At signing'}</span>`;
-    if (pctComp != null && pctComp >= 70 && mtd != null) {
+    if (pctComp != null && pctComp >= 10 && mtd != null) {
       const arrow = mtd >= cMargin ? '<span style="color:var(--green)"> ↑</span>' : '<span style="color:var(--red)"> ↓</span>';
       mtdHtml = `<span class="v ${marginColorClass(mtd)}">${pct(mtd)}${arrow}</span><br><span class="note">vs ${pct(cMargin)} contracted</span>`;
     } else {
-      mtdHtml = `<span class="v margin-missing">\u2014</span><br><span class="note">Available at 70% complete</span>`;
+      mtdHtml = `<span class="v margin-missing">\u2014</span><br><span class="note">Available at 10% complete</span>`;
     }
   } else {
     cMarginHtml = `<span class="v margin-missing">\u2014</span><br><span class="note">No budget in Procore</span>`;
@@ -625,6 +666,7 @@ function renderActiveCard(job, live) {
         <div class="job-stat"><span class="v">${fmtShort(startDate)} → ${fmtShort(finishDate)}</span><br><span class="${schedClass}">${schedText}</span></div>
         ${isPreconPending ? '<div class="precon-note">Financial data will appear once contract is entered in Procore.</div>' : ''}
       </div>
+      ${sl.reasons?.length ? `<div class="sl-reason sl-reason-${sl.color}">${sl.reasons.map(r => r.text).join(' · ')}</div>` : ''}
     </div>`;
 }
 

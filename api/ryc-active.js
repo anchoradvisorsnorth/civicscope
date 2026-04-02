@@ -12,17 +12,30 @@ export default async function handler(req, res) {
   // POST = trigger on-demand refresh via VM
   if (req.method === 'POST') {
     const VM_URL = process.env.M365_VM_URL || 'http://20.230.82.67:8080';
+    const headers = { 'X-API-Key': process.env.M365_VM_API_KEY || '' };
     try {
-      const r = await fetch(`${VM_URL}/api/procore-refresh`, {
-        method: 'POST',
-        headers: { 'X-API-Key': process.env.M365_VM_API_KEY || '' },
-      });
+      const r = await fetch(`${VM_URL}/api/procore-refresh`, { method: 'POST', headers });
       if (r.ok) {
-        return res.status(200).json({ message: 'Refresh triggered on VM. Data will update in ~60 seconds after Vercel redeploy.' });
+        const d = await r.json();
+        return res.status(200).json(d);
       }
       return res.status(502).json({ error: 'VM refresh trigger failed', status: r.status });
     } catch (e) {
       return res.status(502).json({ error: 'Could not reach VM', detail: e.message });
+    }
+  }
+
+  // GET with ?check=status = poll refresh status from VM
+  if (req.method === 'GET' && req.query.check === 'status') {
+    const VM_URL = process.env.M365_VM_URL || 'http://20.230.82.67:8080';
+    try {
+      const r = await fetch(`${VM_URL}/api/procore-refresh/status`, {
+        headers: { 'X-API-Key': process.env.M365_VM_API_KEY || '' },
+      });
+      if (r.ok) return res.status(200).json(await r.json());
+      return res.status(200).json({ running: false, last_result: 'unknown' });
+    } catch {
+      return res.status(200).json({ running: false, last_result: 'unreachable' });
     }
   }
 
