@@ -307,11 +307,45 @@ function buildReportEmail(data) {
         ${assumptions.map(a => `<li>${a}</li>`).join('')}
       </ul>
     </div>` : ''}
-    ${briefingHtml ? `
-    <div style="margin-bottom:28px;border-top:1px solid #eee;padding-top:28px;">
-      <div style="font-size:11px;letter-spacing:2px;color:#888;text-transform:uppercase;margin-bottom:16px;">Council Briefing Guide</div>
-      <div style="font-size:14px;color:#333;line-height:1.7;">${briefingHtml}</div>
-    </div>` : ''}
+    <!-- DELIVERY PATH -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
+      <tr>
+        <td style="padding:0 48px;">
+          <p style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#78716c;margin:0 0 16px;">Delivery Path</p>
+        </td>
+      </tr>
+    </table>
+    <!-- Traditional card -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:0 48px 12px;">
+          <table width="100%" cellpadding="20" cellspacing="0" border="0" style="background:#f2ede4;border-radius:6px;border-left:3px solid #a8a29e;">
+            <tr>
+              <td>
+                <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#78716c;margin:0 0 6px;">Traditional — Design-Bid-Build</p>
+                <p style="font-size:14px;color:#44403c;margin:0;line-height:1.6;">Hire an architect, produce construction documents, go to public bid, award to lowest bidder. Works well when specs are tight and price is the primary selection criterion.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    <!-- Recommended card -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:0 48px 0;">
+          <table width="100%" cellpadding="20" cellspacing="0" border="0" style="background:#fff3ec;border-radius:6px;border-left:3px solid #c2410c;">
+            <tr>
+              <td>
+                <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#c2410c;margin:0 0 6px;">Recommended — BOT / P3 with GMP</p>
+                <p style="font-size:14px;color:#44403c;margin:0 0 10px;line-height:1.6;">Select your team based on qualifications and trust — not lowest bid. Price is fixed before design begins. Single point of accountability. Authorized under Indiana IC § 5-23 and Michigan P3 frameworks.</p>
+                <p style="font-size:13px;color:#78716c;margin:0;line-height:1.5;">Eliminates change order exposure. Your municipal attorney should advise on which path fits your procurement requirements.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
     ${data.timeline ? `
     <div style="margin: 28px 0 0; padding: 24px 28px; background: #f2ede4; border-radius: 6px;">
       <p style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #78716c; margin: 0 0 16px;">Estimated Delivery Timeline</p>
@@ -327,6 +361,79 @@ function buildReportEmail(data) {
       </p>
     </div>
     ` : ''}
+    <!-- BOARD OR COUNCIL BRIEFING -->
+    ${briefingHtml ? `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
+      <tr>
+        <td style="padding:0 48px;">
+          <p style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#78716c;margin:0 0 16px;">Board or Council Briefing</p>
+          <p style="font-size:13px;color:#78716c;margin:0 0 16px;font-style:italic;">Review and edit these points before using — they're drafted for your project but you know your council best.</p>
+
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1c1917;margin:0 0 8px;">Key Points to Lead With</p>
+          <ul style="margin:0 0 20px;padding-left:20px;color:#44403c;font-size:14px;line-height:1.7;">
+            <li style="margin-bottom:8px;">This estimate reflects current construction costs for a project of this type and scope — it's a planning number, not a bid.</li>
+            <li style="margin-bottom:8px;">Delivery method affects both price certainty and timeline. BOT/P3 fixes price before design begins; Design-Bid-Build carries change order risk.</li>
+            <li style="margin-bottom:8px;">Next step is authorization to begin preliminary planning — no commitment to a budget or contractor yet.</li>
+          </ul>
+
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1c1917;margin:0 0 8px;">Recommended Ask</p>
+          <p style="font-size:14px;color:#44403c;margin:0;line-height:1.6;">Request direction to begin preliminary planning and explore funding options — no contractor engagement, no budget commitment yet.</p>
+        </td>
+      </tr>
+    </table>
+    ` : ''}
+    <!-- WHAT TO DO NEXT -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
+      <tr>
+        <td style="padding:0 48px;">
+          <p style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#78716c;margin:0 0 16px;">What to Do Next</p>
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="padding:0 0 12px;">
+                <table cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="width:28px;vertical-align:top;padding-top:2px;">
+                      <span style="display:inline-block;width:20px;height:20px;background:#c2410c;border-radius:50%;text-align:center;font-size:11px;font-weight:700;color:#fff;line-height:20px;">1</span>
+                    </td>
+                    <td style="padding-left:10px;">
+                      <p style="font-size:14px;color:#44403c;margin:0;line-height:1.6;"><strong>Validate the range</strong> — Does this fit your current budget or bonding capacity? If not, what scope changes would bring it in range?</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 0 12px;">
+                <table cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="width:28px;vertical-align:top;padding-top:2px;">
+                      <span style="display:inline-block;width:20px;height:20px;background:#c2410c;border-radius:50%;text-align:center;font-size:11px;font-weight:700;color:#fff;line-height:20px;">2</span>
+                    </td>
+                    <td style="padding-left:10px;">
+                      <p style="font-size:14px;color:#44403c;margin:0;line-height:1.6;"><strong>Consider your delivery path</strong> — BOT/P3 lets you select on qualifications and locks price before design begins. Traditional Design-Bid-Build carries change order risk. Review the comparison above before engaging any design or construction professionals.</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 0 0;">
+                <table cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="width:28px;vertical-align:top;padding-top:2px;">
+                      <span style="display:inline-block;width:20px;height:20px;background:#c2410c;border-radius:50%;text-align:center;font-size:11px;font-weight:700;color:#fff;line-height:20px;">3</span>
+                    </td>
+                    <td style="padding-left:10px;">
+                      <p style="font-size:14px;color:#44403c;margin:0;line-height:1.6;"><strong>Talk through the numbers</strong> — Reply to this email or reach us at <a href="mailto:info@civicscope.io" style="color:#c2410c;">info@civicscope.io</a>. We're happy to help you think through next steps.</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
     <div style="border-top:1px solid #eee;padding-top:28px;margin-top:28px;">
       <p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 16px;">This report was generated by ${tier} — a free feasibility screening tool for municipal teams.</p>
       <a href="https://civicscope.io" style="display:inline-block;background:#1a2744;color:#fff;padding:12px 24px;border-radius:4px;text-decoration:none;font-size:14px;">Visit CivicScope</a>
