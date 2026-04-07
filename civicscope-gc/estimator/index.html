@@ -892,12 +892,13 @@
 
   // ── Batch Upload Helpers ──
   function splitIntoBatches(files) {
-    const MAX_BATCH_BASE64 = 3 * 1024 * 1024; // 3MB base64 per batch — leaves room for prompt + overhead under Vercel 4.5MB limit
+    const MAX_BATCH_BASE64 = 3 * 1024 * 1024; // 3MB base64 per batch (Vercel body limit)
+    const MAX_BATCH_PAGES = 10; // cap pages per batch to stay under API token rate limits
     const batches = [];
     let current = [];
     let currentSize = 0;
     for (const f of files) {
-      if (currentSize + f.base64.length > MAX_BATCH_BASE64 && current.length > 0) {
+      if ((currentSize + f.base64.length > MAX_BATCH_BASE64 || current.length >= MAX_BATCH_PAGES) && current.length > 0) {
         batches.push(current);
         current = [];
         currentSize = 0;
@@ -908,6 +909,8 @@
     if (current.length > 0) batches.push(current);
     return batches;
   }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   async function callClaude(prompt, files, maxTokens) {
     let messageContent;
@@ -921,16 +924,26 @@
     } else {
       messageContent = prompt;
     }
-    const res = await fetch('/api/claude', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens || 4096, temperature: 0.3, messages: [{ role: 'user', content: messageContent }] })
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => null);
-      throw new Error(errData?.error?.message || errData?.error || `HTTP ${res.status}`);
+
+    const body = JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens || 4096, temperature: 0.3, messages: [{ role: 'user', content: messageContent }] });
+
+    // Retry once on rate limit (429) with 30s wait
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch('/api/claude', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body
+      });
+      if (res.status === 429 && attempt === 0) {
+        updateLoadingText('Rate limit — waiting 30s before retry...');
+        await sleep(30000);
+        continue;
+      }
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error?.message || errData?.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      return data?.content?.[0]?.text || '';
     }
-    const data = await res.json();
-    return data?.content?.[0]?.text || '';
   }
 
   function updateLoadingText(text) {
@@ -977,6 +990,9 @@
           // Batches 2+: send additional pages, ask for supplemental details
           const supplements = [];
           for (let i = 1; i < batches.length; i++) {
+            // Pause between batches to respect API rate limits (30K tokens/min)
+            updateLoadingText(`Waiting for rate limit cooldown before batch ${i + 1}...`);
+            await sleep(15000);
             updateLoadingText(`Analyzing plans (batch ${i + 1} of ${totalSteps})...`);
             const supPrompt = `You are a senior construction cost estimator reviewing ADDITIONAL plan/spec pages for a project you already started analyzing.
 
@@ -997,6 +1013,7 @@ List each new finding as a bullet point with estimated cost impact where possibl
             rawResponse = firstResult;
           } else {
             // Consolidation call — text only, merges all findings
+            await sleep(10000);
             updateLoadingText(`Consolidating full plan set (${totalSteps} of ${totalSteps})...`);
             const region = tenant?.region || 'Midwest (Indiana / Michigan)';
             const consolidatePrompt = `You are a senior construction cost estimator. You reviewed a large plan set (${uploadedFiles.length} pages) in batches. Here are all findings:
