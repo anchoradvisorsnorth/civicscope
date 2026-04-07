@@ -893,7 +893,7 @@ footer span {
       line-height: 1.5;
     }
 
-/* ── Cost Hero Bar (v2.0.0 redesign) ── */
+/* ── Cost Hero Bar (v2.1.0 redesign) ── */
 .cost-hero-bar {
   background: #1c1917;
   color: #faf8f4;
@@ -925,7 +925,7 @@ footer span {
   color: #a8a29e;
 }
 
-/* ── Results Body (v2.0.0 redesign) ── */
+/* ── Results Body (v2.1.0 redesign) ── */
 .results-body {
   padding: 24px 28px;
   background: var(--white);
@@ -942,7 +942,7 @@ footer span {
   border-bottom: 1px solid #e7e2d8;
 }
 
-/* ── Delivery Cards (v2.0.0 redesign) ── */
+/* ── Delivery Cards (v2.1.0 redesign) ── */
 .delivery-section-label {
   font-size: 10px;
   font-weight: 500;
@@ -1019,7 +1019,7 @@ footer span {
   color: #a83509;
 }
 
-/* ── Assumptions Chips (v2.0.0 redesign) ── */
+/* ── Assumptions Chips (v2.1.0 redesign) ── */
 .assumptions-chips {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1279,14 +1279,14 @@ footer span {
         <div class="assumptions-chips" id="assumptionsChips"></div>
       </div>
 
-      <!-- Council Briefing Guide -->
+      <!-- Board or Council Briefing -->
       <div class="result-block">
-        <div class="block-label">Council Briefing Guide</div>
-        <p class="field-hint" style="margin-bottom:14px;">AI-generated talking points tailored to your project. Review and edit before using.</p>
+        <div class="block-label">Board or Council Briefing</div>
+        <p class="field-hint" style="margin-bottom:14px;">AI-drafted points tailored to your project. Review and edit before using — you know your board best.</p>
         <div id="briefingContent">
           <div class="section-loading">
             <div class="spinner"></div>
-            Drafting your council briefing guide...
+            Drafting your board or council briefing...
           </div>
         </div>
       </div>
@@ -1414,7 +1414,7 @@ footer span {
         <li>Preliminary cost range with confidence rating</li>
         <li>Plain-language narrative for your context</li>
         <li>Key assumptions behind the estimate</li>
-        <li>Council briefing guide — AI-drafted talking points</li>
+        <li>Board or council briefing — talking points and recommended ask</li>
         <li>Procurement path comparison</li>
         <li>Full report emailed to you as PDF</li>
       </ul>
@@ -1437,7 +1437,7 @@ footer span {
   <div class="footer-left">
     <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
   </div>
-  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v2.0.0</span>
+  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v2.1.0</span>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
@@ -1761,7 +1761,7 @@ Rules:
 
 
     document.getElementById('briefingContent').innerHTML =
-      `<div class="section-loading"><div class="spinner"></div> Drafting your council briefing guide...</div>`;
+      `<div class="section-loading"><div class="spinner"></div> Drafting your board or council briefing...</div>`;
 
     fetchBriefing(rd.project_label, rd.low, rd.high, state, location, type, scope, buildType)
       .then(b => renderBriefing(b))
@@ -1811,24 +1811,11 @@ Respond ONLY with valid JSON, no markdown, no preamble:
 function renderBriefing(b) {
   let html = '';
   html += `<div class="briefing-section">
-    <div class="briefing-section-label">Opening Line</div>
-    <div class="opening-quote">"${b.opening}"</div>
-  </div>`;
-  html += `<div class="briefing-section">
     <div class="briefing-section-label">Key Talking Points</div>
     <ul class="pitch-points">${b.talking_points.map(p => `<li>${p}</li>`).join('')}</ul>
   </div>`;
   html += `<div class="briefing-section">
-    <div class="briefing-section-label">Likely Council Questions &amp; Suggested Answers</div>`;
-  b.likely_questions.forEach(qa => {
-    html += `<div class="qa-item">
-      <div class="qa-q">Q: ${qa.q}</div>
-      <div class="qa-a">${qa.a}</div>
-    </div>`;
-  });
-  html += `</div>`;
-  html += `<div class="briefing-section">
-    <div class="briefing-section-label">Recommended Ask to Council</div>
+    <div class="briefing-section-label">Recommended Ask</div>
     <div class="recommended-ask">${b.next_step}</div>
   </div>`;
   document.getElementById('briefingContent').innerHTML = html;

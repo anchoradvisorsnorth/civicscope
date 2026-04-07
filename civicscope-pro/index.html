@@ -401,7 +401,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
   margin-bottom: 2px;
 }
 
-/* ── Cost Hero Bar (v2.9.0 redesign) ── */
+/* ── Cost Hero Bar (v2.10.0 redesign) ── */
 .cost-hero-bar {
   background: #1c1917;
   color: #faf8f4;
@@ -433,7 +433,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
   color: #a8a29e;
 }
 
-/* ── Results Body (v2.9.0 redesign) ── */
+/* ── Results Body (v2.10.0 redesign) ── */
 .results-body {
   padding: 24px 28px;
   background: var(--white);
@@ -450,7 +450,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
   border-bottom: 1px solid #e7e2d8;
 }
 
-/* ── Delivery Cards (v2.9.0 redesign) ── */
+/* ── Delivery Cards (v2.10.0 redesign) ── */
 .delivery-section-label {
   font-size: 10px;
   font-weight: 500;
@@ -527,7 +527,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
   color: #a83509;
 }
 
-/* ── Assumptions Chips (v2.9.0 redesign) ── */
+/* ── Assumptions Chips (v2.10.0 redesign) ── */
 .assumptions-chips {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -585,7 +585,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
       <span class="pro-feat">Clarifying questions for accuracy</span>
       <span class="pro-feat">Project timeline projection</span>
       <span class="pro-feat">Buyer's advocate guide</span>
-      <span class="pro-feat">Council briefing guide</span>
+      <span class="pro-feat">Board or council briefing</span>
       <span class="pro-feat">Edit &amp; re-run</span>
     </div>
   </div>
@@ -790,10 +790,10 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
       </div>
 
       <div class="result-block">
-        <div class="block-label">Council Briefing Guide</div>
-        <p class="field-hint" style="margin-bottom:14px;">AI-generated talking points tailored to your project. Review and edit before using.</p>
+        <div class="block-label">Board or Council Briefing</div>
+        <p class="field-hint" style="margin-bottom:14px;">AI-drafted points tailored to your project. Review and edit before using — you know your board best.</p>
         <div id="briefingContent">
-          <div class="section-loading"><div class="spinner"></div> Drafting council briefing guide...</div>
+          <div class="section-loading"><div class="spinner"></div> Drafting board or council briefing...</div>
         </div>
       </div>
 
@@ -871,7 +871,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
         <li>Cost methodology transparency — how the estimate was built</li>
                 <li>Project timeline projection with regional notes</li>
         <li>Buyer's advocate guide — questions to ask, red flags to watch</li>
-        <li>Council briefing guide with Q&amp;A prep</li>
+        <li>Board or council briefing — talking points and recommended ask</li>
         <li>Edit &amp; re-run without starting over</li>
         <li>Full report emailed to you</li>
       </ul>
@@ -903,7 +903,7 @@ footer span { font-size: 0.75rem; color: var(--muted-light); }
 
 <footer>
   <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
-  <span>For planning purposes only — not a licensed cost estimate · v2.9.0</span>
+  <span>For planning purposes only — not a licensed cost estimate · v2.10.0</span>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
@@ -1068,7 +1068,7 @@ async function executeRun(runData) {
   document.querySelector('.page-wrap').style.gridTemplateColumns = '';
   document.getElementById('methodologyContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Building cost methodology...</div>`;
   document.getElementById('timelineContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Estimating project timeline...</div>`;
-  document.getElementById('briefingContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Drafting council briefing guide...</div>`;
+  document.getElementById('briefingContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Drafting board or council briefing...</div>`;
   document.getElementById('advocateContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Building buyer advocate guide...</div>`;
   document.getElementById('editBanner').style.display = 'none';
 
@@ -1241,12 +1241,8 @@ Respond ONLY with valid JSON, no markdown:
 
 function renderBriefing(b) {
   let html = '';
-  html += `<div class="briefing-section"><div class="briefing-section-label">Opening Line</div><div class="opening-quote">"${b.opening}"</div></div>`;
   html += `<div class="briefing-section"><div class="briefing-section-label">Key Talking Points</div><ul class="pitch-points">${b.talking_points.map(p=>`<li>${p}</li>`).join('')}</ul></div>`;
-  html += `<div class="briefing-section"><div class="briefing-section-label">Likely Council Questions &amp; Suggested Answers</div>`;
-  b.likely_questions.forEach(qa => { html += `<div class="qa-item"><div class="qa-q">Q: ${qa.q}</div><div class="qa-a">${qa.a}</div></div>`; });
-  html += `</div>`;
-  html += `<div class="briefing-section"><div class="briefing-section-label">Recommended Ask to Council</div><div class="recommended-ask">${b.next_step}</div></div>`;
+  html += `<div class="briefing-section"><div class="briefing-section-label">Recommended Ask</div><div class="recommended-ask">${b.next_step}</div></div>`;
   document.getElementById('briefingContent').innerHTML = html;
 }
 
