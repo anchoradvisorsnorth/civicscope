@@ -661,7 +661,7 @@
 <footer>
   <span id="tenantNameFooter"></span> — Internal use only. Not a formal bid or proposal.
   &nbsp;|&nbsp; <a href="https://www.civicscope.io" target="_blank">Powered by CivicScope</a>
-  &nbsp;|&nbsp; v1.4.0-gc-int
+  &nbsp;|&nbsp; v1.5.0-gc-int
 </footer>
 
 <script>
@@ -763,7 +763,7 @@
     errEl.style.display = 'none';
     const allowed = ['application/pdf', 'image/png', 'image/jpeg'];
     const maxFileSize = 50 * 1024 * 1024; // 50MB raw — we compress before sending
-    const maxPdfPages = 20;
+    const maxPdfPages = 200; // no practical limit — batching handles payload size
     const jpegQuality = 0.55;
     const maxImageWidth = 1400; // px — enough for Claude to read plan details
 
@@ -783,9 +783,12 @@
           const arrayBuf = await file.arrayBuffer();
           const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
           const pageCount = Math.min(pdf.numPages, maxPdfPages);
-          if (pdf.numPages > maxPdfPages) {
-            errEl.textContent = `"${file.name}" has ${pdf.numPages} pages — using first ${maxPdfPages}.`;
+          if (pdf.numPages > 20) {
+            errEl.textContent = `"${file.name}" — ${pdf.numPages} pages loaded. Large documents will be analyzed in batches.`;
             errEl.style.display = 'block';
+            errEl.style.color = 'var(--brand)';
+            errEl.style.background = 'var(--brand-light)';
+            errEl.style.borderColor = 'rgba(30,58,95,0.12)';
           }
           for (let p = 1; p <= pageCount; p++) {
             const page = await pdf.getPage(p);
@@ -887,6 +890,54 @@
     };
   }
 
+  // ── Batch Upload Helpers ──
+  function splitIntoBatches(files) {
+    const MAX_BATCH_BASE64 = 3 * 1024 * 1024; // 3MB base64 per batch — leaves room for prompt + overhead under Vercel 4.5MB limit
+    const batches = [];
+    let current = [];
+    let currentSize = 0;
+    for (const f of files) {
+      if (currentSize + f.base64.length > MAX_BATCH_BASE64 && current.length > 0) {
+        batches.push(current);
+        current = [];
+        currentSize = 0;
+      }
+      current.push(f);
+      currentSize += f.base64.length;
+    }
+    if (current.length > 0) batches.push(current);
+    return batches;
+  }
+
+  async function callClaude(prompt, files, maxTokens) {
+    let messageContent;
+    if (files && files.length > 0) {
+      const contentBlocks = [];
+      files.forEach(f => {
+        contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: f.base64 } });
+      });
+      contentBlocks.push({ type: 'text', text: prompt });
+      messageContent = contentBlocks;
+    } else {
+      messageContent = prompt;
+    }
+    const res = await fetch('/api/claude', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens || 4096, temperature: 0.3, messages: [{ role: 'user', content: messageContent }] })
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.error?.message || errData?.error || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    return data?.content?.[0]?.text || '';
+  }
+
+  function updateLoadingText(text) {
+    const el = document.querySelector('.load-label');
+    if (el) el.textContent = text;
+  }
+
   async function runEstimate(confirmedAnswers) {
     const inp = getInputs();
     hideError();
@@ -900,41 +951,93 @@
 
     try {
       const prompt = buildPrompt({ ...inp, location, confirmedAnswers });
+      let rawResponse;
 
-      // Build message content — multimodal when files are attached
-      let messageContent;
-      if (uploadedFiles.length > 0) {
-        // All files are now JPEG images (PDFs converted client-side)
-        const contentBlocks = [];
-        uploadedFiles.forEach(f => {
-          contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: f.base64 } });
-        });
-        contentBlocks.push({ type: 'text', text: prompt });
-        messageContent = contentBlocks;
+      if (uploadedFiles.length === 0) {
+        // No files — single text call
+        updateLoadingText('Analyzing project parameters...');
+        rawResponse = await callClaude(prompt, null, 1200);
 
-        // Check total payload size — Vercel has a 4.5MB request limit
-        const totalBase64 = uploadedFiles.reduce((sum, f) => sum + f.base64.length, 0);
-        const estimatedPayloadMB = (totalBase64 + prompt.length + 500) / (1024 * 1024);
-        if (estimatedPayloadMB > 3.8) {
-          setLoading(false);
-          return showError(`Total payload ~${estimatedPayloadMB.toFixed(1)} MB — exceeds server limit. Remove some files or use lower-resolution originals.`);
-        }
       } else {
-        messageContent = prompt;
+        const batches = splitIntoBatches(uploadedFiles);
+
+        if (batches.length === 1) {
+          // Single batch — everything fits in one call
+          updateLoadingText('Analyzing plans...');
+          rawResponse = await callClaude(prompt, batches[0], 4096);
+
+        } else {
+          // ── Multi-batch flow ──
+          const totalSteps = batches.length + 1; // +1 for consolidation
+
+          // Batch 1: full prompt + first batch of pages
+          updateLoadingText(`Analyzing plans (batch 1 of ${totalSteps})...`);
+          const firstResult = await callClaude(prompt, batches[0], 4096);
+
+          // Batches 2+: send additional pages, ask for supplemental details
+          const supplements = [];
+          for (let i = 1; i < batches.length; i++) {
+            updateLoadingText(`Analyzing plans (batch ${i + 1} of ${totalSteps})...`);
+            const supPrompt = `You are a senior construction cost estimator reviewing ADDITIONAL plan/spec pages for a project you already started analyzing.
+
+YOUR INITIAL ANALYSIS (from first ${batches[0].length} pages):
+${firstResult}
+
+Now review these additional ${batches[i].length} page(s). Extract any NEW cost-relevant details not already captured above: additional scope items, MEP details, structural systems, finishes, site work, special requirements, quantities, dimensions.
+
+List each new finding as a bullet point with estimated cost impact where possible. If these pages don't add new cost-relevant information, respond with exactly: NO_NEW_DETAILS`;
+            const supResult = await callClaude(supPrompt, batches[i], 2048);
+            if (supResult && !supResult.includes('NO_NEW_DETAILS')) {
+              supplements.push(supResult);
+            }
+          }
+
+          if (supplements.length === 0) {
+            // Additional pages added no new info — use initial estimate as-is
+            rawResponse = firstResult;
+          } else {
+            // Consolidation call — text only, merges all findings
+            updateLoadingText(`Consolidating full plan set (${totalSteps} of ${totalSteps})...`);
+            const region = tenant?.region || 'Midwest (Indiana / Michigan)';
+            const consolidatePrompt = `You are a senior construction cost estimator. You reviewed a large plan set (${uploadedFiles.length} pages) in batches. Here are all findings:
+
+INITIAL ESTIMATE (from first batch):
+${firstResult}
+
+ADDITIONAL DETAILS FROM REMAINING PAGES:
+${supplements.join('\n\n---\n\n')}
+
+Produce ONE final consolidated estimate incorporating ALL findings. Adjust the cost range if the additional details reveal scope items not captured in the initial estimate. If they confirm existing assumptions, improve confidence accordingly.
+
+Respond in this exact format:
+
+COST_LOW: [dollar amount, no decimals]
+COST_HIGH: [dollar amount, no decimals]
+COST_MIDPOINT: [dollar amount, no decimals]
+CONFIDENCE: [High / Medium / Low]
+NARRATIVE: [2-3 sentences. Estimator tone. What's driving the range, key risk factors. Note that full ${uploadedFiles.length}-page plan set was reviewed.]
+ASSUMPTIONS:
+- [assumption]
+- [assumption]
+- [assumption]
+- [assumption]
+- [assumption]
+GAP_QUESTIONS:
+- [question]? (±$[impact])
+- [question]? (±$[impact])
+- [question]? (±$[impact])
+[3–6 questions, ordered by dollar impact. Only genuine unknowns. If all parameters known, write: GAP_QUESTIONS: none]
+
+Rules:
+- Current ${region} pricing. Design-Bid-Build. Include contractor overhead, general conditions, permitting, engineering/design (3-5%). Exclude land acquisition.
+- Incorporate all specifics found across the full plan set.
+- No proprietary database names (RSMeans, Gordian, etc.).`;
+            rawResponse = await callClaude(consolidatePrompt, null, 4096);
+          }
+        }
       }
 
-      const maxTokens = uploadedFiles.length > 0 ? 4096 : 1200;
-      const res = await fetch('/api/claude', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, temperature: 0.3, messages: [{ role: 'user', content: messageContent }] })
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        const detail = errData?.error?.message || errData?.error || `HTTP ${res.status}`;
-        throw new Error(detail);
-      }
-      const data = await res.json();
-      const parsed = parseResponse(data?.content?.[0]?.text || '');
+      const parsed = parseResponse(rawResponse);
       lastParsed = parsed;
       runCount++;
       renderResults(parsed, inp);
