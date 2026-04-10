@@ -1,6 +1,6 @@
 {
-  "refreshed": "2026-03-27T10:45:16.646Z",
-  "jobCount": 32,
+  "refreshed": "2026-04-10T11:44:35.552Z",
+  "jobCount": 31,
   "jobs": [
     {
       "slug": "helix-orchard-wallen-road",
@@ -17,7 +17,7 @@
       "projectedFinish": "2026-08-27T20:00:00Z",
       "completionDate": "2026-08-31",
       "sqft": null,
-      "pctComplete": 42.5,
+      "pctComplete": 43.3,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -31,14 +31,20 @@
       },
       "budget": {
         "original": 19281323.549999997,
-        "revised": 19281323.549999997,
+        "revised": 19544678.099999998,
         "committed": 0,
-        "direct": 7881547.7299999995
+        "direct": 8026959.569999999
       },
       "contractValue": 18537636,
       "changeOrders": {
-        "count": 24,
-        "netValue": 0
+        "count": 27,
+        "netValue": 250378.32,
+        "byType": {
+          "Allowance": 22,
+          "TBD": 2,
+          "Owner Change": 2,
+          "Transfer": 1
+        }
       },
       "pm": null,
       "superintendent": {
@@ -67,23 +73,26 @@
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 31,
-        "open": 1
+        "total": 35,
+        "open": 5
       },
       "submittals": {
-        "total": 339,
-        "open": 194
+        "total": 340,
+        "open": 195
       },
       "budget": {
         "original": 16017608.15,
         "revised": 16017608.15,
         "committed": 0,
-        "direct": 2783087.3200000003
+        "direct": 2790568.6900000004
       },
       "contractValue": 18070899,
       "changeOrders": {
-        "count": 14,
-        "netValue": 115982
+        "count": 15,
+        "netValue": 115982,
+        "byType": {
+          "Allowance": 15
+        }
       },
       "pm": {
         "name": "Troy Jennings",
@@ -111,28 +120,31 @@
       "projectedFinish": "2027-06-30T21:00:00Z",
       "completionDate": "2027-01-01",
       "sqft": null,
-      "pctComplete": 1.7,
+      "pctComplete": 3.1,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 9,
-        "open": 2
+        "total": 11,
+        "open": 3
       },
       "submittals": {
-        "total": 91,
-        "open": 72
+        "total": 108,
+        "open": 84
       },
       "budget": {
         "original": 15960965.520000003,
         "revised": 15960965.520000003,
         "committed": 0,
-        "direct": 285559.79000000004
+        "direct": 534667.12
       },
       "contractValue": 17256996,
       "changeOrders": {
-        "count": 2,
-        "netValue": 0
+        "count": 4,
+        "netValue": 129797,
+        "byType": {
+          "Allowance": 4
+        }
       },
       "pm": {
         "name": "Logan Moore",
@@ -160,7 +172,7 @@
       "projectedFinish": "2025-10-18T21:00:00Z",
       "completionDate": "2025-08-30",
       "sqft": 56000,
-      "pctComplete": 101.7,
+      "pctComplete": 101.8,
       "costOverrun": true,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -176,12 +188,17 @@
         "original": 15085716.219999999,
         "revised": 15842068.219999999,
         "committed": 0,
-        "direct": 16227408.03
+        "direct": 16250592.65
       },
       "contractValue": 15962778,
       "changeOrders": {
-        "count": 119,
-        "netValue": 405328.95
+        "count": 120,
+        "netValue": 407084.95,
+        "byType": {
+          "Allowance": 86,
+          "Owner Change": 33,
+          "Contingency": 1
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -209,28 +226,32 @@
       "projectedFinish": "2026-11-20T13:00:00Z",
       "completionDate": "2026-11-02",
       "sqft": null,
-      "pctComplete": 43.5,
+      "pctComplete": 44.2,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
         "total": 18,
-        "open": 2
+        "open": 0
       },
       "submittals": {
-        "total": 236,
+        "total": 239,
         "open": 68
       },
       "budget": {
         "original": 12630570.77,
         "revised": 12630570.77,
         "committed": 0,
-        "direct": 6111672.58
+        "direct": 6214381.78
       },
       "contractValue": 14055300,
       "changeOrders": {
-        "count": 34,
-        "netValue": 206993.11
+        "count": 37,
+        "netValue": 232050.07,
+        "byType": {
+          "TBD": 35,
+          "Allowance": 2
+        }
       },
       "pm": null,
       "superintendent": {
@@ -254,7 +275,7 @@
       "projectedFinish": "2026-04-22T21:00:00Z",
       "completionDate": "2025-07-01",
       "sqft": null,
-      "pctComplete": 72.3,
+      "pctComplete": 72.4,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -263,19 +284,25 @@
         "open": 0
       },
       "submittals": {
-        "total": 335,
-        "open": 94
+        "total": 319,
+        "open": 77
       },
       "budget": {
         "original": 10907043.73,
         "revised": 10951924.540000001,
         "committed": 0,
-        "direct": 8646637.35
+        "direct": 8665265.16
       },
       "contractValue": 11967209,
       "changeOrders": {
-        "count": 86,
-        "netValue": 440431.06
+        "count": 92,
+        "netValue": 449002.73,
+        "byType": {
+          "TBD": 84,
+          "Allowance": 6,
+          "Owner Change": 1,
+          "Contingency": 1
+        }
       },
       "pm": {
         "name": "Logan Moore",
@@ -297,14 +324,14 @@
       "clientType": "industrial",
       "workType": "addition",
       "active": true,
-      "stage": null,
+      "stage": "Pre-Construction",
       "address": "611 N Higbee Street, Milford, IN",
-      "start": "2026-03-26",
-      "projectedFinish": null,
-      "completionDate": null,
+      "start": "2026-05-01",
+      "projectedFinish": "2027-01-31",
+      "completionDate": "2027-01-31",
       "sqft": null,
-      "pctComplete": null,
-      "costOverrun": null,
+      "pctComplete": 0,
+      "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
@@ -315,18 +342,28 @@
         "total": 0,
         "open": 0
       },
-      "budget": null,
+      "budget": {
+        "original": 8100548.37,
+        "revised": 8100548.37,
+        "committed": 0,
+        "direct": 0
+      },
       "contractValue": 9098536,
       "changeOrders": {
         "count": 0,
-        "netValue": 0
+        "netValue": 0,
+        "byType": {}
       },
       "pm": {
         "name": "Erik Parcell",
         "email": "eparcell@ryoderconstruction.com",
         "title": "Project Manager"
       },
-      "superintendent": null
+      "superintendent": {
+        "name": "Brent Robinson",
+        "email": "brobinson@ryoderconstruction.com",
+        "title": "Field Superintendent"
+      }
     },
     {
       "slug": "ashley-wwtp",
@@ -343,7 +380,7 @@
       "projectedFinish": "2027-12-06",
       "completionDate": "2027-12-06",
       "sqft": null,
-      "pctComplete": 0.6,
+      "pctComplete": 0.7,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -352,19 +389,22 @@
         "open": 1
       },
       "submittals": {
-        "total": 501,
-        "open": 498
+        "total": 499,
+        "open": 496
       },
       "budget": {
         "original": 7730460.510000001,
         "revised": 7730460.510000001,
         "committed": 0,
-        "direct": 48545.21
+        "direct": 63496.55
       },
       "contractValue": 8522833,
       "changeOrders": {
-        "count": 0,
-        "netValue": 0
+        "count": 1,
+        "netValue": 23978,
+        "byType": {
+          "Allowance": 1
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -408,12 +448,17 @@
         "original": 6735069.88,
         "revised": 6773626.929999999,
         "committed": 0,
-        "direct": 7297303.92
+        "direct": 7300031.7700000005
       },
       "contractValue": 7425415,
       "changeOrders": {
-        "count": 75,
-        "netValue": 1001917.12
+        "count": 76,
+        "netValue": 1001917.12,
+        "byType": {
+          "Allowance": 64,
+          "Owner Change": 1,
+          "TBD": 11
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -441,7 +486,7 @@
       "projectedFinish": "2026-08-31",
       "completionDate": "2026-08-31",
       "sqft": null,
-      "pctComplete": 12.3,
+      "pctComplete": 14,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -450,19 +495,22 @@
         "open": 1
       },
       "submittals": {
-        "total": 76,
-        "open": 53
+        "total": 74,
+        "open": 49
       },
       "budget": {
         "original": 3552279.87,
         "revised": 3552279.87,
         "committed": 0,
-        "direct": 488076.64
+        "direct": 555205.94
       },
       "contractValue": 3970739,
       "changeOrders": {
         "count": 2,
-        "netValue": 8191
+        "netValue": 8191,
+        "byType": {
+          "TBD": 2
+        }
       },
       "pm": {
         "name": "Logan Moore",
@@ -473,55 +521,6 @@
         "name": "Brian Hubbard",
         "email": "bhubbard@ryoderconstruction.com",
         "title": "Field Superintendent"
-      }
-    },
-    {
-      "slug": "aluminum-insights-north-addn",
-      "procoreId": 598134325960337,
-      "projectNumber": "2504CO01",
-      "name": "Aluminum Insights North Add'n",
-      "client": "Aluminum Insights",
-      "clientType": "commercial",
-      "workType": "addition",
-      "active": true,
-      "stage": "Post-Construction",
-      "address": "104 E. Innovation Blvd., Syracuse, IN",
-      "start": "2025-04-14",
-      "projectedFinish": "2025-11-07T22:00:00Z",
-      "completionDate": "2025-11-28",
-      "sqft": 45150,
-      "pctComplete": 84.3,
-      "costOverrun": false,
-      "commitmentsTracked": false,
-      "verifyStatus": true,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 40,
-        "open": 5
-      },
-      "budget": {
-        "original": 3393550.6999999997,
-        "revised": 3501631.6999999997,
-        "committed": 0,
-        "direct": 3255603.3300000005
-      },
-      "contractValue": 3863506.44,
-      "changeOrders": {
-        "count": 25,
-        "netValue": 363629.1
-      },
-      "pm": {
-        "name": "Erik Parcell",
-        "email": "eparcell@ryoderconstruction.com",
-        "title": "Project Manager"
-      },
-      "superintendent": {
-        "name": "Larry Jennings",
-        "email": "ljennings@ryoderconstruction.com",
-        "title": "Site Superintendent"
       }
     },
     {
@@ -539,28 +538,32 @@
       "projectedFinish": "2026-10-03",
       "completionDate": "2026-10-03",
       "sqft": null,
-      "pctComplete": 34.3,
+      "pctComplete": 34.8,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
         "total": 29,
-        "open": 12
+        "open": 3
       },
       "submittals": {
-        "total": 283,
-        "open": 199
+        "total": 284,
+        "open": 200
       },
       "budget": {
         "original": 3309736.6799999997,
         "revised": 3309736.6799999997,
         "committed": 0,
-        "direct": 1273210.62
+        "direct": 1290162
       },
       "contractValue": 3709035,
       "changeOrders": {
-        "count": 11,
-        "netValue": 31322.9
+        "count": 12,
+        "netValue": 33832.6,
+        "byType": {
+          "Allowance": 10,
+          "Owner Change": 2
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -609,7 +612,13 @@
       "contractValue": 3695500,
       "changeOrders": {
         "count": 25,
-        "netValue": 70821.45
+        "netValue": 70821.45,
+        "byType": {
+          "Owner Change": 13,
+          "Allowance": 7,
+          "TBD": 4,
+          "Transfer": 1
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -631,19 +640,19 @@
       "clientType": "municipal_water_wastewater",
       "workType": "new_construction",
       "active": true,
-      "stage": null,
+      "stage": "Course of Construction",
       "address": "299 Sherwood St, South Bend, IN",
       "start": "2025-10-01",
       "projectedFinish": "2026-10-01",
       "completionDate": "2026-10-01",
       "sqft": null,
-      "pctComplete": 24.7,
+      "pctComplete": 27.7,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 16,
-        "open": 4
+        "total": 17,
+        "open": 0
       },
       "submittals": {
         "total": 75,
@@ -653,12 +662,17 @@
         "original": 3089475.19,
         "revised": 3089475.19,
         "committed": 0,
-        "direct": 906597.69
+        "direct": 1015875.19
       },
       "contractValue": 3670297,
       "changeOrders": {
         "count": 9,
-        "netValue": -3164.58
+        "netValue": -3164.58,
+        "byType": {
+          "Allowance": 7,
+          "Owner Change": 1,
+          "TBD": 1
+        }
       },
       "pm": {
         "name": "Logan Moore",
@@ -707,7 +721,13 @@
       "contractValue": 3627769,
       "changeOrders": {
         "count": 80,
-        "netValue": 825714.66
+        "netValue": 825714.66,
+        "byType": {
+          "Owner Change": 17,
+          "Allowance": 59,
+          "Unclassified": 2,
+          "Contingency": 2
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -741,7 +761,7 @@
       "verifyStatus": true,
       "rfis": {
         "total": 29,
-        "open": 3
+        "open": 2
       },
       "submittals": {
         "total": 119,
@@ -751,12 +771,17 @@
         "original": 2205118.7800000003,
         "revised": 2205118.7800000003,
         "committed": 0,
-        "direct": 1926895.3400000003
+        "direct": 1927404.5300000003
       },
       "contractValue": 2572051,
       "changeOrders": {
-        "count": 20,
-        "netValue": 217069.33
+        "count": 21,
+        "netValue": 219864.33,
+        "byType": {
+          "Allowance": 11,
+          "Owner Change": 8,
+          "Transfer": 2
+        }
       },
       "pm": {
         "name": "Logan Moore",
@@ -784,7 +809,7 @@
       "projectedFinish": "2026-07-02T21:00:00Z",
       "completionDate": "2026-06-16",
       "sqft": null,
-      "pctComplete": 27.3,
+      "pctComplete": 26.8,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -793,19 +818,22 @@
         "open": 0
       },
       "submittals": {
-        "total": 124,
-        "open": 75
+        "total": 127,
+        "open": 74
       },
       "budget": {
         "original": 2180018.8899999997,
         "revised": 2181018.8899999997,
         "committed": 0,
-        "direct": 687986.34
+        "direct": 674029.98
       },
       "contractValue": 2519230,
       "changeOrders": {
         "count": 6,
-        "netValue": 16231.53
+        "netValue": 15534.5,
+        "byType": {
+          "TBD": 6
+        }
       },
       "pm": {
         "name": "Logan Moore",
@@ -842,8 +870,8 @@
         "open": 0
       },
       "submittals": {
-        "total": 139,
-        "open": 139
+        "total": 138,
+        "open": 125
       },
       "budget": {
         "original": 2071633.13,
@@ -854,7 +882,10 @@
       "contractValue": 2280743,
       "changeOrders": {
         "count": 1,
-        "netValue": -2163.44
+        "netValue": -2163.44,
+        "byType": {
+          "Allowance": 1
+        }
       },
       "pm": {
         "name": "Troy Jennings",
@@ -898,12 +929,16 @@
         "original": 1507345.3599999999,
         "revised": 1507345.3599999999,
         "committed": 0,
-        "direct": 1363665.0199999998
+        "direct": 1363745.51
       },
       "contractValue": 1500000,
       "changeOrders": {
         "count": 22,
-        "netValue": 89497.43
+        "netValue": 89497.43,
+        "byType": {
+          "Allowance": 21,
+          "Contingency": 1
+        }
       },
       "pm": {
         "name": "Logan Moore",
@@ -951,8 +986,11 @@
       },
       "contractValue": 1306310,
       "changeOrders": {
-        "count": 3,
-        "netValue": 12518.43
+        "count": 4,
+        "netValue": 13043.43,
+        "byType": {
+          "Allowance": 4
+        }
       },
       "pm": {
         "name": "Logan Moore",
@@ -974,13 +1012,13 @@
       "clientType": "commercial",
       "workType": "new_construction",
       "active": true,
-      "stage": "Pre-Construction",
+      "stage": "Post-Construction",
       "address": "13393 CR 22, Middlebury, IN",
       "start": "2024-03-15",
       "projectedFinish": "2026-03-31T21:00:00Z",
       "completionDate": "2026-01-02",
       "sqft": 20000,
-      "pctComplete": 79.3,
+      "pctComplete": 83.5,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -996,12 +1034,16 @@
         "original": 959002.92,
         "revised": 997225.92,
         "committed": 0,
-        "direct": 870176.9099999999
+        "direct": 916565.1599999999
       },
       "contractValue": 1098000,
       "changeOrders": {
         "count": 7,
-        "netValue": 23096.54
+        "netValue": 23096.54,
+        "byType": {
+          "Owner Change": 4,
+          "Allowance": 3
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -1029,7 +1071,7 @@
       "projectedFinish": "2026-07-02T21:00:00Z",
       "completionDate": "2026-02-24",
       "sqft": 9600,
-      "pctComplete": 22.2,
+      "pctComplete": 22.3,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -1045,12 +1087,16 @@
         "original": 823809.7699999999,
         "revised": 834461.3699999999,
         "committed": 0,
-        "direct": 217137.57
+        "direct": 217910.67
       },
       "contractValue": 978687,
       "changeOrders": {
         "count": 2,
-        "netValue": 8803.77
+        "netValue": 8803.77,
+        "byType": {
+          "Owner Change": 1,
+          "Allowance": 1
+        }
       },
       "pm": {
         "name": "Chris Crothers",
@@ -1099,7 +1145,10 @@
       "contractValue": 938600,
       "changeOrders": {
         "count": 1,
-        "netValue": 10769
+        "netValue": 10769,
+        "byType": {
+          "Owner Change": 1
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -1148,7 +1197,11 @@
       "contractValue": 916498,
       "changeOrders": {
         "count": 29,
-        "netValue": 100038.86
+        "netValue": 100038.86,
+        "byType": {
+          "Allowance": 11,
+          "Owner Change": 18
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -1197,7 +1250,8 @@
       "contractValue": 679915,
       "changeOrders": {
         "count": 0,
-        "netValue": 0
+        "netValue": 0,
+        "byType": {}
       },
       "pm": {
         "name": "Logan Moore",
@@ -1230,19 +1284,22 @@
         "open": 0
       },
       "submittals": {
-        "total": 0,
-        "open": 0
+        "total": 1,
+        "open": 1
       },
       "budget": {
         "original": 361613.19,
-        "revised": 361613.19,
+        "revised": 392485.19,
         "committed": 0,
         "direct": 0
       },
       "contractValue": 444321,
       "changeOrders": {
         "count": 7,
-        "netValue": 34032.5
+        "netValue": 34032.5,
+        "byType": {
+          "Owner Change": 7
+        }
       },
       "pm": null,
       "superintendent": {
@@ -1287,7 +1344,8 @@
       "contractValue": 374705,
       "changeOrders": {
         "count": 0,
-        "netValue": 0
+        "netValue": 0,
+        "byType": {}
       },
       "pm": {
         "name": "Logan Moore",
@@ -1311,7 +1369,7 @@
       "projectedFinish": "2025-11-01",
       "completionDate": "2025-11-01",
       "sqft": null,
-      "pctComplete": 2.3,
+      "pctComplete": 3.6,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": true,
@@ -1327,12 +1385,15 @@
         "original": 273622.89,
         "revised": 273622.89,
         "committed": 0,
-        "direct": 7651.86
+        "direct": 12018.220000000001
       },
       "contractValue": 330975,
       "changeOrders": {
         "count": 1,
-        "netValue": 10152.6
+        "netValue": 10152.6,
+        "byType": {
+          "Allowance": 1
+        }
       },
       "pm": {
         "name": "Logan Moore",
@@ -1377,7 +1438,10 @@
       "contractValue": 315000,
       "changeOrders": {
         "count": 1,
-        "netValue": 0
+        "netValue": 0,
+        "byType": {
+          "Owner Change": 1
+        }
       },
       "pm": {
         "name": "Logan Moore",
@@ -1401,7 +1465,7 @@
       "projectedFinish": "2025-11-01",
       "completionDate": "2025-11-01",
       "sqft": null,
-      "pctComplete": 61.3,
+      "pctComplete": 61.4,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": true,
@@ -1417,12 +1481,15 @@
         "original": 187910.22999999998,
         "revised": 187910.22999999998,
         "committed": 0,
-        "direct": 132294.63
+        "direct": 132437.49
       },
       "contractValue": 215840,
       "changeOrders": {
         "count": 4,
-        "netValue": 5892.13
+        "netValue": 5892.13,
+        "byType": {
+          "Owner Change": 4
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -1471,7 +1538,11 @@
       "contractValue": 65680,
       "changeOrders": {
         "count": 2,
-        "netValue": 12115.68
+        "netValue": 12115.68,
+        "byType": {
+          "Allowance": 1,
+          "Owner Change": 1
+        }
       },
       "pm": {
         "name": "Erik Parcell",
@@ -1493,11 +1564,11 @@
       "clientType": "commercial",
       "workType": "renovation",
       "active": true,
-      "stage": null,
+      "stage": "Post-Construction",
       "address": "102 Heritage Pkwy, Nappanee, IN",
-      "start": "2026-01-09",
-      "projectedFinish": null,
-      "completionDate": null,
+      "start": "2026-01-26",
+      "projectedFinish": "2026-03-31",
+      "completionDate": "2026-03-31",
       "sqft": null,
       "pctComplete": 39.2,
       "costOverrun": false,
@@ -1520,7 +1591,10 @@
       "contractValue": 51649,
       "changeOrders": {
         "count": 1,
-        "netValue": -3715
+        "netValue": -3715,
+        "byType": {
+          "Owner Change": 1
+        }
       },
       "pm": {
         "name": "Logan Moore",
