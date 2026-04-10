@@ -32,8 +32,8 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         grant_type: 'client_credentials',
-        client_id: 'h2Y7VbL-GUQy420YOg5-ViKfgzjdq4zLVj_r14jeXhg',
-        client_secret: 'Uyr1en0O6by9bmawO47JQ4qeBrlLyi3GogwD9furmJI',
+        client_id: process.env.PROCORE_CLIENT_ID,
+        client_secret: process.env.PROCORE_CLIENT_SECRET,
       }),
     });
     if (!authRes.ok) return res.status(502).json({ error: 'Procore auth failed' });
