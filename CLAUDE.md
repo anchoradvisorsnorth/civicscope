@@ -1,187 +1,165 @@
-# CLAUDE.md — CivicScope Working Memory
+# CLAUDE.md — Civicscope Module
 
-## Who I'm Working With
-- **Keith Plummer** — keith@anchoradvisorsnorth.com
-- Wears multiple hats: JBK Development (day job), CivicScope (product), AAN/MTP (side project)
-- Microsoft shop, PowerShell-oriented, deploys via bat/ps1 → GitHub API → Vercel
+> Root context: Cowork\CLAUDE.md
 
-## Key Terms
-- **JBK** = JBK Development (sister to RYC & T&C)
-- **RYC** = R Yoder Construction (parent company of JBK) — mid-size commercial GC
-- **T&C** = Town & Country Homes
-- **Joe** = Director of Field Operations at RYC (manages crew scheduling)
-- **Frannie** = RYC front office (was manually updating employee portal — unreliable)
-- **BOT** = Build-Operate-Transfer (municipal dev model)
-- **P3** = Public-Private Partnership
-- **AAN** = Anchor Advisors North (umbrella brand)
-- **MTP** = My Trust Plan (lead gen for RLTs)
-- **RLT** = Revocable Living Trust
-- **Wellfield** = Wellfield Botanic Gardens (JBK project, Elkhart IN)
+---
 
-## CivicScope Product Suite (4 versions + QA + RYC Tools)
-All CivicScope AI tools call same `api/claude.js` proxy → Anthropic claude-sonnet-4-20250514
+## What It Is
+AI-powered municipal construction cost feasibility tool. Four product versions serving different audiences, all powered by the same Anthropic API proxy. Standalone SaaS — no JBK branding anywhere.
 
-| Version | URL | Audience |
-|---------|-----|----------|
-| Free | app.civicscope.io/civicscope | Municipal employees |
-| Pro | app.civicscope.io/civicscope-pro | Municipal (SaaS potential) |
-| GC White-Label | app.civicscope.io/gc/:slug | GC's prospective clients |
-| GC Internal | app.civicscope.io/gc/:slug-internal | GC estimating teams |
-| QA Tool | app.civicscope.io/qa | Headless validation (Keith only) |
-| Admin | app.civicscope.io/admin | Dashboard (Keith only) |
-| **RYC Scheduler** | **app.civicscope.io/ryc/schedule** | **RYC field crew scheduling** |
-| **Pro Landing** | **civicscope.io/pro** | **Early access signup** |
+**Repo:** anchoradvisorsnorth/civicscope
+**Hosting:** Vercel (auto-deploy from GitHub)
+**DB:** Supabase — raw fetch only, NEVER @supabase/supabase-js
+**Email:** Resend from info@civicscope.io
+**AI:** All tools → api/claude.js → claude-sonnet-4-20250514, temp 0.3, max_tokens 1200
+**Deploy:** PUSH_CIVICSCOPE.bat → GitHub Trees API → Vercel (~60s)
 
-## RYC Scheduler (v1 — deployed March 2026)
+---
 
-### What It Solves
-Old process: Joe updates Excel → tells Frannie → Frannie updates employee portal → crew checks portal. Broke because Frannie didn't update; Joe had to call guys directly. New process: Joe updates scheduler directly → hits Publish → crew gets email automatically.
+## Product Suite & Current Versions
 
-### URLs
-- **Manager view**: https://app.civicscope.io/ryc/schedule (password: `ryc2026`)
-- **Read-only view**: https://app.civicscope.io/ryc/schedule?view=readonly (no password, linked from emails)
-- **Week-specific**: ?view=readonly&week=YYYY-MM-DD
+| Product | URL | Audience | Version |
+|---------|-----|----------|---------|
+| Free | app.civicscope.io/civicscope | Municipal employees | v2.1.0 |
+| Pro | app.civicscope.io/civicscope-pro | Municipal officials | v2.10.0 |
+| GC External | app.civicscope.io/gc/:slug | GC prospective clients | v1.6.0-gc |
+| GC Internal | app.civicscope.io/gc/:slug-internal | GC estimating teams | v1.5.0-gc-int |
+| QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
+| Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin |
+| RYC Scheduler | app.civicscope.io/ryc/schedule | RYC crew | v1.0.0 |
+| Pro Landing | civicscope.io/pro | Early access signup | — |
 
-### Architecture
-- Single-page HTML app with password gate (sessionStorage)
-- Data stored in browser localStorage (prototype — Supabase persistence is a future enhancement)
-- Email via `api/schedule-notify.js` → Resend (uses existing RESEND_API_KEY env var)
-- Sends from: `R. Yoder Construction <info@civicscope.io>`, reply-to: keith@anchoradvisorsnorth.com
+**Version rule:** Bump in BOTH the product HTML footer AND civicscope-admin/index.html product cards.
 
-### Email Flows
-1. **Weekly publish**: Joe fills schedule → hits "Publish Week" → ALL employees + notification-only recipients get email with full schedule table + link to read-only view
-2. **Mid-week change**: Joe edits after publish → hits "Publish Week" again → ONLY affected employees get email showing what changed (old → new) + link to read-only view
+---
 
-### Features
-- Employee management: first/last name, auto-generated email @ryoderconstruction.com, manual override
-- Three manage tabs: Employees, Projects, Notification List (notify-only recipients)
-- Role badges: SR SS, SS, SSIT, FC, FM (color coded)
-- Special assignments: VAC (amber), Training (purple), Shop (green)
-- Recipient preview before sending
+## Prompt Standards (all versions)
+- Include: contractor overhead, GC markup, permitting, engineering/design (3-5%)
+- Exclude: land acquisition
+- Confidence: High / Medium / Low — never "Moderate"
+- Vague descriptions → Low confidence, wider ranges
+- No proprietary database names (RSMeans, Gordian)
 
-### Files in Repo
-- `ryc-schedule/index.html` — Full scheduler app
-- `api/schedule-notify.js` — Resend email endpoint for schedule notifications
-- `vercel.json` — Has `/ryc/schedule` rewrite pointing to `ryc-schedule/index.html`
+---
 
-### Local Files (Keith's machine)
-- `RYC/scheduler/index.html` — Source file
-- `RYC/scheduler/api/schedule-notify.js` — Source API file
-- `RYC/scheduler/PUSH_RYC_SCHEDULE.bat` — Isolated deploy (does NOT touch CivicScope product files)
-- `RYC/scheduler/push_ryc_schedule.ps1` — PowerShell deploy script
-- `RYC/scheduler/DEPLOY_NOTES.md` — Deploy reference
+## API & Infrastructure
+- All api/*.js use raw fetch to Supabase REST
+- api/claude.js is a pure passthrough — prompts built client-side
+- Vercel env vars: ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY, RESEND_API_KEY
+- Email routing: Free/Pro → info@civicscope.io; GC → tenant notify_email + BCC Keith
+- No JBK references anywhere — removed March 2026
 
-### Deploy
-- **PUSH_RYC_SCHEDULE.bat** — Separate from PUSH_CIVICSCOPE.bat, zero risk to civicscope.io
-- Pushes only: ryc-schedule/index.html + api/schedule-notify.js
-- Known issue: PS1 regex for auto-injecting vercel.json route failed on first run — was fixed manually on GitHub. Regex needs fixing for future deploys.
+## Supabase Tables
+tool_runs schema: id, session_id, created_at, zip, state, municipality, project_type,
+build_type, scope_description, topography, utilities[], cost_low, cost_high,
+cost_midpoint, confidence, confidence_reason, narrative, assumptions[], project_label,
+run_duration_ms, product (values: 'free', 'pro', 'gc-[slug]', 'gc-int-[slug]')
 
-### RYC vs Acme — IMPORTANT
-- **Acme** = demo GC tenant in CivicScope GC white-label (stays as demo)
-- **RYC** = will be the FIRST REAL GC tenant in CivicScope GC white-label (onboarding deferred to backlog)
-- The RYC Scheduler is a standalone tool, separate from the GC white-label product
+tenants schema: id, slug, gc_name, logo_url, primary_color, hero_headline, hero_subhead,
+cta_headline, cta_body, cta_button_label, cta_url, contact_email, from_email,
+project_types (jsonb), region, gate_enabled, active, created_at, notify_email,
+brand_statement, brand_values (jsonb array)
 
-## Infrastructure
-- **Hosting**: Vercel (auto-deploy from GitHub)
-- **Repo**: anchoradvisorsnorth/civicscope (GitHub)
-- **DB**: Supabase (sessions, tool_runs, leads, tenants) — raw fetch, NOT @supabase/supabase-js
-- **Email**: Resend (info@civicscope.io)
-- **Deploy**: Cowork edits files → PUSH_CIVICSCOPE.bat → GitHub Trees API → Vercel (~60s)
-- **RYC Deploy**: PUSH_RYC_SCHEDULE.bat → isolated push of scheduler files only
-- **Sandbox**: START_SANDBOX.bat → Python server at localhost:8888 (legacy — pre-Cowork workflow, keep for risky changes)
-- **Model**: claude-sonnet-4-20250514
-
-## Dev Workflow (as of March 2026)
-Cowork mode replaced project chat + sandbox as the primary workflow.
-- **Cowork** reads/edits local files directly in the civicscope folder
-- **Keith** runs PUSH_CIVICSCOPE.bat to deploy CivicScope, PUSH_RYC_SCHEDULE.bat to deploy RYC scheduler
-- **QA tool** at /qa validates on production (no sandbox needed for routine changes)
-- **Sandbox** retained for edge cases — testing risky changes before they hit prod
-- **CLAUDE.md** is NOT in PUSH_CIVICSCOPE.bat — Cowork always updates it in BOTH places at end of session:
-  1. Local: C:\Users\kmplu\Cowork\CLAUDE.md
-  2. GitHub: push via GitHub Contents API PUT (commit msg: "Update CLAUDE.md: [brief description]")
-  Retire UPDATE_CLAUDE_MD.ps1 — it has proven unreliable.
-
-## Current Versions
-- Free: v1.9.0
-- Pro: v2.8.0
-- GC White-Label External: v1.6.0-gc
-- GC White-Label Internal: v1.4.0-gc-int
-- QA Tool: v1.0.0-qa
-- Admin: v1.0.0-admin
-- RYC Scheduler: v1.0.0
-
-Note: Versions are hardcoded in each HTML file footer AND in civicscope-admin/index.html product cards. Bump both on every release.
-
-## Vercel Env Vars
-ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY, RESEND_API_KEY
-
-## Recent Changes (March 2026)
-- **GC External form redesign (GC External v1.6.0-gc)**: Added New Construction / Renovation toggle, updated field labels for private developer audience (Name or Company), expanded project type dropdown (Commercial, Industrial, Mixed-Use, Office, Retail, Warehouse/Distribution, Hospitality, Healthcare/Medical, Education, Municipal/Public), added optional square footage field, added file upload zone (sketches/plans/photos) with Claude Vision integration for images. Prompt updated with projectMode, squareFootage, and sketch context. Static dropdown options serve as fallback when tenant config doesn't provide project_types. v1.6.0-gc polish: sketch upload label uses accent color, sub-copy updated ("we'll do the rest!"), upload zone border/bg darkened for visibility.
-- **GC polish pass (GC External v1.4.0-gc, GC Internal v1.4.0-gc-int)**: Dynamic tab titles using tenant gc_name, dynamic favicons using tenant primary_color, header height increased to 72px on both, powered-by CivicScope icon added, CTA button text changed to "Let's See What's Possible →".
-- **Pro banner fix (Pro v2.7.0)**: Removed "CivicScope Pro" label from navy feature banner.
-- **Logging fixes**: Fixed api/log.js hardcoded product:'free' (Pro runs were tagged as Free). Fixed api/gc-log.js ignoring client product value (GC Internal tagged as External). Added full logging pipeline to Free tool (was completely missing).
-- **Header sizing + Free feature bar (Free v1.8.0, Pro v2.6.0)**: Increased header height to 80px
-  across landing, Free, and Pro. Logo SVG scaled to 185x45px. Added orange feature bar below
-  Free tool header (4 items: No account required, Results in 30 seconds, Private cost estimate,
-  Before the first contractor call). Added vertical padding to Pro banner.
-- **Tab titles, favicons, email branding (Free v1.7.0, Pro v2.5.0)**: Added inline SVG favicon (civic building mark) to landing page, Free, and Pro. Orange favicon on landing/Free, navy on Pro. Tab titles updated to "CivicScope - Free | Municipal Project Feasibility" and "CivicScope - Pro | Municipal Project Feasibility". Email subject lines now include tier (Free/Pro). Pro email header now reads "CivicScope Pro". CLAUDE.md removed from PUSH_CIVICSCOPE.bat — pushed separately via UPDATE_CLAUDE_MD.ps1.
-- **Logo Implementation (Free v1.6.0, Pro v2.4.0)**: Replaced dot + text wordmark with SVG civic building mark across landing page, Free tool, and Pro tool. Orange variant (#c2410c) on landing + Free; navy variant (#1e3a5f) on Pro. Grid dots color-coded to match. .wordmark-dot CSS replaced with .wordmark-svg. Brand guide and SVG reference files saved to G:\Drive\civicscope.
-- **RYC Scheduler v1**: Built and deployed crew scheduling tool for RYC at /ryc/schedule
-  - Password-gated manager view, open read-only view for crew
-  - Email notifications via Resend: weekly publish (all) + mid-week changes (affected only)
-  - Isolated deploy pipeline (PUSH_RYC_SCHEDULE.bat)
-  - Data in localStorage (prototype) — Supabase persistence planned
-- **Prompt Normalization**: Standardized cost estimation rules across all 4 versions
-  - All versions now include: contractor overhead, GC, permitting, engineering/design allowance (3-5%)
-  - All exclude: land acquisition
-  - Removed Free-only "renovation 60-80% rule" (only GC Internal has renovation as dropdown)
-  - Standardized confidence language: "Vague or incomplete descriptions → Low confidence with wider ranges"
-  - Added proprietary database prohibition to Free version (others already had it)
-- **QA Tool**: Headless validation framework at /qa — runs test scenarios against all 4 prompts, compares results
-- **Temperature**: Set temperature: 0.3 on all 4 versions + QA tool for run-to-run consistency
-- **max_tokens alignment**: Free bumped from 1000 → 1200 (all versions now 1200)
-- **Confidence scale**: Standardized all 4 versions to High/Medium/Low (Free/Pro had "Moderate" → changed to "Medium")
-- **QA Tool v2**: Manual entry mode, GC Internal separated from spread analysis, persistent Supabase logging (qa_runs table)
-- **2026-03-12 Deploy 1 (HTML)**:
-  - Free v1.8.0 → v1.9.0: Removed JBK CTA block; replaced with "What to Do Next" 4-step action list. Replaced BOT/P3-slanted delivery path section with neutral two-path comparison. Added timeline tease block with gate-unlock reveal. Added timeline field to Claude API prompt. Updated gate heading and button copy. Added Pro nudge linking to civicscope.io/pro.
-  - Pro v2.7.0 → v2.8.0: Removed JBK CTA block; replaced with "What to Do Next" 4-step action list. Replaced BOT/P3-slanted delivery path section with neutral two-path comparison.
-  - Landing page: updated Pro links from app.civicscope.io/civicscope-pro → civicscope.io/pro
-  - New: pro/index.html — Pro early access landing page
-  - vercel.json: added /pro rewrite
-- **2026-03-12 Deploy 2 (API)**:
-  - api/email.js: routed Free/Pro lead notifications from keith@jbkdevelopment.com → info@civicscope.io
-  - api/email.js: added timeline section to Free/Pro report email
-  - api/email.js: removed remaining JBK references from email templates
-
-## Key Learnings
-- Cloudflare Email Address Obfuscation rewrites mailto: links into cdn-cgi/l/email-protection URLs at the CDN layer, even in static HTML served from Vercel. The workaround is adding data-cfEmail="" to the anchor tag in source. The JBK CTA block was replaced entirely in v1.9.0 so this no longer applies to Free/Pro.
-- CivicScope is a standalone SaaS product. JBK Development, Keith Plummer name, and keith@jbkdevelopment.com have been removed from all user-facing surfaces as of Deploy 1+2 on 2026-03-12. Lead notifications now route to info@civicscope.io.
-
-## API Pattern — IMPORTANT
-All api/*.js files use raw fetch to Supabase REST API. Do NOT use @supabase/supabase-js.
-api/claude.js is a pure passthrough to Anthropic — prompts are built client-side.
-api/schedule-notify.js uses raw fetch to Resend API (same pattern).
+---
 
 ## Routing (vercel.json)
-- Literal rewrites for internal tools (e.g., /gc/acme-internal) ABOVE wildcard :slug
-- `/pro` → `pro/index.html`
-- `/ryc/schedule` → `ryc-schedule/index.html`
-- :slug wildcard LAST
+- Literal rewrites ABOVE wildcard :slug
+- /pro → pro/index.html
+- /ryc/schedule → ryc-schedule/index.html
 - /admin, /qa are literal rewrites
+- :slug wildcard LAST
 
-## Backlog
-- **RYC GC Tenant Onboarding**: Set up RYC as first real tenant in CivicScope GC white-label (slug, branding, notify_email, etc.)
-- **Scheduler Supabase Persistence**: Move scheduler data from localStorage to Supabase table so data syncs across browsers
-- **Fix PS1 vercel.json Regex**: push_ryc_schedule.ps1 auto-injection of route failed — regex doesn't match actual vercel.json format
-- **RYC has Procore** ($100k/year) but barely uses it. Does NOT have Workforce Planning module — only Equipment under Resource Management.
+---
 
-## Preferences
-- Concise, direct communication
-- Prefers structured testing/validation
-- Values pricing consistency across product versions
-- **CLAUDE.md always stays current**: Cowork updates both local (C:\Users\kmplu\Cowork\CLAUDE.md)
-  and GitHub at the end of every session that changes versions, workflow, or architecture.
+## Deploy Workflow
+1. Edit files locally in Cowork\Civicscope\
+2. Run PUSH_CIVICSCOPE.bat — pushes product HTML + api/*.js
+3. Run PUSH_RYC_SCHEDULE.bat separately for RYC scheduler only
+4. CLAUDE.md pushed separately via GitHub Contents API PUT
+5. Validate at app.civicscope.io/qa after deploy
 
-## Deep Reference
-See memory/ directory for: glossary, project details, company structure, Supabase schemas, email flows
+## Key Points
+- Sandbox (START_SANDBOX.bat → localhost:8888) — retain for risky changes only
+- RYC Scheduler deploy is isolated — zero risk to civicscope.io
+- Acme = demo tenant only, never modify
+- RYC = first real GC tenant (onboarding deferred to backlog)
+
+---
+
+## Active Backlog — Campaign Launch (Priority)
+1. ~~Fix report email timeline~~ — **DONE** (March 24) — `timeline` wasn't destructured/passed in email.js
+2. ~~Fix broken layout below gate form~~ — **DONE** (March 24) — undefined CSS vars + missing `display:block` override
+3. ~~Add post-form CTA~~ — **DONE** (March 24) — Pro upsell + info@civicscope.io contact line
+4. ~~Instant notification on campaign runs~~ — **Rolled into daily digest** — no separate notification needed
+5. ~~Daily digest email~~ — **DONE** (March 24) — `api/digest.js` + Vercel cron at 7am ET, `CRON_SECRET` env var set. Quiet day email added March 26 (sends "no activity" message instead of skipping).
+6. ~~**Campaign email copy**~~ — **DONE** (March 26) — A/B test wired: Variant A (punchy/direct), Variant B (credibility-led). Plain text, from `keith@civicscope.io`, signed "Keith / CivicScope". Variant tagged on each send record via `notes` field. Test send action added (`action: test_send`).
+7. ~~**Send first campaign batch**~~ — **DONE** (April 1) — all 151 commissioner emails sent. **First campaign-attributed tool run: April 2, 2026** — Wabash County commissioner clicked ref link, ran Municipal Office / Town Hall rehab ($45K–$85K, basement water damage). Three commissioners received the email (Tyler Niccum, Jeff Dawes, Cheryl Ross — all Variant A/B). Real project, not a test.
+8. ~~**SEO overhaul**~~ — **DONE** (March 28) — Landing page v2.0.0: title, meta description, OG tags, canonical, JSON-LD SoftwareApplication. Free tool: noindex + canonical to civicscope.io. 5 new project-type SEO landing pages (fire station, public works garage, community center, splash pad, salt shed) with FAQPage schema, body copy, CTAs. Internal linking from landing page. og-image.svg/png deployed. vercel.json + push script updated. **GSC fix (March 29):** All canonical, og:url, og:image urls standardized to `www.civicscope.io` (was non-www, conflicting with Vercel 307 redirect). `/index.html` → `/` 301 redirect added to vercel.json. All 10 HTML files + nav links updated. Deployed.
+9. **Facebook Ads pixel** — Need to create a CivicScope-specific Meta Pixel in Business Manager (separate from MTP/AAN pixel). Implementation plan ready at `Civicscope/FB_AD_IMPLEMENTATION_PLAN.md`.
+10. ~~**Municipal contact build**~~ — **DONE** (April 4) — Full distribution list built for CivicScope outreach beyond commissioners. 276 active contacts tagged `cs-campaign-municipal` across 49 IN+MI counties. 161 with verified email (58%). 345 new company records (cities, towns, villages, departments). 65 stale contacts flagged and removed from campaign. Import scripts at `CRM\scripts\pilot-import\` and `CRM\scripts\full-import\`. Enrichment notes at `CRM\scripts\email-enrichment\`.
+11. ~~**CRM CS module restructured**~~ — **DONE** (April 5) — Full restructure: 4-item sidebar (Dashboard, Campaigns, Templates, Leads). Campaign entity model with multi-touch support (`cs_campaigns` table, `campaign_id` + `touch_number` on sends). Named campaigns ("IN Commissioners", "Northern Indiana + SW Michigan Municipal"). Template picker on Send Batch with A/B selection. Engagement-first sort. Seed Audience with role auto-detection. Add/remove contacts per campaign. Delete campaign. CS pill persists on refresh. CRM v1.11.0. Full spec: `Civicscope/CS_MODULE_RESTRUCTURE.md`.
+12. **Municipal campaign — Touch 1 in progress** — "Northern Indiana + SW Michigan Municipal" campaign created, 168 contacts seeded. Batch 1 (50) sent April 5. 118 pending. Templates: "Credibility Angle" (A) + "Permission Angle" (B). One auto-reply received (Holly Taylor, Valparaiso — inbox delivery confirmed, `[Suspicious URL]` flag is Valpo's email gateway, not Gmail).
+13. **Commissioner campaign — Touch 2 in progress** — "Commissioner Touch 2 — Number Before the Vote" template created. Batch 1 (50) sent April 5. 101 pending. Single template (no A/B split).
+14. **CS Campaign: Future touches** — write follow-up copy for commissioners Touch 3 and municipal Touch 2. Monitor engagement on Touch 2 sends. Consider `/try/{slug}` redirect on civicscope.io to reduce suspicious URL flags from municipal email gateways.
+15. **IEDA Partners campaign — Touch 1 ready to send (April 20, 2026)** — Full IEDA directory imported into CRM: 237 new companies + 17 enriched (IN municipalities/EDCs already in CRM got county/notes/metadata backfilled). 380 new contacts + 9 enriched. Related parties filtered (R. Yoder Construction, JBK Development, Mike Miller, Keith Plummer). "IEDA Partners" campaign created in `cs_campaigns` (id `500aa3b7-330b-44b4-aa1c-6dee698d07f6`), 388 pending sends seeded at Touch 1 with `campaign_type: ieda-partner`. Ref slugs scoped to the IEDA member org (`ieda-dc-develop`, `ieda-baker-tilly-...`) so click attribution rolls up per firm. Single-variant template "IEDA Partners — Share Angle" (subject: *A cost reality check you can hand to your local officials*) active in `cs_email_templates`. **Resend Free tier is the binding constraint — 100/day cap, 3,000/mo** (confirmed via April 5–7 quota-warning emails during prior batches). Plan IEDA sends across ≥4 days or share quota with other active campaigns. Scripts: `CRM/scripts/ieda-import.js` (handles both companies/contacts, `SKIP_COMPANY_NAMES` list at top), `CRM/scripts/ieda-campaign-seed.js`. CSVs moved to `CRM/work product/imported/`.
+
+## Active Backlog — Product
+7. ~~**CS service_role rotation**~~ — **DONE (April 23, 2026)** — full rotation closed. Timeline:
+   - April 22: Built `api/admin.js` server-side proxy for tenant writes, gated by `x-admin-secret` / `CIVICSCOPE_ADMIN_SECRET`. Removed hardcoded `SUPABASE_SVC` from `civicscope-admin/index.html`. Migrated Vercel `SUPABASE_SERVICE_KEY` to new `sb_secret_*` key.
+   - April 23: Swapped legacy anon JWT on line 655 of `civicscope-admin/index.html` to `sb_publishable_*`. Pushed, tested reads + writes. Revoked the legacy HS256 shared secret in Supabase → JWT Keys → Previously Used Keys. Compromised `eyJ...Im4` service_role JWT is now dead. Supabase audit logs spot-checked for the 6-week exposure window (March 8 – April 22) — no anomalies. GitHub secret scanning alert marked as Revoked.
+   - Admin writes go through `/api/admin` proxy with `sb_secret_*` server-side; client-side reads use `sb_publishable_*`. No JWTs remain anywhere in the Civicscope repo.
+8. RYC GC Tenant Onboarding — set up RYC as first real tenant in GC white-label
+9. Scheduler Supabase Persistence — move localStorage data to Supabase table
+10. Fix PS1 vercel.json Regex — push_ryc_schedule.ps1 route injection failed; fixed manually on GitHub
+11. ~~**Procore creds hardcoded in ryc-schedule-tasks.js**~~ — **RESOLVED** (April 10) — Procore detected exposed client secret in GitHub, forced rotation. Hardcoded creds replaced with `process.env.PROCORE_CLIENT_ID` / `process.env.PROCORE_CLIENT_SECRET`. Vercel env vars updated with new secret. Pushed to GitHub.
+12. **Move daily digest cron to VM** — Vercel Hobby cron is unreliable (missed April 9-10 digests). Move to VM cron as a `curl` trigger, same pattern as bookmarks pipeline. Part of broader daily-email framework (see project memory `project_vm_cron_framework.md`).
+
+## Recent Changes (April 7, 2026)
+- **Free v2.1.0 + Pro v2.10.0 — Report email + in-experience overhaul:**
+  - **Email: Delivery Path section** — new side-by-side cards (Traditional Design-Bid-Build vs Recommended BOT/P3 with GMP) inserted between Key Assumptions and Timeline.
+  - **Email: Board or Council Briefing** — replaced old "Council Briefing Guide" (scripted opening line + Q&A pairs) with 3 fixed talking points + recommended ask. Still conditional on `briefingHtml`.
+  - **Email: What to Do Next** — new 3-step section (validate range, consider delivery path, talk through numbers) with numbered orange circles. Inserted after briefing, before footer CTA.
+  - **Email: Section reorder** — Cost → Assessment → Assumptions → Delivery Path → Timeline → Board or Council Briefing → What to Do Next → Footer CTA.
+  - **In-experience: `renderBriefing()` stripped** — removed Opening Line and Likely Council Questions & Suggested Answers blocks from both Free and Pro. Keeps Key Talking Points (AI-generated) and Recommended Ask.
+  - **In-experience: Heading renamed** — "Council Briefing Guide" → "Board or Council Briefing" with updated subtitle.
+  - **In-experience: Sidebar updated** — "Council briefing guide — AI-drafted talking points" → "Board or council briefing — talking points and recommended ask" (Free). Pro sidebar and feature pill updated similarly.
+  - **Admin version cards updated** — Free v1.8.0 → v2.1.0, Pro v2.7.0 → v2.10.0.
+- **GC Internal v1.5.0 — Batch upload for large plan sets** — removed 20-page PDF cap. Large documents are now automatically split into batches of ~10 pages each. Batch 1 gets the full estimator prompt; subsequent batches extract supplemental details; a final consolidation call merges everything into one unified estimate. 15-second delays between batches to respect Anthropic API rate limits (30K input tokens/min). Auto-retry on 429 with 30s backoff. Loading bar shows batch progress throughout. A 57-page plan set runs in ~3-4 minutes across 6-7 batches.
+
+## Recent Changes (March 31, 2026)
+- **Free v2.0.0 + Pro v2.9.0 — Results page redesign** — major UI overhaul on both Free and Pro tools:
+  - **Utilities input simplified** — 4 checkboxes replaced with Yes/No toggle buttons. Required field, no default.
+  - **Cost hero bar** — dark full-width bar at top of results with cost range + realistic timeline side-by-side. Confidence line below.
+  - **Results body** — narrative, delivery cards, and assumption chips in a single connected card below the hero bar.
+  - **Delivery path comparison** — side-by-side cards: Traditional (Design-Bid-Build) vs Recommended (BOT/P3). BOT card has orange border, "Recommended path" eyebrow, and lead bullet: "You select your team based on qualifications and trust — not lowest bid." Indiana/Michigan law reference.
+  - **Assumption chips** — 2-column grid of styled chips replacing bullet list.
+  - **Sidebar collapse** — right-rail explainer panels hide when results display, grid collapses to full-width. Restores on re-run.
+  - **"What to Do" step 3 removed** — "Get a formal opinion of probable cost" step cut (was sending users to architects before engaging with CivicScope).
+  - **Old procurement block removed** — replaced by delivery cards inside results body.
+  - **Timeline in hero bar** — Free: total from Claude response. Pro: populated when timeline API call completes.
+  - Backup files at `civicscope/index.html.bak-2026-03-31` and `civicscope-pro/index.html.bak-2026-03-31`.
+
+## Recent Changes (March 24, 2026)
+- **Ref tracking** — `?ref=` URL parameter captured on tool_runs for campaign attribution. Added `ref` column to Supabase `tool_runs` table, wired through `api/log.js` and `civicscope/index.html`. Tested and confirmed working.
+- **Report email timeline fix** — `timeline` field was not destructured from request data in `api/email.js`; now passes through to `buildReportEmail()` and renders in the email.
+- **Layout fix** — `.cta-block.next-steps` had undefined CSS vars (`--bg-alt`, `--border`) replaced with `--cream-dark`, `--rule`; added `display:block` to override parent flex layout.
+- **Post-form CTA** — hidden block revealed after gate submission: Pro upsell + info@civicscope.io contact line.
+- **Daily digest** — `api/digest.js` sends daily summary (runs, leads, campaign tracking by ref) at 7am ET via Vercel cron. `CRON_SECRET` env var required. Sends "quiet day" email when no activity (updated March 26).
+- **Messaging overhaul** — Landing page hero: "Get a cost range on any municipal project in 30 seconds." Free tool: "You've got a project idea. Let's see if the budget holds up." Bridge sentence above THE PROBLEM section. Landing v1.2.0, Free v1.9.1.
+- **Pro early access form** — swapped from dead Formspree to Resend via `api/email.js` `pro_capture` action.
+- **Contact CTA** — "Want to talk?" line added to report email footer and landing page Get Started section.
+- **Push script updated** — `push_civicscope.ps1` now includes `api/log.js` and `api/digest.js`
+
+---
+
+## Recent Changes (March 2026)
+- Free v1.9.0 / Pro v2.8.0: Removed JBK CTA block; added "What to Do Next" 4-step list, neutral delivery path comparison, timeline tease, Pro nudge
+- GC External v1.6.0-gc: New/Renovation toggle, expanded project types, sq footage field, file upload + Claude Vision
+- Email routing: All lead notifications → info@civicscope.io; JBK references removed
+- RYC Scheduler v1.0.0: Built and deployed
+
+---
+
+## Key Learnings
+- Cloudflare Email Address Obfuscation rewrites mailto: links at CDN layer — workaround is data-cfEmail="" on anchor. Moot since JBK CTA removed in v1.9.0.
+- api/claude.js is pure passthrough — never modify it to inject prompts server-side
