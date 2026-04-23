@@ -649,20 +649,35 @@
 
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────
-const PASSPHRASE     = 'cs24';       // ← change this
+// Service-role key removed — writes now go through /api/admin, gated by
+// CIVICSCOPE_ADMIN_SECRET (set in Vercel env vars). Reads use anon key.
 const SUPABASE_URL   = 'https://tyvtmqzaydrbjwzvjoei.supabase.co';
-const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dnRtcXpheWRyYmp3enZqb2VpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NDUxMzgsImV4cCI6MjA4ODQyMTEzOH0.YiA4_Oms3Tod2U6NZX74tP92OzrOZZueULCeVRnsIm4'; // ← fill in
-const SUPABASE_SVC   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dnRtcXpheWRyYmp3enZqb2VpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjg0NTEzOCwiZXhwIjoyMDg4NDIxMTM4fQ.SYTKZmis3XPQtIJYbmeOyx7Ldz7Ebe-c6t6q55g0KDY'; // ← fill in (needed to write tenants)
+const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dnRtcXpheWRyYmp3enZqb2VpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NDUxMzgsImV4cCI6MjA4ODQyMTEzOH0.YiA4_Oms3Tod2U6NZX74tP92OzrOZZueULCeVRnsIm4';
 
 // ── AUTH ─────────────────────────────────────────────────────────
-function checkAuth() {
-  if (document.getElementById('pass-input').value === PASSPHRASE) {
-    document.getElementById('auth-gate').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    loadAll();
-  } else {
-    document.getElementById('auth-err').textContent = 'incorrect passphrase';
-    document.getElementById('pass-input').value = '';
+// Passphrase is validated server-side against CIVICSCOPE_ADMIN_SECRET.
+// On success, it is held in sessionStorage and sent as x-admin-secret
+// on every write call to /api/admin.
+async function checkAuth() {
+  const secret = document.getElementById('pass-input').value;
+  document.getElementById('auth-err').textContent = '';
+  try {
+    const r = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+      body: JSON.stringify({ action: 'auth_check' })
+    });
+    if (r.status === 200) {
+      sessionStorage.setItem('cs_admin_secret', secret);
+      document.getElementById('auth-gate').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      loadAll();
+    } else {
+      document.getElementById('auth-err').textContent = 'incorrect passphrase';
+      document.getElementById('pass-input').value = '';
+    }
+  } catch (err) {
+    document.getElementById('auth-err').textContent = 'auth check failed';
   }
 }
 document.getElementById('pass-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkAuth(); });
@@ -685,19 +700,12 @@ async function sbRead(path) {
 }
 
 async function sbWrite(table, body, id = null) {
-  const url = id
-    ? `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`
-    : `${SUPABASE_URL}/rest/v1/${table}`;
-  const method = id ? 'PATCH' : 'POST';
-  const r = await fetch(url, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_SVC,
-      'Authorization': `Bearer ${SUPABASE_SVC}`,
-      'Prefer': 'return=representation'
-    },
-    body: JSON.stringify(body)
+  const secret = sessionStorage.getItem('cs_admin_secret');
+  if (!secret) throw new Error('Not authenticated');
+  const r = await fetch('/api/admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+    body: JSON.stringify({ action: 'write', table, body, id })
   });
   if (!r.ok) { const t = await r.text(); throw new Error(t); }
   return r.json();
