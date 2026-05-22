@@ -7,6 +7,7 @@
   ],
   "rewrites": [
     { "source": "/try/:slug", "destination": "/api/try?slug=:slug" },
+    { "source": "/unsubscribe", "destination": "/api/unsubscribe" },
     { "source": "/admin", "destination": "/civicscope-admin/index.html" },
     { "source": "/pro",   "destination": "/pro/index.html" },
     { "source": "/ryc/dashboard", "destination": "/ryc-dashboard/index.html" },
