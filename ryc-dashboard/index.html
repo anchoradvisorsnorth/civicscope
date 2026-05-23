@@ -18,6 +18,7 @@
   /* Lock screen */
   #lock-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 1000; }
   .lock-box { background: var(--surface); border-radius: 12px; padding: 48px 40px; text-align: center; width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+  .lock-box img.lock-logo { height: 64px; width: auto; margin-bottom: 18px; }
   .lock-box h2 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
   .lock-box .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
   .lock-box input { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; background: var(--bg); }
@@ -28,6 +29,8 @@
   /* App */
   #app { display: none; max-width: 1320px; margin: 0 auto; padding: 28px; }
   header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  header .brand { display: flex; align-items: center; gap: 14px; }
+  header .brand img { height: 44px; width: auto; display: block; }
   header h1 { font-size: 22px; font-weight: 600; }
   header .meta { font-size: 12px; color: var(--muted); }
   .refresh-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--surface); cursor: pointer; margin-left: 8px; }
@@ -154,6 +157,7 @@
 
 <div id="lock-screen">
   <div class="lock-box">
+    <img class="lock-logo" src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
     <h2>RYC Portfolio Dashboard</h2>
     <div class="subtitle">R. Yoder Construction</div>
     <input type="password" id="pw-input" placeholder="Password" autofocus>
@@ -164,7 +168,10 @@
 
 <div id="app">
   <header>
-    <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.8.0-ryc-dashboard</div></div>
+    <div class="brand">
+      <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.8.1-ryc-dashboard</div></div>
+    </div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
       <button class="refresh-btn" id="btn-refresh" onclick="triggerRefresh()">Refresh Procore</button>
@@ -216,7 +223,7 @@
   </div>
 
   <div class="footer">
-    v1.8.0-ryc-dashboard — Data from Procore<br>
+    v1.8.1-ryc-dashboard — Data from Procore<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
