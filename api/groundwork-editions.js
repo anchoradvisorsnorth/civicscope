@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     // Single edition by issue_number — full payload (body_html included)
     if (number) {
       const rows = await sb(
-        `civic_issues?issue_number=eq.${encodeURIComponent(number)}&select=id,issue_number,issue_date,subject,preview_text,body_html,body_text,status,sent_at`
+        `civic_issues?issue_number=eq.${encodeURIComponent(number)}&select=id,issue_number,issue_date,subject,preview_text,body_html,body_text,status,send_completed_at`
       );
       if (!rows || rows.length === 0) return res.status(404).json({ error: 'Edition not found' });
       return res.json(rows[0]);
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     // Single edition by uuid
     if (id) {
       const rows = await sb(
-        `civic_issues?id=eq.${encodeURIComponent(id)}&select=id,issue_number,issue_date,subject,preview_text,body_html,body_text,status,sent_at`
+        `civic_issues?id=eq.${encodeURIComponent(id)}&select=id,issue_number,issue_date,subject,preview_text,body_html,body_text,status,send_completed_at`
       );
       if (!rows || rows.length === 0) return res.status(404).json({ error: 'Edition not found' });
       return res.json(rows[0]);
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
     const statusFilter = status ? `&status=eq.${encodeURIComponent(status)}` : '&status=eq.sent';
     const safeLimit = Math.min(parseInt(limit, 10) || 20, 100);
     const rows = await sb(
-      `civic_issues?select=id,issue_number,issue_date,subject,preview_text,status,sent_at${statusFilter}&order=issue_number.desc&limit=${safeLimit}`
+      `civic_issues?select=id,issue_number,issue_date,subject,preview_text,status,send_completed_at${statusFilter}&order=issue_number.desc&limit=${safeLimit}`
     );
     return res.json(rows || []);
   } catch (err) {
