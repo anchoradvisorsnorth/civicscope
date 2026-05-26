@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Groundwork — A weekly briefing on civic development in greater Michiana</title>
+<meta name="description" content="A weekly Tuesday-morning newsletter covering development, civic votes, and what's getting built across Michiana. By CivicScope.">
+<link rel="canonical" href="https://groundwork.civicscope.io/">
+<meta property="og:title" content="Groundwork — Civic development in greater Michiana">
+<meta property="og:description" content="A weekly Tuesday-morning briefing on what's getting built, voted on, and proposed across Michiana. By CivicScope.">
+<meta property="og:url" content="https://groundwork.civicscope.io/">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --paper: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #666;
+    --rule: #e5e3da;
+    --accent: #a04e2e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 32px 24px; }
+  header.site {
+    border-bottom: 3px solid var(--ink);
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+  }
+  .kicker {
+    font-size: 11px;
+    letter-spacing: 1.8px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  h1.brand {
+    font-family: 'Lora', Georgia, serif;
+    font-weight: 700;
+    font-size: 44px;
+    line-height: 1.05;
+    letter-spacing: -0.5px;
+    margin: 0;
+  }
+  .tagline {
+    font-size: 17px;
+    color: #333;
+    margin: 14px 0 0;
+    max-width: 580px;
+  }
+  .tagline a { color: var(--accent); text-decoration: none; border-bottom: 1px solid currentColor; }
+
+  section.signup {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 24px;
+    margin-bottom: 40px;
+    border-radius: 6px;
+  }
+  section.signup h2 {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 22px;
+    margin: 0 0 6px;
+    font-weight: 600;
+  }
+  section.signup p { margin: 0 0 16px; color: var(--muted); font-size: 15px; }
+  form.signup-form {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  form.signup-form input[type="email"] {
+    flex: 1;
+    min-width: 240px;
+    padding: 12px 14px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font-size: 15px;
+    font-family: inherit;
+  }
+  form.signup-form input[type="email"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  form.signup-form button {
+    padding: 12px 22px;
+    background: var(--ink);
+    color: white;
+    border: 0;
+    border-radius: 4px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  form.signup-form button:hover { background: var(--accent); }
+  form.signup-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .signup-status { margin-top: 12px; font-size: 14px; }
+  .signup-status.ok { color: #2d6a31; }
+  .signup-status.err { color: #b03030; }
+
+  section.editions h2 {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 14px;
+    letter-spacing: 1.8px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+  .edition-list { display: flex; flex-direction: column; gap: 0; }
+  .edition-card {
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    padding: 20px 0;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+  .edition-card:first-child { border-top: 1px solid var(--rule); }
+  .edition-card:hover { background: #fafaf6; }
+  .edition-card .date { font-size: 12px; color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 4px; }
+  .edition-card .subject {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+  .edition-card .preview { font-size: 14px; color: #444; margin: 0; }
+  .empty { padding: 40px 0; text-align: center; color: var(--muted); font-style: italic; }
+
+  footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="site">
+    <div class="kicker">Groundwork · by CivicScope</div>
+    <h1 class="brand">Groundwork</h1>
+    <p class="tagline">A weekly Tuesday-morning briefing on what's getting built, voted on, and proposed across greater Michiana. By <a href="https://civicscope.io">CivicScope</a>.</p>
+  </header>
+
+  <section class="signup">
+    <h2>Get it in your inbox.</h2>
+    <p>One email, every Tuesday morning. Free. Unsubscribe in one click.</p>
+    <form class="signup-form" id="signup-form" autocomplete="on">
+      <input type="email" name="email" placeholder="you@example.com" required autocomplete="email">
+      <button type="submit">Subscribe</button>
+    </form>
+    <div class="signup-status" id="signup-status" hidden></div>
+  </section>
+
+  <section class="editions">
+    <h2>Recent Editions</h2>
+    <div class="edition-list" id="edition-list">
+      <div class="empty">Loading…</div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Groundwork is produced by <a href="https://civicscope.io">CivicScope</a>. <a href="/unsubscribe">Unsubscribe</a> · <a href="https://civicscope.io">civicscope.io</a></p>
+  </footer>
+</div>
+
+<script>
+const prettyDate = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+async function loadEditions() {
+  const list = document.getElementById('edition-list');
+  try {
+    const r = await fetch('/api/groundwork-editions?status=sent&limit=20');
+    const data = await r.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      list.innerHTML = '<div class="empty">No editions published yet. Subscribe to get the first one.</div>';
+      return;
+    }
+    list.innerHTML = data.map(e => `
+      <a class="edition-card" href="/editions/${e.issue_number}">
+        <div class="date">${prettyDate(e.issue_date)} · Edition #${e.issue_number}</div>
+        <div class="subject">${e.subject.replace(/</g, '&lt;')}</div>
+        <div class="preview">${(e.preview_text || '').replace(/</g, '&lt;')}</div>
+      </a>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = '<div class="empty">Couldn\'t load editions. Try again in a moment.</div>';
+  }
+}
+
+document.getElementById('signup-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const btn = form.querySelector('button');
+  const status = document.getElementById('signup-status');
+  const email = form.email.value.trim();
+  btn.disabled = true; btn.textContent = 'Subscribing…';
+  status.hidden = true;
+  try {
+    const r = await fetch('/api/groundwork-subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, source: 'signup_page' }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Subscription failed');
+    status.className = 'signup-status ok';
+    status.textContent = data.message || "Done — you're on the list. See you Tuesday.";
+    status.hidden = false;
+    form.email.value = '';
+  } catch (err) {
+    status.className = 'signup-status err';
+    status.textContent = err.message;
+    status.hidden = false;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Subscribe';
+  }
+});
+
+loadEditions();
+</script>
+</body>
+</html>
