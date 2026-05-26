@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Groundwork — Edition</title>
+<meta name="description" content="A weekly briefing on civic development in greater Michiana — by CivicScope.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f6f5f1; --paper: #ffffff; --ink: #1a1a1a; --muted: #666; --rule: #e5e3da; --accent: #a04e2e; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0 20px; border-bottom: 1px solid var(--rule); margin-bottom: 0;
+  }
+  .topbar .brand-link {
+    font-family: 'Lora', Georgia, serif; font-weight: 700; font-size: 20px;
+    color: var(--ink); text-decoration: none;
+  }
+  .topbar .brand-link span.kicker {
+    font-family: 'Inter', sans-serif; font-weight: 400; font-size: 11px;
+    letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase;
+    display: block; margin-bottom: 2px;
+  }
+  .topbar a.cta {
+    color: var(--accent); text-decoration: none; font-weight: 600; font-size: 14px;
+    padding: 8px 16px; border: 1px solid var(--accent); border-radius: 4px;
+  }
+  .topbar a.cta:hover { background: var(--accent); color: white; }
+  .edition-body {
+    background: var(--paper);
+    margin-top: 0;
+  }
+  /* The injected body_html already contains its own .container at max-width:640px.
+     Strip its outer wrapper margins so it nests cleanly. */
+  .edition-body > div { margin: 0 auto; }
+  .loading, .error {
+    text-align: center; padding: 80px 24px; color: var(--muted);
+  }
+  .footer-cta {
+    background: var(--paper); border-top: 1px solid var(--rule);
+    padding: 32px 24px; margin-top: 0; text-align: center;
+  }
+  .footer-cta p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  .footer-cta a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .footer-cta a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <a class="brand-link" href="/">
+      <span class="kicker">Groundwork · by CivicScope</span>
+      All editions
+    </a>
+    <a class="cta" href="/#subscribe">Subscribe</a>
+  </div>
+
+  <div class="edition-body" id="edition-body">
+    <div class="loading">Loading edition…</div>
+  </div>
+
+  <div class="footer-cta">
+    <p>Groundwork is a free weekly newsletter on civic development across greater Michiana.</p>
+    <p><a href="/">← All editions</a> · <a href="/#subscribe">Subscribe</a></p>
+  </div>
+</div>
+
+<script>
+async function loadEdition() {
+  const body = document.getElementById('edition-body');
+  // Extract edition number from URL path (/editions/N)
+  const match = window.location.pathname.match(/\/editions\/(\d+)/);
+  const n = match ? match[1] : new URLSearchParams(window.location.search).get('n');
+  if (!n) {
+    body.innerHTML = '<div class="error">No edition specified.</div>';
+    return;
+  }
+  try {
+    const r = await fetch(`/api/groundwork-editions?number=${encodeURIComponent(n)}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (!data || !data.body_html) {
+      body.innerHTML = '<div class="error">Edition not found.</div>';
+      return;
+    }
+    document.title = `${data.subject} · Groundwork`;
+    body.innerHTML = data.body_html;
+  } catch (err) {
+    body.innerHTML = '<div class="error">Couldn\'t load this edition.</div>';
+  }
+}
+loadEdition();
+</script>
+</body>
+</html>

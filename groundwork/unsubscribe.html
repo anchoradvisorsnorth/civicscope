@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unsubscribe · Groundwork</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f6f5f1; --paper: #ffffff; --ink: #1a1a1a; --muted: #666; --rule: #e5e3da; --accent: #a04e2e; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Inter', sans-serif; line-height: 1.55; }
+  .container { max-width: 520px; margin: 80px auto; padding: 40px 32px; background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; }
+  h1 { font-family: 'Lora', Georgia, serif; font-size: 28px; margin: 0 0 16px; }
+  .kicker { font-size: 11px; letter-spacing: 1.8px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  p { color: #333; }
+  button { padding: 12px 22px; background: var(--ink); color: white; border: 0; border-radius: 4px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  button:hover { background: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  a { color: var(--accent); }
+  .status { padding: 16px; background: #fafaf6; border-radius: 4px; margin-top: 16px; }
+  .status.ok { color: #2d6a31; }
+  .status.err { color: #b03030; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="kicker">Groundwork · by CivicScope</div>
+  <h1>Unsubscribe</h1>
+  <p id="prompt">One-click unsubscribe from Groundwork. You'll stop receiving the Tuesday email immediately.</p>
+  <div id="action">
+    <button id="confirm-btn">Yes, unsubscribe me</button>
+  </div>
+  <div class="status" id="status" hidden></div>
+  <p style="margin-top:32px;font-size:13px;color:#666;"><a href="/">← Back to Groundwork</a></p>
+</div>
+<script>
+const id = new URLSearchParams(window.location.search).get('id');
+const prompt = document.getElementById('prompt');
+const action = document.getElementById('action');
+const status = document.getElementById('status');
+
+if (!id) {
+  prompt.textContent = "No subscriber ID was provided in the link. If you're trying to unsubscribe, use the link in the bottom of any Groundwork email.";
+  action.style.display = 'none';
+} else {
+  document.getElementById('confirm-btn').addEventListener('click', async (e) => {
+    const btn = e.target;
+    btn.disabled = true;
+    btn.textContent = 'Unsubscribing…';
+    try {
+      const r = await fetch('/api/groundwork-unsubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Could not unsubscribe');
+      status.className = 'status ok';
+      status.textContent = data.message || "Done — you've been removed from the list.";
+      status.hidden = false;
+      action.style.display = 'none';
+    } catch (err) {
+      status.className = 'status err';
+      status.textContent = err.message;
+      status.hidden = false;
+      btn.disabled = false;
+      btn.textContent = 'Yes, unsubscribe me';
+    }
+  });
+}
+</script>
+</body>
+</html>

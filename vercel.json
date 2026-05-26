@@ -6,6 +6,9 @@
     { "source": "/index.html", "destination": "/", "statusCode": 301 }
   ],
   "rewrites": [
+    { "source": "/", "destination": "/groundwork/index.html", "has": [{ "type": "host", "value": "groundwork.civicscope.io" }] },
+    { "source": "/editions/:n", "destination": "/groundwork/edition.html?n=:n", "has": [{ "type": "host", "value": "groundwork.civicscope.io" }] },
+    { "source": "/unsubscribe", "destination": "/groundwork/unsubscribe.html", "has": [{ "type": "host", "value": "groundwork.civicscope.io" }] },
     { "source": "/try/:slug", "destination": "/api/try?slug=:slug" },
     { "source": "/unsubscribe", "destination": "/api/unsubscribe" },
     { "source": "/admin", "destination": "/civicscope-admin/index.html" },
