@@ -8,6 +8,8 @@
 AI-powered municipal construction cost feasibility tool. Four product versions serving different audiences, all powered by the same Anthropic API proxy. Standalone SaaS — no JBK branding anywhere.
 
 **Repo:** anchoradvisorsnorth/civicscope
+
+> **New product — Groundwork newsletter (built May 26, 2026):** Weekly (Tuesday AM) CivicScope-branded civic-development newsletter for greater Michiana — CivicScope's top-of-funnel + authority engine. **v1 fully built and deployed at [groundwork.civicscope.io](https://groundwork.civicscope.io).** Pipeline: collectors → extractor → assembler → web archive. Edition #1 in `civic_issues`. Remaining work: Resend send wiring, VM cron, PDF fallback for packets, Cost Lens integration. See **Groundwork architecture** section below.
 **Hosting:** Vercel (auto-deploy from GitHub)
 **DB:** Supabase — raw fetch only, NEVER @supabase/supabase-js
 **Email:** Resend from info@civicscope.io
@@ -83,6 +85,68 @@ brand_statement, brand_values (jsonb array)
 - RYC Scheduler deploy is isolated — zero risk to civicscope.io
 - Acme = demo tenant only, never modify
 - RYC = first real GC tenant (onboarding deferred to backlog)
+
+---
+
+## Open Action Items
+
+Forward-looking action queue. Source of truth for the CRM dashboard's "Across All Businesses → CivicScope" card. Curated at `/wrap`. Done items are removed, not strikethroughed — historical context lives in the `## Active Backlog` sections below.
+
+- **Finish in-flight campaign sends** — 51 Commissioner T3 pending + 17 Municipal T2 pending. Resend is on Pro now (no daily cap); pacing is for .gov inbox reputation, not quota.
+- **Build next campaign informed by funnel data** — let the post-instrumentation funnel report read first (Delivered → /try click → tool_run). Candidates: IEDA Touch 2 (warmest), Municipal Touch 3, net-new segments (superintendents, additional counties). Every new campaign changes a variable.
+- **CAN-SPAM postal address** — add physical mailing address line to the opt-out footer. Legally required, not yet present. Needs the CivicScope/AAN business mailing address.
+- **Groundwork — Resend send wiring** — actual newsletter delivery via Resend (`/api/groundwork-send.js` + `civic_issue_sends` updates). Until built, editions are draft-only.
+- **Groundwork — VM cron** — daily run of all 7 collectors + weekly Tuesday assembler. Same pattern as bookmarks pipeline. Currently all manual.
+- **Groundwork — PDF fallback for Mishawaka packets** — server text endpoint returns empty for the 28MB Agenda Packet PDFs; need pdftotext-based fallback to capture the rich content for Cost Lens.
+- **Groundwork — Cost Lens integration** — wire `civic_projects.cost_lens_run_id` to an actual CivicScope estimate (run /civicscope on a project, store the run_id, surface the result in the Cost Lens section).
+- **Groundwork — project tracker polish** — current fuzzy name match misses some touchpoint dedup (e.g., McKinley redevelopment appeared as 2 projects). LLM-based canonical name resolution or address-keyed dedup.
+- **Facebook Ads pixel** — create a CivicScope-specific Meta Pixel in Business Manager (separate from MTP/AAN pixel). Implementation plan at `Civicscope/FB_AD_IMPLEMENTATION_PLAN.md`.
+- **Move daily digest cron to VM** — Vercel Hobby cron is unreliable (missed April 9-10 digests). Move to VM cron as a `curl` trigger, same pattern as bookmarks pipeline.
+- **RYC GC Tenant Onboarding** — set up RYC as first real tenant in GC white-label.
+
+---
+
+## Groundwork — Architecture (built 2026-05-26)
+
+Weekly newsletter at **groundwork.civicscope.io** covering civic development in greater Michiana. CivicScope-branded sub-product, separate subscriber list, reuses Resend Pro infra.
+
+**Data flow:** sources → collectors → `civic_raw` → extractor → `civic_items` + `civic_projects` → assembler → `civic_issues` → web archive + (eventually) Resend send → `civic_issue_sends` + `civic_clicks`.
+
+**Supabase tables** (CivicScope project — schema in [schema_civic.sql](schema_civic.sql), run 2026-05-26):
+- `civic_sources` — fetch registry (8 seeded: South Bend, Mishawaka, Cass MI, Berrien MI, Goshen, WSBT, Watershed Voice, Inside IN [paused])
+- `civic_raw` — fetched docs deduped by sha256 content_hash
+- `civic_projects` — tracked entity across touchpoints; has `cost_lens_run_id` FK to `tool_runs`
+- `civic_items` — structured dev actions extracted from raw
+- `civic_subscribers` — Groundwork list (separate from CRM contacts), single-opt-in for v1
+- `civic_issues` — weekly issue rows with `body_html` + `body_text`; aggregated stats columns
+- `civic_issue_sends` — per-subscriber send row (Resend webhook updates delivered/opened/bounced)
+- `civic_clicks` — server-side `/g/{issue}/{slug}/{send_id}` click logs (deferred; not wired yet)
+
+**Collectors** ([Civicscope/collectors/](collectors/)) — all idempotent via content_hash, all writeable to civic_raw:
+- `mishawaka.js`, `cass-county-mi.js` — CivicClerk `/v1/Events` + file text fetch
+- `south-bend.js` — Tribe REST API (WordPress Events Calendar)
+- `rss-feed.js` — generic RSS, dispatches by jurisdiction slug arg (berrien-county-mi, goshen, michiana=WSBT, three-rivers-mi=Watershed Voice)
+- `lib/common.js` — shared Supabase client, hash, source-row helpers
+
+**Extractor** ([collectors/extractor.js](collectors/extractor.js)) — two-pass on each `civic_raw`:
+- Pass 1: Haiku 4.5 relevance score 0-100 (skip if <30)
+- Pass 2: Sonnet 4.6 structured extraction → array of items (uses `output_config.format` JSON schema)
+- Auto matches/creates `civic_projects` via fuzzy name match. Cost ~$0.20 for first batch of 33 rows (3 minutes).
+
+**Draft assembler** ([collectors/assembler.js](collectors/assembler.js)) — deterministic bucketing + AI editorial polish:
+- Buckets civic_items into Pipeline / Vote / Cost Lens candidates / Map (by jurisdiction) / Others
+- Calls Sonnet 4.6 once for subject, preview_text, intro, and "One Big Thing" deep dive (rest is template-rendered)
+- Outputs body_html + body_text; saves to civic_issues as draft
+
+**Web archive** ([groundwork/](groundwork/)) — at `groundwork.civicscope.io` (Vercel subdomain, CNAME via Namecheap):
+- `groundwork/index.html` — landing + recent editions list + signup form
+- `groundwork/edition.html` — single edition view, fetches body_html from API
+- `groundwork/unsubscribe.html` — one-click unsubscribe handler
+- API: `api/groundwork-editions.js`, `api/groundwork-subscribe.js`, `api/groundwork-unsubscribe.js`
+- Host routing: `middleware.js` (root path `/` via `@vercel/edge` rewrite — defeats CS root-index filesystem collision) + vercel.json `has`-matched rewrites for other paths
+- Added [package.json](package.json) to give Vercel the `@vercel/edge` dependency (was missing — middleware silently failed without it).
+
+**Cost Lens flywheel** (designed, not yet wired): each issue features one project that has a CivicScope estimate; `civic_issues.cost_lens_project_id` FK to `civic_projects`, which has FK to `tool_runs`. Reader clicks "see how this was estimated" → opens the CS run → drives top-of-funnel for the tool.
 
 ---
 
