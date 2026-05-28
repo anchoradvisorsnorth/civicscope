@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-05-28T11:45:15.208Z",
+  "refreshed": "2026-05-28T11:50:39.049Z",
   "jobCount": 30,
   "jobs": [
     {
@@ -594,8 +594,8 @@
       "projectedFinish": "2025-08-08T21:00:00Z",
       "completionDate": "2026-09-28",
       "sqft": 67298,
-      "pctComplete": 54.6,
-      "costOverrun": false,
+      "pctComplete": null,
+      "costOverrun": null,
       "commitmentsTracked": false,
       "verifyStatus": true,
       "rfis": {
@@ -606,12 +606,7 @@
         "total": 177,
         "open": 107
       },
-      "budget": {
-        "original": 3393854.23,
-        "revised": 3458688.51,
-        "committed": 0,
-        "direct": 2017101.21
-      },
+      "budget": null,
       "contractValue": 3695500,
       "changeOrders": {
         "count": 27,
@@ -846,58 +841,6 @@
       "superintendent": {
         "name": "Dale Jones",
         "email": "djones@ryoderconstruction.com",
-        "title": "Field Superintendent"
-      }
-    },
-    {
-      "slug": "white-vet-clinic-improvements",
-      "procoreId": 598134326466832,
-      "projectNumber": "2611CO01",
-      "name": "White Vet Clinic Improvments",
-      "client": "White Veterinary Clinic",
-      "clientType": "commercial",
-      "workType": "renovation",
-      "active": true,
-      "stage": null,
-      "address": "1014 Lincolnway E , Goshen, IN",
-      "start": "2026-01-06",
-      "projectedFinish": "2027-05-18T21:00:00Z",
-      "completionDate": "2027-04-06",
-      "sqft": null,
-      "pctComplete": 0,
-      "costOverrun": false,
-      "commitmentsTracked": false,
-      "verifyStatus": false,
-      "rfis": {
-        "total": 1,
-        "open": 0
-      },
-      "submittals": {
-        "total": 141,
-        "open": 102
-      },
-      "budget": {
-        "original": 2071633.13,
-        "revised": 2071633.13,
-        "committed": 0,
-        "direct": 0
-      },
-      "contractValue": 2280743,
-      "changeOrders": {
-        "count": 3,
-        "netValue": -1628.66,
-        "byType": {
-          "Allowance": 3
-        }
-      },
-      "pm": {
-        "name": "Troy Jennings",
-        "email": "troy@ryoderconstruction.com",
-        "title": "Project Manager"
-      },
-      "superintendent": {
-        "name": "Emery Harris",
-        "email": "eharris@ryoderconstruction.com",
         "title": "Field Superintendent"
       }
     },
@@ -1555,6 +1498,39 @@
         "email": "lmoore@ryoderconstruction.com",
         "title": "Project Engineer"
       },
+      "superintendent": null
+    },
+    {
+      "slug": "white-vet-clinic-improvements",
+      "procoreId": 598134326466832,
+      "projectNumber": "2611CO01",
+      "name": "white-vet-clinic-improvements",
+      "client": "White Veterinary Clinic",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "active": true,
+      "stage": null,
+      "address": null,
+      "pctComplete": null,
+      "costOverrun": null,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": null,
+      "contractValue": 0,
+      "changeOrders": {
+        "count": 0,
+        "netValue": 0,
+        "byType": {}
+      },
+      "pm": null,
       "superintendent": null
     }
   ]
