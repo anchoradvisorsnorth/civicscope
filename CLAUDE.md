@@ -103,6 +103,7 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 - **Facebook Ads pixel** — create a CivicScope-specific Meta Pixel in Business Manager (separate from MTP/AAN pixel). Implementation plan at `Civicscope/FB_AD_IMPLEMENTATION_PLAN.md`.
 - **Move daily digest cron to VM** — Vercel Hobby cron is unreliable (missed April 9-10 digests). Move to VM cron as a `curl` trigger, same pattern as bookmarks pipeline.
 - **RYC GC Tenant Onboarding** — set up RYC as first real tenant in GC white-label.
+- **Municipal Agenda Notifier — voice tuning** — caption is neutral civic v1; tune to Councilman Steven Clark's actual voice after he reacts to the first real June draft (June 11–18 window). Tool is LIVE; this is refinement.
 
 ---
 
@@ -147,6 +148,17 @@ Weekly newsletter at **groundwork.civicscope.io** covering civic development in 
 - Added [package.json](package.json) to give Vercel the `@vercel/edge` dependency (was missing — middleware silently failed without it).
 
 **Cost Lens flywheel** (designed, not yet wired): each issue features one project that has a CivicScope estimate; `civic_issues.cost_lens_project_id` FK to `civic_projects`, which has FK to `tool_runs`. Reader clicks "see how this was estimated" → opens the CS run → drives top-of-funnel for the tool.
+
+---
+
+## Municipal Agenda Notifier (built 2026-05-31)
+
+CivicScope sub-product, **sibling to Groundwork**. Watches a Cloudflare-protected county site for the monthly council agenda; on a new posting, drafts a constituent-facing Facebook post and emails it to Keith to review → forward. First user: **Councilman Steven Clark** (Elkhart County Council). **LIVE on the VM.**
+
+- **Source:** `Cowork\Civicscope\agenda-notifier\` (council_agenda.py + README). Runtime on VM at `/home/azureuser/council-agenda/`, daily cron 11:30 UTC (self-gates to ~7 days before each 3rd-Thursday meeting).
+- **Engine:** FlareSolverr (Docker :8191) solves Cloudflare → `curl_cffi` (Chrome TLS impersonation) downloads the PDF → PyMuPDF text + page PNGs → Sonnet 4.6 drafts FB-safe caption → Resend (civicscope.io, from agenda@civicscope.io) emails keith@jbkdevelopment.com.
+- **Why it matters to CivicScope:** the CF-bypass + PDF-text engine **solves the open "Groundwork — PDF fallback for Mishawaka packets" backlog item** and adds Cloudflare-walled county sources Groundwork can't currently reach. Kept standalone for now; candidate to share a CF/PDF lib with Groundwork later.
+- Full technique in memory `reference_cloudflare_bypass_flaresolverr`; project state in `project_council_agenda_watcher`.
 
 ---
 
