@@ -1,0 +1,1969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>School Facility Cost Estimator | CivicScope for Schools</title>
+<meta name="description" content="Indiana school leaders: describe a facility project in plain language and get a regionally-calibrated cost range in 30 seconds — plus how BOT can fund it without a referendum. Free, no login." />
+<meta name="robots" content="noindex, follow" />
+<link rel="canonical" href="https://www.civicscope.io" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='20' width='22' height='8' fill='none' stroke='%231c1917' stroke-width='2' stroke-linejoin='round'/><line x1='10' y1='20' x2='10' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='16' y1='20' x2='16' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='22' y1='20' x2='22' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='6' y1='14' x2='26' y2='14' stroke='%231c1917' stroke-width='2' stroke-linecap='round'/><polyline points='7,14 16,4 25,14' fill='none' stroke='%23c2410c' stroke-width='2.5' stroke-linejoin='round' stroke-linecap='round'/><rect x='13' y='22' width='6' height='6' rx='3' fill='%23c2410c'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400;1,9..144,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   CIVICSCOPE DESIGN SYSTEM
+═══════════════════════════════════════════ */
+:root {
+  --font-display: 'Fraunces', serif;
+  --font-body: 'DM Sans', sans-serif;
+  --cream:        #faf8f4;
+  --cream-dark:   #f2ede4;
+  --white:        #ffffff;
+  --ink:          #1c1917;
+  --ink-light:    #44403c;
+  --muted:        #78716c;
+  --muted-light:  #a8a29e;
+  --rule:         #e7e2d8;
+  --accent:       #c2410c;
+  --accent-hover: #a83509;
+  --accent-light: #fff3ec;
+  --accent-dim:   rgba(194, 65, 12, 0.1);
+  --green:        #15803d;
+  --green-light:  #dcfce7;
+  --amber:        #92400e;
+  --amber-light:  #fef3c7;
+  --page-pad: 48px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(250, 248, 244, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--rule);
+}
+.header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 var(--page-pad);
+  height: 80px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wordmark-svg {
+  display: block;
+  flex-shrink: 0;
+}
+.header-divider { width: 1px; height: 18px; background: var(--rule); }
+.header-tagline {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
+.header-badge {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--green);
+  background: var(--green-light);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* ── Page layout ── */
+.page-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px var(--page-pad) 80px;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 48px;
+  align-items: start;
+}
+.form-column { min-width: 0; }
+.sidebar-column { position: sticky; top: 80px; }
+
+/* ── Page intro ── */
+.page-intro { margin-bottom: 36px; }
+.page-eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.page-intro h1 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+.page-intro p {
+  font-size: 0.95rem;
+  color: var(--ink-light);
+  max-width: 560px;
+  font-weight: 300;
+  line-height: 1.65;
+}
+
+/* ── Form sections ── */
+.form-section {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 28px;
+  margin-bottom: 20px;
+}
+.form-section-title {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.optional-note { font-weight: 300; text-transform: none; letter-spacing: 0; font-size: 0.8rem; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.field.full { grid-column: 1 / -1; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-light);
+  letter-spacing: 0.01em;
+}
+.req { color: var(--accent); }
+.field input, .field select, .field textarea {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--ink);
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 10px 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  width: 100%;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.field input[readonly] { color: var(--muted); cursor: default; }
+.field textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
+.field-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ── Project type grid ── */
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.type-btn {
+  font-family: var(--font-body);
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 12px 10px;
+  font-size: 0.78rem;
+  color: var(--ink-light);
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  line-height: 1.3;
+}
+.type-btn:hover { border-color: var(--accent); color: var(--ink); }
+.type-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 500;
+}
+.type-icon { font-size: 1.2rem; }
+
+/* ── Toggle groups ── */
+.toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.toggle-btn {
+  font-family: var(--font-body);
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 7px 16px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toggle-btn:hover { border-color: var(--ink-light); color: var(--ink); }
+.toggle-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ── Checkbox group ── */
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.83rem;
+  color: var(--ink-light);
+  cursor: pointer;
+}
+.checkbox-item input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
+
+/* ── Submit row ── */
+.submit-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.btn-primary {
+  font-family: var(--font-body);
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 13px 28px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: background 0.15s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.submit-note { font-size: 0.78rem; color: var(--muted); }
+
+/* ── Loading ── */
+.loading-state {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-block {
+  display: none;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 14px 18px;
+  font-size: 0.85rem;
+  color: #991b1b;
+  margin-bottom: 16px;
+}
+
+/* ── Divider ── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 32px 0;
+}
+
+/* ── Results ── */
+#result { display: none; }
+
+.result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.result-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.result-meta { font-size: 0.8rem; color: var(--muted); }
+
+.confidence-badge {
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.confidence-high   { background: var(--green-light); color: var(--green); }
+.confidence-medium { background: var(--amber-light); color: var(--amber); }
+.confidence-low    { background: #fef2f2; color: #991b1b; }
+
+.print-btn {
+  font-family: var(--font-body);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 7px 16px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 24px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.print-btn:hover { border-color: var(--ink-light); color: var(--ink); }
+
+/* ── Images block ── */
+.images-block { display: none; margin-bottom: 24px; }
+.images-block h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+.image-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.img-wrapper { border-radius: 4px; overflow: hidden; background: var(--cream-dark); }
+.img-wrapper img { width: 100%; height: 140px; object-fit: cover; display: block; }
+.image-caption {
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding: 6px 8px;
+  text-align: center;
+}
+
+/* ── Cost range block ── */
+.cost-range-block {
+  background: var(--ink);
+  border-radius: 6px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.cost-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 8px;
+}
+.cost-range {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 600;
+  color: white;
+  letter-spacing: -0.03em;
+  margin-bottom: 6px;
+}
+.cost-midpoint {
+  font-size: 0.83rem;
+  color: rgba(255,255,255,0.55);
+}
+.cost-midpoint strong { color: rgba(255,255,255,0.85); }
+
+/* ── Result content blocks ── */
+.result-block {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.block-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.narrative-block {
+  font-size: 0.92rem;
+  color: var(--ink-light);
+  line-height: 1.7;
+  padding: 20px 24px;
+  background: var(--cream-dark);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent);
+  margin-bottom: 16px;
+}
+.assumption-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.assumption-list li {
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  padding-left: 18px;
+  position: relative;
+  line-height: 1.5;
+}
+.assumption-list li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--muted-light);
+}
+
+/* ── Council Briefing ── */
+.section-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 8px 0;
+}
+.briefing-section { margin-bottom: 18px; }
+.briefing-section:last-child { margin-bottom: 0; }
+.briefing-section-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-light);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.opening-quote {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.55;
+  padding: 14px 18px;
+  background: var(--cream-dark);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+.pitch-points { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.pitch-points li {
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  padding-left: 16px;
+  position: relative;
+  line-height: 1.55;
+}
+.pitch-points li::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-size: 0.8rem; top: 1px; }
+.qa-item { margin-bottom: 12px; }
+.qa-q { font-size: 0.83rem; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+.qa-a { font-size: 0.83rem; color: var(--ink-light); line-height: 1.5; }
+.recommended-ask {
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.6;
+  padding: 14px 18px;
+  background: var(--accent-light);
+  border: 1px solid rgba(194,65,12,0.2);
+  border-radius: 4px;
+}
+
+/* ── Procurement block ── */
+.proc-header { margin-bottom: 20px; }
+.proc-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.proc-header p { font-size: 0.85rem; color: var(--muted); }
+.proc-paths { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.proc-path {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 18px;
+}
+.proc-path.alternative { border-color: var(--accent); background: var(--accent-light); }
+.proc-path-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.proc-path.alternative .proc-path-label { color: var(--accent); }
+.proc-path h4 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+.proc-steps { list-style: none; display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+.proc-steps li { font-size: 0.8rem; color: var(--ink-light); line-height: 1.5; }
+.proc-steps li strong { color: var(--ink); }
+.proc-callout {
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding: 10px 14px;
+  background: var(--cream-dark);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.proc-path.alternative .proc-callout { background: rgba(194,65,12,0.06); color: var(--accent); }
+
+/* ── Lead Gate ── */
+.gate-block {
+  scroll-margin-top: 20px;
+  background: var(--white);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  padding: 28px;
+  margin-bottom: 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.gate-block h3 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+.gate-block > p {
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+.gate-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.gate-submit-row { display: flex; align-items: center; gap: 16px; }
+.gate-confirmed {
+  display: none;
+  font-size: 0.88rem;
+  color: var(--green);
+  font-weight: 500;
+  padding: 12px 0;
+}
+
+/* ── CTA block ── */
+.cta-block {
+  background: var(--ink);
+  border-radius: 6px;
+  padding: 28px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.cta-text h4 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: white;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.cta-text p { font-size: 0.83rem; color: rgba(255,255,255,0.55); line-height: 1.6; }
+.cta-action { flex-shrink: 0; text-align: right; }
+.cta-name { font-family: var(--font-display); font-size: 1rem; color: white; font-weight: 600; }
+.cta-company { font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-bottom: 12px; }
+.cta-btn {
+  display: inline-block;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 0.83rem;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+.cta-btn:hover { background: var(--accent-hover); }
+
+/* ── Disclaimer ── */
+.disclaimer {
+  font-size: 0.72rem;
+  color: var(--muted-light);
+  line-height: 1.65;
+  padding: 16px 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* ── Sidebar ── */
+.sidebar-card {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.sidebar-card-title {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+.sidebar-step {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.sidebar-step:last-child { margin-bottom: 0; }
+.step-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.step-text { font-size: 0.83rem; color: var(--ink-light); line-height: 1.5; }
+.step-text strong { color: var(--ink); font-weight: 500; }
+
+.trust-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.trust-list li {
+  font-size: 0.82rem;
+  color: var(--ink-light);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.45;
+}
+.trust-list li::before {
+  content: '✓';
+  color: var(--green);
+  font-size: 0.78rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--rule);
+  padding: 20px var(--page-pad);
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.footer-wordmark {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+footer span {
+  font-size: 0.75rem;
+  color: var(--muted-light);
+}
+.footer-note { font-size: 0.72rem; color: var(--muted-light); }
+
+/* ── Responsive ── */
+@media (max-width: 860px) {
+  .page-wrap { grid-template-columns: 1fr; }
+  .sidebar-column { position: static; }
+  .type-grid { grid-template-columns: repeat(2, 1fr); }
+  .form-grid-3 { grid-template-columns: 1fr 1fr; }
+  .proc-paths { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  :root { --page-pad: 20px; }
+  .form-grid, .gate-form-grid { grid-template-columns: 1fr; }
+  .type-grid { grid-template-columns: repeat(2, 1fr); }
+  .cta-block { flex-direction: column; }
+  .cta-action { text-align: left; }
+  .header-tagline, .header-divider { display: none; }
+}
+
+.free-banner {
+  background: var(--accent);
+  padding: 11px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+.free-banner-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-right: 28px;
+  white-space: nowrap;
+}
+.free-banner-items {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.free-banner-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.83rem;
+  font-weight: 400;
+  color: rgba(255,255,255,0.92);
+  white-space: nowrap;
+}
+.free-banner-check {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+    /* ── NEXT STEPS CTA ─────────────────────────── */
+    .cta-block.next-steps {
+      display: block;
+      background: var(--cream-dark);
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      padding: 28px 32px;
+      margin-top: 24px;
+    }
+    .cta-block.next-steps h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+    .cta-block.next-steps > p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .next-steps-list {
+      padding-left: 20px;
+      margin: 0 0 20px 0;
+    }
+    .next-steps-list li {
+      font-size: 13px;
+      color: var(--ink-light);
+      margin-bottom: 12px;
+      line-height: 1.55;
+    }
+    .next-steps-list li strong {
+      color: var(--ink);
+      display: block;
+      margin-bottom: 2px;
+    }
+    .pro-nudge {
+      font-size: 12px;
+      color: var(--muted);
+      padding-top: 16px;
+      border-top: 1px solid var(--rule);
+    }
+    .pro-nudge a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .pro-nudge a:hover { text-decoration: underline; }
+
+    /* ── TIMELINE TEASE ─────────────────────────── */
+    .timeline-tease .tease-locked {
+      position: relative;
+    }
+    .tease-blur {
+      filter: blur(4px);
+      user-select: none;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+    .tease-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .tease-phase { color: var(--ink-light); }
+    .tease-dur { color: var(--muted); letter-spacing: 0.02em; }
+    .tease-unlock-msg {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 14px;
+      padding: 10px;
+      background: var(--bg-alt);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .pro-tag {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(194,65,12,0.08);
+      padding: 2px 7px;
+      border-radius: 3px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    #timelineContent .tl-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    #timelineContent .tl-phase { color: var(--ink-light); font-weight: 500; }
+    #timelineContent .tl-dur { color: var(--accent); font-weight: 600; }
+    #timelineContent .tl-note {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+/* ── Cost Hero Bar (v2.1.0 redesign) ── */
+.cost-hero-bar {
+  background: #1c1917;
+  color: #faf8f4;
+  padding: 20px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-radius: 10px 10px 0 0;
+}
+.cost-hero-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin-bottom: 4px;
+}
+.cost-hero-range {
+  font-size: 26px;
+  font-weight: 500;
+  color: #faf8f4;
+}
+.cost-hero-confidence {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  color: #a8a29e;
+}
+
+/* ── Results Body (v2.1.0 redesign) ── */
+.results-body {
+  padding: 24px 28px;
+  background: var(--white);
+  border-radius: 0 0 10px 10px;
+  border: 1px solid #e7e2d8;
+  border-top: none;
+}
+.results-narrative {
+  font-size: 14px;
+  color: #44403c;
+  line-height: 1.7;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e7e2d8;
+}
+
+/* ── Delivery Cards (v2.1.0 redesign) ── */
+.delivery-section-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #78716c;
+  margin-bottom: 10px;
+}
+.delivery-cards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 640px) {
+  .delivery-cards-row { grid-template-columns: 1fr; }
+}
+.delivery-card {
+  border-radius: 8px;
+  padding: 16px 18px;
+  border: 1px solid #e7e2d8;
+}
+.delivery-card--preferred {
+  border: 2px solid #c2410c;
+  background: #fff8f5;
+}
+.dc-eyebrow {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.dc-eyebrow--trad { color: #78716c; }
+.dc-eyebrow--pref { color: #c2410c; }
+.dc-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1c1917;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.dc-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.dc-bullets li {
+  font-size: 12px;
+  color: #44403c;
+  padding: 3px 0 3px 14px;
+  position: relative;
+  line-height: 1.4;
+}
+.dc-bullets li::before {
+  content: '\2014';
+  position: absolute;
+  left: 0;
+  color: #a8a29e;
+}
+.dc-cost-note {
+  font-size: 11px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+.dc-cost-note--trad {
+  background: #f2ede4;
+  color: #44403c;
+}
+.dc-cost-note--pref {
+  background: #fff3ec;
+  color: #a83509;
+}
+
+/* ── Assumptions Chips (v2.1.0 redesign) ── */
+.assumptions-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.assumption-chip {
+  font-size: 12px;
+  color: #44403c;
+  padding: 7px 10px;
+  border: 1px solid #e7e2d8;
+  border-radius: 6px;
+  background: #faf8f4;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="https://www.civicscope.io" class="wordmark">
+      <svg class="wordmark-svg" width="185" height="45" viewBox="0 0 148 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="CivicScope">
+        <circle cx="4"  cy="4"  r="0.9" fill="#d6cfc4"/>
+        <circle cx="16" cy="4"  r="0.9" fill="#d6cfc4"/>
+        <circle cx="28" cy="4"  r="0.9" fill="#d6cfc4"/>
+        <circle cx="4"  cy="16" r="0.9" fill="#d6cfc4"/>
+        <circle cx="28" cy="16" r="0.9" fill="#d6cfc4"/>
+        <circle cx="4"  cy="28" r="0.9" fill="#d6cfc4"/>
+        <circle cx="16" cy="28" r="0.9" fill="#d6cfc4"/>
+        <circle cx="28" cy="28" r="0.9" fill="#d6cfc4"/>
+        <rect x="4" y="20" width="19" height="7" fill="none" stroke="#1c1917" stroke-width="1.4" stroke-linejoin="round"/>
+        <line x1="8"   y1="20" x2="8"   y2="14" stroke="#1c1917" stroke-width="1.2" stroke-linecap="round"/>
+        <line x1="13.5" y1="20" x2="13.5" y2="14" stroke="#1c1917" stroke-width="1.2" stroke-linecap="round"/>
+        <line x1="19"  y1="20" x2="19"  y2="14" stroke="#1c1917" stroke-width="1.2" stroke-linecap="round"/>
+        <line x1="5"   y1="14" x2="22"  y2="14" stroke="#1c1917" stroke-width="1.4" stroke-linecap="round"/>
+        <polyline points="5.5,14 13.5,5 21.5,14" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        <rect x="11" y="22" width="5" height="5" rx="2.5" fill="#c2410c"/>
+        <text x="36" y="15" font-family="Fraunces, Georgia, serif" font-style="italic" font-size="14" fill="#1c1917" letter-spacing="-0.2">Civic</text>
+        <text x="36" y="29" font-family="Fraunces, Georgia, serif" font-size="11" fill="#c2410c" letter-spacing="1.2">SCOPE</text>
+      </svg>
+    </a>
+    <div class="header-divider"></div>
+    <span class="header-tagline">School Facility Feasibility</span>
+    <div class="header-badge">Free — No Account Required</div>
+  </div>
+</header>
+<div class="free-banner">
+  <span class="free-banner-label">Free Tool</span>
+  <div class="free-banner-items">
+    <span class="free-banner-item">
+      <svg class="free-banner-check" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="6" stroke="rgba(255,255,255,0.6)" stroke-width="1.4"/><path d="M4.5 7l2 2 3-3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      No account required
+    </span>
+    <span class="free-banner-item">
+      <svg class="free-banner-check" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="6" stroke="rgba(255,255,255,0.6)" stroke-width="1.4"/><path d="M4.5 7l2 2 3-3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Results in 30 seconds
+    </span>
+    <span class="free-banner-item">
+      <svg class="free-banner-check" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="6" stroke="rgba(255,255,255,0.6)" stroke-width="1.4"/><path d="M4.5 7l2 2 3-3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Private cost estimate
+    </span>
+    <span class="free-banner-item">
+      <svg class="free-banner-check" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="6" stroke="rgba(255,255,255,0.6)" stroke-width="1.4"/><path d="M4.5 7l2 2 3-3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Before the first contractor call
+    </span>
+  </div>
+</div>
+
+<div class="page-wrap">
+  <div class="form-column">
+
+    <div class="page-intro">
+      <div class="page-eyebrow">School Facility Feasibility Tool</div>
+      <h1>You've got a facility need.<br>Let's see if the budget holds up.</h1>
+      <p>Plain language. No specs, no drawings. Describe the project — HVAC, roof, a renovation, an addition — and get a real cost range in 30 seconds. Then see how Indiana districts are funding work like this <strong>without a referendum</strong>.</p>
+    </div>
+
+    <!-- SECTION 1: Location -->
+    <div class="form-section">
+      <div class="form-section-title">Your Location</div>
+      <div class="form-grid-3">
+        <div class="field">
+          <label>District / School Name <span class="req">*</span></label>
+          <input type="text" id="location" placeholder="e.g. Penn-Harris-Madison School Corp" />
+        </div>
+        <div class="field">
+          <label>ZIP Code <span class="req">*</span></label>
+          <input type="text" id="zip" maxlength="5" placeholder="e.g. 46032" oninput="handleZip(this.value)" />
+          <div class="field-hint" id="zipStatus"></div>
+        </div>
+        <div class="field">
+          <label>City</label>
+          <input type="text" id="city" readonly placeholder="Auto-filled from ZIP" />
+        </div>
+        <div class="field">
+          <label>State</label>
+          <input type="text" id="state" readonly placeholder="Auto-filled from ZIP" />
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: Project -->
+    <div class="form-section">
+      <div class="form-section-title">Project Type &amp; Scope</div>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Project Type <span class="req">*</span></label>
+          <div class="type-grid" id="typeGrid">
+            <button class="type-btn" data-type="HVAC / Mechanical Replacement" data-search="school HVAC mechanical boiler chiller rooftop unit replacement">
+              <span class="type-icon">🌡️</span>HVAC / Mechanical
+            </button>
+            <button class="type-btn" data-type="Roofing Replacement" data-search="school roof replacement flat membrane reroof">
+              <span class="type-icon">🏠</span>Roofing Replacement
+            </button>
+            <button class="type-btn" data-type="Renovation / Deferred Maintenance" data-search="school building renovation interior modernization deferred maintenance">
+              <span class="type-icon">🔧</span>Renovation / Deferred Maint.
+            </button>
+            <button class="type-btn" data-type="Secure Entrance / Vestibule" data-search="school secure entrance vestibule security upgrade">
+              <span class="type-icon">🔒</span>Secure Entrance
+            </button>
+            <button class="type-btn" data-type="ADA / Accessibility Upgrade" data-search="school ADA accessibility ramp elevator restroom upgrade">
+              <span class="type-icon">♿</span>ADA / Accessibility
+            </button>
+            <button class="type-btn" data-type="Classroom Addition / Wing" data-search="school classroom addition wing expansion construction">
+              <span class="type-icon">🏫</span>Classroom Addition / Wing
+            </button>
+            <button class="type-btn" data-type="Athletic / Performing Arts" data-search="school gymnasium athletic fieldhouse auditorium performing arts">
+              <span class="type-icon">🏀</span>Athletic / Performing Arts
+            </button>
+            <button class="type-btn" data-type="Transportation / Bus Facility" data-search="school bus garage transportation maintenance facility">
+              <span class="type-icon">🚌</span>Transportation / Bus
+            </button>
+            <button class="type-btn" data-type="Other School Facility Project" data-search="school district facility construction renovation">
+              <span class="type-icon">🏢</span>Something Else
+            </button>
+          </div>
+          <input type="hidden" id="projectType" value="" />
+          <input type="hidden" id="imageSearch" value="" />
+        </div>
+
+        <div class="field full">
+          <label>New Build or Renovation?</label>
+          <div class="toggle-group" id="buildTypeGroup">
+            <button class="toggle-btn active" data-val="Renovation / modernization of existing facility">Renovation / Modernization</button>
+            <button class="toggle-btn" data-val="New construction">New Construction</button>
+          </div>
+          <input type="hidden" id="buildType" value="Renovation / modernization of existing facility" />
+        </div>
+
+        <div class="field full">
+          <label>Describe the Project <span class="req">*</span></label>
+          <textarea id="scope" placeholder="Describe what you have in mind in plain language. For example: Our 1980s elementary wing needs the original boilers and rooftop units replaced — roughly 60,000 SF, work has to happen over a summer while the building is occupied the rest of the year."></textarea>
+          <div class="field-hint">No technical specs needed. Plain language is fine. More detail improves the confidence level of your estimate.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: Site Conditions -->
+    <div class="form-section">
+      <div class="form-section-title">Site Conditions <span class="optional-note">— optional, improves accuracy</span></div>
+      <div class="form-grid">
+        <div class="field full">
+          <label>Site Topography</label>
+          <div class="toggle-group" id="topoGroup">
+            <button class="toggle-btn" data-val="Flat / level site">Flat / Level</button>
+            <button class="toggle-btn" data-val="Gently sloped">Gently Sloped</button>
+            <button class="toggle-btn" data-val="Steeply sloped">Steeply Sloped</button>
+            <button class="toggle-btn" data-val="Wooded / clearing required">Wooded / Clearing Required</button>
+            <button class="toggle-btn" data-val="Existing structure requires demolition">Demo of Existing Structure</button>
+          </div>
+          <input type="hidden" id="topography" value="" />
+        </div>
+        <div class="field full">
+          <label>Utilities Available On-Site <span class="req">*</span></label>
+          <div class="toggle-group" id="utilitiesGroup">
+            <button type="button" class="toggle-btn" data-value="yes" onclick="selectUtilities(this)">Yes — water, sewer, and electric available</button>
+            <button type="button" class="toggle-btn" data-value="no" onclick="selectUtilities(this)">No — site lacks full utility service</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-row">
+      <button class="btn-primary" id="submitBtn" onclick="runFeasibility()">
+        Run Feasibility Check
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="submit-note">Takes about 20 seconds &nbsp;·&nbsp; No account required</div>
+    </div>
+
+    <div class="loading-state" id="loading">
+      <div class="spinner"></div>
+      <span id="loadingMsg">Analyzing regional cost data and project parameters...</span>
+    </div>
+    <div class="error-block" id="errorBlock"></div>
+
+    <hr class="divider" id="resultDivider" style="display:none">
+
+    <!-- RESULTS -->
+    <div id="result">
+
+      <div class="result-header">
+        <div>
+          <div class="result-title" id="resultTitle">Preliminary Feasibility Indicator</div>
+          <div class="result-meta" id="resultMeta"></div>
+        </div>
+        <div class="confidence-badge" id="confidenceBadge"></div>
+      </div>
+
+
+
+      <!-- Cost Hero Bar -->
+      <div class="cost-hero-bar">
+        <div>
+          <div class="cost-hero-label">Estimated project cost</div>
+          <div class="cost-hero-range" id="costRange">—</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="cost-hero-label">Realistic timeline</div>
+          <div class="cost-hero-range" id="costTimeline" style="font-size:20px;">—</div>
+        </div>
+        <div class="cost-hero-confidence" id="costConfidence" style="width:100%;"></div>
+      </div>
+
+      <!-- Results Body -->
+      <div class="results-body">
+        <p class="results-narrative" id="resultNarrative"></p>
+
+        <!-- Delivery path comparison -->
+        <div class="delivery-section-label">Delivery path comparison</div>
+        <div class="delivery-cards-row">
+          <div class="delivery-card delivery-card--traditional">
+            <div class="dc-eyebrow dc-eyebrow--trad">Traditional</div>
+            <div class="dc-title">Design-Bid-Build</div>
+            <ul class="dc-bullets">
+              <li>Designer hired first; documents completed before bidding</li>
+              <li>Design fees paid before any bids received (8–12% of project)</li>
+              <li>12–18 months from design start to groundbreaking</li>
+              <li>Changes after award handled through change orders, which can increase final cost</li>
+            </ul>
+            <div class="dc-cost-note dc-cost-note--trad" id="dbbCostNote"></div>
+          </div>
+          <div class="delivery-card delivery-card--preferred">
+            <div class="dc-eyebrow dc-eyebrow--pref">Worth a look for schools</div>
+            <div class="dc-title">BOT (Build-Operate-Transfer)</div>
+            <ul class="dc-bullets">
+              <li><strong>No bond referendum required.</strong> A private developer finances and builds; the district makes structured payments from its operating budget. The facility transfers to the district with clean title at the end.</li>
+              <li>A Guaranteed Maximum Price is locked before construction — cost certainty up front, not change-order surprises later</li>
+              <li>The district picks its own contractor and design team based on qualifications and trust — not lowest bid</li>
+              <li>Authorized for school corporations under Indiana Code § 5-23, with statutory safeguards: competitive RFQ, public-hearing board approval, payment and performance bonds, and district approval at every design milestone</li>
+            </ul>
+            <div class="dc-cost-note dc-cost-note--pref">
+              BOT is well-established in Indiana municipal projects but still rarely used by K-12 districts. Your school attorney should advise on how it fits your procurement requirements.
+            </div>
+          </div>
+        </div>
+
+        <!-- Key assumptions -->
+        <div class="delivery-section-label">Key assumptions</div>
+        <div class="assumptions-chips" id="assumptionsChips"></div>
+      </div>
+
+      <!-- Board or Council Briefing -->
+      <div class="result-block">
+        <div class="block-label">School Board Briefing</div>
+        <p class="field-hint" style="margin-bottom:14px;">AI-drafted points to help you bring this to your board of education. Review and edit before using — you know your board best.</p>
+        <div id="briefingContent">
+          <div class="section-loading">
+            <div class="spinner"></div>
+            Drafting your school board briefing...
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline Tease -->
+      <div class="result-block timeline-tease" id="timelineTease">
+        <div class="block-label">Estimated Delivery Timeline <span class="pro-tag">Included in your report</span></div>
+        <div class="tease-locked">
+          <div class="tease-blur">
+            <div class="tease-row"><span class="tease-phase">Pre-Design &amp; Authorization</span><span class="tease-dur">&#9608;&#9608;&#9608;&#9608; months</span></div>
+            <div class="tease-row"><span class="tease-phase">Design &amp; Document Phase</span><span class="tease-dur">&#9608;&#9608;&#9608;&#9608; months</span></div>
+            <div class="tease-row"><span class="tease-phase">Procurement &amp; Award</span><span class="tease-dur">&#9608;&#9608;&#9608; months</span></div>
+            <div class="tease-row"><span class="tease-phase">Construction</span><span class="tease-dur">&#9608;&#9608;&#9608;&#9608;&#9608; months</span></div>
+          </div>
+          <div class="tease-unlock-msg">&#128274; Included when you get your report below</div>
+        </div>
+        <div class="timeline-content" id="timelineContent" style="display:none">
+          <!-- Populated by JS after gate submission -->
+        </div>
+      </div>
+
+      <!-- Lead Gate -->
+      <div class="gate-block" id="gateBlock">
+        <h3>Get everything above in your inbox</h3>
+        <p>Enter your information and we'll email you everything above plus your estimated delivery timeline — a section not shown on screen.</p>
+        <div class="gate-form-grid">
+          <div class="field">
+            <label>First Name <span class="req">*</span></label>
+            <input type="text" id="gateFirst" placeholder="First name" />
+          </div>
+          <div class="field">
+            <label>Last Name <span class="req">*</span></label>
+            <input type="text" id="gateLast" placeholder="Last name" />
+          </div>
+          <div class="field">
+            <label>Your Role <span class="req">*</span></label>
+            <select id="gateRole">
+              <option value="">— Select your role —</option>
+              <option>Superintendent</option>
+              <option>Assistant Superintendent</option>
+              <option>Business Manager / CFO</option>
+              <option>Facilities Director</option>
+              <option>School Board Member</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Email Address <span class="req">*</span></label>
+            <input type="email" id="gateEmail" placeholder="you@yourschools.org" />
+          </div>
+        </div>
+        <div class="gate-submit-row">
+          <button class="btn-primary" id="gateBtn" onclick="submitLead()">
+            Email me everything above plus my delivery timeline
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. <a href="javascript:window.print()" style="color:var(--accent);text-decoration:none;margin-left:8px;">Print / Save as PDF →</a></div>
+        <div class="gate-post-cta" id="gatePostCta" style="display:none;">
+          <div style="margin-top:20px;padding:20px 24px;background:var(--cream-dark);border:1px solid var(--rule);border-radius:8px;">
+            <p style="font-size:14px;color:var(--ink);font-weight:600;margin-bottom:6px;">Want to go deeper?</p>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.55;">CivicScope Pro lets you run multiple scenarios, compare delivery paths side-by-side, and save projects — built for officials moving from "what if" to "what's next."</p>
+            <a href="https://www.civicscope.io/pro" style="display:inline-block;background:var(--accent);color:#fff;padding:10px 20px;border-radius:5px;text-decoration:none;font-size:13px;font-weight:600;">Learn about CivicScope Pro →</a>
+            <p style="font-size:12px;color:var(--muted-light);margin-top:12px;">Or reach us at <a href="mailto:info@civicscope.io" style="color:var(--accent);text-decoration:none;">info@civicscope.io</a> — we're happy to talk through your project.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="cta-block next-steps">
+        <h4>What to Do With This Number</h4>
+        <p>A preliminary cost range is the starting point, not the finish line. Here's how to move a real project forward from here.</p>
+        <ol class="next-steps-list">
+          <li>
+            <strong>Pressure-test the number internally.</strong>
+            Share this with your business manager or CFO before any outside conversations. Knowing your range early puts the district in a stronger position.
+          </li>
+          <li>
+            <strong>Understand your funding and delivery options.</strong>
+            How you fund and procure this project affects total cost, timeline, and risk — and whether you need a referendum at all. Review the delivery path comparison above, including BOT, before engaging design or construction professionals.
+          </li>
+          <li>
+            <strong>Bring it to your board.</strong>
+            Use the school board briefing above to frame the conversation. A cost range with a confidence rating and a clear funding path gives your board what it needs to authorize next steps.
+          </li>
+        </ol>
+        <div class="pro-nudge">
+          Need to run multiple scenarios, save this project, or dig deeper into site-specific factors?
+          <a href="https://www.civicscope.io/pro">CivicScope Pro →</a>
+        </div>
+      </div>
+
+      <div class="disclaimer">
+        This is a preliminary feasibility indicator only, not a formal cost estimate. It is intended to support early internal go/no-go decisions and should not be used for budgeting, procurement, or board appropriations without professional verification. Actual costs depend on site conditions, design requirements, local labor markets, and material prices at time of bid.
+      </div>
+
+    </div><!-- /result -->
+
+  </div><!-- /form-column -->
+
+  <!-- SIDEBAR -->
+  <div class="sidebar-column">
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">How It Works</div>
+      <div class="sidebar-step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>Enter your location</strong> — we use regional cost data specific to your state and market.</div>
+      </div>
+      <div class="sidebar-step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>Describe the project</strong> — plain language is fine. No specs, no drawings needed.</div>
+      </div>
+      <div class="sidebar-step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>Get your range</strong> — a preliminary cost range with confidence rating in about 20 seconds.</div>
+      </div>
+      <div class="sidebar-step">
+        <div class="step-num">4</div>
+        <div class="step-text"><strong>Get the full report</strong> — enter your email to receive a complete PDF summary.</div>
+      </div>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">What You Get</div>
+      <ul class="trust-list">
+        <li>Preliminary cost range with confidence rating</li>
+        <li>Plain-language narrative for your context</li>
+        <li>Key assumptions behind the estimate</li>
+        <li>School board briefing — talking points and recommended ask</li>
+        <li>Funding &amp; delivery path comparison, including BOT</li>
+        <li>Full report emailed to you as PDF</li>
+      </ul>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">The SEA 1 Squeeze</div>
+      <p style="font-size:13px;color:var(--ink-light);line-height:1.55;margin-bottom:10px;">Indiana's Senate Enrolled Act 1 (2025) is tightening local property-tax revenue for school corporations — and reshaping how operations-fund dollars, which cover capital projects, can be used in the years ahead.</p>
+      <p style="font-size:13px;color:var(--muted);line-height:1.55;">Translation: the budgets that pay for roofs, HVAC, and renovations are getting tighter, right as deferred-maintenance backlogs grow. Referendum-free funding paths matter more than ever.</p>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">Why BOT for Schools</div>
+      <p style="font-size:13px;color:var(--ink-light);line-height:1.55;margin-bottom:10px;">Build-Operate-Transfer lets a private developer design, build, and <strong>finance</strong> a facility project. The district makes structured payments from its operating budget — <strong>no bond referendum</strong> — and the building transfers to the district with clean title.</p>
+      <ul class="trust-list">
+        <li>Guaranteed Maximum Price locked before construction</li>
+        <li>You choose your contractor and design team</li>
+        <li>Authorized for school corporations under IC § 5-23</li>
+        <li>Safeguards: competitive RFQ, public-hearing board approval, payment/performance bonds</li>
+      </ul>
+      <p style="font-size:12px;color:var(--muted-light);line-height:1.5;margin-top:10px;">Common in Indiana municipal projects, still rare in K-12. Developers experienced in school BOT — like JBK Development — can walk a board through the process.</p>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">Good to Know</div>
+      <ul class="trust-list">
+        <li>Free — always. No account required.</li>
+        <li>Not a licensed cost estimate — use for early go/no-go decisions only</li>
+        <li>More detail in your description improves confidence</li>
+        <li>Results typically within 15–25% of actual bid ranges</li>
+      </ul>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<footer>
+  <div class="footer-left">
+    <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
+  </div>
+  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v1.0.0-schools</span>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ── Session & Data Capture ───────────────────────────────────────────
+let _sessionId = null;
+let _runId = null;
+
+async function logAction(action, data) {
+  try {
+    const r = await fetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, data })
+    });
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+// Read ref param from URL for campaign attribution
+const _refParam = new URLSearchParams(window.location.search).get('ref') || null;
+
+async function initSession() {
+  const result = await logAction('create_session', {
+    referrer: document.referrer || null,
+    userAgent: navigator.userAgent,
+    product: 'schools'
+  });
+  if (result && result.session_id) _sessionId = result.session_id;
+}
+initSession();
+
+// ── ZIP Code lookup ──────────────────────────────────────────────────
+async function handleZip(zip) {
+  if (zip.length !== 5) {
+    if (zip.length < 5) {
+      document.getElementById('state').value = '';
+      document.getElementById('city').value = '';
+      document.getElementById('zipStatus').textContent = '';
+    }
+    return;
+  }
+  try {
+    const resp = await fetch(`https://api.zippopotam.us/us/${zip}`);
+    if (!resp.ok) throw new Error('Not found');
+    const data = await resp.json();
+    const place = data.places[0];
+    document.getElementById('state').value = place['state'];
+    document.getElementById('city').value = place['place name'];
+    document.getElementById('city').value = place['place name'];
+    document.getElementById('zipStatus').textContent = `✓ ${place['place name']}, ${place['state abbreviation']}`;
+    document.getElementById('zipStatus').style.color = 'var(--green)';
+  } catch {
+    document.getElementById('zipStatus').textContent = 'ZIP not found — enter state and district manually';
+    document.getElementById('zipStatus').style.color = 'var(--amber)';
+    document.getElementById('state').removeAttribute('readonly');
+  }
+}
+
+// ── Toggle groups ────────────────────────────────────────────────────
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('projectType').value = btn.dataset.type;
+    document.getElementById('imageSearch').value = btn.dataset.search;
+  });
+});
+
+document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('buildType').value = btn.dataset.val;
+  });
+});
+
+document.querySelectorAll('#topoGroup .toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#topoGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('topography').value = btn.dataset.val;
+  });
+});
+
+// ── Helpers ──────────────────────────────────────────────────────────
+function formatCurrency(n) {
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M';
+  return '$' + n.toLocaleString('en-US');
+}
+
+function selectUtilities(btn) {
+  document.querySelectorAll('#utilitiesGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function getUtilities() {
+  const activeBtn = document.querySelector('#utilitiesGroup .toggle-btn.active');
+  if (!activeBtn) return 'Not specified';
+  return activeBtn.dataset.value === 'yes'
+    ? 'Full utilities on site (water, sewer, electric)'
+    : 'No utilities on site';
+}
+
+function loadImages(searchQuery) {
+  const grid = document.getElementById('imageGrid');
+  const block = document.getElementById('imagesBlock');
+  grid.innerHTML = '';
+  // Use Unsplash source API with topic-based fallback
+  const q = encodeURIComponent(searchQuery);
+  const urls = [
+    `https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&q=60`,
+    `https://images.unsplash.com/photo-1531834685032-c34bf0d84c77?w=400&h=300&fit=crop&q=60`,
+    `https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop&q=60`
+  ];
+  // Map search query to curated Unsplash photo IDs by project type
+  const photoSets = {
+    'garage': ['1581094794329-c8112a89af12','1558618666-fcd25c85cd64','1504307651254-35680f356dfd'],
+    'fire': ['1517248135467-4c7edcad34c4','1504307651254-35680f356dfd','1596394516093-501ba68a0ba6'],
+    'office': ['1497366216548-37526070297c','1497366754035-f200968a7efa','1431540015161-0bf868a2d407'],
+    'community': ['1497366216548-37526070297c','1504307651254-35680f356dfd','1431540015161-0bf868a2d407'],
+    'court': ['1564415489516-c28daac521da','1574629810360-7efbbe195018','1546519638-68e109498ffc'],
+    'park': ['1441974231531-c6227db76b6e','1558618666-fcd25c85cd64','1504307651254-35680f356dfd'],
+    'splash': ['1530549387789-4c8a0f8e5f6a','1504307651254-35680f356dfd','1531834685032-c34bf0d84c77'],
+    'default': ['1504307651254-35680f356dfd','1431540015161-0bf868a2d407','1497366216548-37526070297c']
+  };
+  const q_lower = searchQuery.toLowerCase();
+  let set = photoSets.default;
+  if (q_lower.includes('garage') || q_lower.includes('dpw')) set = photoSets.garage;
+  else if (q_lower.includes('fire') || q_lower.includes('ems')) set = photoSets.fire;
+  else if (q_lower.includes('office') || q_lower.includes('town hall')) set = photoSets.office;
+  else if (q_lower.includes('community') || q_lower.includes('library')) set = photoSets.community;
+  else if (q_lower.includes('court')) set = photoSets.court;
+  else if (q_lower.includes('park') || q_lower.includes('pavilion')) set = photoSets.park;
+  else if (q_lower.includes('splash')) set = photoSets.splash;
+
+  set.forEach((photoId, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'img-wrapper';
+    const img = document.createElement('img');
+    img.src = `https://images.unsplash.com/photo-${photoId}?w=400&h=300&fit=crop&q=60`;
+    img.alt = 'Reference project';
+    img.onerror = () => { wrap.style.display = 'none'; };
+    const cap = document.createElement('div');
+    cap.className = 'image-caption';
+    cap.textContent = 'Reference only — similar project type';
+    wrap.appendChild(img);
+    wrap.appendChild(cap);
+    grid.appendChild(wrap);
+  });
+  block.style.display = 'block';
+}
+
+function updateProcCallout(low, high) {
+  const designLow = formatCurrency(Math.round(low * 0.08));
+  const designHigh = formatCurrency(Math.round(high * 0.12));
+  const changeRisk = formatCurrency(Math.round(((low + high) / 2) * 0.11));
+  document.getElementById('dbbCostNote').textContent =
+    `On a project in this range: design fees ${designLow}–${designHigh} before commitment, plus ~${changeRisk} in estimated change order exposure after low-bid award.`;
+}
+
+// ── API call ─────────────────────────────────────────────────────────
+async function callClaude(prompt) {
+  const resp = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1200,
+      temperature: 0.3,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await resp.json();
+  const text = data.content.map(i => i.text || '').join('');
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
+// ── Feasibility estimate ─────────────────────────────────────────────
+async function runFeasibility() {
+  const zip      = document.getElementById('zip').value.trim();
+  const location = document.getElementById('location').value.trim();
+  const state    = document.getElementById('state').value.trim();
+  const type     = document.getElementById('projectType').value;
+  const buildType = document.getElementById('buildType').value;
+  const scope    = document.getElementById('scope').value.trim();
+  const topo     = document.getElementById('topography').value;
+  const utils    = getUtilities();
+  const imgSearch = document.getElementById('imageSearch').value;
+
+  if (!location || !zip || !type || !scope) {
+    alert('Please fill in your district / school name, ZIP code, select a project type, and describe your project.');
+    return;
+  }
+  if (utils === 'Not specified') {
+    alert('Please select whether utilities are available on-site.');
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  const loading = document.getElementById('loading');
+  const loadingMsg = document.getElementById('loadingMsg');
+  const errorBlock = document.getElementById('errorBlock');
+  const resultEl = document.getElementById('result');
+  const divider = document.getElementById('resultDivider');
+
+  btn.disabled = true;
+  loading.style.display = 'flex';
+  loadingMsg.textContent = 'Analyzing regional cost data and project parameters...';
+  errorBlock.style.display = 'none';
+  resultEl.style.display = 'none';
+  divider.style.display = 'none';
+  // Restore two-column layout on re-run
+  document.querySelector('.sidebar-column').style.display = '';
+  document.querySelector('.page-wrap').style.gridTemplateColumns = '';
+  const runStart = Date.now();
+  const prompt = `You are a K-12 school facilities construction cost advisor helping Indiana public school officials (superintendents, business managers/CFOs, facilities directors) assess project feasibility before engaging architects or contractors.
+
+This is a K-12 public school facility in the Midwest. Reflect school construction norms: work often happens in or around an occupied building, with summer-only windows for major disruption; expect prevailing-wage exposure on public school work; and account for district procurement realities. Most school work is renovation or system replacement (HVAC, roof, ADA, secure entry) rather than ground-up new construction.
+
+LOCATION: ${location}${state ? ', ' + state : ''} (ZIP: ${zip})
+PROJECT TYPE: ${type}
+BUILD TYPE: ${buildType}
+DESCRIPTION: ${scope}
+SITE TOPOGRAPHY: ${topo || 'Not specified'}
+UTILITIES ON SITE: ${utils}
+
+Provide an honest preliminary cost range based on regional construction costs for ${state} school facilities. Factor in all conditions provided.
+
+Include a realistic project timeline broken into phases
+(pre-design/authorization, design, procurement, construction).
+Base durations on the project type, delivery path context, and
+Indiana/Midwest regional norms. Do not reference specific
+statutes by name.
+
+Respond ONLY with valid JSON, no markdown, no preamble:
+{
+  "low": <integer dollar amount>,
+  "high": <integer dollar amount>,
+  "confidence": "<High|Medium|Low>",
+  "confidence_reason": "<one sentence>",
+  "narrative": "<2-3 sentences for a non-technical superintendent or school board — is this feasible, what drives the cost, any watch-outs?>",
+  "assumptions": [
+    "<specific assumption 1>",
+    "<specific assumption 2>",
+    "<specific assumption 3>",
+    "<specific assumption 4>",
+    "<site, phasing, or occupancy assumption>"
+  ],
+  "project_label": "<3-6 word label, e.g. 'HVAC Replacement — 1980s Wing' or 'Secure Entrance Vestibule'>",
+  "timeline": {
+    "phases": [
+      { "phase": "Phase name", "duration": "X-Y months", "note": "brief context" }
+    ],
+    "total": "X-Y months total",
+    "note": "One sentence on key regional or delivery-path factors that affect this timeline"
+  }
+}
+
+Rules:
+- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%)
+- Exclude land acquisition
+- If no utilities on site, add realistic extension costs to range
+- If demo required, include demo costs
+- For renovation/replacement in an occupied school, include phasing, after-hours/summer work, and temporary-conditions costs where relevant
+- Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges
+- ${state} regional labor market costs (with public-school prevailing wage where applicable) should be reflected
+- Do NOT reference RSMeans, Gordian, or any proprietary database by name
+- Write for a superintendent or school board, not a contractor`;
+
+  try {
+    const rd = await callClaude(prompt);
+    const runDuration = Date.now() - runStart;
+
+    // Store timeline for later use
+    window._lastTimeline = rd.timeline || null;
+    window._lastRunData = { low: rd.low, high: rd.high, mid: Math.round((rd.low + rd.high) / 2) };
+
+    // Show total timeline in hero bar
+    document.getElementById('costTimeline').textContent =
+      (rd.timeline && rd.timeline.total) ? rd.timeline.total : '—';
+
+    logAction('log_run', {
+      session_id: _sessionId, zip, state, municipality: location,
+      project_type: type, build_type: buildType, scope_description: scope,
+      topography: topo, utilities: utils.split(', ').filter(Boolean),
+      cost_low: rd.low, cost_high: rd.high, cost_midpoint: Math.round((rd.low + rd.high) / 2),
+      confidence: rd.confidence, confidence_reason: rd.confidence_reason,
+      narrative: rd.narrative, assumptions: rd.assumptions, project_label: rd.project_label,
+      run_duration_ms: runDuration, product: 'schools', ref: _refParam
+    }).then(r => { if (r && r.run_id) _runId = r.run_id; });
+
+    document.getElementById('resultTitle').textContent = rd.project_label || 'Preliminary Feasibility Indicator';
+    document.getElementById('resultMeta').innerHTML =
+      `${location}, ${state} &nbsp;·&nbsp; ${type} &nbsp;·&nbsp; ${buildType}`;
+
+    const badge = document.getElementById('confidenceBadge');
+    badge.textContent = rd.confidence + ' Confidence';
+    badge.className = 'confidence-badge confidence-' + rd.confidence.toLowerCase();
+
+    document.getElementById('costRange').textContent =
+      formatCurrency(rd.low) + ' \u2013 ' + formatCurrency(rd.high);
+    document.getElementById('costConfidence').textContent =
+      rd.confidence + ' Confidence \u00b7 ' + rd.confidence_reason;
+
+    document.getElementById('resultNarrative').textContent = rd.narrative;
+
+    const chipsContainer = document.getElementById('assumptionsChips');
+    chipsContainer.innerHTML = '';
+    rd.assumptions.forEach(a => {
+      const chip = document.createElement('div');
+      chip.className = 'assumption-chip';
+      chip.textContent = a;
+      chipsContainer.appendChild(chip);
+    });
+
+    // Collapse to full-width on results
+    document.querySelector('.sidebar-column').style.display = 'none';
+    document.querySelector('.page-wrap').style.gridTemplateColumns = '1fr';
+
+    updateProcCallout(rd.low, rd.high);
+    divider.style.display = 'block';
+    resultEl.style.display = 'block';
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+
+    document.getElementById('briefingContent').innerHTML =
+      `<div class="section-loading"><div class="spinner"></div> Drafting your school board briefing...</div>`;
+
+    fetchBriefing(rd.project_label, rd.low, rd.high, state, location, type, scope, buildType)
+      .then(b => renderBriefing(b))
+      .catch(() => {
+        document.getElementById('briefingContent').innerHTML =
+          '<p style="font-size:0.85rem;color:var(--muted);">Could not generate briefing guide. Try re-running the feasibility check.</p>';
+      });
+
+  } catch (err) {
+    errorBlock.textContent = 'Something went wrong. Please check your inputs and try again — more detail in the description usually helps.';
+    errorBlock.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    loading.style.display = 'none';
+  }
+}
+
+// ── School Board Briefing Guide ──────────────────────────────────────
+async function fetchBriefing(label, low, high, state, location, type, scope, buildType) {
+  const prompt = `You are an advisor helping a school superintendent prepare to present a facility project to their board of education for the first time.
+
+PROJECT: ${label}
+DISTRICT: ${location}${state ? ', ' + state : ''}
+TYPE: ${type} — ${buildType}
+DESCRIPTION: ${scope}
+ESTIMATED COST RANGE: ${formatCurrency(low)} – ${formatCurrency(high)} (midpoint ~${formatCurrency(Math.round((low+high)/2))})
+
+Context: Indiana school budgets are under pressure from SEA 1 (2025). One angle worth raising is that delivery paths like BOT (Build-Operate-Transfer, IC § 5-23) can fund facility work WITHOUT a bond referendum, through structured payments from the operating budget.
+
+Respond ONLY with valid JSON, no markdown, no preamble:
+{
+  "opening": "<One natural sentence the superintendent can say to open this topic at a board meeting — confident, not salesy>",
+  "talking_points": [
+    "<why this project matters to students, staff, and the community — specific to this project type>",
+    "<why now is a reasonable time to act — frame around deferred maintenance and budget pressure, practical not alarmist>",
+    "<how this could be funded — note that referendum-free options like BOT may exist, and what the cost range means in plain terms>"
+  ],
+  "likely_questions": [
+    { "q": "Do we have to go to referendum for this?", "a": "<brief, direct answer that mentions BOT / referendum-free options where appropriate>" },
+    { "q": "<second likely skeptical board question — e.g. budget/debt-capacity impact>", "a": "<brief answer>" },
+    { "q": "Is this even allowed for school corporations?", "a": "<brief answer referencing IC § 5-23 authority for schools>" }
+  ],
+  "next_step": "<One sentence — the lowest-commitment ask you can make to the board to move this forward, e.g. authorizing staff to explore funding and delivery options.>"
+}`;
+
+  return await callClaude(prompt);
+}
+
+function renderBriefing(b) {
+  let html = '';
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Key Talking Points</div>
+    <ul class="pitch-points">${b.talking_points.map(p => `<li>${p}</li>`).join('')}</ul>
+  </div>`;
+  html += `<div class="briefing-section">
+    <div class="briefing-section-label">Recommended Ask</div>
+    <div class="recommended-ask">${b.next_step}</div>
+  </div>`;
+  document.getElementById('briefingContent').innerHTML = html;
+}
+
+// ── Lead Gate — now uses /api/email ─────────────────────────────────
+async function submitLead() {
+  const first = document.getElementById('gateFirst').value.trim();
+  const last  = document.getElementById('gateLast').value.trim();
+  const role  = document.getElementById('gateRole').value;
+  const email = document.getElementById('gateEmail').value.trim();
+  const muni  = document.getElementById('location').value.trim();
+  const project = document.getElementById('resultTitle').textContent;
+  const narrative = document.getElementById('resultNarrative').textContent;
+
+  // Collect assumptions
+  const assumptionEls = document.querySelectorAll('#assumptionsChips .assumption-chip');
+  const assumptions = Array.from(assumptionEls).map(el => el.textContent.trim());
+
+  // Collect briefing content if loaded
+  const briefingEl = document.getElementById('briefingContent');
+  const briefingSpinner = briefingEl ? briefingEl.querySelector('.section-loading') : null;
+  const briefingHtml = (briefingEl && !briefingSpinner) ? briefingEl.innerHTML : null;
+
+  if (!first || !last || !role || !email) {
+    alert('Please fill in all fields to receive your report.');
+    return;
+  }
+
+  const gateBtn = document.getElementById('gateBtn');
+  gateBtn.disabled = true;
+  gateBtn.textContent = 'Sending...';
+
+  try {
+    // Parse cost fields from DOM
+    const costRangeText = document.getElementById('costRange').textContent;
+    const costParts = costRangeText.split('–').map(s => s.trim());
+    const costLow  = costParts[0] || '—';
+    const costHigh = costParts[1] || '—';
+    const costMidpoint = window._lastRunData
+      ? formatCurrency(window._lastRunData.mid)
+      : '—';
+    const badge = document.getElementById('confidenceBadge');
+    const confidence = badge ? badge.textContent.replace(' Confidence','').trim() : 'Medium';
+
+    // Send report to user
+    await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'send_report',
+        data: {
+          recipientEmail: email,
+          recipientName: first,
+          municipality: muni,
+          projectType: project,
+          costLow,
+          costHigh,
+          costMidpoint,
+          confidence,
+          narrative,
+          assumptions,
+          briefingHtml,
+          timeline: window._lastTimeline || null,
+          product: 'schools'
+        }
+      })
+    });
+
+    // Notify Keith of lead (BCC — handled server side)
+    await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'notify_lead',
+        data: {
+          firstName: first,
+          lastName: last,
+          email,
+          role,
+          municipality: muni,
+          projectType: project,
+          costLow,
+          costHigh,
+          confidence,
+          product: 'schools'
+        }
+      })
+    });
+
+    logAction('log_lead', {
+      session_id: _sessionId, tool_run_id: _runId,
+      first_name: first, last_name: last, email, role, municipality: muni
+    });
+
+    document.getElementById('gateBtn').style.display = 'none';
+    document.getElementById('gateConfirmed').style.display = 'block';
+    document.getElementById('gatePostCta').style.display = 'block';
+
+    // Reveal timeline tease
+    const tease = document.getElementById('timelineTease');
+    const content = document.getElementById('timelineContent');
+    const locked = document.querySelector('.tease-locked');
+    if (tease && window._lastTimeline) {
+      const tl = window._lastTimeline;
+      locked.style.display = 'none';
+      content.style.display = 'block';
+      content.innerHTML = tl.phases.map(p =>
+        `<div class="tl-row">
+          <span class="tl-phase">${p.phase}</span>
+          <span class="tl-dur">${p.duration}</span>
+        </div>`
+      ).join('') +
+      `<div class="tl-note">${tl.total} total &mdash; ${tl.note}</div>`;
+    }
+  } catch (err) {
+    console.error('Lead submit error:', err);
+    document.getElementById('gateBtn').disabled = false;
+    document.getElementById('gateBtn').textContent = 'Send My Report';
+    alert('Something went wrong. Please try again.');
+  }
+}
+</script>
+</body>
+</html>

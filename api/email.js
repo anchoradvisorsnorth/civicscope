@@ -34,7 +34,9 @@ export default async function handler(req, res) {
 
       const subject = isGC
         ? `Your Project Cost Summary — ${projectType}${municipality ? ' in ' + municipality : ''}`
-        : `Your ${product === 'pro' ? 'CivicScope Pro' : 'CivicScope Free'} Feasibility Report — ${projectType} in ${municipality}`;
+        : product === 'schools'
+          ? `Your CivicScope for Schools Feasibility Report — ${projectType} in ${municipality}`
+          : `Your ${product === 'pro' ? 'CivicScope Pro' : 'CivicScope Free'} Feasibility Report — ${projectType} in ${municipality}`;
 
       const emailPayload = {
         from: FROM_EMAIL,
@@ -73,7 +75,7 @@ export default async function handler(req, res) {
 
       const subject = isGC
         ? `New Lead from Your Project Estimator — ${firstName} ${lastName} | ${municipality || projectType}`
-        : `New CivicScope ${product === 'pro' ? 'Pro' : 'Free'} Lead — ${firstName} ${lastName} | ${municipality}`;
+        : `New CivicScope ${product === 'schools' ? 'Schools' : product === 'pro' ? 'Pro' : 'Free'} Lead — ${firstName} ${lastName} | ${municipality}`;
 
       const emailPayload = {
         from: FROM_EMAIL,
@@ -276,7 +278,9 @@ function buildGCLeadNotificationEmail({ firstName, lastName, email, municipality
 // ── CS Report Email (original — Free / Pro) ───────────────────────────────────
 function buildReportEmail(data) {
   const { recipientName, municipality, projectType, costLow, costHigh, costMidpoint, confidence, narrative, assumptions, briefingHtml, product } = data;
-  const tier = product === 'pro' ? 'CivicScope Pro' : 'CivicScope';
+  const isSchools = product === 'schools';
+  const tier = isSchools ? 'CivicScope for Schools' : (product === 'pro' ? 'CivicScope Pro' : 'CivicScope');
+  const headerSubtitle = isSchools ? 'School Facility Feasibility' : 'Municipal Project Feasibility';
   const confidenceColor = confidence === 'High' ? '#2d6a4f' : confidence === 'Medium' ? '#b5860d' : '#c0392b';
   return `<!DOCTYPE html>
 <html>
@@ -285,7 +289,7 @@ function buildReportEmail(data) {
 <div style="max-width:600px;margin:0 auto;background:#fff;">
   <div style="background:#1a2744;padding:32px 40px;">
     <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">${tier}</div>
-    <div style="color:#9aa5c4;font-size:11px;letter-spacing:2px;margin-top:4px;text-transform:uppercase;">Municipal Project Feasibility</div>
+    <div style="color:#9aa5c4;font-size:11px;letter-spacing:2px;margin-top:4px;text-transform:uppercase;">${headerSubtitle}</div>
   </div>
   <div style="padding:40px;">
     <p style="color:#555;font-size:15px;margin:0 0 24px;">Hi ${recipientName || 'there'},</p>
@@ -337,9 +341,15 @@ function buildReportEmail(data) {
           <table width="100%" cellpadding="20" cellspacing="0" border="0" style="background:#fff3ec;border-radius:6px;border-left:3px solid #c2410c;">
             <tr>
               <td>
+                ${isSchools ? `
+                <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#c2410c;margin:0 0 6px;">Worth a look — BOT (Build-Operate-Transfer)</p>
+                <p style="font-size:14px;color:#44403c;margin:0 0 10px;line-height:1.6;"><strong>No bond referendum required.</strong> A private developer designs, builds, and finances the project; the district makes structured payments from its operating budget, and the facility transfers to the district with clean title. A Guaranteed Maximum Price is locked before construction, and the district picks its own team on qualifications — not lowest bid. Authorized for school corporations under Indiana IC § 5-23, with statutory safeguards (competitive RFQ, public-hearing board approval, payment and performance bonds).</p>
+                <p style="font-size:13px;color:#78716c;margin:0;line-height:1.5;">Common in Indiana municipal projects, still rare in K-12. Developers experienced in school BOT — like JBK Development — can walk a board through the process. Your school attorney should advise on how it fits your procurement requirements.</p>
+                ` : `
                 <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#c2410c;margin:0 0 6px;">Recommended — BOT / P3 with GMP</p>
                 <p style="font-size:14px;color:#44403c;margin:0 0 10px;line-height:1.6;">Select your team based on qualifications and trust — not lowest bid. Price is fixed before design begins. Single point of accountability. Authorized under Indiana IC § 5-23 and Michigan P3 frameworks.</p>
                 <p style="font-size:13px;color:#78716c;margin:0;line-height:1.5;">Eliminates change order exposure. Your municipal attorney should advise on which path fits your procurement requirements.</p>
+                `}
               </td>
             </tr>
           </table>
@@ -366,10 +376,21 @@ function buildReportEmail(data) {
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
       <tr>
         <td style="padding:0 48px;">
-          <p style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#78716c;margin:0 0 16px;">Board or Council Briefing</p>
-          <p style="font-size:13px;color:#78716c;margin:0 0 16px;font-style:italic;">Review and edit these points before using — they're drafted for your project but you know your council best.</p>
+          <p style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#78716c;margin:0 0 16px;">${isSchools ? 'School Board Briefing' : 'Board or Council Briefing'}</p>
+          <p style="font-size:13px;color:#78716c;margin:0 0 16px;font-style:italic;">Review and edit these points before using — they're drafted for your project but you know your ${isSchools ? 'board' : 'council'} best.</p>
 
           <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1c1917;margin:0 0 8px;">Key Points to Lead With</p>
+          ${isSchools ? `
+          <ul style="margin:0 0 20px;padding-left:20px;color:#44403c;font-size:14px;line-height:1.7;">
+            <li style="margin-bottom:8px;">This estimate reflects current construction costs for a school project of this type and scope — it's a planning number, not a bid.</li>
+            <li style="margin-bottom:8px;">How we fund it matters. Build-Operate-Transfer (IC § 5-23) can deliver this <strong>without a bond referendum</strong> — structured payments from the operating budget, with a price locked before construction.</li>
+            <li style="margin-bottom:8px;">With SEA 1 tightening facility budgets, addressing deferred maintenance through a referendum-free path is worth exploring now.</li>
+            <li style="margin-bottom:8px;">Next step is authorization to explore funding and delivery options — no commitment to a budget or contractor yet.</li>
+          </ul>
+
+          <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1c1917;margin:0 0 8px;">Recommended Ask</p>
+          <p style="font-size:14px;color:#44403c;margin:0;line-height:1.6;">Request direction to explore funding and delivery options for this project — including referendum-free paths like BOT — with no contractor engagement or budget commitment yet.</p>
+          ` : `
           <ul style="margin:0 0 20px;padding-left:20px;color:#44403c;font-size:14px;line-height:1.7;">
             <li style="margin-bottom:8px;">This estimate reflects current construction costs for a project of this type and scope — it's a planning number, not a bid.</li>
             <li style="margin-bottom:8px;">Delivery method affects both price certainty and timeline. BOT/P3 fixes price before design begins; Design-Bid-Build carries change order risk.</li>
@@ -378,6 +399,7 @@ function buildReportEmail(data) {
 
           <p style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1c1917;margin:0 0 8px;">Recommended Ask</p>
           <p style="font-size:14px;color:#44403c;margin:0;line-height:1.6;">Request direction to begin preliminary planning and explore funding options — no contractor engagement, no budget commitment yet.</p>
+          `}
         </td>
       </tr>
     </table>
@@ -435,7 +457,7 @@ function buildReportEmail(data) {
       </tr>
     </table>
     <div style="border-top:1px solid #eee;padding-top:28px;margin-top:28px;">
-      <p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 16px;">This report was generated by ${tier} — a free feasibility screening tool for municipal teams.</p>
+      <p style="color:#555;font-size:14px;line-height:1.7;margin:0 0 16px;">This report was generated by ${tier} — a free feasibility screening tool for ${isSchools ? 'school leaders' : 'municipal teams'}.</p>
       <a href="https://civicscope.io" style="display:inline-block;background:#1a2744;color:#fff;padding:12px 24px;border-radius:4px;text-decoration:none;font-size:14px;">Visit CivicScope</a>
       <p style="color:#78716c;font-size:13px;margin:20px 0 0;line-height:1.6;">Have questions about your project or want to talk through the numbers? Reach us at <a href="mailto:info@civicscope.io" style="color:#c2410c;text-decoration:none;font-weight:600;">info@civicscope.io</a> — we're happy to help.</p>
     </div>
@@ -451,7 +473,7 @@ function buildReportEmail(data) {
 
 // ── CS Lead Notification Email (original) ────────────────────────────────────
 function buildLeadNotificationEmail({ firstName, lastName, email, role, municipality, projectType, costLow, costHigh, confidence, product, sessionId, runId }) {
-  const tier = product === 'pro' ? 'Pro' : 'Free';
+  const tier = product === 'schools' ? 'Schools' : product === 'pro' ? 'Pro' : 'Free';
   const ts = new Date().toLocaleString('en-US', { timeZone: 'America/Indiana/Indianapolis' });
   return `<!DOCTYPE html>
 <html>
