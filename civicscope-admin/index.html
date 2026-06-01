@@ -140,6 +140,7 @@
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
   }
   .product-card.free::before   { background: var(--accent); }
+  .product-card.schools::before { background: #2563eb; }
   .product-card.pro::before    { background: var(--accent2); }
   .product-card.gc-ext::before { background: var(--warn); }
   .product-card.gc-int::before { background: var(--purple); }
@@ -494,6 +495,28 @@
         </div>
       </div>
 
+      <div class="product-card schools">
+        <div class="card-top">
+          <div><div class="card-name">CivicScope for Schools</div><div class="card-tier">app.civicscope.io/schools</div></div>
+          <div class="status-pill"><div class="dot checking" id="dot-schools"></div><span id="status-schools" style="color:var(--muted)">checking</span></div>
+        </div>
+        <div class="card-meta">
+          <div class="meta-item"><div class="mlabel">Version</div><div class="mval">v1.0.0-schools</div></div>
+          <div class="meta-item"><div class="mlabel">Runs (30d)</div><div class="mval loading" id="runs-schools">—</div></div>
+          <div class="meta-item"><div class="mlabel">Leads (30d)</div><div class="mval loading" id="leads-schools">—</div></div>
+          <div class="meta-item"><div class="mlabel">Avg Duration</div><div class="mval loading" id="dur-schools">—</div></div>
+        </div>
+        <div class="card-last-run">
+          <div class="clr-label">Last Run</div>
+          <div class="clr-project loading" id="last-schools">Loading…</div>
+          <div class="clr-time" id="time-schools">—</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-smoke" onclick="smokeTest('schools','https://app.civicscope.io/schools')">▶ Smoke Test</button>
+          <a class="btn-open" href="https://app.civicscope.io/schools" target="_blank">↗ Open</a>
+        </div>
+      </div>
+
       <div class="product-card pro">
         <div class="card-top">
           <div><div class="card-name">CivicScope Pro</div><div class="card-tier">app.civicscope.io/civicscope-pro</div></div>
@@ -737,10 +760,11 @@ async function loadStats() {
 async function loadProductData() {
   const ago30 = new Date(Date.now() - 30*24*60*60*1000).toISOString();
   const map = [
-    { key: 'free',   product: 'free' },
-    { key: 'pro',    product: 'pro' },
-    { key: 'gc-ext', product: 'gc-acme' },
-    { key: 'gc-int', product: 'gc-int-acme' },
+    { key: 'free',    product: 'free' },
+    { key: 'schools', product: 'schools' },
+    { key: 'pro',     product: 'pro' },
+    { key: 'gc-ext',  product: 'gc-acme' },
+    { key: 'gc-int',  product: 'gc-int-acme' },
   ];
   for (const pm of map) {
     try {
@@ -761,7 +785,7 @@ async function loadProductData() {
         document.getElementById(`last-${pm.key}`).textContent = 'No runs yet';
         document.getElementById(`last-${pm.key}`).classList.remove('loading');
       }
-      if (pm.key === 'free' || pm.key === 'pro') {
+      if (pm.key === 'free' || pm.key === 'pro' || pm.key === 'schools') {
         const leads30 = await sbRead(`leads?select=id&created_at=gte.${ago30}`);
         document.getElementById(`leads-${pm.key}`).textContent = leads30.length;
       }
@@ -820,6 +844,7 @@ async function loadLeads() {
 // ── PING ─────────────────────────────────────────────────────────
 async function pingAll() {
   [['free','https://app.civicscope.io/civicscope'],
+   ['schools','https://app.civicscope.io/schools'],
    ['pro','https://app.civicscope.io/civicscope-pro'],
    ['gc-ext','https://app.civicscope.io/gc/acme'],
    ['gc-int','https://app.civicscope.io/gc/acme-internal']
@@ -1184,10 +1209,11 @@ async function saveTenant() {
 
 // ── SMOKE TEST ────────────────────────────────────────────────────
 const PRODUCTS = {
-  'free':   { label: 'Free',        product_prefix: 'free' },
-  'pro':    { label: 'Pro',         product_prefix: 'pro' },
-  'gc-ext': { label: 'GC External', product_prefix: 'gc-acme' },
-  'gc-int': { label: 'GC Internal', product_prefix: 'gc-int-acme' },
+  'free':    { label: 'Free',        product_prefix: 'free' },
+  'schools': { label: 'Schools',     product_prefix: 'schools' },
+  'pro':     { label: 'Pro',         product_prefix: 'pro' },
+  'gc-ext':  { label: 'GC External', product_prefix: 'gc-acme' },
+  'gc-int':  { label: 'GC Internal', product_prefix: 'gc-int-acme' },
 };
 async function smokeTest(key, url) {
   const btn = event.target;
@@ -1252,6 +1278,7 @@ function badgeFor(p) {
 function productLabel(p) {
   if (!p) return '?';
   if (p==='free') return 'Free';
+  if (p==='schools') return 'Schools';
   if (p==='pro') return 'Pro';
   if (p.startsWith('gc-int')) return 'GC Int';
   if (p.startsWith('gc-')) return 'GC Ext';
