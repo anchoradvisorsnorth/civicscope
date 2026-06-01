@@ -266,6 +266,7 @@ button { font-family: var(--font-body); cursor: pointer; }
   flex-shrink: 0;
   margin-bottom: 1px;
 }
+.cs-wordmark-svg { display: block; flex-shrink: 0; }
 .cs-header-divider {
   width: 1px;
   height: 20px;
