@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CivicScope for Infrastructure | Cost feasibility for roads, water & sewer — coming soon</title>
+<meta name="description" content="A CivicScope version for horizontal public works — roads, water mains, sanitary and storm sewer, lift stations, and treatment upgrades. In development. Get notified when it launches." />
+<meta property="og:title" content="CivicScope for Infrastructure — coming soon" />
+<meta property="og:description" content="Cost feasibility for roads, water, and sewer infrastructure. In development." />
+<meta property="og:url" content="https://www.civicscope.io/for-infrastructure" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://www.civicscope.io/og-image.png" />
+<link rel="canonical" href="https://www.civicscope.io/for-infrastructure" />
+<!-- Version: for-infrastructure v1.0.0 -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='20' width='22' height='8' fill='none' stroke='%231c1917' stroke-width='2' stroke-linejoin='round'/><line x1='10' y1='20' x2='10' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='16' y1='20' x2='16' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='22' y1='20' x2='22' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='6' y1='14' x2='26' y2='14' stroke='%231c1917' stroke-width='2' stroke-linecap='round'/><polyline points='7,14 16,4 25,14' fill='none' stroke='%23c2410c' stroke-width='2.5' stroke-linejoin='round' stroke-linecap='round'/><rect x='13' y='22' width='6' height='6' rx='3' fill='%23c2410c'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/civicscope.css">
+<style>
+.i-hero { max-width: 760px; margin: 0 auto; padding: clamp(64px,10vw,120px) var(--page-pad) clamp(48px,7vw,80px); text-align: center; }
+.soon-pill { display:inline-block; font-size:0.65rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); background:var(--accent-light); padding:5px 14px; border-radius:20px; margin-bottom:22px; }
+.i-hero h1 { font-family:var(--font-display); font-weight:600; letter-spacing:-0.03em; line-height:1.1; font-size:clamp(2.2rem,4.5vw,3.4rem); }
+.i-hero h1 em { font-style:italic; color:var(--accent); }
+.i-hero p { font-size:clamp(1.05rem,2vw,1.2rem); color:var(--ink-light); font-weight:300; max-width:580px; margin:18px auto 0; }
+.covers { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:32px auto 8px; max-width:640px; }
+.covers span { font-size:0.82rem; color:var(--ink-light); background:var(--white); border:1px solid var(--rule); border-radius:20px; padding:6px 14px; }
+.notify { max-width:440px; margin:40px auto 0; }
+.notify-row { display:flex; gap:10px; }
+.notify-row .cs-input { flex:1; }
+.notify-msg { font-size:0.88rem; margin-top:12px; min-height:20px; }
+.notify-msg.ok { color: var(--green); } .notify-msg.err { color:#c0392b; }
+.notify-hint { font-size:0.78rem; color:var(--muted); margin-top:10px; }
+.hub-footer { background: var(--ink); color: rgba(255,255,255,0.7); padding: 40px var(--page-pad); margin-top: 64px; }
+.hub-footer-inner { max-width: var(--page-max); margin:0 auto; display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+.hub-footer a { color: rgba(255,255,255,0.7); text-decoration:none; } .hub-footer a:hover{color:#fff;}
+.hub-footer-links{display:flex;gap:22px;font-size:0.85rem;flex-wrap:wrap;}
+@media (max-width:520px){ .notify-row{flex-direction:column;} }
+</style>
+</head>
+<body>
+
+<header class="cs-header">
+  <div class="cs-header-inner">
+    <a href="/" class="cs-wordmark"><span class="cs-wordmark-dot"></span>CivicScope</a>
+    <div class="cs-header-divider"></div>
+    <span class="cs-header-tagline">for Infrastructure</span>
+    <nav class="cs-nav">
+      <a href="/for-government">Government</a>
+      <a href="/for-schools">Schools</a>
+      <a href="/for-infrastructure" style="color:var(--ink);font-weight:600;">Infrastructure</a>
+    </nav>
+  </div>
+</header>
+
+<section class="i-hero">
+  <div class="soon-pill">Coming soon — in development</div>
+  <h1>Cost clarity for <em>roads, water &amp; sewer.</em></h1>
+  <p>CivicScope is building a version for horizontal public works — the infrastructure that doesn't fit a building estimator. Tell us where to reach you and we'll let you know when it's live.</p>
+
+  <div class="covers">
+    <span>Road &amp; street reconstruction</span>
+    <span>Water mains</span>
+    <span>Sanitary &amp; storm sewer</span>
+    <span>Lift stations</span>
+    <span>Treatment upgrades</span>
+  </div>
+
+  <form class="notify" id="notifyForm" onsubmit="return submitNotify(event)">
+    <div class="notify-row">
+      <input class="cs-input" type="email" id="notifyEmail" placeholder="you@yourgov.gov" required />
+      <button class="cs-btn cs-btn-primary" type="submit" id="notifyBtn">Notify me
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="notify-msg" id="notifyMsg"></div>
+    <div class="notify-hint">No spam — one email when CivicScope for Infrastructure launches.</div>
+  </form>
+</section>
+
+<footer class="hub-footer">
+  <div class="hub-footer-inner">
+    <div>CivicScope · Cost feasibility for the public sector</div>
+    <div class="hub-footer-links">
+      <a href="/for-government">Government</a>
+      <a href="/for-schools">Schools</a>
+      <a href="/for-infrastructure">Infrastructure</a>
+      <a href="mailto:info@civicscope.io">info@civicscope.io</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+async function submitNotify(e) {
+  e.preventDefault();
+  const email = document.getElementById('notifyEmail').value.trim();
+  const btn = document.getElementById('notifyBtn');
+  const msg = document.getElementById('notifyMsg');
+  if (!email) return false;
+  btn.disabled = true; msg.className = 'notify-msg'; msg.textContent = 'Sending…';
+  try {
+    const r = await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'notify_capture', data: { email, channel: 'infrastructure' } })
+    });
+    if (!r.ok) throw new Error('bad response');
+    msg.className = 'notify-msg ok';
+    msg.textContent = '✓ You’re on the list. We’ll be in touch when it launches.';
+    document.getElementById('notifyForm').reset();
+  } catch (err) {
+    msg.className = 'notify-msg err';
+    msg.textContent = 'Something went wrong — email info@civicscope.io and we’ll add you.';
+  } finally {
+    btn.disabled = false;
+  }
+  return false;
+}
+</script>
+
+</body>
+</html>
