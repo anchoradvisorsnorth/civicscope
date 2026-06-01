@@ -126,6 +126,39 @@ export default async function handler(req, res) {
       return res.status(200).json({ sent: true, id: result.id });
     }
 
+    // ── Channel "notify me" capture (e.g. Infrastructure coming-soon) ────
+    if (action === 'notify_capture') {
+      const { email, channel } = data;
+      const ts = new Date().toLocaleString('en-US', { timeZone: 'America/Indiana/Indianapolis' });
+      const chLabel = (channel || 'general').replace(/\b\w/g, c => c.toUpperCase());
+
+      const notifyHtml = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:Georgia,serif;">
+<div style="max-width:500px;margin:0 auto;background:#fff;">
+  <div style="background:#1a2744;padding:24px 32px;">
+    <div style="color:#fff;font-size:18px;font-weight:700;">CivicScope ${chLabel} — Notify-Me Signup</div>
+    <div style="color:#9aa5c4;font-size:11px;letter-spacing:2px;margin-top:4px;text-transform:uppercase;">${ts}</div>
+  </div>
+  <div style="padding:28px 32px;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <tr><td style="padding:8px 0;color:#888;width:100px;">Email</td><td style="padding:8px 0;"><a href="mailto:${email}" style="color:#1a2744;font-weight:600;">${email}</a></td></tr>
+      <tr style="background:#f9f6f3;"><td style="padding:8px 6px;color:#888;">Channel</td><td style="padding:8px 6px;color:#222;">${chLabel}</td></tr>
+    </table>
+  </div>
+</div>
+</body></html>`;
+
+      const emailPayload = { from: FROM_EMAIL, to: [KEITH_EMAIL], subject: `CivicScope ${chLabel} interest: ${email}`, html: notifyHtml };
+      if (SANDBOX_MODE === 'log') {
+        console.log('=== SANDBOX EMAIL (notify_capture) ===');
+        console.log(JSON.stringify(emailPayload, null, 2));
+        return res.status(200).json({ sent: false, sandbox: true, payload: emailPayload });
+      }
+      const result = await sendEmail(RESEND_API_KEY, emailPayload);
+      return res.status(200).json({ sent: true, id: result.id });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
 
   } catch (err) {
