@@ -11,7 +11,7 @@
 <meta property="og:type" content="website" />
 <meta property="og:image" content="https://www.civicscope.io/og-image.png" />
 <link rel="canonical" href="https://www.civicscope.io/for-schools" />
-<!-- Version: for-schools v1.0.0 -->
+<!-- Version: for-schools v1.1.0 -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -42,6 +42,16 @@
 .s-hero h1 em { font-style: italic; color: var(--accent); }
 .s-hero p { font-size: clamp(1.05rem,2vw,1.2rem); color: var(--ink-light); font-weight:300; max-width:600px; margin:18px auto 28px; }
 .cta-row { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+.s-hero-art { margin: 30px auto 0; max-width: 540px; animation: heroArtIn 0.8s 0.15s ease both; }
+.s-hero-art svg { width:100%; height:auto; display:block; }
+@keyframes heroArtIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+.bot-flow { display:flex; align-items:flex-start; justify-content:center; gap:6px; flex-wrap:nowrap; max-width:660px; margin:0 auto 38px; }
+.bot-step { display:flex; flex-direction:column; align-items:center; gap:9px; text-align:center; flex:0 0 auto; width:140px; }
+.bot-ic { width:58px; height:58px; border-radius:50%; background:var(--accent-light); border:2px solid var(--accent); display:flex; align-items:center; justify-content:center; }
+.bot-lbl { font-family:var(--font-display); font-weight:600; font-size:1rem; color:var(--ink); }
+.bot-sub { font-size:0.78rem; color:var(--muted); font-weight:300; line-height:1.45; }
+.bot-arrow { color:var(--accent); flex:0 0 auto; margin-top:24px; }
+@media (max-width:600px){ .bot-flow{flex-direction:column;align-items:center;gap:4px;} .bot-arrow{transform:rotate(90deg);margin:2px 0;} }
 .s-band { padding: var(--section-pad) var(--page-pad); }
 .s-band.alt { background: var(--cream-dark); border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); }
 .s-band-inner { max-width: 980px; margin: 0 auto; }
@@ -86,6 +96,54 @@
     <a href="https://app.civicscope.io/schools" class="cs-btn cs-btn-primary-lg">Use the Schools tool — free
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   </div>
+  <!-- Hero SVG illustration — schoolhouse editorial sketch with cost callout -->
+  <div class="s-hero-art">
+    <svg viewBox="0 0 480 300" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Editorial sketch of a school building with an estimated cost range">
+      <!-- ground -->
+      <line x1="36" y1="262" x2="444" y2="262" stroke="rgba(28,25,23,0.18)" stroke-width="1.5" stroke-linecap="round"/>
+      <!-- building body -->
+      <rect x="120" y="132" width="240" height="130" stroke="rgba(28,25,23,0.4)" stroke-width="1.6" stroke-linejoin="round"/>
+      <!-- roof -->
+      <path d="M104 132 L240 70 L376 132" stroke="rgba(28,25,23,0.5)" stroke-width="1.6" stroke-linejoin="round"/>
+      <!-- cupola / bell tower -->
+      <rect x="222" y="40" width="36" height="30" stroke="rgba(28,25,23,0.45)" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M216 40 L240 22 L264 40" stroke="rgba(28,25,23,0.45)" stroke-width="1.4" stroke-linejoin="round"/>
+      <!-- bell -->
+      <path d="M236 50 a4 4 0 0 1 8 0 v6 h-8 z" fill="rgba(194,65,12,0.5)" stroke="rgba(194,65,12,0.7)" stroke-width="1"/>
+      <line x1="240" y1="58" x2="240" y2="61" stroke="rgba(194,65,12,0.7)" stroke-width="1.2" stroke-linecap="round"/>
+      <!-- flag -->
+      <line x1="240" y1="22" x2="240" y2="8" stroke="rgba(28,25,23,0.4)" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M240 8 L266 14 L240 20 Z" fill="rgba(194,65,12,0.5)" stroke="rgba(194,65,12,0.6)" stroke-width="1" stroke-linejoin="round"/>
+      <!-- door -->
+      <rect x="214" y="206" width="52" height="56" rx="2" stroke="rgba(194,65,12,0.7)" stroke-width="1.6"/>
+      <line x1="240" y1="206" x2="240" y2="262" stroke="rgba(194,65,12,0.5)" stroke-width="1.2"/>
+      <circle cx="234" cy="236" r="2" fill="rgba(194,65,12,0.7)"/>
+      <circle cx="246" cy="236" r="2" fill="rgba(194,65,12,0.7)"/>
+      <!-- windows -->
+      <rect x="140" y="158" width="40" height="46" rx="2" stroke="rgba(28,25,23,0.3)" stroke-width="1.2"/>
+      <rect x="300" y="158" width="40" height="46" rx="2" stroke="rgba(28,25,23,0.3)" stroke-width="1.2"/>
+      <line x1="160" y1="158" x2="160" y2="204" stroke="rgba(28,25,23,0.18)" stroke-width="1"/>
+      <line x1="140" y1="181" x2="180" y2="181" stroke="rgba(28,25,23,0.18)" stroke-width="1"/>
+      <line x1="320" y1="158" x2="320" y2="204" stroke="rgba(28,25,23,0.18)" stroke-width="1"/>
+      <line x1="300" y1="181" x2="340" y2="181" stroke="rgba(28,25,23,0.18)" stroke-width="1"/>
+      <!-- steps -->
+      <line x1="200" y1="262" x2="280" y2="262" stroke="rgba(28,25,23,0.35)" stroke-width="2"/>
+      <line x1="206" y1="256" x2="274" y2="256" stroke="rgba(28,25,23,0.2)" stroke-width="1.4"/>
+      <!-- trees -->
+      <line x1="72" y1="262" x2="72" y2="210" stroke="rgba(28,25,23,0.25)" stroke-width="1.4" stroke-linecap="round"/>
+      <ellipse cx="72" cy="200" rx="20" ry="24" stroke="rgba(28,25,23,0.18)" stroke-width="1"/>
+      <line x1="408" y1="262" x2="408" y2="216" stroke="rgba(28,25,23,0.25)" stroke-width="1.4" stroke-linecap="round"/>
+      <ellipse cx="408" cy="206" rx="20" ry="24" stroke="rgba(28,25,23,0.18)" stroke-width="1"/>
+      <!-- cost callout -->
+      <rect x="300" y="36" width="150" height="70" rx="4" fill="rgba(194,65,12,0.95)"/>
+      <text x="316" y="58" font-family="'DM Sans',sans-serif" font-size="9" fill="rgba(255,255,255,0.7)" letter-spacing="1">ESTIMATED RANGE</text>
+      <text x="316" y="80" font-family="'Fraunces',serif" font-size="19" font-weight="600" fill="#fff">$1.4M–$2.1M</text>
+      <text x="316" y="96" font-family="'DM Sans',sans-serif" font-size="8.5" fill="rgba(255,255,255,0.6)">Elkhart Co., IN · HVAC + roof</text>
+      <!-- dashed pointer -->
+      <path d="M300 72 Q282 78 270 120" stroke="rgba(194,65,12,0.4)" stroke-width="1" stroke-dasharray="3 3"/>
+      <circle cx="270" cy="120" r="3" fill="rgba(194,65,12,0.5)"/>
+    </svg>
+  </div>
 </section>
 
 <section class="s-band alt">
@@ -113,6 +171,31 @@
   <div class="s-band-inner">
     <h2 style="text-align:center;">Why BOT fits schools</h2>
     <p style="text-align:center;max-width:680px;margin:0 auto 36px;">Build-Operate-Transfer is well-established in Indiana municipal projects and authorized for school corporations under <strong>IC&nbsp;§&nbsp;5-23</strong> — but still rarely used in K-12. Here's the shape of it:</p>
+    <div class="bot-flow">
+      <div class="bot-step">
+        <div class="bot-ic">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M4 22h18M6 22v-9l7-5 7 5v9M11 22v-6h4v6" stroke="#c2410c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="bot-lbl">Build</div>
+        <div class="bot-sub">Developer designs, builds &amp; finances</div>
+      </div>
+      <svg class="bot-arrow" width="32" height="16" viewBox="0 0 32 16" fill="none"><path d="M2 8h26M22 3l6 5-6 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="bot-step">
+        <div class="bot-ic">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="9" stroke="#c2410c" stroke-width="1.6"/><path d="M13 8v5l3.5 3" stroke="#c2410c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="bot-lbl">Operate</div>
+        <div class="bot-sub">District pays from its operating budget</div>
+      </div>
+      <svg class="bot-arrow" width="32" height="16" viewBox="0 0 32 16" fill="none"><path d="M2 8h26M22 3l6 5-6 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="bot-step">
+        <div class="bot-ic">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M4 13l9-7 9 7M6 12v9h14v-9" stroke="#c2410c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 16l2.5 2.5L18 14" stroke="#c2410c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="bot-lbl">Transfer</div>
+        <div class="bot-sub">Clean title &amp; warranties to the district</div>
+      </div>
+    </div>
     <div class="s-grid">
       <div>
         <ul>
