@@ -11,7 +11,7 @@
 <meta property="og:type" content="website" />
 <meta property="og:image" content="https://www.civicscope.io/og-image.png" />
 <link rel="canonical" href="https://www.civicscope.io" />
-<!-- Version: hub v1.0.0 -->
+<!-- Version: hub v1.1.0 -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -130,6 +130,27 @@
 .step h3 { font-size: 1.05rem; margin: 8px 0 6px; }
 .step p { font-size: 0.9rem; color: var(--ink-light); font-weight: 300; line-height: 1.55; }
 
+/* Story */
+.hub-story { padding: clamp(56px,8vw,96px) var(--page-pad); }
+.hub-story-inner { max-width: 760px; margin: 0 auto; text-align: center; }
+.hub-story .cs-label { justify-content: center; margin-bottom: 18px; }
+.hub-story h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.8rem,3.5vw,2.6rem); letter-spacing: -0.02em; line-height: 1.12; color: var(--ink); }
+.hub-story h2 em { font-style: italic; color: var(--accent); }
+.hub-story-text { margin-top: 22px; }
+.hub-story-text p { font-size: 1.05rem; color: var(--ink-light); font-weight: 300; line-height: 1.7; margin-top: 16px; }
+
+/* Final CTA */
+.hub-final { background: var(--cream-dark); border-top: 1px solid var(--rule); padding: clamp(56px,8vw,96px) var(--page-pad); text-align: center; }
+.hub-final-inner { max-width: 640px; margin: 0 auto; }
+.hub-final h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.8rem,3.5vw,2.6rem); letter-spacing: -0.02em; color: var(--ink); }
+.hub-final h2 em { font-style: italic; color: var(--accent); }
+.hub-final p { color: var(--muted); font-weight: 300; margin: 14px auto 0; max-width: 480px; }
+.hub-final-cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 28px; }
+.hub-final-cta a { font-family: var(--font-body); font-size: 0.95rem; font-weight: 600; color: #fff; background: var(--accent); padding: 13px 26px; border-radius: 8px; text-decoration: none; transition: background var(--ease); }
+.hub-final-cta a:hover { background: var(--accent-hover); }
+.hub-final-note { font-size: 0.88rem; color: var(--muted); margin-top: 22px; }
+.hub-final-note a { color: var(--accent); text-decoration: none; font-weight: 500; }
+
 /* Footer */
 .hub-footer { background: var(--ink); color: rgba(255,255,255,0.7); padding: 48px var(--page-pad); }
 .hub-footer-inner { max-width: var(--page-max); margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
@@ -207,6 +228,18 @@
 
 </section>
 
+<section class="hub-story">
+  <div class="hub-story-inner">
+    <div class="cs-label">Why CivicScope exists</div>
+    <h2>The feasibility question <em>should come first.</em></h2>
+    <div class="hub-story-text">
+      <p>A public project starts as an idea — a new fire station, a school's failing HVAC, a water main that can't wait. But the moment you call an architect or a contractor to ask "what does this cost?", you're in their process — and they're sizing up your budget before you've asked a single question.</p>
+      <p>Search online and you'll find national averages from years ago that mean nothing for your community, your project, your market. The one question that should come first — <strong>is this actually feasible?</strong> — has never had a good answer.</p>
+      <p>CivicScope changes the starting point: a regionally-calibrated cost range in about 30 seconds, before the first call, before the first meeting, while the decision is still yours.</p>
+    </div>
+  </div>
+</section>
+
 <section class="hub-band">
   <div class="hub-band-inner">
     <h2>Same idea, three audiences</h2>
@@ -228,6 +261,18 @@
         <p>A board- or council-ready briefing and a delivery-path comparison so you can move from "can we afford it?" to "here's the plan."</p>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="hub-final">
+  <div class="hub-final-inner">
+    <h2>Start with <em>the number.</em></h2>
+    <p>Free to use, always. No signup, no commitment. Pick the version built for your work.</p>
+    <div class="hub-final-cta">
+      <a href="/for-government">For Government</a>
+      <a href="/for-schools">For Schools</a>
+    </div>
+    <p class="hub-final-note">Infrastructure is in development — <a href="/for-infrastructure">get notified →</a></p>
   </div>
 </section>
 
