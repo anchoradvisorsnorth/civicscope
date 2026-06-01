@@ -1207,9 +1207,9 @@ footer span {
       </div>
     </div>
 
-    <!-- SECTION 3: Site Conditions -->
-    <div class="form-section">
-      <div class="form-section-title">Site Conditions <span class="optional-note">— optional, improves accuracy</span></div>
+    <!-- SECTION 3: Site Conditions — only relevant for new construction; hidden for renovation/replacement -->
+    <div class="form-section" id="siteConditions" style="display:none;">
+      <div class="form-section-title">Site Conditions <span class="optional-note">— new construction only</span></div>
       <div class="form-grid">
         <div class="field full">
           <label>Site Topography</label>
@@ -1562,8 +1562,23 @@ document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(btn => {
     document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('buildType').value = btn.dataset.val;
+    toggleSiteConditions();
   });
 });
+
+// Site topography + on-site utilities only matter for new construction.
+// For renovations / system replacements (HVAC, roof, etc.) they're irrelevant, so hide the section.
+function toggleSiteConditions() {
+  const isNew = document.getElementById('buildType').value === 'New construction';
+  const sec = document.getElementById('siteConditions');
+  if (sec) sec.style.display = isNew ? '' : 'none';
+  if (!isNew) {
+    document.getElementById('topography').value = '';
+    document.querySelectorAll('#topoGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#utilitiesGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+  }
+}
+toggleSiteConditions();
 
 document.querySelectorAll('#topoGroup .toggle-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1682,7 +1697,7 @@ async function runFeasibility() {
     alert('Please fill in your district / school name, ZIP code, select a project type, and describe your project.');
     return;
   }
-  if (utils === 'Not specified') {
+  if (buildType === 'New construction' && utils === 'Not specified') {
     alert('Please select whether utilities are available on-site.');
     return;
   }
