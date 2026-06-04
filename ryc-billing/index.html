@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RYC — Billing &amp; AR (Foundation prototype)</title>
+<style>
+  :root {
+    --bg: #f5f3ef; --bg-card: #f1f0eb; --surface: #fff; --text: #1a1a2e; --muted: #6b7280;
+    --border: #e5e7eb; --accent: #2563eb; --green: #16a34a; --amber: #d97706;
+    --red: #dc2626; --green-bg: #f0fdf4; --amber-bg: #fffbeb; --red-bg: #fef2f2; --orange:#ea7317;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; }
+  /* lock */
+  #lock-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .lock-box { background: var(--surface); border-radius: 12px; padding: 48px 40px; text-align: center; width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,.06); }
+  .lock-box img { height: 64px; margin-bottom: 18px; }
+  .lock-box h2 { font-size: 20px; margin: 0 0 4px; } .lock-box .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .lock-box input { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+  .lock-box button { margin-top: 14px; width: 100%; padding: 11px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+  .lock-box .err { color: var(--red); font-size: 12px; margin-top: 8px; display: none; }
+  #app { display: none; max-width: 1100px; margin: 0 auto; padding: 22px 24px 60px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  header .brand { display: flex; align-items: center; gap: 12px; }
+  header .brand img { height: 42px; }
+  header h1 { font-size: 19px; margin: 0; }
+  header .meta { color: var(--muted); font-size: 12px; }
+  .proto-badge { background: var(--orange); color: #fff; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+  .banner { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--orange); border-radius: 8px; padding: 12px 16px; margin: 14px 0 18px; font-size: 13px; line-height: 1.5; }
+  .banner b { color: var(--orange); }
+  .controls { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .controls label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+  select, input[type=range] { font-size: 13px; }
+  select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; background: #fff; }
+  .thresh-val { font-weight: 600; color: var(--text); font-size: 13px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .card h2 { font-size: 15px; margin: 0 0 2px; }
+  .card .h-sub { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 8px; border-bottom: 1px solid #f3f3f3; vertical-align: top; }
+  .job { font-family: ui-monospace, Menlo, monospace; color: #374151; font-size: 12px; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; } .neg { color: var(--red); } .pct { text-align: right; color: var(--muted); }
+  .pm-row td { background: #fafafa; font-weight: 700; border-top: 2px solid #eee; padding-top: 9px; }
+  .chk { color: var(--green); font-weight: 700; } .new { color: var(--muted); font-size: 11px; }
+  tr.crit td { background: var(--red-bg); } .note { color: var(--muted); font-size: 12px; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; }
+  .pill-g { background: #dcfce7; color: #166534; } .pill-y { background: #fef9c3; color: #854d0e; } .pill-b { background: #dbeafe; color: #1e40af; }
+  .legend { font-size: 11px; color: var(--muted); margin-top: 8px; }
+  .stat-row { display: flex; gap: 20px; margin: 10px 0 2px; flex-wrap: wrap; }
+  .stat { font-size: 12px; color: var(--muted); } .stat b { color: var(--text); font-size: 15px; display: block; }
+  footer { color: var(--muted); font-size: 11px; margin-top: 24px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div id="lock-screen">
+  <div class="lock-box">
+    <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
+    <h2>RYC Billing &amp; AR</h2>
+    <div class="sub">R. Yoder Construction · Foundation prototype</div>
+    <input type="password" id="pw" placeholder="Password" autofocus>
+    <button onclick="tryLogin()">Enter</button>
+    <div class="err" id="pw-err">Incorrect password</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
+      <div><h1>Billing &amp; AR <span class="proto-badge">PROTOTYPE</span></h1>
+        <div class="meta">Auto-generated from Foundation weekly reports · sample data</div></div>
+    </div>
+    <a href="/ryc/dashboard" class="meta" style="text-decoration:none;color:var(--accent)">← Portfolio Dashboard</a>
+  </header>
+
+  <div class="banner">
+    <b>What this is:</b> the two lists Jason assembles by hand each week — <b>Needs Invoicing</b> and <b>Overdue AR</b> —
+    generated automatically from the Foundation data. The <b>Deficit/Surplus</b> figure is recomputed from raw Foundation
+    columns: <b>exact match, 0 errors across all 6 weeks</b>. A <span class="chk">✓</span> marks a job Jason also
+    hand-highlighted that week. <i>Sample data; production runs on the live ODBC feed.</i>
+  </div>
+
+  <div class="controls">
+    <div><label>Week</label><select id="week" onchange="render()"></select></div>
+    <div><label>Show jobs under-billed by more than <span class="thresh-val" id="tval">$5,000</span></label>
+      <input type="range" id="thresh" min="0" max="50000" step="1000" value="5000" oninput="onThresh()" style="width:260px">
+    </div>
+    <div><label>&nbsp;</label><label style="font-size:13px;color:var(--text)"><input type="checkbox" id="onlymatch" onchange="render()"> Only jobs Jason flagged</label></div>
+  </div>
+
+  <div id="stats" class="stat-row"></div>
+  <div id="needs"></div>
+  <div id="closeout"></div>
+  <div id="ar"></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+let DATA = null, THRESH = 5000;
+function tryLogin(){ if(document.getElementById('pw').value==='ryc2026'){ unlock(); } else { document.getElementById('pw-err').style.display='block'; } }
+function unlock(){ document.getElementById('lock-screen').style.display='none'; document.getElementById('app').style.display='block'; sessionStorage.setItem('ryc-auth','1'); load(); }
+document.getElementById('pw').addEventListener('keydown',e=>{ if(e.key==='Enter') tryLogin(); });
+if(sessionStorage.getItem('ryc-auth')==='1'){ unlock(); }
+
+async function load(){
+  try { DATA = await (await fetch('/ryc-billing/billing-data.json?t='+Date.now())).json(); }
+  catch(e){ document.getElementById('needs').innerHTML='<div class="card">Could not load data.</div>'; return; }
+  const sel=document.getElementById('week');
+  sel.innerHTML = DATA.weeks.map((w,i)=>`<option value="${i}">Week of ${fmtWk(w.week)}</option>`).join('');
+  render();
+}
+function fmtWk(iso){ const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function money(v){ if(v==null) return '—'; return (v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function onThresh(){ THRESH=+document.getElementById('thresh').value; document.getElementById('tval').textContent='$'+THRESH.toLocaleString(); render(); }
+
+function render(){
+  if(!DATA) return;
+  const w = DATA.weeks[+document.getElementById('week').value];
+  const onlyMatch = document.getElementById('onlymatch').checked;
+  let cands = w.needs_invoicing.filter(j => Math.abs(j.deficit) >= THRESH);
+  if(onlyMatch) cands = cands.filter(j => j.jason_yellow);
+  const agree = cands.filter(j=>j.jason_yellow).length;
+
+  // stats
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><b>${cands.length}</b>needs invoicing (≥ ${money(THRESH)})</div>
+    <div class="stat"><b>${money(cands.reduce((s,j)=>s+Math.abs(j.deficit),0))}</b>total under-billed</div>
+    <div class="stat"><b>${agree}/${cands.length}</b>match Jason's hand-flag</div>
+    <div class="stat"><b>${w.formula_exact?'✓ exact':'⚠'}</b>formula vs Foundation</div>`;
+
+  // needs invoicing grouped by PM
+  const byPm = {};
+  cands.forEach(j=>(byPm[j.pm]=byPm[j.pm]||[]).push(j));
+  let rows='';
+  Object.keys(byPm).sort().forEach(pm=>{
+    rows += `<tr class="pm-row"><td colspan="5">${pm}</td></tr>`;
+    byPm[pm].sort((a,b)=>a.deficit-b.deficit).forEach(j=>{
+      rows += `<tr>
+        <td class="job">${j.job}</td><td>${esc(j.desc)}</td>
+        <td class="num neg">${money(j.deficit)}</td>
+        <td class="pct">${j.pct!=null?Math.round(j.pct)+'%':'—'}</td>
+        <td>${j.jason_yellow?'<span class="chk">✓ flagged</span>':'<span class="new">new candidate</span>'}</td></tr>`;
+    });
+  });
+  document.getElementById('needs').innerHTML = `
+    <div class="card"><h2>Needs Invoicing <span class="pill pill-g">${cands.length} jobs</span></h2>
+      <div class="h-sub">Foundation Deficit/Surplus &lt; 0 — billed less than marked-up cost-to-date. Grouped by PM, ranked by gap.</div>
+      <table><thead><tr><th>Job</th><th>Description</th><th>Under-billed</th><th>% Comp</th><th>vs Jason</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan=5 class="note">No jobs above this threshold.</td></tr>'}</tbody></table>
+      <div class="legend"><span class="chk">✓ flagged</span> = Jason hand-highlighted this job that week · <span class="new">new candidate</span> = surfaced by the tool, not hand-flagged (raise the threshold to focus on the largest gaps)</div>
+    </div>`;
+
+  // closeout
+  document.getElementById('closeout').innerHTML = w.closeout && w.closeout.length ? `
+    <div class="card"><h2>Marked Close-out <span class="pill pill-b">${w.closeout.length}</span></h2>
+      <div class="h-sub">Jason flagged these (blue) for Holly to close out — excluded from invoicing. (Production will read Foundation job_status, not Procore %-complete.)</div>
+      <table><thead><tr><th>Job</th><th>Description</th><th>Deficit</th></tr></thead><tbody>
+      ${w.closeout.map(j=>`<tr><td class="job">${j.job}</td><td>${esc(j.desc)}</td><td class="num neg">${money(j.deficit)}</td></tr>`).join('')}
+      </tbody></table></div>` : '';
+
+  // AR (only on weeks that have it)
+  const ar = w.overdue_ar;
+  document.getElementById('ar').innerHTML = ar ? `
+    <div class="card"><h2>Overdue AR <span class="pill pill-y">${ar.length} open</span></h2>
+      <div class="h-sub">Open balance past due date, ranked by severity (balance × days overdue).</div>
+      <table><thead><tr><th>Customer</th><th>Invoice</th><th>Due</th><th>Open Balance</th><th>Overdue</th><th>Note</th></tr></thead><tbody>
+      ${ar.slice(0,20).map(o=>`<tr class="${o.days_overdue>60&&o.open_balance>100000?'crit':''}">
+        <td>${esc(o.customer)}</td><td class="job">${esc(o.invoice)}</td><td>${o.due}</td>
+        <td class="num">${money(o.open_balance)}</td><td class="pct">${o.days_overdue}d</td><td class="note">${esc(o.note)}</td></tr>`).join('')}
+      </tbody></table>
+      <div class="legend">AR shown for the most recent week (sample). Severity ranking; red = large &amp; long overdue.</div>
+    </div>` : '<div class="card note">Overdue AR sheet not loaded for this week (sample data — AR included for the latest week only).</div>';
+
+  document.getElementById('foot').innerHTML = `
+    Prototype · no live connection. Needs-invoicing = Foundation <i>Deficit/Surplus (Needs Invoiced)</i> recomputed from raw query columns
+    (formula: Invoiced − GrandTotal × OH × Profit markup), validated exact across 6 weeks.
+    Production: live read-only ODBC feed + Foundation <code>job_status</code> for close-out.`;
+}
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+</script>
+</body>
+</html>
