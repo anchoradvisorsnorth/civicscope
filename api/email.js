@@ -161,6 +161,40 @@ export default async function handler(req, res) {
       return res.status(200).json({ sent: true, id: result.id });
     }
 
+    // ── Contact inquiry ("Contact CS for guidance") ─────────────────────
+    if (action === 'contact_inquiry') {
+      const { name, email, organization, message, product } = data;
+      const ts = new Date().toLocaleString('en-US', { timeZone: 'America/Indiana/Indianapolis' });
+      const tier = product === 'schools' ? 'Schools' : product === 'infrastructure' ? 'Infrastructure' : 'CivicScope';
+      const notifyHtml = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:Georgia,serif;">
+<div style="max-width:520px;margin:0 auto;background:#fff;">
+  <div style="background:#1a2744;padding:24px 32px;">
+    <div style="color:#fff;font-size:18px;font-weight:700;">CivicScope — Project Inquiry</div>
+    <div style="color:#9aa5c4;font-size:11px;letter-spacing:2px;margin-top:4px;text-transform:uppercase;">${tier} · ${ts}</div>
+  </div>
+  <div style="padding:28px 32px;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <tr><td style="padding:8px 0;color:#888;width:120px;">Name</td><td style="padding:8px 0;color:#222;font-weight:600;">${name || '—'}</td></tr>
+      <tr style="background:#f9f6f3;"><td style="padding:8px 6px;color:#888;">Email</td><td style="padding:8px 6px;"><a href="mailto:${email}" style="color:#1a2744;">${email}</a></td></tr>
+      ${organization ? `<tr><td style="padding:8px 0;color:#888;">Organization</td><td style="padding:8px 0;color:#222;">${organization}</td></tr>` : ''}
+    </table>
+    ${message ? `<div style="margin-top:18px;"><div style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Message</div><div style="background:#f9f6f3;border-left:3px solid #1a2744;padding:12px 14px;color:#333;font-size:13px;line-height:1.6;white-space:pre-wrap;">${message}</div></div>` : ''}
+    <div style="margin-top:24px;"><a href="mailto:${email}?subject=Re: Your CivicScope inquiry" style="display:inline-block;background:#1a2744;color:#fff;padding:10px 20px;border-radius:4px;text-decoration:none;font-size:13px;">Reply to ${name || 'them'}</a></div>
+  </div>
+</div>
+</body></html>`;
+      const emailPayload = { from: FROM_EMAIL, to: [KEITH_EMAIL], subject: `CivicScope inquiry — ${name || email}`, html: notifyHtml };
+      if (SANDBOX_MODE === 'log') {
+        console.log('=== SANDBOX EMAIL (contact_inquiry) ===');
+        console.log(JSON.stringify(emailPayload, null, 2));
+        return res.status(200).json({ sent: false, sandbox: true, payload: emailPayload });
+      }
+      const result = await sendEmail(RESEND_API_KEY, emailPayload);
+      return res.status(200).json({ sent: true, id: result.id });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
 
   } catch (err) {
