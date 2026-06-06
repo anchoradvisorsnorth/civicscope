@@ -508,9 +508,10 @@ function buildReportEmail(data) {
 }
 
 // ── CS Lead Notification Email (original) ────────────────────────────────────
-function buildLeadNotificationEmail({ firstName, lastName, email, role, municipality, projectType, costLow, costHigh, confidence, product, sessionId, runId }) {
+function buildLeadNotificationEmail({ firstName, lastName, email, role, municipality, projectType, buildType, topography, utilities, scope, costLow, costHigh, confidence, product, sessionId, runId }) {
   const tier = product === 'schools' ? 'Schools' : product === 'infrastructure' ? 'Infrastructure' : product === 'pro' ? 'Pro' : 'Free';
   const ts = new Date().toLocaleString('en-US', { timeZone: 'America/Indiana/Indianapolis' });
+  const siteConditions = [topography, utilities].filter(v => v && v !== 'Not specified').join(' · ');
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
@@ -526,10 +527,16 @@ function buildLeadNotificationEmail({ firstName, lastName, email, role, municipa
       <tr style="background:#f9f6f3;"><td style="padding:8px 6px;color:#888;">Email</td><td style="padding:8px 6px;"><a href="mailto:${email}" style="color:#1a2744;">${email}</a></td></tr>
       <tr><td style="padding:8px 0;color:#888;">Role</td><td style="padding:8px 0;color:#222;">${role || '—'}</td></tr>
       <tr style="background:#f9f6f3;"><td style="padding:8px 6px;color:#888;">Municipality</td><td style="padding:8px 6px;color:#222;">${municipality}</td></tr>
-      <tr><td style="padding:8px 0;color:#888;">Project</td><td style="padding:8px 0;color:#222;">${projectType}</td></tr>
+      <tr><td style="padding:8px 0;color:#888;">Project Type</td><td style="padding:8px 0;color:#222;">${projectType}</td></tr>
+      <tr style="background:#f9f6f3;"><td style="padding:8px 6px;color:#888;">Build Type</td><td style="padding:8px 6px;color:#222;">${buildType || '—'}</td></tr>
+      ${siteConditions ? `<tr><td style="padding:8px 0;color:#888;">Site Conditions</td><td style="padding:8px 0;color:#222;">${siteConditions}</td></tr>` : ''}
       <tr style="background:#f9f6f3;"><td style="padding:8px 6px;color:#888;">Cost Range</td><td style="padding:8px 6px;color:#222;">${costLow} – ${costHigh} (${confidence})</td></tr>
       <tr><td style="padding:8px 0;color:#888;">Product</td><td style="padding:8px 0;color:#222;">${tier}</td></tr>
     </table>
+    ${scope ? `<div style="margin-top:18px;">
+      <div style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">What they described</div>
+      <div style="background:#f9f6f3;border-left:3px solid #1a2744;padding:12px 14px;color:#333;font-size:13px;line-height:1.6;white-space:pre-wrap;">${scope}</div>
+    </div>` : ''}
     <div style="margin-top:24px;padding-top:24px;border-top:1px solid #eee;">
       <a href="mailto:${email}?subject=Re: Your ${projectType} project in ${municipality}" style="display:inline-block;background:#1a2744;color:#fff;padding:10px 20px;border-radius:4px;text-decoration:none;font-size:13px;">Reply to ${firstName}</a>
     </div>

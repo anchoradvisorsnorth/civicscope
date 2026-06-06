@@ -1951,6 +1951,10 @@ async function submitLead() {
   const muni  = document.getElementById('location').value.trim();
   const project = document.getElementById('resultTitle').textContent;
   const narrative = document.getElementById('resultNarrative').textContent;
+  const buildType = document.getElementById('buildType').value;
+  const scope = document.getElementById('scope').value.trim();
+  const topo = document.getElementById('topography').value;
+  const utils = getUtilities();
 
   // Collect assumptions
   const assumptionEls = document.querySelectorAll('#assumptionsChips .assumption-chip');
@@ -2019,6 +2023,10 @@ async function submitLead() {
           role,
           municipality: muni,
           projectType: project,
+          buildType,
+          topography: topo,
+          utilities: utils,
+          scope,
           costLow,
           costHigh,
           confidence,
