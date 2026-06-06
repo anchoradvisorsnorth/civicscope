@@ -22,16 +22,36 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 
 | Product | URL | Audience | Version |
 |---------|-----|----------|---------|
-| Free | app.civicscope.io/civicscope | Municipal employees | v2.1.0 |
-| Pro | app.civicscope.io/civicscope-pro | Municipal officials | v2.10.0 |
+| **Municipal (Free)** | app.civicscope.io/civicscope | Municipal employees + officials | **v2.2.0** |
+| **Schools** | app.civicscope.io/schools | K-12 district leaders | v1.0.0-schools |
+| **Infrastructure (NEW June 6)** | **app.civicscope.io/infrastructure** | **Public works / utility leaders** | **v1.0.0-infrastructure** |
 | GC External | app.civicscope.io/gc/:slug | GC prospective clients | v1.6.0-gc |
 | GC Internal | app.civicscope.io/gc/:slug-internal | GC estimating teams | v1.5.0-gc-int |
 | QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
-| Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin |
+| Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin (+ QA test harness) |
 | RYC Scheduler | app.civicscope.io/ryc/schedule | RYC crew | v1.0.0 |
-| Pro Landing | civicscope.io/pro | Early access signup | — |
+| ~~Pro~~ | civicscope-pro | **SHELVED June 6** — depth folded into free tools; archived, unlinked | v2.10.0 |
+| ~~Pro Landing /pro~~ | — | **KILLED June 6** — 301 → / | — |
 
 **Version rule:** Bump in BOTH the product HTML footer AND civicscope-admin/index.html product cards.
+
+**The 3-vertical free model (June 6, 2026):** All three live tools (Municipal / Schools / Infrastructure) carry the **full depth on-screen, ungated** — cost methodology, full timeline, buyer's advocate guide, and edit & re-run (ported from the old Pro tool). The lead gate ("Email yourself this report") only triggers the emailed report + lead notification; nothing is hidden behind it. Every former Pro upsell is replaced by an inline **"Contact CivicScope for guidance"** form → `contact_inquiry` action in `api/email.js` (emails Keith). **Accounts + saved history are the only items left on a future-Pro roadmap.**
+
+### Segment Hub Pages (marketing landings)
+Audience-segmented top-of-funnel landings on the **www** site (not the `app` tool subdomain), each routing into the relevant tool. **`for-government` is the gold-standard story template** — `for-schools` and `for-infrastructure` were rebuilt June 1 as clones of it (re-skinned per vertical). The hub `index.html` ties them together.
+
+**Story arc (all three segment pages, shared):** dark hero (headline + editorial line-sketch + cost callout) → trust bar → Problem ("nowhere to start") + use-case card w/ illustration → Why Trust the Number (Google vs AI vs CivicScope) → How It Works (3 steps) → Who It's For (6 role cards) → Pricing/CTA → Founder → Final CTA → footer.
+
+**Architecture note:** `for-government`, `for-schools`, `for-infrastructure` are **self-contained** (each inlines its full design system in a `<style>` block — they do NOT link `/civicscope.css`). The hub `index.html`, the segment-page *logo*, and the `civicscope-schools` tool DO use shared `/civicscope.css`. The shared logo lives in `.cs-wordmark-svg` (added June 1) — building glyph + stacked "Civic / SCOPE" wordmark, cream/orange (`#c2410c`); Pro uses the navy variant.
+
+| Hub | URL | Version | State |
+|-----|-----|---------|-------|
+| Government | civicscope.io/for-government | `v2.0.0 \| 2026-03-28` *(stale comment — page is fully built; leftover from free-tool copy)* | Gold-standard story template. Dark hero w/ town-hall sketch + cost callout |
+| Schools | civicscope.io/for-schools | for-schools v2.0.0 | **Full story rebuild (June 1)** mirroring government. Schoolhouse hero + cost callout; adds a schools-only **"Referendum-Free Path"** section (Build→Operate→Transfer diagram + IC § 5-23, names JBK); SEA 1 (2025) framing; 6 school roles; use-case = business manager / HVAC+roof. v1.1.0 backup at `work product/for-schools-v1.1.0-backup.html` |
+| Infrastructure | civicscope.io/for-infrastructure | for-infrastructure v2.0.0 | **Full story rebuild (June 1)** mirroring government, as a pre-launch "coming soon." Water-tower/road/water-main hero sketch; use-case = public works director / Maple St. main. **Functional notify section** posts `notify_capture` → `api/email.js` emails Keith each signup (channel `infrastructure`). v1.0.0 backup at `work product/for-infrastructure-v1.0.0-backup.html` |
+| Hub (front door) | civicscope.io/ (`index.html`) | hub v1.1.0 | Story incorporated June 1 ("Why CivicScope exists" narrative + "Start with the number" CTA). 3-tool chooser: **Government + Schools featured (Live), Infrastructure muted (Coming soon)** |
+
+**Loose ends:** (1) `for-government` version comment is stale (`v2.0.0 | 2026-03-28`) — give it its own `for-government vX` line. (2) `civicscope-schools` tool still has no version comment — add one. (3) Optional: port the editorial illustration treatment into the `civicscope-schools` *tool* itself (landings have it; the tool doesn't).
 
 ---
 
@@ -66,7 +86,10 @@ brand_statement, brand_values (jsonb array)
 
 ## Routing (vercel.json)
 - Literal rewrites ABOVE wildcard :slug
-- /pro → pro/index.html
+- /pro → **301 redirect to /** (Pro killed June 6 — in vercel.json `redirects`)
+- /schools → civicscope-schools/index.html (the Schools tool)
+- /infrastructure → civicscope-infrastructure/index.html (the Infrastructure tool, NEW June 6)
+- /for-government, /for-schools, /for-infrastructure → respective segment hub pages
 - /ryc/schedule → ryc-schedule/index.html
 - /admin, /qa are literal rewrites
 - :slug wildcard LAST
@@ -104,6 +127,7 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 - **Move daily digest cron to VM** — Vercel Hobby cron is unreliable (missed April 9-10 digests). Move to VM cron as a `curl` trigger, same pattern as bookmarks pipeline.
 - **RYC GC Tenant Onboarding** — set up RYC as first real tenant in GC white-label.
 - **Municipal Agenda Notifier — voice tuning** — caption is neutral civic v1; tune to Councilman Steven Clark's actual voice after he reacts to the first real June draft (June 11–18 window). Tool is LIVE; this is refinement.
+- **CivicScope restructure — loose ends (June 6)** — add version comments to the Schools + Infra tool footers; sweep the inert `.timeline-tease`/`.tease-*` dead CSS from the 3 tools; final end-to-end harness tire-kick of Schools + Infra (Municipal confirmed). The `Segment Hub Pages` table near the top still lists Infrastructure as "coming soon" — update that row when convenient.
 
 ---
 
@@ -211,6 +235,30 @@ CivicScope sub-product, **sibling to Groundwork**. Watches a Cloudflare-protecte
 10. Fix PS1 vercel.json Regex — push_ryc_schedule.ps1 route injection failed; fixed manually on GitHub
 11. ~~**Procore creds hardcoded in ryc-schedule-tasks.js**~~ — **RESOLVED** (April 10) — Procore detected exposed client secret in GitHub, forced rotation. Hardcoded creds replaced with `process.env.PROCORE_CLIENT_ID` / `process.env.PROCORE_CLIENT_SECRET`. Vercel env vars updated with new secret. Pushed to GitHub.
 12. **Move daily digest cron to VM** — Vercel Hobby cron is unreliable (missed April 9-10 digests). Move to VM cron as a `curl` trigger, same pattern as bookmarks pipeline. Part of broader daily-email framework (see project memory `project_vm_cron_framework.md`).
+
+## Recent Changes (June 6, 2026) — Major restructure: Pro shelved, Infrastructure built, depth folded in
+A 5-phase rebuild this session, all live and verified:
+- **QA test harness in `/admin`** — per-vertical "Run sample" + "Send test lead" buttons open the live tool with `?qa=<preset>&autorun=1[&lead=1]`; the tool prefills realistic sample data, auto-runs, and (with `lead=1`) auto-submits a real lead email. QA mode sets `window._qaMode=true`, which short-circuits `logAction()` so test runs never hit `tool_runs`/`leads`. Presets: municipal=DPW garage (La Porte), schools=HVAC+roof reno (PHM), infrastructure=water main (Bristol).
+- **NEW Infrastructure tool** — `civicscope-infrastructure/index.html` (cloned from schools). 8 heavy-civil project types (water main, sanitary sewer/lift station, storm/drainage, road, water treatment, wastewater treatment, water tower, other); prompt tuned for LF/capacity/lane-mile basis, dewatering, traffic control, restoration, SRF/BOT framing; council briefing; infra roles; `product:'infrastructure'`. Routed in vercel.json, in `push_civicscope.ps1` manifest, tier-labeled in `api/email.js`.
+- **Pro depth folded into all 3 free tools** — cost methodology (added to the main `/api/claude` JSON), full timeline (un-blurred, rendered inline via `renderTimeline`), buyer's advocate guide (separate `fetchAdvocate` call), edit & re-run banner. Ported from `civicscope-pro`, re-skinned to orange `--accent`, "PRO" badges dropped.
+- **Gate re-scoped to report-only** — timeline blur/tease removed; everything renders on-screen free. Gate only sends the report + lead notification. **Lead notification email now includes Build Type, Site Conditions, and the typed project description** (for follow-up).
+- **Pro shelved + contact CTA** — inline "Contact CivicScope for guidance" form on all 3 tools → new `contact_inquiry` action in `api/email.js`. Pro teases stripped from tools + `for-government`/`for-schools` pricing grids (now "It's free"); `/pro` 301→`/`; admin Pro card marked shelved; `civicscope-pro/` archived (still deploys, unlinked).
+- **`for-infrastructure` + hub flipped LIVE** — coming-soon/notify-form → "Use the tool" CTAs to `/infrastructure`; hub Infrastructure card un-muted; landing footers updated to the three live verticals; mini-cost SEO page `/pro` footer links repointed to Schools.
+- Free tool bumped **v2.1.0 → v2.2.0**.
+
+## Recent Changes (June 1, 2026)
+- **Vertical/audience expansion — CivicScope for Schools + segment hub pages.** Turned the single municipal tool into an audience-segmented suite.
+  - **New tool:** `civicscope-schools/` → `app.civicscope.io/schools` — School Facility Cost Estimator (sibling to Free/Pro; school-specific project types via `type-icon` cards). No version comment yet.
+  - **New marketing hubs** on www: `for-government/`, `for-schools/`, `for-infrastructure/` (see Product Suite → Segment Hub Pages). Routes, `sitemap.xml`, and `push_civicscope.ps1` manifest all wired.
+  - **for-schools v1.1.0** (this session) — added the page's first illustrations to reach parity with `for-government`: a schoolhouse hero editorial sketch with an orange cost-callout bubble ("$1.4M–$2.1M · Elkhart Co., IN · HVAC + roof"), and a **Build → Operate → Transfer** 3-step flow diagram in the BOT section. Ink line-art on cream (NOT the white-on-dark government SVGs) to fit the schools page's lighter aesthetic. Deployed commit `ed6af6a`.
+  - **Schools positioning:** BOT authorized for school corporations under **IC § 5-23** (no bond referendum); framed against the **SEA 1 (2025)** operations-fund squeeze. Names JBK Development as a school-BOT-experienced developer.
+  - *Process note:* this build wasn't documented at the time because a second concurrent Claude session reconstructed it from file timestamps. Always `/log` mid-build.
+- **Story-format rebuild of the whole www front end (June 1, later same day).** Keith's direction: `for-government` is the gold-standard storytelling page; generalize it to the hub and make schools + infrastructure mirror it.
+  - **Logo restored sitewide** — segment/hub headers had degraded to a plain orange dot (`.cs-wordmark-dot`). Re-added the real mark via shared `.cs-wordmark-svg` (building glyph + stacked "Civic / SCOPE", cream/orange) on `index`, `for-schools`, `for-infrastructure`; `for-government` + the schools tool already had it.
+  - **`for-schools` → v2.0.0** — replaced the thin v1.1.0 landing with a full clone-and-reskin of `for-government` + the schools-only BOT section. Deployed `deb0d3a`.
+  - **`for-infrastructure` → v2.0.0** — same full-story rebuild as a "coming soon," with a **functional** notify form (`notify_capture` → `api/email.js`, already wired, emails Keith). Deployed `c556ab7`.
+  - **Hub `index.html` → v1.1.0** — wove the government story in ("Why CivicScope exists" + "Start with the number" CTA); kept the existing 3-tool chooser (Gov + Schools Live, Infra Coming soon). Deployed `ebf56e8`.
+  - **Schools TOOL fix (`civicscope-schools`)** — Site Conditions (topography + "Utilities On-Site *") were showing/required even for HVAC/roof/renovation, where they're meaningless. Now the whole Site Conditions section is **hidden unless build type = New Construction** (`toggleSiteConditions()`), and the utilities-required validation only fires for new construction. Deployed `c556ab7`.
 
 ## Recent Changes (May 22, 2026)
 - **Email opt-out enforcement — BUILT & DEPLOYED.** Closes the gap where a "STOP" reply had no system to honor it (CAN-SPAM + .gov reputation risk).
