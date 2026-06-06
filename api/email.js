@@ -36,7 +36,9 @@ export default async function handler(req, res) {
         ? `Your Project Cost Summary — ${projectType}${municipality ? ' in ' + municipality : ''}`
         : product === 'schools'
           ? `Your CivicScope for Schools Feasibility Report — ${projectType} in ${municipality}`
-          : `Your ${product === 'pro' ? 'CivicScope Pro' : 'CivicScope Free'} Feasibility Report — ${projectType} in ${municipality}`;
+          : product === 'infrastructure'
+            ? `Your CivicScope for Infrastructure Feasibility Report — ${projectType} in ${municipality}`
+            : `Your ${product === 'pro' ? 'CivicScope Pro' : 'CivicScope Free'} Feasibility Report — ${projectType} in ${municipality}`;
 
       const emailPayload = {
         from: FROM_EMAIL,
@@ -75,7 +77,7 @@ export default async function handler(req, res) {
 
       const subject = isGC
         ? `New Lead from Your Project Estimator — ${firstName} ${lastName} | ${municipality || projectType}`
-        : `New CivicScope ${product === 'schools' ? 'Schools' : product === 'pro' ? 'Pro' : 'Free'} Lead — ${firstName} ${lastName} | ${municipality}`;
+        : `New CivicScope ${product === 'schools' ? 'Schools' : product === 'infrastructure' ? 'Infrastructure' : product === 'pro' ? 'Pro' : 'Free'} Lead — ${firstName} ${lastName} | ${municipality}`;
 
       const emailPayload = {
         from: FROM_EMAIL,
@@ -312,8 +314,9 @@ function buildGCLeadNotificationEmail({ firstName, lastName, email, municipality
 function buildReportEmail(data) {
   const { recipientName, municipality, projectType, costLow, costHigh, costMidpoint, confidence, narrative, assumptions, briefingHtml, product } = data;
   const isSchools = product === 'schools';
-  const tier = isSchools ? 'CivicScope for Schools' : (product === 'pro' ? 'CivicScope Pro' : 'CivicScope');
-  const headerSubtitle = isSchools ? 'School Facility Feasibility' : 'Municipal Project Feasibility';
+  const isInfra = product === 'infrastructure';
+  const tier = isSchools ? 'CivicScope for Schools' : (isInfra ? 'CivicScope for Infrastructure' : (product === 'pro' ? 'CivicScope Pro' : 'CivicScope'));
+  const headerSubtitle = isSchools ? 'School Facility Feasibility' : (isInfra ? 'Public Works & Utility Feasibility' : 'Municipal Project Feasibility');
   const confidenceColor = confidence === 'High' ? '#2d6a4f' : confidence === 'Medium' ? '#b5860d' : '#c0392b';
   return `<!DOCTYPE html>
 <html>
@@ -506,7 +509,7 @@ function buildReportEmail(data) {
 
 // ── CS Lead Notification Email (original) ────────────────────────────────────
 function buildLeadNotificationEmail({ firstName, lastName, email, role, municipality, projectType, costLow, costHigh, confidence, product, sessionId, runId }) {
-  const tier = product === 'schools' ? 'Schools' : product === 'pro' ? 'Pro' : 'Free';
+  const tier = product === 'schools' ? 'Schools' : product === 'infrastructure' ? 'Infrastructure' : product === 'pro' ? 'Pro' : 'Free';
   const ts = new Date().toLocaleString('en-US', { timeZone: 'America/Indiana/Indianapolis' });
   return `<!DOCTYPE html>
 <html>

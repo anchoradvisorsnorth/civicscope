@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Municipal Project Cost Estimator | CivicScope Free Tool</title>
-<meta name="description" content="Describe your project in plain language and get a regionally-calibrated cost range in 30 seconds. Free for any local government employee — no login required." />
+<title>Infrastructure Cost Estimator | CivicScope for Infrastructure</title>
+<meta name="description" content="Indiana & Michigan public works leaders: describe an infrastructure project — water main, sewer, road, treatment plant — in plain language and get a regionally-calibrated cost range in 30 seconds. Free, no login." />
 <meta name="robots" content="noindex, follow" />
 <link rel="canonical" href="https://www.civicscope.io" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='20' width='22' height='8' fill='none' stroke='%231c1917' stroke-width='2' stroke-linejoin='round'/><line x1='10' y1='20' x2='10' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='16' y1='20' x2='16' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='22' y1='20' x2='22' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='6' y1='14' x2='26' y2='14' stroke='%231c1917' stroke-width='2' stroke-linecap='round'/><polyline points='7,14 16,4 25,14' fill='none' stroke='%23c2410c' stroke-width='2.5' stroke-linejoin='round' stroke-linecap='round'/><rect x='13' y='22' width='6' height='6' rx='3' fill='%23c2410c'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400;1,9..144,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400;1,9..144,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Gloria+Hallelujah&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════
    CIVICSCOPE DESIGN SYSTEM
@@ -97,6 +97,34 @@ header {
   border-radius: 20px;
   font-weight: 500;
   letter-spacing: 0.01em;
+}
+
+/* ── "for Schools" crayon demarcation ── */
+.for-schools-tag {
+  font-family: 'Gloria Hallelujah', cursive;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--accent);
+  transform: rotate(-4deg);
+  display: inline-block;
+  position: relative;
+  margin: 0 2px;
+  padding-bottom: 4px;
+  white-space: nowrap;
+}
+.for-schools-tag::after {
+  content: '';
+  position: absolute;
+  left: -4px; right: -4px; bottom: -1px;
+  height: 8px;
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 130 10' preserveAspectRatio='none'><path d='M2,6 C20,1 35,9 52,5 C70,1 86,9 104,4 C114,2 122,7 128,5' stroke='%23c2410c' stroke-width='2.5' fill='none' stroke-linecap='round'/></svg>") no-repeat center bottom / 100% 8px;
+}
+.for-schools-tag.lg { font-size: 2.1rem; padding-bottom: 7px; }
+.for-schools-tag.lg::after { height: 11px; bottom: -2px; background-size: 100% 11px; }
+.for-schools-hero { margin-bottom: 6px; }
+@media (max-width: 640px) {
+  .for-schools-tag { font-size: 0.95rem; }
+  .for-schools-tag.lg { font-size: 1.6rem; }
 }
 
 /* ── Page layout ── */
@@ -1061,8 +1089,9 @@ footer span {
         <text x="36" y="29" font-family="Fraunces, Georgia, serif" font-size="11" fill="#c2410c" letter-spacing="1.2">SCOPE</text>
       </svg>
     </a>
+    <span class="for-schools-tag">for Infrastructure</span>
     <div class="header-divider"></div>
-    <span class="header-tagline">Municipal Project Feasibility</span>
+    <span class="header-tagline">Public Works &amp; Utility Feasibility</span>
     <div class="header-badge">Free — No Account Required</div>
   </div>
 </header>
@@ -1092,9 +1121,10 @@ footer span {
   <div class="form-column">
 
     <div class="page-intro">
-      <div class="page-eyebrow">Feasibility Screening Tool</div>
-      <h1>You've got a project idea.<br>Let's see if the budget holds up.</h1>
-      <p>Plain language. No specs. No drawings. Just describe what you're thinking — and get a real number in 30 seconds.</p>
+      <div class="for-schools-hero"><span class="for-schools-tag lg">for Infrastructure</span></div>
+      <div class="page-eyebrow">Public Works &amp; Utility Feasibility Tool</div>
+      <h1>You've got an infrastructure need.<br>Let's see if the budget holds up.</h1>
+      <p>Plain language. No specs, no drawings. Describe the project — a water main, a lift station, a road, a treatment plant — and get a real cost range in 30 seconds. Then see the delivery paths that control cost and risk on public infrastructure.</p>
     </div>
 
     <!-- SECTION 1: Location -->
@@ -1102,8 +1132,8 @@ footer span {
       <div class="form-section-title">Your Location</div>
       <div class="form-grid-3">
         <div class="field">
-          <label>Municipality Name <span class="req">*</span></label>
-          <input type="text" id="location" placeholder="e.g. City of La Porte" />
+          <label>Municipality / Agency <span class="req">*</span></label>
+          <input type="text" id="location" placeholder="e.g. Town of Bristol, IN" />
         </div>
         <div class="field">
           <label>ZIP Code <span class="req">*</span></label>
@@ -1128,29 +1158,29 @@ footer span {
         <div class="field full">
           <label>Project Type <span class="req">*</span></label>
           <div class="type-grid" id="typeGrid">
-            <button class="type-btn" data-type="DPW / Public Works Garage" data-search="municipal DPW public works equipment garage exterior">
-              <span class="type-icon">🏗️</span>DPW / Public Works Garage
+            <button class="type-btn" data-type="Water Main / Distribution" data-search="municipal water main distribution pipe replacement utility">
+              <span class="type-icon">💧</span>Water Main / Distribution
             </button>
-            <button class="type-btn" data-type="Fire or EMS Station" data-search="small town fire station EMS building exterior">
-              <span class="type-icon">🚒</span>Fire or EMS Station
+            <button class="type-btn" data-type="Sanitary Sewer / Lift Station" data-search="sanitary sewer lift station pump force main utility">
+              <span class="type-icon">🚽</span>Sanitary Sewer / Lift Station
             </button>
-            <button class="type-btn" data-type="Municipal Office / Town Hall" data-search="small town hall municipal office building exterior">
-              <span class="type-icon">🏛️</span>Municipal Office / Town Hall
+            <button class="type-btn" data-type="Storm Sewer / Drainage" data-search="storm sewer drainage detention culvert stormwater">
+              <span class="type-icon">🌧️</span>Storm / Drainage
             </button>
-            <button class="type-btn" data-type="Community Center or Library" data-search="municipal community center library building exterior">
-              <span class="type-icon">📚</span>Community Center or Library
+            <button class="type-btn" data-type="Road / Street Reconstruction" data-search="road street reconstruction paving milling resurfacing curb">
+              <span class="type-icon">🛣️</span>Road / Street Reconstruction
             </button>
-            <button class="type-btn" data-type="Courts (Pickleball, Tennis, Basketball)" data-search="municipal pickleball tennis courts park">
-              <span class="type-icon">🎾</span>Courts
+            <button class="type-btn" data-type="Water Treatment Plant" data-search="water treatment plant filtration municipal utility">
+              <span class="type-icon">🚰</span>Water Treatment Plant
             </button>
-            <button class="type-btn" data-type="Park Building (Restroom, Pavilion, Shelter)" data-search="park restroom pavilion shelter outbuilding municipal">
-              <span class="type-icon">🌳</span>Park Building
+            <button class="type-btn" data-type="Wastewater Treatment Plant" data-search="wastewater treatment plant WWTP municipal utility">
+              <span class="type-icon">🏭</span>Wastewater Treatment Plant
             </button>
-            <button class="type-btn" data-type="Splash Pad" data-search="municipal splash pad water park">
-              <span class="type-icon">💧</span>Splash Pad
+            <button class="type-btn" data-type="Water Tower / Storage Tank" data-search="water tower elevated storage tank municipal utility">
+              <span class="type-icon">🗼</span>Water Tower / Storage
             </button>
-            <button class="type-btn" data-type="Other Municipal Project" data-search="municipal government public building construction">
-              <span class="type-icon">🏢</span>Something Else
+            <button class="type-btn" data-type="Other Infrastructure" data-search="municipal public works infrastructure civil construction">
+              <span class="type-icon">🏗️</span>Something Else
             </button>
           </div>
           <input type="hidden" id="projectType" value="" />
@@ -1160,23 +1190,23 @@ footer span {
         <div class="field full">
           <label>New Build or Renovation?</label>
           <div class="toggle-group" id="buildTypeGroup">
-            <button class="toggle-btn active" data-val="New construction">New Construction</button>
-            <button class="toggle-btn" data-val="Renovation / addition to existing structure">Renovation / Addition</button>
+            <button class="toggle-btn active" data-val="Rehabilitation / replacement of existing system">Replacement / Rehab</button>
+            <button class="toggle-btn" data-val="New construction">New Construction</button>
           </div>
-          <input type="hidden" id="buildType" value="New construction" />
+          <input type="hidden" id="buildType" value="Rehabilitation / replacement of existing system" />
         </div>
 
         <div class="field full">
           <label>Describe the Project <span class="req">*</span></label>
-          <textarea id="scope" placeholder="Describe what you have in mind in plain language. For example: We need a simple garage for our street department — two or three bays, one large enough for a plow truck, basic heat and lighting, no office space. We have an existing town-owned site."></textarea>
+          <textarea id="scope" placeholder="Describe what you have in mind in plain language. For example: Replace about 4,000 feet of old 6-inch cast-iron water main on two residential streets with new 8-inch PVC — new valves, hydrants, and service reconnections, with pavement and lawn restoration afterward."></textarea>
           <div class="field-hint">No technical specs needed. Plain language is fine. More detail improves the confidence level of your estimate.</div>
         </div>
       </div>
     </div>
 
-    <!-- SECTION 3: Site Conditions -->
-    <div class="form-section">
-      <div class="form-section-title">Site Conditions <span class="optional-note">— optional, improves accuracy</span></div>
+    <!-- SECTION 3: Site Conditions — only relevant for new construction; hidden for renovation/replacement -->
+    <div class="form-section" id="siteConditions" style="display:none;">
+      <div class="form-section-title">Site Conditions <span class="optional-note">— new construction only</span></div>
       <div class="form-grid">
         <div class="field full">
           <label>Site Topography</label>
@@ -1260,16 +1290,16 @@ footer span {
             <div class="dc-cost-note dc-cost-note--trad" id="dbbCostNote"></div>
           </div>
           <div class="delivery-card delivery-card--preferred">
-            <div class="dc-eyebrow dc-eyebrow--pref">Recommended path</div>
-            <div class="dc-title">BOT / Public-Private Partnership</div>
+            <div class="dc-eyebrow dc-eyebrow--pref">Worth a look for municipalities</div>
+            <div class="dc-title">BOT / P3 (Build-Operate-Transfer)</div>
             <ul class="dc-bullets">
-              <li>You select your team based on qualifications and trust — not lowest bid. The municipality chooses who it wants to work with.</li>
-              <li>A Guaranteed Maximum Price can be established before full construction documents are complete — cost certainty earlier, not after you've already spent on design</li>
-              <li>Risk allocation varies by contract structure — some methods shift cost overrun risk to the developer or contractor, not the taxpayer</li>
-              <li>Indiana/Michigan law specifically enables these approaches for municipal projects</li>
+              <li><strong>Finance, build, and transfer.</strong> A private developer finances and builds the project; the public owner makes structured payments and takes clean title at the end — an alternative to a bond issue or a rate spike.</li>
+              <li>A Guaranteed Maximum Price is locked before construction — cost certainty up front, not change-order surprises later</li>
+              <li>You pick your own contractor and design team based on qualifications and trust — not lowest bid</li>
+              <li>Authorized for public agencies under Indiana Code § 5-23, with statutory safeguards: competitive RFQ, public-hearing approval, payment and performance bonds, and owner approval at every design milestone</li>
             </ul>
             <div class="dc-cost-note dc-cost-note--pref">
-              Requires more upfront evaluation of the delivery team, not just the bid price. Your municipal attorney should advise on which path fits your procurement requirements.
+              BOT is well-established for Indiana public infrastructure. Your counsel should advise on how it fits your procurement and funding alongside SRF loans and grants.
             </div>
           </div>
         </div>
@@ -1281,12 +1311,12 @@ footer span {
 
       <!-- Board or Council Briefing -->
       <div class="result-block">
-        <div class="block-label">Board or Council Briefing</div>
-        <p class="field-hint" style="margin-bottom:14px;">AI-drafted points tailored to your project. Review and edit before using — you know your board best.</p>
+        <div class="block-label">Council / Board Briefing</div>
+        <p class="field-hint" style="margin-bottom:14px;">AI-drafted points to help you bring this to your council or board. Review and edit before using — you know your board best.</p>
         <div id="briefingContent">
           <div class="section-loading">
             <div class="spinner"></div>
-            Drafting your board or council briefing...
+            Drafting your council briefing...
           </div>
         </div>
       </div>
@@ -1325,17 +1355,17 @@ footer span {
             <label>Your Role <span class="req">*</span></label>
             <select id="gateRole">
               <option value="">— Select your role —</option>
+              <option>Public Works Director</option>
+              <option>City / Town Engineer</option>
+              <option>Utility Superintendent</option>
               <option>Town / City Manager</option>
-              <option>Mayor</option>
-              <option>Council Member</option>
-              <option>Department Director</option>
-              <option>Clerk / Administrator</option>
+              <option>Mayor / Council Member</option>
               <option>Other</option>
             </select>
           </div>
           <div class="field">
             <label>Email Address <span class="req">*</span></label>
-            <input type="email" id="gateEmail" placeholder="you@municipality.gov" />
+            <input type="email" id="gateEmail" placeholder="you@yourtown.gov" />
           </div>
         </div>
         <div class="gate-submit-row">
@@ -1361,15 +1391,15 @@ footer span {
         <ol class="next-steps-list">
           <li>
             <strong>Pressure-test the number internally.</strong>
-            Share this with your finance director or administrator before any outside conversations. Knowing your range before the first contractor call puts you in a stronger position.
+            Share this with your clerk-treasurer or finance officer before any outside conversations. Knowing your range early puts the municipality in a stronger position.
           </li>
           <li>
-            <strong>Understand your delivery options.</strong>
-            How you procure this project affects total cost, timeline, and how much risk your municipality carries. Review the delivery path comparison above before engaging any design or construction professionals.
+            <strong>Understand your funding and delivery options.</strong>
+            How you fund and procure this project affects total cost, timeline, and risk — and your exposure to change orders. Review the delivery path comparison above, including BOT/P3 and SRF funding, before engaging design or construction professionals.
           </li>
           <li>
-            <strong>Bring it to council.</strong>
-            Use the briefing guide above to frame the conversation. A cost range with a confidence rating and a clear delivery path gives council what they need to authorize next steps.
+            <strong>Bring it to your board.</strong>
+            Use the council briefing above to frame the conversation. A cost range with a confidence rating and a clear funding path gives your board or council what it needs to authorize next steps.
           </li>
         </ol>
         <div class="pro-nudge">
@@ -1379,7 +1409,7 @@ footer span {
       </div>
 
       <div class="disclaimer">
-        This is a preliminary feasibility indicator only, not a formal cost estimate. It is intended to support early internal go/no-go decisions and should not be used for budgeting, procurement, or council appropriations without professional verification. Actual costs depend on site conditions, design requirements, local labor markets, and material prices at time of bid.
+        This is a preliminary feasibility indicator only, not a formal cost estimate. It is intended to support early internal go/no-go decisions and should not be used for budgeting, procurement, or board appropriations without professional verification. Actual costs depend on site conditions, design requirements, local labor markets, and material prices at time of bid.
       </div>
 
     </div><!-- /result -->
@@ -1414,10 +1444,28 @@ footer span {
         <li>Preliminary cost range with confidence rating</li>
         <li>Plain-language narrative for your context</li>
         <li>Key assumptions behind the estimate</li>
-        <li>Board or council briefing — talking points and recommended ask</li>
-        <li>Procurement path comparison</li>
+        <li>Council briefing — talking points and recommended ask</li>
+        <li>Funding &amp; delivery path comparison, including BOT</li>
         <li>Full report emailed to you as PDF</li>
       </ul>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">Funding the Gap</div>
+      <p style="font-size:13px;color:var(--ink-light);line-height:1.55;margin-bottom:10px;">Indiana and Michigan utilities are facing aging water, sewer, and road systems with replacement backlogs growing faster than rate revenue and grants can cover.</p>
+      <p style="font-size:13px;color:var(--muted);line-height:1.55;">Most projects lean on State Revolving Fund (SRF) loans, rate adjustments, and grants — and increasingly on delivery models like BOT/P3 that bring private financing and price certainty to the table.</p>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">Why BOT / P3 for Infrastructure</div>
+      <p style="font-size:13px;color:var(--ink-light);line-height:1.55;margin-bottom:10px;">Build-Operate-Transfer lets a private developer design, build, and <strong>finance</strong> an infrastructure project. The public owner makes structured payments and the asset transfers with clean title — an alternative to a bond issue or a rate spike.</p>
+      <ul class="trust-list">
+        <li>Guaranteed Maximum Price locked before construction</li>
+        <li>You choose your contractor and design team</li>
+        <li>Authorized for public agencies under IC § 5-23</li>
+        <li>Safeguards: competitive RFQ, public-hearing approval, payment/performance bonds</li>
+      </ul>
+      <p style="font-size:12px;color:var(--muted-light);line-height:1.5;margin-top:10px;">Well-established for Indiana public infrastructure. Developers experienced in municipal BOT — like JBK Development — can walk a board or council through the process.</p>
     </div>
 
     <div class="sidebar-card">
@@ -1437,7 +1485,7 @@ footer span {
   <div class="footer-left">
     <a href="https://www.civicscope.io" class="footer-wordmark">CivicScope</a>
   </div>
-  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v2.1.0</span>
+  <span class="footer-note">For planning purposes only — not a licensed cost estimate · v1.0.0-infrastructure</span>
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
@@ -1467,7 +1515,7 @@ async function initSession() {
   const result = await logAction('create_session', {
     referrer: document.referrer || null,
     userAgent: navigator.userAgent,
-    product: 'free'
+    product: 'infrastructure'
   });
   if (result && result.session_id) _sessionId = result.session_id;
 }
@@ -1515,8 +1563,23 @@ document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(btn => {
     document.querySelectorAll('#buildTypeGroup .toggle-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('buildType').value = btn.dataset.val;
+    toggleSiteConditions();
   });
 });
+
+// Site topography + on-site utilities only matter for new construction.
+// For renovations / system replacements (HVAC, roof, etc.) they're irrelevant, so hide the section.
+function toggleSiteConditions() {
+  const isNew = document.getElementById('buildType').value === 'New construction';
+  const sec = document.getElementById('siteConditions');
+  if (sec) sec.style.display = isNew ? '' : 'none';
+  if (!isNew) {
+    document.getElementById('topography').value = '';
+    document.querySelectorAll('#topoGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#utilitiesGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+  }
+}
+toggleSiteConditions();
 
 document.querySelectorAll('#topoGroup .toggle-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1632,10 +1695,10 @@ async function runFeasibility() {
   const imgSearch = document.getElementById('imageSearch').value;
 
   if (!location || !zip || !type || !scope) {
-    alert('Please fill in your municipality, ZIP code, select a project type, and describe your project.');
+    alert('Please fill in your municipality / agency name, ZIP code, select a project type, and describe your project.');
     return;
   }
-  if (utils === 'Not specified') {
+  if (buildType === 'New construction' && utils === 'Not specified') {
     alert('Please select whether utilities are available on-site.');
     return;
   }
@@ -1657,7 +1720,9 @@ async function runFeasibility() {
   document.querySelector('.sidebar-column').style.display = '';
   document.querySelector('.page-wrap').style.gridTemplateColumns = '';
   const runStart = Date.now();
-  const prompt = `You are a municipal construction cost advisor helping local government officials in the Midwest assess project feasibility before engaging architects or contractors.
+  const prompt = `You are a public infrastructure construction cost advisor helping Indiana and Michigan local-government officials (public works directors, town/city engineers, utility superintendents) assess project feasibility before engaging engineers or contractors.
+
+This is municipal/utility infrastructure in the Midwest — water, sewer, stormwater, roads, or treatment facilities. Reflect heavy-civil norms: linear utility work is typically priced per linear foot and driven by depth, soil/rock, dewatering, traffic control / maintenance of traffic, bypass pumping, and surface restoration (pavement, curb, landscaping); treatment plants and storage towers are driven by capacity and process complexity; roadwork is driven by lane-miles, subgrade, and drainage. Expect prevailing-wage exposure on public works and account for SRF/grant-funded procurement realities.
 
 LOCATION: ${location}${state ? ', ' + state : ''} (ZIP: ${zip})
 PROJECT TYPE: ${type}
@@ -1666,13 +1731,13 @@ DESCRIPTION: ${scope}
 SITE TOPOGRAPHY: ${topo || 'Not specified'}
 UTILITIES ON SITE: ${utils}
 
-Provide an honest preliminary cost range based on regional construction costs for ${state}. Factor in all site conditions provided.
+Provide an honest preliminary cost range based on regional heavy-civil construction costs for ${state}. Factor in all conditions provided, and state your key quantity assumptions (length, depth, capacity, lane-miles) explicitly when the description is thin.
 
 Include a realistic project timeline broken into phases
-(pre-design/authorization, design, procurement, construction).
-Base durations on the project type, delivery path context, and
-Indiana/Midwest regional norms. Do not reference specific
-statutes by name.
+(pre-design/authorization, engineering & permitting, procurement, construction).
+Base durations on the project type, funding/permitting context (e.g. SRF
+or state environmental review), and Indiana/Midwest regional norms. Do not
+reference specific statutes by name.
 
 Respond ONLY with valid JSON, no markdown, no preamble:
 {
@@ -1680,33 +1745,33 @@ Respond ONLY with valid JSON, no markdown, no preamble:
   "high": <integer dollar amount>,
   "confidence": "<High|Medium|Low>",
   "confidence_reason": "<one sentence>",
-  "narrative": "<2-3 sentences for a non-technical town manager — is this feasible, what drives the cost, any watch-outs?>",
+  "narrative": "<2-3 sentences for a non-technical public works director or council — is this feasible, what drives the cost, any watch-outs?>",
   "assumptions": [
-    "<specific assumption 1>",
+    "<quantity assumption — length, depth, capacity, or lane-miles>",
     "<specific assumption 2>",
     "<specific assumption 3>",
     "<specific assumption 4>",
-    "<site or utility assumption>"
+    "<site, soil, restoration, or traffic-control assumption>"
   ],
-  "project_label": "<3-6 word label, e.g. 'DPW 3-Bay Equipment Garage' or '6-Court Pickleball Complex'>",
+  "project_label": "<3-6 word label, e.g. 'Water Main Replacement — 4,000 LF' or 'Sanitary Lift Station Rehab'>",
   "timeline": {
     "phases": [
       { "phase": "Phase name", "duration": "X-Y months", "note": "brief context" }
     ],
     "total": "X-Y months total",
-    "note": "One sentence on key regional or delivery-path factors that affect this timeline"
+    "note": "One sentence on key regional, funding, or delivery-path factors that affect this timeline"
   }
 }
 
 Rules:
-- Include contractor overhead, general conditions, permitting, and basic engineering/design allowance (3-5%)
-- Exclude land acquisition
-- If no utilities on site, add realistic extension costs to range
-- If demo required, include demo costs
+- Include contractor overhead, general conditions, mobilization, traffic control, permitting, and engineering/design allowance (8-15% for civil work)
+- Exclude land and easement acquisition
+- Include surface restoration (pavement, curb, landscaping); for sanitary sewer include bypass pumping where relevant
+- Account for dewatering, rock, and poor soils when topography or the description suggests them
 - Vague or incomplete descriptions should receive Low confidence with appropriately wider ranges
-- ${state} regional labor market costs should be reflected
+- ${state} regional labor market costs (with public-works prevailing wage where applicable) should be reflected
 - Do NOT reference RSMeans, Gordian, or any proprietary database by name
-- Write for a town manager, not a contractor`;
+- Write for a public works director or council, not a contractor`;
 
   try {
     const rd = await callClaude(prompt);
@@ -1727,7 +1792,7 @@ Rules:
       cost_low: rd.low, cost_high: rd.high, cost_midpoint: Math.round((rd.low + rd.high) / 2),
       confidence: rd.confidence, confidence_reason: rd.confidence_reason,
       narrative: rd.narrative, assumptions: rd.assumptions, project_label: rd.project_label,
-      run_duration_ms: runDuration, product: 'free', ref: _refParam
+      run_duration_ms: runDuration, product: 'infrastructure', ref: _refParam
     }).then(r => { if (r && r.run_id) _runId = r.run_id; });
 
     document.getElementById('resultTitle').textContent = rd.project_label || 'Preliminary Feasibility Indicator';
@@ -1765,7 +1830,7 @@ Rules:
 
 
     document.getElementById('briefingContent').innerHTML =
-      `<div class="section-loading"><div class="spinner"></div> Drafting your board or council briefing...</div>`;
+      `<div class="section-loading"><div class="spinner"></div> Drafting your council briefing...</div>`;
 
     fetchBriefing(rd.project_label, rd.low, rd.high, state, location, type, scope, buildType)
       .then(b => renderBriefing(b))
@@ -1783,30 +1848,32 @@ Rules:
   }
 }
 
-// ── Council Briefing Guide ───────────────────────────────────────────
+// ── Council / Board Briefing Guide ───────────────────────────────────
 async function fetchBriefing(label, low, high, state, location, type, scope, buildType) {
-  const prompt = `You are a municipal communications advisor helping a town manager prepare to present a capital project to their council for the first time.
+  const prompt = `You are an advisor helping a public works director or town/city official prepare to present an infrastructure project to their council or board for the first time.
 
 PROJECT: ${label}
-LOCATION: ${location}${state ? ', ' + state : ''}
+MUNICIPALITY: ${location}${state ? ', ' + state : ''}
 TYPE: ${type} — ${buildType}
 DESCRIPTION: ${scope}
 ESTIMATED COST RANGE: ${formatCurrency(low)} – ${formatCurrency(high)} (midpoint ~${formatCurrency(Math.round((low+high)/2))})
 
+Context: Indiana and Michigan utilities fund infrastructure through SRF loans, rates, and grants, against growing replacement backlogs. One angle worth raising is that delivery paths like BOT/P3 (Build-Operate-Transfer, IC § 5-23) can bring private financing and a guaranteed maximum price — an alternative to a bond issue or a rate spike.
+
 Respond ONLY with valid JSON, no markdown, no preamble:
 {
-  "opening": "<One natural sentence the manager can say to open this topic at a council meeting — confident, not salesy>",
+  "opening": "<One natural sentence the official can say to open this topic at a council or board meeting — confident, not salesy>",
   "talking_points": [
-    "<why this project matters to residents — specific to this project type>",
-    "<why now is a reasonable time to explore it — practical, not urgent>",
-    "<what the cost range means and how to frame it — reassuring, not technical>"
+    "<why this project matters to residents and the system — specific to this project type>",
+    "<why now is a reasonable time to act — frame around aging infrastructure and the cost of deferral, practical not alarmist>",
+    "<how this could be funded — note SRF, rates, and grants, that financing options like BOT/P3 may exist, and what the cost range means in plain terms>"
   ],
   "likely_questions": [
-    { "q": "<most likely skeptical council question>", "a": "<brief, direct answer>" },
-    { "q": "<second likely question>", "a": "<brief answer>" },
-    { "q": "<third likely question>", "a": "<brief answer>" }
+    { "q": "How are we going to pay for this?", "a": "<brief, direct answer covering SRF/rates/grants and financing options like BOT/P3 where appropriate>" },
+    { "q": "<second likely skeptical question — e.g. rate impact or debt capacity>", "a": "<brief answer>" },
+    { "q": "Do we have to award this to the lowest bidder?", "a": "<brief answer noting qualifications-based delivery options like BOT/P3 under IC § 5-23>" }
   ],
-  "next_step": "<One sentence — the lowest-commitment ask you can make to council to move this forward.>"
+  "next_step": "<One sentence — the lowest-commitment ask to the council or board to move this forward, e.g. authorizing staff to explore funding and delivery options.>"
 }`;
 
   return await callClaude(prompt);
@@ -1884,7 +1951,7 @@ async function submitLead() {
           assumptions,
           briefingHtml,
           timeline: window._lastTimeline || null,
-          product: 'free'
+          product: 'infrastructure'
         }
       })
     });
@@ -1905,7 +1972,7 @@ async function submitLead() {
           costLow,
           costHigh,
           confidence,
-          product: 'free'
+          product: 'infrastructure'
         }
       })
     });
@@ -1947,18 +2014,17 @@ async function submitLead() {
 // Opened from /admin. Prefills realistic sample data, optionally auto-runs
 // and auto-submits a real lead (report email to Keith). Never logs to analytics.
 const QA_PRESETS = {
-  garage: {
-    location: 'City of La Porte', zip: '46350', city: 'La Porte', state: 'IN',
-    type: 'DPW / Public Works Garage', buildType: 'New construction',
-    topo: 'Flat / level site', utilities: 'yes',
-    scope: 'Simple garage for our street department — two or three bays, one large enough for a plow truck, basic heat and lighting, no office space. We have an existing town-owned site.'
+  watermain: {
+    location: 'Town of Bristol', zip: '46507', city: 'Bristol', state: 'IN',
+    type: 'Water Main / Distribution',
+    scope: 'Replace roughly 4,000 linear feet of aging 6-inch cast-iron water main along two residential streets with new 8-inch PVC, including new valves, hydrants, and service reconnections, with full pavement and lawn restoration afterward.'
   }
 };
 function runQaSeed() {
   const params = new URLSearchParams(window.location.search);
   const key = params.get('qa');
   if (!key) return;
-  const p = QA_PRESETS[key] || QA_PRESETS.garage;
+  const p = QA_PRESETS[key] || QA_PRESETS.watermain;
   const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
   const click = (sel) => { const el = document.querySelector(sel); if (el) el.click(); };
   set('location', p.location); set('zip', p.zip); set('city', p.city); set('state', p.state); set('scope', p.scope);

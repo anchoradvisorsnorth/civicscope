@@ -34,7 +34,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='20' width='22' height='8' fill='none' stroke='%231c1917' stroke-width='2' stroke-linejoin='round'/><line x1='10' y1='20' x2='10' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='16' y1='20' x2='16' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='22' y1='20' x2='22' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='6' y1='14' x2='26' y2='14' stroke='%231c1917' stroke-width='2' stroke-linecap='round'/><polyline points='7,14 16,4 25,14' fill='none' stroke='%23c2410c' stroke-width='2.5' stroke-linejoin='round' stroke-linecap='round'/><rect x='13' y='22' width='6' height='6' rx='3' fill='%23c2410c'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400;1,9..144,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gloria+Hallelujah&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400;1,9..144,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
 
 <style>
 /* ═══════════════════════════════════════════
@@ -135,6 +135,29 @@ header {
   font-weight: 300;
   letter-spacing: 0.02em;
 }
+/* ── "for Schools" crayon demarcation (ported from schools tool) ── */
+.for-schools-tag {
+  font-family: 'Gloria Hallelujah', cursive;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--accent);
+  transform: rotate(-4deg);
+  display: inline-block;
+  position: relative;
+  margin: 0 2px;
+  padding-bottom: 4px;
+  white-space: nowrap;
+}
+.for-schools-tag::after {
+  content: '';
+  position: absolute;
+  left: -4px; right: -4px; bottom: -1px;
+  height: 8px;
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 130 10' preserveAspectRatio='none'><path d='M2,6 C20,1 35,9 52,5 C70,1 86,9 104,4 C114,2 122,7 128,5' stroke='%23c2410c' stroke-width='2.5' fill='none' stroke-linecap='round'/></svg>") no-repeat center bottom / 100% 8px;
+}
+@media (max-width: 640px) {
+  .for-schools-tag { font-size: 0.95rem; }
+}
 nav {
   margin-left: auto;
   display: flex;
@@ -168,7 +191,7 @@ nav a:hover { color: var(--ink); }
 ══════════════════════════════════════════ */
 .hero {
   background: var(--ink);
-  padding: 100px var(--page-pad) 0;
+  padding: 52px var(--page-pad) 0;
   overflow: hidden;
   position: relative;
 }
@@ -958,7 +981,7 @@ footer {
 <header>
   <div class="header-inner">
     <a href="/" class="wordmark">
-      <svg class="wordmark-svg" width="185" height="45" viewBox="0 0 148 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="CivicScope">
+      <svg class="wordmark-svg" width="236" height="57" viewBox="0 0 148 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="CivicScope">
         <circle cx="4"  cy="4"  r="0.9" fill="#d6cfc4"/>
         <circle cx="16" cy="4"  r="0.9" fill="#d6cfc4"/>
         <circle cx="28" cy="4"  r="0.9" fill="#d6cfc4"/>
@@ -979,7 +1002,7 @@ footer {
       </svg>
     </a>
     <div class="header-divider"></div>
-    <span class="header-tagline">for Schools</span>
+    <span class="for-schools-tag">for Schools</span>
     <nav>
       <a href="/for-government">Government</a>
       <a href="/for-schools" style="color:var(--ink);font-weight:600;">Schools</a>

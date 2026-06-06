@@ -1069,7 +1069,7 @@ footer span {
 <header>
   <div class="header-inner">
     <a href="https://www.civicscope.io" class="wordmark">
-      <svg class="wordmark-svg" width="185" height="45" viewBox="0 0 148 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="CivicScope">
+      <svg class="wordmark-svg" width="236" height="57" viewBox="0 0 148 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="CivicScope">
         <circle cx="4"  cy="4"  r="0.9" fill="#d6cfc4"/>
         <circle cx="16" cy="4"  r="0.9" fill="#d6cfc4"/>
         <circle cx="28" cy="4"  r="0.9" fill="#d6cfc4"/>
@@ -1497,6 +1497,7 @@ let _sessionId = null;
 let _runId = null;
 
 async function logAction(action, data) {
+  if (window._qaMode) return null; // QA test harness — never log test runs to analytics
   try {
     const r = await fetch('/api/log', {
       method: 'POST',
@@ -1509,6 +1510,9 @@ async function logAction(action, data) {
 
 // Read ref param from URL for campaign attribution
 const _refParam = new URLSearchParams(window.location.search).get('ref') || null;
+
+// QA test harness — presence of ?qa=<preset> suppresses all analytics logging (set before initSession)
+window._qaMode = !!new URLSearchParams(window.location.search).get('qa');
 
 async function initSession() {
   const result = await logAction('create_session', {
@@ -2009,6 +2013,44 @@ async function submitLead() {
     alert('Something went wrong. Please try again.');
   }
 }
+
+// ── QA Test Harness — ?qa=<preset>&autorun=1[&lead=1] ────────────────
+// Opened from /admin. Prefills realistic sample data, optionally auto-runs
+// and auto-submits a real lead (report email to Keith). Never logs to analytics.
+const QA_PRESETS = {
+  hvac: {
+    location: 'Penn-Harris-Madison School Corp', zip: '46544', city: 'Mishawaka', state: 'IN',
+    type: 'HVAC / Mechanical Replacement',
+    scope: 'Our 1980s elementary wing needs the original boilers and rooftop units replaced — roughly 60,000 SF. Work must happen over the summer while the building is occupied the rest of the year.'
+  }
+};
+function runQaSeed() {
+  const params = new URLSearchParams(window.location.search);
+  const key = params.get('qa');
+  if (!key) return;
+  const p = QA_PRESETS[key] || QA_PRESETS.hvac;
+  const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+  const click = (sel) => { const el = document.querySelector(sel); if (el) el.click(); };
+  set('location', p.location); set('zip', p.zip); set('city', p.city); set('state', p.state); set('scope', p.scope);
+  if (p.type) click(`.type-btn[data-type="${p.type}"]`);
+  if (p.buildType) click(`#buildTypeGroup .toggle-btn[data-val="${p.buildType}"]`);
+  if (p.topo) click(`#topoGroup .toggle-btn[data-val="${p.topo}"]`);
+  if (p.utilities) click(`#utilitiesGroup .toggle-btn[data-value="${p.utilities}"]`);
+  const willLead = params.get('lead') === '1';
+  const banner = document.createElement('div');
+  banner.textContent = 'QA TEST MODE — not logged to analytics' + (willLead ? ' · a real lead email will be sent to keith@anchoradvisorsnorth.com' : '');
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#c2410c;color:#fff;font:600 12px/1.4 system-ui,sans-serif;text-align:center;padding:6px 12px;letter-spacing:0.02em;';
+  document.body.appendChild(banner);
+  if (params.get('autorun') !== '1') return;
+  runFeasibility().then(() => {
+    if (!willLead) return;
+    set('gateFirst', 'QA'); set('gateLast', 'Tester');
+    const role = document.getElementById('gateRole'); if (role && role.options.length > 1) role.selectedIndex = 1;
+    set('gateEmail', 'keith@anchoradvisorsnorth.com');
+    submitLead();
+  });
+}
+runQaSeed();
 </script>
 </body>
 </html>
