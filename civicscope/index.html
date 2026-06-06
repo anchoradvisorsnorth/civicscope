@@ -1034,6 +1034,38 @@ footer span {
   border-radius: 6px;
   background: #faf8f4;
 }
+/* ── Folded-in depth sections (methodology, timeline, advocate, edit) ── */
+.method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+.method-item { background: var(--cream); border-radius: 4px; padding: 12px 14px; }
+.method-item-label { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.method-item-value { font-size: 0.85rem; color: var(--ink); line-height: 1.5; }
+.assumption-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.assumption-list li { font-size: 0.85rem; color: var(--ink-light); padding-left: 18px; position: relative; line-height: 1.5; }
+.assumption-list li::before { content: '—'; position: absolute; left: 0; color: var(--muted-light); }
+.timeline-phases { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.timeline-phase { display: grid; grid-template-columns: 200px 1fr; gap: 16px; padding: 14px; background: var(--cream); border-radius: 4px; align-items: start; }
+.phase-label { font-size: 0.75rem; font-weight: 500; color: var(--ink); margin-bottom: 3px; }
+.phase-duration { font-family: var(--font-display); font-size: 1rem; color: var(--accent); font-weight: 600; }
+.phase-notes { font-size: 0.82rem; color: var(--ink-light); line-height: 1.5; }
+.timeline-total { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--accent); border-radius: 4px; margin-bottom: 12px; }
+.timeline-total-label { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.7); }
+.timeline-total-value { font-family: var(--font-display); font-size: 1rem; color: #fff; font-weight: 600; }
+.timeline-flag { font-size: 0.8rem; color: #92400e; background: #fef3c7; padding: 10px 14px; border-radius: 4px; line-height: 1.5; }
+.advocate-section { margin-bottom: 18px; }
+.advocate-section:last-child { margin-bottom: 0; }
+.advocate-section-label { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-light); font-weight: 500; margin-bottom: 8px; }
+.advocate-questions { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.advocate-questions li { font-size: 0.85rem; color: var(--ink-light); padding-left: 20px; position: relative; line-height: 1.5; }
+.advocate-questions li::before { content: '?'; position: absolute; left: 4px; color: var(--accent); font-weight: 600; font-size: 0.75rem; }
+.redflags-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.redflags-list li { font-size: 0.85rem; color: #991b1b; position: relative; line-height: 1.5; background: #fef2f2; padding: 8px 12px 8px 28px; border-radius: 4px; }
+.redflags-list li::before { content: '⚠'; position: absolute; left: 8px; font-size: 0.72rem; top: 9px; }
+.pro-tip-block { margin-top: 14px; background: #f0fdf4; padding: 14px 16px; border-left: 3px solid #15803d; border-radius: 0 4px 4px 0; font-size: 0.875rem; line-height: 1.6; color: #166534; }
+.edit-banner { display: none; background: var(--accent-light); border: 1px solid var(--accent); border-radius: 4px; padding: 12px 18px; margin-bottom: 16px; align-items: center; gap: 16px; font-size: 0.85rem; color: var(--accent); }
+.edit-banner strong { font-weight: 600; }
+.result-actions { display: flex; align-items: center; gap: 12px; }
+.btn-secondary { background: #fff; border: 1px solid var(--rule); color: var(--ink-light); border-radius: 5px; cursor: pointer; font-family: var(--font-body); font-weight: 500; }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
 </style>
 </head>
 <body>
@@ -1213,6 +1245,11 @@ footer span {
     </div>
     <div class="error-block" id="errorBlock"></div>
 
+    <div class="edit-banner" id="editBanner">
+      <strong>Editing your inputs.</strong> &nbsp;Update any field above, then click Re-run.
+      <button class="btn-primary" onclick="rerunFromEdit()" style="margin-left:auto;padding:9px 20px;font-size:0.83rem;">Re-run →</button>
+    </div>
+
     <hr class="divider" id="resultDivider" style="display:none">
 
     <!-- RESULTS -->
@@ -1223,7 +1260,10 @@ footer span {
           <div class="result-title" id="resultTitle">Preliminary Feasibility Indicator</div>
           <div class="result-meta" id="resultMeta"></div>
         </div>
-        <div class="confidence-badge" id="confidenceBadge"></div>
+        <div class="result-actions">
+          <div class="confidence-badge" id="confidenceBadge"></div>
+          <button class="btn-secondary" id="editBtn" onclick="editAndRerun()" style="font-size:0.78rem;padding:7px 14px;">Edit &amp; Re-run</button>
+        </div>
       </div>
 
 
@@ -1279,6 +1319,14 @@ footer span {
         <div class="assumptions-chips" id="assumptionsChips"></div>
       </div>
 
+      <!-- How This Estimate Was Built -->
+      <div class="result-block">
+        <div class="block-label">How This Estimate Was Built</div>
+        <div id="methodologyContent">
+          <div class="section-loading"><div class="spinner"></div> Building cost methodology...</div>
+        </div>
+      </div>
+
       <!-- Board or Council Briefing -->
       <div class="result-block">
         <div class="block-label">Board or Council Briefing</div>
@@ -1291,27 +1339,28 @@ footer span {
         </div>
       </div>
 
-      <!-- Timeline Tease -->
-      <div class="result-block timeline-tease" id="timelineTease">
-        <div class="block-label">Estimated Delivery Timeline <span class="pro-tag">Included in your report</span></div>
-        <div class="tease-locked">
-          <div class="tease-blur">
-            <div class="tease-row"><span class="tease-phase">Pre-Design &amp; Authorization</span><span class="tease-dur">&#9608;&#9608;&#9608;&#9608; months</span></div>
-            <div class="tease-row"><span class="tease-phase">Design &amp; Document Phase</span><span class="tease-dur">&#9608;&#9608;&#9608;&#9608; months</span></div>
-            <div class="tease-row"><span class="tease-phase">Procurement &amp; Award</span><span class="tease-dur">&#9608;&#9608;&#9608; months</span></div>
-            <div class="tease-row"><span class="tease-phase">Construction</span><span class="tease-dur">&#9608;&#9608;&#9608;&#9608;&#9608; months</span></div>
-          </div>
-          <div class="tease-unlock-msg">&#128274; Included when you get your report below</div>
+      <!-- Estimated Project Timeline -->
+      <div class="result-block">
+        <div class="block-label">Estimated Project Timeline</div>
+        <p class="field-hint" style="margin-bottom:16px;">From today through construction completion — with regional notes for your state.</p>
+        <div id="timelineContent">
+          <div class="section-loading"><div class="spinner"></div> Estimating project timeline...</div>
         </div>
-        <div class="timeline-content" id="timelineContent" style="display:none">
-          <!-- Populated by JS after gate submission -->
+      </div>
+
+      <!-- Buyer's Advocate Guide -->
+      <div class="result-block">
+        <div class="block-label">Buyer's Advocate Guide</div>
+        <p class="field-hint" style="margin-bottom:14px;">Questions to ask designers and contractors before committing. Red flags to watch for.</p>
+        <div id="advocateContent">
+          <div class="section-loading"><div class="spinner"></div> Building buyer's advocate guide...</div>
         </div>
       </div>
 
       <!-- Lead Gate -->
       <div class="gate-block" id="gateBlock">
-        <h3>Get everything above in your inbox</h3>
-        <p>Enter your information and we'll email you everything above plus your estimated delivery timeline — a section not shown on screen.</p>
+        <h3>Email yourself this report</h3>
+        <p>We'll send a complete summary to your inbox — cost range, methodology, timeline, board briefing, and buyer's guide.</p>
         <div class="gate-form-grid">
           <div class="field">
             <label>First Name <span class="req">*</span></label>
@@ -1340,19 +1389,12 @@ footer span {
         </div>
         <div class="gate-submit-row">
           <button class="btn-primary" id="gateBtn" onclick="submitLead()">
-            Email me everything above plus my delivery timeline
+            Email me this report
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
         <div class="gate-confirmed" id="gateConfirmed">✓ Report sent — check your inbox. <a href="javascript:window.print()" style="color:var(--accent);text-decoration:none;margin-left:8px;">Print / Save as PDF →</a></div>
-        <div class="gate-post-cta" id="gatePostCta" style="display:none;">
-          <div style="margin-top:20px;padding:20px 24px;background:var(--cream-dark);border:1px solid var(--rule);border-radius:8px;">
-            <p style="font-size:14px;color:var(--ink);font-weight:600;margin-bottom:6px;">Want to go deeper?</p>
-            <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.55;">CivicScope Pro lets you run multiple scenarios, compare delivery paths side-by-side, and save projects — built for officials moving from "what if" to "what's next."</p>
-            <a href="https://www.civicscope.io/pro" style="display:inline-block;background:var(--accent);color:#fff;padding:10px 20px;border-radius:5px;text-decoration:none;font-size:13px;font-weight:600;">Learn about CivicScope Pro →</a>
-            <p style="font-size:12px;color:var(--muted-light);margin-top:12px;">Or reach us at <a href="mailto:info@civicscope.io" style="color:var(--accent);text-decoration:none;">info@civicscope.io</a> — we're happy to talk through your project.</p>
-          </div>
-        </div>
+        <div class="gate-post-cta" id="gatePostCta" style="display:none;"></div>
       </div>
 
       <div class="cta-block next-steps">
@@ -1650,6 +1692,10 @@ async function runFeasibility() {
   btn.disabled = true;
   loading.style.display = 'flex';
   loadingMsg.textContent = 'Analyzing regional cost data and project parameters...';
+  document.getElementById('methodologyContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Building cost methodology...</div>`;
+  document.getElementById('timelineContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Estimating project timeline...</div>`;
+  document.getElementById('advocateContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Building buyer's advocate guide...</div>`;
+  document.getElementById('editBanner').style.display = 'none';
   errorBlock.style.display = 'none';
   resultEl.style.display = 'none';
   divider.style.display = 'none';
@@ -1689,6 +1735,13 @@ Respond ONLY with valid JSON, no markdown, no preamble:
     "<site or utility assumption>"
   ],
   "project_label": "<3-6 word label, e.g. 'DPW 3-Bay Equipment Garage' or '6-Court Pickleball Complex'>",
+  "methodology": {
+    "basis": "<one sentence — what cost basis was used, in plain terms. Do NOT name any proprietary cost database>",
+    "sf_range": "<estimated building/site size range, or 'N/A'>",
+    "cost_per_sf": "<estimated cost per SF range, or 'N/A'>",
+    "key_drivers": ["<driver 1>","<driver 2>","<driver 3>"],
+    "exclusions": ["<exclusion 1>","<exclusion 2>"]
+  },
   "timeline": {
     "phases": [
       { "phase": "Phase name", "duration": "X-Y months", "note": "brief context" }
@@ -1764,6 +1817,9 @@ Rules:
     resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
 
+    if (rd.methodology) renderMethodology(rd.methodology);
+    if (rd.timeline) renderTimeline(rd.timeline);
+
     document.getElementById('briefingContent').innerHTML =
       `<div class="section-loading"><div class="spinner"></div> Drafting your board or council briefing...</div>`;
 
@@ -1774,6 +1830,10 @@ Rules:
           '<p style="font-size:0.85rem;color:var(--muted);">Could not generate briefing guide. Try re-running the feasibility check.</p>';
       });
 
+    fetchAdvocate(rd.project_label, rd.low, rd.high, state, type, scope)
+      .then(a => renderAdvocate(a))
+      .catch(() => { document.getElementById('advocateContent').innerHTML = '<p style="font-size:0.85rem;color:var(--muted);">Could not generate buyer guide.</p>'; });
+
   } catch (err) {
     errorBlock.textContent = 'Something went wrong. Please check your inputs and try again — more detail in the description usually helps.';
     errorBlock.style.display = 'block';
@@ -1781,6 +1841,63 @@ Rules:
     btn.disabled = false;
     loading.style.display = 'none';
   }
+}
+
+// ── Edit & Re-run ────────────────────────────────────────────────────
+function editAndRerun() {
+  const intro = document.querySelector('.page-intro');
+  if (intro) intro.scrollIntoView({ behavior: 'smooth', block: 'start' }); else window.scrollTo({ top: 0, behavior: 'smooth' });
+  document.getElementById('editBanner').style.display = 'flex';
+}
+function rerunFromEdit() {
+  document.getElementById('editBanner').style.display = 'none';
+  runFeasibility();
+}
+
+// ── Cost methodology (from the main estimate call) ───────────────────
+function renderMethodology(m) {
+  const drivers = Array.isArray(m.key_drivers) ? m.key_drivers.join(' · ') : (m.key_drivers || '');
+  const exclusions = Array.isArray(m.exclusions) ? m.exclusions : [];
+  document.getElementById('methodologyContent').innerHTML = `
+    <div class="method-grid">
+      <div class="method-item"><div class="method-item-label">Cost Basis</div><div class="method-item-value">${m.basis || '—'}</div></div>
+      <div class="method-item"><div class="method-item-label">Estimated Size Range</div><div class="method-item-value">${m.sf_range || 'N/A'}</div></div>
+      <div class="method-item"><div class="method-item-label">Estimated Cost / SF</div><div class="method-item-value">${m.cost_per_sf || 'N/A'}</div></div>
+      <div class="method-item"><div class="method-item-label">Key Cost Drivers</div><div class="method-item-value">${drivers}</div></div>
+    </div>
+    <div style="margin-top:4px;">
+      <div class="method-item-label" style="margin-bottom:6px;">Not Included in This Estimate</div>
+      <ul class="assumption-list">${exclusions.map(e => `<li>${e}</li>`).join('')}</ul>
+    </div>`;
+}
+
+// ── Project timeline (un-gated; uses the main call's timeline data) ──
+function renderTimeline(tl) {
+  document.getElementById('costTimeline').textContent = tl.total || '—';
+  const phases = Array.isArray(tl.phases) ? tl.phases : [];
+  let html = '<div class="timeline-phases">';
+  phases.forEach(p => {
+    html += `<div class="timeline-phase"><div><div class="phase-label">${p.phase || p.name || ''}</div><div class="phase-duration">${p.duration || ''}</div></div><div class="phase-notes">${p.note || p.notes || ''}</div></div>`;
+  });
+  html += '</div>';
+  if (tl.total) html += `<div class="timeline-total"><span class="timeline-total-label">Total Estimated Timeline</span><span class="timeline-total-value">${tl.total}</span></div>`;
+  if (tl.note) html += `<div class="timeline-flag">⚑ ${tl.note}</div>`;
+  document.getElementById('timelineContent').innerHTML = html;
+}
+
+// ── Buyer's advocate guide (separate call) ───────────────────────────
+async function fetchAdvocate(label, low, high, state, type, scope) {
+  return await callClaude(`You are a municipal buyer's advocate. Project: ${label} | ${state} | ${type} | Budget: ${formatCurrency(low)}–${formatCurrency(high)}
+Respond ONLY with valid JSON, no markdown:
+{"questions_for_designer":["<q1>","<q2>","<q3>"],"questions_for_contractor":["<q1>","<q2>","<q3>"],"red_flags":["<flag1>","<flag2>","<flag3>"],"pro_tip":"<single most important thing to do before committing>"}`);
+}
+function renderAdvocate(a) {
+  let html = '';
+  html += `<div class="advocate-section"><div class="advocate-section-label">Questions to Ask Your Designer / Architect</div><ul class="advocate-questions">${a.questions_for_designer.map(q=>`<li>${q}</li>`).join('')}</ul></div>`;
+  html += `<div class="advocate-section"><div class="advocate-section-label">Questions to Ask Your Contractor or Design-Build Firm</div><ul class="advocate-questions">${a.questions_for_contractor.map(q=>`<li>${q}</li>`).join('')}</ul></div>`;
+  html += `<div class="advocate-section"><div class="advocate-section-label">Red Flags to Watch For</div><ul class="redflags-list">${a.red_flags.map(f=>`<li>${f}</li>`).join('')}</ul></div>`;
+  html += `<div class="pro-tip-block"><strong>Tip:</strong> ${a.pro_tip}</div>`;
+  document.getElementById('advocateContent').innerHTML = html;
 }
 
 // ── Council Briefing Guide ───────────────────────────────────────────
@@ -1918,23 +2035,6 @@ async function submitLead() {
     document.getElementById('gateBtn').style.display = 'none';
     document.getElementById('gateConfirmed').style.display = 'block';
     document.getElementById('gatePostCta').style.display = 'block';
-
-    // Reveal timeline tease
-    const tease = document.getElementById('timelineTease');
-    const content = document.getElementById('timelineContent');
-    const locked = document.querySelector('.tease-locked');
-    if (tease && window._lastTimeline) {
-      const tl = window._lastTimeline;
-      locked.style.display = 'none';
-      content.style.display = 'block';
-      content.innerHTML = tl.phases.map(p =>
-        `<div class="tl-row">
-          <span class="tl-phase">${p.phase}</span>
-          <span class="tl-dur">${p.duration}</span>
-        </div>`
-      ).join('') +
-      `<div class="tl-note">${tl.total} total &mdash; ${tl.note}</div>`;
-    }
   } catch (err) {
     console.error('Lead submit error:', err);
     document.getElementById('gateBtn').disabled = false;
