@@ -863,6 +863,13 @@ footer span {
       font-weight: 600;
     }
     .pro-nudge a:hover { text-decoration: underline; }
+    .contact-cta { padding-top: 18px; border-top: 1px solid var(--rule); margin-top: 8px; }
+    .contact-cta h4 { font-family: var(--font-display); }
+    .contact-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .contact-cta input, .contact-cta textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 5px; font-family: var(--font-body); font-size: 0.9rem; background: #fff; color: var(--ink); }
+    .contact-cta textarea { margin-bottom: 12px; resize: vertical; }
+    .contact-confirmed { color: #15803d; font-weight: 600; font-size: 0.9rem; }
+    @media (max-width: 640px) { .contact-form-grid { grid-template-columns: 1fr; } }
 
     /* ── TIMELINE TEASE ─────────────────────────── */
     .timeline-tease .tease-locked {
@@ -1447,9 +1454,16 @@ footer span {
             Use the school board briefing above to frame the conversation. A cost range with a confidence rating and a clear funding path gives your board what it needs to authorize next steps.
           </li>
         </ol>
-        <div class="pro-nudge">
-          Need to run multiple scenarios, save this project, or dig deeper into site-specific factors?
-          <a href="https://www.civicscope.io/pro">CivicScope Pro →</a>
+        <div class="contact-cta">
+          <h4 style="font-size:1rem;margin-bottom:6px;">Want help moving this forward?</h4>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.55;">Tell us about your project and we'll follow up with guidance on funding, delivery paths, and next steps — no cost, no obligation.</p>
+          <div class="contact-form-grid">
+            <input type="text" id="contactName" placeholder="Your name" />
+            <input type="email" id="contactEmail" placeholder="Email address" />
+          </div>
+          <textarea id="contactMessage" rows="3" placeholder="A sentence or two about your project (optional)"></textarea>
+          <button class="btn-primary" id="contactBtn" onclick="submitContact()">Contact CivicScope for guidance →</button>
+          <div class="contact-confirmed" id="contactConfirmed" style="display:none;">✓ Thanks — we'll be in touch shortly.</div>
         </div>
       </div>
 
@@ -2118,6 +2132,27 @@ async function submitLead() {
     console.error('Lead submit error:', err);
     document.getElementById('gateBtn').disabled = false;
     document.getElementById('gateBtn').textContent = 'Send My Report';
+    alert('Something went wrong. Please try again.');
+  }
+}
+
+// ── Contact CivicScope for guidance ─────────────────────────────────
+async function submitContact() {
+  const name = document.getElementById('contactName').value.trim();
+  const email = document.getElementById('contactEmail').value.trim();
+  const message = document.getElementById('contactMessage').value.trim();
+  const orgEl = document.getElementById('location');
+  const org = orgEl ? orgEl.value.trim() : '';
+  if (!email) { alert('Please enter your email so we can reach you.'); return; }
+  const btn = document.getElementById('contactBtn');
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    await fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'contact_inquiry', data: { name, email, organization: org, message, product: 'schools' } }) });
+    document.getElementById('contactBtn').style.display = 'none';
+    document.getElementById('contactConfirmed').style.display = 'block';
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Contact CivicScope for guidance →';
     alert('Something went wrong. Please try again.');
   }
 }

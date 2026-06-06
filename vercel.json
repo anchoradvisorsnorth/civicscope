@@ -3,7 +3,8 @@
     { "path": "/api/digest", "schedule": "0 11 * * *" }
   ],
   "redirects": [
-    { "source": "/index.html", "destination": "/", "statusCode": 301 }
+    { "source": "/index.html", "destination": "/", "statusCode": 301 },
+    { "source": "/pro", "destination": "/", "statusCode": 301 }
   ],
   "rewrites": [
     { "source": "/", "destination": "/groundwork/index.html", "has": [{ "type": "host", "value": "groundwork.civicscope.io" }] },
@@ -12,7 +13,6 @@
     { "source": "/try/:slug", "destination": "/api/try?slug=:slug" },
     { "source": "/unsubscribe", "destination": "/api/unsubscribe" },
     { "source": "/admin", "destination": "/civicscope-admin/index.html" },
-    { "source": "/pro",   "destination": "/pro/index.html" },
     { "source": "/schools", "destination": "/civicscope-schools/index.html" },
     { "source": "/infrastructure", "destination": "/civicscope-infrastructure/index.html" },
     { "source": "/for-government", "destination": "/for-government/index.html" },
