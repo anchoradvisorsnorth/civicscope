@@ -75,6 +75,7 @@ export default async function handler(req, res) {
         throw new Error(`Resend error: ${err}`);
       }
       const result = await quietRes.json();
+      await cronHeartbeat('ok', 'quiet day');
       return res.status(200).json({ sent: true, id: result.id, runs: 0, leads: 0, quiet: true });
     }
 
@@ -127,12 +128,25 @@ export default async function handler(req, res) {
     }
 
     const result = await emailRes.json();
+    await cronHeartbeat('ok', `${runs.length} runs, ${leads.length} leads`);
     return res.status(200).json({ sent: true, id: result.id, runs: runs.length, leads: leads.length });
 
   } catch (err) {
     console.error('Digest error:', err);
+    await cronHeartbeat('fail', err.message);
     return res.status(500).json({ error: err.message });
   }
+}
+
+// Report this run to the CRM automation registry (best-effort).
+async function cronHeartbeat(status, detail) {
+  try {
+    await fetch('https://crm.jbkdevelopment.com/api/task-heartbeat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-cron-secret': '14a8f1c985aa1345179433b701555d2887bd3a6c7d00d790' },
+      body: JSON.stringify({ id: 'cs-digest', status, detail: (detail || '').toString().slice(0, 200) }),
+    });
+  } catch {}
 }
 
 // ── Email Template ──────────────────────────────────────────────────────────
