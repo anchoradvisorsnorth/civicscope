@@ -148,6 +148,17 @@
   .sl-reason { font-size: 11px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
   .sl-reason-red { color: var(--red); }
   .sl-reason-amber { color: var(--amber); }
+
+  /* Foundation integration */
+  .foundation-line { font-size: 11px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); color: var(--muted); line-height: 1.7; }
+  .foundation-line .fl-label { display:inline-block; font-weight:600; color:#0891b2; letter-spacing:.04em; text-transform:uppercase; font-size:10px; margin-right:6px; }
+  .recon-ok { color: var(--green); }
+  .recon-warn { color: var(--amber); }
+  .integrity-flag { display:inline-block; margin-top:4px; padding:1px 6px; border-radius:4px; background:#fef3c7; color:#92400e; font-size:10px; font-weight:600; }
+  .contract-flag { color: var(--amber); font-size:11px; font-weight:600; }
+  .coverage-banner { background:#ecfeff; border:1px solid #a5f3fc; border-left:4px solid #0891b2; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:13px; color:#155e63; }
+  .coverage-banner strong { color:#0e7490; }
+  .job-people { font-size: 11px; color: var(--muted); margin-top: 3px; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 11px; line-height: 1.8; }
@@ -170,7 +181,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.8.1-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.9.0-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
@@ -186,6 +197,7 @@
   </div>
 
   <div class="metrics" id="metrics"></div>
+  <div id="coverage-banner" style="display:none"></div>
   <div id="analysis-section" style="display:none"></div>
   <div id="jobs-section">
     <div class="job-controls" id="job-controls" style="display:none">
@@ -217,13 +229,14 @@
         <option value="contract">Sort: Contract value ↓</option>
         <option value="finish">Sort: Finish date ↑</option>
         <option value="pct">Sort: % Complete ↓</option>
+        <option value="pm">Sort: Project Manager (A–Z)</option>
       </select>
     </div>
     <div class="job-grid" id="job-grid"></div>
   </div>
 
   <div class="footer">
-    v1.8.1-ryc-dashboard — Data from Procore<br>
+    v1.9.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -232,7 +245,8 @@
 const PORTFOLIO_URL = '/ryc-dashboard/ryc-portfolio.json';
 const CACHE_URL = '/ryc-dashboard/procore-cache.json';
 const ACTIVE_API = '/api/ryc-active';
-let portfolioData = null, activeData = null, currentView = 'active';
+const FOUNDATION_API = 'https://crm.jbkdevelopment.com/api/ryc-foundation';
+let portfolioData = null, activeData = null, foundationData = null, foundationOnly = [], currentView = 'active';
 
 function tryLogin() {
   if (document.getElementById('pw-input').value === 'ryc2026') {
@@ -256,6 +270,8 @@ async function init() {
     activeData = await (await fetch(CACHE_URL + '?t=' + Date.now())).json();
     document.getElementById('refresh-status').textContent = 'Procore data from ' + fmtDate(activeData?.refreshed);
   } catch { document.getElementById('refresh-status').textContent = 'Procore data unavailable'; activeData = null; }
+  try { foundationData = await (await fetch(FOUNDATION_API + '?t=' + Date.now())).json(); } catch { foundationData = null; }
+  mergeFoundation(activeData, foundationData); // best-source merge; no-op/Procore-only if Foundation unreachable
   renderView();
   wireToggle();
 }
@@ -325,6 +341,7 @@ function renderView() {
     controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
     populatePMFilter(); renderMetrics(); renderJobs();
   }
+  renderCoverageBanner();
 }
 
 // --- Helpers ---
@@ -340,11 +357,87 @@ function typeColor(t) { return { school: 'var(--blue-bar)', municipal: 'var(--te
 function typeName(t) { return { school: 'School', municipal: 'Municipal', municipal_water_wastewater: 'Municipal \u2013 Water/WW', commercial: 'Commercial', mixed_use: 'Mixed use', industrial: 'Industrial', private: 'Private', new_construction: 'New construction', renovation: 'Renovation', repair: 'Repair', addition: 'Addition', expansion: 'Expansion' }[t] || t; }
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function contractedMargin(job) { const cv = job.contractValue; const bo = job.budget?.original; if (!(cv > 0 && bo > 0)) return null; return bo >= cv ? 0 : ((cv - bo) / cv * 100); }
-function marginToDate(job) { const cv = job.contractValue; const dc = job.budget?.direct; return (cv > 0 && dc > 0) ? ((cv - dc) / cv * 100) : null; }
+function marginToDate(job) { const cv = job.contractValue; const dc = (job.costToDate != null ? job.costToDate : job.budget?.direct); return (cv > 0 && dc > 0) ? ((cv - dc) / cv * 100) : null; }
 function marginColorClass(m) { return m == null ? 'margin-missing' : m >= 10 ? 'margin-green' : m >= 5 ? 'margin-amber' : 'margin-red'; }
 
 function getLP(pid) { return activeData?.jobs?.find(j => j.procoreId === pid) || null; }
 function getBestMargin(j) { return j.projectedMarginPct ?? j.projectedMargin ?? (j.impliedMarginPct != null && j.impliedMarginPct < 40 ? j.impliedMarginPct : null); }
+// PM = Foundation-authoritative (Procore PM is unreliable), fallback Procore. Super = Procore only (Foundation has no super field).
+function pmName(job) { return (job.foundation && job.foundation.pmName) || job.pm?.name || null; }
+function superName(job) { return job.superintendent?.name || null; }
+
+// --- Foundation merge (best-source per field + integrity flags) ---
+// Merges the Foundation accounting snapshot onto each Procore job by jobNo === projectNumber.
+// Foundation wins contract/cost/lifecycle; Procore keeps schedule/RFIs/CO-type. Pure Procore-only
+// render if Foundation is unreachable (foundationData null → every job gets foundation:null).
+function mergeFoundation(active, fd) {
+  foundationOnly = [];
+  if (!active || !active.jobs) return;
+  const fjobs = (fd && fd.jobs) || {};
+  const procoreNums = new Set();
+  for (const j of active.jobs) {
+    const num = (j.projectNumber || '').trim();
+    procoreNums.add(num);
+    const f = fjobs[num];
+    j.flags = [];
+    if (!f) { j.foundation = null; j.costToDate = j.budget?.direct ?? null; continue; }
+    j.foundation = f;
+    // Contract — best source = Foundation executed contract (original + approved COs)
+    if (f.currentContract > 0) {
+      j.procoreContractValue = j.contractValue;
+      j.contractValue = f.currentContract;
+      const d = j.contractValue - (j.procoreContractValue || 0);
+      if (j.procoreContractValue && Math.abs(d) > 50000 && Math.abs(d) > j.contractValue * 0.02) {
+        j.flags.push({ type: 'contract', text: 'Procore ' + fmtCompact(j.procoreContractValue) });
+      }
+    }
+    // Cost-to-date — prefer Foundation (authoritative, includes burden)
+    j.costToDate = (f.totalCosts != null) ? f.totalCosts : (j.budget?.direct ?? null);
+    // Recompute overrun against the corrected contract so the stoplight stays consistent
+    if (j.costToDate != null && j.contractValue > 0) j.costOverrun = j.costToDate > j.contractValue;
+    // Lifecycle — Foundation job_status is authoritative
+    if (f.jobStatus === 'C') j.flags.push({ type: 'closed', text: 'Foundation: closed' });
+  }
+  // Coverage gap — active Foundation jobs with a real contract that aren't on the board
+  foundationOnly = Object.values(fjobs).filter(f =>
+    f.jobStatus === 'A' && !procoreNums.has((f.jobNo || '').trim()) &&
+    ((f.currentContract || 0) > 0 || (f.originalContract || 0) > 0));
+}
+
+function renderFoundationLine(job) {
+  const f = job.foundation;
+  if (!f) return '';
+  const chips = Object.entries(f.costBreakdown || {}).sort((a, b) => b[1] - a[1]).slice(0, 4)
+    .map(([k, v]) => esc(k) + ' ' + fmtCompact(v)).join(' · ');
+  let recon = '';
+  const pCost = job.budget?.direct;
+  if (pCost != null && f.totalCosts != null) {
+    const d = f.totalCosts - pCost;
+    recon = (Math.abs(d) <= Math.max(50000, (job.contractValue || 0) * 0.02))
+      ? '<span class="recon-ok">✓ reconciled</span>'
+      : '<span class="recon-warn">Δ vs Procore ' + fmtCompact(d) + '</span>';
+  }
+  const flags = (job.flags || []).map(fl => '<span class="integrity-flag">⚑ ' + esc(fl.text) + '</span>').join(' ');
+  return `<div class="foundation-line"><span class="fl-label">Foundation</span>Cost ${fmtCompact(f.totalCosts)} ${recon} · Billed ${fmtCompact(f.totalInvoiced)} · Retainage ${fmtCompact(f.retainage)}${chips ? '<br><span class="note">' + chips + '</span>' : ''}${flags ? '<br>' + flags : ''}</div>`;
+}
+
+function renderPeopleLine(job) {
+  const pm = pmName(job), su = superName(job);
+  const parts = [];
+  if (pm) parts.push('PM ' + esc(pm));
+  if (su) parts.push('Super ' + esc(su));
+  return parts.length ? `<div class="job-people">${parts.join(' · ')}</div>` : '';
+}
+
+function renderCoverageBanner() {
+  const el = document.getElementById('coverage-banner');
+  if (!el) return;
+  if (currentView !== 'active' || !foundationOnly.length) { el.style.display = 'none'; return; }
+  const sum = foundationOnly.reduce((s, f) => s + (f.currentContract || f.originalContract || 0), 0);
+  const onBoard = activeData?.jobs?.length || 0;
+  el.style.display = 'block';
+  el.innerHTML = `<strong>${foundationOnly.length} active Foundation jobs</strong> aren't on this board (~${fmtCompact(sum)} contract value). Foundation tracks ${foundationOnly.length + onBoard} active jobs vs ${onBoard} shown from Procore. Full coverage view is a later phase.`;
+}
 
 // --- Stoplight ---
 function getStoplight(job, live) {
@@ -499,11 +592,12 @@ function setSLFilter(val) {
 function populatePMFilter() {
   const sel = document.getElementById('filter-pm');
   if (!sel) return;
+  const cur = sel.value;
   const pms = new Set();
-  for (const j of (activeData?.jobs || [])) {
-    if (j.pm?.name) pms.add(j.pm.name);
-  }
-  sel.innerHTML = '<option value="">All PMs</option>' + [...pms].sort().map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  for (const j of (activeData?.jobs || [])) { const n = pmName(j); if (n) pms.add(n); }
+  // sort the dropdown by first name ("First Last")
+  sel.innerHTML = '<option value="">All PMs</option>' + [...pms].sort((a, b) => a.localeCompare(b)).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if ([...pms].includes(cur)) sel.value = cur;
 }
 
 // --- Search, Filter & Sort ---
@@ -524,7 +618,7 @@ function filterAndSortJobs(jobs) {
   // Text search
   if (query) {
     filtered = filtered.filter(j => {
-      const haystack = [j.name, j.client, j.pm?.name, j.superintendent?.name].filter(Boolean).join(' ').toLowerCase();
+      const haystack = [j.name, j.client, pmName(j), superName(j)].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(query);
     });
   }
@@ -557,7 +651,7 @@ function filterAndSortJobs(jobs) {
 
   // PM filter
   if (pmFilter) {
-    filtered = filtered.filter(j => j.pm?.name === pmFilter);
+    filtered = filtered.filter(j => pmName(j) === pmFilter);
   }
 
   // Sort
@@ -573,6 +667,12 @@ function filterAndSortJobs(jobs) {
       return fa < fb ? -1 : fa > fb ? 1 : 0;
     }
     if (sortBy === 'pct') return (b.pctComplete || 0) - (a.pctComplete || 0);
+    if (sortBy === 'pm') {
+      const pa = pmName(a), pb = pmName(b);
+      if (!pa && !pb) return 0;
+      if (!pa) return 1; if (!pb) return -1;   // unassigned sorts to the bottom
+      return pa.localeCompare(pb);             // "First Last" → alphabetical by first name
+    }
     return 0;
   });
 
@@ -658,6 +758,7 @@ function renderActiveCard(job, live) {
         <div>
           <div class="job-name"><span class="stoplight stoplight-${sl.color}"></span>${esc(job.name)}</div>
           <div class="job-client">${esc(job.client)}</div>
+          ${renderPeopleLine(job)}
         </div>
         <div class="badges">
           ${stageDisplay ? `<span class="badge badge-stage">${esc(stageDisplay)}</span>${stageDisplay === 'Pre-Construction' && pctComp > 20 ? '<span class="stage-warn" style="color:var(--amber)">⚠<span class="tooltip">Stage may need updating in Procore</span></span>' : ''}` : '<span class="badge badge-stage-null">Stage not set</span>'}
@@ -665,7 +766,7 @@ function renderActiveCard(job, live) {
         </div>
       </div>
       <div class="job-stats${isPreconPending ? ' precon-pending' : ''}">
-        <div class="job-stat"><span class="k">Contract</span><span class="v">${fmtCompact(contractVal)}</span></div>
+        <div class="job-stat"><span class="k">Contract</span><span class="v">${fmtCompact(contractVal)}</span>${(job.flags || []).some(f => f.type === 'contract') ? `<br><span class="contract-flag">⚑ Procore ${fmtCompact(job.procoreContractValue)}</span>` : ''}</div>
         <div class="job-stat"><span class="k">% complete</span><span class="v">${pctDisp}${pctNote}</span></div>
         <div class="job-stat"><span class="k">Contracted margin</span>${cMarginHtml}</div>
         <div class="job-stat"><span class="k">Margin to date</span>${mtdHtml}</div>
@@ -674,6 +775,7 @@ function renderActiveCard(job, live) {
         ${isPreconPending ? '<div class="precon-note">Financial data will appear once contract is entered in Procore.</div>' : ''}
       </div>
       ${sl.reasons?.length ? `<div class="sl-reason sl-reason-${sl.color}">${sl.reasons.map(r => r.text).join(' · ')}</div>` : ''}
+      ${renderFoundationLine(job)}
     </div>`;
 }
 
