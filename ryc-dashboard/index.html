@@ -158,7 +158,25 @@
   .contract-flag { color: var(--amber); font-size:11px; font-weight:600; }
   .coverage-banner { background:#ecfeff; border:1px solid #a5f3fc; border-left:4px solid #0891b2; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:13px; color:#155e63; }
   .coverage-banner strong { color:#0e7490; }
-  .job-people { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .job-people { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .job-people strong { color: #1f2937; font-weight: 700; }
+
+  /* Billing & AR */
+  .billing-stamp { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+  .billing-block { margin-bottom: 2.2rem; }
+  .billing-block .section-header { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .billing-block .big-num { font-size: 20px; font-weight: 700; color:#0e7490; }
+  .billing-block .cnt { font-size: 12px; color: var(--muted); font-weight:400; }
+  .billing-sub { font-size: 12px; color: var(--muted); margin: 4px 0 12px; font-style: italic; }
+  .billing-table { width:100%; border-collapse: collapse; font-size: 13px; background:#fff; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .billing-table th { text-align:left; padding:8px 12px; background:#f1f0eb; color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+  .billing-table td { padding:7px 12px; border-top:1px solid var(--border); }
+  .billing-table td.r, .billing-table th.r { text-align:right; font-variant-numeric: tabular-nums; }
+  .billing-table .jno { color:var(--muted); font-variant-numeric: tabular-nums; margin-right:4px; }
+  .billing-table .pm-row td { background:#fafaf8; border-top:2px solid var(--border); }
+  .billing-table .under { color:#b45309; font-weight:600; }
+  .billing-table .over-60 { color: var(--red); font-weight:600; }
+  .billing-empty, .billing-note, .billing-more { color: var(--muted); padding:12px; font-size:13px; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 11px; line-height: 1.8; }
@@ -181,7 +199,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.9.0-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.10.0-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
@@ -193,12 +211,14 @@
     <button class="active" data-view="active">Active Jobs</button>
     <button data-view="completed">Completed Jobs</button>
     <button data-view="closeout">Warranty/Post-Con</button>
+    <button data-view="billing">Billing &amp; AR</button>
     <button data-view="analysis">Portfolio Analysis</button>
   </div>
 
   <div class="metrics" id="metrics"></div>
   <div id="coverage-banner" style="display:none"></div>
   <div id="analysis-section" style="display:none"></div>
+  <div id="billing-section" style="display:none"></div>
   <div id="jobs-section">
     <div class="job-controls" id="job-controls" style="display:none">
       <input type="text" id="job-search" placeholder="Search jobs, clients, PMs..." oninput="renderJobs()">
@@ -236,7 +256,7 @@
   </div>
 
   <div class="footer">
-    v1.9.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.10.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -246,7 +266,8 @@ const PORTFOLIO_URL = '/ryc-dashboard/ryc-portfolio.json';
 const CACHE_URL = '/ryc-dashboard/procore-cache.json';
 const ACTIVE_API = '/api/ryc-active';
 const FOUNDATION_API = 'https://crm.jbkdevelopment.com/api/ryc-foundation';
-let portfolioData = null, activeData = null, foundationData = null, foundationOnly = [], currentView = 'active';
+const AR_API = 'https://crm.jbkdevelopment.com/api/ryc-ar';
+let portfolioData = null, activeData = null, foundationData = null, foundationOnly = [], arData = null, currentView = 'active';
 
 function tryLogin() {
   if (document.getElementById('pw-input').value === 'ryc2026') {
@@ -332,12 +353,18 @@ function getCloseoutJobs() { return (activeData?.jobs || []).filter(j => CLOSEOU
 function renderView() {
   const jobsEl = document.getElementById('jobs-section');
   const analysisEl = document.getElementById('analysis-section');
+  const billingEl = document.getElementById('billing-section');
   const controlsEl = document.getElementById('job-controls');
+  const metricsEl = document.getElementById('metrics');
+  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none';
   if (currentView === 'analysis') {
-    jobsEl.style.display = 'none'; analysisEl.style.display = 'block';
+    analysisEl.style.display = 'block'; metricsEl.style.display = '';
     renderAnalysisMetrics(); renderAnalysis();
+  } else if (currentView === 'billing') {
+    billingEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
+    renderBilling();
   } else {
-    jobsEl.style.display = 'block'; analysisEl.style.display = 'none';
+    jobsEl.style.display = 'block'; analysisEl.style.display = 'none'; metricsEl.style.display = '';
     controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
     populatePMFilter(); renderMetrics(); renderJobs();
   }
@@ -362,9 +389,9 @@ function marginColorClass(m) { return m == null ? 'margin-missing' : m >= 10 ? '
 
 function getLP(pid) { return activeData?.jobs?.find(j => j.procoreId === pid) || null; }
 function getBestMargin(j) { return j.projectedMarginPct ?? j.projectedMargin ?? (j.impliedMarginPct != null && j.impliedMarginPct < 40 ? j.impliedMarginPct : null); }
-// PM = Foundation-authoritative (Procore PM is unreliable), fallback Procore. Super = Procore only (Foundation has no super field).
+// PM = Foundation-authoritative (Procore PM is unreliable), fallback Procore.
+// Site super removed from the UI — Foundation has no super field and Procore's is largely wrong/empty.
 function pmName(job) { return (job.foundation && job.foundation.pmName) || job.pm?.name || null; }
-function superName(job) { return job.superintendent?.name || null; }
 
 // --- Foundation merge (best-source per field + integrity flags) ---
 // Merges the Foundation accounting snapshot onto each Procore job by jobNo === projectNumber.
@@ -422,11 +449,8 @@ function renderFoundationLine(job) {
 }
 
 function renderPeopleLine(job) {
-  const pm = pmName(job), su = superName(job);
-  const parts = [];
-  if (pm) parts.push('PM ' + esc(pm));
-  if (su) parts.push('Super ' + esc(su));
-  return parts.length ? `<div class="job-people">${parts.join(' · ')}</div>` : '';
+  const pm = pmName(job);
+  return pm ? `<div class="job-people">PM <strong>${esc(pm)}</strong></div>` : '';
 }
 
 function renderCoverageBanner() {
@@ -580,6 +604,101 @@ function renderAnalysis() {
   document.getElementById('analysis-section').innerHTML = html;
 }
 
+// --- Billing & AR (Phase 2) ---
+async function renderBilling() {
+  const el = document.getElementById('billing-section');
+  if (!arData) {
+    el.innerHTML = '<div class="billing-note"><span class="spinner"></span> Loading billing &amp; AR…</div>';
+    try { arData = await (await fetch(AR_API + '?t=' + Date.now())).json(); }
+    catch { arData = { invoices: [], summary: {}, error: 'unreachable' }; }
+  }
+  const stamp = arData?.refreshed ? `<div class="billing-stamp">AR data as of ${fmtDate(arData.refreshed)}</div>` : '';
+  el.innerHTML = stamp + sectionNeedsInvoicing() + sectionOverdueAR() + sectionPhantom();
+}
+
+// Needs-Invoicing, derived from the Foundation job snapshot (no extra fetch).
+// deficit = invoiced − cost_to_date × (original_contract / original_cost). < 0 ⇒ under-billed.
+function needsInvoicingRows() {
+  const fj = (foundationData && foundationData.jobs) || {};
+  const rows = [];
+  for (const f of Object.values(fj)) {
+    if (f.jobStatus !== 'A') continue;
+    const cost = f.totalCosts || 0, contract = f.originalContract || 0, estCost = f.originalCost || 0, invoiced = f.totalInvoiced || 0;
+    if (!(cost > 0 && estCost > 0 && contract > 0)) continue;
+    const shouldBill = cost * (contract / estCost);
+    const deficit = invoiced - shouldBill;
+    if (deficit < -1000) rows.push({ pm: f.pmName || '(no PM)', job: f.jobNo, name: f.description || '', cost, invoiced, shouldBill, under: -deficit });
+  }
+  return rows;
+}
+
+function sectionNeedsInvoicing() {
+  const rows = needsInvoicingRows();
+  const total = rows.reduce((s, r) => s + r.under, 0);
+  let body;
+  if (!rows.length) {
+    body = `<div class="billing-empty">${foundationData && foundationData.jobs ? 'No under-billed jobs over $1k.' : 'Foundation data unavailable.'}</div>`;
+  } else {
+    const byPM = {};
+    for (const r of rows) (byPM[r.pm] ||= []).push(r);
+    body = '<table class="billing-table"><thead><tr><th>Job</th><th class="r">Cost to date</th><th class="r">Invoiced</th><th class="r">Should bill</th><th class="r">Under-billed</th></tr></thead><tbody>';
+    for (const pm of Object.keys(byPM).sort((a, b) => a.localeCompare(b))) {
+      const grp = byPM[pm].sort((a, b) => b.under - a.under);
+      const sub = grp.reduce((s, r) => s + r.under, 0);
+      body += `<tr class="pm-row"><td colspan="4"><strong>${esc(pm)}</strong></td><td class="r"><strong>${fmt(sub)}</strong></td></tr>`;
+      for (const r of grp) body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td class="r">${fmt(r.cost)}</td><td class="r">${fmt(r.invoiced)}</td><td class="r">${fmt(r.shouldBill)}</td><td class="r under">${fmt(r.under)}</td></tr>`;
+    }
+    body += '</tbody></table>';
+  }
+  return `<div class="billing-block">
+    <h3 class="section-header">Needs Invoicing — by PM <span class="big-num">${fmt(total)}</span></h3>
+    <div class="billing-sub">Under-billed = cost-to-date × bid ratio (contract ÷ est. cost) − invoiced. Bid-ratio basis, not the hand-keyed OH/Profit markup on Holly's sheet — directional; verify before chasing.</div>
+    ${body}</div>`;
+}
+
+function arRows(cat) { return ((arData && arData.invoices) || []).filter(v => v.category === cat); }
+
+function sectionOverdueAR() {
+  const rows = arRows('overdue').slice().sort((a, b) => (b.openBalance * b.daysOverdue) - (a.openBalance * a.daysOverdue));
+  const total = rows.reduce((s, r) => s + r.openBalance, 0);
+  const cap = 60, shown = rows.slice(0, cap);
+  let body;
+  if (!rows.length) {
+    body = `<div class="billing-empty">${arData && !arData.error ? 'No overdue AR.' : 'AR data unavailable.'}</div>`;
+  } else {
+    body = '<table class="billing-table"><thead><tr><th>Customer</th><th>Job</th><th>Pay app</th><th>Due</th><th class="r">Open balance</th><th class="r">Days overdue</th></tr></thead><tbody>';
+    for (const r of shown) {
+      const sev = r.daysOverdue > 60 ? ' over-60' : '';
+      body += `<tr><td>${esc(r.customer || '—')}</td><td><span class="jno">${esc(r.jobNo || '')}</span> ${esc(r.jobName || '')}</td><td>${esc(r.payApp || '')}</td><td>${esc(r.dueDate || '')}</td><td class="r">${fmt(r.openBalance)}</td><td class="r${sev}">${r.daysOverdue}</td></tr>`;
+    }
+    body += '</tbody></table>';
+    if (rows.length > cap) body += `<div class="billing-more">+ ${rows.length - cap} more overdue invoices</div>`;
+  }
+  return `<div class="billing-block">
+    <h3 class="section-header">Overdue AR <span class="big-num">${fmt(total)}</span> <span class="cnt">${rows.length} invoices</span></h3>
+    <div class="billing-sub">Netted open balance (invoice − applied cash/discount/retainage), canonical ledger only. Provisional — retainage split + very-old items still being tuned.</div>
+    ${body}</div>`;
+}
+
+function sectionPhantom() {
+  const rows = arRows('phantom').slice().sort((a, b) => b.invoiceAmount - a.invoiceAmount);
+  const total = rows.reduce((s, r) => s + r.invoiceAmount, 0);
+  const cap = 60, shown = rows.slice(0, cap);
+  let body;
+  if (!rows.length) {
+    body = `<div class="billing-empty">${arData && !arData.error ? 'No phantom-open invoices.' : 'AR data unavailable.'}</div>`;
+  } else {
+    body = '<table class="billing-table"><thead><tr><th>Customer</th><th>Job</th><th>Invoice</th><th class="r">Invoice amount</th><th>Last cash</th></tr></thead><tbody>';
+    for (const r of shown) body += `<tr><td>${esc(r.customer || '—')}</td><td><span class="jno">${esc(r.jobNo || '')}</span> ${esc(r.jobName || '')}</td><td>${esc(r.invoiceNo || '')}</td><td class="r">${fmt(r.invoiceAmount)}</td><td>${esc(r.lastCashDate || '')}</td></tr>`;
+    body += '</tbody></table>';
+    if (rows.length > cap) body += `<div class="billing-more">+ ${rows.length - cap} more</div>`;
+  }
+  return `<div class="billing-block">
+    <h3 class="section-header">Data-integrity exceptions — paid but flagged open <span class="big-num">${fmt(total)}</span> <span class="cnt">${rows.length} invoices</span></h3>
+    <div class="billing-sub">Paid to ~$0 (cash recorded in ar_history) but still flagged open in Foundation — the front-office cleanup queue, <strong>not</strong> real receivables.</div>
+    ${body}</div>`;
+}
+
 // --- Stoplight filter state ---
 let activeSLFilter = 'all';
 function setSLFilter(val) {
@@ -618,7 +737,7 @@ function filterAndSortJobs(jobs) {
   // Text search
   if (query) {
     filtered = filtered.filter(j => {
-      const haystack = [j.name, j.client, pmName(j), superName(j)].filter(Boolean).join(' ').toLowerCase();
+      const haystack = [j.name, j.client, pmName(j)].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(query);
     });
   }
