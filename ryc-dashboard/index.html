@@ -177,6 +177,19 @@
   .billing-table .under { color:#b45309; font-weight:600; }
   .billing-table .over-60 { color: var(--red); font-weight:600; }
   .billing-empty, .billing-note, .billing-more { color: var(--muted); padding:12px; font-size:13px; }
+  .billing-table .over { color:#0e7490; font-weight:600; }
+  .billing-table .ontrack { color: var(--muted); font-size:12px; }
+  .billing-table .muted-cell { color: var(--border); }
+  .kpi-band { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:2rem; }
+  .kpi-card { flex:1 1 160px; background:#fff; border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .kpi-val { font-size:26px; font-weight:700; color:#0e7490; font-variant-numeric: tabular-nums; }
+  .kpi-val.kpi-warn { color:#b45309; }
+  .kpi-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-top:4px; }
+  .billing-toggle { margin-left:auto; font-size:12px; padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--muted); cursor:pointer; }
+  .billing-toggle:hover { background:#f1f0eb; color:var(--text); }
+  .billing-details { margin-bottom:2.2rem; background:#fff; border:1px solid var(--border); border-radius:8px; padding:0 14px; }
+  .billing-details summary { cursor:pointer; padding:12px 0; font-weight:600; font-size:14px; color:var(--text); }
+  .billing-details[open] summary { border-bottom:1px solid var(--border); margin-bottom:12px; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 11px; line-height: 1.8; }
@@ -199,7 +212,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.10.0-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.11.0-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
@@ -256,7 +269,7 @@
   </div>
 
   <div class="footer">
-    v1.10.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.11.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -604,7 +617,7 @@ function renderAnalysis() {
   document.getElementById('analysis-section').innerHTML = html;
 }
 
-// --- Billing & AR (Phase 2) ---
+// --- Billing & AR (Phase 2, v2 — summary-first, anchored to active accounts) ---
 async function renderBilling() {
   const el = document.getElementById('billing-section');
   if (!arData) {
@@ -612,59 +625,120 @@ async function renderBilling() {
     try { arData = await (await fetch(AR_API + '?t=' + Date.now())).json(); }
     catch { arData = { invoices: [], summary: {}, error: 'unreachable' }; }
   }
-  const stamp = arData?.refreshed ? `<div class="billing-stamp">AR data as of ${fmtDate(arData.refreshed)}</div>` : '';
-  el.innerHTML = stamp + sectionNeedsInvoicing() + sectionOverdueAR() + sectionPhantom();
+  const stamp = arData?.refreshed ? `<div class="billing-stamp">AR as of ${fmtDate(arData.refreshed)} · Foundation refreshes nightly</div>` : '';
+  el.innerHTML = stamp + sectionKPIs() + sectionActiveAccounts() + sectionOverdueAR() + sectionLegacyAR() + sectionPhantom();
 }
 
-// Needs-Invoicing, derived from the Foundation job snapshot (no extra fetch).
-// deficit = invoiced − cost_to_date × (original_contract / original_cost). < 0 ⇒ under-billed.
-function needsInvoicingRows() {
+// Set of active Foundation job numbers (job_status 'A'), to anchor AR to active work.
+function activeJobSet() {
   const fj = (foundationData && foundationData.jobs) || {};
+  const s = new Set();
+  for (const j of Object.values(fj)) if (j.jobStatus === 'A') s.add(String(j.jobNo));
+  return s;
+}
+
+// AR rows by category, optionally scoped to active vs. legacy (closed-job) jobs.
+function arRows(cat, scope) {
+  const active = scope ? activeJobSet() : null;
+  return ((arData && arData.invoices) || []).filter(v => {
+    if (v.category !== cat) return false;
+    if (!scope) return true;
+    const isActive = active.has(String(v.jobNo || ''));
+    return scope === 'active' ? isActive : !isActive;
+  });
+}
+
+// Overdue AR open balance summed per job number.
+function overdueByJob(scope) {
+  const m = {};
+  for (const v of arRows('overdue', scope)) {
+    const k = String(v.jobNo || '');
+    m[k] = (m[k] || 0) + (v.openBalance || 0);
+  }
+  return m;
+}
+
+// One roll-up row per active Foundation job: billing position + overdue AR together.
+// deficit = invoiced − cost-to-date × (original_contract / original_cost). < 0 ⇒ needs invoicing.
+function activeAccountRows() {
+  const fj = (foundationData && foundationData.jobs) || {};
+  const odo = overdueByJob('active');
   const rows = [];
   for (const f of Object.values(fj)) {
     if (f.jobStatus !== 'A') continue;
-    const cost = f.totalCosts || 0, contract = f.originalContract || 0, estCost = f.originalCost || 0, invoiced = f.totalInvoiced || 0;
-    if (!(cost > 0 && estCost > 0 && contract > 0)) continue;
-    const shouldBill = cost * (contract / estCost);
-    const deficit = invoiced - shouldBill;
-    if (deficit < -1000) rows.push({ pm: f.pmName || '(no PM)', job: f.jobNo, name: f.description || '', cost, invoiced, shouldBill, under: -deficit });
+    const cost = f.totalCosts || 0, estCost = f.originalCost || 0, invoiced = f.totalInvoiced || 0;
+    const contract = f.currentContract || f.originalContract || 0;
+    let deficit = null;
+    if (cost > 0 && estCost > 0 && (f.originalContract || 0) > 0) {
+      deficit = invoiced - cost * (f.originalContract / estCost);
+    }
+    rows.push({
+      pm: f.pmName || '(no PM)', job: f.jobNo, name: f.description || '',
+      contract, cost, invoiced, retainage: f.retainage || 0, deficit,
+      under: deficit != null && deficit < 0 ? -deficit : 0,
+      over: deficit != null && deficit > 0 ? deficit : 0,
+      overdue: odo[String(f.jobNo)] || 0,
+    });
   }
   return rows;
 }
 
-function sectionNeedsInvoicing() {
-  const rows = needsInvoicingRows();
-  const total = rows.reduce((s, r) => s + r.under, 0);
+function sectionKPIs() {
+  if (!foundationData || !foundationData.jobs) {
+    return '<div class="kpi-band"><div class="billing-empty">Foundation data unavailable — billing &amp; AR summary can\'t be computed.</div></div>';
+  }
+  const accts = activeAccountRows();
+  const needsInv = accts.reduce((s, r) => s + r.under, 0);
+  const overdueActive = accts.reduce((s, r) => s + r.overdue, 0);
+  const retain = accts.reduce((s, r) => s + r.retainage, 0);
+  const flagged = accts.filter(r => r.under > 1000 || r.overdue > 0).length;
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  return `<div class="kpi-band">
+    ${card('Needs invoicing', fmtCompact(needsInv), 'kpi-warn')}
+    ${card('Overdue AR · active', fmtCompact(overdueActive), 'kpi-warn')}
+    ${card('Retainage held', fmtCompact(retain), '')}
+    ${card('Active jobs flagged', flagged, '')}
+  </div>`;
+}
+
+let billingShowAll = false;
+function toggleBillingAll() { billingShowAll = !billingShowAll; renderBilling(); }
+
+function sectionActiveAccounts() {
+  const rows = activeAccountRows();
+  const flagged = rows.filter(r => r.under > 1000 || r.overdue > 0);
+  const shown = (billingShowAll ? rows.slice() : flagged.slice())
+    .sort((a, b) => (b.under + b.overdue) - (a.under + a.overdue));
   let body;
-  if (!rows.length) {
-    body = `<div class="billing-empty">${foundationData && foundationData.jobs ? 'No under-billed jobs over $1k.' : 'Foundation data unavailable.'}</div>`;
+  if (!foundationData || !foundationData.jobs) {
+    body = '<div class="billing-empty">Foundation data unavailable.</div>';
+  } else if (!shown.length) {
+    body = '<div class="billing-empty">No active jobs need invoicing or carry overdue AR.</div>';
   } else {
-    const byPM = {};
-    for (const r of rows) (byPM[r.pm] ||= []).push(r);
-    body = '<table class="billing-table"><thead><tr><th>Job</th><th class="r">Cost to date</th><th class="r">Invoiced</th><th class="r">Should bill</th><th class="r">Under-billed</th></tr></thead><tbody>';
-    for (const pm of Object.keys(byPM).sort((a, b) => a.localeCompare(b))) {
-      const grp = byPM[pm].sort((a, b) => b.under - a.under);
-      const sub = grp.reduce((s, r) => s + r.under, 0);
-      body += `<tr class="pm-row"><td colspan="4"><strong>${esc(pm)}</strong></td><td class="r"><strong>${fmt(sub)}</strong></td></tr>`;
-      for (const r of grp) body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td class="r">${fmt(r.cost)}</td><td class="r">${fmt(r.invoiced)}</td><td class="r">${fmt(r.shouldBill)}</td><td class="r under">${fmt(r.under)}</td></tr>`;
+    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">Contract</th><th class="r">Cost to date</th><th class="r">Billed</th><th class="r">Needs invoiced</th><th class="r">Retainage</th><th class="r">Overdue AR</th></tr></thead><tbody>';
+    for (const r of shown) {
+      const billCell = r.under > 0 ? `<span class="under">${fmtCompact(r.under)}</span>`
+        : r.over > 0 ? `<span class="over">+${fmtCompact(r.over)} over</span>`
+        : r.deficit == null ? '<span class="muted-cell">—</span>' : '<span class="ontrack">on track</span>';
+      const odCell = r.overdue > 0 ? `<span class="under">${fmtCompact(r.overdue)}</span>` : '<span class="muted-cell">—</span>';
+      body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td>${esc(r.pm)}</td><td class="r">${fmtCompact(r.contract)}</td><td class="r">${fmtCompact(r.cost)}</td><td class="r">${fmtCompact(r.invoiced)}</td><td class="r">${billCell}</td><td class="r">${r.retainage ? fmtCompact(r.retainage) : '<span class="muted-cell">—</span>'}</td><td class="r">${odCell}</td></tr>`;
     }
     body += '</tbody></table>';
   }
+  const toggle = `<button class="billing-toggle" onclick="toggleBillingAll()">${billingShowAll ? 'Show flagged only' : 'Show all ' + rows.length + ' active jobs'}</button>`;
   return `<div class="billing-block">
-    <h3 class="section-header">Needs Invoicing — by PM <span class="big-num">${fmt(total)}</span></h3>
-    <div class="billing-sub">Under-billed = cost-to-date × bid ratio (contract ÷ est. cost) − invoiced. Bid-ratio basis, not the hand-keyed OH/Profit markup on Holly's sheet — directional; verify before chasing.</div>
+    <h3 class="section-header">Active accounts — billing &amp; AR <span class="cnt">${flagged.length} flagged${billingShowAll ? ' · all shown' : ''}</span> ${toggle}</h3>
+    <div class="billing-sub"><strong>Needs invoiced</strong> = cost-to-date × bid ratio (contract ÷ est. cost) − billed — directional (bid ratio, not Holly's hand-keyed OH/Profit markups). <strong>Overdue AR</strong> netted (invoice − cash/retainage). One row per active job; default shows only jobs needing invoicing or carrying overdue AR.</div>
     ${body}</div>`;
 }
 
-function arRows(cat) { return ((arData && arData.invoices) || []).filter(v => v.category === cat); }
-
 function sectionOverdueAR() {
-  const rows = arRows('overdue').slice().sort((a, b) => (b.openBalance * b.daysOverdue) - (a.openBalance * a.daysOverdue));
+  const rows = arRows('overdue', 'active').slice().sort((a, b) => (b.openBalance * b.daysOverdue) - (a.openBalance * a.daysOverdue));
   const total = rows.reduce((s, r) => s + r.openBalance, 0);
   const cap = 60, shown = rows.slice(0, cap);
   let body;
   if (!rows.length) {
-    body = `<div class="billing-empty">${arData && !arData.error ? 'No overdue AR.' : 'AR data unavailable.'}</div>`;
+    body = `<div class="billing-empty">${arData && !arData.error ? 'No overdue AR on active jobs.' : 'AR data unavailable.'}</div>`;
   } else {
     body = '<table class="billing-table"><thead><tr><th>Customer</th><th>Job</th><th>Pay app</th><th>Due</th><th class="r">Open balance</th><th class="r">Days overdue</th></tr></thead><tbody>';
     for (const r of shown) {
@@ -675,9 +749,27 @@ function sectionOverdueAR() {
     if (rows.length > cap) body += `<div class="billing-more">+ ${rows.length - cap} more overdue invoices</div>`;
   }
   return `<div class="billing-block">
-    <h3 class="section-header">Overdue AR <span class="big-num">${fmt(total)}</span> <span class="cnt">${rows.length} invoices</span></h3>
-    <div class="billing-sub">Netted open balance (invoice − applied cash/discount/retainage), canonical ledger only. Provisional — retainage split + very-old items still being tuned.</div>
+    <h3 class="section-header">Overdue AR — active jobs <span class="big-num">${fmt(total)}</span> <span class="cnt">${rows.length} invoices</span></h3>
+    <div class="billing-sub">Netted open balance (invoice − applied cash/discount/retainage), canonical ledger only, on active jobs. Provisional — retainage split + very-old items still being tuned.</div>
     ${body}</div>`;
+}
+
+// Real overdue AR on jobs Foundation marks closed — still cash owed, but not active work. Collapsed.
+function sectionLegacyAR() {
+  const rows = arRows('overdue', 'legacy').slice().sort((a, b) => (b.openBalance * b.daysOverdue) - (a.openBalance * a.daysOverdue));
+  if (!rows.length) return '';
+  const total = rows.reduce((s, r) => s + r.openBalance, 0);
+  const cap = 40, shown = rows.slice(0, cap);
+  let body = '<table class="billing-table"><thead><tr><th>Customer</th><th>Job</th><th>Pay app</th><th>Due</th><th class="r">Open balance</th><th class="r">Days overdue</th></tr></thead><tbody>';
+  for (const r of shown) {
+    const sev = r.daysOverdue > 60 ? ' over-60' : '';
+    body += `<tr><td>${esc(r.customer || '—')}</td><td><span class="jno">${esc(r.jobNo || '')}</span> ${esc(r.jobName || '')}</td><td>${esc(r.payApp || '')}</td><td>${esc(r.dueDate || '')}</td><td class="r">${fmt(r.openBalance)}</td><td class="r${sev}">${r.daysOverdue}</td></tr>`;
+  }
+  body += '</tbody></table>';
+  if (rows.length > cap) body += `<div class="billing-more">+ ${rows.length - cap} more</div>`;
+  return `<details class="billing-details"><summary>Legacy / closed-job overdue AR — ${fmt(total)} · ${rows.length} invoices</summary>
+    <div class="billing-sub">Overdue receivables on jobs Foundation marks closed (job_status ≠ A). Still real cash owed — kept separate from active work.</div>
+    ${body}</details>`;
 }
 
 function sectionPhantom() {
