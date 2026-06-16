@@ -1665,7 +1665,7 @@ async function callClaude(prompt) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1200,
+      max_tokens: 2400,
       temperature: 0.3,
       messages: [{ role: 'user', content: prompt }]
     })
