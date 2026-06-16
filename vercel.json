@@ -13,6 +13,7 @@
     { "source": "/try/:slug", "destination": "/api/try?slug=:slug" },
     { "source": "/unsubscribe", "destination": "/api/unsubscribe" },
     { "source": "/admin", "destination": "/civicscope-admin/index.html" },
+    { "source": "/qa", "destination": "/civicscope-qa/index.html" },
     { "source": "/schools", "destination": "/civicscope-schools/index.html" },
     { "source": "/infrastructure", "destination": "/civicscope-infrastructure/index.html" },
     { "source": "/for-government", "destination": "/for-government/index.html" },
