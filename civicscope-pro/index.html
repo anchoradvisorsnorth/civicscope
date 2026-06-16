@@ -1006,7 +1006,7 @@ async function callClaude(prompt, maxTokens = 1200) {
   const resp = await fetch('/api/claude', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, temperature: 0.3, messages: [{ role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, temperature: 0.3, messages: [{ role: 'user', content: prompt }] })
   });
   const data = await resp.json();
   const text = data.content.map(i => i.text || '').join('');

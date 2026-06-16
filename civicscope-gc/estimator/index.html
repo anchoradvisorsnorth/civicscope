@@ -925,7 +925,7 @@
       messageContent = prompt;
     }
 
-    const body = JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: maxTokens || 4096, temperature: 0.3, messages: [{ role: 'user', content: messageContent }] });
+    const body = JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens || 4096, temperature: 0.3, messages: [{ role: 'user', content: messageContent }] });
 
     // Retry once on rate limit (429) with 30s wait
     for (let attempt = 0; attempt < 2; attempt++) {
