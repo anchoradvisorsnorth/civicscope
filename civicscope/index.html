@@ -1672,7 +1672,11 @@ async function callClaude(prompt) {
   });
   const data = await resp.json();
   const text = data.content.map(i => i.text || '').join('');
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  // Robust parse: the model occasionally adds prose despite "no preamble".
+  // Strict parse first, then fall back to the outermost {...} object.
+  const clean = text.replace(/```json|```/g, '').trim();
+  try { return JSON.parse(clean); }
+  catch { const m = clean.match(/\{[\s\S]*\}/); if (m) return JSON.parse(m[0]); throw new Error('Could not parse estimate JSON'); }
 }
 
 // ── Feasibility estimate ─────────────────────────────────────────────
