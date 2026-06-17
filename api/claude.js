@@ -1,8 +1,9 @@
 // Give the proxy headroom: a single Sonnet estimate (esp. Schools/Infra
 // renovation scenarios) can generate ~1,300 output tokens / ~20s. Without an
 // explicit cap the function rides the Vercel plan default and a long run can
-// 504 into the generic "something went wrong" error. 60s = Hobby max.
-export const config = { maxDuration: 60 };
+// 504 into the generic "something went wrong" error. 120s on Vercel Pro
+// (max 300s) — the cap is free; billing is on actual execution time.
+export const config = { maxDuration: 120 };
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
