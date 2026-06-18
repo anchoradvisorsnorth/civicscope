@@ -148,6 +148,35 @@
   .sl-reason { font-size: 11px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
   .sl-reason-red { color: var(--red); }
   .sl-reason-amber { color: var(--amber); }
+  /* Customer Success (Buildr) block */
+  .cs-block { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; }
+  .cs-block.cs-attn { border-top-color: var(--amber); }
+  .cs-block summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .cs-block summary::-webkit-details-marker { display: none; }
+  .cs-block summary::before { content: '▸'; color: var(--muted); font-size: 10px; }
+  .cs-block[open] summary::before { content: '▾'; }
+  .cs-empty { display: flex; gap: 8px; align-items: center; }
+  .cs-tag { font-weight: 600; color: var(--text); }
+  .cs-none, .cs-summary-meta { color: var(--muted); }
+  .cs-chip { font-size: 10px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--border); }
+  .cs-on { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+  .cs-off { background: var(--surface); color: var(--muted); }
+  .cs-summary-meta { font-size: 11px; }
+  .cs-i { color: var(--amber); } .cs-o { color: #2563eb; }
+  .cs-detail { margin-top: 8px; padding-left: 6px; border-left: 2px solid var(--border); }
+  .cs-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border); }
+  .cs-row:last-child { border-bottom: none; }
+  .cs-mtype { font-size: 9px; text-transform: uppercase; font-weight: 700; padding: 1px 6px; border-radius: 4px; height: fit-content; background: #e0e7ff; color: #3730a3; }
+  .cs-mtype.cs-kickoff { background: #dcfce7; color: #166534; }
+  .cs-mtype.cs-closeout { background: #fee2e2; color: #991b1b; }
+  .cs-mtype.cs-progress { background: #dbeafe; color: #1e40af; }
+  .cs-date { color: var(--muted); font-size: 11px; white-space: nowrap; min-width: 56px; }
+  .cs-title { font-weight: 600; }
+  .cs-notes { color: var(--muted); white-space: pre-wrap; margin-top: 2px; font-size: 11px; }
+  .cs-meta { color: var(--muted); font-size: 11px; }
+  .cs-sub { font-weight: 700; font-size: 10px; text-transform: uppercase; color: var(--muted); margin: 8px 0 2px; }
+  .cs-flag { color: var(--amber); min-width: 14px; }
+  .cs-opp .cs-flag { color: #2563eb; }
 
   /* Foundation integration */
   .foundation-line { font-size: 11px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); color: var(--muted); line-height: 1.7; }
@@ -280,7 +309,8 @@ const CACHE_URL = '/ryc-dashboard/procore-cache.json';
 const ACTIVE_API = '/api/ryc-active';
 const FOUNDATION_API = 'https://crm.jbkdevelopment.com/api/ryc-foundation';
 const AR_API = 'https://crm.jbkdevelopment.com/api/ryc-ar';
-let portfolioData = null, activeData = null, foundationData = null, foundationOnly = [], arData = null, currentView = 'active';
+const BUILDR_API = 'https://crm.jbkdevelopment.com/api/ryc-buildr';
+let portfolioData = null, activeData = null, foundationData = null, foundationOnly = [], arData = null, buildrData = null, currentView = 'active';
 
 function tryLogin() {
   if (document.getElementById('pw-input').value === 'ryc2026') {
@@ -305,6 +335,7 @@ async function init() {
     document.getElementById('refresh-status').textContent = 'Procore data from ' + fmtDate(activeData?.refreshed);
   } catch { document.getElementById('refresh-status').textContent = 'Procore data unavailable'; activeData = null; }
   try { foundationData = await (await fetch(FOUNDATION_API + '?t=' + Date.now())).json(); } catch { foundationData = null; }
+  try { buildrData = await (await fetch(BUILDR_API + '?t=' + Date.now())).json(); } catch { buildrData = null; }
   mergeFoundation(activeData, foundationData); // best-source merge; no-op/Procore-only if Foundation unreachable
   renderView();
   wireToggle();
@@ -987,7 +1018,51 @@ function renderActiveCard(job, live) {
       </div>
       ${sl.reasons?.length ? `<div class="sl-reason sl-reason-${sl.color}">${sl.reasons.map(r => r.text).join(' · ')}</div>` : ''}
       ${renderFoundationLine(job)}
+      ${renderCustomerSuccess(job)}
     </div>`;
+}
+
+// Customer Success block — Jake's owner visits (kickoff / quarterly progress / closeout),
+// open issues, and opportunities, sourced live from Buildr via /api/ryc-buildr and keyed by
+// project number. Collapsed by default; click to expand the visit log. Buildr is the system
+// of record (entry happens there); this is the read-only leadership view.
+function renderCustomerSuccess(job) {
+  if (!buildrData || !buildrData.jobs) return '';
+  const rec = buildrData.jobs[job.projectNumber];
+  // No record: nudge adoption on active jobs only; stay silent on closeout/other.
+  if (!rec || (!rec.meetings.length && !rec.openTasks.length && !rec.opportunities.length)) {
+    return `<div class="cs-block cs-empty"><span class="cs-tag">🤝 Customer Success</span> <span class="cs-none">No owner visits logged in Buildr yet</span></div>`;
+  }
+  const chip = (label, on, n) =>
+    `<span class="cs-chip ${on ? 'cs-on' : 'cs-off'}">${label}${n != null && n > 0 ? ' ×' + n : (on ? ' ✓' : ' –')}</span>`;
+  const c = rec.counts || {};
+  const last = rec.daysSinceLastMeeting;
+  const lastTxt = last == null ? 'no visits' : last === 0 ? 'today' : last + 'd ago';
+  const issues = rec.openTasks.length, opps = rec.opportunities.length;
+  const attn = rec.needsAttention ? ' cs-attn' : '';
+
+  const mtgRows = rec.meetings.map(m => `
+    <div class="cs-row">
+      <span class="cs-mtype cs-${m.type}">${m.type}</span>
+      <span class="cs-date">${fmtShort(m.at)}</span>
+      <div class="cs-body"><div class="cs-title">${esc(m.title || '')}</div>${m.notes ? `<div class="cs-notes">${esc(m.notes).slice(0, 600)}</div>` : ''}</div>
+    </div>`).join('');
+  const issueRows = issues ? `<div class="cs-sub">Open issues / follow-ups</div>` + rec.openTasks.map(t =>
+    `<div class="cs-row cs-issue"><span class="cs-flag">${t.issue ? '⚑' : '•'}</span><div class="cs-body"><div class="cs-title">${esc(t.title || '')}</div><div class="cs-meta">${esc(t.assignedTo || 'unassigned')}${t.deadline ? ' · due ' + esc(t.deadline) : ''}</div></div></div>`).join('') : '';
+  const oppRows = opps ? `<div class="cs-sub">Opportunities identified</div>` + rec.opportunities.map(o =>
+    `<div class="cs-row cs-opp"><span class="cs-flag">★</span><div class="cs-body"><div class="cs-title">${esc(o.title || '')}</div>${o.notes ? `<div class="cs-notes">${esc(o.notes).slice(0, 400)}</div>` : ''}</div></div>`).join('') : '';
+
+  return `
+    <details class="cs-block${attn}">
+      <summary>
+        <span class="cs-tag">🤝 Customer Success</span>
+        ${chip('Kickoff', c.kickoff > 0)}
+        ${chip('Progress', c.progress > 0, c.progress)}
+        ${chip('Closeout', c.closeout > 0)}
+        <span class="cs-summary-meta">last visit ${lastTxt}${issues ? ` · <span class="cs-i">${issues} open</span>` : ''}${opps ? ` · <span class="cs-o">${opps} opp${opps > 1 ? 's' : ''}</span>` : ''}</span>
+      </summary>
+      <div class="cs-detail">${mtgRows || '<div class="cs-none">No visits logged yet</div>'}${issueRows}${oppRows}</div>
+    </details>`;
 }
 
 function renderCompletedCard(job) {
