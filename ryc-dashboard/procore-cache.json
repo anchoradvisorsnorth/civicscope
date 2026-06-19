@@ -1,6 +1,6 @@
 {
-  "refreshed": "2026-06-12T04:02:58.872Z",
-  "jobCount": 29,
+  "refreshed": "2026-06-19T04:02:54.589Z",
+  "jobCount": 28,
   "jobs": [
     {
       "slug": "helix-orchard-wallen-road",
@@ -17,7 +17,7 @@
       "projectedFinish": "2026-08-27T20:00:00Z",
       "completionDate": "2026-08-31",
       "sqft": null,
-      "pctComplete": 58.8,
+      "pctComplete": 62,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -31,16 +31,17 @@
       },
       "budget": {
         "original": 19281323.549999997,
-        "revised": 19869661.479999997,
+        "revised": 20155991.33,
         "committed": 0,
-        "direct": 10897431.429999998
+        "direct": 11488188.5
       },
       "contractValue": 18537636,
       "changeOrders": {
-        "count": 39,
+        "count": 44,
         "netValue": 798207.5,
         "byType": {
-          "Allowance": 33,
+          "Allowance": 37,
+          "Contingency": 1,
           "TBD": 3,
           "Owner Change": 2,
           "Transfer": 1
@@ -73,25 +74,25 @@
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 42,
-        "open": 2
+        "total": 43,
+        "open": 3
       },
       "submittals": {
-        "total": 354,
-        "open": 187
+        "total": 356,
+        "open": 188
       },
       "budget": {
         "original": 16017608.15,
         "revised": 16017608.150000002,
         "committed": 0,
-        "direct": 3822152.5100000002
+        "direct": 3824760.3600000003
       },
       "contractValue": 18070899,
       "changeOrders": {
-        "count": 26,
+        "count": 27,
         "netValue": 203532.38,
         "byType": {
-          "Allowance": 26
+          "Allowance": 27
         }
       },
       "pm": {
@@ -120,23 +121,23 @@
       "projectedFinish": "2027-06-30T21:00:00Z",
       "completionDate": "2027-01-01",
       "sqft": null,
-      "pctComplete": 4.8,
+      "pctComplete": 5.4,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 15,
+        "total": 16,
         "open": 4
       },
       "submittals": {
-        "total": 117,
-        "open": 52
+        "total": 118,
+        "open": 48
       },
       "budget": {
         "original": 15960965.520000003,
-        "revised": 16123808.520000003,
+        "revised": 16253605.520000003,
         "committed": 0,
-        "direct": 830378.49
+        "direct": 923831.7000000001
       },
       "contractValue": 17256996,
       "changeOrders": {
@@ -226,13 +227,13 @@
       "projectedFinish": "2026-11-20T13:00:00Z",
       "completionDate": "2026-11-02",
       "sqft": null,
-      "pctComplete": 54.6,
+      "pctComplete": 57.4,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 24,
-        "open": 0
+        "total": 25,
+        "open": 1
       },
       "submittals": {
         "total": 219,
@@ -242,15 +243,15 @@
         "original": 12630570.77,
         "revised": 12630570.77,
         "committed": 0,
-        "direct": 7672624.1
+        "direct": 8073338.449999999
       },
       "contractValue": 14055300,
       "changeOrders": {
-        "count": 49,
-        "netValue": 363851.67,
+        "count": 51,
+        "netValue": -1126810.27,
         "byType": {
-          "Allowance": 3,
-          "TBD": 46
+          "TBD": 48,
+          "Allowance": 3
         }
       },
       "pm": null,
@@ -280,26 +281,26 @@
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 98,
-        "open": 0
+        "total": 99,
+        "open": 1
       },
       "submittals": {
-        "total": 308,
-        "open": 66
+        "total": 310,
+        "open": 68
       },
       "budget": {
         "original": 10907043.73,
         "revised": 10951924.540000001,
         "committed": 0,
-        "direct": 9274851.389999997
+        "direct": 9276264.499999998
       },
       "contractValue": 11967209,
       "changeOrders": {
-        "count": 102,
-        "netValue": 506062.78,
+        "count": 103,
+        "netValue": 508437.78,
         "byType": {
+          "TBD": 94,
           "Allowance": 7,
-          "TBD": 93,
           "Owner Change": 1,
           "Contingency": 1
         }
@@ -330,7 +331,7 @@
       "projectedFinish": "2027-01-15T22:00:00Z",
       "completionDate": "2027-01-31",
       "sqft": null,
-      "pctComplete": 4.1,
+      "pctComplete": 6.2,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -344,17 +345,17 @@
       },
       "budget": {
         "original": 7996197.17,
-        "revised": 8120587.17,
+        "revised": 8116232.17,
         "committed": 0,
-        "direct": 368936.85
+        "direct": 559945.7000000001
       },
       "contractValue": 9098536,
       "changeOrders": {
-        "count": 8,
+        "count": 9,
         "netValue": 85019.76,
         "byType": {
+          "Allowance": 3,
           "TBD": 1,
-          "Allowance": 2,
           "Owner Change": 5
         }
       },
@@ -393,14 +394,14 @@
         "open": 2
       },
       "submittals": {
-        "total": 499,
-        "open": 473
+        "total": 501,
+        "open": 471
       },
       "budget": {
         "original": 7730460.510000001,
         "revised": 7730460.510000001,
         "committed": 0,
-        "direct": 226742.7
+        "direct": 230267.87
       },
       "contractValue": 8522833,
       "changeOrders": {
@@ -490,7 +491,7 @@
       "projectedFinish": "2026-08-31",
       "completionDate": "2026-08-31",
       "sqft": null,
-      "pctComplete": 29.2,
+      "pctComplete": 29.3,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -504,18 +505,17 @@
       },
       "budget": {
         "original": 3552279.87,
-        "revised": 3556537.97,
+        "revised": 3575456.87,
         "committed": 0,
-        "direct": 1159567.12
+        "direct": 1163214.15
       },
       "contractValue": 3970739,
       "changeOrders": {
-        "count": 8,
+        "count": 9,
         "netValue": 38630,
         "byType": {
-          "Allowance": 1,
-          "Owner Change": 3,
-          "TBD": 3,
+          "TBD": 4,
+          "Owner Change": 4,
           "Contingency": 1
         }
       },
@@ -545,7 +545,7 @@
       "projectedFinish": "2026-10-03",
       "completionDate": "2026-10-03",
       "sqft": null,
-      "pctComplete": 46,
+      "pctComplete": 59.7,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -559,17 +559,17 @@
       },
       "budget": {
         "original": 3309736.6799999997,
-        "revised": 3309736.6799999997,
+        "revised": 3344962.6799999997,
         "committed": 0,
-        "direct": 1707969.9499999997
+        "direct": 2215297.5700000003
       },
       "contractValue": 3709035,
       "changeOrders": {
-        "count": 22,
-        "netValue": 92412.62,
+        "count": 19,
+        "netValue": 80827.62,
         "byType": {
-          "Allowance": 18,
-          "Owner Change": 4
+          "Allowance": 16,
+          "Owner Change": 3
         }
       },
       "pm": {
@@ -598,7 +598,7 @@
       "projectedFinish": "2025-08-08T21:00:00Z",
       "completionDate": "2026-09-28",
       "sqft": 67298,
-      "pctComplete": 54.8,
+      "pctComplete": 55.1,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": true,
@@ -612,19 +612,19 @@
       },
       "budget": {
         "original": 3393854.23,
-        "revised": 3473992.26,
+        "revised": 3473992.2600000007,
         "committed": 0,
-        "direct": 2026691.3599999999
+        "direct": 2036891.58
       },
       "contractValue": 3695500,
       "changeOrders": {
-        "count": 28,
-        "netValue": 82143.85,
+        "count": 30,
+        "netValue": 98252.25,
         "byType": {
+          "Transfer": 2,
+          "Owner Change": 15,
           "TBD": 5,
-          "Allowance": 8,
-          "Owner Change": 14,
-          "Transfer": 1
+          "Allowance": 8
         }
       },
       "pm": {
@@ -653,13 +653,13 @@
       "projectedFinish": "2026-10-01",
       "completionDate": "2026-10-01",
       "sqft": null,
-      "pctComplete": 49.3,
+      "pctComplete": 50.3,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
         "total": 23,
-        "open": 2
+        "open": 0
       },
       "submittals": {
         "total": 75,
@@ -669,7 +669,7 @@
         "original": 3089475.19,
         "revised": 3089475.19,
         "committed": 0,
-        "direct": 1810334.6600000001
+        "direct": 1847421.8900000001
       },
       "contractValue": 3670297,
       "changeOrders": {
@@ -727,10 +727,10 @@
       },
       "contractValue": 3627769,
       "changeOrders": {
-        "count": 80,
-        "netValue": 825714.66,
+        "count": 81,
+        "netValue": 834725.32,
         "byType": {
-          "Owner Change": 17,
+          "Owner Change": 18,
           "Allowance": 59,
           "Unclassified": 2,
           "Contingency": 2
@@ -762,7 +762,7 @@
       "projectedFinish": "2025-11-10T22:00:00Z",
       "completionDate": "2025-09-30",
       "sqft": null,
-      "pctComplete": 82.6,
+      "pctComplete": 82.7,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": true,
@@ -771,14 +771,14 @@
         "open": 2
       },
       "submittals": {
-        "total": 119,
-        "open": 28
+        "total": 138,
+        "open": 46
       },
       "budget": {
         "original": 2205118.7800000003,
         "revised": 2205118.7800000003,
         "committed": 0,
-        "direct": 2123871.57
+        "direct": 2126121.57
       },
       "contractValue": 2572051,
       "changeOrders": {
@@ -816,7 +816,7 @@
       "projectedFinish": "2026-07-02T21:00:00Z",
       "completionDate": "2026-06-16",
       "sqft": null,
-      "pctComplete": 41.3,
+      "pctComplete": 44,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -825,14 +825,14 @@
         "open": 0
       },
       "submittals": {
-        "total": 134,
-        "open": 65
+        "total": 133,
+        "open": 64
       },
       "budget": {
         "original": 2180018.8899999997,
         "revised": 2180548.8899999997,
         "committed": 0,
-        "direct": 1039357.95
+        "direct": 1108816.72
       },
       "contractValue": 2519230,
       "changeOrders": {
@@ -874,11 +874,11 @@
       "verifyStatus": false,
       "rfis": {
         "total": 7,
-        "open": 5
+        "open": 1
       },
       "submittals": {
-        "total": 137,
-        "open": 95
+        "total": 138,
+        "open": 83
       },
       "budget": {
         "original": 2071633.13,
@@ -889,7 +889,7 @@
       "contractValue": 2280743,
       "changeOrders": {
         "count": 3,
-        "netValue": -1628.66,
+        "netValue": -2528.57,
         "byType": {
           "Allowance": 3
         }
@@ -930,13 +930,13 @@
       },
       "submittals": {
         "total": 51,
-        "open": 20
+        "open": 19
       },
       "budget": {
         "original": 1507345.3599999999,
         "revised": 1507345.3599999999,
         "committed": 0,
-        "direct": 1419332.73
+        "direct": 1419398.28
       },
       "contractValue": 1500000,
       "changeOrders": {
@@ -1029,8 +1029,8 @@
         "open": 0
       },
       "submittals": {
-        "total": 26,
-        "open": 3
+        "total": 32,
+        "open": 7
       },
       "budget": {
         "original": 1033799.5299999999,
@@ -1058,59 +1058,6 @@
       }
     },
     {
-      "slug": "jomar-2025-build",
-      "procoreId": 598134326162581,
-      "projectNumber": "2504CO05",
-      "name": "Jomar-2025 Build",
-      "client": "Jomar",
-      "clientType": "commercial",
-      "workType": "new_construction",
-      "active": true,
-      "stage": "Post-Construction",
-      "address": "13393 CR 22, Middlebury, IN",
-      "start": "2024-03-15",
-      "projectedFinish": "2026-03-31T21:00:00Z",
-      "completionDate": "2026-01-02",
-      "sqft": 20000,
-      "pctComplete": 85.2,
-      "costOverrun": false,
-      "commitmentsTracked": false,
-      "verifyStatus": false,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 0,
-        "open": 0
-      },
-      "budget": {
-        "original": 959002.92,
-        "revised": 997225.92,
-        "committed": 0,
-        "direct": 935131.2799999999
-      },
-      "contractValue": 1098000,
-      "changeOrders": {
-        "count": 7,
-        "netValue": 23096.54,
-        "byType": {
-          "Owner Change": 4,
-          "Allowance": 3
-        }
-      },
-      "pm": {
-        "name": "Erik Parcell",
-        "email": "eparcell@ryoderconstruction.com",
-        "title": "Project Manager"
-      },
-      "superintendent": {
-        "name": "Nick Lechlitner",
-        "email": "nlechlitner@ryoderconstruction.com",
-        "title": "Field Superintendent"
-      }
-    },
-    {
       "slug": "nptech-community-fiber",
       "procoreId": 598134326311174,
       "projectNumber": "2515CO02",
@@ -1125,7 +1072,7 @@
       "projectedFinish": "2026-07-02T21:00:00Z",
       "completionDate": "2026-02-24",
       "sqft": 9600,
-      "pctComplete": 35.3,
+      "pctComplete": 35.4,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -1141,7 +1088,7 @@
         "original": 823809.7699999999,
         "revised": 839430.3799999998,
         "committed": 0,
-        "direct": 345920.74
+        "direct": 346879.47
       },
       "contractValue": 978687,
       "changeOrders": {
@@ -1189,7 +1136,7 @@
       },
       "submittals": {
         "total": 34,
-        "open": 24
+        "open": 22
       },
       "budget": {
         "original": 775895.84,
@@ -1374,7 +1321,7 @@
       "projectedFinish": "2026-03-30",
       "completionDate": "2026-03-30",
       "sqft": null,
-      "pctComplete": 7.4,
+      "pctComplete": 9.5,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -1390,7 +1337,7 @@
         "original": 262510.03,
         "revised": 262510.03,
         "committed": 0,
-        "direct": 23338.68
+        "direct": 30058.23
       },
       "contractValue": 315000,
       "changeOrders": {
@@ -1475,7 +1422,7 @@
       "projectedFinish": "2026-05-05",
       "completionDate": "2026-05-05",
       "sqft": null,
-      "pctComplete": 95.6,
+      "pctComplete": 95.7,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -1491,7 +1438,7 @@
         "original": 57373.51,
         "revised": 70028.51000000001,
         "committed": 0,
-        "direct": 62799.54
+        "direct": 62881.11
       },
       "contractValue": 65680,
       "changeOrders": {
