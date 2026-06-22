@@ -1032,7 +1032,7 @@ function renderCustomerSuccess(job) {
   const rec = buildrData.jobs[job.projectNumber];
   // No record: nudge adoption on active jobs only; stay silent on closeout/other.
   if (!rec || (!rec.meetings.length && !rec.openTasks.length && !rec.opportunities.length)) {
-    return `<div class="cs-block cs-empty"><span class="cs-tag">🤝 Customer Success</span> <span class="cs-none">No owner visits logged in Buildr yet</span></div>`;
+    return `<div class="cs-block cs-empty"><span class="cs-tag">🤝 Client Relations</span> <span class="cs-none">No owner visits logged in Buildr yet</span></div>`;
   }
   const chip = (label, on, n) =>
     `<span class="cs-chip ${on ? 'cs-on' : 'cs-off'}">${label}${n != null && n > 0 ? ' ×' + n : (on ? ' ✓' : ' –')}</span>`;
@@ -1056,7 +1056,7 @@ function renderCustomerSuccess(job) {
   return `
     <details class="cs-block${attn}">
       <summary>
-        <span class="cs-tag">🤝 Customer Success</span>
+        <span class="cs-tag">🤝 Client Relations</span>
         ${chip('Kickoff', c.kickoff > 0)}
         ${chip('Progress', c.progress > 0, c.progress)}
         ${chip('Closeout', c.closeout > 0)}
