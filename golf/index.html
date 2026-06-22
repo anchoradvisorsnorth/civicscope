@@ -62,6 +62,11 @@
   tr.cut .money{color:#8a6d00}
   .foot{color:var(--muted);font-size:11.5px;line-height:1.6;margin-top:22px;padding:0 4px}
   .err{background:#fef3f2;border:1px solid #fecdca;color:#b42318;padding:10px 14px;border-radius:8px;margin:14px 0;font-size:13px;display:none}
+  .champ{display:none;background:linear-gradient(135deg,#1a1300,#3a2e00);border:1px solid var(--gold);border-radius:14px;padding:20px 22px;margin:4px 0 10px;color:#fff;box-shadow:0 4px 18px rgba(200,162,75,.25)}
+  .champ .ct{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold)}
+  .champ .cn{font-size:30px;font-weight:900;margin:4px 0 2px;letter-spacing:.5px}
+  .champ .cm{font-size:15px;color:#e8dcc0;font-weight:600}
+  .champ .cm b{color:var(--gold)}
 </style>
 </head>
 <body>
@@ -74,6 +79,7 @@
 </div></header>
 <main>
   <div class="err" id="err"></div>
+  <div class="champ" id="champ"></div>
   <div class="section-title">Standings — projected prize money</div>
   <div class="standings" id="standings"></div>
   <div class="section-title">Teams — live golfer positions</div>
@@ -156,7 +162,7 @@ function compute(comps){
 }
 function toparCls(t){ if(!t||t==='E')return 'even'; return t.startsWith('-')?'under':'over'; }
 
-function render(info, odds, meta){
+function render(info, odds, meta, final){
   const teams=Object.entries(TEAMS).map(([team,picks])=>{
     const rows=picks.map(pk=>{const e=MAP[pk],d=info[e]||{money:0,pos:'—',topar:'',cut:false,posNum:998}; return {pk,...d};});
     rows.sort((a,b)=>a.posNum-b.posNum || b.money-a.money);
@@ -165,6 +171,16 @@ function render(info, odds, meta){
   }).sort((a,b)=>b.total-a.total);
 
   const leader=teams[0]?.total||0;
+
+  const champ=document.getElementById('champ');
+  if(final && teams.length){
+    const w=teams[0], gap=teams.length>1?leader-teams[1].total:0;
+    champ.innerHTML=`<div class="ct">🏆 Champion · Final</div>`+
+      `<div class="cn">${esc(w.team)}</div>`+
+      `<div class="cm"><b>${fmtM(w.total)}</b>`+
+      `${teams.length>1?` &nbsp;·&nbsp; beat ${esc(teams[1].team)} by ${fmtM(gap)}`:''}</div>`;
+    champ.style.display='block';
+  } else { champ.style.display='none'; }
   const winPct=w=>w==null?'':(w>=0.995?'>99%':w<0.005&&w>0?'<1%':Math.round(w*100)+'%');
   document.getElementById('standings').innerHTML=teams.map((t,i)=>`
     <div class="srow ${i===0?'leader':''}">
@@ -206,7 +222,9 @@ async function load(){
     const comp=ev.competitions[0];
     const info=compute(comp.competitors);
     const odds=winOdds(comp.competitors);
-    render(info,odds,'');
+    const final=comp.status?.type?.state==='post';
+    render(info,odds,'',final);
+    if(final && timer){ clearInterval(timer); timer=null; }
     const st=comp.status?.type?.description||''; const when=new Date().toLocaleTimeString();
     document.getElementById('status').innerHTML=`<b>${esc(ev.name)}</b> · ${esc(st)}<br>Updated ${when} · auto-refresh 90s`;
   }catch(e){ err.textContent='Could not refresh live scores: '+e.message+' (showing last data if any).'; err.style.display='block'; }
