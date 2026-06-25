@@ -213,6 +213,13 @@
   .kpi-card { flex:1 1 160px; background:#fff; border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
   .kpi-val { font-size:26px; font-weight:700; color:#0e7490; font-variant-numeric: tabular-nums; }
   .kpi-val.kpi-warn { color:#b45309; }
+  .kpi-val.kpi-gain { color: var(--green); } .kpi-val.kpi-fade { color: var(--red); }
+  .billing-table .gf-gain { color: var(--green); font-weight:600; }
+  .billing-table .gf-fade { color: var(--red); font-weight:600; }
+  .billing-table .gf-flat { color: var(--muted); }
+  .billing-table .gf-conflict { color:#b45309; font-weight:600; }
+  .billing-table .gf-early { color: var(--muted); font-style:italic; font-size:12px; }
+  .billing-table .gf-sub { color: var(--muted); font-size:11px; }
   .kpi-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-top:4px; }
   .billing-toggle { margin-left:auto; font-size:12px; padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--muted); cursor:pointer; }
   .billing-toggle:hover { background:#f1f0eb; color:var(--text); }
@@ -254,12 +261,14 @@
     <button data-view="completed">Completed Jobs</button>
     <button data-view="closeout">Warranty/Post-Con</button>
     <button data-view="billing">Billing &amp; AR</button>
+    <button data-view="gainfade">Gain/Fade</button>
     <button data-view="analysis">Portfolio Analysis</button>
   </div>
 
   <div class="metrics" id="metrics"></div>
   <div id="analysis-section" style="display:none"></div>
   <div id="billing-section" style="display:none"></div>
+  <div id="gainfade-section" style="display:none"></div>
   <div id="jobs-section">
     <div class="job-controls" id="job-controls" style="display:none">
       <input type="text" id="job-search" placeholder="Search jobs, clients, PMs..." oninput="renderJobs()">
@@ -299,7 +308,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.11.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.12.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -399,15 +408,19 @@ function renderView() {
   const jobsEl = document.getElementById('jobs-section');
   const analysisEl = document.getElementById('analysis-section');
   const billingEl = document.getElementById('billing-section');
+  const gainfadeEl = document.getElementById('gainfade-section');
   const controlsEl = document.getElementById('job-controls');
   const metricsEl = document.getElementById('metrics');
-  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none';
+  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none'; gainfadeEl.style.display = 'none';
   if (currentView === 'analysis') {
     analysisEl.style.display = 'block'; metricsEl.style.display = '';
     renderAnalysisMetrics(); renderAnalysis();
   } else if (currentView === 'billing') {
     billingEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
     renderBilling();
+  } else if (currentView === 'gainfade') {
+    gainfadeEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
+    renderGainFade();
   } else {
     jobsEl.style.display = 'block'; analysisEl.style.display = 'none'; metricsEl.style.display = '';
     controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
@@ -820,6 +833,119 @@ function sectionPhantom() {
   return `<div class="billing-block">
     <h3 class="section-header">Data-integrity exceptions — paid but flagged open <span class="big-num">${fmt(total)}</span> <span class="cnt">${rows.length} invoices</span></h3>
     <div class="billing-sub">Paid to ~$0 (cash recorded in ar_history) but still flagged open in Foundation — the front-office cleanup queue, <strong>not</strong> real receivables.</div>
+    ${body}</div>`;
+}
+
+// === Gain/Fade — Procore vs Foundation ============================================
+// Margin MOVEMENT from the as-bid baseline to the current recognized estimate, decomposed across the
+// two systems: Foundation owns REVENUE (executed CO income = currentContract − originalContract),
+// Procore owns COST (revised − original budget). gain/fade $ = CO income − cost growth; gain/fade pts
+// = current margin − as-bid margin. Not %-complete-sensitive. A separate "cost burn" check brings in
+// Foundation ACTUALS (cost-to-date vs % complete) to flag overruns the PM's budget hasn't recognized.
+// Limitation: reflects RECOGNIZED estimates (revised budgets + executed COs), not unbudgeted overruns.
+const GF_MOVE_PTS = 1.0;      // |pts| ≥ this is a real gain/fade (not rounding)
+const GF_BURN_PTS = 12;       // cost-spent% running this far ahead of % complete = burn risk
+const GF_BURN_MINPCT = 20;    // ...only meaningful once a job is genuinely underway
+let gfShowAll = true;
+
+function gainFadeRows() {
+  const rows = [];
+  for (const j of getActiveJobs()) {
+    const f = j.foundation, b = j.budget || {}, pct = j.pctComplete;
+    const pC = j.procoreContractValue != null ? j.procoreContractValue : j.contractValue;
+    const curContract = (f && f.currentContract > 0) ? f.currentContract : pC;     // authoritative revenue
+    const asbidContract = (f && f.originalContract > 0) ? f.originalContract : pC;
+    const asbidCost = (f && f.originalCost != null) ? f.originalCost : b.original;
+    if (!(curContract > 0) || asbidCost == null) continue;
+    const costGrowth = (b.revised > 0 && b.original > 0) ? (b.revised - b.original) : 0; // Procore cost side
+    const coIncome = (f && f.originalContract > 0) ? (curContract - asbidContract) : null; // Foundation revenue side
+    const projCost = asbidCost + costGrowth;
+    const asbid = (asbidContract - asbidCost) / asbidContract * 100;
+    const curMargin = (curContract - projCost) / curContract * 100;
+    const gfPts = curMargin - asbid;
+    const gfDollars = (coIncome != null ? coIncome : 0) - costGrowth;
+    // Foundation actuals reality-check: cost-to-date vs forecast cost, against physical % complete.
+    const costToDate = f ? f.totalCosts : null;
+    const burnPct = (costToDate != null && projCost > 0) ? costToDate / projCost * 100 : null;
+    const burnRisk = burnPct != null && pct != null && pct >= GF_BURN_MINPCT && (burnPct - pct) >= GF_BURN_PTS;
+    rows.push({
+      job: j.projectNumber || '', name: j.name || (f && f.description) || '',
+      pm: pmName(j) || '(no PM)', pct, asbid, curMargin, coIncome, costGrowth,
+      burnPct, burnRisk, gfPts, gfDollars, hasFnd: !!f,
+    });
+  }
+  return rows;
+}
+
+function gainFadeKPIs(rows) {
+  const net = rows.reduce((s, r) => s + (r.gfDollars || 0), 0);
+  const fading = rows.filter(r => r.gfPts <= -GF_MOVE_PTS).length;
+  const gaining = rows.filter(r => r.gfPts >= GF_MOVE_PTS).length;
+  const burn = rows.filter(r => r.burnRisk).length;
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  return { burn, band: `<div class="kpi-band">
+    ${card('Net gain/fade', (net >= 0 ? '+' : '') + fmtCompact(net), net >= 0 ? 'kpi-gain' : 'kpi-fade')}
+    ${card('Jobs fading', fading, fading ? 'kpi-fade' : '')}
+    ${card('Jobs gaining', gaining, gaining ? 'kpi-gain' : '')}
+    ${card('Cost-burn risk', burn, burn ? 'kpi-warn' : '')}
+  </div>` };
+}
+
+function gfPtsCell(pts, dollars) {
+  const cls = pts >= GF_MOVE_PTS ? 'gf-gain' : pts <= -GF_MOVE_PTS ? 'gf-fade' : 'gf-flat';
+  const arrow = pts >= GF_MOVE_PTS ? '▲ ' : pts <= -GF_MOVE_PTS ? '▼ ' : '';
+  const dol = (dollars != null && Math.abs(dollars) >= 500) ? `<br><span class="gf-sub">${(dollars >= 0 ? '+' : '') + fmtCompact(dollars)}</span>` : '';
+  return `<span class="${cls}">${arrow}${pts >= 0 ? '+' : ''}${pts.toFixed(1)} pts</span>${dol}`;
+}
+function gfMarginCell(m) { return m == null ? '<span class="muted-cell">—</span>' : `<span class="${marginColorClass(m)}">${m.toFixed(1)}%</span>`; }
+function gfMoneyCell(v, dir) { // dir 'gain' = green +, 'cost' = red +
+  if (v == null) return '<span class="muted-cell">—</span>';
+  if (Math.abs(v) < 500) return '<span class="gf-flat">—</span>';
+  const s = (v >= 0 ? '+' : '') + fmtCompact(v);
+  return `<span class="${dir === 'cost' ? 'gf-fade' : 'gf-gain'}">${s}</span>`;
+}
+function gfBurnCell(r) {
+  if (r.burnPct == null) return '<span class="muted-cell">—</span>';
+  const cls = r.burnRisk ? 'gf-conflict' : 'gf-flat';
+  const note = r.burnRisk ? ` <span class="gf-sub">vs ${r.pct.toFixed(0)}% done</span>` : '';
+  return `<span class="${cls}">${r.burnPct.toFixed(0)}% spent</span>${note}`;
+}
+
+function toggleGFAll() { gfShowAll = !gfShowAll; renderGainFade(); }
+
+function renderGainFade() {
+  const el = document.getElementById('gainfade-section');
+  const rows = gainFadeRows();
+  const k = gainFadeKPIs(rows);
+  // Worst fade first; burn-risk breaks ties.
+  rows.sort((a, b) => (a.gfPts - b.gfPts) || (a.burnRisk === b.burnRisk ? 0 : a.burnRisk ? -1 : 1));
+  const flagged = rows.filter(r => r.gfPts <= -GF_MOVE_PTS || r.gfPts >= GF_MOVE_PTS || r.burnRisk);
+  const shown = gfShowAll ? rows : flagged;
+
+  const pStamp = activeData?.refreshed ? 'Procore ' + fmtDate(activeData.refreshed) : 'Procore —';
+  const fStamp = foundationData?.refreshed ? 'Foundation ' + fmtDate(foundationData.refreshed) : 'Foundation unavailable';
+  const stamp = `<div class="billing-stamp">${pStamp} · ${fStamp}</div>`;
+  const noFnd = (!foundationData || !foundationData.jobs || !Object.keys(foundationData.jobs).length)
+    ? '<div class="billing-sub" style="color:#b45309">Foundation data unavailable — CO income (revenue side) can\'t be read; showing the Procore cost side only.</div>' : '';
+
+  let body;
+  if (!shown.length) {
+    body = '<div class="billing-empty">' + (rows.length ? 'No jobs are gaining, fading, or burning hot — all active jobs tracking at bid margin.' : 'No active jobs with usable financials.') + '</div>';
+  } else {
+    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">% Comp</th><th class="r">As-bid</th><th class="r">Current</th><th class="r">CO income (F)</th><th class="r">Cost growth (P)</th><th class="r">Cost burn (F)</th><th class="r">Gain / Fade</th></tr></thead><tbody>';
+    for (const r of shown) {
+      const pctCell = r.pct != null ? r.pct.toFixed(0) + '%' : '<span class="muted-cell">—</span>';
+      body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td>${esc(r.pm)}</td>`
+        + `<td class="r">${pctCell}</td><td class="r">${gfMarginCell(r.asbid)}</td><td class="r">${gfMarginCell(r.curMargin)}</td>`
+        + `<td class="r">${gfMoneyCell(r.coIncome, 'gain')}</td><td class="r">${gfMoneyCell(r.costGrowth, 'cost')}</td>`
+        + `<td class="r">${gfBurnCell(r)}</td><td class="r">${gfPtsCell(r.gfPts, r.gfDollars)}</td></tr>`;
+    }
+    body += '</tbody></table>';
+  }
+  const toggle = `<button class="billing-toggle" onclick="toggleGFAll()">${gfShowAll ? 'Show flagged only' : 'Show all ' + rows.length + ' active jobs'}</button>`;
+  el.innerHTML = stamp + noFnd + k.band + `<div class="billing-block">
+    <h3 class="section-header">Active jobs — gain / fade <span class="cnt">${flagged.length} flagged${gfShowAll ? ' · all shown' : ''}</span> ${toggle}</h3>
+    <div class="billing-sub"><strong>Gain/Fade</strong> = current recognized margin − as-bid margin, decomposed across systems: <strong>CO income</strong> (Foundation executed change-order revenue, a gain) minus <strong>cost growth</strong> (Procore revised − original budget, a fade). <strong>Cost burn</strong> = Foundation cost-to-date as a share of forecast cost; amber when it outruns % complete by ≥${GF_BURN_PTS} pts (a possible overrun the budget hasn't caught). Reflects recognized estimates, not unbudgeted overruns.</div>
     ${body}</div>`;
 }
 
