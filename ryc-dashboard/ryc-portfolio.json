@@ -1,5 +1,5 @@
 {
- "generated": "2026-06-25T21:03:22.474Z",
+ "generated": "2026-06-25T21:12:57.754Z",
  "_note": "Completed RYC jobs, 2023+, Foundation-authoritative financials. Curated via COMPLETED_META (build-completed-portfolio.js).",
  "jobs": [
   {
@@ -65,17 +65,21 @@
    "directCost": 3255603,
    "projectedMarginPct": 29.6,
    "scheduleOverrunMonths": null,
-   "rfis": null,
-   "submittals": null,
-   "changeEvents": null,
-   "sqft": null,
+   "rfis": 0,
+   "submittals": 40,
+   "changeEvents": 25,
+   "sqft": 45150,
    "actualCompletion": "2026-03-04",
    "year": 2025,
    "status": "completed",
    "source": "foundation",
    "dataQuality": {
     "margin": "confirmed"
-   }
+   },
+   "procoreId": 598134325960337,
+   "soldBy": "Erik Parcell",
+   "startDate": "2025-04-14",
+   "estCompletion": "2025-11-07T22:00:00Z"
   },
   {
    "id": "2307GO08",
@@ -164,18 +168,25 @@
    "coPct": 0,
    "directCost": 3247773,
    "projectedMarginPct": -3.1,
-   "scheduleOverrunMonths": null,
-   "rfis": null,
-   "submittals": null,
-   "changeEvents": null,
-   "sqft": null,
+   "scheduleOverrunMonths": 11,
+   "rfis": 86,
+   "submittals": 169,
+   "changeEvents": 59,
+   "sqft": 9146,
    "actualCompletion": "2025-12-11",
    "year": 2023,
    "status": "completed",
    "source": "foundation",
    "dataQuality": {
     "margin": "confirmed"
-   }
+   },
+   "procoreId": 598134325659603,
+   "architect": "Arkos Design Studios",
+   "soldBy": "Ken Wright",
+   "startDate": "2024-01-29",
+   "estCompletion": "2024-08-01",
+   "payApps": 17,
+   "teamSize": 70
   },
   {
    "id": "2402GP08",
@@ -189,10 +200,10 @@
    "coPct": 0.3,
    "directCost": 2077762,
    "projectedMarginPct": 19.6,
-   "scheduleOverrunMonths": null,
-   "rfis": null,
-   "submittals": null,
-   "changeEvents": null,
+   "scheduleOverrunMonths": 3,
+   "rfis": 1,
+   "submittals": 106,
+   "changeEvents": 16,
    "sqft": null,
    "actualCompletion": "2025-11-07",
    "year": 2024,
@@ -200,7 +211,13 @@
    "source": "foundation",
    "dataQuality": {
     "margin": "confirmed"
-   }
+   },
+   "procoreId": 598134325747275,
+   "architect": "Butler Fairman & Seufert",
+   "startDate": "2024-05-06",
+   "estCompletion": "2025-03-26",
+   "payApps": 11,
+   "teamSize": 46
   },
   {
    "id": "2315GO03",
@@ -417,15 +434,19 @@
    "scheduleOverrunMonths": null,
    "rfis": null,
    "submittals": null,
-   "changeEvents": null,
-   "sqft": null,
+   "changeEvents": 7,
+   "sqft": 20000,
    "actualCompletion": "2026-06-11",
    "year": 2025,
    "status": "completed",
    "source": "foundation",
    "dataQuality": {
     "margin": "confirmed"
-   }
+   },
+   "procoreId": 598134326162581,
+   "soldBy": "Erik Parcell",
+   "startDate": "2024-03-15",
+   "estCompletion": "2026-03-31T21:00:00Z"
   },
   {
    "id": "2419CO02",
@@ -440,9 +461,9 @@
    "directCost": 889670,
    "projectedMarginPct": 10.3,
    "scheduleOverrunMonths": null,
-   "rfis": null,
-   "submittals": null,
-   "changeEvents": null,
+   "rfis": 11,
+   "submittals": 45,
+   "changeEvents": 29,
    "sqft": null,
    "actualCompletion": "2025-06-30",
    "year": 2024,
@@ -450,7 +471,11 @@
    "source": "foundation",
    "dataQuality": {
     "margin": "confirmed"
-   }
+   },
+   "procoreId": 598134325920429,
+   "soldBy": "Erik Parcell",
+   "startDate": "2024-10-31",
+   "estCompletion": "2025-06-30"
   },
   {
    "id": "2303CO12",
@@ -664,10 +689,10 @@
    "coPct": 0,
    "directCost": 419935,
    "projectedMarginPct": 27.4,
-   "scheduleOverrunMonths": null,
-   "rfis": null,
-   "submittals": null,
-   "changeEvents": null,
+   "scheduleOverrunMonths": 6,
+   "rfis": 6,
+   "submittals": 17,
+   "changeEvents": 8,
    "sqft": null,
    "actualCompletion": "2025-10-03",
    "year": 2024,
@@ -675,7 +700,14 @@
    "source": "foundation",
    "dataQuality": {
     "margin": "confirmed"
-   }
+   },
+   "procoreId": 598134325833544,
+   "architect": "Wightman & Associates",
+   "soldBy": "Brad",
+   "startDate": "2024-09-03",
+   "estCompletion": "2024-11-22",
+   "payApps": 8,
+   "teamSize": 18
   },
   {
    "id": "2302GO07",
