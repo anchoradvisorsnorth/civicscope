@@ -10,6 +10,10 @@
 //   M365_VM_URL, M365_VM_API_KEY
 // New env to set: FOUNDATION_TOOL_PASSWORD (Tristan's login).
 
+// NL->SQL (Anthropic) + ODBC round-trip can run ~10-30s; give the function headroom
+// so a complex query doesn't hit the default serverless timeout.
+export const config = { maxDuration: 60 };
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
