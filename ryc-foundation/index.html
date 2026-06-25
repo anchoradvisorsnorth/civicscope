@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex,nofollow" />
+<title>RYC Foundation Reports</title>
+<style>
+  :root { --ink:#1a1a1a; --orange:#c2410c; --orange-d:#9a3412; --line:#e7e2dc; --bg:#f7f5f2; --muted:#6b7280; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  header { background:#1a1a1a; color:#fff; padding:14px 20px; display:flex; align-items:center; gap:12px; }
+  header img { height:34px; }
+  header .t { font-size:18px; font-weight:700; }
+  header .sub { font-size:12px; color:#bbb; }
+  .wrap { max-width:1000px; margin:0 auto; padding:22px 20px 60px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; }
+  textarea, input[type=password] { width:100%; font:inherit; padding:12px 14px; border:1.5px solid var(--line); border-radius:8px; resize:vertical; }
+  textarea:focus, input:focus { outline:none; border-color:var(--orange); }
+  button { font:inherit; font-weight:600; cursor:pointer; border:none; border-radius:8px; padding:11px 18px; background:var(--orange); color:#fff; }
+  button:hover { background:var(--orange-d); }
+  button:disabled { opacity:.5; cursor:default; }
+  .btn-ghost { background:#fff; color:var(--orange); border:1.5px solid var(--orange); }
+  .row { display:flex; gap:10px; align-items:center; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .chip { font-size:12.5px; color:#374151; background:#f1ede8; border:1px solid var(--line); border-radius:14px; padding:5px 11px; cursor:pointer; }
+  .chip:hover { border-color:var(--orange); color:var(--orange); }
+  .muted { color:var(--muted); font-size:13px; }
+  .err { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:12px 14px; border-radius:8px; }
+  .warn { background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:12px 14px; border-radius:8px; }
+  details { margin:10px 0; } summary { cursor:pointer; color:var(--muted); font-size:13px; }
+  pre { background:#0f172a; color:#e2e8f0; padding:12px 14px; border-radius:8px; overflow:auto; font-size:12.5px; line-height:1.5; }
+  table { border-collapse:collapse; width:100%; font-size:13px; margin-top:6px; }
+  th, td { border:1px solid var(--line); padding:6px 9px; text-align:left; white-space:nowrap; }
+  th { background:#faf8f5; position:sticky; top:0; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .tablewrap { max-height:60vh; overflow:auto; border:1px solid var(--line); border-radius:8px; margin-top:10px; }
+  .hidden { display:none; }
+  .spin { display:inline-block; width:15px; height:15px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC" onerror="this.style.display='none'" />
+  <div>
+    <div class="t">Foundation Reports</div>
+    <div class="sub">Ask in plain English — read-only · payroll/employee data blocked</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- Login -->
+  <div id="login" class="card" style="max-width:420px;margin:40px auto;">
+    <div style="font-weight:700;margin-bottom:4px;">Sign in</div>
+    <div class="muted" style="margin-bottom:12px;">Enter the Foundation Reports password.</div>
+    <input id="pw" type="password" placeholder="Password" autocomplete="current-password" />
+    <div id="loginErr" class="err hidden" style="margin-top:10px;"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end;">
+      <button id="loginBtn">Unlock</button>
+    </div>
+  </div>
+
+  <!-- Tool -->
+  <div id="tool" class="hidden">
+    <div class="card">
+      <label style="font-weight:600;display:block;margin-bottom:8px;">What do you want to know?</label>
+      <textarea id="q" rows="2" placeholder="e.g. Show total billed and total cost for each active job"></textarea>
+      <div class="row" style="margin-top:10px;justify-content:space-between;">
+        <div class="muted">Claude writes the SQL, runs it read-only against Foundation, and shows the results.</div>
+        <button id="askBtn">Ask</button>
+      </div>
+      <div class="chips" id="examples"></div>
+      <div id="recentWrap" class="hidden" style="margin-top:12px;">
+        <div class="muted" style="margin-bottom:4px;">Recent</div>
+        <div class="chips" id="recent"></div>
+      </div>
+    </div>
+
+    <div id="out" style="margin-top:16px;"></div>
+  </div>
+
+</div>
+
+<script>
+const EXAMPLES = [
+  "Top 10 active jobs by cost to date",
+  "Total billed and total cost for each active job",
+  "Which jobs have the most overdue AR?",
+  "Current contract value by job including change orders",
+  "Retainage held on active jobs",
+  "Active jobs by project manager",
+];
+const $ = (id) => document.getElementById(id);
+const pwKey = 'fdn_pw', recentKey = 'fdn_recent';
+
+function showTool() { $('login').classList.add('hidden'); $('tool').classList.remove('hidden'); renderExamples(); renderRecent(); }
+function renderExamples() {
+  $('examples').innerHTML = '';
+  EXAMPLES.forEach(t => { const c = document.createElement('span'); c.className='chip'; c.textContent=t; c.onclick=()=>{ $('q').value=t; ask(); }; $('examples').appendChild(c); });
+}
+function renderRecent() {
+  const r = JSON.parse(localStorage.getItem(recentKey) || '[]');
+  if (!r.length) { $('recentWrap').classList.add('hidden'); return; }
+  $('recentWrap').classList.remove('hidden'); $('recent').innerHTML = '';
+  r.forEach(t => { const c=document.createElement('span'); c.className='chip'; c.textContent=t; c.onclick=()=>{ $('q').value=t; ask(); }; $('recent').appendChild(c); });
+}
+function pushRecent(q) {
+  let r = JSON.parse(localStorage.getItem(recentKey) || '[]');
+  r = [q, ...r.filter(x => x !== q)].slice(0, 8);
+  localStorage.setItem(recentKey, JSON.stringify(r)); renderRecent();
+}
+
+async function call(payload) {
+  const r = await fetch('/api/ryc-foundation-query', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ password: sessionStorage.getItem(pwKey), ...payload })
+  });
+  return { status: r.status, data: await r.json().catch(()=>({})) };
+}
+
+async function login() {
+  const pw = $('pw').value;
+  sessionStorage.setItem(pwKey, pw);
+  $('loginBtn').disabled = true;
+  const { status } = await call({ verify: true });
+  $('loginBtn').disabled = false;
+  if (status === 200) showTool();
+  else { sessionStorage.removeItem(pwKey); $('loginErr').textContent = 'Incorrect password.'; $('loginErr').classList.remove('hidden'); }
+}
+
+const isNum = (v) => v !== null && v !== '' && !isNaN(Number(v));
+const fmt = (v) => isNum(v) ? Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 }) : (v == null ? '' : v);
+
+async function ask() {
+  const q = $('q').value.trim();
+  if (!q) return;
+  $('askBtn').disabled = true;
+  $('out').innerHTML = '<div class="card"><span class="spin"></span> &nbsp;Thinking…</div>';
+  const { status, data } = await call({ question: q });
+  $('askBtn').disabled = false;
+
+  if (status === 401) { sessionStorage.removeItem(pwKey); $('tool').classList.add('hidden'); $('login').classList.remove('hidden'); return; }
+  pushRecent(q);
+
+  if (data.status === 'refused') { $('out').innerHTML = `<div class="warn"><b>Can't answer that one.</b><br>${esc(data.explanation||'')}</div>`; return; }
+  if (data.status === 'blocked') { $('out').innerHTML = `<div class="err"><b>Query blocked by the safety guard.</b><br>${esc(data.error||'')}</div>${sqlBlock(data.sql)}`; return; }
+  if (data.status !== 'ok') { $('out').innerHTML = `<div class="err"><b>Something went wrong.</b><br>${esc(data.error||'Unknown error')}</div>${data.sql?sqlBlock(data.sql):''}`; return; }
+
+  const cols = data.columns || [], rows = data.rows || [];
+  const numCol = cols.map((_,i) => rows.length && rows.every(r => r[i]==null || isNum(r[i])));
+  let html = '';
+  if (data.explanation) html += `<div class="muted" style="margin-bottom:6px;">${esc(data.explanation)}</div>`;
+  html += `<div class="row" style="justify-content:space-between;margin-bottom:4px;">
+    <div class="muted">${rows.length} row${rows.length===1?'':'s'}${data.truncated?` (capped at ${data.row_cap})`:''}</div>
+    <button class="btn-ghost" onclick="downloadCSV()">Download CSV</button></div>`;
+  html += '<div class="tablewrap"><table><thead><tr>' + cols.map((c,i)=>`<th class="${numCol[i]?'num':''}">${esc(c)}</th>`).join('') + '</tr></thead><tbody>';
+  rows.forEach(r => { html += '<tr>' + r.map((v,i)=>`<td class="${numCol[i]?'num':''}">${esc(fmt(v))}</td>`).join('') + '</tr>'; });
+  html += '</tbody></table></div>' + sqlBlock(data.sql);
+  $('out').innerHTML = html;
+  window._last = { cols, rows };
+}
+
+function sqlBlock(sql) { return sql ? `<details><summary>View the SQL Claude wrote</summary><pre>${esc(sql)}</pre></details>` : ''; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function downloadCSV() {
+  if (!window._last) return;
+  const { cols, rows } = window._last;
+  const q = (v) => { v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const csv = [cols.map(q).join(',')].concat(rows.map(r => r.map(q).join(','))).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  a.download = 'foundation-report.csv'; a.click(); URL.revokeObjectURL(a.href);
+}
+
+// wire up
+$('loginBtn').onclick = login;
+$('pw').addEventListener('keydown', e => { if (e.key==='Enter') login(); });
+$('askBtn').onclick = ask;
+$('q').addEventListener('keydown', e => { if (e.key==='Enter' && (e.metaKey||e.ctrlKey)) ask(); });
+if (sessionStorage.getItem(pwKey)) call({ verify:true }).then(({status}) => { if (status===200) showTool(); else sessionStorage.removeItem(pwKey); });
+</script>
+</body>
+</html>
