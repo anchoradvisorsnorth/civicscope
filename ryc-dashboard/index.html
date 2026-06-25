@@ -951,7 +951,7 @@ function renderGainFade() {
   const toggle = `<button class="billing-toggle" onclick="toggleGFAll()">${gfShowAll ? 'Show flagged only' : 'Show all ' + rows.length + ' active jobs'}</button>`;
   el.innerHTML = stamp + noFnd + k.band + `<div class="billing-block">
     <h3 class="section-header">Active jobs — gain / fade <span class="cnt">${flagged.length} flagged${gfShowAll ? ' · all shown' : ''}</span> ${toggle}</h3>
-    <div class="billing-sub"><strong>Gain/Fade</strong> = current recognized margin − as-bid margin, decomposed across systems: <strong>CO income</strong> (Foundation executed change-order revenue, a gain) minus <strong>cost growth</strong> (Procore revised − original budget, a fade). <strong>Cost burn</strong> = Foundation cost-to-date as a share of forecast cost; amber when it outruns % complete by ≥${GF_BURN_PTS} pts (a possible overrun the budget hasn't caught). Reflects recognized estimates, not unbudgeted overruns.</div>
+    <div class="billing-sub"><strong>Gain/Fade</strong> = current recognized margin − as-bid margin, decomposed across systems: <strong>CO income</strong> (Foundation executed change-order revenue, a gain) minus <strong>cost growth</strong> (Procore revised − original budget, a fade). <strong>Cost burn</strong> = Foundation cost-to-date as a share of forecast cost; amber when it outruns % complete by ≥${GF_BURN_PTS} pts (a possible overrun the budget hasn't caught). Reflects recognized estimates, not unbudgeted overruns. <em>Note: cost growth is the entire revised-vs-original budget delta (buyout, base-scope reforecasting, allowances — not only the cost of CO work), so CO income vs cost growth is a margin-movement read, not a measure of change-order markup.</em></div>
     ${body}</div>`;
 }
 
