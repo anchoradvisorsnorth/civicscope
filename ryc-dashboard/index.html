@@ -1298,13 +1298,36 @@ function renderCustomerSuccess(job) {
     </details>`;
 }
 
+// Completed cards tell the PROJECT STORY (outcome), not live operations: how the contract grew,
+// whether we beat or missed the as-bid margin, and how long it took. Financials = Foundation; the
+// operational detail (RFIs/submittals/COs) is demoted to a muted footer where Procore has it.
 function renderCompletedCard(job) {
-  const margin = getBestMargin(job);
-  const overrun = job.scheduleOverrunMonths;
+  const actual = getBestMargin(job);            // achieved margin
+  const bid = job.bidMarginPct;                 // as-bid margin
+  const delta = (actual != null && bid != null) ? actual - bid : null;
+  const arrow = delta == null ? '' : delta >= 0.5 ? ' <span class="flag-green">\u25b2</span>'
+              : delta <= -0.5 ? ' <span class="flag-red">\u25bc</span>' : '';
+  const ovr = job.scheduleOverrunMonths, dur = job.durationMonths;
   const sources = [];
   if (job.source === 'foundation') sources.push('<span class="badge badge-foundation">Foundation</span>');
   if (job.sp) sources.push('<span class="badge badge-sp">SP</span>');
   if (job.procoreId) sources.push('<span class="badge badge-procore">Procore</span>');
+
+  const coNote = (job.coPct != null && job.changeOrders)
+    ? `<div class="note">${job.changeOrders >= 0 ? '+' : ''}${fmtCompact(job.changeOrders)} COs (${pct(job.coPct)})</div>` : '';
+  const ovrNote = ovr == null ? '' : ovr <= 0 ? '<div class="note flag-green">on time</div>'
+    : `<div class="note ${ovr > 6 ? 'flag-red' : ovr > 2 ? 'flag-amber' : ''}">+${ovr} mo vs plan</div>`;
+
+  const bits = [`Final cost ${fmtCompact(job.directCost)}`];
+  if (job.procoreId) {
+    const ops = [];
+    if (job.rfis) ops.push(`${job.rfis} RFIs`);
+    if (job.submittals) ops.push(`${job.submittals} submittals`);
+    if (job.changeEvents) ops.push(`${job.changeEvents} change events`);
+    if (job.sqft) ops.push(`${job.sqft.toLocaleString()} sqft`);
+    if (ops.length) bits.push('Procore: ' + ops.join(' \u00b7 '));
+  }
+  const footer = `<div class="note" style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">${bits.join(' &nbsp;\u00b7&nbsp; ')}</div>`;
 
   return `
     <div class="job-card">
@@ -1317,15 +1340,12 @@ function renderCompletedCard(job) {
         </div>
       </div>
       <div class="job-stats">
-        <div class="job-stat"><span class="k">Contract</span><span class="v">${fmt(job.contractFinal)}</span></div>
-        <div class="job-stat"><span class="k">CO %</span><span class="v">${job.coPct != null ? pct(job.coPct) : '\u2014'}</span></div>
-        <div class="job-stat"><span class="k">Margin</span><span class="v ${marginClass(margin)} ${dqClass(job.dataQuality?.margin)}">${margin != null ? pct(margin) : 'Missing'}</span></div>
-        <div class="job-stat"><span class="k">Schedule</span><span class="v${overrun > 6 ? ' flag-red' : overrun > 2 ? ' flag-amber' : ''}">${overrun != null ? '+' + overrun + ' mo' : '\u2014'}</span></div>
-        <div class="job-stat"><span class="k">RFIs</span><span class="v">${job.rfis ?? '\u2014'}</span></div>
-        <div class="job-stat"><span class="k">Submittals</span><span class="v">${job.submittals ?? '\u2014'}</span></div>
-        <div class="job-stat"><span class="k">Change events</span><span class="v">${job.changeEvents ?? '\u2014'}</span></div>
+        <div class="job-stat"><span class="k">Contract (orig \u2192 final)</span><span class="v">${fmtCompact(job.contractOriginal)} \u2192 ${fmtCompact(job.contractFinal)}</span>${coNote}</div>
+        <div class="job-stat"><span class="k">Margin (bid \u2192 actual)</span><span class="v">${bid != null ? pct(bid) : '\u2014'} \u2192 <span class="${marginClass(actual)} ${dqClass(job.dataQuality?.margin)}">${actual != null ? pct(actual) : '\u2014'}</span>${arrow}</span></div>
+        <div class="job-stat"><span class="k">Duration</span><span class="v">${dur != null ? dur + ' mo' : '\u2014'}</span>${ovrNote}</div>
         <div class="job-stat"><span class="k">Completed</span><span class="v">${fmtShort(job.actualCompletion)}</span></div>
       </div>
+      ${footer}
     </div>`;
 }
 </script>
