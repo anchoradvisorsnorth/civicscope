@@ -262,6 +262,7 @@
     <button data-view="closeout">Warranty/Post-Con</button>
     <button data-view="billing">Billing &amp; AR</button>
     <button data-view="gainfade">Gain/Fade</button>
+    <button data-view="wip">WIP</button>
     <button data-view="analysis">Portfolio Analysis</button>
   </div>
 
@@ -269,6 +270,7 @@
   <div id="analysis-section" style="display:none"></div>
   <div id="billing-section" style="display:none"></div>
   <div id="gainfade-section" style="display:none"></div>
+  <div id="wip-section" style="display:none"></div>
   <div id="jobs-section">
     <div class="job-controls" id="job-controls" style="display:none">
       <input type="text" id="job-search" placeholder="Search jobs, clients, PMs..." oninput="renderJobs()">
@@ -308,7 +310,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.12.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.13.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -409,9 +411,10 @@ function renderView() {
   const analysisEl = document.getElementById('analysis-section');
   const billingEl = document.getElementById('billing-section');
   const gainfadeEl = document.getElementById('gainfade-section');
+  const wipEl = document.getElementById('wip-section');
   const controlsEl = document.getElementById('job-controls');
   const metricsEl = document.getElementById('metrics');
-  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none'; gainfadeEl.style.display = 'none';
+  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none'; gainfadeEl.style.display = 'none'; wipEl.style.display = 'none';
   if (currentView === 'analysis') {
     analysisEl.style.display = 'block'; metricsEl.style.display = '';
     renderAnalysisMetrics(); renderAnalysis();
@@ -421,6 +424,9 @@ function renderView() {
   } else if (currentView === 'gainfade') {
     gainfadeEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
     renderGainFade();
+  } else if (currentView === 'wip') {
+    wipEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
+    renderWIP();
   } else {
     jobsEl.style.display = 'block'; analysisEl.style.display = 'none'; metricsEl.style.display = '';
     controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
@@ -946,6 +952,105 @@ function renderGainFade() {
   el.innerHTML = stamp + noFnd + k.band + `<div class="billing-block">
     <h3 class="section-header">Active jobs — gain / fade <span class="cnt">${flagged.length} flagged${gfShowAll ? ' · all shown' : ''}</span> ${toggle}</h3>
     <div class="billing-sub"><strong>Gain/Fade</strong> = current recognized margin − as-bid margin, decomposed across systems: <strong>CO income</strong> (Foundation executed change-order revenue, a gain) minus <strong>cost growth</strong> (Procore revised − original budget, a fade). <strong>Cost burn</strong> = Foundation cost-to-date as a share of forecast cost; amber when it outruns % complete by ≥${GF_BURN_PTS} pts (a possible overrun the budget hasn't caught). Reflects recognized estimates, not unbudgeted overruns.</div>
+    ${body}</div>`;
+}
+
+// === WIP — Earned value & billing position (Procore forecast + Foundation actuals) ===
+// The actuals-grounded companion to Gain/Fade. Procore supplies the forecast cost (revised budget =
+// EAC); Foundation supplies the ACTUALS (cost-to-date, billings-to-date). From those:
+//   cost % complete = cost-to-date ÷ EAC          (a real, cost-based progress measure)
+//   earned revenue  = % complete × revised contract
+//   over/(under)billed = billings − earned        (+ = billed ahead; − = work done not yet billed)
+// Underbilled = "costs in excess of billings" (cash tied up / invoice it). Overbilled = "billings in
+// excess of costs". Distinct from the Billing & AR tab's bid-ratio "Needs invoiced" — this is the
+// earned-value method. Cross-source caveat: Foundation cost (incl. burden) vs Procore EAC; the
+// dashboard already treats these bases as comparable (see Foundation reconciliation on cards).
+const WIP_FLAG_MIN = 50000;   // |over/(under)| ≥ this is worth surfacing
+let wipShowAll = true;
+
+function wipRows() {
+  const rows = [];
+  for (const j of getActiveJobs()) {
+    const f = j.foundation, b = j.budget || {}, pct = j.pctComplete;
+    if (!f) continue;                                  // WIP needs Foundation actuals
+    const contract = (f.currentContract > 0) ? f.currentContract : j.contractValue;
+    const eac = (b.revised > 0) ? b.revised : (b.original > 0 ? b.original : f.originalCost); // forecast cost
+    const ctd = f.totalCosts, billed = f.totalInvoiced;
+    if (!(contract > 0) || eac == null || ctd == null) continue;
+    const pctCost = eac > 0 ? ctd / eac * 100 : null;
+    const earned = pctCost != null ? Math.min(pctCost, 100) / 100 * contract : null;
+    const ou = (earned != null && billed != null) ? billed - earned : null; // + over / − under
+    const fMargin = (contract - eac) / contract * 100;
+    rows.push({
+      job: j.projectNumber || '', name: j.name || f.description || '',
+      pm: pmName(j) || '(no PM)', pct, pctCost, contract, eac, ctd, billed, earned, ou, fMargin,
+    });
+  }
+  return rows;
+}
+
+function wipKPIs(rows) {
+  let under = 0, over = 0, backlog = 0;
+  for (const r of rows) {
+    if (r.ou != null) { if (r.ou < 0) under += -r.ou; else over += r.ou; }
+    backlog += r.contract - (r.billed || 0);
+  }
+  const net = over - under;
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  return { under, over, band: `<div class="kpi-band">
+    ${card('Underbilled · cost > billed', fmtCompact(under), under ? 'kpi-warn' : '')}
+    ${card('Overbilled · billed > cost', fmtCompact(over), '')}
+    ${card('Net position', (net >= 0 ? '+' : '') + fmtCompact(net), net >= 0 ? 'kpi-gain' : 'kpi-warn')}
+    ${card('Backlog to bill', fmtCompact(backlog), '')}
+  </div>` };
+}
+
+function wipPctCell(r) {
+  if (r.pctCost == null) return '<span class="muted-cell">—</span>';
+  const diverge = (r.pct != null && Math.abs(r.pctCost - r.pct) >= 10);
+  const sub = diverge ? ` <span class="gf-sub">vs ${r.pct.toFixed(0)}% Pcr</span>` : '';
+  const cls = diverge && r.pctCost > r.pct ? 'gf-conflict' : '';   // cost outrunning physical progress
+  return `<span class="${cls}">${r.pctCost.toFixed(0)}%</span>${sub}`;
+}
+function wipOUCell(ou) {
+  if (ou == null) return '<span class="muted-cell">—</span>';
+  if (Math.abs(ou) < 500) return '<span class="gf-flat">—</span>';
+  return ou < 0 ? `<span class="under">(${fmtCompact(-ou)})</span>` : `<span class="over">+${fmtCompact(ou)}</span>`;
+}
+
+function toggleWIPAll() { wipShowAll = !wipShowAll; renderWIP(); }
+
+function renderWIP() {
+  const el = document.getElementById('wip-section');
+  const rows = wipRows();
+  const k = wipKPIs(rows);
+  rows.sort((a, b) => (a.ou ?? 0) - (b.ou ?? 0));   // most underbilled first (action items up top)
+  const flagged = rows.filter(r => r.ou != null && Math.abs(r.ou) >= WIP_FLAG_MIN);
+  const shown = wipShowAll ? rows : flagged;
+
+  const pStamp = activeData?.refreshed ? 'Procore ' + fmtDate(activeData.refreshed) : 'Procore —';
+  const fStamp = foundationData?.refreshed ? 'Foundation ' + fmtDate(foundationData.refreshed) : 'Foundation unavailable';
+  const stamp = `<div class="billing-stamp">${pStamp} · ${fStamp}</div>`;
+  const noFnd = (!foundationData || !foundationData.jobs || !Object.keys(foundationData.jobs).length)
+    ? '<div class="billing-sub" style="color:#b45309">Foundation data unavailable — WIP needs cost-to-date + billings from Foundation; nothing to show.</div>' : '';
+
+  let body;
+  if (!shown.length) {
+    body = '<div class="billing-empty">' + (rows.length ? 'No jobs are materially over- or under-billed.' : 'No active jobs with Foundation actuals.') + '</div>';
+  } else {
+    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">% Comp (cost)</th><th class="r">Contract</th><th class="r">Cost to date</th><th class="r">Billed</th><th class="r">Earned</th><th class="r">Over/(under)</th><th class="r">Fcst margin</th></tr></thead><tbody>';
+    for (const r of shown) {
+      body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td>${esc(r.pm)}</td>`
+        + `<td class="r">${wipPctCell(r)}</td><td class="r">${fmtCompact(r.contract)}</td>`
+        + `<td class="r">${fmtCompact(r.ctd)}</td><td class="r">${fmtCompact(r.billed)}</td><td class="r">${fmtCompact(r.earned)}</td>`
+        + `<td class="r">${wipOUCell(r.ou)}</td><td class="r">${gfMarginCell(r.fMargin)}</td></tr>`;
+    }
+    body += '</tbody></table>';
+  }
+  const toggle = `<button class="billing-toggle" onclick="toggleWIPAll()">${wipShowAll ? 'Show flagged only' : 'Show all ' + rows.length + ' active jobs'}</button>`;
+  el.innerHTML = stamp + noFnd + k.band + `<div class="billing-block">
+    <h3 class="section-header">Work in progress — earned value &amp; billing <span class="cnt">${flagged.length} flagged${wipShowAll ? ' · all shown' : ''}</span> ${toggle}</h3>
+    <div class="billing-sub"><strong>% Comp (cost)</strong> = Foundation cost-to-date ÷ Procore forecast cost (revised budget); amber when it outruns Procore's % complete by ≥10 pts (cost ahead of progress). <strong>Earned</strong> = % complete × contract. <strong>Over/(under)</strong> = billed − earned: <span class="under">(under)</span> = earned work not yet invoiced (collect it), <span class="over">+over</span> = billed ahead of work. Earned-value method — distinct from Billing &amp; AR's bid-ratio "Needs invoiced." Forecast margin = (contract − forecast cost) ÷ contract.</div>
     ${body}</div>`;
 }
 
