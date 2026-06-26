@@ -108,7 +108,8 @@
   .ctx-rev { background: #dbeafe; color: #2563eb; }
   .ctx-marg { background: #dcfce7; color: #15803d; }
   .ctx-vs { font-size: 11px; margin-left: 4px; }
-  .billing-table th[title] { cursor: help; border-bottom: 1px dotted var(--muted); }
+  .hint { border-bottom: 1px dotted var(--muted); cursor: help; }
+  #hint-tip { position: fixed; z-index: 2000; max-width: 260px; background: #1f2937; color: #fff; font-size: 11px; line-height: 1.45; padding: 8px 10px; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.25); display: none; pointer-events: none; }
   .gf-learn { display: inline; } .gf-learn summary { cursor: pointer; color: #2563eb; display: inline; font-style: normal; }
   .gf-learn[open] { display: block; margin-top: 4px; }
   .job-card.clickable { cursor: pointer; transition: box-shadow .15s, transform .15s; }
@@ -345,7 +346,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.17.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.17.1-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -353,8 +354,21 @@
 <div id="detail-overlay" onclick="if(event.target.id==='detail-overlay')closeDetail()">
   <div id="detail-panel"></div>
 </div>
+<div id="hint-tip"></div>
 
 <script>
+// Custom hover tooltips (.hint[data-tip]) — body-anchored fixed div so table overflow can't clip it.
+(function () {
+  const tip = document.getElementById('hint-tip');
+  document.addEventListener('mouseover', e => {
+    const h = e.target.closest('.hint'); if (!h || !h.dataset.tip) return;
+    tip.textContent = h.dataset.tip; tip.style.display = 'block';
+    const r = h.getBoundingClientRect();
+    let left = r.left; if (left + 270 > window.innerWidth) left = window.innerWidth - 278;
+    tip.style.left = Math.max(8, left) + 'px'; tip.style.top = (r.bottom + 6) + 'px';
+  });
+  document.addEventListener('mouseout', e => { if (e.target.closest('.hint')) tip.style.display = 'none'; });
+})();
 const PORTFOLIO_URL = '/ryc-dashboard/ryc-portfolio.json';
 const CACHE_URL = '/ryc-dashboard/procore-cache.json';
 const ACTIVE_API = '/api/ryc-active';
@@ -997,7 +1011,7 @@ function renderGainFade() {
   if (!shown.length) {
     body = '<div class="billing-empty">' + (rows.length ? 'No jobs are gaining, fading, or burning hot — all active jobs tracking at bid margin.' : 'No active jobs with usable financials.') + '</div>';
   } else {
-    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">% Comp</th><th class="r">As-bid</th><th class="r">Current</th><th class="r">CO income (F)</th><th class="r" title="Procore revised − original budget — the recognized cost growth: buyout, base-scope reforecasting, allowances. NOT just change-order cost.">Cost growth (P)</th><th class="r" title="Foundation cost-to-date as a share of forecast cost. Amber when it outruns % complete — an overrun the budget may not have caught yet.">Cost burn (F)</th><th class="r">Gain / Fade</th></tr></thead><tbody>';
+    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">% Comp</th><th class="r">As-bid</th><th class="r">Current</th><th class="r">CO income (F)</th><th class="r"><span class="hint" data-tip="Procore revised − original budget — the recognized cost growth: buyout, base-scope reforecasting, allowances. NOT just change-order cost.">Cost growth (P)</span></th><th class="r"><span class="hint" data-tip="Foundation cost-to-date as a share of forecast cost. Amber when it outruns % complete — an overrun the budget may not have caught yet.">Cost burn (F)</span></th><th class="r">Gain / Fade</th></tr></thead><tbody>';
     for (const r of shown) {
       const pctCell = r.pct != null ? r.pct.toFixed(0) + '%' : '<span class="muted-cell">—</span>';
       body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td>${esc(r.pm)}</td>`
@@ -1097,7 +1111,7 @@ function renderWIP() {
   if (!shown.length) {
     body = '<div class="billing-empty">' + (rows.length ? 'No jobs are materially over- or under-billed.' : 'No active jobs with Foundation actuals.') + '</div>';
   } else {
-    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">% Comp (cost)</th><th class="r">Contract</th><th class="r">Cost to date</th><th class="r">Billed</th><th class="r" title="Earned revenue = % complete (cost-based) × contract value. The revenue earned by doing the work, regardless of what has been billed.">Earned</th><th class="r" title="Billed − Earned. (under) = earned work not yet invoiced (cash to collect); +over = billed ahead of work done.">Over/(under)</th><th class="r" title="(Contract − forecast cost) ÷ contract — the projected final margin.">Fcst margin</th></tr></thead><tbody>';
+    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">% Comp (cost)</th><th class="r">Contract</th><th class="r">Cost to date</th><th class="r">Billed</th><th class="r"><span class="hint" data-tip="Earned revenue = % complete (cost-based) × contract value. The revenue earned by doing the work, regardless of what has been billed.">Earned</span></th><th class="r"><span class="hint" data-tip="Billed − Earned. (under) = earned work not yet invoiced (cash to collect); +over = billed ahead of work done.">Over/(under)</span></th><th class="r"><span class="hint" data-tip="(Contract − forecast cost) ÷ contract — the projected final margin.">Fcst margin</span></th></tr></thead><tbody>';
     for (const r of shown) {
       body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td>${esc(r.pm)}</td>`
         + `<td class="r">${wipPctCell(r)}</td><td class="r">${fmtCompact(r.contract)}</td>`
