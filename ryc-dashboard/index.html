@@ -1313,10 +1313,10 @@ function renderCompletedCard(job) {
   // Data-source tiles (bottom-right): every card shows the full source set; sources not queried for
   // this card are kept but struck through in red.
   const srcTile = (label, on, cls) => `<span class="badge ${cls}${on ? '' : ' badge-off'}">${label}</span>`;
+  // SharePoint is used for backend verification only — not a card-facing data source, so not tiled.
   const sourceTiles = `<div class="card-sources">`
     + srcTile('Foundation', job.source === 'foundation', 'badge-foundation')
     + srcTile('Procore', !!job.procoreId, 'badge-procore')
-    + srcTile('SharePoint', !!job.sp, 'badge-sp')
     + `</div>`;
 
   const coNote = (job.coPct != null && job.changeOrders)
