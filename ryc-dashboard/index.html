@@ -284,7 +284,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.11.0-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.19.0-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
@@ -348,7 +348,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.18.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.19.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -1197,6 +1197,158 @@ function renderCompletedDetail(job) {
     </div>`;
 }
 
+// Active-job popout — the full operating picture for one live job. The card face stays lean; this
+// carries Foundation cost/billing/retainage, contracted margin, billing position (earned value),
+// gain/fade vs bid, change-order breakdown, cost-to-date by category, and schedule. Formulas mirror
+// the Gain/Fade and WIP tabs exactly so a single job reads identically wherever it appears.
+function openActiveDetail(projectNumber) {
+  const job = (activeData?.jobs || []).find(j => (j.projectNumber || '') === projectNumber);
+  if (!job) return;
+  document.getElementById('detail-panel').innerHTML = renderActiveDetail(job);
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-panel').scrollTop = 0;
+}
+
+function renderActiveDetail(job) {
+  const f = job.foundation, b = job.budget || {};
+  const sl = getStoplight(job, job);
+  const contractVal = job.contractValue || b.revised || b.original || 0;
+  const pctComp = job.pctComplete;
+  const cMargin = contractedMargin(job), mtd = marginToDate(job);
+  const stat = (k, v) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const mc = m => m == null ? '—' : `<span class="${marginColorClass(m)}">${pct(m)}</span>`;
+
+  // --- Financials (best-source merge, same authority as the card) ---
+  const contractFlag = (job.flags || []).some(fl => fl.type === 'contract')
+    ? ` <span class="note">(Procore ${fmtCompact(job.procoreContractValue)})</span>` : '';
+  let reconNote = '';
+  if (b.direct != null && f && f.totalCosts != null) {
+    const d = f.totalCosts - b.direct;
+    reconNote = (Math.abs(d) <= Math.max(50000, (contractVal || 0) * 0.02))
+      ? ' <span class="recon-ok">✓ reconciled</span>'
+      : ` <span class="recon-warn">Δ vs Procore ${fmtCompact(d)}</span>`;
+  }
+  const bidCost = (f && f.originalCost != null) ? f.originalCost : b.original;
+  const financials = `<div class="detail-section"><h4>Financials</h4><div class="detail-grid">
+    ${stat('Contract', fmtCompact(contractVal) + contractFlag)}
+    ${stat('% complete', pctComp != null ? pct(pctComp) : '—')}
+    ${stat('Original budget (bid cost)', fmtCompact(bidCost))}
+    ${stat('Cost to date', fmtCompact(job.costToDate) + reconNote)}
+    ${stat('Contracted margin', mc(cMargin))}
+    ${stat('Margin to date', mc(mtd))}
+    ${f ? stat('Billed to date', fmtCompact(f.totalInvoiced)) : ''}
+    ${f ? stat('Retainage held', fmtCompact(f.retainage)) : ''}
+  </div></div>`;
+
+  // --- Billing position (earned value) — needs Foundation actuals; mirrors the WIP tab ---
+  let wipSec = '';
+  if (f) {
+    const contract = (f.currentContract > 0) ? f.currentContract : job.contractValue;
+    const eac = (b.revised > 0) ? b.revised : (b.original > 0 ? b.original : f.originalCost);
+    const ctd = f.totalCosts, billed = f.totalInvoiced;
+    if (contract > 0 && eac != null && ctd != null) {
+      const pctCost = eac > 0 ? ctd / eac * 100 : null;
+      const earned = pctCost != null ? Math.min(pctCost, 100) / 100 * contract : null;
+      const ou = (earned != null && billed != null) ? billed - earned : null;
+      const ouTxt = ou == null ? '—'
+        : ou < 0 ? `<span class="under">(${fmtCompact(-ou)}) underbilled</span>`
+        : `<span class="over">+${fmtCompact(ou)} overbilled</span>`;
+      wipSec = `<div class="detail-section"><h4>Billing position (earned value)</h4><div class="detail-grid">
+        ${stat('Cost % complete', pctCost != null ? pctCost.toFixed(0) + '%' : '—')}
+        ${stat('Earned revenue', fmtCompact(earned))}
+        ${stat('Billed', fmtCompact(billed))}
+        ${stat('Over / (under) billed', ouTxt)}
+      </div><div class="note" style="margin-top:6px">Cost-based % × contract = earned; billed − earned = over/(under)billed. Underbilled = work done not yet invoiced.</div></div>`;
+    }
+  }
+
+  // --- Gain / fade vs bid — mirrors the Gain/Fade tab ---
+  let gfSec = '';
+  {
+    const pC = job.procoreContractValue != null ? job.procoreContractValue : job.contractValue;
+    const curContract = (f && f.currentContract > 0) ? f.currentContract : pC;
+    const asbidContract = (f && f.originalContract > 0) ? f.originalContract : pC;
+    const asbidCost = (f && f.originalCost != null) ? f.originalCost : b.original;
+    if (curContract > 0 && asbidCost != null) {
+      const costGrowth = (b.revised > 0 && b.original > 0) ? (b.revised - b.original) : 0;
+      const coIncome = (f && f.originalContract > 0) ? (curContract - asbidContract) : null;
+      const projCost = asbidCost + costGrowth;
+      const asbid = (asbidContract - asbidCost) / asbidContract * 100;
+      const curMargin = (curContract - projCost) / curContract * 100;
+      const gfPts = curMargin - asbid;
+      const gfDollars = (coIncome != null ? coIncome : 0) - costGrowth;
+      gfSec = `<div class="detail-section"><h4>Gain / fade vs bid</h4><div class="detail-grid">
+        ${stat('As-bid margin', asbid.toFixed(1) + '%')}
+        ${stat('Current margin', curMargin.toFixed(1) + '%')}
+        ${stat('CO income (Foundation)', coIncome != null ? gfMoneyCell(coIncome, 'gain') : '—')}
+        ${stat('Cost growth (Procore)', gfMoneyCell(costGrowth, 'cost'))}
+        ${stat('Gain / fade', gfPtsCell(gfPts, gfDollars))}
+      </div></div>`;
+    }
+  }
+
+  // --- Change orders (event-type breakdown) ---
+  let coSec = '';
+  const co = job.changeOrders;
+  if (co && co.count > 0) {
+    const rows = (co.byType && Object.keys(co.byType).length)
+      ? Object.entries(co.byType).sort((a, b2) => b2[1] - a[1])
+          .map(([t, n]) => `<tr><td>${esc(t)}</td><td class="r">${n}</td></tr>`).join('') : '';
+    coSec = `<div class="detail-section"><h4>Change orders</h4><div class="detail-grid">
+        ${stat('Count', co.count)}${stat('Net value', (co.netValue >= 0 ? '+' : '') + fmtCompact(co.netValue))}
+      </div>${rows ? `<table class="detail-table" style="margin-top:10px"><thead><tr><th>Type</th><th class="r">Count</th></tr></thead><tbody>${rows}</tbody></table>` : ''}</div>`;
+  }
+
+  // --- Cost to date by category (Foundation) ---
+  let cbSec = '';
+  if (f && f.costBreakdown && Object.keys(f.costBreakdown).length) {
+    const rows = Object.entries(f.costBreakdown).sort((a, b2) => b2[1] - a[1])
+      .map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r">${fmtCompact(v)}</td></tr>`).join('');
+    cbSec = `<div class="detail-section"><h4>Cost to date by category (Foundation)</h4>
+      <table class="detail-table"><thead><tr><th>Category</th><th class="r">Cost</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  // --- Schedule ---
+  const startDate = job.start, finishDate = job.projectedFinish || job.completionDate;
+  let schedTxt = '—';
+  if (finishDate) {
+    const diff = Math.round((new Date(finishDate) - new Date()) / (1000 * 60 * 60 * 24));
+    schedTxt = diff < 0 ? `<span class="flag-red">${Math.abs(diff)} days overdue</span>` : `${diff} days remaining`;
+  }
+  const schedSec = `<div class="detail-section"><h4>Schedule</h4><div class="detail-grid">
+    ${stat('Start', fmtShort(startDate))}
+    ${stat('Projected finish', fmtShort(finishDate))}
+    ${stat('Stage', esc(job.stage || '—'))}
+    ${stat('Status', schedTxt)}
+  </div></div>`;
+
+  // --- Operational (Procore) ---
+  let opsSec = '';
+  if (job.rfis || job.submittals) {
+    const rfi = job.rfis, sub = job.submittals;
+    opsSec = `<div class="detail-section"><h4>Operational (Procore)</h4><div class="detail-grid">
+      ${rfi ? stat('RFIs', `${rfi.open ?? 0} open / ${rfi.total ?? 0}`) : ''}
+      ${sub ? stat('Submittals', `${sub.open ?? 0} open / ${sub.total ?? 0}`) : ''}
+    </div></div>`;
+  }
+
+  const slSec = sl.reasons?.length
+    ? `<div class="detail-section"><h4>Status flags</h4><div class="sl-reason sl-reason-${sl.color}">${sl.reasons.map(r => r.text).join(' · ')}</div></div>` : '';
+
+  const srcTile = (label, on, cls) => `<span class="badge ${cls}${on ? '' : ' badge-off'}">${label}</span>`;
+  const sources = `<div class="detail-section"><div class="card-sources" style="justify-content:flex-start">${srcTile('Foundation', !!f, 'badge-foundation')}${srcTile('Procore', !!job.procoreId, 'badge-procore')}</div></div>`;
+
+  return `<div class="detail-head">
+      <button class="detail-close" onclick="closeDetail()">×</button>
+      <div class="dh-name"><span class="stoplight stoplight-${sl.color}"></span> ${esc(job.name)}</div>
+      <div class="dh-client">${esc(job.client)} · ${typeName(job.clientType)}${job.stage ? ' · ' + esc(job.stage) : ''} · <span class="badge badge-stage">Active</span></div>
+      ${pmName(job) ? `<div class="dh-client">PM <strong>${esc(pmName(job))}</strong></div>` : ''}
+    </div>
+    <div class="detail-body">
+      ${slSec}${financials}${wipSec}${gfSec}${coSec}${cbSec}${schedSec}${opsSec}${sources}
+    </div>`;
+}
+
 function openSubDetail(vendorNo) {
   const s = (subsData?.subs || []).find(x => x.vendorNo === vendorNo);
   if (!s) return;
@@ -1429,8 +1581,12 @@ function renderActiveCard(job, live) {
   const isPreconPending = !job.budget && (pctComp == null || pctComp === 0);
   const stageDisplay = stage || (isPreconPending ? 'Pre-Construction' : null);
 
+  // Card face is intentionally lean (Balanced density) — the 3 numbers leadership scans + schedule +
+  // stoplight reason. Contracted margin, change-order detail, the Foundation line, billing position,
+  // gain/fade, and cost breakdown all live in the click-through popout (renderActiveDetail).
+  const cs = renderCustomerSuccess(job);
   return `
-    <div class="job-card sl-${sl.color}">
+    <div class="job-card clickable sl-${sl.color}" onclick="openActiveDetail('${esc(job.projectNumber)}')" title="Click for project detail">
       <div class="job-header">
         <div>
           <div class="job-name"><span class="stoplight stoplight-${sl.color}"></span>${esc(job.name)}</div>
@@ -1445,15 +1601,12 @@ function renderActiveCard(job, live) {
       <div class="job-stats${isPreconPending ? ' precon-pending' : ''}">
         <div class="job-stat"><span class="k">Contract</span><span class="v">${fmtCompact(contractVal)}</span>${(job.flags || []).some(f => f.type === 'contract') ? `<br><span class="contract-flag">⚑ Procore ${fmtCompact(job.procoreContractValue)}</span>` : ''}</div>
         <div class="job-stat"><span class="k">% complete</span><span class="v">${pctDisp}${pctNote}</span></div>
-        <div class="job-stat"><span class="k">Contracted margin</span>${cMarginHtml}</div>
         <div class="job-stat"><span class="k">Margin to date</span>${mtdHtml}</div>
-        <div class="job-stat"><span class="k">Change orders</span><span class="v${coExceedsThreshold ? ' flag-amber' : ''}">${fmtCO(co)}</span></div>
         <div class="job-stat"><span class="v">${fmtShort(startDate)} → ${fmtShort(finishDate)}</span><br><span class="${schedClass}">${schedText}</span></div>
         ${isPreconPending ? '<div class="precon-note">Financial data will appear once contract is entered in Procore.</div>' : ''}
       </div>
       ${sl.reasons?.length ? `<div class="sl-reason sl-reason-${sl.color}">${sl.reasons.map(r => r.text).join(' · ')}</div>` : ''}
-      ${renderFoundationLine(job)}
-      ${renderCustomerSuccess(job)}
+      ${cs ? `<div onclick="event.stopPropagation()">${cs}</div>` : ''}
     </div>`;
 }
 
