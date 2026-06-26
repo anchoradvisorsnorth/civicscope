@@ -266,6 +266,7 @@
     <button data-view="billing">Billing &amp; AR</button>
     <button data-view="gainfade">Gain/Fade</button>
     <button data-view="wip">WIP</button>
+    <button data-view="subs">Subcontractors</button>
     <button data-view="analysis">Portfolio Analysis</button>
   </div>
 
@@ -274,6 +275,7 @@
   <div id="billing-section" style="display:none"></div>
   <div id="gainfade-section" style="display:none"></div>
   <div id="wip-section" style="display:none"></div>
+  <div id="subs-section" style="display:none"></div>
   <div id="jobs-section">
     <div class="job-controls" id="job-controls" style="display:none">
       <input type="text" id="job-search" placeholder="Search jobs, clients, PMs..." oninput="renderJobs()">
@@ -313,7 +315,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.14.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.15.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -325,7 +327,8 @@ const ACTIVE_API = '/api/ryc-active';
 const FOUNDATION_API = 'https://crm.jbkdevelopment.com/api/ryc-foundation';
 const AR_API = 'https://crm.jbkdevelopment.com/api/ryc-ar';
 const BUILDR_API = 'https://crm.jbkdevelopment.com/api/ryc-buildr';
-let portfolioData = null, activeData = null, foundationData = null, foundationOnly = [], arData = null, buildrData = null, currentView = 'active';
+const SUBS_URL = '/ryc-dashboard/ryc-subcontractors.json';
+let portfolioData = null, activeData = null, foundationData = null, foundationOnly = [], arData = null, buildrData = null, subsData = null, currentView = 'active';
 
 function tryLogin() {
   if (document.getElementById('pw-input').value === 'ryc2026') {
@@ -351,6 +354,7 @@ async function init() {
   } catch { document.getElementById('refresh-status').textContent = 'Procore data unavailable'; activeData = null; }
   try { foundationData = await (await fetch(FOUNDATION_API + '?t=' + Date.now())).json(); } catch { foundationData = null; }
   try { buildrData = await (await fetch(BUILDR_API + '?t=' + Date.now())).json(); } catch { buildrData = null; }
+  try { subsData = await (await fetch(SUBS_URL + '?t=' + Date.now())).json(); } catch { subsData = null; }
   mergeFoundation(activeData, foundationData); // best-source merge; no-op/Procore-only if Foundation unreachable
   renderView();
   wireToggle();
@@ -415,9 +419,10 @@ function renderView() {
   const billingEl = document.getElementById('billing-section');
   const gainfadeEl = document.getElementById('gainfade-section');
   const wipEl = document.getElementById('wip-section');
+  const subsEl = document.getElementById('subs-section');
   const controlsEl = document.getElementById('job-controls');
   const metricsEl = document.getElementById('metrics');
-  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none'; gainfadeEl.style.display = 'none'; wipEl.style.display = 'none';
+  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none'; gainfadeEl.style.display = 'none'; wipEl.style.display = 'none'; subsEl.style.display = 'none';
   if (currentView === 'analysis') {
     analysisEl.style.display = 'block'; metricsEl.style.display = '';
     renderAnalysisMetrics(); renderAnalysis();
@@ -430,6 +435,9 @@ function renderView() {
   } else if (currentView === 'wip') {
     wipEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
     renderWIP();
+  } else if (currentView === 'subs') {
+    subsEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
+    renderSubs();
   } else {
     jobsEl.style.display = 'block'; analysisEl.style.display = 'none'; metricsEl.style.display = '';
     controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
@@ -1054,6 +1062,38 @@ function renderWIP() {
   el.innerHTML = stamp + noFnd + k.band + `<div class="billing-block">
     <h3 class="section-header">Work in progress — earned value &amp; billing <span class="cnt">${flagged.length} flagged${wipShowAll ? ' · all shown' : ''}</span> ${toggle}</h3>
     <div class="billing-sub"><strong>% Comp (cost)</strong> = Foundation cost-to-date ÷ Procore forecast cost (revised budget); amber when it outruns Procore's % complete by ≥10 pts (cost ahead of progress). <strong>Earned</strong> = % complete × contract. <strong>Over/(under)</strong> = billed − earned: <span class="under">(under)</span> = earned work not yet invoiced (collect it), <span class="over">+over</span> = billed ahead of work. Earned-value method — distinct from Billing &amp; AR's bid-ratio "Needs invoiced." Forecast margin = (contract − forecast cost) ÷ contract.</div>
+    ${body}</div>`;
+}
+
+// === Subcontractors — Foundation actual-by-vendor + PO_Sub commitments (2023+ jobs) ===
+let subsShowAll = false;
+function toggleSubsAll() { subsShowAll = !subsShowAll; renderSubs(); }
+function renderSubs() {
+  const el = document.getElementById('subs-section');
+  if (!subsData || !subsData.subs) { el.innerHTML = '<div class="billing-empty">Subcontractor data unavailable.</div>'; return; }
+  const subs = subsData.subs;
+  const stamp = subsData.generated ? `<div class="billing-stamp">Foundation · ${fmtDate(subsData.generated)} · 2023+ jobs</div>` : '';
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  const band = `<div class="kpi-band">
+    ${card('Sub spend (actual)', fmtCompact(subsData.totalActual), '')}
+    ${card('Committed (subcontracts)', fmtCompact(subsData.totalCommitted), '')}
+    ${card('Subcontractors', subsData.subCount, '')}
+    ${card('Top sub', esc((subs[0]?.name || '—').split(/\s+/).slice(0, 2).join(' ')), '')}
+  </div>`;
+  const shown = subsShowAll ? subs : subs.slice(0, 40);
+  let body = '<table class="billing-table"><thead><tr><th>#</th><th>Subcontractor</th><th class="r">Jobs</th><th class="r">Committed</th><th class="r">Actual spend</th><th class="r">Δ vs committed</th></tr></thead><tbody>';
+  shown.forEach((s, i) => {
+    const d = s.variance;
+    const dCell = d == null ? '<span class="muted-cell">—</span>' : `<span class="${d < 0 ? 'under' : 'over'}">${d >= 0 ? '+' : ''}${fmtCompact(d)}</span>`;
+    body += `<tr><td>${i + 1}</td><td>${esc(s.name)}</td><td class="r">${s.actualJobs || s.committedJobs || 0}</td>`
+      + `<td class="r">${s.committed ? fmtCompact(s.committed) : '<span class="muted-cell">—</span>'}</td>`
+      + `<td class="r">${fmtCompact(s.actualCost)}</td><td class="r">${dCell}</td></tr>`;
+  });
+  body += '</tbody></table>';
+  const toggle = `<button class="billing-toggle" onclick="toggleSubsAll()">${subsShowAll ? 'Show top 40' : 'Show all ' + subs.length}</button>`;
+  el.innerHTML = stamp + band + `<div class="billing-block">
+    <h3 class="section-header">Top subcontractors <span class="cnt">${subs.length} subs · ranked by spend</span> ${toggle}</h3>
+    <div class="billing-sub"><strong>Actual</strong> = subcontractor cost booked in Foundation by vendor across 2023+ jobs. <strong>Committed</strong> = signed subcontract amount (PO_Sub). Δ = committed − actual (positive = under/in-progress, negative = actual over the subcontract via change orders or T&amp;M). Committed-vs-actual mixes in-progress jobs and T&amp;M (PO-less) subs — read <strong>Actual</strong> as the spend ranking. The buyout spread vs the original <em>bid</em> carry needs the estimate (ProEst/SharePoint) — a later phase.</div>
     ${body}</div>`;
 }
 
