@@ -104,6 +104,28 @@
   .badge-foundation { background: #dcfce7; color: #15803d; font-size: 10px; }
   .card-sources { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
   .buyout-line { font-size: 12px; color: var(--green); margin-top: 10px; }
+  .job-card.clickable { cursor: pointer; transition: box-shadow .15s, transform .15s; }
+  .job-card.clickable:hover { box-shadow: 0 3px 16px rgba(0,0,0,.12); transform: translateY(-1px); }
+  #detail-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: none; z-index: 1000; }
+  #detail-overlay.open { display: block; }
+  #detail-panel { position: fixed; top: 0; right: 0; height: 100%; width: 640px; max-width: 94vw; background: var(--surface); box-shadow: -6px 0 28px rgba(0,0,0,.25); overflow-y: auto; transform: translateX(100%); transition: transform .22s ease; }
+  #detail-overlay.open #detail-panel { transform: translateX(0); }
+  .detail-head { padding: 22px 26px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .detail-head .dh-name { font-size: 19px; font-weight: 700; }
+  .detail-head .dh-client { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .detail-close { position: absolute; top: 18px; right: 22px; font-size: 24px; line-height: 1; cursor: pointer; color: var(--muted); background: none; border: none; }
+  .detail-body { padding: 18px 26px 40px; }
+  .detail-section { margin-bottom: 24px; }
+  .detail-section h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+  .detail-grid .k { font-size: 11px; color: var(--muted); display: block; }
+  .detail-grid .v { font-size: 15px; font-weight: 500; }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .detail-table th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 500; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  .detail-table td { padding: 6px 8px; border-bottom: 1px solid #f0efe9; }
+  .detail-table td.r, .detail-table th.r { text-align: right; }
+  .detail-table tr.sub-row td { font-weight: 600; background: #f6fdf9; }
+  .detail-table tfoot td { font-weight: 700; border-top: 2px solid var(--border); }
   .badge-off { background: #f3f4f6 !important; color: #9ca3af !important; text-decoration: line-through; text-decoration-color: #dc2626; text-decoration-thickness: 2px; }
   .badges { display: flex; gap: 4px; flex-wrap: wrap; }
 
@@ -316,9 +338,13 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.15.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.16.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
+</div>
+
+<div id="detail-overlay" onclick="if(event.target.id==='detail-overlay')closeDetail()">
+  <div id="detail-panel"></div>
 </div>
 
 <script>
@@ -1066,6 +1092,74 @@ function renderWIP() {
     ${body}</div>`;
 }
 
+// === Job detail slide-over =========================================================
+function openDetail(id) {
+  const job = (portfolioData?.jobs || []).find(j => j.id === id);
+  if (!job) return;
+  document.getElementById('detail-panel').innerHTML = renderCompletedDetail(job);
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-panel').scrollTop = 0;
+}
+function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+
+function renderCompletedDetail(job) {
+  const actual = getBestMargin(job), bid = job.bidMarginPct, bo = job.buyout;
+  const mDelta = (actual != null && bid != null) ? actual - bid : null;
+  const srcTile = (label, on, cls) => `<span class="badge ${cls}${on ? '' : ' badge-off'}">${label}</span>`;
+  const sources = srcTile('Foundation', job.source === 'foundation', 'badge-foundation') + srcTile('Procore', !!job.procoreId, 'badge-procore');
+
+  const stat = (k, v) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const outcome = `<div class="detail-grid">
+    ${stat('Original contract', fmtCompact(job.contractOriginal))}
+    ${stat('Final contract', fmtCompact(job.contractFinal) + (job.coPct != null && job.changeOrders ? ` <span class="note">(${job.changeOrders >= 0 ? '+' : ''}${pct(job.coPct)} COs)</span>` : ''))}
+    ${stat('As-bid margin', bid != null ? pct(bid) : '—')}
+    ${stat('Actual margin', `<span class="${marginClass(actual)}">${actual != null ? pct(actual) : '—'}</span>` + (mDelta != null ? ` <span class="${mDelta >= 0 ? 'flag-green' : 'flag-red'}">${mDelta >= 0 ? '▲ +' : '▼ '}${mDelta.toFixed(1)} pts</span>` : ''))}
+    ${stat('Final cost', fmtCompact(job.directCost))}
+    ${stat('Duration', job.durationMonths != null ? job.durationMonths + ' mo' : '—')}
+    ${stat('Completed', fmtShort(job.actualCompletion))}
+    ${stat('PM', esc(job.pmName || '—'))}
+  </div>`;
+
+  let buyoutSec = '';
+  if (bo && bo.byClass && bo.byClass.length) {
+    const rows = bo.byClass.map(c => {
+      const isSub = /^sub/i.test(c.cls) || /ubcontract/i.test(c.cls), buy = c.est - c.act;
+      return `<tr class="${isSub ? 'sub-row' : ''}"><td>${esc(c.cls)}${isSub ? ' — subcontract' : ''}</td><td class="r">${fmtCompact(c.est)}</td><td class="r">${fmtCompact(c.act)}</td><td class="r ${buy >= 0 ? 'flag-green' : 'flag-red'}">${buy >= 0 ? '+' : ''}${fmtCompact(buy)}</td></tr>`;
+    }).join('');
+    buyoutSec = `<div class="detail-section"><h4>Buyout — estimate vs actual by cost class</h4>
+      <table class="detail-table"><thead><tr><th>Cost class</th><th class="r">Estimate</th><th class="r">Actual</th><th class="r">Buyout</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td>Total${bo.subPct > 0 ? ` · ${bo.subPct}% from subcontract` : ''}</td><td class="r"></td><td class="r"></td><td class="r ${bo.total >= 0 ? 'flag-green' : 'flag-red'}">${bo.total >= 0 ? '+' : ''}${fmtCompact(bo.total)}</td></tr></tfoot></table>
+      <div class="note" style="margin-top:6px">Estimate = Foundation job budget by cost class; actual = costs booked. Positive = came in under bid (buyout/savings).</div></div>`;
+  }
+
+  let subsSec = '';
+  if (job.subs && job.subs.length) {
+    const rows = job.subs.map(s => `<tr><td>${esc(s.name)}</td><td class="r">${fmtCompact(s.cost)}</td></tr>`).join('');
+    subsSec = `<div class="detail-section"><h4>Subcontractors on this job (actual spend)</h4>
+      <table class="detail-table"><thead><tr><th>Subcontractor</th><th class="r">Actual cost</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  let opsSec = '';
+  if (job.procoreId && (job.rfis || job.submittals || job.changeEvents || job.sqft)) {
+    opsSec = `<div class="detail-section"><h4>Project detail (Procore)</h4><div class="detail-grid">
+      ${job.rfis ? stat('RFIs', job.rfis) : ''}${job.submittals ? stat('Submittals', job.submittals) : ''}
+      ${job.changeEvents ? stat('Change events', job.changeEvents) : ''}${job.sqft ? stat('Square feet', job.sqft.toLocaleString()) : ''}
+    </div></div>`;
+  }
+
+  return `<div class="detail-head">
+      <button class="detail-close" onclick="closeDetail()">×</button>
+      <div class="dh-name">${esc(job.name)}</div>
+      <div class="dh-client">${esc(job.client)} · ${typeName(job.clientType)} · <span class="badge badge-completed">Completed</span></div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-section"><h4>Outcome</h4>${outcome}<div class="card-sources" style="justify-content:flex-start;margin-top:14px">${sources}</div></div>
+      ${buyoutSec}${subsSec}${opsSec}
+    </div>`;
+}
+
 // === Subcontractors — Foundation actual-by-vendor + PO_Sub commitments (2023+ jobs) ===
 let subsShowAll = false;
 function toggleSubsAll() { subsShowAll = !subsShowAll; renderSubs(); }
@@ -1382,7 +1476,7 @@ function renderCompletedCard(job) {
   const footer = `<div class="note" style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">${bits.join(' &nbsp;\u00b7&nbsp; ')}</div>`;
 
   return `
-    <div class="job-card">
+    <div class="job-card clickable" onclick="openDetail('${job.id}')" title="Click for project detail">
       <div class="job-header">
         <div><div class="job-name">${esc(job.name)}</div><div class="job-client">${esc(job.client)}</div></div>
         <div class="badges">
