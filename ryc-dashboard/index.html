@@ -103,6 +103,7 @@
   .badge-procore { background: #fef9c3; color: #854d0e; font-size: 10px; }
   .badge-foundation { background: #dcfce7; color: #15803d; font-size: 10px; }
   .card-sources { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
+  .buyout-line { font-size: 12px; color: var(--green); margin-top: 10px; }
   .badge-off { background: #f3f4f6 !important; color: #9ca3af !important; text-decoration: line-through; text-decoration-color: #dc2626; text-decoration-thickness: 2px; }
   .badges { display: flex; gap: 4px; flex-wrap: wrap; }
 
@@ -1396,6 +1397,7 @@ function renderCompletedCard(job) {
         <div class="job-stat"><span class="k">Duration</span><span class="v">${dur != null ? dur + ' mo' : '\u2014'}</span>${ovrNote}</div>
         <div class="job-stat"><span class="k">Completed</span><span class="v">${fmtShort(job.actualCompletion)}</span></div>
       </div>
+      ${job.buyout && job.buyout.total > 25000 ? `<div class="buyout-line">Buyout <strong>${fmtCompact(job.buyout.total)}</strong>${job.buyout.subPct > 0 ? ` · ${job.buyout.subPct}% subcontract` : ''} <span class="note">(estimate − actual by cost class)</span></div>` : ''}
       ${footer}
       ${sourceTiles}
     </div>`;

@@ -1,5 +1,5 @@
 {
- "generated": "2026-06-25T23:59:27.010Z",
+ "generated": "2026-06-26T00:54:31.846Z",
  "_note": "Completed RYC jobs, 2023+, Foundation-authoritative financials. Curated via COMPLETED_META (build-completed-portfolio.js).",
  "jobs": [
   {
@@ -27,6 +27,33 @@
    "submittals": 146,
    "changeEvents": 72,
    "sqft": null,
+   "buyout": {
+    "total": -659478,
+    "sub": -652187,
+    "subPct": null,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 159770,
+      "act": 83308
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 14163
+     },
+     {
+      "cls": "MAT",
+      "est": 85180,
+      "act": 154720
+     },
+     {
+      "cls": "SUB",
+      "est": 5513345,
+      "act": 6165532
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -60,6 +87,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 852035,
+    "sub": 656721,
+    "subPct": 77,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 3372315,
+      "act": 2715594
+     },
+     {
+      "cls": "LAB",
+      "est": 361855,
+      "act": 104829
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 14065
+     },
+     {
+      "cls": "MAT",
+      "est": 252962,
+      "act": 300921
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -92,6 +146,38 @@
    "submittals": 40,
    "changeEvents": 25,
    "sqft": 45150,
+   "buyout": {
+    "total": 137947,
+    "sub": -36025,
+    "subPct": -26,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 261580,
+      "act": 63307
+     },
+     {
+      "cls": "OTH",
+      "est": 0,
+      "act": 1515
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 10493
+     },
+     {
+      "cls": "MAT",
+      "est": 1074521,
+      "act": 1086815
+     },
+     {
+      "cls": "SUB",
+      "est": 2057449,
+      "act": 2093474
+     }
+    ]
+   },
    "year": 2025,
    "status": "completed",
    "source": "foundation",
@@ -126,6 +212,38 @@
    "submittals": 89,
    "changeEvents": 72,
    "sqft": 8256,
+   "buyout": {
+    "total": -206991,
+    "sub": 184180,
+    "subPct": null,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 2929193,
+      "act": 2745012
+     },
+     {
+      "cls": "LAB",
+      "est": 123370,
+      "act": 105141
+     },
+     {
+      "cls": "OTH",
+      "est": 0,
+      "act": 2358
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 16607
+     },
+     {
+      "cls": "MAT",
+      "est": 405026,
+      "act": 795462
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -159,6 +277,33 @@
    "submittals": 3,
    "changeEvents": 16,
    "sqft": null,
+   "buyout": {
+    "total": 494599,
+    "sub": 471825,
+    "subPct": 95,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 3430606,
+      "act": 2958781
+     },
+     {
+      "cls": "LAB",
+      "est": 126750,
+      "act": 90168
+     },
+     {
+      "cls": "MAT",
+      "est": 5900,
+      "act": 5697
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 14011
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -192,6 +337,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 643887,
+    "sub": 639494,
+    "subPct": 99,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 3632008,
+      "act": 2992514
+     },
+     {
+      "cls": "BUR",
+      "est": 99536,
+      "act": 11474
+     },
+     {
+      "cls": "MAT",
+      "est": 0,
+      "act": 5450
+     },
+     {
+      "cls": "LAB",
+      "est": 0,
+      "act": 78171
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -224,6 +396,38 @@
    "submittals": 169,
    "changeEvents": 57,
    "sqft": 9146,
+   "buyout": {
+    "total": -335152,
+    "sub": -206844,
+    "subPct": null,
+    "byClass": [
+     {
+      "cls": "OTH",
+      "est": 0,
+      "act": 515
+     },
+     {
+      "cls": "LAB",
+      "est": 132427,
+      "act": 135744
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 20483
+     },
+     {
+      "cls": "MAT",
+      "est": 165535,
+      "act": 269529
+     },
+     {
+      "cls": "SUB",
+      "est": 2614660,
+      "act": 2821503
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -261,6 +465,33 @@
    "submittals": 106,
    "changeEvents": 16,
    "sqft": null,
+   "buyout": {
+    "total": 69768,
+    "sub": 149231,
+    "subPct": 214,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 1712470,
+      "act": 1563239
+     },
+     {
+      "cls": "LAB",
+      "est": 107857,
+      "act": 89236
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 12562
+     },
+     {
+      "cls": "MAT",
+      "est": 327203,
+      "act": 412725
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -297,6 +528,38 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": -62525,
+    "sub": -148917,
+    "subPct": null,
+    "byClass": [
+     {
+      "cls": "MAT",
+      "est": 388255,
+      "act": 327775
+     },
+     {
+      "cls": "LAB",
+      "est": 113200,
+      "act": 76032
+     },
+     {
+      "cls": "REQ",
+      "est": 0,
+      "act": 869
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 10387
+     },
+     {
+      "cls": "SUB",
+      "est": 1546703,
+      "act": 1695619
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -329,6 +592,38 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 90144,
+    "sub": -195355,
+    "subPct": -217,
+    "byClass": [
+     {
+      "cls": "MAT",
+      "est": 296753,
+      "act": 68485
+     },
+     {
+      "cls": "LAB",
+      "est": 91997,
+      "act": 28755
+     },
+     {
+      "cls": "OTH",
+      "est": 0,
+      "act": 1408
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 4602
+     },
+     {
+      "cls": "SUB",
+      "est": 1255492,
+      "act": 1450847
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -361,6 +656,38 @@
    "submittals": null,
    "changeEvents": 19,
    "sqft": null,
+   "buyout": {
+    "total": 170773,
+    "sub": 64820,
+    "subPct": 38,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 232700,
+      "act": 119141
+     },
+     {
+      "cls": "SUB",
+      "est": 889485,
+      "act": 824665
+     },
+     {
+      "cls": "MAT",
+      "est": 211871,
+      "act": 199366
+     },
+     {
+      "cls": "OTH",
+      "est": 0,
+      "act": 3152
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 16959
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -394,6 +721,28 @@
    "submittals": null,
    "changeEvents": 1,
    "sqft": 20000,
+   "buyout": {
+    "total": 764800,
+    "sub": 599377,
+    "subPct": 78,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 725650,
+      "act": 126273
+     },
+     {
+      "cls": "MAT",
+      "est": 710959,
+      "act": 619628
+     },
+     {
+      "cls": "LAB",
+      "est": 75487,
+      "act": 1224
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -427,6 +776,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 142416,
+    "sub": 83590,
+    "subPct": 59,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 973848,
+      "act": 890258
+     },
+     {
+      "cls": "LAB",
+      "est": 96980,
+      "act": 19873
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 3241
+     },
+     {
+      "cls": "MAT",
+      "est": 26757,
+      "act": 41796
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -459,6 +835,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 76082,
+    "sub": 23723,
+    "subPct": 31,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 155870,
+      "act": 58177
+     },
+     {
+      "cls": "SUB",
+      "est": 750117,
+      "act": 726394
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 8182
+     },
+     {
+      "cls": "MAT",
+      "est": 55181,
+      "act": 92333
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -491,6 +894,33 @@
    "submittals": 5,
    "changeEvents": 13,
    "sqft": null,
+   "buyout": {
+    "total": 231707,
+    "sub": 115295,
+    "subPct": 50,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 952486,
+      "act": 837191
+     },
+     {
+      "cls": "LAB",
+      "est": 92040,
+      "act": 5206
+     },
+     {
+      "cls": "MAT",
+      "est": 40612,
+      "act": 10342
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 692
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -524,6 +954,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 136739,
+    "sub": 63508,
+    "subPct": 46,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 188760,
+      "act": 46847
+     },
+     {
+      "cls": "SUB",
+      "est": 143369,
+      "act": 79861
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 6335
+     },
+     {
+      "cls": "MAT",
+      "est": 692528,
+      "act": 754876
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -556,6 +1013,33 @@
    "submittals": null,
    "changeEvents": 7,
    "sqft": 20000,
+   "buyout": {
+    "total": 23555,
+    "sub": 53566,
+    "subPct": 227,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 777524,
+      "act": 723958
+     },
+     {
+      "cls": "LAB",
+      "est": 85713,
+      "act": 49051
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 7075
+     },
+     {
+      "cls": "MAT",
+      "est": 95766,
+      "act": 154964
+     }
+    ]
+   },
    "year": 2025,
    "status": "completed",
    "source": "foundation",
@@ -590,6 +1074,33 @@
    "submittals": 45,
    "changeEvents": 29,
    "sqft": null,
+   "buyout": {
+    "total": 58526,
+    "sub": 110153,
+    "subPct": 188,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 704647,
+      "act": 594494
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 12770
+     },
+     {
+      "cls": "LAB",
+      "est": 77090,
+      "act": 92580
+     },
+     {
+      "cls": "MAT",
+      "est": 166459,
+      "act": 189825
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -624,6 +1135,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 6360,
+    "sub": -16166,
+    "subPct": -254,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 67600,
+      "act": 40523
+     },
+     {
+      "cls": "MAT",
+      "est": 59351,
+      "act": 58516
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 5386
+     },
+     {
+      "cls": "SUB",
+      "est": 680733,
+      "act": 696899
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -656,6 +1194,7 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": null,
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -688,6 +1227,33 @@
    "submittals": 3,
    "changeEvents": 1,
    "sqft": null,
+   "buyout": {
+    "total": 49138,
+    "sub": 31397,
+    "subPct": 64,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 646550,
+      "act": 615152
+     },
+     {
+      "cls": "LAB",
+      "est": 22984,
+      "act": 5752
+     },
+     {
+      "cls": "MAT",
+      "est": 4582,
+      "act": 3305
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 769
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -721,6 +1287,33 @@
    "submittals": 5,
    "changeEvents": 4,
    "sqft": null,
+   "buyout": {
+    "total": 162654,
+    "sub": 112855,
+    "subPct": 69,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 608471,
+      "act": 495616
+     },
+     {
+      "cls": "LAB",
+      "est": 49400,
+      "act": 9771
+     },
+     {
+      "cls": "MAT",
+      "est": 13509,
+      "act": 2029
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 1310
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -754,6 +1347,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 42601,
+    "sub": 9614,
+    "subPct": 23,
+    "byClass": [
+     {
+      "cls": "MAT",
+      "est": 82299,
+      "act": 60538
+     },
+     {
+      "cls": "LAB",
+      "est": 47390,
+      "act": 31442
+     },
+     {
+      "cls": "SUB",
+      "est": 485557,
+      "act": 475943
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 4723
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -786,6 +1406,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 75406,
+    "sub": 76845,
+    "subPct": 102,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 483865,
+      "act": 407019
+     },
+     {
+      "cls": "LAB",
+      "est": 73710,
+      "act": 37875
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 5100
+     },
+     {
+      "cls": "MAT",
+      "est": 36211,
+      "act": 68385
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -818,6 +1465,38 @@
    "submittals": 59,
    "changeEvents": 10,
    "sqft": null,
+   "buyout": {
+    "total": 45665,
+    "sub": 2242,
+    "subPct": 5,
+    "byClass": [
+     {
+      "cls": "MAT",
+      "est": 40513,
+      "act": 9554
+     },
+     {
+      "cls": "LAB",
+      "est": 35447,
+      "act": 17523
+     },
+     {
+      "cls": "SUB",
+      "est": 489866,
+      "act": 487624
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 2310
+     },
+     {
+      "cls": "OTH",
+      "est": 0,
+      "act": 3150
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -851,6 +1530,33 @@
    "submittals": null,
    "changeEvents": 1,
    "sqft": null,
+   "buyout": {
+    "total": 112832,
+    "sub": 98130,
+    "subPct": 87,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 448947,
+      "act": 350816
+     },
+     {
+      "cls": "LAB",
+      "est": 13358,
+      "act": 4296
+     },
+     {
+      "cls": "MAT",
+      "est": 6200,
+      "act": 0
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 560
+     }
+    ]
+   },
    "year": 2025,
    "status": "completed",
    "source": "foundation",
@@ -884,6 +1590,33 @@
    "submittals": 17,
    "changeEvents": 8,
    "sqft": null,
+   "buyout": {
+    "total": 26657,
+    "sub": 33646,
+    "subPct": 126,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 312378,
+      "act": 278733
+     },
+     {
+      "cls": "LAB",
+      "est": 64242,
+      "act": 60944
+     },
+     {
+      "cls": "MAT",
+      "est": 69972,
+      "act": 71961
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 8298
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -921,6 +1654,7 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": null,
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -953,6 +1687,33 @@
    "submittals": 1,
    "changeEvents": 11,
    "sqft": null,
+   "buyout": {
+    "total": 783,
+    "sub": -103688,
+    "subPct": -13237,
+    "byClass": [
+     {
+      "cls": "MAT",
+      "est": 83013,
+      "act": 10043
+     },
+     {
+      "cls": "LAB",
+      "est": 67373,
+      "act": 31313
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 4559
+     },
+     {
+      "cls": "SUB",
+      "est": 302275,
+      "act": 405963
+     }
+    ]
+   },
    "year": 2025,
    "status": "completed",
    "source": "foundation",
@@ -986,6 +1747,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 133061,
+    "sub": 72373,
+    "subPct": 54,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 327517,
+      "act": 255144
+     },
+     {
+      "cls": "LAB",
+      "est": 71110,
+      "act": 22224
+     },
+     {
+      "cls": "MAT",
+      "est": 29351,
+      "act": 14679
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 2869
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -1018,6 +1806,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 13781,
+    "sub": 10100,
+    "subPct": 73,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 20713,
+      "act": 7114
+     },
+     {
+      "cls": "SUB",
+      "est": 415577,
+      "act": 405476
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 1036
+     },
+     {
+      "cls": "MAT",
+      "est": 300,
+      "act": 9182
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -1050,6 +1865,28 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": -18165,
+    "sub": -20917,
+    "subPct": null,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 4330,
+      "act": 463
+     },
+     {
+      "cls": "OTH",
+      "est": 0,
+      "act": 1070
+     },
+     {
+      "cls": "SUB",
+      "est": 283746,
+      "act": 304663
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -1082,6 +1919,23 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 312083,
+    "sub": 303633,
+    "subPct": 97,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 323466,
+      "act": 19833
+     },
+     {
+      "cls": "LAB",
+      "est": 8450,
+      "act": 0
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -1114,6 +1968,28 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 59926,
+    "sub": -383,
+    "subPct": -1,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 62053,
+      "act": 1992
+     },
+     {
+      "cls": "MAT",
+      "est": 713,
+      "act": 139
+     },
+     {
+      "cls": "SUB",
+      "est": 260130,
+      "act": 260513
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -1146,6 +2022,33 @@
    "submittals": 1,
    "changeEvents": 12,
    "sqft": null,
+   "buyout": {
+    "total": 56434,
+    "sub": 41923,
+    "subPct": 74,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 202443,
+      "act": 160520
+     },
+     {
+      "cls": "LAB",
+      "est": 45717,
+      "act": 12664
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 1805
+     },
+     {
+      "cls": "MAT",
+      "est": 24777,
+      "act": 41513
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -1179,6 +2082,7 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": null,
    "year": 2025,
    "status": "completed",
    "source": "foundation",
@@ -1211,6 +2115,38 @@
    "submittals": null,
    "changeEvents": 8,
    "sqft": null,
+   "buyout": {
+    "total": 32905,
+    "sub": 92824,
+    "subPct": 282,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 242231,
+      "act": 149407
+     },
+     {
+      "cls": "LAB",
+      "est": 18070,
+      "act": 6718
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 905
+     },
+     {
+      "cls": "OTH",
+      "est": 0,
+      "act": 5355
+     },
+     {
+      "cls": "MAT",
+      "est": 44972,
+      "act": 109983
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -1244,6 +2180,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 10702,
+    "sub": -13054,
+    "subPct": -122,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 39845,
+      "act": 15997
+     },
+     {
+      "cls": "MAT",
+      "est": 37981,
+      "act": 35761
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 2312
+     },
+     {
+      "cls": "SUB",
+      "est": 168100,
+      "act": 181155
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -1276,6 +2239,33 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": {
+    "total": 55394,
+    "sub": -57844,
+    "subPct": -104,
+    "byClass": [
+     {
+      "cls": "MAT",
+      "est": 79301,
+      "act": 10159
+     },
+     {
+      "cls": "LAB",
+      "est": 49663,
+      "act": 4855
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 711
+     },
+     {
+      "cls": "SUB",
+      "est": 93211,
+      "act": 151055
+     }
+    ]
+   },
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -1308,6 +2298,33 @@
    "submittals": 8,
    "changeEvents": 3,
    "sqft": null,
+   "buyout": {
+    "total": 39868,
+    "sub": 23757,
+    "subPct": 60,
+    "byClass": [
+     {
+      "cls": "SUB",
+      "est": 84915,
+      "act": 61157
+     },
+     {
+      "cls": "LAB",
+      "est": 76375,
+      "act": 57854
+     },
+     {
+      "cls": "MAT",
+      "est": 83125,
+      "act": 77498
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 8037
+     }
+    ]
+   },
    "year": 2024,
    "status": "completed",
    "source": "foundation",
@@ -1341,6 +2358,7 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": null,
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -1373,6 +2391,7 @@
    "submittals": null,
    "changeEvents": null,
    "sqft": null,
+   "buyout": null,
    "year": 2023,
    "status": "completed",
    "source": "foundation",
@@ -1405,6 +2424,33 @@
    "submittals": 6,
    "changeEvents": 5,
    "sqft": null,
+   "buyout": {
+    "total": 1843,
+    "sub": -10673,
+    "subPct": -579,
+    "byClass": [
+     {
+      "cls": "LAB",
+      "est": 22100,
+      "act": 8288
+     },
+     {
+      "cls": "MAT",
+      "est": 15935,
+      "act": 16055
+     },
+     {
+      "cls": "BUR",
+      "est": 0,
+      "act": 1176
+     },
+     {
+      "cls": "SUB",
+      "est": 175868,
+      "act": 186541
+     }
+    ]
+   },
    "year": 2025,
    "status": "completed",
    "source": "foundation",
