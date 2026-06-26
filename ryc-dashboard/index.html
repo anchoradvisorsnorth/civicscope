@@ -133,6 +133,8 @@
   .detail-table td { padding: 6px 8px; border-bottom: 1px solid #f0efe9; }
   .detail-table td.r, .detail-table th.r { text-align: right; }
   .detail-table tr.sub-row td { font-weight: 600; background: #f6fdf9; }
+  .billing-table tr.sub-row-click { cursor: pointer; }
+  .billing-table tr.sub-row-click:hover td { background: #f0f4ff; }
   .detail-table tfoot td { font-weight: 700; border-top: 2px solid var(--border); }
   .badge-off { background: #f3f4f6 !important; color: #9ca3af !important; text-decoration: line-through; text-decoration-color: #dc2626; text-decoration-thickness: 2px; }
   .badges { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -346,7 +348,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.17.1-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.18.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -1195,6 +1197,34 @@ function renderCompletedDetail(job) {
     </div>`;
 }
 
+function openSubDetail(vendorNo) {
+  const s = (subsData?.subs || []).find(x => x.vendorNo === vendorNo);
+  if (!s) return;
+  const stat = (k, v) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const jobRows = (s.jobs || []).map(j => {
+    const v = (j.committed > 0 && j.actual > 0) ? j.committed - j.actual : null;
+    return `<tr><td><span class="jno">${esc(j.jobNo)}</span> ${esc(j.jobName || '')}</td><td class="r">${j.committed ? fmtCompact(j.committed) : '—'}</td><td class="r">${fmtCompact(j.actual)}</td><td class="r ${v != null && v < 0 ? 'under' : ''}">${v == null ? '—' : (v >= 0 ? '+' : '') + fmtCompact(v)}</td></tr>`;
+  }).join('');
+  document.getElementById('detail-panel').innerHTML = `<div class="detail-head">
+      <button class="detail-close" onclick="closeDetail()">×</button>
+      <div class="dh-name">${esc(s.name)}</div>
+      <div class="dh-client">Subcontractor · ${s.actualJobs || (s.jobs || []).length} jobs (2023+)</div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-section"><h4>Total across RYC (2023+)</h4><div class="detail-grid">
+        ${stat('Actual spend', fmtCompact(s.actualCost))}
+        ${stat('Committed (subcontracts)', s.committed ? fmtCompact(s.committed) : '—')}
+        ${stat('Jobs', s.actualJobs || (s.jobs || []).length)}
+        ${stat('Δ committed − actual', s.variance == null ? '—' : (s.variance >= 0 ? '+' : '') + fmtCompact(s.variance))}
+      </div></div>
+      <div class="detail-section"><h4>Jobs (top ${(s.jobs || []).length} by spend)</h4>
+        <table class="detail-table"><thead><tr><th>Job</th><th class="r">Committed</th><th class="r">Actual</th><th class="r">Δ</th></tr></thead><tbody>${jobRows || '<tr><td colspan="4">No job detail.</td></tr>'}</tbody></table>
+        <div class="note" style="margin-top:6px">Δ = committed − actual: positive = under/in-progress, negative = actual over the subcontract (change orders or T&amp;M).</div></div>
+    </div>`;
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-panel').scrollTop = 0;
+}
+
 // === Subcontractors — Foundation actual-by-vendor + PO_Sub commitments (2023+ jobs) ===
 let subsShowAll = false;
 function toggleSubsAll() { subsShowAll = !subsShowAll; renderSubs(); }
@@ -1215,7 +1245,7 @@ function renderSubs() {
   shown.forEach((s, i) => {
     const d = s.variance;
     const dCell = d == null ? '<span class="muted-cell">—</span>' : `<span class="${d < 0 ? 'under' : 'over'}">${d >= 0 ? '+' : ''}${fmtCompact(d)}</span>`;
-    body += `<tr><td>${i + 1}</td><td>${esc(s.name)}</td><td class="r">${s.actualJobs || s.committedJobs || 0}</td>`
+    body += `<tr class="sub-row-click" onclick="openSubDetail('${esc(s.vendorNo)}')" title="Click for this sub's job history"><td>${i + 1}</td><td>${esc(s.name)}</td><td class="r">${s.actualJobs || s.committedJobs || 0}</td>`
       + `<td class="r">${s.committed ? fmtCompact(s.committed) : '<span class="muted-cell">—</span>'}</td>`
       + `<td class="r">${fmtCompact(s.actualCost)}</td><td class="r">${dCell}</td></tr>`;
   });
