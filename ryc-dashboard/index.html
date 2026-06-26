@@ -102,6 +102,8 @@
   .badge-sp { background: #e0f2fe; color: #0369a1; font-size: 10px; }
   .badge-procore { background: #fef9c3; color: #854d0e; font-size: 10px; }
   .badge-foundation { background: #dcfce7; color: #15803d; font-size: 10px; }
+  .card-sources { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
+  .badge-off { background: #f3f4f6 !important; color: #9ca3af !important; text-decoration: line-through; text-decoration-color: #dc2626; text-decoration-thickness: 2px; }
   .badges { display: flex; gap: 4px; flex-wrap: wrap; }
 
   /* Stoplight */
@@ -1308,15 +1310,24 @@ function renderCompletedCard(job) {
   const arrow = delta == null ? '' : delta >= 0.5 ? ' <span class="flag-green">\u25b2</span>'
               : delta <= -0.5 ? ' <span class="flag-red">\u25bc</span>' : '';
   const ovr = job.scheduleOverrunMonths, dur = job.durationMonths;
-  const sources = [];
-  if (job.source === 'foundation') sources.push('<span class="badge badge-foundation">Foundation</span>');
-  if (job.sp) sources.push('<span class="badge badge-sp">SP</span>');
-  if (job.procoreId) sources.push('<span class="badge badge-procore">Procore</span>');
+  // Data-source tiles (bottom-right): every card shows the full source set; sources not queried for
+  // this card are kept but struck through in red.
+  const srcTile = (label, on, cls) => `<span class="badge ${cls}${on ? '' : ' badge-off'}">${label}</span>`;
+  const sourceTiles = `<div class="card-sources">`
+    + srcTile('Foundation', job.source === 'foundation', 'badge-foundation')
+    + srcTile('Procore', !!job.procoreId, 'badge-procore')
+    + srcTile('SharePoint', !!job.sp, 'badge-sp')
+    + `</div>`;
 
   const coNote = (job.coPct != null && job.changeOrders)
     ? `<div class="note">${job.changeOrders >= 0 ? '+' : ''}${fmtCompact(job.changeOrders)} COs (${pct(job.coPct)})</div>` : '';
-  const ovrNote = ovr == null ? '' : ovr <= 0 ? '<div class="note flag-green">on time</div>'
-    : `<div class="note ${ovr > 6 ? 'flag-red' : ovr > 2 ? 'flag-amber' : ''}">+${ovr} mo vs plan</div>`;
+  // Only show "vs plan" when the planned duration is internally consistent (start→planned ≥ 1 mo, same
+  // source as duration). Procore's projected-finish dates are often stale and otherwise produce nonsense
+  // like "9 mo duration · +11 mo vs plan" (implying a negative planned duration).
+  const planned = job.plannedMonths;
+  const showOvr = ovr != null && planned != null && planned >= 1;
+  const ovrNote = !showOvr ? '' : ovr <= 0 ? '<div class="note flag-green">on time</div>'
+    : `<div class="note ${ovr > 6 ? 'flag-red' : ovr > 2 ? 'flag-amber' : ''}">+${ovr} mo vs plan (${planned}→${dur} mo)</div>`;
 
   const bits = [`Final cost ${fmtCompact(job.directCost)}`];
   if (job.procoreId) {
@@ -1336,9 +1347,9 @@ function renderCompletedCard(job) {
         <div class="badges">
           <span class="badge badge-completed">Completed</span>
           <span class="badge badge-${job.clientType}">${typeName(job.clientType)}</span>
-          ${sources.join('')}
         </div>
       </div>
+      ${job.pmName ? `<div class="job-people">PM <strong>${esc(job.pmName)}</strong></div>` : ''}
       <div class="job-stats">
         <div class="job-stat"><span class="k">Contract (orig \u2192 final)</span><span class="v">${fmtCompact(job.contractOriginal)} \u2192 ${fmtCompact(job.contractFinal)}</span>${coNote}</div>
         <div class="job-stat"><span class="k">Margin (bid \u2192 actual)</span><span class="v">${bid != null ? pct(bid) : '\u2014'} \u2192 <span class="${marginClass(actual)} ${dqClass(job.dataQuality?.margin)}">${actual != null ? pct(actual) : '\u2014'}</span>${arrow}</span></div>
@@ -1346,6 +1357,7 @@ function renderCompletedCard(job) {
         <div class="job-stat"><span class="k">Completed</span><span class="v">${fmtShort(job.actualCompletion)}</span></div>
       </div>
       ${footer}
+      ${sourceTiles}
     </div>`;
 }
 </script>
