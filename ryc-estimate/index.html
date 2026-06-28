@@ -85,7 +85,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>Estimating Assist</h1><div class="meta">v1.1.0 · plans &amp; specs → estimate, grounded in RYC history</div></div>
+    <div><h1>Estimating Assist</h1><div class="meta">v1.1.1 · plans &amp; specs → estimate, grounded in RYC history</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -186,8 +186,11 @@ async function loadPortfolio() {
 }
 const CLASS_LABEL = { SUB: 'Subcontract', MAT: 'Material', LAB: 'Self-perform labor', BUR: 'Labor burden', EQU: 'Equipment', OTH: 'Other', REQ: 'Other' };
 
-function segBenchmarks(ct, wt) {
-  const jobs = (portfolio?.jobs || []).filter(j => j.contractFinal);
+function ciNorm(s) { return (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !['the', 'and', 'for', 'new'].includes(w)); }
+function ciSameJob(a, b) { const A = new Set(ciNorm(a)), B = new Set(ciNorm(b)); if (!A.size || !B.size) return false; let inter = 0; for (const x of A) if (B.has(x)) inter++; const union = new Set([...A, ...B]).size; return union > 0 && inter / union >= 0.5; }
+function segBenchmarks(ct, wt, excludeName) {
+  let excluded = 0;
+  const jobs = (portfolio?.jobs || []).filter(j => { if (!j.contractFinal) return false; if (excludeName && ciSameJob(excludeName, j.name)) { excluded++; return false; } return true; });
   let set = jobs.filter(j => j.clientType === ct && j.workType === wt), basis = 'client type + work type';
   if (set.length < 3) { const s = jobs.filter(j => j.clientType === ct); if (s.length > set.length) { set = s; basis = 'client type'; } }
   if (set.length < 3) { const s = jobs.filter(j => j.workType === wt); if (s.length > set.length) { set = s; basis = 'work type'; } }
@@ -207,7 +210,7 @@ function segBenchmarks(ct, wt) {
   const actMargin = contract > 0 ? (contract - cost) / contract * 100 : null;
   const contracts = set.map(j => j.contractFinal).filter(Boolean).sort((a, b) => a - b);
   return {
-    n: set.length, basis, bidMargin, actMargin,
+    n: set.length, basis, excluded, bidMargin, actMargin,
     gainFade: (bidMargin != null && actMargin != null) ? actMargin - bidMargin : null,
     buy, buySubPct: buy > 0 ? buySub / buy * 100 : null,
     comp: compPct, medianPSF: psf.length ? psf[Math.floor(psf.length / 2)] : null,
@@ -336,7 +339,7 @@ async function runEstimate() {
   if (!inp.name) return showErr('Project name is required.');
   if (uploadedFiles.length === 0 && !inp.scope) return showErr('Upload plans/specs or enter scope notes (ideally both).');
 
-  const bm = segBenchmarks(inp.ct, inp.wt);
+  const bm = segBenchmarks(inp.ct, inp.wt, inp.name);
   setLoading(true);
   try {
     const prompt = buildPrompt(inp, bm);
@@ -495,7 +498,7 @@ function renderResults(p, inp, bm) {
     else flags += `<div class="ok-flag">At ${money(mid)}, this estimate sits within RYC's historical range for comparable work (${money(bm.contractMin)}–${money(bm.contractMax)}).</div>`;
   }
   document.getElementById('groundBody').innerHTML =
-    `<div class="note" style="margin-bottom:6px">Benchmarks from RYC's own completed jobs · matched on ${esc(bm.basis)} · ${bm.n} analog(s)${bm.analogs.length ? ': ' + bm.analogs.map(a => esc(a.name)).join(', ') : ''}</div>`
+    `<div class="note" style="margin-bottom:6px">Benchmarks from RYC's own completed jobs · matched on ${esc(bm.basis)} · ${bm.n} analog(s)${bm.excluded ? ` · <em>excluded ${bm.excluded} matching job (leave-one-out — never anchors to itself)</em>` : ''}${bm.analogs.length ? ': ' + bm.analogs.map(a => esc(a.name)).join(', ') : ''}</div>`
     + `<div class="kpis">${kpi(pct(bm.bidMargin), 'As-bid margin')}${kpi(pct(bm.actMargin), 'Actual margin')}${kpi(bm.gainFade == null ? '—' : (bm.gainFade >= 0 ? '+' : '') + bm.gainFade.toFixed(1) + ' pts', 'Gain/Fade')}${kpi(bm.buy ? money(bm.buy) : '—', 'Buyout')}</div>`
     + (bm.contractMin && bm.contractMax ? `<div class="note" style="margin-bottom:4px"><strong>RYC comparable contracts:</strong> ${money(bm.contractMin)}–${money(bm.contractMax)} (median ${money(bm.contractMed)})${bm.medianPSF ? ` · ~$${Math.round(bm.medianPSF).toLocaleString()}/SF` : ''}</div>` : '')
     + `<div class="note"><strong>RYC cost composition for this work:</strong> ${comp}</div>`
