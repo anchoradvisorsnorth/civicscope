@@ -301,7 +301,7 @@
     <button data-view="wip">WIP</button>
     <button data-view="subs">Subcontractors</button>
     <button data-view="costiq">Cost Intelligence</button>
-    <button data-view="estimate">Estimating Assist</button>
+    <button data-view="estimate">Quick Check</button>
     <button data-view="analysis">Portfolio Analysis</button>
   </div>
 
@@ -1553,9 +1553,12 @@ function renderEstimate() {
   const wtOpts = [['new_construction', 'New Construction'], ['renovation', 'Renovation'], ['addition', 'Addition'], ['repair', 'Repair']]
     .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   const inp = 'padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;width:100%';
-  el.innerHTML = `<div class="billing-block">
-    <h3 class="section-header">Estimating Assist <span class="cnt">grounded in RYC's own completed-job history</span></h3>
-    <div class="billing-sub">Spec a project; the tool pulls the closest historical analogs from RYC's completed jobs and returns a <strong>data-grounded</strong> margin/cost read plus an AI advisory layer. The numbers come from RYC's actuals — the AI reasons over them, it does not invent them.</div>
+  el.innerHTML = `<div class="billing-block" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin-bottom:14px">
+      <strong>📐 Estimating from plans &amp; specs?</strong> This Quick Check is a fast <em>conceptual</em> read (no drawings — early budgeting, go/no-go, or sanity-checking a finished bid). For a full plan-set takeoff grounded in RYC history, use the <a href="/ryc/estimate" style="color:#ea580c;font-weight:600">Estimating Assist tool →</a>
+    </div>
+    <div class="billing-block">
+    <h3 class="section-header">Quick conceptual check <span class="cnt">no plans — grounded in RYC's completed-job history</span></h3>
+    <div class="billing-sub">Spec a project; the tool pulls the closest historical analogs from RYC's completed jobs and returns a <strong>data-grounded</strong> margin/cost read plus an AI advisory layer. The numbers come from RYC's actuals — the AI reasons over them, it does not invent them. For a real estimate from drawings, use the <a href="/ryc/estimate" style="color:#ea580c;font-weight:600">Estimating Assist tool</a>.</div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:760px;margin:14px 0">
       <label>Client type<br><select id="est-ct" style="${inp}">${ctOpts}</select></label>
       <label>Work type<br><select id="est-wt" style="${inp}">${wtOpts}</select></label>

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RYC Estimating Assist — Plans → Grounded Estimate</title>
+<meta name="robots" content="noindex, nofollow">
+<link id="favicon" rel="icon" href="/ryc-dashboard/RYC_Shield_Orange.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; color:var(--ink); background:var(--bg); }
+  /* lock */
+  #lock-screen { position:fixed; inset:0; background:#1c1917; display:flex; align-items:center; justify-content:center; z-index:100; }
+  .lock-box { background:#fff; padding:36px 32px; border-radius:14px; text-align:center; width:320px; }
+  .lock-box img { width:54px; margin-bottom:12px; }
+  .lock-box h2 { margin:0 0 2px; font-size:18px; }
+  .lock-box .subtitle { color:var(--muted); font-size:13px; margin-bottom:18px; }
+  .lock-box input { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:14px; margin-bottom:10px; }
+  .lock-box button { width:100%; padding:10px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  .lock-box .error { color:#dc2626; font-size:13px; margin-top:8px; display:none; }
+  #app { display:none; max-width:980px; margin:0 auto; padding:0 18px 60px; }
+  header { display:flex; align-items:center; gap:12px; padding:18px 0; border-bottom:1px solid var(--line); margin-bottom:22px; }
+  header img { width:40px; }
+  header h1 { font-size:20px; margin:0; }
+  header .meta { font-size:12px; color:var(--muted); }
+  header .back { margin-left:auto; font-size:13px; color:var(--accent); text-decoration:none; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:18px; }
+  .grid2 { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  label { font-size:13px; font-weight:600; display:block; }
+  label .opt { color:var(--muted); font-weight:400; }
+  input, select, textarea { width:100%; padding:9px; border:1px solid var(--line); border-radius:8px; font-size:14px; margin-top:4px; font-family:inherit; }
+  textarea { resize:vertical; }
+  .full { grid-column:1/3; }
+  .upload { border:2px dashed var(--line); border-radius:10px; padding:26px; text-align:center; cursor:pointer; color:var(--muted); transition:.15s; }
+  .upload.drag-over { border-color:var(--accent); background:#fff7ed; }
+  .upload.has-files { padding:14px; }
+  .file-item { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px; border-top:1px solid var(--line); }
+  .file-item-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .file-item-size { color:var(--muted); }
+  .file-item-remove { background:none; border:none; color:#dc2626; cursor:pointer; width:auto; padding:0 4px; }
+  .btn { background:var(--accent); color:#fff; border:none; padding:11px 20px; border-radius:9px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .btn-ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .err { color:#dc2626; font-size:13px; margin-top:10px; display:none; }
+  .hint { font-size:12px; color:var(--muted); }
+  .note { color:var(--muted); font-size:12px; }
+  /* results */
+  .hero { display:flex; gap:24px; align-items:baseline; flex-wrap:wrap; }
+  .hero .big { font-size:30px; font-weight:700; }
+  .hero .mid { font-size:15px; color:var(--muted); }
+  .tag { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .tag-high { background:#dcfce7; color:#166534; } .tag-medium { background:#fef9c3; color:#854d0e; } .tag-low { background:#fee2e2; color:#991b1b; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); }
+  td.r, th.r { text-align:right; }
+  .ground { background:#fff7ed; border:1px solid #fed7aa; }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:6px 0 12px; }
+  .kpi { background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px; text-align:center; }
+  .kpi .v { font-size:18px; font-weight:700; } .kpi .l { font-size:11px; color:var(--muted); margin-top:2px; }
+  .flag { background:#fef2f2; border-left:3px solid #dc2626; padding:8px 10px; border-radius:4px; font-size:13px; margin-top:8px; }
+  .ok-flag { background:#f0fdf4; border-left:3px solid #16a34a; padding:8px 10px; border-radius:4px; font-size:13px; margin-top:8px; }
+  ul { margin:6px 0 0 18px; font-size:13px; line-height:1.55; }
+  h3 { font-size:15px; margin:18px 0 4px; }
+  .load { text-align:center; padding:40px; }
+  .spinner { width:34px; height:34px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 14px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  footer { text-align:center; color:var(--muted); font-size:12px; padding:20px; }
+</style>
+</head>
+<body>
+
+<div id="lock-screen">
+  <div class="lock-box">
+    <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
+    <h2>RYC Estimating Assist</h2>
+    <div class="subtitle">R. Yoder Construction</div>
+    <input type="password" id="pw-input" placeholder="Password" autofocus>
+    <button onclick="tryLogin()">Enter</button>
+    <div class="error" id="pw-error">Incorrect password</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
+    <div><h1>Estimating Assist</h1><div class="meta">v1.0.0 · plans &amp; specs → estimate, grounded in RYC history</div></div>
+    <a class="back" href="/ryc/dashboard">← Dashboard</a>
+  </header>
+
+  <!-- INPUT -->
+  <div id="inputPanel">
+    <div class="card">
+      <div class="grid2">
+        <label>Project name<input id="f-name" placeholder="e.g. Wakarusa Elementary HVAC"></label>
+        <label>Location<input id="f-loc" placeholder="e.g. Wakarusa, IN"></label>
+        <label>Client type<select id="f-ct">
+          <option value="school">School</option><option value="municipal">Municipal</option>
+          <option value="commercial">Commercial</option><option value="industrial">Industrial</option>
+          <option value="private">Private / Institutional</option><option value="mixed_use">Mixed Use</option>
+        </select></label>
+        <label>Work type<select id="f-wt">
+          <option value="new_construction">New Construction</option><option value="renovation">Renovation</option>
+          <option value="addition">Addition</option><option value="repair">Repair</option>
+        </select></label>
+        <label>Size (SF) <span class="opt">optional</span><input id="f-sf" type="number" placeholder="e.g. 25000"></label>
+        <label>Known budget / target $ <span class="opt">optional</span><input id="f-target" type="number" placeholder="e.g. 4000000"></label>
+        <label class="full">Scope notes<textarea id="f-scope" rows="2" placeholder="e.g. HVAC + roof replacement, occupied during construction, tight summer window"></textarea></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Plans &amp; specs <span class="opt">PDF / PNG / JPG — multi-page plan sets handled in batches</span></label>
+      <div class="upload" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <div id="uploadPrompt">📐 Drop plan set / spec book here, or click to browse</div>
+        <div id="fileList"></div>
+      </div>
+      <input type="file" id="fileInput" accept="application/pdf,image/png,image/jpeg" multiple style="display:none">
+      <div class="err" id="uploadError"></div>
+      <div class="hint" style="margin-top:8px">The estimate is grounded in RYC's own completed-job actuals for the selected client/work type — margins, buyout, and cost composition come from RYC history, not generic pricing.</div>
+    </div>
+
+    <button class="btn" id="goBtn" onclick="runEstimate()">Generate grounded estimate</button>
+    <div class="err" id="errorMsg"></div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loadingPanel" class="card load" style="display:none">
+    <div class="spinner"></div>
+    <div class="load-label">Working…</div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="resultsPanel" style="display:none">
+    <div class="card">
+      <div id="resMeta" class="note" style="margin-bottom:8px"></div>
+      <div class="hero">
+        <div><div class="big" id="costMid">—</div><div class="mid">midpoint</div></div>
+        <div><div style="font-size:18px;font-weight:600" id="costRange">—</div><div class="mid">range (low–high)</div></div>
+        <div id="confTag" class="tag"></div>
+      </div>
+    </div>
+
+    <div class="card ground">
+      <h3 style="margin-top:0">Grounded against RYC history</h3>
+      <div id="groundBody"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Estimator read</h3>
+      <div id="narrative" class="note" style="color:var(--ink);font-size:14px"></div>
+      <div id="divisionsWrap"></div>
+      <h3>Assumptions</h3>
+      <ul id="assumptions"></ul>
+      <div id="gapWrap"></div>
+    </div>
+
+    <button class="btn btn-ghost" onclick="refine()">Edit inputs</button>
+    <button class="btn btn-ghost" onclick="resetAll()">New project</button>
+  </div>
+</div>
+
+<footer>R. Yoder Construction — internal estimating aid. Not a formal bid. &nbsp;|&nbsp; Powered by CivicScope</footer>
+
+<script>
+// ---------- gate ----------
+function tryLogin() {
+  if (document.getElementById('pw-input').value === 'ryc2026') {
+    sessionStorage.setItem('ryc-auth', '1'); unlock();
+  } else { document.getElementById('pw-error').style.display = 'block'; }
+}
+document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+function unlock() {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadPortfolio();
+}
+if (sessionStorage.getItem('ryc-auth') === '1') unlock();
+
+// ---------- RYC benchmarks (Cost Intelligence layer) ----------
+let portfolio = null;
+async function loadPortfolio() {
+  try { portfolio = await (await fetch('/ryc-dashboard/ryc-portfolio.json?t=' + Date.now())).json(); }
+  catch { portfolio = { jobs: [] }; }
+}
+const CLASS_LABEL = { SUB: 'Subcontract', MAT: 'Material', LAB: 'Self-perform labor', BUR: 'Labor burden', EQU: 'Equipment', OTH: 'Other', REQ: 'Other' };
+
+function segBenchmarks(ct, wt) {
+  const jobs = (portfolio?.jobs || []).filter(j => j.contractFinal);
+  let set = jobs.filter(j => j.clientType === ct && j.workType === wt), basis = 'client type + work type';
+  if (set.length < 3) { const s = jobs.filter(j => j.clientType === ct); if (s.length > set.length) { set = s; basis = 'client type'; } }
+  if (set.length < 3) { const s = jobs.filter(j => j.workType === wt); if (s.length > set.length) { set = s; basis = 'work type'; } }
+  if (!set.length) { set = jobs; basis = 'full portfolio'; }
+  let contract = 0, cost = 0, bidC = 0, bidCost = 0, buy = 0, buySub = 0;
+  const comp = {}; let compTot = 0; const psf = [];
+  for (const j of set) {
+    contract += j.contractFinal || 0; cost += j.directCost || 0;
+    bidC += j.contractOriginal || 0; bidCost += j.originalCost || 0;
+    if (j.buyout) { buy += j.buyout.total || 0; buySub += j.buyout.sub || 0; }
+    for (const c of (j.buyout?.byClass || [])) if ((c.act || 0) > 0) { comp[c.cls] = (comp[c.cls] || 0) + c.act; compTot += c.act; }
+    if (j.sqft > 0 && j.contractFinal > 0) psf.push(j.contractFinal / j.sqft);
+  }
+  psf.sort((a, b) => a - b);
+  const compPct = {}; for (const k in comp) compPct[k] = compTot > 0 ? comp[k] / compTot * 100 : 0;
+  const bidMargin = bidC > 0 ? (bidC - bidCost) / bidC * 100 : null;
+  const actMargin = contract > 0 ? (contract - cost) / contract * 100 : null;
+  return {
+    n: set.length, basis, bidMargin, actMargin,
+    gainFade: (bidMargin != null && actMargin != null) ? actMargin - bidMargin : null,
+    buy, buySubPct: buy > 0 ? buySub / buy * 100 : null,
+    comp: compPct, medianPSF: psf.length ? psf[Math.floor(psf.length / 2)] : null,
+    analogs: set.slice(0, 8).map(j => j.name),
+  };
+}
+function pct(n) { return n == null ? '—' : n.toFixed(1) + '%'; }
+function money(n) { if (n == null) return '—'; const a = Math.abs(n), s = n < 0 ? '-' : ''; if (a >= 1e6) return s + '$' + (a / 1e6).toFixed(1) + 'M'; if (a >= 1e3) return s + '$' + Math.round(a / 1e3) + 'K'; return s + '$' + Math.round(a); }
+
+// ---------- file upload (pipeline reused from GC estimator) ----------
+let uploadedFiles = [];
+if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const uploadZone = document.getElementById('uploadZone'), fileInput = document.getElementById('fileInput');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+async function handleFiles(fileList) {
+  const errEl = document.getElementById('uploadError'); errEl.style.display = 'none';
+  const allowed = ['application/pdf', 'image/png', 'image/jpeg'];
+  const jpegQuality = 0.55, maxImageWidth = 1400;
+  for (const file of Array.from(fileList)) {
+    if (!allowed.includes(file.type)) { errEl.textContent = `"${file.name}" — use PDF, PNG, or JPG.`; errEl.style.display = 'block'; continue; }
+    if (file.size > 50 * 1024 * 1024) { errEl.textContent = `"${file.name}" exceeds 50 MB.`; errEl.style.display = 'block'; continue; }
+    try {
+      if (file.type === 'application/pdf') {
+        const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+        const pages = Math.min(pdf.numPages, 200);
+        if (pdf.numPages > 20) { errEl.textContent = `"${file.name}" — ${pdf.numPages} pages; analyzed in batches.`; errEl.style.display = 'block'; }
+        for (let p = 1; p <= pages; p++) {
+          const page = await pdf.getPage(p);
+          const vp = page.getViewport({ scale: 1 });
+          const scale = Math.min(maxImageWidth / vp.width, 2);
+          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width; canvas.height = viewport.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+          const base64 = canvas.toDataURL('image/jpeg', jpegQuality).split(',')[1];
+          uploadedFiles.push({ name: `${file.name} (p${p})`, size: Math.round(base64.length * 0.75), base64 });
+        }
+        renderFileList();
+      } else {
+        const base64 = await compressImage(file, maxImageWidth, jpegQuality);
+        uploadedFiles.push({ name: file.name, size: Math.round(base64.length * 0.75), base64 });
+        renderFileList();
+      }
+    } catch (err) { errEl.textContent = `Error on "${file.name}": ${err.message || 'unknown'}`; errEl.style.display = 'block'; }
+  }
+  fileInput.value = '';
+}
+function compressImage(file, maxWidth, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(maxWidth / img.width, 1);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale); canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+    };
+    img.onerror = () => reject(new Error('Could not load image'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+function removeFile(i) { uploadedFiles.splice(i, 1); renderFileList(); }
+function renderFileList() {
+  const list = document.getElementById('fileList'), prompt = document.getElementById('uploadPrompt');
+  if (!uploadedFiles.length) { list.innerHTML = ''; uploadZone.classList.remove('has-files'); prompt.style.display = 'block'; return; }
+  uploadZone.classList.add('has-files'); prompt.style.display = 'none';
+  list.innerHTML = uploadedFiles.map((f, i) => {
+    const size = f.size > 1048576 ? (f.size / 1048576).toFixed(1) + ' MB' : Math.round(f.size / 1024) + ' KB';
+    return `<div class="file-item"><span>📄</span><span class="file-item-name">${f.name}</span><span class="file-item-size">${size}</span><button class="file-item-remove" onclick="event.stopPropagation(); removeFile(${i})">✕</button></div>`;
+  }).join('');
+}
+
+// ---------- batching + Claude (reused) ----------
+function splitIntoBatches(files) {
+  const MAX_B64 = 3 * 1024 * 1024, MAX_PAGES = 10, batches = []; let cur = [], size = 0;
+  for (const f of files) {
+    if ((size + f.base64.length > MAX_B64 || cur.length >= MAX_PAGES) && cur.length) { batches.push(cur); cur = []; size = 0; }
+    cur.push(f); size += f.base64.length;
+  }
+  if (cur.length) batches.push(cur);
+  return batches;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function loadLabel(t) { const e = document.querySelector('.load-label'); if (e) e.textContent = t; }
+async function callClaude(prompt, files, maxTokens) {
+  let content;
+  if (files && files.length) { content = files.map(f => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: f.base64 } })); content.push({ type: 'text', text: prompt }); }
+  else content = prompt;
+  const body = JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens || 4096, temperature: 0.3, messages: [{ role: 'user', content }] });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch('/api/claude', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+    if (res.status === 429 && attempt === 0) { loadLabel('Rate limit — waiting 30s…'); await sleep(30000); continue; }
+    if (!res.ok) { const e = await res.json().catch(() => null); throw new Error(e?.error?.message || e?.error || `HTTP ${res.status}`); }
+    return (await res.json())?.content?.[0]?.text || '';
+  }
+}
+
+// ---------- run ----------
+function getInputs() {
+  return {
+    name: document.getElementById('f-name').value.trim(),
+    loc: document.getElementById('f-loc').value.trim(),
+    ct: document.getElementById('f-ct').value,
+    wt: document.getElementById('f-wt').value,
+    sf: Number(document.getElementById('f-sf').value) || null,
+    target: Number(document.getElementById('f-target').value) || null,
+    scope: document.getElementById('f-scope').value.trim(),
+  };
+}
+function setLoading(on) {
+  document.getElementById('loadingPanel').style.display = on ? 'block' : 'none';
+  document.getElementById('inputPanel').style.display = on ? 'none' : 'block';
+  document.getElementById('goBtn').disabled = on;
+}
+function showErr(m) { const e = document.getElementById('errorMsg'); e.textContent = m; e.style.display = 'block'; }
+
+async function runEstimate() {
+  const inp = getInputs();
+  document.getElementById('errorMsg').style.display = 'none';
+  if (!inp.name) return showErr('Project name is required.');
+  if (uploadedFiles.length === 0 && !inp.scope) return showErr('Upload plans/specs or enter scope notes (ideally both).');
+
+  const bm = segBenchmarks(inp.ct, inp.wt);
+  setLoading(true);
+  try {
+    const prompt = buildPrompt(inp, bm);
+    let raw;
+    if (uploadedFiles.length === 0) { loadLabel('Estimating from scope + RYC history…'); raw = await callClaude(prompt, null, 2000); }
+    else {
+      const batches = splitIntoBatches(uploadedFiles);
+      if (batches.length === 1) { loadLabel('Reading plans…'); raw = await callClaude(prompt, batches[0], 4096); }
+      else {
+        const steps = batches.length + 1;
+        loadLabel(`Reading plans (batch 1 of ${steps})…`);
+        const first = await callClaude(prompt, batches[0], 4096);
+        const sup = [];
+        for (let i = 1; i < batches.length; i++) {
+          loadLabel(`Rate-limit cooldown before batch ${i + 1}…`); await sleep(15000);
+          loadLabel(`Reading plans (batch ${i + 1} of ${steps})…`);
+          const sp = `You are reviewing ADDITIONAL plan/spec pages for a project you began analyzing.\n\nINITIAL ANALYSIS:\n${first}\n\nReview these ${batches[i].length} new page(s). List ONLY new cost-relevant findings (scope, MEP, structural, finishes, site, quantities) as bullets with cost impact where possible. If nothing new, reply exactly: NO_NEW_DETAILS`;
+          const r = await callClaude(sp, batches[i], 2048);
+          if (r && !r.includes('NO_NEW_DETAILS')) sup.push(r);
+        }
+        if (!sup.length) raw = first;
+        else { await sleep(10000); loadLabel(`Consolidating full plan set (${steps} of ${steps})…`); raw = await callClaude(consolidatePrompt(inp, bm, first, sup), null, 4096); }
+      }
+    }
+    renderResults(parseResponse(raw), inp, bm);
+  } catch (e) { setLoading(false); showErr(e.message || 'Something went wrong.'); }
+}
+
+function rycGroundingText(inp, bm) {
+  const comp = Object.entries(bm.comp).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 1).map(([k, v]) => `${CLASS_LABEL[k] || k} ${Math.round(v)}%`).join(', ') || 'n/a';
+  return `RYC HISTORICAL BENCHMARKS for this segment — from RYC's OWN completed jobs (matched on ${bm.basis}, ${bm.n} job(s)). Anchor the estimate to how RYC ACTUALLY performs; RYC is a buyout shop (most cost is subcontracted):
+- As-bid margin ${pct(bm.bidMargin)} → actually achieved ${pct(bm.actMargin)}${bm.gainFade != null ? ` (RYC typically ${bm.gainFade >= 0 ? 'gains' : 'fades'} ${Math.abs(bm.gainFade).toFixed(1)} pts bid→actual on this work)` : ''}.
+- Cost composition (RYC actuals): ${comp}.
+- Subcontract buyout: RYC historically lands ${money(bm.buy)} under estimate${bm.buySubPct != null ? ` (${Math.round(bm.buySubPct)}% of it on subs)` : ''}.${bm.medianPSF ? `\n- Historical $/SF on this work: ~$${Math.round(bm.medianPSF).toLocaleString()}/SF (thin sample — directional).` : ''}
+Use RYC's realistic achieved margin, not a generic markup. Reflect the subcontract-heavy cost split in your division breakdown.`;
+}
+const OUT_FORMAT = `Respond in EXACTLY this format:
+COST_LOW: [number, no decimals]
+COST_HIGH: [number, no decimals]
+COST_MIDPOINT: [number, no decimals]
+CONFIDENCE: [High / Medium / Low]
+NARRATIVE: [2-3 sentences, estimator-to-estimator. What drives the range and the key risks, referencing RYC's historical pattern for this work.]
+DIVISIONS:
+- [CSI division or major scope]: $[amount] — [brief]
+- [as many as the scope warrants, biggest first]
+ASSUMPTIONS:
+- [assumption]
+- [assumption]
+- [assumption]
+GAP_QUESTIONS:
+- [question]? (±$[impact])
+- [question]? (±$[impact])
+[3-6 questions ordered by dollar impact; if none, write: GAP_QUESTIONS: none]
+
+Rules: Current northern-Indiana pricing. Design-Bid-Build. Include GC overhead, general conditions, permitting, design/engineering allowance (3-5%). Exclude land. No proprietary database names (RSMeans, Gordian).`;
+
+function buildPrompt(inp, bm) {
+  const fileNote = uploadedFiles.length ? `\nUPLOADED: ${uploadedFiles.length} plan/spec page(s). Read thoroughly — extract SF, dimensions, structural/MEP scope, finishes, site work, phasing, special requirements. Where documents are specific, use them over the form inputs.` : '';
+  return `You are a senior construction cost estimator working inside R. Yoder Construction's (RYC) estimating team. Estimator-to-estimator tone — precise, direct.${fileNote}
+
+PROJECT:
+- Name: ${inp.name}
+- Client type: ${inp.ct} · Work type: ${inp.wt}
+- Location: ${inp.loc || 'Northern Indiana'}
+${inp.sf ? `- Size: ${inp.sf.toLocaleString()} SF` : ''}
+${inp.target ? `- Known budget/target: $${inp.target.toLocaleString()}` : ''}
+${inp.scope ? `- Scope notes: ${inp.scope}` : ''}
+
+${rycGroundingText(inp, bm)}
+
+${OUT_FORMAT}`;
+}
+function consolidatePrompt(inp, bm, first, sup) {
+  return `You are a senior estimator for RYC. You reviewed a large plan set in batches.
+
+INITIAL ESTIMATE:
+${first}
+
+ADDITIONAL FINDINGS:
+${sup.join('\n\n---\n\n')}
+
+${rycGroundingText(inp, bm)}
+
+Produce ONE consolidated estimate incorporating ALL findings, still grounded in the RYC benchmarks above.
+
+${OUT_FORMAT}`;
+}
+
+function parseResponse(raw) {
+  const get = k => { const m = raw.match(new RegExp(`${k}:\\s*(.+)`)); return m ? m[1].trim() : ''; };
+  const block = (k, next) => { const m = raw.match(new RegExp(`${k}:\\s*([\\s\\S]*?)(?:\\n(?:${next}):|$)`)); return m ? m[1].trim() : ''; };
+  const lines = s => s.split('\n').map(l => l.replace(/^[-•]\s*/, '').trim()).filter(Boolean);
+  const divisions = lines(block('DIVISIONS', 'ASSUMPTIONS')).map(line => {
+    const m = line.match(/^(.*?):\s*\$?([\d,]+)\s*(?:[—-]\s*(.*))?$/);
+    return m ? { name: m[1].trim(), amount: parseInt(m[2].replace(/,/g, ''), 10) || 0, scope: (m[3] || '').trim() } : { name: line, amount: 0, scope: '' };
+  });
+  const gRaw = block('GAP_QUESTIONS', '[A-Z_]+');
+  let gaps = [];
+  if (gRaw && gRaw.toLowerCase() !== 'none') gaps = lines(gRaw).map(l => { const m = l.match(/^(.*?)\s*\((.*?)\)\s*$/); return m ? { q: m[1].trim(), impact: m[2].trim() } : { q: l, impact: '' }; });
+  return {
+    low: get('COST_LOW'), high: get('COST_HIGH'), mid: get('COST_MIDPOINT'),
+    confidence: get('CONFIDENCE'), narrative: get('NARRATIVE'),
+    divisions, assumptions: lines(block('ASSUMPTIONS', 'GAP_QUESTIONS')), gaps,
+  };
+}
+const num = s => { const n = parseInt(String(s).replace(/[^0-9]/g, ''), 10); return isNaN(n) ? null : n; };
+const fmt$ = s => { const n = num(s); return n == null ? (s || '—') : '$' + n.toLocaleString('en-US'); };
+
+function renderResults(p, inp, bm) {
+  setLoading(false);
+  document.getElementById('costMid').textContent = fmt$(p.mid);
+  document.getElementById('costRange').textContent = fmt$(p.low) + ' – ' + fmt$(p.high);
+  const tag = document.getElementById('confTag');
+  tag.textContent = (p.confidence || 'Medium') + ' Confidence';
+  tag.className = 'tag ' + (p.confidence === 'High' ? 'tag-high' : p.confidence === 'Low' ? 'tag-low' : 'tag-medium');
+  document.getElementById('resMeta').textContent = `${inp.name} · ${inp.ct} / ${inp.wt}${inp.sf ? ' · ' + inp.sf.toLocaleString() + ' SF' : ''} · ${uploadedFiles.length ? uploadedFiles.length + ' plan pages read' : 'scope-only'}`;
+  document.getElementById('narrative').textContent = p.narrative || '—';
+
+  // divisions
+  const dw = document.getElementById('divisionsWrap');
+  if (p.divisions.length) {
+    const tot = p.divisions.reduce((s, d) => s + (d.amount || 0), 0);
+    dw.innerHTML = `<h3>Division breakdown</h3><table><thead><tr><th>Division / scope</th><th class="r">Cost</th></tr></thead><tbody>`
+      + p.divisions.map(d => `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}</td><td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td></tr>`).join('')
+      + `<tr><td><strong>Total</strong></td><td class="r"><strong>${tot ? '$' + tot.toLocaleString() : '—'}</strong></td></tr></tbody></table>`;
+  } else dw.innerHTML = '';
+
+  // assumptions / gaps
+  document.getElementById('assumptions').innerHTML = p.assumptions.map(a => `<li>${esc(a)}</li>`).join('') || '<li class="note">—</li>';
+  const gw = document.getElementById('gapWrap');
+  gw.innerHTML = p.gaps.length ? `<h3>Open questions to tighten the number</h3><ul>` + p.gaps.map(g => `<li>${esc(g.q)}${g.impact ? ` <span class="note">(${esc(g.impact)})</span>` : ''}</li>`).join('') + '</ul>' : '';
+
+  // grounding panel
+  const comp = Object.entries(bm.comp).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 1).map(([k, v]) => `${CLASS_LABEL[k] || k} ${Math.round(v)}%`).join(' · ') || '—';
+  const kpi = (v, l) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  let flags = '';
+  // margin reality check
+  if (bm.gainFade != null && bm.gainFade < -1) flags += `<div class="flag">RYC historically <strong>fades ${Math.abs(bm.gainFade).toFixed(1)} pts</strong> bid→actual on ${inp.ct}/${inp.wt} work (bids ${pct(bm.bidMargin)}, achieves ${pct(bm.actMargin)}). Carry contingency accordingly — don't bid to the optimistic margin.</div>`;
+  else if (bm.gainFade != null && bm.gainFade > 1) flags += `<div class="ok-flag">RYC historically <strong>gains ${bm.gainFade.toFixed(1)} pts</strong> bid→actual on this work (largely subcontract buyout) — upside is real if buyout holds.</div>`;
+  // $/SF sanity check
+  const mid = num(p.mid);
+  if (bm.medianPSF && inp.sf && mid) {
+    const estPSF = mid / inp.sf, dev = (estPSF - bm.medianPSF) / bm.medianPSF * 100;
+    if (Math.abs(dev) >= 25) flags += `<div class="flag">This estimate is <strong>$${Math.round(estPSF).toLocaleString()}/SF</strong> — ${Math.abs(Math.round(dev))}% ${dev > 0 ? 'above' : 'below'} RYC's historical ~$${Math.round(bm.medianPSF).toLocaleString()}/SF on this work. Sanity-check scope/quantities. <span class="note">(SF sample thin — directional.)</span></div>`;
+    else flags += `<div class="ok-flag">At <strong>$${Math.round(estPSF).toLocaleString()}/SF</strong>, this estimate is in line with RYC's historical ~$${Math.round(bm.medianPSF).toLocaleString()}/SF on this work.</div>`;
+  }
+  document.getElementById('groundBody').innerHTML =
+    `<div class="note" style="margin-bottom:6px">Benchmarks from RYC's own completed jobs · matched on ${esc(bm.basis)} · ${bm.n} analog(s)${bm.analogs.length ? ': ' + bm.analogs.map(esc).join(', ') : ''}</div>`
+    + `<div class="kpis">${kpi(pct(bm.bidMargin), 'As-bid margin')}${kpi(pct(bm.actMargin), 'Actual margin')}${kpi(bm.gainFade == null ? '—' : (bm.gainFade >= 0 ? '+' : '') + bm.gainFade.toFixed(1) + ' pts', 'Gain/Fade')}${kpi(bm.buy ? money(bm.buy) : '—', 'Buyout')}</div>`
+    + `<div class="note"><strong>RYC cost composition for this work:</strong> ${comp}</div>`
+    + flags;
+
+  document.getElementById('inputPanel').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function refine() { document.getElementById('resultsPanel').style.display = 'none'; document.getElementById('inputPanel').style.display = 'block'; window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function resetAll() {
+  ['f-name', 'f-loc', 'f-sf', 'f-target', 'f-scope'].forEach(id => document.getElementById(id).value = '');
+  uploadedFiles = []; renderFileList();
+  document.getElementById('resultsPanel').style.display = 'none';
+  document.getElementById('inputPanel').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
