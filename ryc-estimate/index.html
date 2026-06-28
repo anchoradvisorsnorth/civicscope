@@ -67,6 +67,24 @@
   .spinner { width:34px; height:34px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 14px; }
   @keyframes spin { to { transform:rotate(360deg); } }
   footer { text-align:center; color:var(--muted); font-size:12px; padding:20px; }
+  /* hub nav + ported dashboard-view classes */
+  .estnav { display:flex; gap:6px; margin:0 0 18px; flex-wrap:wrap; }
+  .estnav-btn { padding:8px 14px; border:1px solid var(--line); background:#fff; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; }
+  .estnav-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .billing-block { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
+  .billing-sub { font-size:13px; color:var(--muted); line-height:1.5; }
+  .billing-empty { padding:20px; text-align:center; color:var(--muted); font-size:14px; }
+  .billing-stamp { font-size:12px; color:var(--muted); margin-bottom:10px; }
+  .billing-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .billing-table th, .billing-table td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); }
+  .billing-table .r { text-align:right; }
+  .kpi-band { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+  .kpi-card { background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px; text-align:center; }
+  .kpi-val { font-size:18px; font-weight:700; }
+  .kpi-label { font-size:11px; color:var(--muted); margin-top:2px; }
+  .section-header { font-size:15px; margin:0 0 6px; display:flex; align-items:center; }
+  .cnt { font-size:12px; color:var(--muted); font-weight:400; margin-left:8px; }
+  .muted-cell { color:var(--muted); }
 </style>
 </head>
 <body>
@@ -85,10 +103,17 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>Estimating Assist</h1><div class="meta">v1.2.0 · bid-assembly draft — plans → RYC-division estimate, mix-checked against RYC history</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.3.0 · plan takeoff · cost intelligence · quick check</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
+  <div class="estnav">
+    <button class="estnav-btn active" data-view="assist" onclick="setEstView('assist')">Estimating Assist</button>
+    <button class="estnav-btn" data-view="costiq" onclick="setEstView('costiq')">Cost Intelligence</button>
+    <button class="estnav-btn" data-view="quickcheck" onclick="setEstView('quickcheck')">Quick Check</button>
+  </div>
+
+  <div id="view-assist">
   <!-- INPUT -->
   <div id="inputPanel">
     <div class="card">
@@ -159,6 +184,10 @@
     <button class="btn btn-ghost" onclick="refine()">Edit inputs</button>
     <button class="btn btn-ghost" onclick="resetAll()">New project</button>
   </div>
+  </div><!-- /view-assist -->
+
+  <div id="view-costiq" style="display:none"><div id="costiq-body"></div></div>
+  <div id="view-quickcheck" style="display:none"><div id="quickcheck-body"></div></div>
 </div>
 
 <footer>R. Yoder Construction — internal estimating aid. Not a formal bid. &nbsp;|&nbsp; Powered by CivicScope</footer>
@@ -190,7 +219,14 @@ async function loadPortfolio() {
 const CLASS_LABEL = { SUB: 'Subcontract', MAT: 'GC materials', LAB: 'GC/supervision labor', BUR: 'Labor burden', EQU: 'Equipment', OTH: 'Other', REQ: 'Other' };
 
 function ciNorm(s) { return (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !['the', 'and', 'for', 'new'].includes(w)); }
-function ciSameJob(a, b) { const A = new Set(ciNorm(a)), B = new Set(ciNorm(b)); if (!A.size || !B.size) return false; let inter = 0; for (const x of A) if (B.has(x)) inter++; const union = new Set([...A, ...B]).size; return union > 0 && inter / union >= 0.5; }
+function ciSameJob(a, b) {
+  const na = ciNorm(a).join(' '), nb = ciNorm(b).join(' ');
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if ((na.length >= 5 && nb.includes(na)) || (nb.length >= 5 && na.includes(nb))) return true;  // "Fulton" ⊂ "Fulton County Airport Hangar"
+  const A = new Set(ciNorm(a)), B = new Set(ciNorm(b)); let inter = 0; for (const x of A) if (B.has(x)) inter++;
+  const union = new Set([...A, ...B]).size; return union > 0 && inter / union >= 0.5;
+}
 function segBenchmarks(ct, wt, excludeName) {
   let excluded = 0;
   const jobs = (portfolio?.jobs || []).filter(j => { if (!j.contractFinal) return false; if (excludeName && ciSameJob(excludeName, j.name)) { excluded++; return false; } return true; });
@@ -537,6 +573,120 @@ function resetAll() {
   document.getElementById('resultsPanel').style.display = 'none';
   document.getElementById('inputPanel').style.display = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+// ===== Estimating hub: nav + Cost Intelligence + Quick Check =====
+const fmtCompact = money;
+function fmtDate(s) { try { return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return ''; } }
+function setEstView(v) {
+  document.querySelectorAll('.estnav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  document.getElementById('view-assist').style.display = v === 'assist' ? 'block' : 'none';
+  document.getElementById('view-costiq').style.display = v === 'costiq' ? 'block' : 'none';
+  document.getElementById('view-quickcheck').style.display = v === 'quickcheck' ? 'block' : 'none';
+  if (v === 'costiq') renderCostIQ();
+  if (v === 'quickcheck') renderQuickCheck();
+}
+
+// --- Cost Intelligence ---
+let costiqWT = 'all';
+function setCostIQWT(v) { costiqWT = v; renderCostIQ(); }
+function ciAgg(jobs) {
+  let n = jobs.length, contract = 0, finalCost = 0, bidContract = 0, bidCost = 0, buyTotal = 0, buySub = 0, coTotal = 0;
+  for (const j of jobs) { contract += j.contractFinal || 0; finalCost += j.directCost || 0; bidContract += j.contractOriginal || 0; bidCost += j.originalCost || 0; if (j.buyout) { buyTotal += j.buyout.total || 0; buySub += j.buyout.sub || 0; } coTotal += j.changeOrders || 0; }
+  const bidMargin = bidContract > 0 ? (bidContract - bidCost) / bidContract * 100 : null;
+  const actMargin = contract > 0 ? (contract - finalCost) / contract * 100 : null;
+  return { n, contract, bidMargin, actMargin, gainFade: (bidMargin != null && actMargin != null) ? actMargin - bidMargin : null, buyTotal, buySubPct: buyTotal > 0 ? buySub / buyTotal * 100 : null, coPct: bidContract > 0 ? coTotal / bidContract * 100 : null };
+}
+function ciGfCell(v) { if (v == null) return '<span class="muted-cell">—</span>'; const c = v >= 0 ? '#16a34a' : '#dc2626'; return `<span style="color:${c};font-weight:600">${v >= 0 ? '+' : ''}${v.toFixed(1)} pts</span>`; }
+const CIQ_CT = { school: 'School', municipal: 'Municipal', commercial: 'Commercial', industrial: 'Industrial', private: 'Private / Institutional', mixed_use: 'Mixed Use', residential: 'Residential' };
+const CIQ_WT = { new_construction: 'New Construction', renovation: 'Renovation', addition: 'Addition', repair: 'Repair' };
+const ciCT = (k) => CIQ_CT[k] || (k || '—');
+const ciWT = (k) => CIQ_WT[k] || (k || '—');
+function ciBenchRows(jobs, keyField, labelFn) {
+  const groups = {}; for (const j of jobs) { const k = j[keyField] || '—'; (groups[k] ||= []).push(j); }
+  const rows = Object.entries(groups).map(([k, js]) => ({ label: labelFn(k), a: ciAgg(js) })).sort((x, y) => y.a.contract - x.a.contract);
+  let body = '';
+  for (const r of rows) { const a = r.a; const buy = a.buyTotal !== 0 ? `${fmtCompact(a.buyTotal)}${a.buySubPct != null ? ` <span class="note">${Math.round(a.buySubPct)}% sub</span>` : ''}` : '<span class="muted-cell">—</span>';
+    body += `<tr><td>${esc(r.label)}</td><td class="r">${a.n}</td><td class="r">${fmtCompact(a.contract)}</td><td class="r">${pct(a.bidMargin)}</td><td class="r">${pct(a.actMargin)}</td><td class="r">${ciGfCell(a.gainFade)}</td><td class="r">${buy}</td><td class="r">${pct(a.coPct)}</td></tr>`; }
+  return `<table class="billing-table"><thead><tr><th>Profile</th><th class="r">Jobs</th><th class="r">Contract</th><th class="r">As-bid margin</th><th class="r">Actual margin</th><th class="r">Gain/Fade</th><th class="r">Buyout</th><th class="r">CO %</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+function ciClassRows(jobs) {
+  const m = {}; for (const j of jobs) for (const c of (j.buyout?.byClass || [])) { if (!c || (c.act || 0) <= 0) continue; const k = c.cls || '(unclassified)'; m[k] = (m[k] || 0) + (c.act || 0); }
+  const total = Object.values(m).reduce((a, b) => a + b, 0);
+  const rows = Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  if (!rows.length || total <= 0) return '<div class="billing-empty">No cost-class detail for this filter.</div>';
+  let body = ''; for (const [k, v] of rows) { const p = v / total * 100; body += `<tr><td>${esc(ciClass(k))}</td><td class="r">${fmtCompact(v)}</td><td class="r">${p.toFixed(1)}%</td><td style="width:30%"><div style="background:#e5e7eb;border-radius:3px;height:8px"><div style="background:#2563eb;height:8px;border-radius:3px;width:${Math.min(100, p).toFixed(1)}%"></div></div></td></tr>`; }
+  return `<table class="billing-table"><thead><tr><th>Cost class</th><th class="r">Actual cost</th><th class="r">% of cost</th><th>&nbsp;</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+function renderCostIQ() {
+  const el = document.getElementById('costiq-body');
+  const all = (portfolio?.jobs || []).filter(j => j.contractFinal);
+  if (!all.length) { el.innerHTML = '<div class="billing-empty">No completed-job data available.</div>'; return; }
+  const top = ciAgg(all);
+  const card = (label, val) => `<div class="kpi-card"><div class="kpi-val">${val}</div><div class="kpi-label">${label}</div></div>`;
+  const band = `<div class="kpi-band">${card('Completed jobs', all.length)}${card('Contract value', fmtCompact(top.contract))}${card('Avg as-bid margin', pct(top.bidMargin))}${card('Avg actual margin', pct(top.actMargin))}</div>`;
+  const wts = [...new Set(all.map(j => j.workType).filter(Boolean))].sort();
+  const opts = ['all', ...wts].map(w => `<option value="${w}"${w === costiqWT ? ' selected' : ''}>${w === 'all' ? 'All work types' : ciWT(w)}</option>`).join('');
+  const classJobs = costiqWT === 'all' ? all : all.filter(j => j.workType === costiqWT);
+  const stamp = portfolio?.generated ? `<div class="billing-stamp">Foundation · ${fmtDate(portfolio.generated)} · completed 2023+</div>` : '';
+  el.innerHTML = stamp + band
+    + `<div class="billing-block"><div class="billing-sub">RYC's own completed-job actuals as estimating benchmarks. <strong>As-bid margin</strong> = (orig contract − orig cost) ÷ orig contract. <strong>Actual margin</strong> = (final − actual cost) ÷ final. <strong>Gain/Fade</strong> = actual − as-bid. <strong>Buyout</strong> = estimate − actual by cost class. Margins contract-weighted.</div></div>`
+    + `<div class="billing-block"><h3 class="section-header">Benchmarks by client type</h3>${ciBenchRows(all, 'clientType', ciCT)}</div>`
+    + `<div class="billing-block"><h3 class="section-header">Benchmarks by work type</h3>${ciBenchRows(all, 'workType', ciWT)}</div>`
+    + `<div class="billing-block"><h3 class="section-header">Cost composition by cost class <span class="cnt">where the money goes</span><select onchange="setCostIQWT(this.value)" style="margin-left:auto;padding:4px 8px;border-radius:6px;border:1px solid #d1d5db">${opts}</select></h3>`
+    + `<div class="billing-sub">Actual cost split across Foundation cost classes as a share of total${costiqWT === 'all' ? ' across all completed jobs' : ' for ' + ciWT(costiqWT).toLowerCase() + ' jobs'}.</div>${ciClassRows(classJobs)}</div>`;
+}
+
+// --- Quick Check (conceptual, no plans) ---
+let quickCheckBuilt = false;
+function renderQuickCheck() {
+  const el = document.getElementById('quickcheck-body');
+  if (quickCheckBuilt) return; quickCheckBuilt = true;
+  const ctOpts = [['school', 'School'], ['municipal', 'Municipal'], ['commercial', 'Commercial'], ['industrial', 'Industrial'], ['private', 'Private / Institutional'], ['mixed_use', 'Mixed Use']].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const wtOpts = [['new_construction', 'New Construction'], ['renovation', 'Renovation'], ['addition', 'Addition'], ['repair', 'Repair']].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const ip = 'padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;width:100%';
+  el.innerHTML = `<div class="billing-block"><h3 class="section-header">Quick conceptual check <span class="cnt">no plans — grounded in RYC's completed-job history</span></h3>
+    <div class="billing-sub">A fast conceptual read for early budgeting / go-no-go — pulls the closest historical analogs and adds an AI advisory layer. For a real estimate from drawings, use the <strong>Estimating Assist</strong> tab.</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:760px;margin:14px 0">
+      <label>Client type<br><select id="est-ct" style="${ip}">${ctOpts}</select></label>
+      <label>Work type<br><select id="est-wt" style="${ip}">${wtOpts}</select></label>
+      <label>Size (SF) <span class="note">optional</span><br><input id="est-sf" type="number" placeholder="e.g. 25000" style="${ip}"></label>
+      <label>Target contract $ <span class="note">optional</span><br><input id="est-target" type="number" placeholder="e.g. 4000000" style="${ip}"></label>
+      <label style="grid-column:1/3">Scope notes <span class="note">drives the AI risk read</span><br><textarea id="est-scope" rows="3" placeholder="e.g. HVAC + roof replacement on a 1990s elementary" style="${ip}"></textarea></label>
+    </div>
+    <button onclick="runQuickCheck()" style="background:#ea580c;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Generate grounded read</button>
+    <div id="quickcheck-results" style="margin-top:18px"></div></div>`;
+}
+async function runQuickCheck() {
+  const ct = document.getElementById('est-ct').value, wt = document.getElementById('est-wt').value;
+  const sf = Number(document.getElementById('est-sf').value) || null, target = Number(document.getElementById('est-target').value) || null;
+  const scope = (document.getElementById('est-scope').value || '').trim();
+  const out = document.getElementById('quickcheck-results');
+  const { set, basis } = estAnalogs(ct, wt); const a = ciAgg(set); const comp = ciComp(set);
+  const withSf = set.filter(j => j.sqft > 0 && j.contractFinal > 0); const psfArr = withSf.map(j => j.contractFinal / j.sqft).sort((x, y) => x - y); const psfMed = psfArr.length ? psfArr[Math.floor(psfArr.length / 2)] : null;
+  const card = (label, val) => `<div class="kpi-card"><div class="kpi-val">${val}</div><div class="kpi-label">${label}</div></div>`;
+  const compStr = Object.entries(comp).sort((x, y) => y[1] - x[1]).filter(([, v]) => v >= 1).map(([k, v]) => `${ciClass(k)} ${Math.round(v)}%`).join(' · ') || '—';
+  let targetLine = '';
+  if (target && a.actMargin != null) { const expCost = target * (1 - a.actMargin / 100); const expMargin = target - expCost; targetLine = `<div class="billing-sub" style="margin-top:8px">At a <strong>${fmtCompact(target)}</strong> contract, this segment's historical <strong>${a.actMargin.toFixed(1)}%</strong> actual margin implies ~<strong>${fmtCompact(expCost)}</strong> cost / ~<strong>${fmtCompact(expMargin)}</strong> gross margin.</div>`; }
+  const psfLine = psfMed ? `<div class="billing-sub" style="margin-top:8px">Historical <strong>$${Math.round(psfMed).toLocaleString()}/SF</strong> (median of ${withSf.length} analog${withSf.length === 1 ? '' : 's'} w/ SF)${sf ? ` → at ${sf.toLocaleString()} SF ≈ <strong>${fmtCompact(psfMed * sf)}</strong>` : ''}. <span class="note">SF coverage thin — directional.</span></div>` : '';
+  const analogList = set.slice(0, 8).map(j => `${esc(j.name)} (${j.bidMarginPct != null ? j.bidMarginPct.toFixed(0) + '%→' : ''}${j.projectedMarginPct != null ? j.projectedMarginPct.toFixed(0) + '%' : '—'})`).join(' · ');
+  out.innerHTML = `<div class="billing-block"><h3 class="section-header">Grounded benchmarks <span class="cnt">${set.length} analogs · matched on ${esc(basis)}</span></h3>
+    <div class="kpi-band">${card('As-bid margin', pct(a.bidMargin))}${card('Actual margin', pct(a.actMargin))}${card('Gain/Fade', a.gainFade == null ? '—' : (a.gainFade >= 0 ? '+' : '') + a.gainFade.toFixed(1) + ' pts')}${card('Buyout (%sub)', a.buyTotal ? fmtCompact(a.buyTotal) + (a.buySubPct != null ? ' / ' + Math.round(a.buySubPct) + '%' : '') : '—')}</div>
+    <div class="billing-sub" style="margin-top:8px"><strong>Expected cost composition:</strong> ${compStr}</div>${targetLine}${psfLine}
+    <div class="billing-sub" style="margin-top:8px"><strong>Analogs:</strong> ${analogList}</div></div>
+    <div class="billing-block" id="quickcheck-ai"><h3 class="section-header">AI advisory read</h3><div class="billing-sub">Analyzing against RYC history…</div></div>`;
+  const bm = { segment: { clientType: ct, workType: wt, sizeSF: sf, targetContract: target }, matchBasis: basis, analogJobCount: set.length, asBidMarginPct: a.bidMargin == null ? null : +a.bidMargin.toFixed(1), actualMarginPct: a.actMargin == null ? null : +a.actMargin.toFixed(1), gainFadePts: a.gainFade == null ? null : +a.gainFade.toFixed(1), buyoutTotal: a.buyTotal, buyoutSubPct: a.buySubPct == null ? null : Math.round(a.buySubPct), costComposition: Object.fromEntries(Object.entries(comp).map(([k, v]) => [ciClass(k), Math.round(v)])), medianDollarPerSF: psfMed ? Math.round(psfMed) : null, analogJobs: set.slice(0, 10).map(j => ({ name: j.name, asBid: j.bidMarginPct, actual: j.projectedMarginPct })) };
+  const sys = `You are a senior preconstruction/estimating advisor for R. Yoder Construction (RYC), a GC in northern Indiana that SUBCONTRACTS ALL trade work. You are given RYC's OWN historical benchmarks for similar projects plus a new project's scope. DO NOT invent or restate dollar figures — the numbers are computed and shown; your job is judgment. Respond ONLY with minified JSON: {"read":"2-4 sentence interpretation","risks":["3-5 specific risk flags"],"recommendation":"1-2 sentence margin/contingency/buyout posture"}.`;
+  const userMsg = `New project scope notes: ${scope || '(none provided)'}\n\nRYC historical benchmarks (JSON):\n${JSON.stringify(bm)}`;
+  try {
+    const resp = await fetch('/api/claude', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1100, temperature: 0.4, system: sys, messages: [{ role: 'user', content: userMsg }] }) });
+    const d = await resp.json(); const text = d?.content?.[0]?.text || ''; let p = null;
+    try { p = JSON.parse(text); } catch { const m = text.match(/\{[\s\S]*\}/); if (m) { try { p = JSON.parse(m[0]); } catch {} } }
+    const aiEl = document.getElementById('quickcheck-ai');
+    if (p && (p.read || p.risks)) { const risks = (p.risks || []).map(r => `<li>${esc(r)}</li>`).join('');
+      aiEl.innerHTML = `<h3 class="section-header">AI advisory read <span class="cnt">Claude · grounded in the benchmarks above</span></h3>${p.read ? `<div class="billing-sub" style="margin-bottom:10px">${esc(p.read)}</div>` : ''}${risks ? `<strong style="font-size:13px">Risk flags</strong><ul style="margin:6px 0 10px 18px;font-size:13px;line-height:1.5">${risks}</ul>` : ''}${p.recommendation ? `<div class="billing-sub"><strong>Recommended posture:</strong> ${esc(p.recommendation)}</div>` : ''}`;
+    } else if (text) { aiEl.innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-sub" style="white-space:pre-wrap">${esc(text)}</div>`; }
+    else { aiEl.innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-empty">No response.</div>`; }
+  } catch (e) { document.getElementById('quickcheck-ai').innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-empty">AI layer unavailable (${esc(e.message || 'error')}).</div>`; }
 }
 </script>
 </body>
