@@ -284,7 +284,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.20.0-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.21.0-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
@@ -301,6 +301,7 @@
     <button data-view="wip">WIP</button>
     <button data-view="subs">Subcontractors</button>
     <button data-view="costiq">Cost Intelligence</button>
+    <button data-view="estimate">Estimating Assist</button>
     <button data-view="analysis">Portfolio Analysis</button>
   </div>
 
@@ -311,6 +312,7 @@
   <div id="wip-section" style="display:none"></div>
   <div id="subs-section" style="display:none"></div>
   <div id="costiq-section" style="display:none"></div>
+  <div id="estimate-section" style="display:none"></div>
   <div id="jobs-section">
     <div class="job-controls" id="job-controls" style="display:none">
       <input type="text" id="job-search" placeholder="Search jobs, clients, PMs..." oninput="renderJobs()">
@@ -350,7 +352,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.20.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.21.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -473,9 +475,10 @@ function renderView() {
   const wipEl = document.getElementById('wip-section');
   const subsEl = document.getElementById('subs-section');
   const costiqEl = document.getElementById('costiq-section');
+  const estimateEl = document.getElementById('estimate-section');
   const controlsEl = document.getElementById('job-controls');
   const metricsEl = document.getElementById('metrics');
-  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none'; gainfadeEl.style.display = 'none'; wipEl.style.display = 'none'; subsEl.style.display = 'none'; costiqEl.style.display = 'none';
+  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none'; gainfadeEl.style.display = 'none'; wipEl.style.display = 'none'; subsEl.style.display = 'none'; costiqEl.style.display = 'none'; estimateEl.style.display = 'none';
   if (currentView === 'analysis') {
     analysisEl.style.display = 'block'; metricsEl.style.display = '';
     renderAnalysisMetrics(); renderAnalysis();
@@ -494,6 +497,9 @@ function renderView() {
   } else if (currentView === 'costiq') {
     costiqEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
     renderCostIQ();
+  } else if (currentView === 'estimate') {
+    estimateEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
+    renderEstimate();
   } else {
     jobsEl.style.display = 'block'; analysisEl.style.display = 'none'; metricsEl.style.display = '';
     controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
@@ -1514,6 +1520,138 @@ function renderCostIQ() {
     + `<select onchange="setCostIQWT(this.value)" style="margin-left:auto;padding:4px 8px;border-radius:6px;border:1px solid #d1d5db">${opts}</select></h3>`
     + `<div class="billing-sub">Actual cost split across Foundation cost classes (subcontract / material / self-perform labor / burden) as a share of total cost${costiqWT === 'all' ? ' across all completed jobs' : ' for ' + ciWT(costiqWT).toLowerCase() + ' jobs'}. The estimating starting point: for a project like this, here is how cost historically splits between bought-out and self-performed work.</div>`
     + `${ciClassRows(classJobs)}</div>`;
+}
+
+// === Estimating Assist — Phase 2 of the CivicScope GC estimating-intelligence product =========
+// Numbers are GROUNDED in RYC's own completed-job actuals (deterministic, from portfolioData);
+// Claude only adds the judgment layer (narrative + risk flags + posture). It is told NOT to invent
+// cost numbers. This is the "more than AI" distinction: the moat is the data, the AI reasons over it.
+let estimateBuilt = false;
+
+function estAnalogs(ct, wt) {
+  const jobs = (portfolioData?.jobs || []).filter(j => j.contractFinal);
+  let set = jobs.filter(j => j.clientType === ct && j.workType === wt), basis = 'client type + work type';
+  if (set.length < 3) { const s = jobs.filter(j => j.clientType === ct); if (s.length > set.length) { set = s; basis = 'client type (work-type sample too small)'; } }
+  if (set.length < 3) { const s = jobs.filter(j => j.workType === wt); if (s.length > set.length) { set = s; basis = 'work type (client-type sample too small)'; } }
+  if (set.length === 0) { set = jobs; basis = 'full portfolio (no close analogs)'; }
+  return { set, basis };
+}
+
+function ciComp(jobs) {
+  const m = {}; let total = 0;
+  for (const j of jobs) for (const c of (j.buyout?.byClass || [])) { if ((c.act || 0) > 0) { m[c.cls] = (m[c.cls] || 0) + c.act; total += c.act; } }
+  const out = {}; for (const k in m) out[k] = total > 0 ? m[k] / total * 100 : 0;
+  return out;
+}
+
+function renderEstimate() {
+  const el = document.getElementById('estimate-section');
+  if (estimateBuilt) return;  // keep form state across tab switches
+  estimateBuilt = true;
+  const ctOpts = [['school', 'School'], ['municipal', 'Municipal'], ['commercial', 'Commercial'], ['industrial', 'Industrial'], ['private', 'Private / Institutional'], ['mixed_use', 'Mixed Use']]
+    .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const wtOpts = [['new_construction', 'New Construction'], ['renovation', 'Renovation'], ['addition', 'Addition'], ['repair', 'Repair']]
+    .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const inp = 'padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;width:100%';
+  el.innerHTML = `<div class="billing-block">
+    <h3 class="section-header">Estimating Assist <span class="cnt">grounded in RYC's own completed-job history</span></h3>
+    <div class="billing-sub">Spec a project; the tool pulls the closest historical analogs from RYC's completed jobs and returns a <strong>data-grounded</strong> margin/cost read plus an AI advisory layer. The numbers come from RYC's actuals — the AI reasons over them, it does not invent them.</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:760px;margin:14px 0">
+      <label>Client type<br><select id="est-ct" style="${inp}">${ctOpts}</select></label>
+      <label>Work type<br><select id="est-wt" style="${inp}">${wtOpts}</select></label>
+      <label>Size (SF) <span class="note">optional</span><br><input id="est-sf" type="number" placeholder="e.g. 25000" style="${inp}"></label>
+      <label>Target contract $ <span class="note">optional</span><br><input id="est-target" type="number" placeholder="e.g. 4000000" style="${inp}"></label>
+      <label style="grid-column:1/3">Scope notes <span class="note">drives the AI risk read</span><br><textarea id="est-scope" rows="3" placeholder="e.g. HVAC + roof replacement on a 1990s elementary, occupied during construction, tight summer window" style="${inp}"></textarea></label>
+    </div>
+    <button onclick="runEstimate()" style="background:#ea580c;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Generate grounded estimate</button>
+    <div id="estimate-results" style="margin-top:18px"></div>
+  </div>`;
+}
+
+async function runEstimate() {
+  const ct = document.getElementById('est-ct').value;
+  const wt = document.getElementById('est-wt').value;
+  const sf = Number(document.getElementById('est-sf').value) || null;
+  const target = Number(document.getElementById('est-target').value) || null;
+  const scope = (document.getElementById('est-scope').value || '').trim();
+  const out = document.getElementById('estimate-results');
+
+  const { set, basis } = estAnalogs(ct, wt);
+  const a = ciAgg(set);
+  const comp = ciComp(set);
+  // $/SF from analogs that carry sqft (thin coverage — labeled)
+  const withSf = set.filter(j => j.sqft > 0 && j.contractFinal > 0);
+  const psfArr = withSf.map(j => j.contractFinal / j.sqft).sort((x, y) => x - y);
+  const psfMed = psfArr.length ? psfArr[Math.floor(psfArr.length / 2)] : null;
+
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  const compStr = Object.entries(comp).sort((x, y) => y[1] - x[1]).filter(([, v]) => v >= 1)
+    .map(([k, v]) => `${ciClass(k)} ${Math.round(v)}%`).join(' · ') || '—';
+
+  // Deterministic grounded panel — render immediately
+  let targetLine = '';
+  if (target && a.actMargin != null) {
+    const expCost = target * (1 - a.actMargin / 100);
+    const expMargin = target - expCost;
+    targetLine = `<div class="billing-sub" style="margin-top:8px">At a <strong>${fmtCompact(target)}</strong> contract, this segment's historical <strong>${a.actMargin.toFixed(1)}%</strong> actual margin implies ~<strong>${fmtCompact(expCost)}</strong> cost / ~<strong>${fmtCompact(expMargin)}</strong> gross margin. As-bid for the segment runs ${a.bidMargin != null ? a.bidMargin.toFixed(1) + '%' : '—'}${a.gainFade != null ? ` (typically ${a.gainFade >= 0 ? 'gains' : 'fades'} ${Math.abs(a.gainFade).toFixed(1)} pts bid→actual)` : ''}.</div>`;
+  }
+  const psfLine = psfMed ? `<div class="billing-sub" style="margin-top:8px">Historical <strong>$${Math.round(psfMed).toLocaleString()}/SF</strong> (median of ${withSf.length} analog${withSf.length === 1 ? '' : 's'} with SF on file)${sf ? ` → at ${sf.toLocaleString()} SF ≈ <strong>${fmtCompact(psfMed * sf)}</strong>` : ''}. <span class="note">SF coverage is thin — directional.</span></div>` : '';
+
+  const analogList = set.slice(0, 8).map(j => `${esc(j.name)} (${j.bidMarginPct != null ? j.bidMarginPct.toFixed(0) + '%→' : ''}${j.projectedMarginPct != null ? j.projectedMarginPct.toFixed(0) + '%' : '—'})`).join(' · ');
+
+  out.innerHTML = `<div class="billing-block">
+      <h3 class="section-header">Grounded benchmarks <span class="cnt">${set.length} analog jobs · matched on ${esc(basis)}</span></h3>
+      <div class="kpi-band">
+        ${card('As-bid margin', pct(a.bidMargin), '')}
+        ${card('Actual margin', pct(a.actMargin), '')}
+        ${card('Gain/Fade', a.gainFade == null ? '—' : (a.gainFade >= 0 ? '+' : '') + a.gainFade.toFixed(1) + ' pts', '')}
+        ${card('Buyout (%sub)', a.buyTotal ? fmtCompact(a.buyTotal) + (a.buySubPct != null ? ' / ' + Math.round(a.buySubPct) + '%' : '') : '—', '')}
+      </div>
+      <div class="billing-sub" style="margin-top:8px"><strong>Expected cost composition:</strong> ${compStr}</div>
+      ${targetLine}${psfLine}
+      <div class="billing-sub" style="margin-top:8px"><strong>Analogs:</strong> ${analogList}</div>
+    </div>
+    <div class="billing-block" id="estimate-ai"><h3 class="section-header">AI advisory read</h3><div class="billing-sub">Analyzing against RYC history…</div></div>`;
+
+  // AI judgment layer
+  const benchmarks = {
+    segment: { clientType: ct, workType: wt, sizeSF: sf, targetContract: target },
+    matchBasis: basis, analogJobCount: set.length,
+    asBidMarginPct: a.bidMargin == null ? null : +a.bidMargin.toFixed(1),
+    actualMarginPct: a.actMargin == null ? null : +a.actMargin.toFixed(1),
+    gainFadePts: a.gainFade == null ? null : +a.gainFade.toFixed(1),
+    buyoutTotal: a.buyTotal, buyoutSubPct: a.buySubPct == null ? null : Math.round(a.buySubPct),
+    costComposition: Object.fromEntries(Object.entries(comp).map(([k, v]) => [ciClass(k), Math.round(v)])),
+    medianDollarPerSF: psfMed ? Math.round(psfMed) : null,
+    analogJobs: set.slice(0, 10).map(j => ({ name: j.name, asBid: j.bidMarginPct, actual: j.projectedMarginPct })),
+  };
+  const sys = `You are a senior preconstruction/estimating advisor for R. Yoder Construction (RYC), a general contractor in northern Indiana. You are given RYC's OWN historical performance benchmarks for projects similar to a new one, plus the new project's scope. RYC is overwhelmingly a buyout shop (most cost is subcontracted), so margin is made or lost on the buyout spread. DO NOT invent or restate dollar cost figures — the numbers are already computed and shown to the user; your job is judgment, not arithmetic. Be direct and construction-literate. Respond ONLY with minified JSON: {"read": "2-4 sentence interpretation of how jobs like this have actually performed and what it means for bidding this one", "risks": ["3-5 specific risk flags tailored to THIS project type, the gain/fade pattern, and the scope notes"], "recommendation": "1-2 sentence margin/contingency/buyout posture"}.`;
+  const userMsg = `New project scope notes: ${scope || '(none provided)'}\n\nRYC historical benchmarks for this segment (JSON):\n${JSON.stringify(benchmarks)}`;
+
+  try {
+    const resp = await fetch('/api/claude', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1100, temperature: 0.4, system: sys, messages: [{ role: 'user', content: userMsg }] }),
+    });
+    const d = await resp.json();
+    const text = d?.content?.[0]?.text || '';
+    let p = null;
+    try { p = JSON.parse(text); } catch { const m = text.match(/\{[\s\S]*\}/); if (m) { try { p = JSON.parse(m[0]); } catch {} } }
+    const aiEl = document.getElementById('estimate-ai');
+    if (p && (p.read || p.risks)) {
+      const risks = (p.risks || []).map(r => `<li>${esc(r)}</li>`).join('');
+      aiEl.innerHTML = `<h3 class="section-header">AI advisory read <span class="cnt">Claude · grounded in the benchmarks above</span></h3>
+        ${p.read ? `<div class="billing-sub" style="margin-bottom:10px">${esc(p.read)}</div>` : ''}
+        ${risks ? `<strong style="font-size:13px">Risk flags</strong><ul style="margin:6px 0 10px 18px;font-size:13px;line-height:1.5">${risks}</ul>` : ''}
+        ${p.recommendation ? `<div class="billing-sub"><strong>Recommended posture:</strong> ${esc(p.recommendation)}</div>` : ''}`;
+    } else if (text) {
+      aiEl.innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-sub" style="white-space:pre-wrap">${esc(text)}</div>`;
+    } else {
+      aiEl.innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-empty">No response — the benchmarks above stand on their own.</div>`;
+    }
+  } catch (e) {
+    document.getElementById('estimate-ai').innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-empty">AI layer unavailable (${esc(e.message || 'error')}). The grounded benchmarks above are unaffected.</div>`;
+  }
 }
 
 // --- Stoplight filter state ---
