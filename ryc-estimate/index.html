@@ -103,7 +103,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.3.0 · plan takeoff · cost intelligence · quick check</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.3.1 · plan takeoff · cost intelligence · quick check</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -584,6 +584,23 @@ function setEstView(v) {
   document.getElementById('view-quickcheck').style.display = v === 'quickcheck' ? 'block' : 'none';
   if (v === 'costiq') renderCostIQ();
   if (v === 'quickcheck') renderQuickCheck();
+}
+
+// helpers the ported views need (these lived on the dashboard, not previously on this page)
+const ciClass = (k) => CLASS_LABEL[k] || (k || '—');
+function estAnalogs(ct, wt) {
+  const jobs = (portfolio?.jobs || []).filter(j => j.contractFinal);
+  let set = jobs.filter(j => j.clientType === ct && j.workType === wt), basis = 'client type + work type';
+  if (set.length < 3) { const s = jobs.filter(j => j.clientType === ct); if (s.length > set.length) { set = s; basis = 'client type'; } }
+  if (set.length < 3) { const s = jobs.filter(j => j.workType === wt); if (s.length > set.length) { set = s; basis = 'work type'; } }
+  if (!set.length) { set = jobs; basis = 'full portfolio'; }
+  return { set, basis };
+}
+function ciComp(jobs) {
+  const m = {}; let total = 0;
+  for (const j of jobs) for (const c of (j.buyout?.byClass || [])) { if ((c.act || 0) > 0) { m[c.cls] = (m[c.cls] || 0) + c.act; total += c.act; } }
+  const out = {}; for (const k in m) out[k] = total > 0 ? m[k] / total * 100 : 0;
+  return out;
 }
 
 // --- Cost Intelligence ---
