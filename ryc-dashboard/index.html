@@ -284,7 +284,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.19.0-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.20.0-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <div class="meta" id="refresh-status"></div>
@@ -300,6 +300,7 @@
     <button data-view="gainfade">Gain/Fade</button>
     <button data-view="wip">WIP</button>
     <button data-view="subs">Subcontractors</button>
+    <button data-view="costiq">Cost Intelligence</button>
     <button data-view="analysis">Portfolio Analysis</button>
   </div>
 
@@ -309,6 +310,7 @@
   <div id="gainfade-section" style="display:none"></div>
   <div id="wip-section" style="display:none"></div>
   <div id="subs-section" style="display:none"></div>
+  <div id="costiq-section" style="display:none"></div>
   <div id="jobs-section">
     <div class="job-controls" id="job-controls" style="display:none">
       <input type="text" id="job-search" placeholder="Search jobs, clients, PMs..." oninput="renderJobs()">
@@ -348,7 +350,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.19.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.20.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -470,9 +472,10 @@ function renderView() {
   const gainfadeEl = document.getElementById('gainfade-section');
   const wipEl = document.getElementById('wip-section');
   const subsEl = document.getElementById('subs-section');
+  const costiqEl = document.getElementById('costiq-section');
   const controlsEl = document.getElementById('job-controls');
   const metricsEl = document.getElementById('metrics');
-  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none'; gainfadeEl.style.display = 'none'; wipEl.style.display = 'none'; subsEl.style.display = 'none';
+  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none'; gainfadeEl.style.display = 'none'; wipEl.style.display = 'none'; subsEl.style.display = 'none'; costiqEl.style.display = 'none';
   if (currentView === 'analysis') {
     analysisEl.style.display = 'block'; metricsEl.style.display = '';
     renderAnalysisMetrics(); renderAnalysis();
@@ -488,6 +491,9 @@ function renderView() {
   } else if (currentView === 'subs') {
     subsEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
     renderSubs();
+  } else if (currentView === 'costiq') {
+    costiqEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
+    renderCostIQ();
   } else {
     jobsEl.style.display = 'block'; analysisEl.style.display = 'none'; metricsEl.style.display = '';
     controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
@@ -1407,6 +1413,107 @@ function renderSubs() {
     <h3 class="section-header">Top subcontractors <span class="cnt">${subs.length} subs · ranked by spend</span> ${toggle}</h3>
     <div class="billing-sub"><strong>Actual</strong> = subcontractor cost booked in Foundation by vendor across 2023+ jobs. <strong>Committed</strong> = signed subcontract amount (PO_Sub). Δ = committed − actual (positive = under/in-progress, negative = actual over the subcontract via change orders or T&amp;M). Committed-vs-actual mixes in-progress jobs and T&amp;M (PO-less) subs — read <strong>Actual</strong> as the spend ranking. The buyout spread vs the original <em>bid</em> carry needs the estimate (ProEst/SharePoint) — a later phase.</div>
     ${body}</div>`;
+}
+
+// === Cost Intelligence — RYC's own completed-job actuals as estimating benchmarks (2023+) ===
+// Phase 1 of the CivicScope GC estimating-intelligence product (RYC = tenant #1). Pure client-side
+// aggregation of portfolioData.jobs (Foundation-authoritative completed record). No new data pull.
+// All HTML built with template literals so apostrophes can't terminate a string (the Gain/Fade lesson).
+let costiqWT = 'all';
+function setCostIQWT(v) { costiqWT = v; renderCostIQ(); }
+
+function ciAgg(jobs) {
+  let n = jobs.length, contract = 0, finalCost = 0, bidContract = 0, bidCost = 0, buyTotal = 0, buySub = 0, coTotal = 0;
+  for (const j of jobs) {
+    contract += j.contractFinal || 0; finalCost += j.directCost || 0;
+    bidContract += j.contractOriginal || 0; bidCost += j.originalCost || 0;
+    if (j.buyout) { buyTotal += j.buyout.total || 0; buySub += j.buyout.sub || 0; }
+    coTotal += j.changeOrders || 0;
+  }
+  const bidMargin = bidContract > 0 ? (bidContract - bidCost) / bidContract * 100 : null;
+  const actMargin = contract > 0 ? (contract - finalCost) / contract * 100 : null;
+  return {
+    n, contract, bidMargin, actMargin,
+    gainFade: (bidMargin != null && actMargin != null) ? actMargin - bidMargin : null,
+    buyTotal, buySubPct: buyTotal > 0 ? buySub / buyTotal * 100 : null,
+    coPct: bidContract > 0 ? coTotal / bidContract * 100 : null
+  };
+}
+
+function ciGfCell(v) {
+  if (v == null) return '<span class="muted-cell">—</span>';
+  const c = v >= 0 ? '#16a34a' : '#dc2626';
+  return `<span style="color:${c};font-weight:600">${v >= 0 ? '+' : ''}${v.toFixed(1)} pts</span>`;
+}
+
+const CIQ_CT = { school: 'School', municipal: 'Municipal', commercial: 'Commercial', industrial: 'Industrial', private: 'Private / Institutional', mixed_use: 'Mixed Use', residential: 'Residential' };
+const CIQ_WT = { new_construction: 'New Construction', renovation: 'Renovation', addition: 'Addition', repair: 'Repair' };
+const CIQ_CLASS = { SUB: 'Subcontract', MAT: 'Material', LAB: 'Labor (self-perform)', BUR: 'Labor burden', EQU: 'Equipment', OTH: 'Other', REQ: 'Other / requisition' };
+const ciCT = (k) => CIQ_CT[k] || (k || '—');
+const ciWT = (k) => CIQ_WT[k] || (k || '—');
+const ciClass = (k) => CIQ_CLASS[k] || (k || '—');
+
+function ciBenchRows(jobs, keyField, labelFn) {
+  const groups = {};
+  for (const j of jobs) { const k = j[keyField] || '—'; (groups[k] ||= []).push(j); }
+  const rows = Object.entries(groups).map(([k, js]) => ({ label: labelFn(k), a: ciAgg(js) }))
+    .sort((x, y) => y.a.contract - x.a.contract);
+  let body = '';
+  for (const r of rows) {
+    const a = r.a;
+    const buy = a.buyTotal !== 0
+      ? `${fmtCompact(a.buyTotal)}${a.buySubPct != null ? ` <span class="note">${Math.round(a.buySubPct)}% sub</span>` : ''}`
+      : '<span class="muted-cell">—</span>';
+    body += `<tr><td>${esc(r.label)}</td><td class="r">${a.n}</td><td class="r">${fmtCompact(a.contract)}</td>`
+      + `<td class="r">${pct(a.bidMargin)}</td><td class="r">${pct(a.actMargin)}</td><td class="r">${ciGfCell(a.gainFade)}</td>`
+      + `<td class="r">${buy}</td><td class="r">${pct(a.coPct)}</td></tr>`;
+  }
+  return `<table class="billing-table"><thead><tr><th>Profile</th><th class="r">Jobs</th><th class="r">Contract</th>`
+    + `<th class="r">As-bid margin</th><th class="r">Actual margin</th><th class="r">Gain/Fade</th><th class="r">Buyout</th><th class="r">CO %</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function ciClassRows(jobs) {
+  const m = {};
+  for (const j of jobs) for (const c of (j.buyout?.byClass || [])) {
+    if (!c || (c.act || 0) <= 0) continue;
+    const k = c.cls || '(unclassified)'; m[k] = (m[k] || 0) + (c.act || 0);
+  }
+  const total = Object.values(m).reduce((a, b) => a + b, 0);
+  const rows = Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  if (!rows.length || total <= 0) return '<div class="billing-empty">No cost-class detail for this filter.</div>';
+  let body = '';
+  for (const [k, v] of rows) {
+    const p = v / total * 100;
+    body += `<tr><td>${esc(ciClass(k))}</td><td class="r">${fmtCompact(v)}</td><td class="r">${p.toFixed(1)}%</td>`
+      + `<td style="width:30%"><div style="background:#e5e7eb;border-radius:3px;height:8px"><div style="background:#2563eb;height:8px;border-radius:3px;width:${Math.min(100, p).toFixed(1)}%"></div></div></td></tr>`;
+  }
+  return `<table class="billing-table"><thead><tr><th>Cost class</th><th class="r">Actual cost</th><th class="r">% of cost</th><th>&nbsp;</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function renderCostIQ() {
+  const el = document.getElementById('costiq-section');
+  const all = (portfolioData?.jobs || []).filter(j => j.contractFinal);
+  if (!all.length) { el.innerHTML = '<div class="billing-empty">No completed-job data available.</div>'; return; }
+  const top = ciAgg(all);
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  const band = `<div class="kpi-band">
+    ${card('Completed jobs', all.length, '')}
+    ${card('Contract value', fmtCompact(top.contract), '')}
+    ${card('Avg as-bid margin', pct(top.bidMargin), '')}
+    ${card('Avg actual margin', pct(top.actMargin), '')}
+  </div>`;
+  const wts = [...new Set(all.map(j => j.workType).filter(Boolean))].sort();
+  const opts = ['all', ...wts].map(w => `<option value="${w}"${w === costiqWT ? ' selected' : ''}>${w === 'all' ? 'All work types' : ciWT(w)}</option>`).join('');
+  const classJobs = costiqWT === 'all' ? all : all.filter(j => j.workType === costiqWT);
+  const stamp = portfolioData?.generated ? `<div class="billing-stamp">Foundation · ${fmtDate(portfolioData.generated)} · completed 2023+</div>` : '';
+  el.innerHTML = stamp + band
+    + `<div class="billing-block"><div class="billing-sub">RYC's own completed-job actuals, turned into estimating benchmarks. <strong>As-bid margin</strong> = (orig contract − orig cost) ÷ orig contract. <strong>Actual margin</strong> = (final contract − actual cost) ÷ final contract. <strong>Gain/Fade</strong> = actual − as-bid (did jobs like this beat the bid). <strong>Buyout</strong> = estimate − actual by cost class (how far under the bid cost we landed; % sub = subcontract share). Margins are contract-weighted. Phase 1 of the CivicScope estimating-intelligence build — these benchmarks become the ground truth the estimating tool reasons from.</div></div>`
+    + `<div class="billing-block"><h3 class="section-header">Benchmarks by client type</h3>${ciBenchRows(all, 'clientType', ciCT)}</div>`
+    + `<div class="billing-block"><h3 class="section-header">Benchmarks by work type</h3>${ciBenchRows(all, 'workType', ciWT)}</div>`
+    + `<div class="billing-block"><h3 class="section-header">Cost composition by cost class <span class="cnt">where the money goes</span>`
+    + `<select onchange="setCostIQWT(this.value)" style="margin-left:auto;padding:4px 8px;border-radius:6px;border:1px solid #d1d5db">${opts}</select></h3>`
+    + `<div class="billing-sub">Actual cost split across Foundation cost classes (subcontract / material / self-perform labor / burden) as a share of total cost${costiqWT === 'all' ? ' across all completed jobs' : ' for ' + ciWT(costiqWT).toLowerCase() + ' jobs'}. The estimating starting point: for a project like this, here is how cost historically splits between bought-out and self-performed work.</div>`
+    + `${ciClassRows(classJobs)}</div>`;
 }
 
 // --- Stoplight filter state ---
