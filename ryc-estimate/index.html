@@ -85,7 +85,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>Estimating Assist</h1><div class="meta">v1.1.1 · plans &amp; specs → estimate, grounded in RYC history</div></div>
+    <div><h1>Estimating Assist</h1><div class="meta">v1.2.0 · bid-assembly draft — plans → RYC-division estimate, mix-checked against RYC history</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -180,11 +180,14 @@ if (sessionStorage.getItem('ryc-auth') === '1') unlock();
 
 // ---------- RYC benchmarks (Cost Intelligence layer) ----------
 let portfolio = null;
+let benchmarks = null;
 async function loadPortfolio() {
   try { portfolio = await (await fetch('/ryc-dashboard/ryc-portfolio.json?t=' + Date.now())).json(); }
   catch { portfolio = { jobs: [] }; }
+  try { benchmarks = await (await fetch('/ryc-estimate/ryc-cost-benchmarks.json?t=' + Date.now())).json(); }
+  catch { benchmarks = null; }
 }
-const CLASS_LABEL = { SUB: 'Subcontract', MAT: 'Material', LAB: 'Self-perform labor', BUR: 'Labor burden', EQU: 'Equipment', OTH: 'Other', REQ: 'Other' };
+const CLASS_LABEL = { SUB: 'Subcontract', MAT: 'GC materials', LAB: 'GC/supervision labor', BUR: 'Labor burden', EQU: 'Equipment', OTH: 'Other', REQ: 'Other' };
 
 function ciNorm(s) { return (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !['the', 'and', 'for', 'new'].includes(w)); }
 function ciSameJob(a, b) { const A = new Set(ciNorm(a)), B = new Set(ciNorm(b)); if (!A.size || !B.size) return false; let inter = 0; for (const x of A) if (B.has(x)) inter++; const union = new Set([...A, ...B]).size; return union > 0 && inter / union >= 0.5; }
@@ -371,7 +374,7 @@ async function runEstimate() {
 function rycGroundingText(inp, bm) {
   const comp = Object.entries(bm.comp).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 1).map(([k, v]) => `${CLASS_LABEL[k] || k} ${Math.round(v)}%`).join(', ') || 'n/a';
   const anchorLines = (bm.analogs || []).filter(a => a.contract).map(a => `  • ${a.name}: ${money(a.contract)}${a.psf ? ` (${a.sqft.toLocaleString()} SF, $${a.psf}/SF)` : ''}`).join('\n');
-  return `RYC HISTORICAL BENCHMARKS for this segment — from RYC's OWN completed jobs (matched on ${bm.basis}, ${bm.n} job(s)). Anchor the estimate to how RYC ACTUALLY performs; RYC is a buyout shop (most cost is subcontracted):
+  return `RYC HISTORICAL BENCHMARKS for this segment — from RYC's OWN completed jobs (matched on ${bm.basis}, ${bm.n} job(s)). Anchor the estimate to how RYC ACTUALLY performs. RYC self-performs NO trade work — every division is SUBCONTRACTED, so each division cost is a sub-quote placeholder (plus GC general conditions/overhead):
 - As-bid margin ${pct(bm.bidMargin)} → actually achieved ${pct(bm.actMargin)}${bm.gainFade != null ? ` (RYC typically ${bm.gainFade >= 0 ? 'gains' : 'fades'} ${Math.abs(bm.gainFade).toFixed(1)} pts bid→actual on this work)` : ''}.
 - Cost composition (RYC actuals): ${comp}.
 - Subcontract buyout: RYC historically lands ${money(bm.buy)} under estimate${bm.buySubPct != null ? ` (${Math.round(bm.buySubPct)}% of it on subs)` : ''}.${bm.medianPSF ? `\n- Historical $/SF on this work: ~$${Math.round(bm.medianPSF).toLocaleString()}/SF (thin sample — directional).` : ''}
@@ -388,8 +391,8 @@ COST_MIDPOINT: [number, no decimals]
 CONFIDENCE: [High / Medium / Low]
 NARRATIVE: [2-3 sentences, estimator-to-estimator. What drives the range and the key risks, referencing RYC's historical pattern for this work.]
 DIVISIONS:
-- [CSI division or major scope]: $[amount] — [brief]
-- [as many as the scope warrants, biggest first]
+- [2-digit CSI division #] [name]: $[amount] — [brief scope]
+- [Use RYC's CSI divisions and START each line with the 2-digit number: 01 General Requirements, 02 Existing Conditions, 03 Concrete, 04 Masonry, 05 Metals, 06 Wood, 07 Thermal & Moisture, 08 Doors & Windows, 09 Finishes, 10 Specialties, 11 Equipment, 12 Furnishings, 13 Special Construction (PEMB), 21 Fire Suppression, 22 Plumbing, 23 Mechanical, 26 Electrical, 31 Earthwork, 32 Exterior Improvements, 33 Utilities. Biggest first. EVERY division is a SUBCONTRACT placeholder pending a real quote — RYC self-performs nothing.]
 ASSUMPTIONS:
 - [assumption]
 - [assumption]
@@ -399,7 +402,7 @@ GAP_QUESTIONS:
 - [question]? (±$[impact])
 [3-6 questions ordered by dollar impact; if none, write: GAP_QUESTIONS: none]
 
-Rules: Current northern-Indiana pricing. Design-Bid-Build. Include GC overhead, general conditions, permitting, design/engineering allowance (3-5%). Exclude land. No proprietary database names (RSMeans, Gordian).`;
+Rules: This is a CONCEPTUAL bid-assembly draft, NOT a final bid — every division cost is a subcontract placeholder to be confirmed with a live sub quote (RYC self-performs nothing). Current northern-Indiana pricing. Design-Bid-Build. Include GC overhead, general conditions, permitting, design/engineering allowance (3-5%). Exclude land. No proprietary database names (RSMeans, Gordian).`;
 
 function buildPrompt(inp, bm) {
   const fileNote = uploadedFiles.length ? `\nUPLOADED: ${uploadedFiles.length} plan/spec page(s). Read thoroughly — extract SF, dimensions, structural/MEP scope, finishes, site work, phasing, special requirements. Where documents are specific, use them over the form inputs.` : '';
@@ -439,7 +442,9 @@ function parseResponse(raw) {
   const lines = s => s.split('\n').map(l => l.replace(/^[-•]\s*/, '').trim()).filter(Boolean);
   const divisions = lines(block('DIVISIONS', 'ASSUMPTIONS')).map(line => {
     const m = line.match(/^(.*?):\s*\$?([\d,]+)\s*(?:[—-]\s*(.*))?$/);
-    return m ? { name: m[1].trim(), amount: parseInt(m[2].replace(/,/g, ''), 10) || 0, scope: (m[3] || '').trim() } : { name: line, amount: 0, scope: '' };
+    const o = m ? { name: m[1].trim(), amount: parseInt(m[2].replace(/,/g, ''), 10) || 0, scope: (m[3] || '').trim() } : { name: line, amount: 0, scope: '' };
+    const dm = o.name.match(/\b(\d{2})\b/); o.div = dm ? dm[1] : null;
+    return o;
   });
   const gRaw = block('GAP_QUESTIONS', '[A-Z_]+');
   let gaps = [];
@@ -467,9 +472,25 @@ function renderResults(p, inp, bm) {
   const dw = document.getElementById('divisionsWrap');
   if (p.divisions.length) {
     const tot = p.divisions.reduce((s, d) => s + (d.amount || 0), 0);
-    dw.innerHTML = `<h3>Division breakdown</h3><table><thead><tr><th>Division / scope</th><th class="r">Cost</th></tr></thead><tbody>`
-      + p.divisions.map(d => `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}</td><td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td></tr>`).join('')
-      + `<tr><td><strong>Total</strong></td><td class="r"><strong>${tot ? '$' + tot.toLocaleString() : '—'}</strong></td></tr></tbody></table>`;
+    const ds = benchmarks?.divisionStats || {};
+    let flagged = 0;
+    const rowHtml = p.divisions.map(d => {
+      const shr = tot > 0 && d.amount ? d.amount / tot * 100 : null;
+      const b = d.div ? ds[d.div] : null;
+      let mix = '';
+      if (b && shr != null && b.jobsWithDivision >= 4) {
+        const hi = b.sharePctP75 * 1.6, lo = b.sharePctP25 * 0.4;
+        if (shr > hi) { mix = `<span style="color:#dc2626;font-weight:600"> ⚑ ${shr.toFixed(0)}% vs RYC ${b.sharePctP25}–${b.sharePctP75}%</span>`; flagged++; }
+        else if (shr < lo) { mix = `<span style="color:#dc2626;font-weight:600"> ⚑ low ${shr.toFixed(0)}% vs RYC ${b.sharePctP25}–${b.sharePctP75}%</span>`; flagged++; }
+        else mix = `<span class="note"> · ${shr.toFixed(0)}% (RYC ${b.sharePctP25}–${b.sharePctP75}%)</span>`;
+      }
+      return `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}${mix}</td><td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td></tr>`;
+    }).join('');
+    dw.innerHTML = `<h3>Division breakdown <span class="note">— every line is a subcontract placeholder; confirm with a quote</span></h3>`
+      + `<table><thead><tr><th>Division / scope <span class="note">(share vs RYC history)</span></th><th class="r">Cost</th></tr></thead><tbody>`
+      + rowHtml
+      + `<tr><td><strong>Total (conceptual — not a bid)</strong></td><td class="r"><strong>${tot ? '$' + tot.toLocaleString() : '—'}</strong></td></tr></tbody></table>`
+      + (benchmarks ? `<div class="note" style="margin-top:6px">⚑ = this division's share of cost is outside RYC's historical p25–p75 range for comparable work (${benchmarks.jobs ? benchmarks.jobs.length : ''} jobs) — re-check scope/quantities or verify the quote.${flagged ? ` <strong>${flagged} flagged.</strong>` : ' None flagged.'}</div>` : '');
   } else dw.innerHTML = '';
 
   // assumptions / gaps
