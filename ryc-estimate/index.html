@@ -85,7 +85,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>Estimating Assist</h1><div class="meta">v1.0.0 · plans &amp; specs → estimate, grounded in RYC history</div></div>
+    <div><h1>Estimating Assist</h1><div class="meta">v1.1.0 · plans &amp; specs → estimate, grounded in RYC history</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -205,12 +205,15 @@ function segBenchmarks(ct, wt) {
   const compPct = {}; for (const k in comp) compPct[k] = compTot > 0 ? comp[k] / compTot * 100 : 0;
   const bidMargin = bidC > 0 ? (bidC - bidCost) / bidC * 100 : null;
   const actMargin = contract > 0 ? (contract - cost) / contract * 100 : null;
+  const contracts = set.map(j => j.contractFinal).filter(Boolean).sort((a, b) => a - b);
   return {
     n: set.length, basis, bidMargin, actMargin,
     gainFade: (bidMargin != null && actMargin != null) ? actMargin - bidMargin : null,
     buy, buySubPct: buy > 0 ? buySub / buy * 100 : null,
     comp: compPct, medianPSF: psf.length ? psf[Math.floor(psf.length / 2)] : null,
-    analogs: set.slice(0, 8).map(j => j.name),
+    contractMin: contracts[0] || null, contractMax: contracts[contracts.length - 1] || null,
+    contractMed: contracts.length ? contracts[Math.floor(contracts.length / 2)] : null,
+    analogs: set.slice(0, 10).map(j => ({ name: j.name, contract: j.contractFinal || null, sqft: j.sqft || null, psf: (j.sqft > 0 && j.contractFinal) ? Math.round(j.contractFinal / j.sqft) : null })),
   };
 }
 function pct(n) { return n == null ? '—' : n.toFixed(1) + '%'; }
@@ -364,10 +367,15 @@ async function runEstimate() {
 
 function rycGroundingText(inp, bm) {
   const comp = Object.entries(bm.comp).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 1).map(([k, v]) => `${CLASS_LABEL[k] || k} ${Math.round(v)}%`).join(', ') || 'n/a';
+  const anchorLines = (bm.analogs || []).filter(a => a.contract).map(a => `  • ${a.name}: ${money(a.contract)}${a.psf ? ` (${a.sqft.toLocaleString()} SF, $${a.psf}/SF)` : ''}`).join('\n');
   return `RYC HISTORICAL BENCHMARKS for this segment — from RYC's OWN completed jobs (matched on ${bm.basis}, ${bm.n} job(s)). Anchor the estimate to how RYC ACTUALLY performs; RYC is a buyout shop (most cost is subcontracted):
 - As-bid margin ${pct(bm.bidMargin)} → actually achieved ${pct(bm.actMargin)}${bm.gainFade != null ? ` (RYC typically ${bm.gainFade >= 0 ? 'gains' : 'fades'} ${Math.abs(bm.gainFade).toFixed(1)} pts bid→actual on this work)` : ''}.
 - Cost composition (RYC actuals): ${comp}.
 - Subcontract buyout: RYC historically lands ${money(bm.buy)} under estimate${bm.buySubPct != null ? ` (${Math.round(bm.buySubPct)}% of it on subs)` : ''}.${bm.medianPSF ? `\n- Historical $/SF on this work: ~$${Math.round(bm.medianPSF).toLocaleString()}/SF (thin sample — directional).` : ''}
+
+COST ANCHOR — these are RYC's ACTUAL final contract totals for comparable completed jobs${(bm.contractMin && bm.contractMax) ? ` (range ${money(bm.contractMin)}–${money(bm.contractMax)}, median ${money(bm.contractMed)})` : ''}:
+${anchorLines || '  (no comparable contract values available)'}
+CRITICAL: your TOTAL estimate must land in this magnitude unless the plans clearly show scope that substantially exceeds these analogs. Do NOT apply generic or national institutional $/SF — RYC builds economical municipal / PEMB / light-commercial work, typically FAR below national $/SF benchmarks (often $150–$300/SF, not $400–500/SF). If your bottom-up total lands outside this envelope, your $/SF or quantities are wrong — re-check and reconcile to these real RYC numbers before finalizing.
 Use RYC's realistic achieved margin, not a generic markup. Reflect the subcontract-heavy cost split in your division breakdown.`;
 }
 const OUT_FORMAT = `Respond in EXACTLY this format:
@@ -480,9 +488,16 @@ function renderResults(p, inp, bm) {
     if (Math.abs(dev) >= 25) flags += `<div class="flag">This estimate is <strong>$${Math.round(estPSF).toLocaleString()}/SF</strong> — ${Math.abs(Math.round(dev))}% ${dev > 0 ? 'above' : 'below'} RYC's historical ~$${Math.round(bm.medianPSF).toLocaleString()}/SF on this work. Sanity-check scope/quantities. <span class="note">(SF sample thin — directional.)</span></div>`;
     else flags += `<div class="ok-flag">At <strong>$${Math.round(estPSF).toLocaleString()}/SF</strong>, this estimate is in line with RYC's historical ~$${Math.round(bm.medianPSF).toLocaleString()}/SF on this work.</div>`;
   }
+  // contract-magnitude envelope check — the primary anchor against generic overpricing
+  if (mid && bm.contractMax) {
+    if (mid > bm.contractMax * 1.4) flags += `<div class="flag">This estimate (${money(mid)}) is <strong>${Math.round((mid / bm.contractMax - 1) * 100)}% above RYC's largest comparable job</strong> (${money(bm.contractMax)}; segment range ${money(bm.contractMin)}–${money(bm.contractMax)}). Likely overstated — re-check $/SF and quantities against the analogs.</div>`;
+    else if (mid < bm.contractMin * 0.6) flags += `<div class="flag">This estimate (${money(mid)}) is well below RYC's smallest comparable job (${money(bm.contractMin)}). Check for missed scope.</div>`;
+    else flags += `<div class="ok-flag">At ${money(mid)}, this estimate sits within RYC's historical range for comparable work (${money(bm.contractMin)}–${money(bm.contractMax)}).</div>`;
+  }
   document.getElementById('groundBody').innerHTML =
-    `<div class="note" style="margin-bottom:6px">Benchmarks from RYC's own completed jobs · matched on ${esc(bm.basis)} · ${bm.n} analog(s)${bm.analogs.length ? ': ' + bm.analogs.map(esc).join(', ') : ''}</div>`
+    `<div class="note" style="margin-bottom:6px">Benchmarks from RYC's own completed jobs · matched on ${esc(bm.basis)} · ${bm.n} analog(s)${bm.analogs.length ? ': ' + bm.analogs.map(a => esc(a.name)).join(', ') : ''}</div>`
     + `<div class="kpis">${kpi(pct(bm.bidMargin), 'As-bid margin')}${kpi(pct(bm.actMargin), 'Actual margin')}${kpi(bm.gainFade == null ? '—' : (bm.gainFade >= 0 ? '+' : '') + bm.gainFade.toFixed(1) + ' pts', 'Gain/Fade')}${kpi(bm.buy ? money(bm.buy) : '—', 'Buyout')}</div>`
+    + (bm.contractMin && bm.contractMax ? `<div class="note" style="margin-bottom:4px"><strong>RYC comparable contracts:</strong> ${money(bm.contractMin)}–${money(bm.contractMax)} (median ${money(bm.contractMed)})${bm.medianPSF ? ` · ~$${Math.round(bm.medianPSF).toLocaleString()}/SF` : ''}</div>` : '')
     + `<div class="note"><strong>RYC cost composition for this work:</strong> ${comp}</div>`
     + flags;
 
