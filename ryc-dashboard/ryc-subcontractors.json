@@ -1,7 +1,7 @@
 {
- "generated": "2026-06-29T09:30:41.772Z",
+ "generated": "2026-06-26T01:37:10.113Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 122141542,
+ "totalActual": 122154028,
  "totalCommitted": 135421559,
  "subCount": 625,
  "subs": [
@@ -8557,6 +8557,59 @@
    ]
   },
   {
+   "vendorNo": "3475",
+   "name": "Bojrab Landscape ManagementLLC",
+   "actualCost": 117883,
+   "actualJobs": 4,
+   "committed": 247273,
+   "committedJobs": 6,
+   "variance": 129390,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 56600,
+     "committed": 101970
+    },
+    {
+     "jobNo": "2402GP09",
+     "jobName": "Wakarusa WTP",
+     "actual": 28673,
+     "committed": 28673
+    },
+    {
+     "jobNo": "2302GO10",
+     "jobName": "Center Lake Trail Reconstructi",
+     "actual": 17965,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GO06",
+     "jobName": "Wabash Pickleball Courts",
+     "actual": 14645,
+     "committed": 14645
+    },
+    {
+     "jobNo": "2413CO08",
+     "jobName": "",
+     "actual": 0,
+     "committed": 68700
+    },
+    {
+     "jobNo": "2515CO01",
+     "jobName": "",
+     "actual": 0,
+     "committed": 11125
+    },
+    {
+     "jobNo": "2611CO01",
+     "jobName": "",
+     "actual": 0,
+     "committed": 22160
+    }
+   ]
+  },
+  {
    "vendorNo": "2933",
    "name": "Wakarusa Heavy Equipment  LLC",
    "actualCost": 112338,
@@ -8991,59 +9044,6 @@
      "jobName": "",
      "actual": 0,
      "committed": 30050
-    }
-   ]
-  },
-  {
-   "vendorNo": "3475",
-   "name": "Bojrab Landscape ManagementLLC",
-   "actualCost": 103546,
-   "actualJobs": 4,
-   "committed": 247273,
-   "committedJobs": 6,
-   "variance": 143727,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 56600,
-     "committed": 101970
-    },
-    {
-     "jobNo": "2302GO10",
-     "jobName": "Center Lake Trail Reconstructi",
-     "actual": 17965,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GO06",
-     "jobName": "Wabash Pickleball Courts",
-     "actual": 14645,
-     "committed": 14645
-    },
-    {
-     "jobNo": "2402GP09",
-     "jobName": "Wakarusa WTP",
-     "actual": 14336,
-     "committed": 28673
-    },
-    {
-     "jobNo": "2413CO08",
-     "jobName": "",
-     "actual": 0,
-     "committed": 68700
-    },
-    {
-     "jobNo": "2515CO01",
-     "jobName": "",
-     "actual": 0,
-     "committed": 11125
-    },
-    {
-     "jobNo": "2611CO01",
-     "jobName": "",
-     "actual": 0,
-     "committed": 22160
     }
    ]
   },
@@ -13918,41 +13918,6 @@
    ]
   },
   {
-   "vendorNo": "3904",
-   "name": "United Dumpsters LLC",
-   "actualCost": 26087,
-   "actualJobs": 4,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 20289,
-     "committed": 0
-    },
-    {
-     "jobNo": "2515CO01",
-     "jobName": "Huntertown Wastewater Treatmen",
-     "actual": 4480,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP09",
-     "jobName": "Coldwater WRRF Upgrades Phase1",
-     "actual": 967,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP10",
-     "jobName": "Ashley WWTP Improvements",
-     "actual": 350,
-     "committed": 0
-    }
-   ]
-  },
-  {
    "vendorNo": "2418",
    "name": "Paladin Caseworks Inc",
    "actualCost": 25664,
@@ -14128,6 +14093,41 @@
      "jobNo": "2316RO06",
      "jobName": "263 Wellview Court (Lot 26)",
      "actual": 263,
+     "committed": 0
+    }
+   ]
+  },
+  {
+   "vendorNo": "3904",
+   "name": "United Dumpsters LLC",
+   "actualCost": 24236,
+   "actualJobs": 4,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 18439,
+     "committed": 0
+    },
+    {
+     "jobNo": "2515CO01",
+     "jobName": "Huntertown Wastewater Treatmen",
+     "actual": 4480,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP09",
+     "jobName": "Coldwater WRRF Upgrades Phase1",
+     "actual": 967,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP10",
+     "jobName": "Ashley WWTP Improvements",
+     "actual": 350,
      "committed": 0
     }
    ]
