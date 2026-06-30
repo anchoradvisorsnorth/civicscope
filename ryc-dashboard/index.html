@@ -285,7 +285,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.23.0-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.23.1-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <a href="/ryc/estimate" style="background:#ea580c;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-right:14px">📐 Estimating Tools →</a>
@@ -350,7 +350,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.23.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.23.1-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -1100,16 +1100,19 @@ function toggleWIPAll() { wipShowAll = !wipShowAll; renderWIP(); }
 function exportWIPCSV() {
   const rows = wipRows();
   rows.sort((a, b) => (a.ou ?? 0) - (b.ou ?? 0));   // most underbilled first, matches display
-  const header = ['Job #', 'Job Name', 'PM', '% Comp (cost)', 'Contract', 'Cost to Date', 'Billed', 'Earned', 'Over/(Under)', 'Forecast Margin %'];
+  const header = ['Job #', 'Job Name', 'PM', '% Comp (cost)', ' Contract ', ' Cost to Date ', ' Billed ', ' Earned ', ' Over/(Under) ', 'Forecast Margin %'];
   const q = v => { const s = (v == null ? '' : String(v)); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const dol = n => (n == null ? '' : Math.round(n));   // raw integer dollars so Excel treats as number
+  // Excel "Accounting" format to match the leadership report: ` $1,234.00 ` positive, ` $(1,234.00)` negative
+  const acct = n => { if (n == null) return ''; const v = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return n < 0 ? ' $(' + v + ')' : ' $' + v + ' '; };
+  const pctC = n => (n == null ? '' : Math.round(n) + '%');
+  const pctM = n => (n == null ? '' : n.toFixed(2).replace(/\.00$/, '') + '%');
   const lines = [header.map(q).join(',')];
   for (const r of rows) {
     lines.push([
       r.job, r.name, r.pm,
-      r.pctCost == null ? '' : Math.round(r.pctCost),
-      dol(r.contract), dol(r.ctd), dol(r.billed), dol(r.earned), dol(r.ou),
-      r.fMargin == null ? '' : r.fMargin.toFixed(1)
+      pctC(r.pctCost),
+      acct(r.contract), acct(r.ctd), acct(r.billed), acct(r.earned), acct(r.ou),
+      pctM(r.fMargin)
     ].map(q).join(','));
   }
   const csv = '﻿' + lines.join('\r\n');   // BOM so Excel reads UTF-8
