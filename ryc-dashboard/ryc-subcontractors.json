@@ -1,7 +1,7 @@
 {
- "generated": "2026-06-26T01:37:10.113Z",
+ "generated": "2026-06-30T09:30:45.593Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 122154028,
+ "totalActual": 122142081,
  "totalCommitted": 135421559,
  "subCount": 625,
  "subs": [
@@ -8557,59 +8557,6 @@
    ]
   },
   {
-   "vendorNo": "3475",
-   "name": "Bojrab Landscape ManagementLLC",
-   "actualCost": 117883,
-   "actualJobs": 4,
-   "committed": 247273,
-   "committedJobs": 6,
-   "variance": 129390,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 56600,
-     "committed": 101970
-    },
-    {
-     "jobNo": "2402GP09",
-     "jobName": "Wakarusa WTP",
-     "actual": 28673,
-     "committed": 28673
-    },
-    {
-     "jobNo": "2302GO10",
-     "jobName": "Center Lake Trail Reconstructi",
-     "actual": 17965,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GO06",
-     "jobName": "Wabash Pickleball Courts",
-     "actual": 14645,
-     "committed": 14645
-    },
-    {
-     "jobNo": "2413CO08",
-     "jobName": "",
-     "actual": 0,
-     "committed": 68700
-    },
-    {
-     "jobNo": "2515CO01",
-     "jobName": "",
-     "actual": 0,
-     "committed": 11125
-    },
-    {
-     "jobNo": "2611CO01",
-     "jobName": "",
-     "actual": 0,
-     "committed": 22160
-    }
-   ]
-  },
-  {
    "vendorNo": "2933",
    "name": "Wakarusa Heavy Equipment  LLC",
    "actualCost": 112338,
@@ -9044,6 +8991,59 @@
      "jobName": "",
      "actual": 0,
      "committed": 30050
+    }
+   ]
+  },
+  {
+   "vendorNo": "3475",
+   "name": "Bojrab Landscape ManagementLLC",
+   "actualCost": 103546,
+   "actualJobs": 4,
+   "committed": 247273,
+   "committedJobs": 6,
+   "variance": 143727,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 56600,
+     "committed": 101970
+    },
+    {
+     "jobNo": "2302GO10",
+     "jobName": "Center Lake Trail Reconstructi",
+     "actual": 17965,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GO06",
+     "jobName": "Wabash Pickleball Courts",
+     "actual": 14645,
+     "committed": 14645
+    },
+    {
+     "jobNo": "2402GP09",
+     "jobName": "Wakarusa WTP",
+     "actual": 14336,
+     "committed": 28673
+    },
+    {
+     "jobNo": "2413CO08",
+     "jobName": "",
+     "actual": 0,
+     "committed": 68700
+    },
+    {
+     "jobNo": "2515CO01",
+     "jobName": "",
+     "actual": 0,
+     "committed": 11125
+    },
+    {
+     "jobNo": "2611CO01",
+     "jobName": "",
+     "actual": 0,
+     "committed": 22160
     }
    ]
   },
@@ -12017,7 +12017,7 @@
    "jobs": [
     {
      "jobNo": "2504CO04",
-     "jobName": "Transformation Min ELC",
+     "jobName": "Transformation Min ELC Design",
      "actual": 47400,
      "committed": 0
     }
@@ -12257,7 +12257,7 @@
    "jobs": [
     {
      "jobNo": "2504CO04",
-     "jobName": "Transformation Min ELC",
+     "jobName": "Transformation Min ELC Design",
      "actual": 27767,
      "committed": 0
     },
@@ -13918,6 +13918,41 @@
    ]
   },
   {
+   "vendorNo": "3904",
+   "name": "United Dumpsters LLC",
+   "actualCost": 26087,
+   "actualJobs": 4,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 20289,
+     "committed": 0
+    },
+    {
+     "jobNo": "2515CO01",
+     "jobName": "Huntertown Wastewater Treatmen",
+     "actual": 4480,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP09",
+     "jobName": "Coldwater WRRF Upgrades Phase1",
+     "actual": 967,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP10",
+     "jobName": "Ashley WWTP Improvements",
+     "actual": 350,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "2418",
    "name": "Paladin Caseworks Inc",
    "actualCost": 25664,
@@ -14093,41 +14128,6 @@
      "jobNo": "2316RO06",
      "jobName": "263 Wellview Court (Lot 26)",
      "actual": 263,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "3904",
-   "name": "United Dumpsters LLC",
-   "actualCost": 24236,
-   "actualJobs": 4,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 18439,
-     "committed": 0
-    },
-    {
-     "jobNo": "2515CO01",
-     "jobName": "Huntertown Wastewater Treatmen",
-     "actual": 4480,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP09",
-     "jobName": "Coldwater WRRF Upgrades Phase1",
-     "actual": 967,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP10",
-     "jobName": "Ashley WWTP Improvements",
-     "actual": 350,
      "committed": 0
     }
    ]
@@ -14706,7 +14706,7 @@
   {
    "vendorNo": "3494",
    "name": "Indiana Michigan Power-ONLINE",
-   "actualCost": 18660,
+   "actualCost": 18621,
    "actualJobs": 4,
    "committed": 0,
    "committedJobs": 0,
@@ -14715,7 +14715,7 @@
     {
      "jobNo": "2513CO04",
      "jobName": "Helix Orchard Wallen Road",
-     "actual": 16588,
+     "actual": 16549,
      "committed": 0
     },
     {
@@ -15487,7 +15487,7 @@
     },
     {
      "jobNo": "2504CO04",
-     "jobName": "Transformation Min ELC",
+     "jobName": "Transformation Min ELC Design",
      "actual": 458,
      "committed": 0
     },
@@ -19160,6 +19160,131 @@
    ]
   },
   {
+   "vendorNo": "2208",
+   "name": "Menards  Inc",
+   "actualCost": 2369,
+   "actualJobs": 19,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2518RO18",
+     "jobName": "Greencroft Midd 529 Pkwy Lot51",
+     "actual": 310,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO07",
+     "jobName": "Greencroft 2026 WPC",
+     "actual": 271,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO10",
+     "jobName": "Greencroft 2028 WPC",
+     "actual": 271,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO15",
+     "jobName": "Greencroft 2044 WPC",
+     "actual": 212,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO01",
+     "jobName": "Greencroft 2033 WPC",
+     "actual": 211,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO11",
+     "jobName": "Greencroft 2027 WPC",
+     "actual": 210,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO12",
+     "jobName": "Greencroft 2029 WPC",
+     "actual": 210,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO13",
+     "jobName": "Greencroft 2042 WPC",
+     "actual": 210,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO21",
+     "jobName": "Greencroft South 6570 Chestnut",
+     "actual": 95,
+     "committed": 0
+    },
+    {
+     "jobNo": "2415GO01",
+     "jobName": "Wakarusa Elem CMc",
+     "actual": 73,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X010",
+     "jobName": "Greencroft South 6582 Chestnut",
+     "actual": 70,
+     "committed": 0
+    },
+    {
+     "jobNo": "2501CO01",
+     "jobName": "R. Yoder 2025 2nd Floor Addtn",
+     "actual": 52,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO14",
+     "jobName": "Greencroft 2048 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO16",
+     "jobName": "Greencroft 2050 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO24",
+     "jobName": "Greencroft 2045 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO25",
+     "jobName": "Greencroft 2047 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X002",
+     "jobName": "Greencroft 2021 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X003",
+     "jobName": "Greencroft 2023 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO05",
+     "jobName": "Greencroft 2066 WPC",
+     "actual": 15,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "2610",
    "name": "Schmuckers LP Gas",
    "actualCost": 2293,
@@ -19379,77 +19504,6 @@
      "jobNo": "2316RO06",
      "jobName": "263 Wellview Court (Lot 26)",
      "actual": 1825,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "2208",
-   "name": "Menards  Inc",
-   "actualCost": 1791,
-   "actualJobs": 10,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2518RO07",
-     "jobName": "Greencroft 2026 WPC",
-     "actual": 271,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO10",
-     "jobName": "Greencroft 2028 WPC",
-     "actual": 271,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO15",
-     "jobName": "Greencroft 2044 WPC",
-     "actual": 212,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO01",
-     "jobName": "Greencroft 2033 WPC",
-     "actual": 211,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO11",
-     "jobName": "Greencroft 2027 WPC",
-     "actual": 210,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO12",
-     "jobName": "Greencroft 2029 WPC",
-     "actual": 210,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO13",
-     "jobName": "Greencroft 2042 WPC",
-     "actual": 210,
-     "committed": 0
-    },
-    {
-     "jobNo": "2415GO01",
-     "jobName": "Wakarusa Elem CMc",
-     "actual": 73,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X010",
-     "jobName": "Greencroft South 6582 Chestnut",
-     "actual": 70,
-     "committed": 0
-    },
-    {
-     "jobNo": "2501CO01",
-     "jobName": "R. Yoder 2025 2nd Floor Addtn",
-     "actual": 52,
      "committed": 0
     }
    ]
