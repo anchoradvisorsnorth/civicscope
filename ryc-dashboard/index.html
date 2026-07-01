@@ -285,7 +285,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.24.0-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.25.0-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <a href="/ryc/estimate" style="background:#ea580c;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-right:14px">📐 Estimating Tools →</a>
@@ -350,7 +350,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.24.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.25.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -787,7 +787,9 @@ function overdueByJob(scope) {
 }
 
 // One roll-up row per active Foundation job: billing position + overdue AR together.
-// deficit = invoiced − cost-to-date × (original_contract / original_cost). < 0 ⇒ needs invoicing.
+// Should-bill-to-date = cost-to-date × billing markup. Exact markup = Holly's OH × Profit UDFs
+// (e.g. 1.03 × 1.025); falls back to the bid ratio (original_contract ÷ original_cost) when the
+// markups aren't keyed. deficit = invoiced − should-bill; < 0 ⇒ needs invoicing.
 function activeAccountRows() {
   const fj = (foundationData && foundationData.jobs) || {};
   const odo = overdueByJob('active');
@@ -796,13 +798,17 @@ function activeAccountRows() {
     if (f.jobStatus !== 'A') continue;
     const cost = f.totalCosts || 0, estCost = f.originalCost || 0, invoiced = f.totalInvoiced || 0;
     const contract = f.currentContract || f.originalContract || 0;
-    let deficit = null;
-    if (cost > 0 && estCost > 0 && (f.originalContract || 0) > 0) {
-      deficit = invoiced - cost * (f.originalContract / estCost);
+    const oh = f.ohMarkup, pr = f.profitMarkup;
+    let deficit = null, exact = false;
+    if (cost > 0 && oh > 0 && pr > 0) {
+      deficit = invoiced - cost * oh * pr;                          // exact: Holly's OH × Profit markups
+      exact = true;
+    } else if (cost > 0 && estCost > 0 && (f.originalContract || 0) > 0) {
+      deficit = invoiced - cost * (f.originalContract / estCost);   // fallback: bid ratio
     }
     rows.push({
       pm: f.pmName || '(no PM)', job: f.jobNo, name: f.description || '',
-      contract, cost, invoiced, retainage: f.retainage || 0, deficit,
+      contract, cost, invoiced, retainage: f.retainage || 0, deficit, exact,
       under: deficit != null && deficit < 0 ? -deficit : 0,
       over: deficit != null && deficit > 0 ? deficit : 0,
       overdue: odo[String(f.jobNo)] || 0,
@@ -845,9 +851,10 @@ function sectionActiveAccounts() {
   } else {
     body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">Contract</th><th class="r">Cost to date</th><th class="r">Billed</th><th class="r">Needs invoiced</th><th class="r">Retainage</th><th class="r">Overdue AR</th></tr></thead><tbody>';
     for (const r of shown) {
-      const billCell = r.under > 0 ? `<span class="under">${fmtCompact(r.under)}</span>`
+      const est = (r.deficit != null && !r.exact) ? ' <span class="gf-sub" title="No OH/Profit markup keyed in Foundation — bid-ratio estimate">bid-est</span>' : '';
+      const billCell = (r.under > 0 ? `<span class="under">${fmtCompact(r.under)}</span>`
         : r.over > 0 ? `<span class="over">+${fmtCompact(r.over)} over</span>`
-        : r.deficit == null ? '<span class="muted-cell">—</span>' : '<span class="ontrack">on track</span>';
+        : r.deficit == null ? '<span class="muted-cell">—</span>' : '<span class="ontrack">on track</span>') + est;
       const odCell = r.overdue > 0 ? `<span class="under">${fmtCompact(r.overdue)}</span>` : '<span class="muted-cell">—</span>';
       body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td>${esc(r.pm)}</td><td class="r">${fmtCompact(r.contract)}</td><td class="r">${fmtCompact(r.cost)}</td><td class="r">${fmtCompact(r.invoiced)}</td><td class="r">${billCell}</td><td class="r">${r.retainage ? fmtCompact(r.retainage) : '<span class="muted-cell">—</span>'}</td><td class="r">${odCell}</td></tr>`;
     }
@@ -856,7 +863,7 @@ function sectionActiveAccounts() {
   const toggle = `<button class="billing-toggle" onclick="toggleBillingAll()">${billingShowAll ? 'Show flagged only' : 'Show all ' + rows.length + ' active jobs'}</button>`;
   return `<div class="billing-block">
     <h3 class="section-header">Active accounts — billing &amp; AR <span class="cnt">${flagged.length} flagged${billingShowAll ? ' · all shown' : ''}</span> ${toggle}</h3>
-    <div class="billing-sub"><strong>Needs invoiced</strong> = cost-to-date × bid ratio (contract ÷ est. cost) − billed — directional (bid ratio, not Holly's hand-keyed OH/Profit markups). <strong>Overdue AR</strong> netted (invoice − cash/retainage). One row per active job; default shows only jobs needing invoicing or carrying overdue AR.</div>
+    <div class="billing-sub"><strong>Needs invoiced</strong> = cost-to-date × billing markup − billed, using Holly's hand-keyed <strong>OH × Profit markups</strong> from Foundation; jobs with no markup keyed fall back to the bid ratio (contract ÷ est. cost) and are tagged <span class="gf-sub">bid-est</span>. <strong>Overdue AR</strong> netted (invoice − cash/retainage). One row per active job; default shows only jobs needing invoicing or carrying overdue AR.</div>
     ${body}</div>`;
 }
 
