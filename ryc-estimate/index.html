@@ -103,7 +103,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.3.1 · plan takeoff · cost intelligence · quick check</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.4.0 · plan takeoff · cost intelligence · quick check · market sub-pricing</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -210,11 +210,14 @@ if (sessionStorage.getItem('ryc-auth') === '1') unlock();
 // ---------- RYC benchmarks (Cost Intelligence layer) ----------
 let portfolio = null;
 let benchmarks = null;
+let subPricing = null;
 async function loadPortfolio() {
   try { portfolio = await (await fetch('/ryc-dashboard/ryc-portfolio.json?t=' + Date.now())).json(); }
   catch { portfolio = { jobs: [] }; }
   try { benchmarks = await (await fetch('/ryc-estimate/ryc-cost-benchmarks.json?t=' + Date.now())).json(); }
   catch { benchmarks = null; }
+  try { subPricing = await (await fetch('/ryc-estimate/ryc-sub-pricing-benchmarks.json?t=' + Date.now())).json(); }
+  catch { subPricing = null; }
 }
 const CLASS_LABEL = { SUB: 'Subcontract', MAT: 'GC materials', LAB: 'GC/supervision labor', BUR: 'Labor burden', EQU: 'Equipment', OTH: 'Other', REQ: 'Other' };
 
@@ -494,6 +497,16 @@ function parseResponse(raw) {
 const num = s => { const n = parseInt(String(s).replace(/[^0-9]/g, ''), 10); return isNaN(n) ? null : n; };
 const fmt$ = s => { const n = num(s); return n == null ? (s || '—') : '$' + n.toLocaleString('en-US'); };
 
+function subPricingPanel() {
+  if (!subPricing || !subPricing.trades || !subPricing.trades.length) return '';
+  const rows = subPricing.trades.slice(0, 24).map(t =>
+    `<tr><td>${esc(t.trade)}</td><td class="r">${t.n}</td><td class="r">$${t.p25.toLocaleString()}</td><td class="r"><strong>$${t.median.toLocaleString()}</strong></td><td class="r">$${t.p75.toLocaleString()}</td><td class="r">${t.medPctOfProject != null ? t.medPctOfProject + '%' : '—'}</td></tr>`
+  ).join('');
+  return `<h3 style="margin-top:18px">RYC market sub-pricing <span class="note">— real sub bids by trade, ${subPricing.bids.toLocaleString()} bids across ${subPricing.projects} jobs (BuildingConnected)</span></h3>`
+    + `<table><thead><tr><th>Trade</th><th class="r">Bids</th><th class="r">P25</th><th class="r">Median</th><th class="r">P75</th><th class="r">% of proj</th></tr></thead><tbody>${rows}</tbody></table>`
+    + `<div class="note" style="margin-top:6px">Actual subcontractor quotes from RYC's bid history — sanity-check the division amounts above against what subs really bid. <strong>P25–P75</strong> is the typical band; <strong>% of proj</strong> is the median trade share of contract value.</div>`;
+}
+
 function renderResults(p, inp, bm) {
   setLoading(false);
   document.getElementById('costMid').textContent = fmt$(p.mid);
@@ -528,6 +541,7 @@ function renderResults(p, inp, bm) {
       + `<tr><td><strong>Total (conceptual — not a bid)</strong></td><td class="r"><strong>${tot ? '$' + tot.toLocaleString() : '—'}</strong></td></tr></tbody></table>`
       + (benchmarks ? `<div class="note" style="margin-top:6px">⚑ = this division's share of cost is outside RYC's historical p25–p75 range for comparable work (${benchmarks.jobs ? benchmarks.jobs.length : ''} jobs) — re-check scope/quantities or verify the quote.${flagged ? ` <strong>${flagged} flagged.</strong>` : ' None flagged.'}</div>` : '');
   } else dw.innerHTML = '';
+  if (subPricing) dw.innerHTML += subPricingPanel();
 
   // assumptions / gaps
   document.getElementById('assumptions').innerHTML = p.assumptions.map(a => `<li>${esc(a)}</li>`).join('') || '<li class="note">—</li>';

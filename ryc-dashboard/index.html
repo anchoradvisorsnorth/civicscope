@@ -285,7 +285,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.25.0-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.26.0-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <a href="/ryc/estimate" style="background:#ea580c;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-right:14px">📐 Estimating Tools →</a>
@@ -350,7 +350,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.25.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.26.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -1069,6 +1069,8 @@ function wipRows() {
       job: j.projectNumber || '', name: j.name || f.description || '',
       pm: pmName(j) || '(no PM)', pct, pctCost, contract, eac, ctd, billed, earned, ou, fMargin,
       projMarginUdf: (f.projectedMarginUdf == null ? null : f.projectedMarginUdf), // RYC hand-entered %, from Foundation UDF
+      projCost: (b.projectedCost ?? null),        // Procore ERP-view Projected Cost (commitment-loaded forecast)
+      projCostSuspect: !!b.projCostSuspect,       // sub costs not flowing through ERP invoices → value inflated
     });
   }
   return rows;
@@ -1097,6 +1099,11 @@ function wipPctCell(r) {
   const cls = diverge && r.pctCost > r.pct ? 'gf-conflict' : '';   // cost outrunning physical progress
   return `<span class="${cls}">${r.pctCost.toFixed(0)}%</span>${sub}`;
 }
+function wipProjCostCell(r) {
+  if (r.projCost == null) return '<span class="muted-cell">—</span>';
+  const flag = r.projCostSuspect ? ' <span class="gf-sub" title="Projected cost likely overstated — subcontractor costs are in Direct Costs but not flowing through ERP invoices, so Committed + Direct double-counts. Verify/reconcile in Procore.">⚑ verify</span>' : '';
+  return fmt(r.projCost) + flag;
+}
 function wipOUCell(ou) {
   if (ou == null) return '<span class="muted-cell">—</span>';
   if (Math.abs(ou) < 500) return '<span class="gf-flat">—</span>';
@@ -1108,7 +1115,7 @@ function toggleWIPAll() { wipShowAll = !wipShowAll; renderWIP(); }
 function exportWIPCSV() {
   const rows = wipRows();
   rows.sort((a, b) => (a.ou ?? 0) - (b.ou ?? 0));   // most underbilled first, matches display
-  const header = ['Job #', 'Job Name', 'PM', '% Comp (cost)', ' Contract ', ' Cost to Date ', ' Billed ', ' Earned ', ' Over/(Under) ', 'Forecast Margin %', 'Projected Margin % (RYC)'];
+  const header = ['Job #', 'Job Name', 'PM', '% Comp (cost)', ' Contract ', ' Cost to Date ', ' Proj Cost (Procore) ', ' Billed ', ' Earned ', ' Over/(Under) ', 'Forecast Margin %', 'Projected Margin % (RYC)'];
   const q = v => { const s = (v == null ? '' : String(v)); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   // Excel "Accounting" format to match the leadership report: ` $1,234.00 ` positive, ` $(1,234.00)` negative
   const acct = n => { if (n == null) return ''; const v = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return n < 0 ? ' $(' + v + ')' : ' $' + v + ' '; };
@@ -1119,7 +1126,7 @@ function exportWIPCSV() {
     lines.push([
       r.job, r.name, r.pm,
       pctC(r.pctCost),
-      acct(r.contract), acct(r.ctd), acct(r.billed), acct(r.earned), acct(r.ou),
+      acct(r.contract), acct(r.ctd), acct(r.projCost), acct(r.billed), acct(r.earned), acct(r.ou),
       pctM(r.fMargin), pctM(r.projMarginUdf)
     ].map(q).join(','));
   }
@@ -1152,11 +1159,11 @@ function renderWIP() {
   if (!shown.length) {
     body = '<div class="billing-empty">' + (rows.length ? 'No jobs are materially over- or under-billed.' : 'No active jobs with Foundation actuals.') + '</div>';
   } else {
-    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">% Comp (cost)</th><th class="r">Contract</th><th class="r">Cost to date</th><th class="r">Billed</th><th class="r"><span class="hint" data-tip="Earned revenue = % complete (cost-based) × contract value. The revenue earned by doing the work, regardless of what has been billed.">Earned</span></th><th class="r"><span class="hint" data-tip="Billed − Earned. (under) = earned work not yet invoiced (cash to collect); +over = billed ahead of work done.">Over/(under)</span></th><th class="r"><span class="hint" data-tip="(Contract − forecast cost) ÷ contract — the projected final margin.">Fcst margin</span></th><th class="r"><span class="hint" data-tip="RYC's hand-entered Projected Margin (Foundation UDF) — the PM/accounting projection, not derived by this dashboard.">Proj margin (RYC)</span></th></tr></thead><tbody>';
+    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">% Comp (cost)</th><th class="r">Contract</th><th class="r">Cost to date</th><th class="r"><span class="hint" data-tip="Procore's Projected Cost from the ERP Budget View (commitment-loaded forecast final cost). ⚑ verify = subcontractor costs not flowing through ERP invoices, so the value is inflated until reconciled.">Proj cost (Procore)</span></th><th class="r">Billed</th><th class="r"><span class="hint" data-tip="Earned revenue = % complete (cost-based) × contract value. The revenue earned by doing the work, regardless of what has been billed.">Earned</span></th><th class="r"><span class="hint" data-tip="Billed − Earned. (under) = earned work not yet invoiced (cash to collect); +over = billed ahead of work done.">Over/(under)</span></th><th class="r"><span class="hint" data-tip="(Contract − forecast cost) ÷ contract — the projected final margin.">Fcst margin</span></th><th class="r"><span class="hint" data-tip="RYC's hand-entered Projected Margin (Foundation UDF) — the PM/accounting projection, not derived by this dashboard.">Proj margin (RYC)</span></th></tr></thead><tbody>';
     for (const r of shown) {
       body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td>${esc(r.pm)}</td>`
         + `<td class="r">${wipPctCell(r)}</td><td class="r">${fmt(r.contract)}</td>`
-        + `<td class="r">${fmt(r.ctd)}</td><td class="r">${fmt(r.billed)}</td><td class="r">${fmt(r.earned)}</td>`
+        + `<td class="r">${fmt(r.ctd)}</td><td class="r">${wipProjCostCell(r)}</td><td class="r">${fmt(r.billed)}</td><td class="r">${fmt(r.earned)}</td>`
         + `<td class="r">${wipOUCell(r.ou)}</td><td class="r" style="font-weight:700">${gfMarginCell(r.fMargin)}</td>`
         + `<td class="r">${r.projMarginUdf == null ? '<span class="muted-cell">—</span>' : r.projMarginUdf.toFixed(1) + '%'}</td></tr>`;
     }
