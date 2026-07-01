@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-06-26T04:02:57.266Z",
+  "refreshed": "2026-07-01T19:56:56.144Z",
   "jobCount": 28,
   "jobs": [
     {
@@ -33,7 +33,9 @@
         "original": 19281323.549999997,
         "revised": 20155991.33,
         "committed": 0,
-        "direct": 11968192.339999998
+        "direct": 11973895.549999999,
+        "projectedCost": 18748220.49,
+        "projCostSuspect": false
       },
       "contractValue": 18537636,
       "changeOrders": {
@@ -69,30 +71,32 @@
       "projectedFinish": "2027-01-01",
       "completionDate": "2027-08-01",
       "sqft": null,
-      "pctComplete": 25.7,
+      "pctComplete": 25.8,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
         "total": 44,
-        "open": 2
+        "open": 0
       },
       "submittals": {
-        "total": 356,
-        "open": 187
+        "total": 357,
+        "open": 185
       },
       "budget": {
         "original": 16017608.15,
         "revised": 16017608.150000002,
         "committed": 0,
-        "direct": 4649389.62
+        "direct": 4653761.54,
+        "projectedCost": 13557382.57,
+        "projCostSuspect": true
       },
       "contractValue": 18070899,
       "changeOrders": {
-        "count": 30,
-        "netValue": 203532.38,
+        "count": 32,
+        "netValue": 213913.38,
         "byType": {
-          "Allowance": 30
+          "Allowance": 32
         }
       },
       "pm": {
@@ -130,14 +134,16 @@
         "open": 5
       },
       "submittals": {
-        "total": 119,
+        "total": 121,
         "open": 47
       },
       "budget": {
         "original": 15960965.520000003,
         "revised": 16253605.520000003,
         "committed": 0,
-        "direct": 1003143.77
+        "direct": 1004987.5599999999,
+        "projectedCost": 12275569.89,
+        "projCostSuspect": true
       },
       "contractValue": 17256996,
       "changeOrders": {
@@ -189,7 +195,9 @@
         "original": 15085716.219999999,
         "revised": 15842068.219999999,
         "committed": 0,
-        "direct": 16433839.71
+        "direct": 16433839.71,
+        "projectedCost": 17322844.82,
+        "projCostSuspect": false
       },
       "contractValue": 15962778,
       "changeOrders": {
@@ -233,17 +241,19 @@
       "verifyStatus": false,
       "rfis": {
         "total": 26,
-        "open": 2
+        "open": 0
       },
       "submittals": {
-        "total": 219,
-        "open": 42
+        "total": 220,
+        "open": 41
       },
       "budget": {
         "original": 12630570.77,
         "revised": 12630570.77,
         "committed": 0,
-        "direct": 8076840.5
+        "direct": 8076840.5,
+        "projectedCost": 11861382.66,
+        "projCostSuspect": false
       },
       "contractValue": 14055300,
       "changeOrders": {
@@ -276,7 +286,7 @@
       "projectedFinish": "2026-04-22T21:00:00Z",
       "completionDate": "2025-07-01",
       "sqft": null,
-      "pctComplete": 77.6,
+      "pctComplete": 77.5,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -286,13 +296,15 @@
       },
       "submittals": {
         "total": 319,
-        "open": 76
+        "open": 72
       },
       "budget": {
         "original": 10907043.73,
         "revised": 10951924.540000001,
         "committed": 0,
-        "direct": 9283699.639999997
+        "direct": 9269472.699999997,
+        "projectedCost": 10277330.99,
+        "projCostSuspect": false
       },
       "contractValue": 11967209,
       "changeOrders": {
@@ -326,18 +338,18 @@
       "workType": "addition",
       "active": true,
       "stage": "Pre-Construction",
-      "address": "611 N Higbee Street, Milford, IN",
+      "address": "410 N Higbee Street, Milford, IN",
       "start": "2026-04-09",
       "projectedFinish": "2027-01-15T22:00:00Z",
       "completionDate": "2027-01-31",
       "sqft": null,
-      "pctComplete": 6.7,
+      "pctComplete": 7.6,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
         "total": 1,
-        "open": 1
+        "open": 0
       },
       "submittals": {
         "total": 0,
@@ -347,16 +359,18 @@
         "original": 7996197.17,
         "revised": 8116232.17,
         "committed": 0,
-        "direct": 611380.69
+        "direct": 689925.03,
+        "projectedCost": 7508355.81,
+        "projCostSuspect": true
       },
       "contractValue": 9098536,
       "changeOrders": {
-        "count": 10,
-        "netValue": 85019.76,
+        "count": 11,
+        "netValue": 122286.25,
         "byType": {
+          "Owner Change": 6,
           "Allowance": 4,
-          "TBD": 1,
-          "Owner Change": 5
+          "TBD": 1
         }
       },
       "pm": {
@@ -385,23 +399,25 @@
       "projectedFinish": "2027-12-20T22:00:00Z",
       "completionDate": "2027-12-06",
       "sqft": null,
-      "pctComplete": 2.7,
+      "pctComplete": 4.9,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 17,
-        "open": 3
+        "total": 19,
+        "open": 5
       },
       "submittals": {
-        "total": 502,
-        "open": 468
+        "total": 505,
+        "open": 464
       },
       "budget": {
         "original": 7730460.510000001,
         "revised": 7730460.510000001,
         "committed": 0,
-        "direct": 231024.96000000002
+        "direct": 416666.03,
+        "projectedCost": 6392806.81,
+        "projCostSuspect": true
       },
       "contractValue": 8522833,
       "changeOrders": {
@@ -447,13 +463,15 @@
       },
       "submittals": {
         "total": 651,
-        "open": 395
+        "open": 398
       },
       "budget": {
         "original": 6735069.88,
         "revised": 6773626.929999999,
         "committed": 0,
-        "direct": 7342998.100000001
+        "direct": 7342334.100000001,
+        "projectedCost": 12274754.3,
+        "projCostSuspect": true
       },
       "contractValue": 7425415,
       "changeOrders": {
@@ -491,13 +509,13 @@
       "projectedFinish": "2026-08-31",
       "completionDate": "2026-08-31",
       "sqft": null,
-      "pctComplete": 30.1,
+      "pctComplete": 38.1,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
       "rfis": {
-        "total": 5,
-        "open": 1
+        "total": 11,
+        "open": 6
       },
       "submittals": {
         "total": 74,
@@ -507,12 +525,14 @@
         "original": 3552279.87,
         "revised": 3575456.87,
         "committed": 0,
-        "direct": 1195464.91
+        "direct": 1513576.72,
+        "projectedCost": 3230320.04,
+        "projCostSuspect": true
       },
       "contractValue": 3970739,
       "changeOrders": {
         "count": 12,
-        "netValue": 40535,
+        "netValue": 33638,
         "byType": {
           "TBD": 7,
           "Owner Change": 4,
@@ -561,13 +581,16 @@
         "original": 3309736.6799999997,
         "revised": 3344962.6799999997,
         "committed": 0,
-        "direct": 2238693.6900000004
+        "direct": 2240580.77,
+        "projectedCost": 3574693,
+        "projCostSuspect": false
       },
       "contractValue": 3709035,
       "changeOrders": {
-        "count": 19,
+        "count": 20,
         "netValue": 80827.62,
         "byType": {
+          "Contingency": 1,
           "Allowance": 16,
           "Owner Change": 3
         }
@@ -598,7 +621,7 @@
       "projectedFinish": "2025-08-08T21:00:00Z",
       "completionDate": "2026-09-28",
       "sqft": 67298,
-      "pctComplete": 61.1,
+      "pctComplete": 65,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": true,
@@ -614,16 +637,18 @@
         "original": 3393854.23,
         "revised": 3473992.2600000007,
         "committed": 0,
-        "direct": 2258042.54
+        "direct": 2400673.94,
+        "projectedCost": 4471612.04,
+        "projCostSuspect": true
       },
       "contractValue": 3695500,
       "changeOrders": {
-        "count": 30,
+        "count": 31,
         "netValue": 98252.25,
         "byType": {
+          "TBD": 6,
           "Transfer": 2,
           "Owner Change": 15,
-          "TBD": 5,
           "Allowance": 8
         }
       },
@@ -669,7 +694,9 @@
         "original": 3089475.19,
         "revised": 3089475.19,
         "committed": 0,
-        "direct": 1919608.98
+        "direct": 1920348.13,
+        "projectedCost": 3049728.31,
+        "projCostSuspect": false
       },
       "contractValue": 3670297,
       "changeOrders": {
@@ -723,7 +750,9 @@
         "original": 3290493.28,
         "revised": 4099820.9299999997,
         "committed": 0,
-        "direct": 3925951.57
+        "direct": 3925951.57,
+        "projectedCost": 7320513.89,
+        "projCostSuspect": true
       },
       "contractValue": 3627769,
       "changeOrders": {
@@ -772,13 +801,15 @@
       },
       "submittals": {
         "total": 138,
-        "open": 40
+        "open": 35
       },
       "budget": {
         "original": 2205118.7800000003,
         "revised": 2205118.7800000003,
         "committed": 0,
-        "direct": 2126121.57
+        "direct": 2126121.57,
+        "projectedCost": 3082860.11,
+        "projCostSuspect": false
       },
       "contractValue": 2572051,
       "changeOrders": {
@@ -816,7 +847,7 @@
       "projectedFinish": "2026-07-02T21:00:00Z",
       "completionDate": "2026-06-16",
       "sqft": null,
-      "pctComplete": 51.6,
+      "pctComplete": 53.7,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -825,14 +856,16 @@
         "open": 0
       },
       "submittals": {
-        "total": 133,
-        "open": 63
+        "total": 139,
+        "open": 66
       },
       "budget": {
         "original": 2180018.8899999997,
         "revised": 2180548.8899999997,
         "committed": 0,
-        "direct": 1300356.56
+        "direct": 1352151.39,
+        "projectedCost": 2000456.19,
+        "projCostSuspect": false
       },
       "contractValue": 2519230,
       "changeOrders": {
@@ -874,17 +907,19 @@
       "verifyStatus": false,
       "rfis": {
         "total": 8,
-        "open": 2
+        "open": 0
       },
       "submittals": {
-        "total": 140,
-        "open": 85
+        "total": 141,
+        "open": 77
       },
       "budget": {
         "original": 2071633.13,
         "revised": 2071633.13,
         "committed": 0,
-        "direct": 0
+        "direct": 0,
+        "projectedCost": 1589788.34,
+        "projCostSuspect": true
       },
       "contractValue": 2280743,
       "changeOrders": {
@@ -936,7 +971,9 @@
         "original": 1507345.3599999999,
         "revised": 1507345.3599999999,
         "committed": 0,
-        "direct": 1421473.66
+        "direct": 1421473.66,
+        "projectedCost": 1777377.93,
+        "projCostSuspect": false
       },
       "contractValue": 1500000,
       "changeOrders": {
@@ -990,7 +1027,9 @@
         "original": 1323528.6199999999,
         "revised": 1323528.6199999999,
         "committed": 0,
-        "direct": 0
+        "direct": 0,
+        "projectedCost": 782522.34,
+        "projCostSuspect": true
       },
       "contractValue": 1458000,
       "changeOrders": {
@@ -1020,7 +1059,7 @@
       "projectedFinish": "2025-10-31",
       "completionDate": "2025-10-31",
       "sqft": null,
-      "pctComplete": 74.4,
+      "pctComplete": 74.8,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": true,
@@ -1030,13 +1069,15 @@
       },
       "submittals": {
         "total": 33,
-        "open": 4
+        "open": 3
       },
       "budget": {
         "original": 1033799.5299999999,
         "revised": 1033799.5299999999,
         "committed": 0,
-        "direct": 971314.2999999999
+        "direct": 977016.2999999999,
+        "projectedCost": 1535405.73,
+        "projCostSuspect": true
       },
       "contractValue": 1306310,
       "changeOrders": {
@@ -1072,7 +1113,7 @@
       "projectedFinish": "2026-07-02T21:00:00Z",
       "completionDate": "2026-02-24",
       "sqft": 9600,
-      "pctComplete": 36.5,
+      "pctComplete": 41.3,
       "costOverrun": false,
       "commitmentsTracked": false,
       "verifyStatus": false,
@@ -1088,12 +1129,14 @@
         "original": 823809.7699999999,
         "revised": 839430.3799999998,
         "committed": 0,
-        "direct": 356914.64
+        "direct": 403830.66000000003,
+        "projectedCost": 599709.23,
+        "projCostSuspect": false
       },
       "contractValue": 978687,
       "changeOrders": {
         "count": 8,
-        "netValue": 7326.02,
+        "netValue": 7137.02,
         "byType": {
           "Owner Change": 4,
           "TBD": 3,
@@ -1142,7 +1185,9 @@
         "original": 775895.84,
         "revised": 789590.14,
         "committed": 0,
-        "direct": 0
+        "direct": 0,
+        "projectedCost": 615251.41,
+        "projCostSuspect": true
       },
       "contractValue": 938600,
       "changeOrders": {
@@ -1194,7 +1239,9 @@
         "original": 561272.01,
         "revised": 561272.01,
         "committed": 0,
-        "direct": 37592
+        "direct": 37592,
+        "projectedCost": 511842,
+        "projCostSuspect": true
       },
       "contractValue": 679915,
       "changeOrders": {
@@ -1240,7 +1287,9 @@
         "original": 289123.9,
         "revised": 289123.9,
         "committed": 0,
-        "direct": 4447.25
+        "direct": 4447.25,
+        "projectedCost": 209822.75,
+        "projCostSuspect": true
       },
       "contractValue": 374705,
       "changeOrders": {
@@ -1289,7 +1338,9 @@
         "original": 273622.89,
         "revised": 273622.89,
         "committed": 0,
-        "direct": 252983.25
+        "direct": 252983.25,
+        "projectedCost": 490381.47,
+        "projCostSuspect": true
       },
       "contractValue": 330975,
       "changeOrders": {
@@ -1321,10 +1372,10 @@
       "projectedFinish": "2026-03-30",
       "completionDate": "2026-03-30",
       "sqft": null,
-      "pctComplete": 11.1,
+      "pctComplete": 13.3,
       "costOverrun": false,
       "commitmentsTracked": false,
-      "verifyStatus": false,
+      "verifyStatus": true,
       "rfis": {
         "total": 1,
         "open": 0
@@ -1337,7 +1388,9 @@
         "original": 262510.03,
         "revised": 262510.03,
         "committed": 0,
-        "direct": 35103.03
+        "direct": 41940.18,
+        "projectedCost": 192035.78,
+        "projCostSuspect": true
       },
       "contractValue": 315000,
       "changeOrders": {
@@ -1386,7 +1439,9 @@
         "original": 187910.22999999998,
         "revised": 187910.22999999998,
         "committed": 0,
-        "direct": 133521.56
+        "direct": 133521.56,
+        "projectedCost": 233363.82,
+        "projCostSuspect": false
       },
       "contractValue": 215840,
       "changeOrders": {
@@ -1439,7 +1494,9 @@
         "original": 57373.51,
         "revised": 70028.51000000001,
         "committed": 0,
-        "direct": 62881.11
+        "direct": 62881.11,
+        "projectedCost": 82544.64,
+        "projCostSuspect": false
       },
       "contractValue": 65680,
       "changeOrders": {
