@@ -103,7 +103,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.4.0 · plan takeoff · cost intelligence · quick check · market sub-pricing</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.4.1 · plan takeoff · cost intelligence · quick check · market sub-pricing</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -504,7 +504,40 @@ function subPricingPanel() {
   ).join('');
   return `<h3 style="margin-top:18px">RYC market sub-pricing <span class="note">— real sub bids by trade, ${subPricing.bids.toLocaleString()} bids across ${subPricing.projects} jobs (BuildingConnected)</span></h3>`
     + `<table><thead><tr><th>Trade</th><th class="r">Bids</th><th class="r">P25</th><th class="r">Median</th><th class="r">P75</th><th class="r">% of proj</th></tr></thead><tbody>${rows}</tbody></table>`
-    + `<div class="note" style="margin-top:6px">Actual subcontractor quotes from RYC's bid history — sanity-check the division amounts above against what subs really bid. <strong>P25–P75</strong> is the typical band; <strong>% of proj</strong> is the median trade share of contract value.</div>`;
+    + `<div class="note" style="margin-top:6px">Actual subcontractor quotes from RYC's bid history — sanity-check the division amounts above against what subs really bid. <strong>P25–P75</strong> is the typical band; <strong>% of proj</strong> is the median trade share of contract value. Matched divisions above show an inline <em>subs bid ~X%</em> hint (hover for the $ band).</div>`;
+}
+
+// Auto-match an estimate division to a BuildingConnected sub-pricing trade (high-confidence keyword
+// map, specific before generic). Returns the matched subPricing.trades entry or null. Used to surface
+// each division's real market sub-bid share inline, not just in the standalone panel.
+const SUBTRADE_MATCH = [
+  [/overhead door|coiling|sectional door|\bdock\b/i, 'Overhead / Coiling / Sectional Doors'],
+  [/fire protection|sprinkler|fire suppress/i, 'Fire Protection / Sprinkler'],
+  [/concrete|foundation|footing|cast-in-place|flatwork/i, 'Concrete'],
+  [/masonry|brick|cmu|block/i, 'Masonry'],
+  [/structural steel|steel erection|\bjoist\b|metal fabrication|misc.*metal/i, 'Structural Steel'],
+  [/carpentr|millwork|casework|wood fram|rough carpentry/i, 'Rough / Wood Framing & Carpentry'],
+  [/roof/i, 'Membrane / Flat Roofing'],
+  [/insulation/i, 'Insulation'],
+  [/drywall|gypsum/i, 'Drywall / Gypsum'],
+  [/paint|coating/i, 'Painting / Coatings'],
+  [/acoustical|ceiling/i, 'Acoustical Ceilings'],
+  [/floor|carpet|resilient|terrazzo|\btile/i, 'Flooring'],
+  [/window|storefront|glazing|glass|curtain ?wall/i, 'Windows / Storefront / Glazing'],
+  [/door|frame|hardware/i, 'Doors / Frames / Hardware'],
+  [/plumb/i, 'Plumbing'],
+  [/hvac|mechanical|ductwork/i, 'HVAC / Mechanical'],
+  [/electric|low voltage|fire alarm/i, 'Electrical'],
+  [/elevator|conveying/i, 'Elevators / Conveying'],
+  [/earthwork|excavat|sitework|site work|grading/i, 'Earthwork / Sitework'],
+  [/asphalt|paving/i, 'Asphalt / Paving'],
+  [/landscap|seeding|irrigation/i, 'Landscaping / Seeding'],
+  [/demolition|demo\b/i, 'Demolition'],
+];
+function matchSubTrade(name) {
+  if (!subPricing || !subPricing.trades) return null;
+  for (const [re, t] of SUBTRADE_MATCH) if (re.test(name || '')) return subPricing.trades.find(x => x.trade === t) || null;
+  return null;
 }
 
 function renderResults(p, inp, bm) {
@@ -533,7 +566,15 @@ function renderResults(p, inp, bm) {
         else if (shr < lo) { mix = `<span style="color:#dc2626;font-weight:600"> ⚑ low ${shr.toFixed(0)}% vs RYC ${b.sharePctP25}–${b.sharePctP75}%</span>`; flagged++; }
         else mix = `<span class="note"> · ${shr.toFixed(0)}% (RYC ${b.sharePctP25}–${b.sharePctP75}%)</span>`;
       }
-      return `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}${mix}</td><td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td></tr>`;
+      // Inline market sub-pricing: matched trade's median bid as % of project (scale-invariant),
+      // with the $ band on hover. Only when confidently matched AND a %-of-project median exists.
+      const st = matchSubTrade(d.name);
+      let subMix = '';
+      if (st && st.medPctOfProject != null) {
+        const band = `RYC sub bids — ${st.trade}: P25 $${st.p25.toLocaleString()} · median $${st.median.toLocaleString()} · P75 $${st.p75.toLocaleString()} (${st.n} bids / ${st.projects} jobs, BuildingConnected)`;
+        subMix = ` <span class="note" title="${esc(band)}"> · subs bid ~${st.medPctOfProject}% of proj</span>`;
+      }
+      return `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}${mix}${subMix}</td><td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td></tr>`;
     }).join('');
     dw.innerHTML = `<h3>Division breakdown <span class="note">— every line is a subcontract placeholder; confirm with a quote</span></h3>`
       + `<table><thead><tr><th>Division / scope <span class="note">(share vs RYC history)</span></th><th class="r">Cost</th></tr></thead><tbody>`
