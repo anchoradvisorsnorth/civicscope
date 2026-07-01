@@ -1,11 +1,10 @@
 {
- "generatedAt": "2026-07-01T19:47:28.722Z",
+ "generatedAt": "2026-07-01T22:26:14.777Z",
  "source": "BuildingConnected (Autodesk APS)",
- "note": "Full book 2026-07-01",
  "projects": 282,
- "bids": 2664,
- "subs": 559,
- "cleanBidTotal": 313106164.4900006,
+ "bids": 2653,
+ "subs": 560,
+ "cleanBidTotal": 311609311,
  "trades": [
   {
    "trade": "Concrete",
@@ -17,73 +16,67 @@
    "p75": 159860,
    "min": 106,
    "max": 2038000,
-   "medPctOfProject": 5.1,
-   "shareN": 17
+   "medPctOfProject": 5.1
   },
   {
    "trade": "Doors / Frames / Hardware",
-   "n": 202,
+   "n": 201,
    "subs": 26,
-   "projects": 118,
+   "projects": 117,
    "p25": 11175,
    "median": 27000,
    "p75": 63000,
    "min": 300,
    "max": 774301,
-   "medPctOfProject": 1.9,
-   "shareN": 19
+   "medPctOfProject": 1.9
   },
   {
    "trade": "Electrical",
-   "n": 190,
+   "n": 185,
    "subs": 52,
-   "projects": 121,
-   "p25": 20145,
+   "projects": 118,
+   "p25": 20478,
    "median": 89000,
    "p75": 253750,
    "min": 650,
    "max": 2478900,
-   "medPctOfProject": 11.7,
-   "shareN": 15
+   "medPctOfProject": 11.7
   },
   {
    "trade": "Flooring",
-   "n": 185,
+   "n": 184,
    "subs": 31,
    "projects": 89,
    "p25": 11877,
    "median": 42935,
    "p75": 116228,
    "min": 250,
-   "max": 1224498,
-   "medPctOfProject": 2.5,
-   "shareN": 32
+   "max": 875999,
+   "medPctOfProject": 2.5
   },
   {
    "trade": "Rough / Wood Framing & Carpentry",
    "n": 154,
    "subs": 54,
    "projects": 85,
-   "p25": 8639,
-   "median": 31650,
+   "p25": 8555,
+   "median": 31370,
    "p75": 88778,
    "min": 670,
    "max": 3280000,
-   "medPctOfProject": 1.7,
-   "shareN": 23
+   "medPctOfProject": 1.7
   },
   {
    "trade": "Masonry",
    "n": 117,
-   "subs": 25,
+   "subs": 26,
    "projects": 70,
    "p25": 20000,
    "median": 76444,
-   "p75": 196180,
+   "p75": 203400,
    "min": 650,
    "max": 3588800,
-   "medPctOfProject": 2.1,
-   "shareN": 14
+   "medPctOfProject": 2.1
   },
   {
    "trade": "Asphalt / Paving",
@@ -95,8 +88,7 @@
    "p75": 123145,
    "min": 750,
    "max": 1288400,
-   "medPctOfProject": 4.9,
-   "shareN": 11
+   "medPctOfProject": 4.9
   },
   {
    "trade": "Overhead / Coiling / Sectional Doors",
@@ -108,21 +100,7 @@
    "p75": 56170,
    "min": 1554,
    "max": 495000,
-   "medPctOfProject": 1.2,
-   "shareN": 5
-  },
-  {
-   "trade": "Insulation",
-   "n": 103,
-   "subs": 7,
-   "projects": 60,
-   "p25": 5853,
-   "median": 12519,
-   "p75": 36513,
-   "min": 517,
-   "max": 890744,
-   "medPctOfProject": 0.6,
-   "shareN": 7
+   "medPctOfProject": 1.2
   },
   {
    "trade": "Painting / Coatings",
@@ -134,21 +112,31 @@
    "p75": 52522,
    "min": 640,
    "max": 475000,
-   "medPctOfProject": 1.2,
-   "shareN": 11
+   "medPctOfProject": 1.2
+  },
+  {
+   "trade": "Insulation",
+   "n": 102,
+   "subs": 7,
+   "projects": 59,
+   "p25": 5853,
+   "median": 12519,
+   "p75": 36000,
+   "min": 517,
+   "max": 890744,
+   "medPctOfProject": 0.6
   },
   {
    "trade": "Windows / Storefront / Glazing",
-   "n": 85,
+   "n": 84,
    "subs": 29,
-   "projects": 43,
-   "p25": 6993,
-   "median": 11508,
-   "p75": 26943,
+   "projects": 42,
+   "p25": 7682,
+   "median": 12313,
+   "p75": 27341,
    "min": 925,
    "max": 777094,
-   "medPctOfProject": 0.4,
-   "shareN": 7
+   "medPctOfProject": 0.4
   },
   {
    "trade": "Membrane / Flat Roofing",
@@ -160,8 +148,7 @@
    "p75": 138816,
    "min": 2500,
    "max": 628710,
-   "medPctOfProject": 0.9,
-   "shareN": 8
+   "medPctOfProject": 0.9
   },
   {
    "trade": "Earthwork / Sitework",
@@ -173,8 +160,7 @@
    "p75": 149771,
    "min": 1350,
    "max": 3488000,
-   "medPctOfProject": null,
-   "shareN": 1
+   "medPctOfProject": null
   },
   {
    "trade": "Materials Testing / Geotech",
@@ -186,21 +172,19 @@
    "p75": 30000,
    "min": 3000,
    "max": 110392,
-   "medPctOfProject": null,
-   "shareN": 1
+   "medPctOfProject": null
   },
   {
    "trade": "Toilet Partitions & Accessories",
-   "n": 54,
+   "n": 53,
    "subs": 11,
-   "projects": 40,
-   "p25": 1534,
+   "projects": 39,
+   "p25": 1657,
    "median": 4755,
    "p75": 19536,
    "min": 425,
    "max": 205782,
-   "medPctOfProject": 0.8,
-   "shareN": 8
+   "medPctOfProject": 0.8
   },
   {
    "trade": "Structural Steel",
@@ -212,8 +196,7 @@
    "p75": 182327,
    "min": 4533,
    "max": 494687,
-   "medPctOfProject": 1.9,
-   "shareN": 13
+   "medPctOfProject": 1.9
   },
   {
    "trade": "HVAC / Mechanical",
@@ -225,60 +208,55 @@
    "p75": 378557,
    "min": 3637,
    "max": 9283287,
-   "medPctOfProject": 23.6,
-   "shareN": 11
+   "medPctOfProject": 23.6
   },
   {
    "trade": "Demolition",
-   "n": 44,
+   "n": 43,
    "subs": 19,
-   "projects": 27,
-   "p25": 24900,
-   "median": 63674,
+   "projects": 26,
+   "p25": 20629,
+   "median": 62000,
    "p75": 126000,
    "min": 5200,
    "max": 495600,
-   "medPctOfProject": 6.9,
-   "shareN": 6
+   "medPctOfProject": 6.9
   },
   {
    "trade": "Fencing & Gates",
-   "n": 44,
-   "subs": 18,
-   "projects": 26,
-   "p25": 11723,
-   "median": 30000,
-   "p75": 59224,
+   "n": 42,
+   "subs": 17,
+   "projects": 25,
+   "p25": 10820,
+   "median": 27650,
+   "p75": 56948,
    "min": 1966,
    "max": 155000,
-   "medPctOfProject": 0.7,
-   "shareN": 8
-  },
-  {
-   "trade": "Metal Panels / Siding / Roof",
-   "n": 41,
-   "subs": 11,
-   "projects": 24,
-   "p25": 28134,
-   "median": 56344,
-   "p75": 155000,
-   "min": 4253,
-   "max": 792380,
-   "medPctOfProject": null,
-   "shareN": 3
+   "medPctOfProject": 0.5
   },
   {
    "trade": "Site Staking / Layout",
-   "n": 41,
+   "n": 40,
    "subs": 10,
-   "projects": 28,
+   "projects": 27,
    "p25": 4500,
    "median": 8800,
    "p75": 20000,
    "min": 2200,
-   "max": 68800,
-   "medPctOfProject": null,
-   "shareN": 4
+   "max": 60000,
+   "medPctOfProject": null
+  },
+  {
+   "trade": "Metal Panels / Siding / Roof",
+   "n": 38,
+   "subs": 11,
+   "projects": 23,
+   "p25": 28134,
+   "median": 59194,
+   "p75": 180505,
+   "min": 4253,
+   "max": 792380,
+   "medPctOfProject": null
   },
   {
    "trade": "Fire Protection / Sprinkler",
@@ -290,21 +268,19 @@
    "p75": 146500,
    "min": 2800,
    "max": 548000,
-   "medPctOfProject": 1.9,
-   "shareN": 6
+   "medPctOfProject": 1.9
   },
   {
    "trade": "Final Cleaning",
-   "n": 35,
+   "n": 36,
    "subs": 14,
    "projects": 26,
-   "p25": 3151,
-   "median": 7200,
-   "p75": 30000,
-   "min": 700,
+   "p25": 3768,
+   "median": 7438,
+   "p75": 39097,
+   "min": 1175,
    "max": 239500,
-   "medPctOfProject": null,
-   "shareN": 2
+   "medPctOfProject": null
   },
   {
    "trade": "Landscaping / Seeding",
@@ -316,8 +292,7 @@
    "p75": 51000,
    "min": 5476,
    "max": 161179,
-   "medPctOfProject": null,
-   "shareN": 1
+   "medPctOfProject": null
   },
   {
    "trade": "Specialties (flagpoles, bollards, mats, lockers)",
@@ -329,8 +304,7 @@
    "p75": 11347,
    "min": 750,
    "max": 219235,
-   "medPctOfProject": 0.3,
-   "shareN": 5
+   "medPctOfProject": 0.3
   },
   {
    "trade": "Drywall / Gypsum",
@@ -342,8 +316,7 @@
    "p75": 58955,
    "min": 263,
    "max": 1021914,
-   "medPctOfProject": null,
-   "shareN": 4
+   "medPctOfProject": null
   },
   {
    "trade": "Signage",
@@ -355,21 +328,19 @@
    "p75": 40300,
    "min": 2800,
    "max": 97901,
-   "medPctOfProject": 0.2,
-   "shareN": 5
+   "medPctOfProject": 0.2
   },
   {
    "trade": "Waterproofing / Caulk / Sealants",
-   "n": 28,
+   "n": 29,
    "subs": 8,
-   "projects": 18,
-   "p25": 6406,
-   "median": 16610,
-   "p75": 64092,
+   "projects": 19,
+   "p25": 6400,
+   "median": 16498,
+   "p75": 52761,
    "min": 2400,
    "max": 356000,
-   "medPctOfProject": null,
-   "shareN": 2
+   "medPctOfProject": null
   },
   {
    "trade": "Surveying",
@@ -381,8 +352,7 @@
    "p75": 33350,
    "min": 3500,
    "max": 58280,
-   "medPctOfProject": null,
-   "shareN": 0
+   "medPctOfProject": null
   },
   {
    "trade": "Metal Building / PEMB",
@@ -394,8 +364,7 @@
    "p75": 524000,
    "min": 67849,
    "max": 1021979,
-   "medPctOfProject": null,
-   "shareN": 0
+   "medPctOfProject": null
   },
   {
    "trade": "Gutters / Downspouts",
@@ -407,21 +376,19 @@
    "p75": 3328,
    "min": 620,
    "max": 86597,
-   "medPctOfProject": null,
-   "shareN": 0
+   "medPctOfProject": null
   },
   {
    "trade": "Acoustical Ceilings",
-   "n": 12,
+   "n": 15,
    "subs": 9,
-   "projects": 11,
+   "projects": 12,
    "p25": 12660,
-   "median": 65625,
-   "p75": 110925,
+   "median": 81352,
+   "p75": 87952,
    "min": 2700,
    "max": 686400,
-   "medPctOfProject": null,
-   "shareN": 0
+   "medPctOfProject": null
   },
   {
    "trade": "Plumbing",
@@ -433,8 +400,7 @@
    "p75": 191000,
    "min": 7480,
    "max": 209640,
-   "medPctOfProject": null,
-   "shareN": 1
+   "medPctOfProject": null
   },
   {
    "trade": "Awnings / Canopies",
@@ -446,8 +412,7 @@
    "p75": 19600,
    "min": 2921,
    "max": 54829,
-   "medPctOfProject": null,
-   "shareN": 0
+   "medPctOfProject": null
   },
   {
    "trade": "Abatement / Hazmat",
@@ -459,8 +424,7 @@
    "p75": 64225,
    "min": 3355,
    "max": 114950,
-   "medPctOfProject": null,
-   "shareN": 0
+   "medPctOfProject": null
   },
   {
    "trade": "Elevators / Conveying",
@@ -472,8 +436,7 @@
    "p75": 261750,
    "min": 9200,
    "max": 285340,
-   "medPctOfProject": null,
-   "shareN": 0
+   "medPctOfProject": null
   },
   {
    "trade": "Pumps / Process Equipment",
@@ -485,8 +448,7 @@
    "p75": 133559,
    "min": 11780,
    "max": 799500,
-   "medPctOfProject": null,
-   "shareN": 0
+   "medPctOfProject": null
   }
  ]
 }
