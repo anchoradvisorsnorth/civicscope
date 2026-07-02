@@ -418,9 +418,9 @@ function rycGroundingText(inp, bm) {
 - Cost composition (RYC actuals): ${comp}.
 - Subcontract buyout: RYC historically lands ${money(bm.buy)} under estimate${bm.buySubPct != null ? ` (${Math.round(bm.buySubPct)}% of it on subs)` : ''}.${bm.medianPSF ? `\n- Historical $/SF on this work: ~$${Math.round(bm.medianPSF).toLocaleString()}/SF (thin sample — directional).` : ''}
 
-COST ANCHOR — these are RYC's ACTUAL final contract totals for comparable completed jobs${(bm.contractMin && bm.contractMax) ? ` (range ${money(bm.contractMin)}–${money(bm.contractMax)}, median ${money(bm.contractMed)})` : ''}:
+COMPARABLE RYC JOBS — context for a magnitude gut-check, NOT a target to hit${(bm.contractMin && bm.contractMax) ? ` (range ${money(bm.contractMin)}–${money(bm.contractMax)}, median ${money(bm.contractMed)})` : ''}:
 ${anchorLines || '  (no comparable contract values available)'}
-CRITICAL: your TOTAL estimate must land in this magnitude unless the plans clearly show scope that substantially exceeds these analogs. Do NOT apply generic or national institutional $/SF — RYC builds economical municipal / PEMB / light-commercial work, typically FAR below national $/SF benchmarks (often $150–$300/SF, not $400–500/SF). If your bottom-up total lands outside this envelope, your $/SF or quantities are wrong — re-check and reconcile to these real RYC numbers before finalizing.
+Build the estimate BOTTOM-UP from the plan takeoff and the actual scoped work — price each division from the scope in front of you, then sum. Do NOT back the total into the range above. These comparable RYC contracts are shown ONLY so you can sanity-check the order of magnitude; this project's scale and scope may legitimately land well above or below them, and a well-supported bottom-up total that diverges is EXPECTED and correct — do not adjust it to fit. Re-examine your numbers only if the divergence is large AND you cannot explain it from the scope. Pricing note: RYC builds economical municipal / PEMB / light-commercial work, so generic national institutional $/SF (often $400–500/SF) usually OVERSTATES — price from this scope's real quantities and RYC's subcontract market, not from any $/SF rule of thumb.
 Use RYC's realistic achieved margin, not a generic markup. Reflect the subcontract-heavy cost split in your division breakdown.`;
 }
 const OUT_FORMAT = `Respond in EXACTLY this format:
@@ -504,7 +504,7 @@ function subPricingPanel() {
   ).join('');
   return `<h3 style="margin-top:18px">RYC market sub-pricing <span class="note">— real sub bids by trade, ${subPricing.bids.toLocaleString()} bids across ${subPricing.projects} jobs (BuildingConnected)</span></h3>`
     + `<table><thead><tr><th>Trade</th><th class="r">Bids</th><th class="r">P25</th><th class="r">Median</th><th class="r">P75</th></tr></thead><tbody>${rows}</tbody></table>`
-    + `<div class="note" style="margin-top:6px">Actual subcontractor quotes from RYC's bid history (all project types) — sanity-check the division amounts above against what subs really bid. <strong>P25–P75</strong> is the typical bid band. Each matched division above shows an inline <em>subs med $X</em> hint pulled for <em>this project's type</em> (building / education / water-WW); hover it for the full band and sample size.</div>`;
+    + `<div class="note" style="margin-top:6px">Actual subcontractor quotes from RYC's bid history (all project types) — sanity-check the division amounts above against what subs really bid. <strong>P25–P75</strong> is the typical bid band. Each matched division above shows an inline <em>subs $P25–$P75 (n)</em> band pulled for <em>this project's type</em> (building / education / water-WW), inferred from the project name/scope; it falls back to the all-RYC band when the class sample is thin (n&lt;8). Hover for the median and sample size. Treat these as a quote sanity range, not a price to hit.</div>`;
 }
 
 // Auto-match an estimate division to a BuildingConnected sub-pricing trade (high-confidence keyword
@@ -539,12 +539,24 @@ function matchSubTrade(name) {
   for (const [re, t] of SUBTRADE_MATCH) if (re.test(name || '')) return subPricing.trades.find(x => x.trade === t) || null;
   return null;
 }
-// Map the project's client type to a sub-pricing class (building / education / water_wastewater),
-// so the inline hint pulls the class-appropriate $ band (e.g. school HVAC packages ≈ 10× commercial).
+// Pick the sub-pricing class (building / education / water_wastewater) for a project, so the inline
+// hint pulls the class-appropriate $ band (a school HVAC package ≈ 10× a commercial one).
+// The completed portfolio has no water/wastewater clientType (WWTP/WTP jobs live under "municipal"),
+// and the UI never emitted a WW value — so class was inferred ONLY from the dropdown and every water
+// job silently got the "building" band. Fix: infer from the project NAME/SCOPE first (mirrors how the
+// BuildingConnected benchmark builder classifies bids), and only fall back to the client type.
+function classifyProjectText(text) {
+  const n = (text || '').toLowerCase();
+  if (/wwtp|wastewater|water treatment|\bwtp\b|wrrf|lift station|\bsewer\b|water main|well ?field|clarifier|digest|lagoon|\bsludge\b|potable|booster station|water reclamation/i.test(n)) return 'water_wastewater';
+  if (/school|elementary|middle school|high school|academy|\bisd\b|\bcsc\b|\bcorp\b|college|university|fieldhouse|\bgym\b|classroom|\bk-?12\b/i.test(n)) return 'education';
+  return null;  // no strong name signal → let the client type decide
+}
 function classForCt(ct) {
   if (ct === 'school') return 'education';
-  if (ct === 'municipal_water_wastewater') return 'water_wastewater';
-  return 'building';  // commercial / industrial / municipal / mixed_use / other
+  return 'building';  // commercial / industrial / municipal / mixed_use / private
+}
+function subClassFor(inp) {
+  return classifyProjectText((inp.name || '') + ' ' + (inp.scope || '')) || classForCt(inp.ct);
 }
 
 function renderResults(p, inp, bm) {
@@ -569,9 +581,12 @@ function renderResults(p, inp, bm) {
       let mix = '';
       if (b && shr != null && b.jobsWithDivision >= 4) {
         const hi = b.sharePctP75 * 1.6, lo = b.sharePctP25 * 0.4;
-        if (shr > hi) { mix = `<span style="color:#dc2626;font-weight:600"> ⚑ ${shr.toFixed(0)}% vs RYC ${b.sharePctP25}–${b.sharePctP75}%</span>`; flagged++; }
-        else if (shr < lo) { mix = `<span style="color:#dc2626;font-weight:600"> ⚑ low ${shr.toFixed(0)}% vs RYC ${b.sharePctP25}–${b.sharePctP75}%</span>`; flagged++; }
-        else mix = `<span class="note"> · ${shr.toFixed(0)}% (RYC ${b.sharePctP25}–${b.sharePctP75}%)</span>`;
+        // Show the sample size inline — the mix library is only 16 jobs, so a division backed by 4-5
+        // jobs should read as thin, not authoritative.
+        const ref = `RYC ${b.sharePctP25}–${b.sharePctP75}% · ${b.jobsWithDivision} jobs`;
+        if (shr > hi) { mix = `<span style="color:#dc2626;font-weight:600"> ⚑ ${shr.toFixed(0)}% vs ${ref}</span>`; flagged++; }
+        else if (shr < lo) { mix = `<span style="color:#dc2626;font-weight:600"> ⚑ low ${shr.toFixed(0)}% vs ${ref}</span>`; flagged++; }
+        else mix = `<span class="note"> · ${shr.toFixed(0)}% (${ref})</span>`;
       }
       // Inline market sub-pricing: the matched trade's real sub-bid $ median for THIS project class
       // (building / education / water-WW), comparable to the division $ at left. Robust (uses bid
@@ -581,13 +596,18 @@ function renderResults(p, inp, bm) {
       const st = matchSubTrade(d.name);
       let subMix = '';
       if (st && st.median != null) {
-        const cls = classForCt(inp.ct);
-        const cb = st.byClass && st.byClass[cls] && st.byClass[cls].n >= 3 ? st.byClass[cls] : null;
+        // Use the class band only when its sample is deep enough to mean something (n>=8); below that,
+        // fall back to the robust all-RYC band rather than showing a 2-3 bid class median as authority.
+        const cls = subClassFor(inp);
+        const MIN_CLASS_N = 8;
+        const cb = st.byClass && st.byClass[cls] && st.byClass[cls].n >= MIN_CLASS_N ? st.byClass[cls] : null;
         const bnd = cb || st;
         const scope = cb ? cls.replace(/_/g, '/') : 'all RYC';
-        const thin = cb && cb.n < 8 ? ' ⚠' : '';
-        const tip = `RYC sub bids — ${st.trade} (${scope}${thin ? ', thin sample' : ''}): P25 $${bnd.p25.toLocaleString()} · median $${bnd.median.toLocaleString()} · P75 $${bnd.p75.toLocaleString()} (${bnd.n} bids, BuildingConnected)`;
-        subMix = ` <span class="note" title="${esc(tip)}"> · subs med ${money(bnd.median)} (${scope}${thin})</span>`;
+        // Flag a band too wide to price against (scope-driven spread, e.g. Earthwork p25 $1.3K / p75 $3.5M).
+        const wide = bnd.p25 > 0 && (bnd.p75 / bnd.p25) >= 8;
+        const band = `${money(bnd.p25)}–${money(bnd.p75)}`;
+        const tip = `RYC sub bids — ${st.trade} (${scope}): P25 ${money(bnd.p25)} · median ${money(bnd.median)} · P75 ${money(bnd.p75)} · ${bnd.n} bids (BuildingConnected).${wide ? ' Very wide spread — treat as a quote sanity range, not a target.' : ''}`;
+        subMix = ` <span class="note" title="${esc(tip)}"> · subs ${band} (${scope}, n=${bnd.n}${wide ? ', wide' : ''})</span>`;
       }
       return `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}${mix}${subMix}</td><td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td></tr>`;
     }).join('');
@@ -618,10 +638,12 @@ function renderResults(p, inp, bm) {
     if (Math.abs(dev) >= 25) flags += `<div class="flag">This estimate is <strong>$${Math.round(estPSF).toLocaleString()}/SF</strong> — ${Math.abs(Math.round(dev))}% ${dev > 0 ? 'above' : 'below'} RYC's historical ~$${Math.round(bm.medianPSF).toLocaleString()}/SF on this work. Sanity-check scope/quantities. <span class="note">(SF sample thin — directional.)</span></div>`;
     else flags += `<div class="ok-flag">At <strong>$${Math.round(estPSF).toLocaleString()}/SF</strong>, this estimate is in line with RYC's historical ~$${Math.round(bm.medianPSF).toLocaleString()}/SF on this work.</div>`;
   }
-  // contract-magnitude envelope check — the primary anchor against generic overpricing
+  // contract-magnitude envelope check — a sanity cross-check ONLY, not a verdict. A bottom-up total
+  // that lands outside the comparable range can be exactly right when this job's scale/scope differs;
+  // the note prompts a scope check, it does not imply the number should be pulled back to the median.
   if (mid && bm.contractMax) {
-    if (mid > bm.contractMax * 1.4) flags += `<div class="flag">This estimate (${money(mid)}) is <strong>${Math.round((mid / bm.contractMax - 1) * 100)}% above RYC's largest comparable job</strong> (${money(bm.contractMax)}; segment range ${money(bm.contractMin)}–${money(bm.contractMax)}). Likely overstated — re-check $/SF and quantities against the analogs.</div>`;
-    else if (mid < bm.contractMin * 0.6) flags += `<div class="flag">This estimate (${money(mid)}) is well below RYC's smallest comparable job (${money(bm.contractMin)}). Check for missed scope.</div>`;
+    if (mid > bm.contractMax * 1.4) flags += `<div class="flag">Sanity check: ${money(mid)} is <strong>${Math.round((mid / bm.contractMax - 1) * 100)}% above RYC's largest comparable job</strong> (${money(bm.contractMax)}; range ${money(bm.contractMin)}–${money(bm.contractMax)}). That's fine if this project is genuinely bigger or heavier — confirm the scope justifies it, don't just trim to the range.</div>`;
+    else if (mid < bm.contractMin * 0.6) flags += `<div class="flag">Sanity check: ${money(mid)} is below RYC's smallest comparable job (${money(bm.contractMin)}). Reasonable for a smaller scope — just confirm nothing's missing.</div>`;
     else flags += `<div class="ok-flag">At ${money(mid)}, this estimate sits within RYC's historical range for comparable work (${money(bm.contractMin)}–${money(bm.contractMax)}).</div>`;
   }
   document.getElementById('groundBody').innerHTML =
