@@ -103,7 +103,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.4.1 · plan takeoff · cost intelligence · quick check · market sub-pricing</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.4.2 · plan takeoff · cost intelligence · quick check · market sub-pricing</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -500,11 +500,11 @@ const fmt$ = s => { const n = num(s); return n == null ? (s || '—') : '$' + n.
 function subPricingPanel() {
   if (!subPricing || !subPricing.trades || !subPricing.trades.length) return '';
   const rows = subPricing.trades.slice(0, 24).map(t =>
-    `<tr><td>${esc(t.trade)}</td><td class="r">${t.n}</td><td class="r">$${t.p25.toLocaleString()}</td><td class="r"><strong>$${t.median.toLocaleString()}</strong></td><td class="r">$${t.p75.toLocaleString()}</td><td class="r">${t.medPctOfProject != null ? t.medPctOfProject + '%' : '—'}</td></tr>`
+    `<tr><td>${esc(t.trade)}</td><td class="r">${t.n}</td><td class="r">$${t.p25.toLocaleString()}</td><td class="r"><strong>$${t.median.toLocaleString()}</strong></td><td class="r">$${t.p75.toLocaleString()}</td></tr>`
   ).join('');
   return `<h3 style="margin-top:18px">RYC market sub-pricing <span class="note">— real sub bids by trade, ${subPricing.bids.toLocaleString()} bids across ${subPricing.projects} jobs (BuildingConnected)</span></h3>`
-    + `<table><thead><tr><th>Trade</th><th class="r">Bids</th><th class="r">P25</th><th class="r">Median</th><th class="r">P75</th><th class="r">% of proj</th></tr></thead><tbody>${rows}</tbody></table>`
-    + `<div class="note" style="margin-top:6px">Actual subcontractor quotes from RYC's bid history — sanity-check the division amounts above against what subs really bid. <strong>P25–P75</strong> is the typical band; <strong>% of proj</strong> is the median trade share of contract value. Matched divisions above show an inline <em>subs bid ~X%</em> hint (hover for the $ band).</div>`;
+    + `<table><thead><tr><th>Trade</th><th class="r">Bids</th><th class="r">P25</th><th class="r">Median</th><th class="r">P75</th></tr></thead><tbody>${rows}</tbody></table>`
+    + `<div class="note" style="margin-top:6px">Actual subcontractor quotes from RYC's bid history (all project types) — sanity-check the division amounts above against what subs really bid. <strong>P25–P75</strong> is the typical bid band. Each matched division above shows an inline <em>subs med $X</em> hint pulled for <em>this project's type</em> (building / education / water-WW); hover it for the full band and sample size.</div>`;
 }
 
 // Auto-match an estimate division to a BuildingConnected sub-pricing trade (high-confidence keyword
@@ -539,6 +539,13 @@ function matchSubTrade(name) {
   for (const [re, t] of SUBTRADE_MATCH) if (re.test(name || '')) return subPricing.trades.find(x => x.trade === t) || null;
   return null;
 }
+// Map the project's client type to a sub-pricing class (building / education / water_wastewater),
+// so the inline hint pulls the class-appropriate $ band (e.g. school HVAC packages ≈ 10× commercial).
+function classForCt(ct) {
+  if (ct === 'school') return 'education';
+  if (ct === 'municipal_water_wastewater') return 'water_wastewater';
+  return 'building';  // commercial / industrial / municipal / mixed_use / other
+}
 
 function renderResults(p, inp, bm) {
   setLoading(false);
@@ -566,13 +573,21 @@ function renderResults(p, inp, bm) {
         else if (shr < lo) { mix = `<span style="color:#dc2626;font-weight:600"> ⚑ low ${shr.toFixed(0)}% vs RYC ${b.sharePctP25}–${b.sharePctP75}%</span>`; flagged++; }
         else mix = `<span class="note"> · ${shr.toFixed(0)}% (RYC ${b.sharePctP25}–${b.sharePctP75}%)</span>`;
       }
-      // Inline market sub-pricing: matched trade's median bid as % of project (scale-invariant),
-      // with the $ band on hover. Only when confidently matched AND a %-of-project median exists.
+      // Inline market sub-pricing: the matched trade's real sub-bid $ median for THIS project class
+      // (building / education / water-WW), comparable to the division $ at left. Robust (uses bid
+      // totals, n in the tens-to-hundreds). Falls back to the all-RYC band when the class is sparse;
+      // ⚠ marks a thin class sample so it's not over-trusted. (The old %-of-proj metric was dropped —
+      // it rode on <10% of bids that carry a project value, so its medians were noise.)
       const st = matchSubTrade(d.name);
       let subMix = '';
-      if (st && st.medPctOfProject != null) {
-        const band = `RYC sub bids — ${st.trade}: P25 $${st.p25.toLocaleString()} · median $${st.median.toLocaleString()} · P75 $${st.p75.toLocaleString()} (${st.n} bids / ${st.projects} jobs, BuildingConnected)`;
-        subMix = ` <span class="note" title="${esc(band)}"> · subs bid ~${st.medPctOfProject}% of proj</span>`;
+      if (st && st.median != null) {
+        const cls = classForCt(inp.ct);
+        const cb = st.byClass && st.byClass[cls] && st.byClass[cls].n >= 3 ? st.byClass[cls] : null;
+        const bnd = cb || st;
+        const scope = cb ? cls.replace(/_/g, '/') : 'all RYC';
+        const thin = cb && cb.n < 8 ? ' ⚠' : '';
+        const tip = `RYC sub bids — ${st.trade} (${scope}${thin ? ', thin sample' : ''}): P25 $${bnd.p25.toLocaleString()} · median $${bnd.median.toLocaleString()} · P75 $${bnd.p75.toLocaleString()} (${bnd.n} bids, BuildingConnected)`;
+        subMix = ` <span class="note" title="${esc(tip)}"> · subs med ${money(bnd.median)} (${scope}${thin})</span>`;
       }
       return `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}${mix}${subMix}</td><td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td></tr>`;
     }).join('');
