@@ -285,7 +285,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.26.0-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.27.0-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <a href="/ryc/estimate" style="background:#ea580c;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-right:14px">📐 Estimating Tools →</a>
@@ -350,7 +350,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.26.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.27.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -754,7 +754,7 @@ async function renderBilling() {
     catch { arData = { invoices: [], summary: {}, error: 'unreachable' }; }
   }
   const stamp = arData?.refreshed ? `<div class="billing-stamp">AR as of ${fmtDate(arData.refreshed)} · Foundation refreshes nightly</div>` : '';
-  el.innerHTML = stamp + sectionKPIs() + sectionActiveAccounts() + sectionOverdueAR() + sectionLegacyAR() + sectionPhantom();
+  el.innerHTML = stamp + sectionKPIs() + sectionActiveAccounts() + sectionOverdueAR() + sectionLegacyAR();
 }
 
 // Set of active Foundation job numbers (job_status 'A'), to anchor AR to active work.
@@ -907,24 +907,10 @@ function sectionLegacyAR() {
     ${body}</details>`;
 }
 
-function sectionPhantom() {
-  const rows = arRows('phantom').slice().sort((a, b) => b.invoiceAmount - a.invoiceAmount);
-  const total = rows.reduce((s, r) => s + r.invoiceAmount, 0);
-  const cap = 60, shown = rows.slice(0, cap);
-  let body;
-  if (!rows.length) {
-    body = `<div class="billing-empty">${arData && !arData.error ? 'No phantom-open invoices.' : 'AR data unavailable.'}</div>`;
-  } else {
-    body = '<table class="billing-table"><thead><tr><th>Customer</th><th>Job</th><th>Invoice</th><th class="r">Invoice amount</th><th>Last cash</th></tr></thead><tbody>';
-    for (const r of shown) body += `<tr><td>${esc(r.customer || '—')}</td><td><span class="jno">${esc(r.jobNo || '')}</span> ${esc(r.jobName || '')}</td><td>${esc(r.invoiceNo || '')}</td><td class="r">${fmt(r.invoiceAmount)}</td><td>${esc(r.lastCashDate || '')}</td></tr>`;
-    body += '</tbody></table>';
-    if (rows.length > cap) body += `<div class="billing-more">+ ${rows.length - cap} more</div>`;
-  }
-  return `<div class="billing-block">
-    <h3 class="section-header">Data-integrity exceptions — paid but flagged open <span class="big-num">${fmt(total)}</span> <span class="cnt">${rows.length} invoices</span></h3>
-    <div class="billing-sub">Paid to ~$0 (cash recorded in ar_history) but still flagged open in Foundation — the front-office cleanup queue, <strong>not</strong> real receivables.</div>
-    ${body}</div>`;
-}
+// Phantom-open section removed 2026-07-02: closed_flag is not maintained by RYC's front office (563
+// invoices / $75M paid-to-$0 but still flagged 'N', some back to 2022), so it was unmaintained-field
+// noise, not an actionable cleanup queue. Real receivables are netted-balance-driven (closed_flag-
+// independent) and unaffected. (Phantom rows still exist in the AR feed; just no longer surfaced.)
 
 // === Gain/Fade — Procore vs Foundation ============================================
 // Margin MOVEMENT from the as-bid baseline to the current recognized estimate, decomposed across the
