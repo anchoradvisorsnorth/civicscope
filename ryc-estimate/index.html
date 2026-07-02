@@ -160,25 +160,36 @@
   <div id="resultsPanel" style="display:none">
     <div class="card">
       <div id="resMeta" class="note" style="margin-bottom:8px"></div>
-      <div class="hero">
-        <div><div class="big" id="costMid">—</div><div class="mid">midpoint</div></div>
-        <div><div style="font-size:18px;font-weight:600" id="costRange">—</div><div class="mid">range (low–high)</div></div>
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:13px;color:#9a3412;margin-bottom:10px">
+        <strong>Conceptual bid-assembly draft — not a bid.</strong> Every package below is a subcontract placeholder to confirm with a live quote. Enter quotes as they arrive to assemble the real number; the conceptual range is an order-of-magnitude read only.
+      </div>
+      <div class="hero" style="align-items:center">
+        <div><div style="font-size:20px;font-weight:700" id="costRange">—</div><div class="mid">conceptual range (low–high)</div></div>
+        <div><div style="font-size:20px;font-weight:700" id="costMid">—</div><div class="mid">midpoint</div></div>
         <div id="confTag" class="tag"></div>
       </div>
     </div>
 
-    <div class="card ground">
-      <h3 style="margin-top:0">Grounded against RYC history</h3>
-      <div id="groundBody"></div>
+    <div class="card">
+      <h3 style="margin-top:0">Bid packages to price <span class="note">— each line is a subcontract package; enter live quotes to assemble the number</span></h3>
+      <div id="divisionsWrap"></div>
+    </div>
+
+    <div class="card" id="gapCard" style="display:none">
+      <h3 style="margin-top:0">Open questions to tighten the number <span class="note">— resolve before pricing</span></h3>
+      <div id="gapWrap"></div>
     </div>
 
     <div class="card">
       <h3 style="margin-top:0">Estimator read</h3>
       <div id="narrative" class="note" style="color:var(--ink);font-size:14px"></div>
-      <div id="divisionsWrap"></div>
       <h3>Assumptions</h3>
       <ul id="assumptions"></ul>
-      <div id="gapWrap"></div>
+    </div>
+
+    <div class="card ground">
+      <h3 style="margin-top:0">Grounded against RYC history</h3>
+      <div id="groundBody"></div>
     </div>
 
     <button class="btn btn-ghost" onclick="refine()">Edit inputs</button>
@@ -559,6 +570,26 @@ function subClassFor(inp) {
   return classifyProjectText((inp.name || '') + ' ' + (inp.scope || '')) || classForCt(inp.ct);
 }
 
+// Live-quote assembly: as the estimator enters real sub quotes, show each package's variance vs the
+// conceptual placeholder and re-sum an "assembled total" (quotes where entered, placeholders elsewhere).
+// This is the bid-assembly accelerator — the tool's value is helping build the number, not the number.
+let quotes = {};
+function setQuote(i, val, conceptual) {
+  const q = Number(val) || null;
+  if (q) quotes[i] = q; else delete quotes[i];
+  const vc = document.getElementById('qvar-' + i);
+  if (vc) {
+    if (q && conceptual) { const dv = (q - conceptual) / conceptual * 100; const c = dv > 5 ? '#dc2626' : dv < -5 ? '#16a34a' : '#6b7280'; vc.innerHTML = `<span style="color:${c};font-weight:600">${dv >= 0 ? '+' : ''}${dv.toFixed(0)}%</span>`; }
+    else vc.innerHTML = '<span class="note">—</span>';
+  }
+  const divs = window._lastDivisions || []; let assembled = 0, anyQuote = false;
+  divs.forEach((d, idx) => { if (quotes[idx]) { assembled += quotes[idx]; anyQuote = true; } else assembled += (d.amount || 0); });
+  const ae = document.getElementById('qassembled');
+  if (ae) ae.innerHTML = anyQuote ? `<strong>$${Math.round(assembled).toLocaleString()}</strong>` : '<span class="note">enter quotes →</span>';
+  const ve = document.getElementById('qassembledvar');
+  if (ve) { if (anyQuote && window._pkgConceptualTotal) { const dv = (assembled - window._pkgConceptualTotal) / window._pkgConceptualTotal * 100; const c = dv > 3 ? '#dc2626' : dv < -3 ? '#16a34a' : '#6b7280'; ve.innerHTML = `<span style="color:${c};font-weight:600" title="assembled vs conceptual">${dv >= 0 ? '+' : ''}${dv.toFixed(0)}%</span>`; } else ve.innerHTML = ''; }
+}
+
 function renderResults(p, inp, bm) {
   setLoading(false);
   document.getElementById('costMid').textContent = fmt$(p.mid);
@@ -569,13 +600,15 @@ function renderResults(p, inp, bm) {
   document.getElementById('resMeta').textContent = `${inp.name} · ${inp.ct} / ${inp.wt}${inp.sf ? ' · ' + inp.sf.toLocaleString() + ' SF' : ''} · ${uploadedFiles.length ? uploadedFiles.length + ' plan pages read' : 'scope-only'}`;
   document.getElementById('narrative').textContent = p.narrative || '—';
 
-  // divisions
+  // bid packages
   const dw = document.getElementById('divisionsWrap');
+  quotes = {};
   if (p.divisions.length) {
     const tot = p.divisions.reduce((s, d) => s + (d.amount || 0), 0);
+    window._lastDivisions = p.divisions; window._pkgConceptualTotal = tot;
     const ds = benchmarks?.divisionStats || {};
     let flagged = 0;
-    const rowHtml = p.divisions.map(d => {
+    const rowHtml = p.divisions.map((d, i) => {
       const shr = tot > 0 && d.amount ? d.amount / tot * 100 : null;
       const b = d.div ? ds[d.div] : null;
       let mix = '';
@@ -609,20 +642,24 @@ function renderResults(p, inp, bm) {
         const tip = `RYC sub bids — ${st.trade} (${scope}): P25 ${money(bnd.p25)} · median ${money(bnd.median)} · P75 ${money(bnd.p75)} · ${bnd.n} bids (BuildingConnected).${wide ? ' Very wide spread — treat as a quote sanity range, not a target.' : ''}`;
         subMix = ` <span class="note" title="${esc(tip)}"> · subs ${band} (${scope}, n=${bnd.n}${wide ? ', wide' : ''})</span>`;
       }
-      return `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}${mix}${subMix}</td><td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td></tr>`;
+      return `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}${mix}${subMix}</td>`
+        + `<td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td>`
+        + `<td class="r"><input class="qin" type="number" min="0" placeholder="quote $" oninput="setQuote(${i}, this.value, ${d.amount || 0})" style="width:92px;padding:3px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;text-align:right"></td>`
+        + `<td class="r" id="qvar-${i}"><span class="note">—</span></td></tr>`;
     }).join('');
-    dw.innerHTML = `<h3>Division breakdown <span class="note">— every line is a subcontract placeholder; confirm with a quote</span></h3>`
-      + `<table><thead><tr><th>Division / scope <span class="note">(share vs RYC history)</span></th><th class="r">Cost</th></tr></thead><tbody>`
+    dw.innerHTML = `<table><thead><tr><th>Package / scope <span class="note">(share vs RYC history · market sub band)</span></th><th class="r">Conceptual</th><th class="r">Your quote</th><th class="r">Var</th></tr></thead><tbody>`
       + rowHtml
-      + `<tr><td><strong>Total (conceptual — not a bid)</strong></td><td class="r"><strong>${tot ? '$' + tot.toLocaleString() : '—'}</strong></td></tr></tbody></table>`
-      + (benchmarks ? `<div class="note" style="margin-top:6px">⚑ = this division's share of cost is outside RYC's historical p25–p75 range for comparable work (${benchmarks.jobs ? benchmarks.jobs.length : ''} jobs) — re-check scope/quantities or verify the quote.${flagged ? ` <strong>${flagged} flagged.</strong>` : ' None flagged.'}</div>` : '');
+      + `<tr><td><strong>Conceptual rollup — not a bid</strong></td><td class="r"><strong>${tot ? '$' + tot.toLocaleString() : '—'}</strong></td><td class="r" id="qassembled"><span class="note">enter quotes →</span></td><td class="r" id="qassembledvar"></td></tr></tbody></table>`
+      + `<div class="note" style="margin-top:6px">Enter a live sub quote on any package to see its variance vs the conceptual placeholder; the <strong>assembled total</strong> updates as quotes replace placeholders — that's your real number forming.</div>`
+      + (benchmarks ? `<div class="note" style="margin-top:4px">⚑ = this package's share of cost is outside RYC's historical p25–p75 range for comparable work (${benchmarks.jobs ? benchmarks.jobs.length : ''} jobs) — re-check scope/quantities or verify the quote.${flagged ? ` <strong>${flagged} flagged.</strong>` : ' None flagged.'}</div>` : '');
   } else dw.innerHTML = '';
   if (subPricing) dw.innerHTML += subPricingPanel();
 
   // assumptions / gaps
   document.getElementById('assumptions').innerHTML = p.assumptions.map(a => `<li>${esc(a)}</li>`).join('') || '<li class="note">—</li>';
   const gw = document.getElementById('gapWrap');
-  gw.innerHTML = p.gaps.length ? `<h3>Open questions to tighten the number</h3><ul>` + p.gaps.map(g => `<li>${esc(g.q)}${g.impact ? ` <span class="note">(${esc(g.impact)})</span>` : ''}</li>`).join('') + '</ul>' : '';
+  document.getElementById('gapCard').style.display = p.gaps.length ? 'block' : 'none';
+  gw.innerHTML = p.gaps.length ? `<ul>` + p.gaps.map(g => `<li>${esc(g.q)}${g.impact ? ` <span class="note">(${esc(g.impact)})</span>` : ''}</li>`).join('') + '</ul>' : '';
 
   // grounding panel
   const comp = Object.entries(bm.comp).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 1).map(([k, v]) => `${CLASS_LABEL[k] || k} ${Math.round(v)}%`).join(' · ') || '—';
