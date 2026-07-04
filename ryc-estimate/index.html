@@ -421,18 +421,30 @@ async function runEstimate() {
   } catch (e) { setLoading(false); showErr(e.message || 'Something went wrong.'); }
 }
 
+// CONDITIONAL GROUNDING (calibration-driven, 2026-07-02): the analog job TOTALS help magnitude when
+// there are NO plans (the model has no other scale signal → backtest 56% vs 73% without), but they
+// BIAS a plan-based estimate toward the big-job segment median (Fulton plan-based +158% with, +109%
+// without — the model literally cited "the Logansport Hangar at $2.6M" as its anchor). So: show the
+// analog totals ONLY when no plans are uploaded; when plans are present, ground on RATIOS only and let
+// the takeoff set magnitude. The comparable totals still render in the UI's post-hoc sanity panel.
 function rycGroundingText(inp, bm) {
   const comp = Object.entries(bm.comp).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 1).map(([k, v]) => `${CLASS_LABEL[k] || k} ${Math.round(v)}%`).join(', ') || 'n/a';
-  const anchorLines = (bm.analogs || []).filter(a => a.contract).map(a => `  • ${a.name}: ${money(a.contract)}${a.psf ? ` (${a.sqft.toLocaleString()} SF, $${a.psf}/SF)` : ''}`).join('\n');
-  return `RYC HISTORICAL BENCHMARKS for this segment — from RYC's OWN completed jobs (matched on ${bm.basis}, ${bm.n} job(s)). Anchor the estimate to how RYC ACTUALLY performs. RYC self-performs NO trade work — every division is SUBCONTRACTED, so each division cost is a sub-quote placeholder (plus GC general conditions/overhead):
+  const hasPlans = uploadedFiles.length > 0;
+  const ratios = `RYC HISTORICAL RATIOS for this segment (RYC's OWN completed jobs, matched on ${bm.basis}, ${bm.n} job(s)) — use these to shape MARGIN and the COST SPLIT, NOT to set the total. RYC self-performs NO trade work — every division is SUBCONTRACTED, so each division cost is a sub-quote placeholder plus GC general conditions/overhead:
 - As-bid margin ${pct(bm.bidMargin)} → actually achieved ${pct(bm.actMargin)}${bm.gainFade != null ? ` (RYC typically ${bm.gainFade >= 0 ? 'gains' : 'fades'} ${Math.abs(bm.gainFade).toFixed(1)} pts bid→actual on this work)` : ''}.
 - Cost composition (RYC actuals): ${comp}.
-- Subcontract buyout: RYC historically lands ${money(bm.buy)} under estimate${bm.buySubPct != null ? ` (${Math.round(bm.buySubPct)}% of it on subs)` : ''}.${bm.medianPSF ? `\n- Historical $/SF on this work: ~$${Math.round(bm.medianPSF).toLocaleString()}/SF (thin sample — directional).` : ''}
+- Subcontract buyout: RYC historically lands ${money(bm.buy)} under estimate${bm.buySubPct != null ? ` (${Math.round(bm.buySubPct)}% of it on subs)` : ''}.`;
+  if (hasPlans) {
+    return `${ratios}
 
-COMPARABLE RYC JOBS — context for a magnitude gut-check, NOT a target to hit${(bm.contractMin && bm.contractMax) ? ` (range ${money(bm.contractMin)}–${money(bm.contractMax)}, median ${money(bm.contractMed)})` : ''}:
+Determine the TOTAL purely BOTTOM-UP from the plan takeoff: measure the real quantities and scope in the drawings, price each division from those quantities at RYC's northern-Indiana subcontract market, then sum. Do NOT reverse-engineer the total from RYC's average job size or from other projects — price THIS building at THIS scale from what the drawings actually show. RYC builds economical municipal / PEMB / light-commercial work: a pre-engineered metal building or bare shell commonly runs far below national institutional $/SF, and generic $400–500/SF benchmarks almost always OVERSTATE this work. Anchor magnitude to the drawings' real square footage and quantities, apply RYC's realistic achieved margin above, and reflect the subcontract-heavy split — nothing else sets the total.`;
+  }
+  const anchorLines = (bm.analogs || []).filter(a => a.contract).map(a => `  • ${a.name}: ${money(a.contract)}${a.psf ? ` (${a.sqft.toLocaleString()} SF, $${a.psf}/SF)` : ''}`).join('\n');
+  return `${ratios}${bm.medianPSF ? `\n- Historical $/SF on this work: ~$${Math.round(bm.medianPSF).toLocaleString()}/SF (thin sample — directional).` : ''}
+
+No plans were uploaded, so use these comparable RYC job totals to anchor MAGNITUDE${(bm.contractMin && bm.contractMax) ? ` (range ${money(bm.contractMin)}–${money(bm.contractMax)}, median ${money(bm.contractMed)})` : ''}:
 ${anchorLines || '  (no comparable contract values available)'}
-Build the estimate BOTTOM-UP from the plan takeoff and the actual scoped work — price each division from the scope in front of you, then sum. Do NOT back the total into the range above. These comparable RYC contracts are shown ONLY so you can sanity-check the order of magnitude; this project's scale and scope may legitimately land well above or below them, and a well-supported bottom-up total that diverges is EXPECTED and correct — do not adjust it to fit. Re-examine your numbers only if the divergence is large AND you cannot explain it from the scope. Pricing note: RYC builds economical municipal / PEMB / light-commercial work, so generic national institutional $/SF (often $400–500/SF) usually OVERSTATES — price from this scope's real quantities and RYC's subcontract market, not from any $/SF rule of thumb.
-Use RYC's realistic achieved margin, not a generic markup. Reflect the subcontract-heavy cost split in your division breakdown.`;
+Price bottom-up from the scope notes where you can, but WITHOUT a takeoff these comparables are your best magnitude reference — land in a defensible relationship to them: a smaller or simpler scope than the analogs should land below the range, a larger or heavier scope above it. Still avoid inflated national institutional $/SF ($400–500/SF) — RYC builds economical work. Apply RYC's realistic achieved margin above and the subcontract-heavy split.`;
 }
 const OUT_FORMAT = `Respond in EXACTLY this format:
 COST_LOW: [number, no decimals]
