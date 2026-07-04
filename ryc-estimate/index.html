@@ -559,7 +559,7 @@ function matchSubTrade(name) {
 function classifyProjectText(text) {
   const n = (text || '').toLowerCase();
   if (/wwtp|wastewater|water treatment|\bwtp\b|wrrf|lift station|\bsewer\b|water main|well ?field|clarifier|digest|lagoon|\bsludge\b|potable|booster station|water reclamation/i.test(n)) return 'water_wastewater';
-  if (/school|elementary|middle school|high school|academy|\bisd\b|\bcsc\b|\bcorp\b|college|university|fieldhouse|\bgym\b|classroom|\bk-?12\b/i.test(n)) return 'education';
+  if (/school|elementary|middle school|high school|academy|\bisd\b|\bcsc\b|school corp|college|university|fieldhouse|\bgym\b|classroom|\bk-?12\b/i.test(n)) return 'education';
   return null;  // no strong name signal → let the client type decide
 }
 function classForCt(ct) {
