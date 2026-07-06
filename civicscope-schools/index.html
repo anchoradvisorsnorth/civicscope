@@ -1281,7 +1281,7 @@ footer span {
 
     <div class="loading-state" id="loading">
       <div class="spinner"></div>
-      <span id="loadingMsg">Analyzing regional cost data and project parameters...</span>
+      <span id="loadingMsg">Analyzing your project and regional cost patterns...</span>
     </div>
     <div class="error-block" id="errorBlock"></div>
 
@@ -1481,7 +1481,7 @@ footer span {
       <div class="sidebar-card-title">How It Works</div>
       <div class="sidebar-step">
         <div class="step-num">1</div>
-        <div class="step-text"><strong>Enter your location</strong> — we use regional cost data specific to your state and market.</div>
+        <div class="step-text"><strong>Enter your location</strong> — we tailor the range to your state and market.</div>
       </div>
       <div class="sidebar-step">
         <div class="step-num">2</div>
@@ -1775,7 +1775,7 @@ async function runFeasibility() {
 
   btn.disabled = true;
   loading.style.display = 'flex';
-  loadingMsg.textContent = 'Analyzing regional cost data and project parameters...';
+  loadingMsg.textContent = 'Analyzing your project and regional cost patterns...';
   document.getElementById('methodologyContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Building cost methodology...</div>`;
   document.getElementById('timelineContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Estimating project timeline...</div>`;
   document.getElementById('advocateContent').innerHTML = `<div class="section-loading"><div class="spinner"></div> Building buyer's advocate guide...</div>`;
