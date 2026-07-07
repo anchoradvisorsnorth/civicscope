@@ -535,10 +535,27 @@ function mergeFoundation(active, fd) {
     procoreNums.add(num);
     const f = fjobs[num];
     j.flags = [];
-    if (!f) { j.foundation = null; j.costToDate = j.budget?.direct ?? null; continue; }
+    // Contract value priority (2026-07-07, per Tristan/Steve): Procore Revised Contract Amount
+    // (freshest — approved COs post here before Foundation accounting) -> Foundation currentContract
+    // -> Procore estimated_value/budget. Whichever source loses shows as a divergence flag.
+    const rev = (j.revisedContract > 0) ? j.revisedContract : 0;
+    if (!f) {
+      j.foundation = null;
+      j.costToDate = j.budget?.direct ?? null;
+      if (rev) { j.procoreContractValue = j.contractValue; j.contractValue = rev; }
+      continue;
+    }
     j.foundation = f;
-    // Contract — best source = Foundation executed contract (original + approved COs)
-    if (f.currentContract > 0) {
+    if (rev) {
+      // Procore revised wins; flag Foundation when it materially diverges (COs not yet posted)
+      j.procoreContractValue = j.contractValue;
+      j.contractValue = rev;
+      const fdiff = (f.currentContract || 0) - rev;
+      if (f.currentContract > 0 && Math.abs(fdiff) > 50000 && Math.abs(fdiff) > rev * 0.02) {
+        j.flags.push({ type: 'contract', text: 'Foundation ' + fmtCompact(f.currentContract) });
+      }
+    } else if (f.currentContract > 0) {
+      // No prime contract in Procore (pre-con) — fall back to Foundation executed contract
       j.procoreContractValue = j.contractValue;
       j.contractValue = f.currentContract;
       const d = j.contractValue - (j.procoreContractValue || 0);
@@ -1166,23 +1183,22 @@ function renderWIP() {
 }
 
 // ===== Work-on-Hand Report (on-demand; SEPARATE from the WIP tab — does NOT alter it) ==========
-// Mirrors Foundation's "Work-on-Hand Analysis" for the 7 columns Keith needs. Source per his spec:
-//   Contract Price + Total Job Costs (est. cost) = PROCORE; Cost to Date + Billings = FOUNDATION.
-// % complete = Cost to Date ÷ Total Job Costs; Cost to Complete = Total Job Costs − Cost to Date;
-// Earned Revenue = Contract × % complete. Own data builder — reuses none of wipRows()'s logic.
+// RYC audit report (columns/sources per Tristan/Steve 2026-07-07):
+//   Contract Price = Procore Revised Contract Amount; Total Job Costs = Procore ERP Projected Budget;
+//   Cost to Date + Billings = FOUNDATION. Cost to Complete = Total Job Costs − Cost to Date.
+//   (Earned Revenue column dropped 2026-07-07 — not needed for the audit report.)
 function wohRows() {
   const rows = [];
   for (const j of getActiveJobs()) {
     const f = j.foundation, b = j.budget || {};
-    const contract = (j.contractValue > 0) ? j.contractValue : null;      // Procore (current contract)
+    const contract = (j.revisedContract > 0) ? j.revisedContract
+      : ((j.contractValue > 0) ? j.contractValue : null);                  // Procore Revised Contract Amount
     const ctd = f ? f.totalCosts : null;                                   // Foundation cost-to-date
-    const tec = (b.projectedCost != null) ? b.projectedCost : null;        // Procore ERP Projected Cost
+    const tec = (b.projectedBudget != null) ? b.projectedBudget : null;    // Procore ERP Projected Budget
     const billed = f ? f.totalInvoiced : null;                             // Foundation billings-to-date
     const ctc = (tec != null && ctd != null) ? (tec - ctd) : null;         // Cost to Complete
-    const pctComp = (tec > 0 && ctd != null) ? (ctd / tec) : null;         // cost-based % complete
-    const earned = (contract != null && pctComp != null) ? (contract * pctComp) : null;  // Earned Revenue
     rows.push({ name: j.name || (f && f.description) || (j.projectNumber || ''),
-      contract, ctd, ctc, tec, billed, earned, suspect: !!b.projCostSuspect, noTec: tec == null });
+      contract, ctd, ctc, tec, billed, noTec: tec == null });
   }
   rows.sort((a, b2) => (b2.contract || 0) - (a.contract || 0));            // largest contract first
   return rows;
@@ -1194,9 +1210,9 @@ function wohReportHTML() {
   const dol = n => n == null ? '<span class="muted-cell">—</span>' : (n < 0 ? '$(' + Math.abs(Math.round(n)).toLocaleString() + ')' : '$' + Math.round(n).toLocaleString());
   let tbody = '';
   for (const r of rows) {
-    const tecCell = r.tec == null ? '<span class="muted-cell">—</span>' : dol(r.tec) + (r.suspect ? ' <span title="Procore ERP projected cost looks inflated — verify" style="color:#dc2626">⚑</span>' : '');
+    const tecCell = r.tec == null ? '<span class="muted-cell">—</span>' : dol(r.tec);
     tbody += `<tr><td>${esc(r.name)}</td><td class="r">${dol(r.contract)}</td><td class="r">${dol(r.ctd)}</td>`
-      + `<td class="r">${dol(r.ctc)}</td><td class="r">${tecCell}</td><td class="r">${dol(r.billed)}</td><td class="r">${dol(r.earned)}</td></tr>`;
+      + `<td class="r">${dol(r.ctc)}</td><td class="r">${tecCell}</td><td class="r">${dol(r.billed)}</td></tr>`;
   }
   const missing = rows.filter(r => r.noTec).length;
   return `<div class="woh-head"><div><h2 style="margin:0">Work-on-Hand Analysis</h2>`
@@ -1206,11 +1222,11 @@ function wohReportHTML() {
     + `<button class="billing-toggle" onclick="closeWOH()">✕ Close</button></div></div>`
     + `<div style="overflow-x:auto"><table class="billing-table woh-table"><thead><tr>`
     + `<th>Project Name</th><th class="r">Contract Price</th><th class="r">Cost to Date</th><th class="r">Cost to Complete</th>`
-    + `<th class="r">Total Job Costs</th><th class="r">Billings to Date</th><th class="r">Earned Revenue</th>`
+    + `<th class="r">Total Job Costs</th><th class="r">Billings to Date</th>`
     + `</tr></thead><tbody>${tbody}</tbody></table></div>`
-    + `<div class="woh-foot"><strong>Contract Price</strong> &amp; <strong>Total Job Costs</strong> (est. cost) from Procore; <strong>Cost to Date</strong> &amp; <strong>Billings to Date</strong> from Foundation. `
-    + `% complete = Cost to Date ÷ Total Job Costs; Cost to Complete = Total Job Costs − Cost to Date; Earned Revenue = Contract × % complete.`
-    + (missing ? ` <strong>${missing}</strong> job(s) missing Procore projected cost — Cost to Complete / Earned Revenue blank for those.` : '') + `</div>`;
+    + `<div class="woh-foot"><strong>Contract Price</strong> (Revised Contract Amount) &amp; <strong>Total Job Costs</strong> (Projected Budget) from Procore; <strong>Cost to Date</strong> &amp; <strong>Billings to Date</strong> from Foundation. `
+    + `Cost to Complete = Total Job Costs − Cost to Date.`
+    + (missing ? ` <strong>${missing}</strong> job(s) missing Procore Projected Budget — Cost to Complete blank for those.` : '') + `</div>`;
 }
 function runWorkOnHand() {
   let ov = document.getElementById('woh-overlay');
@@ -1239,11 +1255,11 @@ function printWOH() {
 }
 function exportWOHCSV() {
   const rows = wohRows();
-  const header = ['Project Name', ' Contract Price ', ' Cost to Date ', ' Cost to Complete ', ' Total Job Costs ', ' Billings to Date ', ' Earned Revenue '];
+  const header = ['Project Name', ' Contract Price ', ' Cost to Date ', ' Cost to Complete ', ' Total Job Costs ', ' Billings to Date '];
   const q = v => { const s = (v == null ? '' : String(v)); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const acct = n => { if (n == null) return ''; const v = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return n < 0 ? ' $(' + v + ')' : ' $' + v + ' '; };
   const lines = [header.map(q).join(',')];
-  for (const r of rows) lines.push([r.name, acct(r.contract), acct(r.ctd), acct(r.ctc), acct(r.tec), acct(r.billed), acct(r.earned)].map(q).join(','));
+  for (const r of rows) lines.push([r.name, acct(r.contract), acct(r.ctd), acct(r.ctc), acct(r.tec), acct(r.billed)].map(q).join(','));
   const csv = '﻿' + lines.join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
