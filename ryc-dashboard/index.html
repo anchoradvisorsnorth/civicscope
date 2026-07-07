@@ -285,7 +285,7 @@
   <header>
     <div class="brand">
       <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="R. Yoder Construction">
-      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.27.0-ryc-dashboard</div></div>
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.28.0-ryc-dashboard</div></div>
     </div>
     <div style="display:flex;align-items:center">
       <a href="/ryc/estimate" style="background:#ea580c;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-right:14px">📐 Estimating Tools →</a>
@@ -350,7 +350,7 @@
   <div id="coverage-banner" style="display:none;margin-top:6px"></div>
 
   <div class="footer">
-    v1.27.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    v1.28.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
     Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
   </div>
 </div>
@@ -1157,10 +1157,99 @@ function renderWIP() {
   }
   const toggle = `<button class="billing-toggle" onclick="toggleWIPAll()">${wipShowAll ? 'Show flagged only' : 'Show all ' + rows.length + ' active jobs'}</button>`;
   const exportBtn = `<button class="billing-toggle" onclick="exportWIPCSV()" title="Download all active jobs with Foundation actuals as CSV">⬇ Export CSV</button>`;
+  const wohBtn = `<button class="billing-toggle" onclick="runWorkOnHand()" title="Run the on-demand Work-on-Hand Analysis report (Foundation WIP format)">📄 Work-on-Hand Report</button>`;
   el.innerHTML = stamp + noFnd + k.band + `<div class="billing-block">
-    <h3 class="section-header">Work in progress — earned value &amp; billing <span class="cnt">${flagged.length} flagged${wipShowAll ? ' · all shown' : ''}</span> ${toggle} ${exportBtn}</h3>
+    <h3 class="section-header">Work in progress — earned value &amp; billing <span class="cnt">${flagged.length} flagged${wipShowAll ? ' · all shown' : ''}</span> ${toggle} ${exportBtn} ${wohBtn}</h3>
     <div class="billing-sub"><strong>% Comp (cost)</strong> = Foundation cost-to-date ÷ Procore forecast cost (revised budget); amber when it outruns Procore's % complete by ≥10 pts (cost ahead of progress). <strong>Earned</strong> = % complete × contract. <strong>Over/(under)</strong> = billed − earned: <span class="under">(under)</span> = earned work not yet invoiced (collect it), <span class="over">+over</span> = billed ahead of work. Earned-value method — distinct from Billing &amp; AR's bid-ratio "Needs invoiced." Forecast margin = (contract − forecast cost) ÷ contract.</div>
     ${body}</div>`;
+}
+
+// ===== Work-on-Hand Report (on-demand; SEPARATE from the WIP tab — does NOT alter it) ==========
+// Mirrors Foundation's "Work-on-Hand Analysis" for the 7 columns Keith needs. Source per his spec:
+//   Contract Price + Total Job Costs (est. cost) = PROCORE; Cost to Date + Billings = FOUNDATION.
+// % complete = Cost to Date ÷ Total Job Costs; Cost to Complete = Total Job Costs − Cost to Date;
+// Earned Revenue = Contract × % complete. Own data builder — reuses none of wipRows()'s logic.
+function wohRows() {
+  const rows = [];
+  for (const j of getActiveJobs()) {
+    const f = j.foundation, b = j.budget || {};
+    const contract = (j.contractValue > 0) ? j.contractValue : null;      // Procore (current contract)
+    const ctd = f ? f.totalCosts : null;                                   // Foundation cost-to-date
+    const tec = (b.projectedCost != null) ? b.projectedCost : null;        // Procore ERP Projected Cost
+    const billed = f ? f.totalInvoiced : null;                             // Foundation billings-to-date
+    const ctc = (tec != null && ctd != null) ? (tec - ctd) : null;         // Cost to Complete
+    const pctComp = (tec > 0 && ctd != null) ? (ctd / tec) : null;         // cost-based % complete
+    const earned = (contract != null && pctComp != null) ? (contract * pctComp) : null;  // Earned Revenue
+    rows.push({ name: j.name || (f && f.description) || (j.projectNumber || ''),
+      contract, ctd, ctc, tec, billed, earned, suspect: !!b.projCostSuspect, noTec: tec == null });
+  }
+  rows.sort((a, b2) => (b2.contract || 0) - (a.contract || 0));            // largest contract first
+  return rows;
+}
+function wohReportHTML() {
+  const rows = wohRows();
+  const d = new Date();
+  const dateStr = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const dol = n => n == null ? '<span class="muted-cell">—</span>' : (n < 0 ? '$(' + Math.abs(Math.round(n)).toLocaleString() + ')' : '$' + Math.round(n).toLocaleString());
+  let tbody = '';
+  for (const r of rows) {
+    const tecCell = r.tec == null ? '<span class="muted-cell">—</span>' : dol(r.tec) + (r.suspect ? ' <span title="Procore ERP projected cost looks inflated — verify" style="color:#dc2626">⚑</span>' : '');
+    tbody += `<tr><td>${esc(r.name)}</td><td class="r">${dol(r.contract)}</td><td class="r">${dol(r.ctd)}</td>`
+      + `<td class="r">${dol(r.ctc)}</td><td class="r">${tecCell}</td><td class="r">${dol(r.billed)}</td><td class="r">${dol(r.earned)}</td></tr>`;
+  }
+  const missing = rows.filter(r => r.noTec).length;
+  return `<div class="woh-head"><div><h2 style="margin:0">Work-on-Hand Analysis</h2>`
+    + `<div class="woh-sub">R. Yoder Construction — active jobs · as of ${dateStr}</div></div>`
+    + `<div class="woh-actions"><button class="billing-toggle" onclick="printWOH()">🖨 Print</button>`
+    + `<button class="billing-toggle" onclick="exportWOHCSV()">⬇ CSV</button>`
+    + `<button class="billing-toggle" onclick="closeWOH()">✕ Close</button></div></div>`
+    + `<div style="overflow-x:auto"><table class="billing-table woh-table"><thead><tr>`
+    + `<th>Project Name</th><th class="r">Contract Price</th><th class="r">Cost to Date</th><th class="r">Cost to Complete</th>`
+    + `<th class="r">Total Job Costs</th><th class="r">Billings to Date</th><th class="r">Earned Revenue</th>`
+    + `</tr></thead><tbody>${tbody}</tbody></table></div>`
+    + `<div class="woh-foot"><strong>Contract Price</strong> &amp; <strong>Total Job Costs</strong> (est. cost) from Procore; <strong>Cost to Date</strong> &amp; <strong>Billings to Date</strong> from Foundation. `
+    + `% complete = Cost to Date ÷ Total Job Costs; Cost to Complete = Total Job Costs − Cost to Date; Earned Revenue = Contract × % complete.`
+    + (missing ? ` <strong>${missing}</strong> job(s) missing Procore projected cost — Cost to Complete / Earned Revenue blank for those.` : '') + `</div>`;
+}
+function runWorkOnHand() {
+  let ov = document.getElementById('woh-overlay');
+  if (!ov) {
+    const st = document.createElement('style');
+    st.textContent = '.woh-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:none;overflow:auto;padding:24px}'
+      + '.woh-overlay.open{display:block}.woh-panel{background:#fff;max-width:1120px;margin:0 auto;border-radius:10px;padding:20px 24px;box-shadow:0 10px 40px rgba(0,0,0,.3)}'
+      + '.woh-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;border-bottom:2px solid #1f2937;padding-bottom:10px}'
+      + '.woh-sub{color:#6b7280;font-size:12px;margin-top:2px}.woh-actions{display:flex;gap:6px;flex-shrink:0}'
+      + '.woh-foot{margin-top:10px;font-size:11px;color:#6b7280;line-height:1.5}.woh-table td,.woh-table th{white-space:nowrap}';
+    document.head.appendChild(st);
+    ov = document.createElement('div'); ov.id = 'woh-overlay'; ov.className = 'woh-overlay';
+    ov.addEventListener('click', e => { if (e.target === ov) closeWOH(); });
+    const p = document.createElement('div'); p.id = 'woh-panel'; p.className = 'woh-panel';
+    ov.appendChild(p); document.body.appendChild(ov);
+  }
+  document.getElementById('woh-panel').innerHTML = wohReportHTML();
+  ov.classList.add('open');
+}
+function closeWOH() { const ov = document.getElementById('woh-overlay'); if (ov) ov.classList.remove('open'); }
+function printWOH() {
+  const html = document.getElementById('woh-panel').innerHTML;
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>Work-on-Hand Analysis</title><style>body{font-family:Arial,sans-serif;font-size:11px;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px 8px;text-align:left}td.r,th.r{text-align:right}.woh-actions{display:none}h2{margin:0 0 4px}.woh-sub{color:#555;font-size:11px;margin-bottom:10px}.woh-foot{margin-top:10px;font-size:10px;color:#555}</style></head><body>' + html + '</body></html>');
+  w.document.close(); w.focus(); setTimeout(() => w.print(), 250);
+}
+function exportWOHCSV() {
+  const rows = wohRows();
+  const header = ['Project Name', ' Contract Price ', ' Cost to Date ', ' Cost to Complete ', ' Total Job Costs ', ' Billings to Date ', ' Earned Revenue '];
+  const q = v => { const s = (v == null ? '' : String(v)); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const acct = n => { if (n == null) return ''; const v = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return n < 0 ? ' $(' + v + ')' : ' $' + v + ' '; };
+  const lines = [header.map(q).join(',')];
+  for (const r of rows) lines.push([r.name, acct(r.contract), acct(r.ctd), acct(r.ctc), acct(r.tec), acct(r.billed), acct(r.earned)].map(q).join(','));
+  const csv = '﻿' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const d = new Date(); const stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const a = document.createElement('a'); a.href = url; a.download = 'ryc-work-on-hand-' + stamp + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // === Job detail slide-over =========================================================
