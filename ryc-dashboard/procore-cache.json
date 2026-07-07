@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-07-07T20:25:42.868Z",
+  "refreshed": "2026-07-07T23:43:46.220Z",
   "jobCount": 28,
   "jobs": [
     {
@@ -19,7 +19,7 @@
       "sqft": null,
       "pctComplete": 64.6,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 1,
@@ -40,6 +40,313 @@
       },
       "contractValue": 18537636,
       "revisedContract": 21120057.78,
+      "commitments": {
+        "count": 33,
+        "subcontracts": 23,
+        "purchaseOrders": 10,
+        "committedTotal": 18338101.35,
+        "originalTotal": 16700848.05,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Orchard Wallen Road - Sitework - Subcontract",
+            "vendor": "Flemming Excavating Inc",
+            "status": "Approved",
+            "total": 3864263.74,
+            "original": 3495731,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Concrete Foundations",
+            "vendor": "Anchored Concrete",
+            "status": "Approved",
+            "total": 2964847,
+            "original": 2790721,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Framing/roofing/gutters/siding/Stone/drywall",
+            "vendor": "TBG Construction LLC",
+            "status": "Approved",
+            "total": 2641455,
+            "original": 2398612,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Plumbing & Mechanical",
+            "vendor": "Legacy Plumbing, Heating,",
+            "status": "Approved",
+            "total": 1923019.06,
+            "original": 1304340,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Asphalt Paving/ Site Concrete",
+            "vendor": "API Construction Corp",
+            "status": "Approved",
+            "total": 1477558,
+            "original": 1519300,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers- Ship Loose Material - PO",
+            "vendor": "Millers Building Supply",
+            "status": "Approved",
+            "total": 1233583.43,
+            "original": 1162061.43,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wallen Road - Set Crew - Subcontract",
+            "vendor": "JNJ Construction",
+            "status": "Approved",
+            "total": 757500,
+            "original": 666600,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Electrical",
+            "vendor": "Advanced American Electric",
+            "status": "Approved",
+            "total": 717065,
+            "original": 888000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Insulation",
+            "vendor": "The Insulation Guys LLC",
+            "status": "Approved",
+            "total": 463800,
+            "original": 466800,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "ABC Supply - Roofing - Clubhouse",
+            "vendor": "ABC Supply Co. Inc.",
+            "status": "Approved",
+            "total": 448914.02,
+            "original": 423818.23,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Trucking Phase 2 - JR Mace - PO",
+            "vendor": "JR Mace Transport Inc",
+            "status": "Approved",
+            "total": 382400,
+            "original": 25200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Crane service",
+            "vendor": "31 Diesel Truck & Wrecker",
+            "status": "Approved",
+            "total": 279200,
+            "original": 395500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Painting - subcontract - Wallen Road",
+            "vendor": "G & J 1 LLC",
+            "status": "Approved",
+            "total": 252000,
+            "original": 252000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Landscaping",
+            "vendor": "Bojrab Landscape ManagementLLC",
+            "status": "Approved",
+            "total": 190246,
+            "original": 101970,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "AE- Shipping - Wallen Road - Subcontract",
+            "vendor": "AE Transport Services LLC",
+            "status": "Approved",
+            "total": 189040,
+            "original": 23520,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Bennett - PO - Shipping",
+            "vendor": "Bennett Motor Express LLC",
+            "status": "Approved",
+            "total": 104395.91,
+            "original": 104395.91,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "R & C Fence Subcontract",
+            "vendor": "R & C Fence Inc",
+            "status": "Approved",
+            "total": 89150,
+            "original": 89150,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wallen Road - Renewing - Painting subcontract",
+            "vendor": "Renewing Management Inc",
+            "status": "Approved",
+            "total": 64800,
+            "original": 303000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Survey",
+            "vendor": "Miller Land Surveying Inc",
+            "status": "Approved",
+            "total": 59680,
+            "original": 44620,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Salsbury PO - Helix Orchard Road",
+            "vendor": "Salsbury Industries, Inc.",
+            "status": "Approved",
+            "total": 41090,
+            "original": 41090,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "CRG- Wallen Road - Subcontract",
+            "vendor": "Commercial Recreation GroupLLC",
+            "status": "Approved",
+            "total": 32315.76,
+            "original": 32315.76,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply - PO - Clubhouse",
+            "vendor": "Millers Building Supply",
+            "status": "Approved",
+            "total": 30300,
+            "original": 41447.07,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Testing",
+            "vendor": "Patriot Engineering and Environmental, Inc.",
+            "status": "Approved",
+            "total": 26500,
+            "original": 26500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Express Sign - wallen Road - Subcontract",
+            "vendor": "Express Signs Inc",
+            "status": "Approved",
+            "total": 25405.2,
+            "original": 25405.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "KDI - PO Wallen Road",
+            "vendor": "Kammerer Dynamics, Inc.",
+            "status": "Approved",
+            "total": 17387.5,
+            "original": 17387.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Dancer Concrete Subcontract",
+            "vendor": "Dancer Concrete Design LLC",
+            "status": "Approved",
+            "total": 14081,
+            "original": 17081,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Doors and Hardware - Wilco - PO Helix Wallen Road",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 11363.72,
+            "original": 9206.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Office Interiors Subcontract",
+            "vendor": "Office Interiors",
+            "status": "Approved",
+            "total": 10796.44,
+            "original": 9130.58,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Horizon Window - PO - Wallen Road",
+            "vendor": "Horizon Windows and Doors",
+            "status": "Approved",
+            "total": 9165.72,
+            "original": 9165.72,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lue Manufacturing Subcontract",
+            "vendor": "Lue Manufacturing Inc",
+            "status": "Approved",
+            "total": 8720.51,
+            "original": 8720.51,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Dakotah Pressure Washing - Subcontract - Wallen Road",
+            "vendor": "Dakotah Pressure Wash Systems",
+            "status": "Approved",
+            "total": 3000,
+            "original": 3000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Lee Supply - Helix - PO",
+            "vendor": "Lee Supply",
+            "status": "Approved",
+            "total": 2924.14,
+            "original": 2924.14,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Div10 - Wilco - Wallen Road",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 2134.2,
+            "original": 2134.2,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 47,
         "netValue": 798207.5,
@@ -75,7 +382,7 @@
       "sqft": null,
       "pctComplete": 25.8,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 44,
@@ -96,6 +403,295 @@
       },
       "contractValue": 18070899,
       "revisedContract": 18070879,
+      "commitments": {
+        "count": 31,
+        "subcontracts": 24,
+        "purchaseOrders": 7,
+        "committedTotal": 13156285.18,
+        "originalTotal": 13629654.58,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "HRP Construction Subcontract",
+            "vendor": "HRP CONSTRUCTION INC.",
+            "status": "Approved",
+            "total": 3328249.12,
+            "original": 3852500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Sterling Contracting Subcontract",
+            "vendor": "Sterling Contracting, LLC",
+            "status": "Approved",
+            "total": 1843815.49,
+            "original": 1857300,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "American Pump Repair & Service Shipshewana Wastewater Treatment Plant ",
+            "vendor": "American Pump Repair & Service",
+            "status": "Approved",
+            "total": 1744655,
+            "original": 1601646,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Maddox Industrial Subcontract",
+            "vendor": "Maddox Industrial LLC",
+            "status": "Approved",
+            "total": 1407541.29,
+            "original": 1388500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Photon Electric Subcontract",
+            "vendor": "Photon Electric LLC",
+            "status": "Approved",
+            "total": 1029896.45,
+            "original": 986955,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Lakeside Equipment Corporation Purchase Order",
+            "vendor": "Lakeside Equipment Corporation",
+            "status": "Approved",
+            "total": 929763,
+            "original": 929763,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Hardman Construction Subcontract",
+            "vendor": "Hardman Construction",
+            "status": "Approved",
+            "total": 730000,
+            "original": 695000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Shipshewana Waste Water Treatment Plant - Middlebury Electric Subcontr",
+            "vendor": "Middlebury Electric Inc",
+            "status": "Approved",
+            "total": 471341,
+            "original": 471341,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Current Mechanical Subcontract",
+            "vendor": "Current Mechanical",
+            "status": "Approved",
+            "total": 346628.28,
+            "original": 339438,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Cherry Creek Builders Subcontract",
+            "vendor": "Cherry Creek Builders LLC",
+            "status": "Approved",
+            "total": 194063.97,
+            "original": 393434,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Niblock Excavating Subcontract",
+            "vendor": "Niblock Excavating Inc",
+            "status": "Approved",
+            "total": 150441,
+            "original": 150441,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Blastek Subcontract",
+            "vendor": "Blastek LLC",
+            "status": "Approved",
+            "total": 147793,
+            "original": 147793,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Diversified Dewatering Subcontract",
+            "vendor": "Diversified Dewatering LLC",
+            "status": "Approved",
+            "total": 98900,
+            "original": 98900,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Industrial Door Subcontract",
+            "vendor": "Industrial Door of Northern IN",
+            "status": "Approved",
+            "total": 83290,
+            "original": 83290,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "UltraFlote - Shipshewana Wastewater Treatment Plant Purchase Order",
+            "vendor": "UltraFlote",
+            "status": "Approved",
+            "total": 79775,
+            "original": 79775,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Midwest Glass and Mirror Subcontract",
+            "vendor": "Midwest Glass & Mirror Co",
+            "status": "Approved",
+            "total": 71901,
+            "original": 63542,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kammerer Dynamics-Shipshewana Wastewater Treatment Plant Purchase Orde",
+            "vendor": "Kammerer Dynamics, Inc.",
+            "status": "Approved",
+            "total": 69420.04,
+            "original": 69420.04,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "The Henry P. Thompson Company - Shipshewana Wastewater Treatment Plant",
+            "vendor": "The Henry P. Thompson Company",
+            "status": "Approved",
+            "total": 63895,
+            "original": 15000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Midwest Fence Subcontract",
+            "vendor": "Milestone Fence LLC",
+            "status": "Approved",
+            "total": 63590.4,
+            "original": 63590.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Bertsch-Frank & Associates Subcontract",
+            "vendor": "Bertsch-Frank & Associates",
+            "status": "Approved",
+            "total": 46800,
+            "original": 87500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Acculevel Subcontract",
+            "vendor": "Acculevel Inc",
+            "status": "Approved",
+            "total": 38100,
+            "original": 38100,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Tony's Stone Brick and Block Subcontract",
+            "vendor": "Tony's Stone Brick&Block LLC",
+            "status": "Approved",
+            "total": 36850,
+            "original": 36850,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Big C - Shipshewana WWTP - Framing Package PO",
+            "vendor": "Big C Lumber",
+            "status": "Approved",
+            "total": 35657.14,
+            "original": 35657.14,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "GME Testing - Shipshewana Wastewater Treatment Plant Subcontract",
+            "vendor": "GME Testing",
+            "status": "Approved",
+            "total": 26750,
+            "original": 26750,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Spectra Tech Subcontract",
+            "vendor": "Spectra Tech LLC",
+            "status": "Approved",
+            "total": 24804,
+            "original": 24804,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "DBL Services Subcontract",
+            "vendor": "DBL Services Inc",
+            "status": "Approved",
+            "total": 17500,
+            "original": 17500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jack Laurie Group Subcontract",
+            "vendor": "Jack Laurie Group",
+            "status": "Approved",
+            "total": 17289,
+            "original": 17289,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Shipshewana Wastewater Treatment Plant -SSI Purchase Order",
+            "vendor": "Stamford Scientific International, INC",
+            "status": "Approved",
+            "total": 16800,
+            "original": 16800,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Momper Installed Subcontract",
+            "vendor": "Momper Insulation Elkhart LLC",
+            "status": "Approved",
+            "total": 14303,
+            "original": 14303,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Neptune Construction",
+            "vendor": "Neptune Construction Inc.",
+            "status": "Approved",
+            "total": 14300,
+            "original": 14300,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Midwest Caulking Subcontract",
+            "vendor": "Midwest Caulking, Inc.",
+            "status": "Approved",
+            "total": 12173,
+            "original": 12173,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 32,
         "netValue": 213913.38,
@@ -131,7 +727,7 @@
       "sqft": null,
       "pctComplete": 5.8,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 17,
@@ -152,6 +748,376 @@
       },
       "contractValue": 17256996,
       "revisedContract": 17549636,
+      "commitments": {
+        "count": 40,
+        "subcontracts": 35,
+        "purchaseOrders": 5,
+        "committedTotal": 11295423.54,
+        "originalTotal": 11126512.93,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Electric",
+            "vendor": "Schwartz Electric Inc.",
+            "status": "Approved",
+            "total": 1664460,
+            "original": 1664460,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - HVAC",
+            "vendor": "Blue Phoenix HVAC Inc",
+            "status": "Approved",
+            "total": 1487164,
+            "original": 1487164,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Aluminum Windows and Doors",
+            "vendor": "Midwest Glass & Mirror Co",
+            "status": "Approved",
+            "total": 1041576,
+            "original": 1041576,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "TGG- Monreaux - Subcontract",
+            "vendor": "TBG Construction LLC",
+            "status": "Approved",
+            "total": 997467,
+            "original": 997467,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "The Monreaux - Plumbing - Subcontract",
+            "vendor": "Fenner Plumbing Inc",
+            "status": "Approved",
+            "total": 903675,
+            "original": 903675,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Siding & Roofing",
+            "vendor": "Wolf Commercial Roofing Inc",
+            "status": "Approved",
+            "total": 770770,
+            "original": 770770,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Monreaux - Framing Material- PO",
+            "vendor": "Millers Building Supply",
+            "status": "Approved",
+            "total": 644000,
+            "original": 644000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Flooring",
+            "vendor": "Avanti Flooring LLC",
+            "status": "Approved",
+            "total": 535779.15,
+            "original": 535779.15,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Concrete",
+            "vendor": "Sterling Contracting, LLC",
+            "status": "Approved",
+            "total": 499969.89,
+            "original": 430100,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Earthwork",
+            "vendor": "Indiana Earth Inc.",
+            "status": "Approved",
+            "total": 477290,
+            "original": 397290,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Fire Protection",
+            "vendor": "Ryan Fire Protection",
+            "status": "Approved",
+            "total": 353450,
+            "original": 353450,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Elevator",
+            "vendor": "Schindler",
+            "status": "Approved",
+            "total": 284332.72,
+            "original": 275000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Overholt",
+            "vendor": "Overholt Masonry Inc.",
+            "status": "Approved",
+            "total": 275383,
+            "original": 265675,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Insulation",
+            "vendor": "Jenks Carpentry",
+            "status": "Approved",
+            "total": 210040,
+            "original": 210040,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Wilco - Monreaux - Subcontract",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 208000,
+            "original": 208000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Subcontract - Insulation - Monreaux",
+            "vendor": "Michiana Insulation",
+            "status": "Approved",
+            "total": 198200,
+            "original": 198200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - CPS - Subcontract",
+            "vendor": "Commercial Painting Services",
+            "status": "Out For Signature",
+            "total": 179000,
+            "original": 179000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "GE Appliances Subcontract",
+            "vendor": "GE Appliances",
+            "status": "Out For Signature",
+            "total": 145426,
+            "original": 145426,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Div 12 - Monreaux - PO",
+            "vendor": "Williams Distributing",
+            "status": "Processing",
+            "total": 144566.09,
+            "original": 144566.09,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Gypecrete",
+            "vendor": "Ultimate Edge LLC",
+            "status": "Out For Signature",
+            "total": 108747,
+            "original": 108747,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Williams Countertops subcontract",
+            "vendor": "Williams Distributing",
+            "status": "Out For Signature",
+            "total": 99358.74,
+            "original": 99358.74,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Structural Steel - KDI - Monreaux",
+            "vendor": "Kammerer Dynamics, Inc.",
+            "status": "Approved",
+            "total": 98712.85,
+            "original": 98712.85,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Aptek",
+            "vendor": "Aptek",
+            "status": "Approved",
+            "total": 93921.47,
+            "original": 93921.47,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Mike's Fencing - Subcontract",
+            "vendor": "Mike's Fencing Inc.",
+            "status": "Approved",
+            "total": 83965.17,
+            "original": 83965.17,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Landscaping",
+            "vendor": "Bojrab Landscape ManagementLLC",
+            "status": "Approved",
+            "total": 68700,
+            "original": 68700,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "CPS - The Monreaux - Subcontract",
+            "vendor": "Custom Patio Solutions",
+            "status": "Approved",
+            "total": 64552.06,
+            "original": 64552.06,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Div 10 - Monreaux - Subcontract",
+            "vendor": "Interco Division 10 Ohio Inc",
+            "status": "Approved",
+            "total": 56432.87,
+            "original": 56432.87,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Paving - Rieth-Riley - The Monreaux",
+            "vendor": "Rieth-Riley Construction Co.",
+            "status": "Approved",
+            "total": 55892,
+            "original": 55892,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - BVS- Subcontract",
+            "vendor": "Best Value Siding Co LLC",
+            "status": "Approved",
+            "total": 51850,
+            "original": 51850,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "C-Tec - Monreaux - Subcontract",
+            "vendor": "C-Tec Inc",
+            "status": "Out For Signature",
+            "total": 47144.85,
+            "original": 47144.85,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Midwest Glass - Monreaux - Subcontract",
+            "vendor": "Midwest Glass & Mirror Co",
+            "status": "Approved",
+            "total": 36560,
+            "original": 36560,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux- IWC- Subcontract",
+            "vendor": "Indiana Window Covering",
+            "status": "Out For Signature",
+            "total": 32700,
+            "original": 32700,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Strctural Steel",
+            "vendor": "Crane Industrial Service Inc.",
+            "status": "Approved",
+            "total": 26970,
+            "original": 26970,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Testing",
+            "vendor": "Alt & Witzig Engineering Inc.",
+            "status": "Approved",
+            "total": 26340,
+            "original": 26340,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mail Room- Monreaux- subcontract",
+            "vendor": "Locker Revolution LLC",
+            "status": "Approved",
+            "total": 25116.12,
+            "original": 25116.12,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Caulking - Slager - Monreaux",
+            "vendor": "Slager Restoration & Sealants, Inc.",
+            "status": "Approved",
+            "total": 22630,
+            "original": 22630,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Subcontract - Surveying",
+            "vendor": "Abonmarche Consultants Inc",
+            "status": "Approved",
+            "total": 12200,
+            "original": 12200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Fire Proofing - ANI- Monreaux",
+            "vendor": "American National Insulation",
+            "status": "Approved",
+            "total": 9900,
+            "original": 9900,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Monreaux - Express Sign - Subcontract",
+            "vendor": "Express Signs Inc",
+            "status": "Approved",
+            "total": 6216.17,
+            "original": 6216.17,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Temp Fence - Federal - Monreaux Apartments",
+            "vendor": "Federal Rent A Fence",
+            "status": "Approved",
+            "total": 3908.07,
+            "original": 3908.07,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 7,
         "netValue": 280410.21,
@@ -187,7 +1153,7 @@
       "sqft": 56000,
       "pctComplete": 103,
       "costOverrun": true,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 76,
@@ -208,6 +1174,403 @@
       },
       "contractValue": 15962778,
       "revisedContract": 16683097,
+      "commitments": {
+        "count": 43,
+        "subcontracts": 34,
+        "purchaseOrders": 9,
+        "committedTotal": 15608927.19,
+        "originalTotal": 13659494.24,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "EJ White- PHM Fieldhouse Subcontract",
+            "vendor": "Edward J. White, Inc.",
+            "status": "Approved",
+            "total": 2763137.73,
+            "original": 2538595,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "C & E Excavating - PHM Fieldhouse Subcontract",
+            "vendor": "C & E Excavating Inc",
+            "status": "Approved",
+            "total": 1362219.99,
+            "original": 607500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Middlebury Electric PHM Fieldhouse Subcontract",
+            "vendor": "Middlebury Electric Inc",
+            "status": "Approved",
+            "total": 1209981.83,
+            "original": 1106949,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Fetters Construction - PHM Fieldhouse Subcontract",
+            "vendor": "Fetters Construction, Inc.",
+            "status": "Approved",
+            "total": 1139522.93,
+            "original": 1162000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Western Steel Building - PHM Fieldhouse PO",
+            "vendor": "Western Steel Buildings",
+            "status": "Approved",
+            "total": 1093703.75,
+            "original": 1037254,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Summit CIty Steel - PHM Fieldhouse Subcontract",
+            "vendor": "Summit City Steel Erection LLC",
+            "status": "Approved",
+            "total": 793034.78,
+            "original": 665200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kiefer USA - PHM Fieldhouse Subcontract",
+            "vendor": "Kiefer America LLC",
+            "status": "Approved",
+            "total": 742811.6,
+            "original": 731960,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "WM Miller Concrete - PHM Fieldhouse Subcontract",
+            "vendor": "WM Miller Concrete LLC",
+            "status": "Approved",
+            "total": 684363.91,
+            "original": 631085,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Helgeson steel - PHM Fieldhouse PO",
+            "vendor": "Helgeson Steel Inc",
+            "status": "Approved",
+            "total": 669275,
+            "original": 537500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kleckner Interiors - PHM Fieldhouse  Subcontract",
+            "vendor": "Kleckner Interior Systems Inc",
+            "status": "Approved",
+            "total": 593706.67,
+            "original": 470300,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete - PHM Fieldhouse Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 567998,
+            "original": 725680,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Athletic Equipment - PHM Fieldhouse Subcontract",
+            "vendor": "Lee Company Inc",
+            "status": "Approved",
+            "total": 517790,
+            "original": 448260,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wolf Commercial Roofing - PHM Fieldhouse Subcontract",
+            "vendor": "Wolf Commercial Roofing Inc",
+            "status": "Approved",
+            "total": 475340,
+            "original": 475340,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kuhn Specialty Flooring - PHM Fieldhouse Subcontract",
+            "vendor": "Kuhn Specialty Flooring",
+            "status": "Approved",
+            "total": 375491,
+            "original": 185500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Werntz & Sons - PHM Fieldhouse Subcontract",
+            "vendor": "J.W. Werntz & Son Inc.",
+            "status": "Approved",
+            "total": 368950,
+            "original": 368950,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Subsurface Constructors Subcontract - PHM Fieldhouse",
+            "vendor": "Subsurface Constructors Inc.",
+            "status": "Approved",
+            "total": 229900,
+            "original": 229900,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Niblock Excavating - PHM Fieldhouse Subcontract",
+            "vendor": "Niblock Excavating Inc",
+            "status": "Approved",
+            "total": 217302.71,
+            "original": 218580.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Pro Paint - PHM Fieldhouse Subcontract",
+            "vendor": "Custom Paint and Finish",
+            "status": "Approved",
+            "total": 192929,
+            "original": 178159,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "VFP - PHM Fieldhouse Subcontract",
+            "vendor": "VFP Fire Systems",
+            "status": "Approved",
+            "total": 185803,
+            "original": 179829,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Laforce - PHM Fieldhouse PO",
+            "vendor": "Laforce LLC",
+            "status": "Approved",
+            "total": 179341,
+            "original": 165127,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Spohn - PHM Fieldhouse Subcontract",
+            "vendor": "Spohn Associates Inc",
+            "status": "Approved",
+            "total": 168275,
+            "original": 166775,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Schindler- PHM Fieldhouse Subcontract",
+            "vendor": "Schindler",
+            "status": "Approved",
+            "total": 115259.5,
+            "original": 88000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Silvercote - PHM Fieldhouse - PO",
+            "vendor": "Silvercote",
+            "status": "Approved",
+            "total": 112505.34,
+            "original": 112505.34,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "StressCore- PHM Fieldhouse Subcontract",
+            "vendor": "StresCore Inc.",
+            "status": "Approved",
+            "total": 95200,
+            "original": 95200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "D&D Electric Subcontract - PHM Fieldhouse",
+            "vendor": "D & D Electric",
+            "status": "Approved",
+            "total": 91600.96,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Dancer Concrete - PHM Fieldhouse Subcontract",
+            "vendor": "Dancer Concrete Design LLC",
+            "status": "Approved",
+            "total": 82443,
+            "original": 77643,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Steve's Door Service - PHM Fieldhouse Subcontract",
+            "vendor": "Steve's Door Service, LLC",
+            "status": "Approved",
+            "total": 62775,
+            "original": 62775,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Complete Fencing - PHM Fieldhouse Subcontract",
+            "vendor": "Complete Fence LLC",
+            "status": "Approved",
+            "total": 62311.93,
+            "original": 34641.16,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Avanti Flooring - PHM Fieldhouse Subcontract",
+            "vendor": "Avanti Flooring LLC",
+            "status": "Approved",
+            "total": 60840.59,
+            "original": 44390.59,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lue Manufacturing - PHM Fieldhouse Subcontract",
+            "vendor": "Lue Manufacturing Inc",
+            "status": "Approved",
+            "total": 49888.19,
+            "original": 42322.47,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Pro Lawn Seeding- PHM Firehouse Subcontract",
+            "vendor": "Pro Lawn Seeding LLC",
+            "status": "Approved",
+            "total": 48780,
+            "original": 41000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "US Signcrafters - PHM Fieldhouse Subcontract",
+            "vendor": "US Signcrafters Inc",
+            "status": "Approved",
+            "total": 47375,
+            "original": 28000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Bradford Systems- PHM Fieldhouse PO",
+            "vendor": "Bradford Systems Corp",
+            "status": "Approved",
+            "total": 46990,
+            "original": 46990,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Midwest Specialties PHM Fieldhouse PO",
+            "vendor": "Midwest Specialties LLC",
+            "status": "Approved",
+            "total": 46835,
+            "original": 36355,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Stephenson Land Surveying - PHM Fieldhouse Subcontract",
+            "vendor": "Stephenson Land Surveying Inc",
+            "status": "Approved",
+            "total": 32575,
+            "original": 15000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Nevco Sports - PHM Fieldhouse  Subcontract",
+            "vendor": "Nevco Sports LLC",
+            "status": "Approved",
+            "total": 30722.68,
+            "original": 30722.68,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "The Insulation Guys - PHM Fieldhouse Subcontract",
+            "vendor": "The Insulation Guys LLC",
+            "status": "Approved",
+            "total": 26999,
+            "original": 25799,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Slager Restoration - PHM Fieldhouse Subcontract",
+            "vendor": "Slager Restoration & Sealants, Inc.",
+            "status": "Approved",
+            "total": 23300,
+            "original": 10155,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lafayette Materials- PHM Fieldhouse Subcontract",
+            "vendor": "Lafayette Materials Management",
+            "status": "Approved",
+            "total": 19536,
+            "original": 19536,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "DSO Subcontract - PHM Fieldhouse",
+            "vendor": "JL Dimel LLC",
+            "status": "Approved",
+            "total": 13750,
+            "original": 10275,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Standard Wire & Steel- PHM Fieldhouse -PO",
+            "vendor": "Standard Wire & Steel",
+            "status": "Processing",
+            "total": 10200,
+            "original": 10200,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Sports Imports PO - PHM Fieldhouse",
+            "vendor": "Sports Imports",
+            "status": "Approved",
+            "total": 4349.1,
+            "original": 3727.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Triangle Window - PHM Fieldhouse Subcontract",
+            "vendor": "Triangle Window Fashions Inc.",
+            "status": "Approved",
+            "total": 4013,
+            "original": 4013,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 123,
         "netValue": 626997.39,
@@ -245,7 +1608,7 @@
       "sqft": null,
       "pctComplete": 58.1,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 26,
@@ -266,6 +1629,403 @@
       },
       "contractValue": 14055300,
       "revisedContract": 14055300,
+      "commitments": {
+        "count": 43,
+        "subcontracts": 28,
+        "purchaseOrders": 15,
+        "committedTotal": 11459823.96,
+        "originalTotal": 12608083.06,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "All Required Concrete Work",
+            "vendor": "Sterling Contracting, LLC",
+            "status": "Approved",
+            "total": 2322889.67,
+            "original": 1993200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Sitework and Utilities",
+            "vendor": "Exterior Service LLC",
+            "status": "Approved",
+            "total": 1557476.94,
+            "original": 1422980,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Maddox Industrial Subcontract",
+            "vendor": "Maddox Industrial LLC",
+            "status": "Approved",
+            "total": 1322668.84,
+            "original": 1302000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "EnviroMix Purchase Order",
+            "vendor": "EnviroMix Inc",
+            "status": "Approved",
+            "total": 1225800,
+            "original": 1225800,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yager Electric Subcontract Agreement",
+            "vendor": "Yager Electric",
+            "status": "Approved",
+            "total": 1111163.55,
+            "original": 1097192,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Xylem Evoque Water Technologies LLC Purchase Order",
+            "vendor": "Xylem Evoque Water Technologies LLC",
+            "status": "Approved",
+            "total": 845400,
+            "original": 845400,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Variable Frequency Drives and Process Instrumentation and Control",
+            "vendor": "Frakes Engineering Inc",
+            "status": "Approved",
+            "total": 431220,
+            "original": 431220,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Xylem Evoque Water Technologies LLC Purchase Order",
+            "vendor": "Xylem Evoque Water Technologies LLC",
+            "status": "Approved",
+            "total": 426358,
+            "original": 426358,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "The Henry P. Thompson Company Purchase Order",
+            "vendor": "The Henry P. Thompson Company",
+            "status": "Approved",
+            "total": 412898,
+            "original": 412898,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Shoring",
+            "vendor": "RL McCoy Inc",
+            "status": "Approved",
+            "total": 250000,
+            "original": 250000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "FloSource Purchase Order",
+            "vendor": "FloSource Inc",
+            "status": "Approved",
+            "total": 249251,
+            "original": 249251,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "NEFCO Systems, Inc. Purchase Order",
+            "vendor": "NEFCO Systems, Inc.",
+            "status": "Approved",
+            "total": 138300,
+            "original": 138300,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Parkson Corporation Purchase Order",
+            "vendor": "Parkson Corporation",
+            "status": "Approved",
+            "total": 110051,
+            "original": 110051,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Masonry",
+            "vendor": "Tony Stone Brick and Block LLC",
+            "status": "Approved",
+            "total": 95140,
+            "original": 95140,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Huntertown Wastewater Treatment Plant Collection Box High Performance ",
+            "vendor": "Advanced Rehabilitation Technology",
+            "status": "Approved",
+            "total": 78275,
+            "original": 78275,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Metal Fabrications",
+            "vendor": "Weber Steel",
+            "status": "Approved",
+            "total": 77000,
+            "original": 77000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kreager Group Subcontract Agreement",
+            "vendor": "Kreager Group Inc",
+            "status": "Approved",
+            "total": 73833,
+            "original": 1755850,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Plumbing",
+            "vendor": "T & T Plumbing & Heating Inc",
+            "status": "Approved",
+            "total": 68835,
+            "original": 51500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Rammed Aggregate Piers",
+            "vendor": "Michels Construction, Inc.",
+            "status": "Approved",
+            "total": 59200,
+            "original": 59200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Rain for Rent Subcontract",
+            "vendor": "Rain for Rent",
+            "status": "Approved",
+            "total": 54851.29,
+            "original": 51745.31,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Huntertown Wastewater Treatment Plant High Performance Coatings Except",
+            "vendor": "Howard Painting Inc.",
+            "status": "Approved",
+            "total": 49715,
+            "original": 49715,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "The Bonilla Group Subcontract Agreement",
+            "vendor": "TBG Construction LLC",
+            "status": "Approved",
+            "total": 48820,
+            "original": 48820,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Asphalt Paving",
+            "vendor": "Wayne Asphalt",
+            "status": "Approved",
+            "total": 47500,
+            "original": 47500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Construction Materials Testing",
+            "vendor": "Alt & Witzig Engineering Inc.",
+            "status": "Approved",
+            "total": 47168,
+            "original": 47168,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Construction Layout Services",
+            "vendor": "Bertsch-Frank & Associates",
+            "status": "Approved",
+            "total": 43000,
+            "original": 43000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Alpha Building Center Purchase Order",
+            "vendor": "Alpha Building Center Nappanee",
+            "status": "Approved",
+            "total": 40498.48,
+            "original": 39874.75,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mechanical",
+            "vendor": "Air Management Systems Inc.",
+            "status": "Approved",
+            "total": 38000,
+            "original": 38000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Golden Harvest, Inc. Purchase Order",
+            "vendor": "Golden Harvest, Inc.",
+            "status": "Approved",
+            "total": 34950,
+            "original": 34950,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Clean Existing Aerated Sludge Holding Tanks",
+            "vendor": "Fluid Waste Services, Inc.",
+            "status": "Approved",
+            "total": 33575,
+            "original": 29320,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Aluminum Flush Doors",
+            "vendor": "Central Indiana Hardware",
+            "status": "Approved",
+            "total": 27360,
+            "original": 23535,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Chain Link Fences and Gates",
+            "vendor": "Gleave Construction Inc",
+            "status": "Approved",
+            "total": 22882.5,
+            "original": 20100,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Gypsum Board & Painting",
+            "vendor": "Hanna Brothers Drywall & Paint",
+            "status": "Approved",
+            "total": 22500,
+            "original": 21750,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Thermal Insulation",
+            "vendor": "The Insulation Guys LLC",
+            "status": "Approved",
+            "total": 17650,
+            "original": 17650,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Sectional Doors",
+            "vendor": "Raynor Door Authority",
+            "status": "Approved",
+            "total": 12171,
+            "original": 12171,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Above Ground Video Survey",
+            "vendor": "Construction Video Media Inc",
+            "status": "Approved",
+            "total": 11875,
+            "original": 11875,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lawns and Grasses",
+            "vendor": "Bojrab Landscape ManagementLLC",
+            "status": "Approved",
+            "total": 11125,
+            "original": 11125,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Caulking",
+            "vendor": "Midwest Caulking, Inc.",
+            "status": "Approved",
+            "total": 10419,
+            "original": 10419,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Door Hardware",
+            "vendor": "Central Indiana Hardware",
+            "status": "Approved",
+            "total": 10319,
+            "original": 10319,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Davit Crane and Bases",
+            "vendor": "Manufacturers Distributor",
+            "status": "Approved",
+            "total": 9399.69,
+            "original": 7146,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Proco Expansion Joints",
+            "vendor": "Ferguson Enterprises Inc",
+            "status": "Approved",
+            "total": 5100,
+            "original": 5100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Aluminum Floor Door",
+            "vendor": "Bilco",
+            "status": "Approved",
+            "total": 3560,
+            "original": 3560,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Cove Base in Equipment Building",
+            "vendor": "Tile Interiors Inc",
+            "status": "Approved",
+            "total": 1320,
+            "original": 1320,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Fire Extinguisher's",
+            "vendor": "Moss Building Products Corp.",
+            "status": "Approved",
+            "total": 305,
+            "original": 305,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 51,
         "netValue": -1126810.27,
@@ -298,7 +2058,7 @@
       "sqft": null,
       "pctComplete": 77.5,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 99,
@@ -319,6 +2079,331 @@
       },
       "contractValue": 11967209,
       "revisedContract": 11967209,
+      "commitments": {
+        "count": 35,
+        "subcontracts": 23,
+        "purchaseOrders": 12,
+        "committedTotal": 9232013.88,
+        "originalTotal": 9238587.8,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "HRP Construction Inc. Subcontract",
+            "vendor": "HRP CONSTRUCTION INC.",
+            "status": "Approved",
+            "total": 2305323,
+            "original": 2192000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Schwartz Electric Inc. Subcontract.",
+            "vendor": "Schwartz Electric Inc.",
+            "status": "Approved",
+            "total": 985985.94,
+            "original": 945808,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Peerless Midwest Inc. Subcontract",
+            "vendor": "Peerless Midwest, Inc.",
+            "status": "Approved",
+            "total": 797961,
+            "original": 777400,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Maddox Industrial LLC Subcontract",
+            "vendor": "Maddox Industrial LLC",
+            "status": "Approved",
+            "total": 755663.5,
+            "original": 735500,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Gasvoda & Associates, Inc. Subcontract",
+            "vendor": "Gasvoda & Associates Inc",
+            "status": "Approved",
+            "total": 688965.4,
+            "original": 642335,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kurita America Inc.",
+            "vendor": "Kurita America Inc.",
+            "status": "Approved",
+            "total": 650428,
+            "original": 650428,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Heiman Construction Inc. Subcontract.",
+            "vendor": "Heiman Construction Inc.",
+            "status": "Approved",
+            "total": 640900,
+            "original": 771900,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Edward J White inc. Subcontract",
+            "vendor": "Edward J White Inc",
+            "status": "Approved",
+            "total": 521095.7,
+            "original": 692559,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Precision Systems care of GAI. Subcontract",
+            "vendor": "Precision Systems",
+            "status": "Approved",
+            "total": 485000,
+            "original": 485000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Adams Masonry Inc. Subcontract",
+            "vendor": "Adams Masonry Inc.",
+            "status": "Approved",
+            "total": 269624.09,
+            "original": 268600,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Niblock Excavating Subcontract",
+            "vendor": "Niblock Excavating Inc",
+            "status": "Approved",
+            "total": 209554.5,
+            "original": 190523.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Prism painting Company Subcontract",
+            "vendor": "Prism Painting Company",
+            "status": "Approved",
+            "total": 188764.61,
+            "original": 196475,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Legacy Fence and Decks Subcontract",
+            "vendor": "Legacy Fence & Decks",
+            "status": "Approved",
+            "total": 72231.02,
+            "original": 71856.02,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Midwest Glass & Mirror Co. Subcontract",
+            "vendor": "Midwest Glass & Mirror Co",
+            "status": "Approved",
+            "total": 68690,
+            "original": 63770,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kleckner Interior Systems Inc. Subcontract",
+            "vendor": "Kleckner Interior Systems Inc",
+            "status": "Approved",
+            "total": 68379.9,
+            "original": 69100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Builders Iron Works Inc. Subcontract",
+            "vendor": "Builders Iron Works Inc.",
+            "status": "Approved",
+            "total": 67830,
+            "original": 69700,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Michiana Steel Erectors Inc. Subcontract",
+            "vendor": "Michiana Steel Erectors Inc",
+            "status": "Approved",
+            "total": 61000,
+            "original": 60800,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Caulking and Preformed Expansion",
+            "vendor": "The Partner Caulking Co LLC",
+            "status": "Approved",
+            "total": 60322,
+            "original": 39322,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Central Indiana Hardware Subcontract",
+            "vendor": "Central Indiana Hardware",
+            "status": "Approved",
+            "total": 52987,
+            "original": 40985,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lue Manufacturing Inc. Subcontract",
+            "vendor": "Lue Manufacturing Inc",
+            "status": "Approved",
+            "total": 49427.02,
+            "original": 47450.08,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Reaction Basin Fiberglass Baffles",
+            "vendor": "Enduro Composites Group",
+            "status": "Approved",
+            "total": 36197,
+            "original": 36197,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Alt & Witzig Engineering Inc. Construction Quality Control",
+            "vendor": "Alt & Witzig Engineering Inc.",
+            "status": "Approved",
+            "total": 30000,
+            "original": 30000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Fibergrate Composite Structures Subcontract",
+            "vendor": "Fibergrate Composite Structures",
+            "status": "Approved",
+            "total": 29500,
+            "original": 29500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Bertch-Frank & Associates Subcontract",
+            "vendor": "Bertsch-Frank & Associates",
+            "status": "Approved",
+            "total": 29280,
+            "original": 28800,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Bojrab Landscape Management LLC Subcontract",
+            "vendor": "Bojrab Landscape ManagementLLC",
+            "status": "Approved",
+            "total": 28672.5,
+            "original": 28672.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "US Signcrafters Inc Subcontract",
+            "vendor": "US Signcrafters Inc",
+            "status": "Approved",
+            "total": 20144,
+            "original": 19319,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Fabcon Purchase Order",
+            "vendor": "Fabcon Precast, LLC",
+            "status": "Approved",
+            "total": 19000,
+            "original": 19000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mike's Garage Door Service Subcontract",
+            "vendor": "Mike's Garage Door Service",
+            "status": "Approved",
+            "total": 11600,
+            "original": 8100,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Elite Erecting Subcontracting",
+            "vendor": "Elite Erecting LLC",
+            "status": "Approved",
+            "total": 9300,
+            "original": 9300,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Silvercote Purchase Order",
+            "vendor": "Silvercote",
+            "status": "Approved",
+            "total": 6999.18,
+            "original": 6999.18,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "3\" Bray and 8\" Pratt Valves",
+            "vendor": "FloSource Inc",
+            "status": "Approved",
+            "total": 4312,
+            "original": 4312,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Bermad PRV",
+            "vendor": "Faco LLC",
+            "status": "Approved",
+            "total": 3175,
+            "original": 3175,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Untitled",
+            "vendor": "Carpet Service Outlet Inc.",
+            "status": "Approved",
+            "total": 1704,
+            "original": 1704,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Midwest Specialties LLC Purchase Order",
+            "vendor": "Midwest Specialties LLC",
+            "status": "Approved",
+            "total": 1005,
+            "original": 1005,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Snow Guards",
+            "vendor": "Martin's Steel Roofing Inc",
+            "status": "Approved",
+            "total": 992.52,
+            "original": 992.52,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 104,
         "netValue": 508437.78,
@@ -357,7 +2442,7 @@
       "sqft": null,
       "pctComplete": 7.6,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 1,
@@ -378,6 +2463,241 @@
       },
       "contractValue": 9098536,
       "revisedContract": 9187553.53,
+      "commitments": {
+        "count": 25,
+        "subcontracts": 20,
+        "purchaseOrders": 5,
+        "committedTotal": 6824392.78,
+        "originalTotal": 6809334.53,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "po",
+            "title": "KBS PO - CTB 2026",
+            "vendor": "Kirby Building Systems LLC",
+            "status": "Approved",
+            "total": 1579265.43,
+            "original": 1579265.43,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "L&M Subcontract - CTB 2026",
+            "vendor": "L & M Electric Inc",
+            "status": "Approved",
+            "total": 851625,
+            "original": 809740,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "MW Chupp Subcontract - CTB 2026",
+            "vendor": "M.W. Chupp, Inc.",
+            "status": "Approved",
+            "total": 654800,
+            "original": 663800,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Hill Subcontract - CTB 2026",
+            "vendor": "Hill Excavation Inc",
+            "status": "Approved",
+            "total": 629590,
+            "original": 679866,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Preferred Subcontract - CTB 2026",
+            "vendor": "Preferred Inc.",
+            "status": "Approved",
+            "total": 490501,
+            "original": 490501,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Meadowlark Subcontract - CTB 2026",
+            "vendor": "Meadowlark Concrete",
+            "status": "Approved",
+            "total": 486738.8,
+            "original": 483563.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kropp Subcontract - CTB 2026",
+            "vendor": "Kropp Fire Protection",
+            "status": "Approved",
+            "total": 464395,
+            "original": 464395,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Michiana Erection Contract - CTB 2026",
+            "vendor": "Michiana Steel Erectors Inc",
+            "status": "Approved",
+            "total": 421015,
+            "original": 421015,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Niblock Subcontract - CTB 2026",
+            "vendor": "Niblock Excavating Inc",
+            "status": "Approved",
+            "total": 269463.05,
+            "original": 242173.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "LeMaster Subcontract - CTB 2026",
+            "vendor": "LeMaster Steel Erectors",
+            "status": "Approved",
+            "total": 252475,
+            "original": 252475,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Havel Subcontract - CTB 2026",
+            "vendor": "Havel",
+            "status": "Out For Signature",
+            "total": 244577,
+            "original": 244577,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete Subcontract - CTB 2026",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 211435,
+            "original": 209450,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Industrial Door Subcontract - CTB 2026",
+            "vendor": "Industrial Door of Northern IN",
+            "status": "Approved",
+            "total": 189645,
+            "original": 189645,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "CE #002 - Fire Alarm System",
+            "vendor": "Koorsen Fire & Security",
+            "status": "Approved",
+            "total": 122969.01,
+            "original": 122969.01,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Custom Paint Subcontract - CTB 2026",
+            "vendor": "Custom Paint and Finish",
+            "status": "Approved",
+            "total": 85135,
+            "original": 85135,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "G&G Hauling PO - CTB 2026",
+            "vendor": "G & G Hauling & Excavating Inc",
+            "status": "Received",
+            "total": 47900,
+            "original": 47900,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Clearspring Subcontract",
+            "vendor": "Clearspring Masonry",
+            "status": "Approved",
+            "total": 32895,
+            "original": 32895,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "StesCore Subcontract - CTB 2026",
+            "vendor": "StresCore Inc.",
+            "status": "Approved",
+            "total": 24435,
+            "original": 24435,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "CIH PO - CTB 2026",
+            "vendor": "Central Indiana Hardware",
+            "status": "Approved",
+            "total": 22256,
+            "original": 22256,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Rock Run Subcontract - CTB 2026",
+            "vendor": "Rock Run Industries LLC",
+            "status": "Approved",
+            "total": 15707.84,
+            "original": 15707.84,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Michiana Subcontract - CTB 2026",
+            "vendor": "Michiana Steel Erectors Inc",
+            "status": "Complete",
+            "total": 11000,
+            "original": 11000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Wilco PO - CTB 2026",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 7538.15,
+            "original": 7538.15,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Michiana Concrete Cutting PO - CTB 2026",
+            "vendor": "Michiana Concrete Cutting",
+            "status": "Approved",
+            "total": 1508.5,
+            "original": 1508.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kevin Finn Subcontract - CTB 2026",
+            "vendor": "Kevin M. Finn, P.E., Inc.",
+            "status": "Out For Signature",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Brent Robinson Subcontract - CTB 2026",
+            "vendor": "Robinson Construction & Design",
+            "status": "Approved",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 11,
         "netValue": 122286.25,
@@ -415,7 +2735,7 @@
       "sqft": null,
       "pctComplete": 4.9,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 19,
@@ -436,6 +2756,223 @@
       },
       "contractValue": 8522833,
       "revisedContract": 8522833,
+      "commitments": {
+        "count": 23,
+        "subcontracts": 15,
+        "purchaseOrders": 8,
+        "committedTotal": 4758401,
+        "originalTotal": 4782964,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Photon Subcontract - Ashley WWTP Improvements",
+            "vendor": "Photon Electric LLC",
+            "status": "Approved",
+            "total": 1204041,
+            "original": 1180063,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "American Pump & Service PO - Ashley WWTP Improvements",
+            "vendor": "American Pump Repair & Service",
+            "status": "Approved",
+            "total": 1081689,
+            "original": 1081689,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Sterling Subcontract - Ashley WWTP Improvements",
+            "vendor": "Sterling Contracting, LLC",
+            "status": "Approved",
+            "total": 981060,
+            "original": 981060,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Maddox Subcontract - Ashley WWTP Improvements",
+            "vendor": "Maddox Industrial LLC",
+            "status": "Out For Signature",
+            "total": 680000,
+            "original": 680000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Crawford Excavating Subcontract - Ashley WWTP Improvements",
+            "vendor": "CRAWFORD EXCAVATING",
+            "status": "Approved",
+            "total": 679800,
+            "original": 679800,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Pelton Environmental PO - Ashley WWTP Improvements",
+            "vendor": "Pelton Environmental Products",
+            "status": "Processing",
+            "total": 635500,
+            "original": 635500,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Peerless Midwest Inc. PO - Ashley WWTP Improvements",
+            "vendor": "Peerless Midwest, Inc.",
+            "status": "Approved",
+            "total": 259600,
+            "original": 259600,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Duperon Corp. PO - Ashley WWTP Improvements",
+            "vendor": "Duperon Corporation",
+            "status": "Approved",
+            "total": 103000,
+            "original": 103000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "FWS Subcontract - Ashley WWTP Improvements",
+            "vendor": "Fluid Waste Services, Inc.",
+            "status": "Approved",
+            "total": 90340,
+            "original": 90340,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Koehring & Sons, Inc. Subcontract - Ashley WWTP Improvements",
+            "vendor": "Koehring & Sons, Inc.",
+            "status": "Approved",
+            "total": 87612,
+            "original": 87612,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "KDI PO - Ashley WWTP Improvements",
+            "vendor": "Kammerer Dynamics, Inc.",
+            "status": "Approved",
+            "total": 86640,
+            "original": 86640,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Brooks 1st Subcontract - Ashley WWTP Improvements",
+            "vendor": "Brooks Construction Co Inc",
+            "status": "Out For Signature",
+            "total": 80965,
+            "original": 80965,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Endress+Hauser c/o George E. Booth Co., LLC PO - Ashley WWTP Improvent",
+            "vendor": "Endress+Hauser c/o George E. Booth Co. LLC",
+            "status": "Processing",
+            "total": 70313.03,
+            "original": 70313.03,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Arrow Fence - Subcontract",
+            "vendor": "Arrow Fence Co, Inc.",
+            "status": "Approved",
+            "total": 67500,
+            "original": 67500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "CDS inc. Subcontract - Ashley WWTP Improvements",
+            "vendor": "Contract Dewatering Services Inc.",
+            "status": "Approved",
+            "total": 55100,
+            "original": 55100,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Bertsch-Frank & Associates Ashley WWTP - Subcontract",
+            "vendor": "Bertsch-Frank & Associates",
+            "status": "Out For Signature",
+            "total": 43700,
+            "original": 43700,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Whipps,Inc PO - Ashley WWTP Improvements",
+            "vendor": "Whipps, Inc.",
+            "status": "Draft",
+            "total": 33785,
+            "original": 33785,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Midwest Glass Subcontract - Ashley WWTP Improvements",
+            "vendor": "Midwest Glass & Mirror Co",
+            "status": "Approved",
+            "total": 31094,
+            "original": 31094,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Bojrab Subcontract - Ashley WWTP Improvements",
+            "vendor": "Bojrab Landscape ManagementLLC",
+            "status": "Out For Signature",
+            "total": 20000,
+            "original": 20000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "FWD Subcontract - Ashley WWTP Improvements",
+            "vendor": "Fort Wayne Door & Dock",
+            "status": "Approved",
+            "total": 18500,
+            "original": 18500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Nooter Subcontract - Ashley WWTP Improvements",
+            "vendor": "Amex Nooter LLC",
+            "status": "Approved",
+            "total": 6300,
+            "original": 54841,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Dreamkeeper Subcontract - Ashley WWTP Improvements",
+            "vendor": "Dreamkeeper Properties",
+            "status": "Approved",
+            "total": 6125,
+            "original": 6125,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Colby PO - Ashley WWTP Improvements",
+            "vendor": "Colby Equipment Inc.",
+            "status": "Processing",
+            "total": 1685,
+            "original": 1685,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 2,
         "netValue": -24563,
@@ -471,7 +3008,7 @@
       "sqft": null,
       "pctComplete": 98.9,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": true,
       "rfis": {
         "total": 37,
@@ -492,6 +3029,457 @@
       },
       "contractValue": 7425415,
       "revisedContract": 7425415,
+      "commitments": {
+        "count": 49,
+        "subcontracts": 40,
+        "purchaseOrders": 9,
+        "committedTotal": 6760448.4,
+        "originalTotal": 6514611.87,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Sterling Contracting LLC Subcontract",
+            "vendor": "Sterling Contracting, LLC",
+            "status": "Approved",
+            "total": 1201178.81,
+            "original": 1216700,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "G.E Marshal Subcontract",
+            "vendor": "G.E. Marshall Inc.",
+            "status": "Approved",
+            "total": 868754.88,
+            "original": 789605,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Terminated",
+            "total": 737315,
+            "original": 737315,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Credent Quality Electric Co. Subcontract",
+            "vendor": "Credent Quality Electric",
+            "status": "Approved",
+            "total": 733387,
+            "original": 720887,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Arctic Engineering Co, INC Subcontract",
+            "vendor": "Arctic Engineering Company LLC",
+            "status": "Approved",
+            "total": 732692.76,
+            "original": 689500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Adams Masonry Inc. Subcontract",
+            "vendor": "Adams Masonry Inc.",
+            "status": "Approved",
+            "total": 627762.13,
+            "original": 605000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Legacy Building Solutions Subcontract",
+            "vendor": "Legacy Building Solutions",
+            "status": "Approved",
+            "total": 497052,
+            "original": 453701,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "WM Miller Concrete. Subcontract.",
+            "vendor": "WM Miller Concrete LLC",
+            "status": "Terminated",
+            "total": 415018.75,
+            "original": 415018.75,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Town & Country Construction, Inc - Subcontract",
+            "vendor": "Town & County Construction, Inc.",
+            "status": "Approved",
+            "total": 360272.72,
+            "original": 372193.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "McGavic Outdoor Power Equipment Subcontract",
+            "vendor": "McGavic Outdoor Power Equipment, Inc.",
+            "status": "Approved",
+            "total": 236493,
+            "original": 236493,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Evans Metal Products Co. Inc. Subcontract",
+            "vendor": "Evans Metal Products Company",
+            "status": "Approved",
+            "total": 214541,
+            "original": 209901,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Industrial Door of Northern Indiana - Subcontract",
+            "vendor": "Industrial Door of Northern IN",
+            "status": "Approved",
+            "total": 210620,
+            "original": 206070,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "E.C Babilla Inc Subcontract",
+            "vendor": "E.C.BABILLA INC",
+            "status": "Approved",
+            "total": 123800.69,
+            "original": 125698,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kleckner Interior Systems - Subcontract",
+            "vendor": "Kleckner Interior Systems Inc",
+            "status": "Approved",
+            "total": 82945.81,
+            "original": 92500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Owl Services Subcontract",
+            "vendor": "Owl Services",
+            "status": "Approved",
+            "total": 77808,
+            "original": 51710,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Wilco - INDOT Roselawn PO",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 77101.53,
+            "original": 69000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Complete Fence Subcontract",
+            "vendor": "Complete Fence LLC",
+            "status": "Approved",
+            "total": 71996,
+            "original": 71996,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "The Partner Caulking Company LLC. Subcontract",
+            "vendor": "The Partner Caulking Co LLC",
+            "status": "Approved",
+            "total": 62292.01,
+            "original": 53067,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Interclean Equipment Subcontract",
+            "vendor": "Interclean Equipment, LLC",
+            "status": "Approved",
+            "total": 60601,
+            "original": 60601,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "R&K Incinerator Purchase Order",
+            "vendor": "R&K Incinerator, Inc.",
+            "status": "Approved",
+            "total": 55065,
+            "original": 18355,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Global Engineering & Land Surveying Subcontract",
+            "vendor": "Global Engineering & Land Surveying",
+            "status": "Approved",
+            "total": 47990,
+            "original": 44000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Custom Paint and Finish - Subcontract",
+            "vendor": "Custom Paint and Finish",
+            "status": "Approved",
+            "total": 44850,
+            "original": 66545,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Alt Witzig Engineering Inc.",
+            "vendor": "Alt & Witzig Engineering Inc.",
+            "status": "Approved",
+            "total": 39930,
+            "original": 39930,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Ultra Fiberglass Systems - Subcontract",
+            "vendor": "Ultra Fiberglass",
+            "status": "Approved",
+            "total": 37081,
+            "original": 35902,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Resolution Group, Inc. - Subcontract",
+            "vendor": "Resolution Group, Inc.",
+            "status": "Approved",
+            "total": 36400,
+            "original": 36400,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Interiors, Inc. Subcontract",
+            "vendor": "Quality Interiors, Inc.",
+            "status": "Approved",
+            "total": 35236,
+            "original": 35236,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "MPE - Roselawn INDOT Purchase Order",
+            "vendor": "MPE",
+            "status": "Approved",
+            "total": 25331,
+            "original": 25331,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "StressCore Inc. Subcontract",
+            "vendor": "StresCore Inc.",
+            "status": "Approved",
+            "total": 23600,
+            "original": 23600,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Presidio Subcontract",
+            "vendor": "Presidio",
+            "status": "Approved",
+            "total": 20967.71,
+            "original": 20967.71,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "DBL Services Inc. - Subcontract",
+            "vendor": "DBL Services Inc",
+            "status": "Approved",
+            "total": 16708,
+            "original": 6375,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Workspace Solutions - Subcontract",
+            "vendor": "Workspace Solutions",
+            "status": "Approved",
+            "total": 16616.61,
+            "original": 16616.61,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Renee James Consulting Subcontract",
+            "vendor": "Renee James Consulting LLC",
+            "status": "Approved",
+            "total": 16600,
+            "original": 16600,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Avanti Flooring LLC - Subcontract",
+            "vendor": "Avanti Flooring LLC",
+            "status": "Approved",
+            "total": 15909.61,
+            "original": 15909.61,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Ozinga Purchase Order",
+            "vendor": "Ozinga Ready Mix",
+            "status": "Approved",
+            "total": 15155,
+            "original": 15155,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Ideal Coatings - Subcontract",
+            "vendor": "Ideal Coatings LLC",
+            "status": "Approved",
+            "total": 15082.25,
+            "original": 15082.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "ASI Signage Innovations - Subcontract",
+            "vendor": "ASI Signage Innovations",
+            "status": "Approved",
+            "total": 12822,
+            "original": 14888.02,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Midwest Specialties LLC Purchase Order",
+            "vendor": "Midwest Specialties LLC",
+            "status": "Approved",
+            "total": 12809,
+            "original": 12754,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Midwest Glass & Mirror Co. - Subcontract",
+            "vendor": "Midwest Glass & Mirror Co",
+            "status": "Approved",
+            "total": 10943.71,
+            "original": 8290,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Russel's Tree Care Subcontract",
+            "vendor": "Russel's Tree Care",
+            "status": "Approved",
+            "total": 7000,
+            "original": 7000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Neptune construction Inc. Subcontract",
+            "vendor": "Neptune Construction Inc.",
+            "status": "Approved",
+            "total": 4500,
+            "original": 4500,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Moss Building Products Corp. Purchase Order",
+            "vendor": "Moss Building Products Corp.",
+            "status": "Approved",
+            "total": 3630,
+            "original": 3630,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Ferguson Waterworks Subcontract",
+            "vendor": "Ferguson Waterworks",
+            "status": "Approved",
+            "total": 3457.17,
+            "original": 3457.17,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Morgan-Francis Purchase Order",
+            "vendor": "Morgan-Frances",
+            "status": "Draft",
+            "total": 2928,
+            "original": 2928,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Bontrager Fiberglass Specialties Inc, - Subcontract",
+            "vendor": "Bontrager Fiberglass Specialties, Inc.",
+            "status": "Out For Signature",
+            "total": 2750,
+            "original": 2750,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "The Cleaning Niche LLC Subcontract.",
+            "vendor": "The Cleaning Niche LLC",
+            "status": "Out For Signature",
+            "total": 2250,
+            "original": 2250,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Sheehy Well & Pump Co - Subcontract",
+            "vendor": "Sheehy Well & Pump Co.",
+            "status": "Approved",
+            "total": 1415,
+            "original": 1415,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "S&K Equipment Company - Repair Flange Purchase Order",
+            "vendor": "S&K Equipment Company",
+            "status": "Approved",
+            "total": 1226,
+            "original": 1226,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lafayette Materials Management - Subcontract",
+            "vendor": "Lafayette Materials Management",
+            "status": "Approved",
+            "total": 824,
+            "original": 824,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Momper Subcontracts",
+            "vendor": "Momper Insulation Elkhart LLC",
+            "status": "Terminated",
+            "total": 750,
+            "original": 750,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 78,
         "netValue": 1061093.92,
@@ -529,7 +3517,7 @@
       "sqft": null,
       "pctComplete": 40,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 11,
@@ -550,6 +3538,214 @@
       },
       "contractValue": 3970739,
       "revisedContract": 3993977.02,
+      "commitments": {
+        "count": 22,
+        "subcontracts": 18,
+        "purchaseOrders": 4,
+        "committedTotal": 3166472.43,
+        "originalTotal": 3126620.43,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "B.C. Mechanical, Inc - Michiana Eye Center - Subcontract",
+            "vendor": "B.C. Mechanical, Inc",
+            "status": "Approved",
+            "total": 848898,
+            "original": 845000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "D & D - Michiana Eye Center - Subcontract",
+            "vendor": "D & D Electric",
+            "status": "Approved",
+            "total": 385886,
+            "original": 374832,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Overholt Masonry inc. - Michiana eye center - Subcontract",
+            "vendor": "Overholt Masonry Inc.",
+            "status": "Approved",
+            "total": 375358,
+            "original": 355188,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Hill Excavation - Michiana Eye Center - Subcontract",
+            "vendor": "Hill Excavation Inc",
+            "status": "Approved",
+            "total": 302854,
+            "original": 302854,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality drywall - Michiana Eye center- subcontract",
+            "vendor": "Quality Drywall - use Bel...QD",
+            "status": "Approved",
+            "total": 230000,
+            "original": 230000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal - Michiana Eye Center - Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 164302,
+            "original": 164302,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "KDI - Michiana Eye Center - Purchase order",
+            "vendor": "Kammerer Dynamics, Inc.",
+            "status": "Approved",
+            "total": 119328,
+            "original": 119328,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Tek-Pro Commercial Roofing LLC - Michiana Eye Center - Subcontract",
+            "vendor": "Tek-Pro Commercial Roofing LLC",
+            "status": "Approved",
+            "total": 117000,
+            "original": 117000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Niblock - Michiana Eye Center - Subcontract",
+            "vendor": "Niblock Excavating Inc",
+            "status": "Approved",
+            "total": 101932.5,
+            "original": 101932.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Dave's glass - Michiana Eye Center - Subcontract",
+            "vendor": "Dave's Glass Service Inc",
+            "status": "Approved",
+            "total": 101120,
+            "original": 100000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "TFC Canopy - Michiana Eye center - Subcontract",
+            "vendor": "TFC Canopy",
+            "status": "Approved",
+            "total": 92154,
+            "original": 92154,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Tile Interiors - Michiana Eye Center - Subcontract",
+            "vendor": "Tile Interiors Inc",
+            "status": "Approved",
+            "total": 63200,
+            "original": 63200,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Wilco - Michiana Eye Center - Purchase Order",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 54572.8,
+            "original": 54572.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lue Manufacturing inc - Michiana Eye Center - Subcontract",
+            "vendor": "Lue Manufacturing Inc",
+            "status": "Approved",
+            "total": 51977.27,
+            "original": 51977.27,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Michiana Steel Erectors Inc - Michiana Eye center - Subcontract",
+            "vendor": "Michiana Steel Erectors Inc",
+            "status": "Approved",
+            "total": 47860,
+            "original": 44250,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Valley fire protection Systems, LLC - Michiana Eye Center - Subcontrac",
+            "vendor": "Valley Fire Protection System, LLC",
+            "status": "Approved",
+            "total": 45500,
+            "original": 45500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Legacy Fence & Decks - Michiana Eye Center - Subcontract",
+            "vendor": "Legacy Fence & Decks",
+            "status": "Approved",
+            "total": 20475,
+            "original": 20475,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Alt & Witzig Engineering inc - Michiana Eye Center - Subcontract",
+            "vendor": "Alt & Witzig Engineering Inc.",
+            "status": "Approved",
+            "total": 17927,
+            "original": 17927,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Stephenson Land Surveying inc  - Michiana Eye Center - Subcontract",
+            "vendor": "Stephenson Land Surveying Inc",
+            "status": "Approved",
+            "total": 8800,
+            "original": 8800,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Moss - Michiana Eye Center - Purchase order",
+            "vendor": "Moss Building Products Corp.",
+            "status": "Approved",
+            "total": 7134.23,
+            "original": 7134.23,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Fuerbringer - Michiana Eye Center - Subcontract",
+            "vendor": "Fuerbringer Landscaping&Design",
+            "status": "Approved",
+            "total": 6590,
+            "original": 6590,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Construction Specialties inc. - Michiana Eye Center  - Purchase Order",
+            "vendor": "Construction Specialities Inc",
+            "status": "Approved",
+            "total": 3603.63,
+            "original": 3603.63,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 14,
         "netValue": 33638,
@@ -587,7 +3783,7 @@
       "sqft": null,
       "pctComplete": 60.4,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 34,
@@ -608,6 +3804,223 @@
       },
       "contractValue": 3709035,
       "revisedContract": 3744261,
+      "commitments": {
+        "count": 23,
+        "subcontracts": 17,
+        "purchaseOrders": 6,
+        "committedTotal": 3021411.87,
+        "originalTotal": 2866866.77,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Trager Subcontract - Milford WTP Div A",
+            "vendor": "Trager LLC",
+            "status": "Approved",
+            "total": 660885.02,
+            "original": 660500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Exterior Service Subcontract - Milford WTP Div A",
+            "vendor": "Exterior Service LLC",
+            "status": "Approved",
+            "total": 549226,
+            "original": 495730,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kurita PO - Milford WTP Div A",
+            "vendor": "Kurita America Inc.",
+            "status": "Approved",
+            "total": 446020,
+            "original": 446020,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Maddox Subcontract - Milford WTP Div A",
+            "vendor": "Maddox Industrial LLC",
+            "status": "Approved",
+            "total": 361624.25,
+            "original": 339500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "BL Anderson Subcontract - Milford WTP Div A",
+            "vendor": "BL Anderson",
+            "status": "Void",
+            "total": 293000,
+            "original": 293000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "BL Anderson PO - Milford WTP Div A",
+            "vendor": "BL Anderson",
+            "status": "Approved",
+            "total": 293000,
+            "original": 293000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kreager Subcontract - Milford WTP Div A",
+            "vendor": "Kreager Group Inc",
+            "status": "Void",
+            "total": 268386,
+            "original": 268386,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Gasvoda PO - Milford WTP Div A",
+            "vendor": "Gasvoda & Associates Inc",
+            "status": "Approved",
+            "total": 191293,
+            "original": 163980,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Core Mechanical Subcontract - Milford WTP Div A",
+            "vendor": "Core Mechanical Services Inc",
+            "status": "Approved",
+            "total": 157810,
+            "original": 149430,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Clearspring Subcontract - Milford WTP Div A",
+            "vendor": "Clearspring Masonry",
+            "status": "Approved",
+            "total": 100751.09,
+            "original": 80848.39,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Prism Subcontract - Milford WTP Div A",
+            "vendor": "Prism Painting Company",
+            "status": "Approved",
+            "total": 89100,
+            "original": 69500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Borntrager Subcontract - Milford WTP Div A",
+            "vendor": "Borntrager Enterprises Inc",
+            "status": "Approved",
+            "total": 33044,
+            "original": 30594,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "IXOM Subcontract - Milford WTP Div A",
+            "vendor": "IXOM",
+            "status": "Approved",
+            "total": 29300.6,
+            "original": 29045,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Brooks Subcontract - Milford WTP Div A",
+            "vendor": "Brooks Construction Co Inc",
+            "status": "Approved",
+            "total": 28800,
+            "original": 28800,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Complete Fence Subcontract - Milford WTP Div A",
+            "vendor": "Complete Fence LLC",
+            "status": "Approved",
+            "total": 24518,
+            "original": 24518,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Wilco PO - Milford WTP Div A",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 13333.04,
+            "original": 13333.04,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Midwest Subcontract - Milford WTP Div A",
+            "vendor": "Midwest Caulking, Inc.",
+            "status": "Approved",
+            "total": 11921,
+            "original": 11921,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Alpha BC PO - Milford WTP Div A",
+            "vendor": "Alpha Building Center Nappanee",
+            "status": "Processing",
+            "total": 8245.35,
+            "original": 8245.35,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Patriot Subcontract - Milford WTP Div A",
+            "vendor": "Patriot Engineering and Environmental, Inc.",
+            "status": "Approved",
+            "total": 7921,
+            "original": 7921,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "D-8 Glass Subcontract - Milford WTP Div A",
+            "vendor": "D-8 Glass",
+            "status": "Approved",
+            "total": 7308.78,
+            "original": 6940.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lue Subcontract - Milford WTP Div A",
+            "vendor": "Lue Manufacturing Inc",
+            "status": "Approved",
+            "total": 6866.09,
+            "original": 6866.09,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Garcia Surveyors Subcontract - Milford WTP Div A",
+            "vendor": "Garcia Surveyors, Inc.",
+            "status": "Approved",
+            "total": 6460,
+            "original": 6190,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Mona Composites PO - Milford WTP Div A",
+            "vendor": "Mona Composites LLC",
+            "status": "Approved",
+            "total": 2230,
+            "original": 2230,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 20,
         "netValue": 80827.62,
@@ -645,7 +4058,7 @@
       "sqft": 67298,
       "pctComplete": 65,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": true,
       "rfis": {
         "total": 32,
@@ -666,6 +4079,151 @@
       },
       "contractValue": 3695500,
       "revisedContract": 3775638.03,
+      "commitments": {
+        "count": 15,
+        "subcontracts": 11,
+        "purchaseOrders": 4,
+        "committedTotal": 3075392.74,
+        "originalTotal": 3154590.03,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Dynamic Mechanical Services Inc. Subcontract - PHM Walt Disney Piping",
+            "vendor": "Dynamic Mechanical ServicesInc",
+            "status": "Approved",
+            "total": 1260346,
+            "original": 1504882,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Grove Electrical Services Subcontract - PHM Walt Disney Piping",
+            "vendor": "Grove Electrical Services",
+            "status": "Approved",
+            "total": 625075,
+            "original": 601511,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kleckner Subcontract - PHM Walt Disney Piping",
+            "vendor": "Kleckner Interior Systems Inc",
+            "status": "Approved",
+            "total": 404792.56,
+            "original": 356500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Deco Associates Subcontract - PHM Walt Disney Piping",
+            "vendor": "Deco Associates",
+            "status": "Approved",
+            "total": 380597,
+            "original": 347800,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Inline Painting Subcontract - PHM Walt Disney",
+            "vendor": "Inline Painting",
+            "status": "Approved",
+            "total": 137499,
+            "original": 118311,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Avanti Subcontract - PHM Walt Disney Piping",
+            "vendor": "Avanti Flooring LLC",
+            "status": "Approved",
+            "total": 66072.7,
+            "original": 58364.7,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Ideal Coating  - Subcontract  - Resinous Flooring",
+            "vendor": "Ideal Coatings LLC",
+            "status": "Approved",
+            "total": 61611,
+            "original": 61611,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lee Company Inc. Subcontract - PHM Walt Disney Piping",
+            "vendor": "Lee Company Inc",
+            "status": "Approved",
+            "total": 54150,
+            "original": 43820,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Hippo Hauling Subcontract - PHM Walt Disney Piping",
+            "vendor": "Hippo Hauling",
+            "status": "Void",
+            "total": 30050,
+            "original": 30050,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Construction Specialties PO - PHM Walt Disney Piping",
+            "vendor": "Construction Specialities Inc",
+            "status": "Approved",
+            "total": 28180,
+            "original": 20594,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Laforce PO - PHM Walt Disney",
+            "vendor": "Laforce LLC",
+            "status": "Approved",
+            "total": 17860,
+            "original": 17860,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Wilco - Purchase Order - Partitions",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 16425,
+            "original": 2150,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "HangSafe Hooks PO - PHM Walt Disney Piping",
+            "vendor": "Hang Safe Hooks",
+            "status": "Approved",
+            "total": 14908.48,
+            "original": 13310.33,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "US Signcrafters, Inc. Subcontract",
+            "vendor": "US Signcrafters Inc",
+            "status": "Out For Signature",
+            "total": 10564,
+            "original": 10564,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Dutch Cleaning Services LLC Subcontract - PHM Walt Disney Piping",
+            "vendor": "Dutch Cleaning Services LLC",
+            "status": "Approved",
+            "total": 7876,
+            "original": 7876,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 32,
         "netValue": 102579.65,
@@ -704,7 +4262,7 @@
       "sqft": null,
       "pctComplete": 52.3,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 23,
@@ -725,6 +4283,151 @@
       },
       "contractValue": 3670297,
       "revisedContract": 3670297,
+      "commitments": {
+        "count": 15,
+        "subcontracts": 10,
+        "purchaseOrders": 5,
+        "committedTotal": 2942063.4,
+        "originalTotal": 2912933.4,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "South Wellfield WTP - D&D Electric - Subcontract",
+            "vendor": "D & D Electric",
+            "status": "Approved",
+            "total": 980175,
+            "original": 976282,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "C&E - South Wellfield - Subcontract",
+            "vendor": "C & E Excavating Inc",
+            "status": "Approved",
+            "total": 693958,
+            "original": 693958,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "South Bend South Wellfield WTP - BL Anderson - PO",
+            "vendor": "BL Anderson",
+            "status": "Approved",
+            "total": 289175,
+            "original": 289175,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "South Wellfield WTP - Maddox Industrial -Subcontract",
+            "vendor": "Maddox Industrial LLC",
+            "status": "Approved",
+            "total": 226044.05,
+            "original": 219950,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "South Wellfield WTP - Peerless Midwest - Subcontract",
+            "vendor": "Peerless Midwest, Inc.",
+            "status": "Approved",
+            "total": 188600,
+            "original": 188600,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "South Wellfield WTP - Subcontract _-Core Mechanical",
+            "vendor": "Core Mechanical Services Inc",
+            "status": "Approved",
+            "total": 171500,
+            "original": 161200,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Living Waters PO",
+            "vendor": "Living Waters Co Inc",
+            "status": "Approved",
+            "total": 123559,
+            "original": 123559,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Hach - PO -South Wellfield",
+            "vendor": "Hach Company",
+            "status": "Approved",
+            "total": 104542.8,
+            "original": 104542.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Robert Grans Subcontract",
+            "vendor": "Robert Geans Corporation",
+            "status": "Approved",
+            "total": 87538,
+            "original": 82065,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Koflo Corporation PO",
+            "vendor": "Koflo Corporation",
+            "status": "Approved",
+            "total": 26710,
+            "original": 26710,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "South Bend South Wellfield WTP - Prism Painting - Subcontract",
+            "vendor": "Prism Painting Company",
+            "status": "Approved",
+            "total": 21756,
+            "original": 20800,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "South Wellfield WTP - Bertsch- Frank - Subcontract",
+            "vendor": "Bertsch-Frank & Associates",
+            "status": "Approved",
+            "total": 11800,
+            "original": 11800,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "CFS- Subcontract - South Wellfield",
+            "vendor": "Construction Field ServicesLLC",
+            "status": "Approved",
+            "total": 10591.5,
+            "original": 10000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Masonry - SouthWellfiled - Subcontract",
+            "vendor": "Overholt Masonry Inc.",
+            "status": "Approved",
+            "total": 3342,
+            "original": 1962,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "South Wellfield WTP - PO - KDI",
+            "vendor": "Kammerer Dynamics, Inc.",
+            "status": "Approved",
+            "total": 2772.05,
+            "original": 2329.6,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 12,
         "netValue": -3164.58,
@@ -762,7 +4465,7 @@
       "sqft": 4500,
       "pctComplete": 108.2,
       "costOverrun": true,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 40,
@@ -783,6 +4486,241 @@
       },
       "contractValue": 3627769,
       "revisedContract": 4437096.29,
+      "commitments": {
+        "count": 25,
+        "subcontracts": 20,
+        "purchaseOrders": 5,
+        "committedTotal": 3386714.95,
+        "originalTotal": 2905409.85,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Griffen P&H - SJC Garages Subcontract",
+            "vendor": "Griffen Plumbing & Heating In",
+            "status": "Approved",
+            "total": 707732.23,
+            "original": 636534,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "WM Miller - SJC Garages Subcontract",
+            "vendor": "WM Miller Concrete LLC",
+            "status": "Approved",
+            "total": 533446.32,
+            "original": 432970,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "D&D Electric - SJC Garages Subcontract",
+            "vendor": "D & D Electric",
+            "status": "Approved",
+            "total": 397506.69,
+            "original": 192654,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "R.W. Mercer Subcontract - SJC Garages",
+            "vendor": "RW Mercer Company",
+            "status": "Approved",
+            "total": 217056,
+            "original": 217056,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "HG Christman - SJC Garages Subcontract",
+            "vendor": "HG Christman Construction LLC",
+            "status": "Approved",
+            "total": 206720.6,
+            "original": 323363,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Grove Excavating - SJC Garages Subcontract",
+            "vendor": "Grove Excavating LLC",
+            "status": "Approved",
+            "total": 182700,
+            "original": 199000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Kent's Excavating & Plumbing Subcontact - SJC Garages",
+            "vendor": "Kent's Excavating & Plumbing",
+            "status": "Approved",
+            "total": 149221.26,
+            "original": 107606.88,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Etna Supply PO - SJC Garages",
+            "vendor": "Etna Supply",
+            "status": "Approved",
+            "total": 144474.68,
+            "original": 109192,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mike's Garage Door - SJC Garages Subcontract",
+            "vendor": "Mike's Garage Door Service",
+            "status": "Approved",
+            "total": 104265,
+            "original": 104265,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Moss Building Products - SJC Garages Purchase Order",
+            "vendor": "Moss Building Products Corp.",
+            "status": "Approved",
+            "total": 95012,
+            "original": 90945,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Martin's Steel Roofing - Purchase Order",
+            "vendor": "Martin's Steel Roofing Inc",
+            "status": "Approved",
+            "total": 84518.38,
+            "original": 31654.38,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Michiana Steel Erectors Subcontract - SJC Garages (Woodland)",
+            "vendor": "Michiana Steel Erectors Inc",
+            "status": "Approved",
+            "total": 84100,
+            "original": 84100,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Borntrager Roofing - SJC Garages Subcontract",
+            "vendor": "Borntrager Enterprises Inc",
+            "status": "Approved",
+            "total": 80400,
+            "original": 59655,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Office Interiors Subcontract - SJC Garages",
+            "vendor": "Office Interiors",
+            "status": "Approved",
+            "total": 77958.38,
+            "original": 77958.38,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jack Laurie Group Subcontract - SJC Garages",
+            "vendor": "Jack Laurie Group",
+            "status": "Approved",
+            "total": 76865,
+            "original": 7710,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Commercial Painting Services Subcontract - SJC Garages",
+            "vendor": "Commercial Painting Services",
+            "status": "Approved",
+            "total": 54649,
+            "original": 49720,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Overholt Masonry - SJC Garages Subcontract",
+            "vendor": "Overholt Masonry Inc.",
+            "status": "Approved",
+            "total": 28048,
+            "original": 27558,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Highland Tank PO - SJC Garages Woodland",
+            "vendor": "Highland Tank LLC",
+            "status": "Approved",
+            "total": 27616.76,
+            "original": 27616.76,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Midwest Glass - SJC Garages Subcontract",
+            "vendor": "Midwest Glass & Mirror Co",
+            "status": "Approved",
+            "total": 26744,
+            "original": 26744,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Inline Painting - SJC Garages Subcontract",
+            "vendor": "Inline Painting",
+            "status": "Approved",
+            "total": 25639,
+            "original": 21889,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Matteson Acoustics - SJC Garages Subcontract",
+            "vendor": "Matteson Acoustics",
+            "status": "Approved",
+            "total": 23705,
+            "original": 22785,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Bay Insulation PO - SJC Garages (Woodland)",
+            "vendor": "Bay Insulation Systems of Indiana, Inc.",
+            "status": "Approved",
+            "total": 21532.03,
+            "original": 21532.03,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Comfort Flooring - SJC Garages Subcontract",
+            "vendor": "Comfort Flooring",
+            "status": "Approved",
+            "total": 17054.4,
+            "original": 14673,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Paladin Caseworks - SJC Garages Subctontract",
+            "vendor": "Paladin Caseworks Inc",
+            "status": "Approved",
+            "total": 16731.8,
+            "original": 15210,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Window Treatments - SJC Garages Subcontact",
+            "vendor": "Quality Window Treatment LLC",
+            "status": "Approved",
+            "total": 3018.42,
+            "original": 3018.42,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 82,
         "netValue": 834774.68,
@@ -821,7 +4759,7 @@
       "sqft": null,
       "pctComplete": 83.2,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": true,
       "rfis": {
         "total": 29,
@@ -842,6 +4780,322 @@
       },
       "contractValue": 2572051,
       "revisedContract": 2572051,
+      "commitments": {
+        "count": 34,
+        "subcontracts": 24,
+        "purchaseOrders": 10,
+        "committedTotal": 1969290.3,
+        "originalTotal": 1715241.58,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Advanced Excavating",
+            "vendor": "Advanced Excavating LLC",
+            "status": "Approved",
+            "total": 398460,
+            "original": 331610,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Rieth-Riley",
+            "vendor": "Rieth-Riley Construction Co.",
+            "status": "Approved",
+            "total": 264388,
+            "original": 170178,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Marschand's AFS",
+            "vendor": "Marschand's Athletic Field Services",
+            "status": "Approved",
+            "total": 235160,
+            "original": 212160,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Vortex Aquatic",
+            "vendor": "Vortex Aquatic Structures",
+            "status": "Approved",
+            "total": 208901.6,
+            "original": 208901.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Slusser's",
+            "vendor": "Slusser's Green Thumb, Inc.",
+            "status": "Approved",
+            "total": 135210.16,
+            "original": 119921.77,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Midstates Recreation",
+            "vendor": "Midstates Recreation",
+            "status": "Approved",
+            "total": 133800,
+            "original": 133800,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Bomar Industries",
+            "vendor": "Bomar Industries",
+            "status": "Approved",
+            "total": 76239,
+            "original": 74175,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Milestone Fence",
+            "vendor": "Milestone Fence LLC",
+            "status": "Approved",
+            "total": 68128,
+            "original": 68128,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Elevated Power",
+            "vendor": "Elevated Power LLC",
+            "status": "Approved",
+            "total": 63368,
+            "original": 47426.3,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Hayes Design",
+            "vendor": "Hayes Design",
+            "status": "Approved",
+            "total": 50641.93,
+            "original": 48927.3,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Herrman & Goetz",
+            "vendor": "Herrman & Goetz, Inc.",
+            "status": "Approved",
+            "total": 44598,
+            "original": 44598,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Byer's Softball Complex - Beacon Athletics",
+            "vendor": "Beacon Athletics",
+            "status": "Approved",
+            "total": 40783,
+            "original": 40783,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Austin Masonry",
+            "vendor": "Austin Masonry & Concrete",
+            "status": "Terminated",
+            "total": 37700,
+            "original": 37700,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Universal Services",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 31434,
+            "original": 7688,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Kleckner",
+            "vendor": "Kleckner Interior Systems Inc",
+            "status": "Approved",
+            "total": 30766.6,
+            "original": 18000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Byers Softball Complex - Life Floor",
+            "vendor": "Life Floor",
+            "status": "Approved",
+            "total": 27287.89,
+            "original": 27287.89,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Fischer Bros",
+            "vendor": "Fischer Bros LLC",
+            "status": "Approved",
+            "total": 26906,
+            "original": 26906,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Tony Stone",
+            "vendor": "Tony's Stone Brick&Block LLC",
+            "status": "Approved",
+            "total": 23138,
+            "original": 23138,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Sunrise Irrigation",
+            "vendor": "Sunrise Sprinkler Systems Inc.",
+            "status": "Approved",
+            "total": 21500,
+            "original": 24000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Bertsch Frank",
+            "vendor": "Bertsch-Frank & Associates",
+            "status": "Approved",
+            "total": 21100,
+            "original": 21100,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Aldevra",
+            "vendor": "Aldevra LLC",
+            "status": "Approved",
+            "total": 20914.13,
+            "original": 19946.73,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Byer's Softball Complex - Forms+Surfaces",
+            "vendor": "Forms + Surfaces",
+            "status": "Approved",
+            "total": 15100,
+            "original": 15100,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - TPC Technologies",
+            "vendor": "TPC Technologies Inc",
+            "status": "Out For Signature",
+            "total": 14982.62,
+            "original": 14982.62,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Byer's Softball Complex - Reliance Foundry",
+            "vendor": "Reliance Foundry",
+            "status": "Approved",
+            "total": 9188.5,
+            "original": 9188.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Flags International",
+            "vendor": "Flags International",
+            "status": "Approved",
+            "total": 8828.23,
+            "original": 8828.23,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - National Striping",
+            "vendor": "National Striping Service Inc",
+            "status": "Approved",
+            "total": 6605,
+            "original": 6605,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Byer's Softball Complex - Kammerer Dynamics",
+            "vendor": "Kammerer Dynamics, Inc.",
+            "status": "Processing",
+            "total": 4930,
+            "original": 4930,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Byer's Softball Complex - Drainage Solutions",
+            "vendor": "Drainage Solutions Inc",
+            "status": "Approved",
+            "total": 3212.49,
+            "original": 3212.49,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Byers - Grainger - Stair Tread Nosings",
+            "vendor": "Grainger",
+            "status": "Approved",
+            "total": 2393,
+            "original": 2393,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Byer's Softball Complex - Dero",
+            "vendor": "Dero",
+            "status": "Approved",
+            "total": 651,
+            "original": 651,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Byer's Softball Complex - Construction Specialties",
+            "vendor": "Construction Specialities Inc",
+            "status": "Approved",
+            "total": 490,
+            "original": 490,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Byers - Grainger - Extra Stair Nosings",
+            "vendor": "Grainger",
+            "status": "Approved",
+            "total": 97.77,
+            "original": 97.77,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byer's Softball Complex - Midwest Glass",
+            "vendor": "Midwest Glass & Mirror Co",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Byers Softball Complex - Turfix Subcontract",
+            "vendor": "Turfix LLC",
+            "status": "Out For Signature",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 26,
         "netValue": 256095.72,
@@ -879,7 +5133,7 @@
       "sqft": null,
       "pctComplete": 53.7,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 5,
@@ -900,6 +5154,142 @@
       },
       "contractValue": 2519230,
       "revisedContract": 2519230,
+      "commitments": {
+        "count": 14,
+        "subcontracts": 8,
+        "purchaseOrders": 6,
+        "committedTotal": 1916340.47,
+        "originalTotal": 1898833.5,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Mason Engineering Subcontract - Coldwater WRRF",
+            "vendor": "Mason Engineering and Construction, Inc.",
+            "status": "Approved",
+            "total": 868446,
+            "original": 881000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jergens Piping Subcontract - Coldwater WRRF",
+            "vendor": "Jergens Piping Corporation",
+            "status": "Approved",
+            "total": 226600,
+            "original": 226600,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Coldwater WRRF - Strongwell",
+            "vendor": "Strongwell",
+            "status": "Approved",
+            "total": 223380.21,
+            "original": 202022.99,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "CT Electrical Subcontract - Coldwater WRRF",
+            "vendor": "CT Electrical Services Inc",
+            "status": "Approved",
+            "total": 188800,
+            "original": 187800,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Coldwater WRRF - Harrington PO",
+            "vendor": "Harrington",
+            "status": "Approved",
+            "total": 123470.17,
+            "original": 119174.17,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Parrish Excavating Subcontract - Coldwater WRRF",
+            "vendor": "Parrish Excavating, Inc.",
+            "status": "Approved",
+            "total": 99093.54,
+            "original": 99093.54,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lift Solutions Subcontract - Coldwater WRRF",
+            "vendor": "Lift Solutions",
+            "status": "Approved",
+            "total": 76805.69,
+            "original": 75303.22,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jess Concrete Enterprises - Coldwater WRRF Subcontract Agreement",
+            "vendor": "Jess Concrete Enterprises",
+            "status": "Approved",
+            "total": 32810,
+            "original": 26750,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Coldwater WRRF - Hamlet Environmental",
+            "vendor": "Hamlett Environmental Tech. Co.",
+            "status": "Approved",
+            "total": 29812.5,
+            "original": 29812.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Coldwater WRRF - Kammerer Dynamics",
+            "vendor": "Kammerer Dynamics, Inc.",
+            "status": "Approved",
+            "total": 20106.57,
+            "original": 23054.29,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Existing Ferric Chloride Tanks Disposal",
+            "vendor": "Clean Management Enviromental Group, Inc.",
+            "status": "Approved",
+            "total": 14326,
+            "original": 14326,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Coldwater WRRF - Fibergrate",
+            "vendor": "Fibergrate Composite Structures",
+            "status": "Approved",
+            "total": 5577,
+            "original": 6784,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Coldwater WRRF - Hesco Group",
+            "vendor": "Hesco Group",
+            "status": "Approved",
+            "total": 4632.79,
+            "original": 4632.79,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Soil and Concrete Testing",
+            "vendor": "Alt & Witzig Engineering Inc.",
+            "status": "Approved",
+            "total": 2480,
+            "original": 2480,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 7,
         "netValue": -17026.64,
@@ -935,7 +5325,7 @@
       "sqft": null,
       "pctComplete": 0,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 9,
@@ -956,6 +5346,277 @@
       },
       "contractValue": 2280743,
       "revisedContract": 2283544.37,
+      "commitments": {
+        "count": 29,
+        "subcontracts": 25,
+        "purchaseOrders": 4,
+        "committedTotal": 1542071.05,
+        "originalTotal": 1547798.25,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Bill's Heating Inc - White Vet Clinic Improvements Subcontract",
+            "vendor": "Bill's Heating Inc",
+            "status": "Approved",
+            "total": 272723,
+            "original": 278755,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "L & M Electric Inc - White Vet Clinic Improvements Subcontract",
+            "vendor": "L & M Electric Inc",
+            "status": "Approved",
+            "total": 258173,
+            "original": 256520,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Hill Excavating - White Vet Clinic Improvements Subcontract",
+            "vendor": "Hill Excavation Inc",
+            "status": "Approved",
+            "total": 154777,
+            "original": 154777,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Cherry Creek -  White Vet Clinic",
+            "vendor": "Cherry Creek Builders LLC",
+            "status": "Approved",
+            "total": 139192,
+            "original": 139192,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "B.C. Mechanical - White Vet Clinic Improvements Subcontract",
+            "vendor": "B.C. Mechanical, Inc",
+            "status": "Approved",
+            "total": 98600,
+            "original": 98600,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jess Concrete Enterprises - White Vet Clinic Improvements Subcontract",
+            "vendor": "Jess Concrete Enterprises",
+            "status": "Approved",
+            "total": 84647,
+            "original": 84647,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Lue - White Veterinary Clinic - subcontract",
+            "vendor": "Lue Manufacturing Inc",
+            "status": "Approved",
+            "total": 75581.8,
+            "original": 75581.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Dancer - White Veterinary Clinic - subcontract",
+            "vendor": "Dancer Concrete Design LLC",
+            "status": "Approved",
+            "total": 65000,
+            "original": 65000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "CIH - White Vet Clinic Improvements Purchase Order",
+            "vendor": "Central Indiana Hardware",
+            "status": "Approved",
+            "total": 54077.8,
+            "original": 55426,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "TBG - White Veterinary Clinic - subcontract",
+            "vendor": "TBG Construction LLC",
+            "status": "Approved",
+            "total": 50000,
+            "original": 50000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Big C Lumber -  White Vet Clinic - purchase order",
+            "vendor": "Big C Lumber",
+            "status": "Approved",
+            "total": 49387.51,
+            "original": 49387.51,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "MGR Masonry Contractors - White Vet Clinic Improvements Subcontract",
+            "vendor": "MGR Masonry Contractors",
+            "status": "Approved",
+            "total": 45248,
+            "original": 45248,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Midwest Glass & Mirror Co. - White Vet Clinic Improvements Subcontract",
+            "vendor": "Midwest Glass & Mirror Co",
+            "status": "Approved",
+            "total": 44177,
+            "original": 44177,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Martin's Steel - White Veterinary Clinic - purchase order",
+            "vendor": "Martin's Steel Roofing Inc",
+            "status": "Submitted",
+            "total": 40120.29,
+            "original": 40120.29,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "R and R - White Veterinary clinic - subcontract",
+            "vendor": "R & R Asphalt LLC",
+            "status": "Approved",
+            "total": 30000,
+            "original": 30000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Custom Paint and Finish - White Vet Clinic Improvements Subcontract",
+            "vendor": "Custom Paint and Finish",
+            "status": "Approved",
+            "total": 23206,
+            "original": 23206,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Bojrab - White Veterinary Clinic",
+            "vendor": "Bojrab Landscape ManagementLLC",
+            "status": "Approved",
+            "total": 22160,
+            "original": 22160,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Legacy - White Veterinary Clinic - subcontract",
+            "vendor": "Legacy Fence & Decks",
+            "status": "Approved",
+            "total": 18555,
+            "original": 18555,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "KDI -  White Veterinary Clinic - Purchase Order",
+            "vendor": "Kammerer Dynamics, Inc.",
+            "status": "Approved",
+            "total": 10684,
+            "original": 10684,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "White Vet Clinic Improvements - Neptune Construction Subcontract",
+            "vendor": "Neptune Construction Inc.",
+            "status": "Approved",
+            "total": 10600,
+            "original": 10600,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Aptek - White Veterinary Clinic - Subcontract",
+            "vendor": "Aptek",
+            "status": "Approved",
+            "total": 9780.44,
+            "original": 9780.44,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Abonmarche - White Vet Clinic Subcontract",
+            "vendor": "Abonmarche Consultants Inc",
+            "status": "Out For Signature",
+            "total": 9250,
+            "original": 9250,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Momper - White Veterinary clinic - subcontract",
+            "vendor": "Momper Insulation Elkhart LLC",
+            "status": "Approved",
+            "total": 5853,
+            "original": 5853,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Patriot Engineering - White Vet Clinic Improvements/subcontract",
+            "vendor": "Patriot Engineering and Environmental, Inc.",
+            "status": "Approved",
+            "total": 5290,
+            "original": 5290,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Matteson - White Veterinary Clinic - subcontract",
+            "vendor": "Matteson Acoustics",
+            "status": "Approved",
+            "total": 5225,
+            "original": 5225,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "US Signs - White Veterinary Clinic - subcontract",
+            "vendor": "US Signcrafters Inc",
+            "status": "Approved",
+            "total": 3246,
+            "original": 3246,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wilco - White Veterinary Clinic - subcontract",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 2961.5,
+            "original": 2961.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Dutch cleaning services -  White Vet Clinic - Subcontract",
+            "vendor": "Dutch Cleaning Services LLC",
+            "status": "Approved",
+            "total": 2926,
+            "original": 2926,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Avanti - White Veterinary clinic - subcontract",
+            "vendor": "Avanti Flooring LLC",
+            "status": "Draft",
+            "total": 2355,
+            "original": 2355,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 7,
         "netValue": -2565.27,
@@ -991,7 +5652,7 @@
       "sqft": null,
       "pctComplete": 94.8,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": true,
       "rfis": {
         "total": 4,
@@ -1012,6 +5673,106 @@
       },
       "contractValue": 1500000,
       "revisedContract": 1715000,
+      "commitments": {
+        "count": 10,
+        "subcontracts": 8,
+        "purchaseOrders": 2,
+        "committedTotal": 1370537.45,
+        "originalTotal": 1281840.27,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Northern Heights - Amex Nooter",
+            "vendor": "Amex Nooter LLC",
+            "status": "Approved",
+            "total": 971376.64,
+            "original": 896320,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Northern Heights - Kissinger Electric",
+            "vendor": "Kissinger Electric",
+            "status": "Approved",
+            "total": 252668.2,
+            "original": 251335,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Northern Heights - Matteson Acoustics",
+            "vendor": "Matteson Acoustics",
+            "status": "Approved",
+            "total": 86735,
+            "original": 84355,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Northern Heights Elementary - Faco",
+            "vendor": "Lakeside Equipment Corporation",
+            "status": "Approved",
+            "total": 24865,
+            "original": 24865,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Northern Heights - Integrity Demolition",
+            "vendor": "Integrity Demolition and Construction Services",
+            "status": "Approved",
+            "total": 18600,
+            "original": 18600,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Northern Heights Elementary - Fort Wayne Roofing",
+            "vendor": "Fort Wayne Roofing",
+            "status": "Approved",
+            "total": 7500,
+            "original": 3000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Northern Heights Elementary - Jack Laurie Group",
+            "vendor": "Jack Laurie Group",
+            "status": "Approved",
+            "total": 4888.18,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Uline - Floor Protection",
+            "vendor": "Uline Inc",
+            "status": "Approved",
+            "total": 3365.27,
+            "original": 3365.27,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Northern Heights - MPS",
+            "vendor": "Mechanical Plumbing Solutions",
+            "status": "Approved",
+            "total": 539.16,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Northern Heights Elementary - Tony Stone",
+            "vendor": "Tony's Stone Brick&Block LLC",
+            "status": "Approved",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 24,
         "netValue": 87628.23,
@@ -1049,7 +5810,7 @@
       "sqft": null,
       "pctComplete": 0,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 0,
@@ -1070,6 +5831,124 @@
       },
       "contractValue": 1458000,
       "revisedContract": 1323528.62,
+      "commitments": {
+        "count": 12,
+        "subcontracts": 9,
+        "purchaseOrders": 3,
+        "committedTotal": 666072.34,
+        "originalTotal": 666072.34,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Niblock Subcontract - Bristol Street Garages",
+            "vendor": "Niblock Excavating Inc",
+            "status": "Approved",
+            "total": 238467.3,
+            "original": 238467.3,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "D&D Electric Subcontract - Bristol Street Garages",
+            "vendor": "D & D Electric",
+            "status": "Out For Signature",
+            "total": 108770,
+            "original": 108770,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Bill's Heating Subcontract - Bristol Street Garages",
+            "vendor": "Bill's Heating Inc",
+            "status": "Approved",
+            "total": 106613.24,
+            "original": 106613.24,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Robert Geans Subcontract - Bristol Street Garages",
+            "vendor": "Robert Geans Corporation",
+            "status": "Approved",
+            "total": 104566,
+            "original": 104566,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Michiana Steel Erectors Subcontract - Bristol Street Garages",
+            "vendor": "Michiana Steel Erectors Inc",
+            "status": "Approved",
+            "total": 58875,
+            "original": 58875,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete Subcontract - Bristol Street Garages",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 53675,
+            "original": 53675,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jack Laurie Group Subcontract - Bristol Street Garages",
+            "vendor": "Jack Laurie Group",
+            "status": "Approved",
+            "total": 52735,
+            "original": 52735,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Industrial Door Subcontract - Bristol Street Garages",
+            "vendor": "Industrial Door of Northern IN",
+            "status": "Approved",
+            "total": 29052,
+            "original": 29052,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "E.F. Rhoades PO - Town of Bristol Street Garages",
+            "vendor": "E.F. Rhoades Equipment LLC",
+            "status": "Approved",
+            "total": 12105,
+            "original": 12105,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Picket Ridge Subcontract - Bristol Street Garages",
+            "vendor": "Picket Ridge Fencing",
+            "status": "Out For Signature",
+            "total": 7680,
+            "original": 7680,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman PO - Town of Bristol Street Garage Build",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 5983.8,
+            "original": 5983.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Wilco PO - Town of Bristol Street Garage Build",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 4000,
+            "original": 4000,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 0,
         "netValue": 0,
@@ -1099,7 +5978,7 @@
       "sqft": null,
       "pctComplete": 74.8,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": true,
       "rfis": {
         "total": 0,
@@ -1120,6 +5999,88 @@
       },
       "contractValue": 1306310,
       "revisedContract": 1306310,
+      "commitments": {
+        "count": 8,
+        "subcontracts": 8,
+        "purchaseOrders": 0,
+        "committedTotal": 928895.03,
+        "originalTotal": 920951.6,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Wabash Pickleball - Brainard Excavating Subcontract",
+            "vendor": "Brainard Excavating, LLC",
+            "status": "Approved",
+            "total": 344270,
+            "original": 341760,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wabash Pickleball - Gaunt Asphalt Subcontract",
+            "vendor": "Gaunt & Son Asphalt Inc.",
+            "status": "Approved",
+            "total": 250992,
+            "original": 250992,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wabash Pickleball - Trager Electric Subcontract",
+            "vendor": "Trager Electric",
+            "status": "Approved",
+            "total": 131658.43,
+            "original": 126750,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wabash Pickleball - Milestone Fence Subcontract",
+            "vendor": "Milestone Fence LLC",
+            "status": "Approved",
+            "total": 87777.6,
+            "original": 87777.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wabash Pickleball - Leslie Coatings Subcontract",
+            "vendor": "Leslie Coatings Inc",
+            "status": "Approved",
+            "total": 81950,
+            "original": 81950,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wabash Pickleball - Bojrab Landscape Subcontract",
+            "vendor": "Bojrab Landscape ManagementLLC",
+            "status": "Approved",
+            "total": 14645,
+            "original": 14645,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wabash Pickleball - Bertsch Frank Subcontract",
+            "vendor": "Bertsch-Frank & Associates",
+            "status": "Approved",
+            "total": 11900,
+            "original": 11900,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Wabash Pickleball - Inline Painting",
+            "vendor": "Inline Painting",
+            "status": "Approved",
+            "total": 5702,
+            "original": 5177,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 4,
         "netValue": 13043.43,
@@ -1155,7 +6116,7 @@
       "sqft": 9600,
       "pctComplete": 41.3,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 0,
@@ -1176,6 +6137,151 @@
       },
       "contractValue": 978687,
       "revisedContract": 991845.28,
+      "commitments": {
+        "count": 15,
+        "subcontracts": 11,
+        "purchaseOrders": 4,
+        "committedTotal": 541219.08,
+        "originalTotal": 536723.31,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "L&M Electric - NPTech Community Fiber Subcontract Agreement",
+            "vendor": "L & M Electric Inc",
+            "status": "Approved",
+            "total": 130142,
+            "original": 119624,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Concrete Flatwork & Pipe Bollards for NPTech",
+            "vendor": "JL Denlinger Concrete LLC",
+            "status": "Approved",
+            "total": 121287,
+            "original": 121287,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "M.W. Chupp - NPTech Community Fiber Subcontract Agreement",
+            "vendor": "M.W. Chupp, Inc.",
+            "status": "Approved",
+            "total": 82350,
+            "original": 80700,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Michiana Steel Erectors - NPTech Community Fiber PEMB Erection",
+            "vendor": "Michiana Steel Erectors Inc",
+            "status": "Approved",
+            "total": 55500,
+            "original": 55500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mike's Garage Door Service - NPTech Community Fiber Subcontract Agreem",
+            "vendor": "Mike's Garage Door Service",
+            "status": "Approved",
+            "total": 43050,
+            "original": 43050,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "NPTech Concrete Gradebeam and Foundations",
+            "vendor": "Kemp Construction",
+            "status": "Approved",
+            "total": 30700,
+            "original": 30700,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jack Laurie Group - NPTech Community Fiber Subcontract Agreement",
+            "vendor": "Jack Laurie Group",
+            "status": "Approved",
+            "total": 22150,
+            "original": 29660,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Domestic Well",
+            "vendor": "Hoover Well Drilling",
+            "status": "Approved",
+            "total": 11500,
+            "original": 11500,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "HM Frames, Doors, and Hardware",
+            "vendor": "Wilco Distributing Inc",
+            "status": "Approved",
+            "total": 10765.91,
+            "original": 10765.91,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Pella Windows & Doors of Northern Indiana - NPTech Community Fiber Pur",
+            "vendor": "Pella Windows & Doors of Northern Indiana",
+            "status": "Approved",
+            "total": 8395.24,
+            "original": 8557.47,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Global Building Products -  NPTech Community Fiber Purchase Order",
+            "vendor": "Global Building Products LLC",
+            "status": "Approved",
+            "total": 7264.23,
+            "original": 7264.23,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Alpha Building Center - NPTech Community Fiber Purchase Order",
+            "vendor": "Alpha Building Center Nappanee",
+            "status": "Approved",
+            "total": 6739.69,
+            "original": 6739.69,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Office Interiors - NPTech Community Fiber Subcontract Agreement",
+            "vendor": "Office Interiors",
+            "status": "Approved",
+            "total": 5286.41,
+            "original": 5286.41,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mica Shop - NPTech Community Fiber Subcontract Agreement",
+            "vendor": "Mica Shop Inc",
+            "status": "Approved",
+            "total": 4313.6,
+            "original": 4313.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Momper installed Building Products - NPTech Community Fiber Subcontrac",
+            "vendor": "Momper Insulation Elkhart LLC",
+            "status": "Approved",
+            "total": 1775,
+            "original": 1775,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 8,
         "netValue": 7137.02,
@@ -1213,7 +6319,7 @@
       "sqft": null,
       "pctComplete": 0,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 1,
@@ -1234,6 +6340,97 @@
       },
       "contractValue": 938600,
       "revisedContract": 938600,
+      "commitments": {
+        "count": 9,
+        "subcontracts": 5,
+        "purchaseOrders": 4,
+        "committedTotal": 612183,
+        "originalTotal": 612183,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "po",
+            "title": "HPT PO - LaCrosse WWTP Improvements",
+            "vendor": "The Henry P. Thompson Company",
+            "status": "Draft",
+            "total": 281444,
+            "original": 281444,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Lemna PO - LaCrosse WWTP Improvements",
+            "vendor": "Lemna Environmental Technologies",
+            "status": "Approved",
+            "total": 281444,
+            "original": 281444,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Maddox Subcontract - LaCrosse WWTP Improvements",
+            "vendor": "Maddox Industrial LLC",
+            "status": "Approved",
+            "total": 122500,
+            "original": 122500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Concrete - Heiman - Subcontract",
+            "vendor": "Heiman Construction Inc.",
+            "status": "Approved",
+            "total": 89100,
+            "original": 89100,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Haskins Subcontract - LaCrosse WWTP Improvements",
+            "vendor": "Haskins Underground, Inc.",
+            "status": "Approved",
+            "total": 85000,
+            "original": 85000,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "KDI PO - LaCrosse WWTP Improvements",
+            "vendor": "Kammerer Dynamics, Inc.",
+            "status": "Approved",
+            "total": 18875,
+            "original": 18875,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Grip Inc. - Subcontract - Effluent Lagoon Discharge Meter",
+            "vendor": "Gripp Incorporated",
+            "status": "Approved",
+            "total": 10769,
+            "original": 10769,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Duneland PO - LaCrosse WWTP Improvements",
+            "vendor": "Duneland Group",
+            "status": "Approved",
+            "total": 4495,
+            "original": 4495,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "USA BlueBook - PO - Tablet Feeders",
+            "vendor": "USA Blue Book",
+            "status": "Processing",
+            "total": 3068.41,
+            "original": 3068.41,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 1,
         "netValue": 10769,
@@ -1269,7 +6466,7 @@
       "sqft": null,
       "pctComplete": 5.5,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 0,
@@ -1290,6 +6487,43 @@
       },
       "contractValue": 679915,
       "revisedContract": 678915,
+      "commitments": {
+        "count": 3,
+        "subcontracts": 2,
+        "purchaseOrders": 1,
+        "committedTotal": 341500,
+        "originalTotal": 341500,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "po",
+            "title": "Goshen WWTP - WesTech engineering PO",
+            "vendor": "WesTech Engineering, LLC",
+            "status": "Approved",
+            "total": 337900,
+            "original": 337900,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Maddox - Goshen Waste Water Treatment Plant Digester Membrane Cover Re",
+            "vendor": "Maddox Industrial LLC",
+            "status": "Out For Signature",
+            "total": 132750,
+            "original": 132750,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Shaum Electric Inc - Goshen Wastewater Treatment Digester Membrane Rep",
+            "vendor": "Shaum Electric Inc.",
+            "status": "Approved",
+            "total": 3600,
+            "original": 3600,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 0,
         "netValue": 0,
@@ -1319,7 +6553,7 @@
       "sqft": null,
       "pctComplete": 1.2,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 0,
@@ -1340,6 +6574,70 @@
       },
       "contractValue": 374705,
       "revisedContract": 374705,
+      "commitments": {
+        "count": 6,
+        "subcontracts": 5,
+        "purchaseOrders": 1,
+        "committedTotal": 190895.5,
+        "originalTotal": 156374.5,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Peerless Midwest, Inc. - Akron Water Treatment Plant -",
+            "vendor": "Peerless Midwest, Inc.",
+            "status": "Approved",
+            "total": 89663,
+            "original": 55142,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Maddox Industrial LLC - Akron Water Treatment Plant - Subcontract",
+            "vendor": "Maddox Industrial LLC",
+            "status": "Approved",
+            "total": 46250,
+            "original": 46250,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Carbon Enterprises Inc.  - Akron Water Treatment Plant - Subcontract",
+            "vendor": "Carbon Enterprises Inc.",
+            "status": "Approved",
+            "total": 33332.5,
+            "original": 33332.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Prism Painting Company - Akron Water Treatment",
+            "vendor": "Prism Painting Company",
+            "status": "Approved",
+            "total": 21200,
+            "original": 21200,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Faco - Akron Water Treatment Plant - Purchase Order",
+            "vendor": "Faco LLC",
+            "status": "Processing",
+            "total": 14480,
+            "original": 14480,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Anglin Electric - Akron WTP - Subcontract",
+            "vendor": "Anglin Electric Inc.",
+            "status": "Approved",
+            "total": 450,
+            "original": 450,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 2,
         "netValue": -24834,
@@ -1372,7 +6670,7 @@
       "sqft": null,
       "pctComplete": 76.4,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": true,
       "rfis": {
         "total": 0,
@@ -1393,6 +6691,34 @@
       },
       "contractValue": 330975,
       "revisedContract": 330975,
+      "commitments": {
+        "count": 2,
+        "subcontracts": 2,
+        "purchaseOrders": 0,
+        "committedTotal": 237398.22,
+        "originalTotal": 223259.07,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "EHA Generator Replacement - Trager Electric",
+            "vendor": "Trager Electric",
+            "status": "Approved",
+            "total": 229398.22,
+            "original": 215259.07,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting - EHA Generator Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Approved",
+            "total": 8000,
+            "original": 8000,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 1,
         "netValue": 10152.6,
@@ -1424,7 +6750,7 @@
       "sqft": null,
       "pctComplete": 13.3,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": true,
       "rfis": {
         "total": 1,
@@ -1445,6 +6771,61 @@
       },
       "contractValue": 315000,
       "revisedContract": 315305,
+      "commitments": {
+        "count": 5,
+        "subcontracts": 4,
+        "purchaseOrders": 1,
+        "committedTotal": 134133.6,
+        "originalTotal": 134133.6,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Cabinets - Stoll Bros - Subcontract",
+            "vendor": "Stoll Bros Lumber Inc",
+            "status": "Approved",
+            "total": 85038,
+            "original": 85038,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Plumbing  - Crisenbery Plumbing - Subcontract",
+            "vendor": "Crisenbery Plumbing",
+            "status": "Approved",
+            "total": 30240,
+            "original": 30240,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Electrical - Anglin Electric - Subcontract",
+            "vendor": "Anglin Electric Inc.",
+            "status": "Approved",
+            "total": 15850,
+            "original": 15850,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "ABT Electronics - Purchase Order",
+            "vendor": "ABT Electronics, Inc.",
+            "status": "Approved",
+            "total": 2505.6,
+            "original": 2505.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Flooring - Avanti Flooring - Subcontract",
+            "vendor": "Avanti Flooring LLC",
+            "status": "Approved",
+            "total": 500,
+            "original": 500,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 5,
         "netValue": 15962,
@@ -1477,7 +6858,7 @@
       "sqft": null,
       "pctComplete": 61.9,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": true,
       "rfis": {
         "total": 2,
@@ -1498,6 +6879,88 @@
       },
       "contractValue": 215840,
       "revisedContract": 217340,
+      "commitments": {
+        "count": 8,
+        "subcontracts": 7,
+        "purchaseOrders": 1,
+        "committedTotal": 35769.68,
+        "originalTotal": 35125.05,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Executive Elevator- PHM Elevator",
+            "vendor": "Executive Elevator Company",
+            "status": "Out For Signature",
+            "total": 80770,
+            "original": 80770,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "BIW PO - PHM Elevator",
+            "vendor": "Builders Iron Works Inc.",
+            "status": "Approved",
+            "total": 16344,
+            "original": 16000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Avanti Flooring- PHM Elevator",
+            "vendor": "Avanti Flooring LLC",
+            "status": "Approved",
+            "total": 6616,
+            "original": 4553.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "JLG Subcontract- PHM Elevator",
+            "vendor": "Jack Laurie Group",
+            "status": "Approved",
+            "total": 5395,
+            "original": 5180,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Cisco Subcontract- PHM Elevator",
+            "vendor": "Crane Industrial Service Inc.",
+            "status": "Out For Signature",
+            "total": 5175,
+            "original": 5175,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Railing Panels",
+            "vendor": "Lue Manufacturing Inc",
+            "status": "Approved",
+            "total": 3957.26,
+            "original": 3957.26,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Office Interiors- PHM Elevator",
+            "vendor": "Office Interiors",
+            "status": "Approved",
+            "total": 3457.42,
+            "original": 5434.29,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Anglin- PHM Elevator",
+            "vendor": "Anglin Electric Inc.",
+            "status": "Out For Signature",
+            "total": 2765,
+            "original": 2765,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 6,
         "netValue": 10064.39,
@@ -1534,7 +6997,7 @@
       "sqft": null,
       "pctComplete": 95.7,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 0,
@@ -1555,6 +7018,25 @@
       },
       "contractValue": 65680,
       "revisedContract": 78335,
+      "commitments": {
+        "count": 1,
+        "subcontracts": 1,
+        "purchaseOrders": 0,
+        "committedTotal": 19663.53,
+        "originalTotal": 18924.85,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "M.E. Subcontract - AI Presezzi Foundations",
+            "vendor": "Middlebury Electric Inc",
+            "status": "Approved",
+            "total": 19663.53,
+            "original": 18924.85,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 2,
         "netValue": 12115.68,
