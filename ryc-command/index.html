@@ -47,7 +47,7 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit
 .side-foot a{color:var(--muted);text-decoration:none;display:block;padding:5px 0}
 .side-foot a:hover{color:var(--accent)}
 .side-foot .ver{color:var(--faint);font-size:11px;margin-top:8px}
-.content{position:relative;background:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:34px 34px;min-height:100vh}
+.content{position:relative;background:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:34px 34px;min-height:100vh;min-width:0}
 .topbar{display:flex;align-items:flex-end;justify-content:space-between;padding:26px 34px 18px;border-bottom:1px solid var(--border-soft)}
 .topbar h2{font-family:var(--font-serif);font-weight:600;font-size:26px;margin:0}
 .topbar .ctx{color:var(--muted);font-size:12.5px;margin-top:4px}
@@ -113,6 +113,33 @@ table.ptable{width:100%;border-collapse:collapse;font-size:12.5px}
 .warn-banner{background:rgba(239,83,80,.12);border:1px solid rgba(239,83,80,.4);color:#ffd9d7;border-radius:var(--r-sm);padding:11px 15px;font-size:13px;margin-bottom:18px}
 .warn-banner b{color:#fff}
 .q-more{font-size:11px;color:var(--faint);font-weight:500;text-transform:none;letter-spacing:0;margin-left:6px}
+/* ===== job detail drawer (Phase 3a) ========================================== */
+.ptable tbody tr{cursor:pointer}
+.ptable tbody tr:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
+.dw-overlay{position:fixed;inset:0;background:rgba(10,14,26,.45);z-index:30}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:580px;max-width:96vw;background:#fff;color:#1c2433;box-shadow:-18px 0 50px rgba(10,15,30,.28);z-index:31;display:flex;flex-direction:column;border-left:1px solid #dfe4ec}
+.dw-head{padding:18px 22px 14px;border-bottom:1px solid #e4e9f1;display:flex;align-items:flex-start;gap:12px}
+.dw-head h3{font-family:var(--font-serif);font-size:19px;font-weight:600;margin:0;color:#1c2433}
+.dw-head .dw-sub{color:#67718a;font-size:12px;margin-top:3px;line-height:1.5}
+.dw-close{margin-left:auto;flex-shrink:0;background:none;border:1px solid #d5dbe6;border-radius:6px;color:#4a5670;font-size:16px;width:30px;height:30px;cursor:pointer;line-height:1;font-family:inherit}
+.dw-close:hover{border-color:var(--accent);color:var(--accent)}
+.dw-body{overflow-y:auto;padding:16px 22px 44px;flex:1}
+.dw-sec{margin-bottom:22px}
+.dw-sec h4{font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;color:#5b6578;margin:0 0 8px}
+.dw-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dw-stat{background:#f7f9fc;border:1px solid #e4e9f1;border-radius:7px;padding:9px 11px;min-width:0}
+.dw-stat .l{color:#67718a;font-size:10px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.dw-stat .v{font-family:var(--font-serif);font-size:16.5px;margin-top:3px;font-variant-numeric:tabular-nums}
+.dw-stat .s{color:#8b95ab;font-size:10.5px;margin-top:1px}
+table.dwt{width:100%;border-collapse:collapse;font-size:12px}
+.dwt th{text-align:left;color:#5b6578;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:5px 8px;border-bottom:1px solid #e2e7ef;white-space:nowrap;font-weight:600}
+.dwt td{padding:6px 8px;border-top:1px solid #eef1f6;font-variant-numeric:tabular-nums;color:#26304a}
+.dwt th.r,.dwt td.r{text-align:right}
+.dwt td.ok{color:#1d9e63;font-weight:600}.dwt td.dv{color:#c07f1a;font-weight:600}
+.dw-note{color:#8b95ab;font-size:11px;margin-top:6px;line-height:1.5}
+.dw-reason{background:#fdf3ea;border:1px solid #f0d5bc;border-radius:7px;padding:8px 12px;font-size:12.5px;color:#8a4b12;margin-top:10px}
+.dw-chip{display:inline-block;background:#f1f4f9;border:1px solid #e2e7ef;border-radius:12px;padding:2px 9px;font-size:11px;color:#4a5670;margin:0 4px 4px 0}
+@media(max-width:760px){.drawer{width:100vw}}
 @media(max-width:980px){.grid2{grid-template-columns:1fr}.kpi-strip{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:760px){
   .shell{grid-template-columns:1fr}
@@ -153,7 +180,7 @@ table.ptable{width:100%;border-collapse:collapse;font-size:12.5px}
       <div class="side-foot">
         <a href="/ryc/estimate">&#128208; Estimating Tools &rarr;</a>
         <a href="/ryc/dashboard">&#11116; Legacy Dashboard</a>
-        <div class="ver">v2.3.0-command &middot; Phase 2</div>
+        <div class="ver">v2.4.0-command &middot; Phase 3a</div>
       </div>
     </aside>
     <main class="content">
@@ -190,6 +217,9 @@ var GF_MOVE_PTS = 1.0, GF_BURN_PTS = 12, GF_BURN_MINPCT = 20;
 function fmt(n){ return n==null?"—":"$"+Math.round(n).toLocaleString("en-US"); }
 function fmtCompact(n){ if(n==null) return "—"; var a=Math.abs(n),s=n<0?"-":""; if(a>=1e6) return s+"$"+(a/1e6).toFixed(1)+"M"; if(a>=1e3) return s+"$"+Math.round(a/1e3).toLocaleString("en-US")+"K"; return s+"$"+Math.round(a).toLocaleString("en-US"); }
 function pct(n){ return n==null?"—":n.toFixed(1)+"%"; }
+function fmtDate(s){ if(!s) return "—"; var d=new Date(s); return isNaN(d.getTime())?"—":d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
+function ageTxt(ts){ if(!ts) return null; var h=(Date.now()-new Date(ts))/3600000; if(!(h>=0)) return null;
+  if(h<1.5) return Math.max(1,Math.round(h*60))+"m ago"; if(h<48) return (h<10?h.toFixed(1):Math.round(h))+"h ago"; return Math.round(h/24)+"d ago"; }
 function esc(s){ if(!s) return ""; var d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 function pmName(job){ return (job.foundation && job.foundation.pmName) || (job.pm && job.pm.name) || null; }
 function contractedMargin(job){ var cv=job.contractValue, bo=job.budget && job.budget.original; if(!(cv>0 && bo>0)) return null; return bo>=cv?0:((cv-bo)/cv*100); }
@@ -251,28 +281,32 @@ function getStoplight(job, live){
   return {color:red?"red":amber?"amber":"green",reasons:reasons};
 }
 
-/* ---- gain/fade (ported) ---- */
+/* ---- gain/fade (ported; gainFadeFor extracted for the Phase-3a drawer — same math) ---- */
+function gainFadeFor(j){
+  var f=j.foundation, b=j.budget||{}, pctc=j.pctComplete;
+  var pC=j.procoreContractValue!=null?j.procoreContractValue:j.contractValue;
+  var curContract=(f&&f.currentContract>0)?f.currentContract:pC;
+  var asbidContract=(f&&f.originalContract>0)?f.originalContract:pC;
+  var asbidCost=(f&&f.originalCost!=null)?f.originalCost:b.original;
+  if(!(curContract>0)||asbidCost==null) return null;
+  var costGrowth=(b.revised>0&&b.original>0)?(b.revised-b.original):0;
+  var coIncome=(f&&f.originalContract>0)?(curContract-asbidContract):null;
+  var projCost=asbidCost+costGrowth;
+  var asbid=(asbidContract-asbidCost)/asbidContract*100;
+  var curMargin=(curContract-projCost)/curContract*100;
+  var gfPts=curMargin-asbid;
+  var gfDollars=(coIncome!=null?coIncome:0)-costGrowth;
+  var costToDate=f?f.totalCosts:null;
+  var burnPct=(costToDate!=null&&projCost>0)?costToDate/projCost*100:null;
+  var burnRisk=burnPct!=null&&pctc!=null&&pctc>=GF_BURN_MINPCT&&(burnPct-pctc)>=GF_BURN_PTS;
+  return {job:j.projectNumber||"",name:j.name||(f&&f.description)||"",pm:pmName(j)||"(no PM)",pct:pctc,gfPts:gfPts,gfDollars:gfDollars,burnRisk:burnRisk,asbidMargin:asbid,curMargin:curMargin};
+}
 function gainFadeRows(){
   var rows=[];
   var jobs=getActiveJobs();
   for(var i=0;i<jobs.length;i++){
-    var j=jobs[i], f=j.foundation, b=j.budget||{}, pctc=j.pctComplete;
-    var pC=j.procoreContractValue!=null?j.procoreContractValue:j.contractValue;
-    var curContract=(f&&f.currentContract>0)?f.currentContract:pC;
-    var asbidContract=(f&&f.originalContract>0)?f.originalContract:pC;
-    var asbidCost=(f&&f.originalCost!=null)?f.originalCost:b.original;
-    if(!(curContract>0)||asbidCost==null) continue;
-    var costGrowth=(b.revised>0&&b.original>0)?(b.revised-b.original):0;
-    var coIncome=(f&&f.originalContract>0)?(curContract-asbidContract):null;
-    var projCost=asbidCost+costGrowth;
-    var asbid=(asbidContract-asbidCost)/asbidContract*100;
-    var curMargin=(curContract-projCost)/curContract*100;
-    var gfPts=curMargin-asbid;
-    var gfDollars=(coIncome!=null?coIncome:0)-costGrowth;
-    var costToDate=f?f.totalCosts:null;
-    var burnPct=(costToDate!=null&&projCost>0)?costToDate/projCost*100:null;
-    var burnRisk=burnPct!=null&&pctc!=null&&pctc>=GF_BURN_MINPCT&&(burnPct-pctc)>=GF_BURN_PTS;
-    rows.push({job:j.projectNumber||"",name:j.name||(f&&f.description)||"",pm:pmName(j)||"(no PM)",pct:pctc,gfPts:gfPts,gfDollars:gfDollars,burnRisk:burnRisk});
+    var r=gainFadeFor(jobs[i]);
+    if(r) rows.push(r);
   }
   return rows;
 }
@@ -420,8 +454,6 @@ function renderCommand(){
 
   /* source-health strip — freshness from each feed's own `refreshed` timestamp; >30h = stale
      (Procore cron daily 04:00 UTC, Foundation/AR nightly 09:00 UTC — 30h means a run was missed) */
-  function ageTxt(ts){ if(!ts) return null; var h=(Date.now()-new Date(ts))/3600000; if(!(h>=0)) return null;
-    if(h<1.5) return Math.max(1,Math.round(h*60))+"m ago"; if(h<48) return (h<10?h.toFixed(1):Math.round(h))+"h ago"; return Math.round(h/24)+"d ago"; }
   function chip(ok,label,detail,ts){
     var a=ageTxt(ts); var stale=ts?((Date.now()-new Date(ts))/3600000>30):false;
     var icon=!ok?"⚠️":(stale?"⚠️":"✅");
@@ -491,7 +523,7 @@ function updatePTable(){
     if(r.needsInv>1000) bill="<span class=\"m-a\">inv "+fmtCompact(r.needsInv)+"</span>";
     if(r.overdue>0) bill+=(bill?" · ":"")+"<span class=\"m-r\">od "+fmtCompact(r.overdue)+"</span>";
     if(!bill) bill="<span class=\"m-m\">—</span>";
-    tb+="<tr>"
+    tb+="<tr tabindex=\"0\" role=\"button\" data-jno=\""+attrEsc(r.jno)+"\" aria-label=\"Open job detail: "+attrEsc(r.name)+"\">"
       +"<td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(r.client?" · "+esc(r.client):"")+"</div></td>"
       +"<td>"+esc(r.pm||"—")+"</td><td>"+esc(r.stage||"—")+"</td>"
       +"<td class=\"r\">"+fmtCompact(r.contract)+(r.conflict?" <span title=\"Procore and Foundation contracts diverge — see Data conflicts on the Command Center\" style=\"color:#c07f1a\">⚑</span>":"")+"</td>"
@@ -523,8 +555,159 @@ function renderPortfolio(){
   var head="<tr>"+cols.map(function(cd){ var right=["contract","ctd","pct","mtd"].indexOf(cd[0])>-1?" class=\"r\"":""; return "<th"+right+" data-col=\""+cd[0]+"\" data-lbl=\""+cd[1]+"\" onclick=\"pfSetSort('"+cd[0]+"')\">"+cd[1]+"</th>"; }).join("")+"</tr>";
   document.getElementById("view").innerHTML=bar
     +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead>"+head+"</thead><tbody id=\"ptbody\"></tbody><tfoot id=\"ptfoot\"></tfoot></table></div>"
-    +"<div style=\"margin-top:10px;font-size:11.5px;color:#67718a\">Contract = Procore Revised Contract Amount (⚑ = diverges from Foundation) · Cost to date = Foundation actuals · Margin = margin to date on cost basis, \"bid\" = contracted margin · Billing = needs invoicing / overdue AR (Foundation) · Row detail drawer arrives in Phase 3.</div>";
+    +"<div style=\"margin-top:10px;font-size:11.5px;color:#67718a\">Contract = Procore Revised Contract Amount (⚑ = diverges from Foundation) · Cost to date = Foundation actuals · Margin = margin to date on cost basis, \"bid\" = contracted margin · Billing = needs invoicing / overdue AR (Foundation) · Click a row (or press Enter) for the job detail drawer.</div>";
+  var tbody=document.getElementById("ptbody");
+  tbody.addEventListener("click",function(e){ var tr=e.target.closest("tr[data-jno]"); if(tr) openDrawer(tr.getAttribute("data-jno"),tr); });
+  tbody.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ var tr=e.target.closest("tr[data-jno]"); if(tr){ e.preventDefault(); openDrawer(tr.getAttribute("data-jno"),tr); } } });
   updatePTable();
+}
+
+/* ===== Job detail drawer (Phase 3a — existing data only; commitments arrive in 3b) ===== */
+var _dwTrigger=null;
+function jobByNo(jno){
+  var jobs=(activeData&&activeData.jobs)||[];
+  for(var i=0;i<jobs.length;i++){ if(String(jobs[i].projectNumber||"").trim()===String(jno).trim()) return jobs[i]; }
+  return null;
+}
+function reconRow(label,pv,fv,fmtFn){
+  var f=fmtFn||fmtCompact;
+  var pTxt=(pv!=null&&pv!==0)?f(pv):"—", fTxt=(fv!=null&&fv!==0)?f(fv):"—";
+  if(pv==null||fv==null||pv===0||fv===0) return "<tr><td>"+label+"</td><td class=\"r\">"+pTxt+"</td><td class=\"r\">"+fTxt+"</td><td class=\"r\">—</td></tr>";
+  var d=pv-fv, big=Math.abs(d)>50000&&Math.abs(d)>Math.max(Math.abs(pv),Math.abs(fv))*0.02;
+  var dTxt=big?("<span title=\"Diverges — reconcile\">⚑ "+fmtCompact(d)+"</span>"):("✓ "+(Math.abs(d)<1000?"match":fmtCompact(d)));
+  return "<tr><td>"+label+"</td><td class=\"r\">"+pTxt+"</td><td class=\"r\">"+fTxt+"</td><td class=\"r "+(big?"dv":"ok")+"\">"+dTxt+"</td></tr>";
+}
+function drawerHtml(j){
+  var f=j.foundation||null, b=j.budget||{}, sl=getStoplight(j,j);
+  var status=isCloseoutOnly(j)?"closeout":sl.color;
+  var reasons=sl.reasons.map(function(r){return r.text;}).join(" · ");
+  var bill=billingByJob()[String(j.projectNumber)]||null;
+  var gf=gainFadeFor(j);
+  var mtd=marginToDate(j), cm=contractedMargin(j);
+  var dpf=daysPastFinish(j);
+  var pAge=ageTxt(activeData&&activeData.refreshed), fAge=ageTxt(foundationData&&foundationData.refreshed), aAge=ageTxt(arData&&arData.refreshed);
+
+  /* header */
+  var subBits=[esc(j.projectNumber||"")];
+  if(j.client) subBits.push(esc(j.client));
+  if(pmName(j)) subBits.push("PM "+esc(pmName(j)));
+  if(j.superintendent&&j.superintendent.name) subBits.push("Super "+esc(j.superintendent.name));
+  var head="<div class=\"dw-head\"><div><h3>"+esc(j.name||"")+"</h3>"
+    +"<div class=\"dw-sub\">"+subBits.join(" · ")+(j.address?"<br>"+esc(j.address):"")+"</div>"
+    +"<div style=\"margin-top:8px\">"+statusPill(status,reasons)+" <span style=\"color:#67718a;font-size:11.5px;margin-left:6px\">"+esc(j.stage||"")+"</span></div>"
+    +(reasons?"<div class=\"dw-reason\">"+esc(reasons)+"</div>":"")
+    +"</div><button class=\"dw-close\" onclick=\"closeDrawer()\" aria-label=\"Close\">&times;</button></div>";
+
+  /* financial snapshot */
+  function stat(l,v,s){ return "<div class=\"dw-stat\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div>"+(s?"<div class=\"s\">"+s+"</div>":"")+"</div>"; }
+  var atCompletion=(j.contractValue>0&&b.projectedCost>0)?((j.contractValue-b.projectedCost)/j.contractValue*100):null;
+  var snap="<div class=\"dw-sec\"><h4>Financial snapshot</h4><div class=\"dw-stats\">"
+    +stat("Contract",fmtCompact(j.contractValue),j.revisedContract>0?"Procore revised":"Foundation")
+    +stat("Cost to date",j.costToDate!=null?fmtCompact(j.costToDate):"—",f?"Foundation actuals":"Procore direct")
+    +stat("Complete",j.pctComplete!=null?Math.round(j.pctComplete)+"%":"—",dpf>0?dpf+"d past finish":"")
+    +stat("Margin to date",mtd!=null?mtd.toFixed(1)+"%":"—",cm!=null?"bid "+cm.toFixed(1)+"%":"")
+    +stat("Proj. cost (ERP)",b.projectedCost>0?fmtCompact(b.projectedCost):"—",(b.projCostSuspect?"⚑ verify · ":"")+(atCompletion!=null?"margin at compl. "+atCompletion.toFixed(1)+"%":""))
+    +stat("Gain / fade",gf?(gf.gfPts>=0?"+":"")+gf.gfPts.toFixed(1)+" pts":"—",gf?fmtCompact(gf.gfDollars)+(gf.burnRisk?" · cost-burn risk":""):"insufficient data")
+    +"</div></div>";
+
+  /* Procore vs Foundation reconciliation */
+  var recon;
+  if(f){
+    recon="<div class=\"dw-sec\"><h4>Procore ⇄ Foundation reconciliation</h4>"
+      +"<table class=\"dwt\"><tr><th></th><th class=\"r\">Procore</th><th class=\"r\">Foundation</th><th class=\"r\">Δ</th></tr>"
+      +reconRow("Contract",j.revisedContract>0?j.revisedContract:null,f.currentContract)
+      +reconRow("Original contract",j.procoreContractValue,f.originalContract)
+      +reconRow("Cost to date",b.direct,f.totalCosts)
+      +reconRow("Original budget / cost",b.original,f.originalCost)
+      +reconRow("CO net value",(j.changeOrders&&j.changeOrders.netValue)||null,(f.changeOrders&&f.changeOrders.incomeAdj)||null)
+      +"</table><div class=\"dw-note\">⚑ = diverges by more than $50K and 2% — reconcile before quoting either number. Procore cost is budget direct; Foundation cost is posted job cost (all classes, no committed).</div></div>";
+  } else {
+    recon="<div class=\"dw-sec\"><h4>Procore ⇄ Foundation reconciliation</h4><div class=\"dw-note\">No Foundation match for job number "+esc(j.projectNumber||"—")+" — Procore-only job. Financials here are Procore budget figures, unverified by accounting.</div></div>";
+  }
+
+  /* billing & AR */
+  var billing="";
+  if(f){
+    var invs=((arData&&arData.invoices)||[]).filter(function(v){ return String(v.jobNo||"")===String(j.projectNumber) && (v.category==="overdue"||v.category==="open") && (v.openBalance||0)>0; })
+      .sort(function(a,c){ return (c.daysOverdue||0)-(a.daysOverdue||0); });
+    var invRows=invs.slice(0,12).map(function(v){
+      var od=(v.daysOverdue||0)>0;
+      return "<tr><td>"+esc(v.payApp?("Pay app "+v.payApp):("Inv "+(v.invoiceNo||"")))+"</td><td>"+fmtDate(v.invoiceDate)+"</td><td>"+fmtDate(v.dueDate)+"</td>"
+        +"<td class=\"r\">"+fmtCompact(v.openBalance)+"</td><td class=\"r "+(od?"dv":"")+"\">"+(od?(v.daysOverdue+"d overdue"):"current")+"</td></tr>";
+    }).join("");
+    billing="<div class=\"dw-sec\"><h4>Billing &amp; AR</h4><div class=\"dw-stats\">"
+      +stat("Billed to date",fmtCompact(f.totalInvoiced||0),"")
+      +stat("Needs invoicing",bill?fmtCompact(bill.under):"—",bill?(bill.exact?"exact (OH/Profit markups)":"bid-est fallback"):"")
+      +stat("Retainage held",fmtCompact(f.retainage||0),"")
+      +"</div>"
+      +(invs.length?("<table class=\"dwt\" style=\"margin-top:10px\"><tr><th>Invoice</th><th>Invoiced</th><th>Due</th><th class=\"r\">Open balance</th><th class=\"r\">Age</th></tr>"+invRows+"</table>"
+        +(invs.length>12?"<div class=\"dw-note\">+ "+(invs.length-12)+" more open invoices.</div>":"")):"<div class=\"dw-note\" style=\"margin-top:8px\">No open or overdue invoices.</div>")
+      +"</div>";
+  }
+
+  /* cost breakdown (Foundation, by class) */
+  var costSec="";
+  if(f&&f.costBreakdown){
+    var cbKeys=Object.keys(f.costBreakdown).sort(function(a,c){ return f.costBreakdown[c]-f.costBreakdown[a]; });
+    var cbTotal=cbKeys.reduce(function(s,k){ return s+(f.costBreakdown[k]||0); },0);
+    if(cbTotal>0){
+      var cbRows=cbKeys.map(function(k){ var v=f.costBreakdown[k]||0; return "<tr><td>"+esc(k)+"</td><td class=\"r\">"+fmtCompact(v)+"</td><td class=\"r\">"+(v/cbTotal*100).toFixed(0)+"%</td></tr>"; }).join("");
+      costSec="<div class=\"dw-sec\"><h4>Cost to date by class (Foundation)</h4><table class=\"dwt\"><tr><th>Class</th><th class=\"r\">Posted</th><th class=\"r\">Share</th></tr>"+cbRows+"</table></div>";
+    }
+  }
+
+  /* change orders */
+  var coSec="";
+  var co=j.changeOrders;
+  if((co&&co.count)||(f&&f.changeOrders&&f.changeOrders.count)){
+    var chips="";
+    if(co&&co.byType){ chips=Object.keys(co.byType).map(function(k){ return "<span class=\"dw-chip\">"+esc(k)+" &middot; "+co.byType[k]+"</span>"; }).join(""); }
+    coSec="<div class=\"dw-sec\"><h4>Change orders</h4><div class=\"dw-stats\">"
+      +stat("Procore COs",co?String(co.count):"—",co?("net "+fmtCompact(co.netValue||0)):"")
+      +stat("Foundation CO income",f&&f.changeOrders?fmtCompact(f.changeOrders.incomeAdj||0):"—",f&&f.changeOrders?(f.changeOrders.count+" posted"):"")
+      +stat("Foundation CO cost",f&&f.changeOrders?fmtCompact(f.changeOrders.costAdj||0):"—","")
+      +"</div>"+(chips?"<div style=\"margin-top:9px\">"+chips+"</div>":"")+"</div>";
+  }
+
+  /* field & schedule */
+  var field="<div class=\"dw-sec\"><h4>Field &amp; schedule (Procore)</h4><div class=\"dw-stats\">"
+    +stat("Start",fmtDate(j.start),"")
+    +stat("Projected finish",fmtDate(j.projectedFinish||j.completionDate),dpf>0?("<span style=\"color:#c07f1a\">"+dpf+"d past</span>"):(j.projectedFinish?Math.abs(dpf)+"d out":""))
+    +stat("RFIs open",j.rfis?(j.rfis.open+" <span style=\"color:#8b95ab;font-size:12px\">/ "+j.rfis.total+"</span>"):"—","")
+    +stat("Submittals open",j.submittals?(j.submittals.open+" <span style=\"color:#8b95ab;font-size:12px\">/ "+j.submittals.total+"</span>"):"—","")
+    +stat("Work type",esc((j.workType||"—").replace(/_/g," ")),"")
+    +stat("Client type",esc(j.clientType||"—"),"")
+    +"</div></div>";
+
+  /* source trail */
+  var trail="<div class=\"dw-sec\"><h4>Source trail</h4><table class=\"dwt\">"
+    +"<tr><th>Fields</th><th>Source</th><th class=\"r\">Data age</th></tr>"
+    +"<tr><td>Contract (revised)</td><td>Procore prime contract</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
+    +"<tr><td>Cost, billed, retainage, PM, CO postings</td><td>Foundation nightly ODBC</td><td class=\"r\">"+(fAge||"—")+"</td></tr>"
+    +"<tr><td>Open / overdue invoices</td><td>Foundation AR feed</td><td class=\"r\">"+(aAge||"—")+"</td></tr>"
+    +"<tr><td>Schedule, %, RFIs, submittals, CO types</td><td>Procore daily cache</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
+    +"</table><div class=\"dw-note\">Full field-by-field provenance: 📖 Data Sources on the legacy dashboard, or RYC_Dashboard_Data_Dictionary.md. Commitments / buyout arrive in Phase 3b.</div></div>";
+
+  return head+"<div class=\"dw-body\">"+snap+recon+billing+costSec+coSec+field+trail+"</div>";
+}
+function openDrawer(jno,trigger){
+  var j=jobByNo(jno); if(!j) return;
+  closeDrawer(true);
+  _dwTrigger=trigger||null;
+  var wrap=document.createElement("div"); wrap.id="dwrap";
+  wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Job detail: "+attrEsc(j.name||jno)+"\">"+drawerHtml(j)+"</aside>";
+  document.body.appendChild(wrap);
+  document.addEventListener("keydown",dwEsc);
+  var cb=wrap.querySelector(".dw-close"); if(cb) cb.focus();
+}
+function dwEsc(e){ if(e.key==="Escape") closeDrawer(); }
+function closeDrawer(silent){
+  var w=document.getElementById("dwrap");
+  if(!w) return;
+  w.remove();
+  document.removeEventListener("keydown",dwEsc);
+  if(!silent&&_dwTrigger&&document.contains(_dwTrigger)) _dwTrigger.focus();
+  _dwTrigger=null;
 }
 
 /* ---- gate / nav / boot ---- */
@@ -554,7 +737,7 @@ function renderNav(){
   el.innerHTML=NAV.map(function(n){ var on=n.key===currentView; return "<button type=\"button\" data-key=\""+n.key+"\" class=\""+(on?"active":"")+"\""+(on?" aria-current=\"page\"":"")+"><span class=\"ic\">"+n.ic+"</span>"+n.label+"</button>"; }).join("");
   Array.prototype.forEach.call(el.querySelectorAll("button"),function(a){ a.addEventListener("click",function(){ setView(a.getAttribute("data-key")); }); });
 }
-function setView(k){ currentView=k; renderNav(); renderView();
+function setView(k){ closeDrawer(true); currentView=k; renderNav(); renderView();
   var btn=document.querySelector("#nav button.active"); if(btn) btn.focus(); // restore focus after re-render (a11y)
 }
 function renderView(){
