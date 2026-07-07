@@ -38,10 +38,11 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit
 .brand .bt{font-weight:700;font-size:15px;letter-spacing:.2px}
 .brand .bs{color:var(--muted);font-size:11px;margin-top:1px}
 .nav{padding:6px 12px;display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto}
-.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--r-sm);color:var(--muted);text-decoration:none;font-size:13.5px;font-weight:500;border-left:2px solid transparent;cursor:pointer}
-.nav a .ic{width:18px;text-align:center;font-size:14px;opacity:.9}
-.nav a:hover{background:var(--panel-2);color:var(--text)}
-.nav a.active{background:var(--accent-soft);color:var(--text);border-left-color:var(--accent)}
+.nav button{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--r-sm);color:var(--muted);font-size:13.5px;font-weight:500;border:none;border-left:2px solid transparent;cursor:pointer;background:none;width:100%;text-align:left;font-family:inherit}
+.nav button .ic{width:18px;text-align:center;font-size:14px;opacity:.9}
+.nav button:hover{background:var(--panel-2);color:var(--text)}
+.nav button:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
+.nav button.active{background:var(--accent-soft);color:var(--text);border-left-color:var(--accent)}
 .side-foot{padding:12px 14px;border-top:1px solid var(--border-soft);font-size:12px}
 .side-foot a{color:var(--muted);text-decoration:none;display:block;padding:5px 0}
 .side-foot a:hover{color:var(--accent)}
@@ -81,7 +82,23 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit
 .src-chip{display:flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--border-soft);border-radius:20px;padding:5px 12px;font-size:11.5px;color:var(--muted)}
 .src-chip b{color:var(--text);font-weight:600}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.warn-banner{background:rgba(239,83,80,.12);border:1px solid rgba(239,83,80,.4);color:#ffd9d7;border-radius:var(--r-sm);padding:11px 15px;font-size:13px;margin-bottom:18px}
+.warn-banner b{color:#fff}
+.q-more{font-size:11px;color:var(--faint);font-weight:500;text-transform:none;letter-spacing:0;margin-left:6px}
 @media(max-width:980px){.grid2{grid-template-columns:1fr}.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto}
+  .nav{flex-direction:row;flex-wrap:wrap;gap:4px}
+  .nav button{width:auto}
+  .topbar{padding:18px 18px 14px}.topbar h2{font-size:22px}
+  .view{padding:16px 16px 50px}
+  .kpi-strip{grid-template-columns:1fr 1fr}
+  .kpi{border-bottom:1px solid var(--border-soft)}
+  .q-row{flex-wrap:wrap;gap:6px 12px}
+  .q-job{min-width:0;max-width:none;flex:1 1 100%}
+  .q-val{min-width:0;text-align:left}
+}
 </style>
 </head>
 <body>
@@ -252,16 +269,22 @@ function activeAccountRows(){
 
 /* ---- Buildr follow-ups ---- */
 function buildrFollowUps(){
-  if(!buildrData||!buildrData.jobs) return [];
-  var out=[]; var activeNums={}; getActiveJobs().forEach(function(j){ activeNums[j.projectNumber]=j; });
-  Object.keys(buildrData.jobs).forEach(function(k){
-    var rec=buildrData.jobs[k]; var job=activeNums[k]; if(!job) return;
+  var res={items:[],loaded:0,matched:0,flagged:0};
+  if(!buildrData||!buildrData.jobs) return res;
+  var byNum={}; getActiveJobs().forEach(function(j){ byNum[String(j.projectNumber||"").trim()]=j; });
+  var keys=Object.keys(buildrData.jobs); res.loaded=keys.length;
+  keys.forEach(function(k){
+    var rec=buildrData.jobs[k];
+    var num=String((rec&&rec.projectNumber)||k||"").trim();
+    var job=byNum[num]; if(!job) return;
+    res.matched++;
     if(rec && rec.needsAttention){
+      res.flagged++;
       var last=rec.daysSinceLastMeeting;
-      out.push({job:k,name:job.name||"",pm:pmName(job)||"(no PM)",detail:last==null?"No owner visit logged in Buildr":"Last owner visit "+last+"d ago",open:(rec.openTasks||[]).length});
+      res.items.push({job:num,name:job.name||"",pm:pmName(job)||"(no PM)",detail:last==null?"No owner visit logged in Buildr":"Last owner visit "+last+"d ago",open:(rec.openTasks||[]).length});
     }
   });
-  return out;
+  return res;
 }
 
 /* ===== Command Center ======================================================== */
@@ -272,24 +295,31 @@ function projectedGrossMargin(){
 }
 
 function renderCommand(){
+  var haveFnd=!!(foundationData&&foundationData.jobs);
+  var haveAr=!!(arData&&arData.invoices);
   var jobs=getActiveJobs();
   var totalContract=jobs.reduce(function(s,j){return s+(j.contractValue||0);},0);
   var lights=jobs.map(function(j){return {j:j,sl:getStoplight(j,j)};});
   var reds=lights.filter(function(x){return x.sl.color==="red";});
   var ambers=lights.filter(function(x){return x.sl.color==="amber";});
   var gm=projectedGrossMargin();
-  var accts=activeAccountRows();
+  var accts=haveFnd?activeAccountRows():[];
   var needsInv=accts.reduce(function(s,r){return s+r.under;},0);
   var overdue=accts.reduce(function(s,r){return s+r.overdue;},0);
   var flagged=reds.length+ambers.length;
+  var missing=[];
+  if(!activeData||!activeData.jobs) missing.push("Procore");
+  if(!haveFnd) missing.push("Foundation");
+  if(!haveAr) missing.push("AR");
+  var warn=missing.length?("<div class=\"warn-banner\">⚠️ "+missing.join(" + ")+" feed unavailable — affected figures show <b>Unavailable</b>, not $0.</div>"):"";
 
   /* KPI strip */
   function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
   var strip="<div class=\"kpi-strip\">"
     +kpi("Active contract value",fmt(totalContract),jobs.length+" active jobs","accent")
     +kpi("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast · Procore budget",(gm!=null&&gm<8)?"warn":"")
-    +kpi("Overdue AR (active)",fmtCompact(overdue),"needs collection",overdue>0?"bad":"")
-    +kpi("Needs invoicing",fmtCompact(needsInv),"earned, not billed",needsInv>0?"warn":"")
+    +kpi("Overdue AR (active)",haveAr?fmtCompact(overdue):"Unavailable",haveAr?"needs collection":"AR feed down",haveAr?(overdue>0?"bad":""):"warn")
+    +kpi("Needs invoicing",haveFnd?fmtCompact(needsInv):"Unavailable",haveFnd?"earned, not billed":"Foundation feed down",haveFnd?(needsInv>0?"warn":""):"warn")
     +kpi("Jobs flagged",String(flagged),reds.length+" red · "+ambers.length+" amber",flagged>0?"warn":"")
     +"</div>";
 
@@ -298,31 +328,32 @@ function renderCommand(){
     return "<div class=\"q-row "+cls+"\"><div class=\"q-job\">"+esc(name)+"<span class=\"q-jno\">"+esc(jno||"")+"</span></div>"
       +"<div class=\"q-detail\">"+detail+"</div>"+(val!=null?"<div class=\"q-val "+(vcls||"")+"\">"+val+"</div>":"")+"</div>";
   }
-  function section(title,n,rowsHtml,empty){
-    return "<div class=\"qsec\"><div class=\"qh\">"+title+" <span class=\"qn\">"+n+"</span></div>"+(n?rowsHtml:"<div class=\"q-empty\">"+empty+"</div>")+"</div>";
+  function section(title,n,rowsHtml,empty,badge){
+    return "<div class=\"qsec\"><div class=\"qh\">"+title+" <span class=\"qn\">"+(badge!=null?badge:n)+"</span></div>"+(n?rowsHtml:"<div class=\"q-empty\">"+empty+"</div>")+"</div>";
   }
   // red
   var redRows=reds.map(function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="red";}).map(function(z){return z.text;}).join(" · "); return row("red",x.j.name||"",x.j.projectNumber,"<b>"+esc(r)+"</b>",fmtCompact(x.j.contractValue),""); }).join("");
   // amber
   var amberRows=ambers.map(function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="amber";}).map(function(z){return z.text;}).join(" · "); return row("amber",x.j.name||"",x.j.projectNumber,esc(r),fmtCompact(x.j.contractValue),""); }).join("");
   // billing follow-up: needs-invoiced + overdue
-  var billRows=accts.filter(function(r){return r.under>1000||r.overdue>0;})
-    .sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);}).slice(0,10)
-    .map(function(r){ var bits=[]; if(r.under>0) bits.push("needs invoicing <b>"+fmtCompact(r.under)+"</b>"+(r.exact?"":" <span style=\"color:var(--faint)\">(bid-est)</span>")); if(r.overdue>0) bits.push("overdue AR <b>"+fmtCompact(r.overdue)+"</b>"); return row("info",r.name||"",r.job,bits.join(" · ")+" · "+esc(r.pm),null,""); }).join("");
-  var billCount=accts.filter(function(r){return r.under>1000||r.overdue>0;}).length;
+  var billAll=accts.filter(function(r){return r.under>1000||r.overdue>0;}).sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);});
+  var billCount=billAll.length;
+  var billRows=billAll.slice(0,10).map(function(r){ var bits=[]; if(r.under>0) bits.push("needs invoicing <b>"+fmtCompact(r.under)+"</b>"+(r.exact?"":" <span style=\"color:var(--faint)\">(bid-est)</span>")); if(r.overdue>0) bits.push("overdue AR <b>"+fmtCompact(r.overdue)+"</b>"); return row("info",r.name||"",r.job,bits.join(" · ")+" · "+esc(r.pm),null,""); }).join("");
+  var billBadge=!haveFnd?"n/a":(billCount>10?"top 10 of "+billCount:String(billCount));
   // margin fades
   var fades=gainFadeRows().filter(function(r){return r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;}).slice(0,8);
   var fadeRows=fades.map(function(r){ return row("fade",r.name,r.job,"fading <b>"+r.gfPts.toFixed(1)+" pts</b>"+(r.burnRisk?" · cost-burn risk":"")+" · "+esc(r.pm),fmtCompact(r.gfDollars),r.gfDollars<0?"bad":""); }).join("");
   // client follow-ups (Buildr)
-  var cfu=buildrFollowUps();
-  var cfuRows=cfu.slice(0,10).map(function(r){ return row("info",r.name,r.job,esc(r.detail)+(r.open?" · <b>"+r.open+" open</b>":"")+" · "+esc(r.pm),null,""); }).join("");
+  var bf=buildrFollowUps();
+  var cfuRows=bf.items.slice(0,10).map(function(r){ return row("info",r.name,r.job,esc(r.detail)+(r.open?" · <b>"+r.open+" open</b>":"")+" · "+esc(r.pm),null,""); }).join("");
+  var cfuEmpty=bf.loaded===0?"Buildr feed unavailable.":(bf.matched===0?bf.loaded+" Buildr projects loaded, but none matched active job numbers — check the join.":"0 flagged · "+bf.loaded+" loaded, "+bf.matched+" matched active jobs.");
 
   var queue="<div class=\"panel\"><h3>Priority queue</h3><div class=\"sub\">What leadership should talk about this week — jobs to act on, most urgent first. Contract = Procore Revised; billing/AR/cost = Foundation.</div>"
     +section("🔴 Needs attention now",reds.length,redRows,"No red jobs.")
     +section("🟠 Watch",ambers.length,amberRows,"No amber jobs.")
-    +section("💵 Billing & cash follow-up",billCount,billRows,"Nothing needs invoicing or overdue.")
+    +section("💵 Billing & cash follow-up",(haveFnd?billCount:1),(haveFnd?billRows:"<div class=\"q-empty\">Foundation data unavailable — billing/AR not computed.</div>"),"Nothing needs invoicing or overdue.",billBadge)
     +section("📉 Margin fades",fades.length,fadeRows,"No jobs fading.")
-    +section("🤝 Client follow-up (Buildr)",cfu.length,cfuRows,"No owner-visit follow-ups flagged.")
+    +section("🤝 Client follow-up (Buildr)",bf.items.length,cfuRows,cfuEmpty)
     +"</div>";
 
   /* source-health strip */
@@ -336,7 +367,7 @@ function renderCommand(){
     +chip(foundationOnly.length>=0,"Coverage",foundationOnly.length+" Foundation-only active jobs not on board")
     +"</div></div>";
 
-  return strip+queue+health;
+  return warn+strip+queue+health;
 }
 
 /* ---- gate / nav / boot ---- */
@@ -363,8 +394,8 @@ function loadData(){
 
 function renderNav(){
   var el=document.getElementById("nav");
-  el.innerHTML=NAV.map(function(n){ return "<a data-key=\""+n.key+"\" class=\""+(n.key===currentView?"active":"")+"\"><span class=\"ic\">"+n.ic+"</span>"+n.label+"</a>"; }).join("");
-  Array.prototype.forEach.call(el.querySelectorAll("a"),function(a){ a.addEventListener("click",function(){ setView(a.getAttribute("data-key")); }); });
+  el.innerHTML=NAV.map(function(n){ var on=n.key===currentView; return "<button type=\"button\" data-key=\""+n.key+"\" class=\""+(on?"active":"")+"\""+(on?" aria-current=\"page\"":"")+"><span class=\"ic\">"+n.ic+"</span>"+n.label+"</button>"; }).join("");
+  Array.prototype.forEach.call(el.querySelectorAll("button"),function(a){ a.addEventListener("click",function(){ setView(a.getAttribute("data-key")); }); });
 }
 function setView(k){ currentView=k; renderNav(); renderView(); }
 function renderView(){
