@@ -6,7 +6,7 @@
 <title>RYC Command Center</title>
 <link rel="icon" href="/ryc-dashboard/RYC_Shield_Orange.png">
 <style>
-/* ===== RYC Command Center — Phase 0 shell / design tokens ===================== */
+/* ===== RYC Command Center — design tokens ==================================== */
 :root{
   --font-sans:-apple-system,"Segoe UI",system-ui,Roboto,Helvetica,Arial,sans-serif;
   --font-serif:"Newsreader","Iowan Old Style",Georgia,"Times New Roman",serif;
@@ -21,8 +21,6 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
-.mono-num{font-variant-numeric:tabular-nums}
-/* ---- password gate ---- */
 #gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 700px at 50% -10%,#12203a 0%,var(--bg) 60%);z-index:50}
 #gate .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:34px 32px;width:340px;text-align:center;box-shadow:var(--shadow)}
 #gate img{width:52px;height:52px;margin-bottom:14px}
@@ -32,10 +30,8 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit
 #gate input:focus{outline:none;border-color:var(--accent-line)}
 #gate button{width:100%;margin-top:12px;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:var(--r-sm);font-size:14px;font-weight:600;cursor:pointer}
 #gate .err{color:var(--red);font-size:12px;height:14px;margin-top:8px}
-/* ---- app shell ---- */
 #app[hidden]{display:none}
 .shell{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
-/* sidebar (constant unifier — dark on every view) */
 .sidebar{background:var(--sidebar);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .brand{display:flex;align-items:center;gap:11px;padding:20px 18px 18px}
 .brand img{width:34px;height:34px}
@@ -46,40 +42,46 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit
 .nav a .ic{width:18px;text-align:center;font-size:14px;opacity:.9}
 .nav a:hover{background:var(--panel-2);color:var(--text)}
 .nav a.active{background:var(--accent-soft);color:var(--text);border-left-color:var(--accent)}
-.nav .sep{height:1px;background:var(--border-soft);margin:8px 4px}
 .side-foot{padding:12px 14px;border-top:1px solid var(--border-soft);font-size:12px}
 .side-foot a{color:var(--muted);text-decoration:none;display:block;padding:5px 0}
 .side-foot a:hover{color:var(--accent)}
 .side-foot .ver{color:var(--faint);font-size:11px;margin-top:8px}
-/* content */
 .content{position:relative;background:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:34px 34px;min-height:100vh}
 .topbar{display:flex;align-items:flex-end;justify-content:space-between;padding:26px 34px 18px;border-bottom:1px solid var(--border-soft)}
 .topbar h2{font-family:var(--font-serif);font-weight:600;font-size:26px;margin:0}
 .topbar .ctx{color:var(--muted);font-size:12.5px;margin-top:4px}
-.view{padding:26px 34px 60px}
-/* KPI strip */
-.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:24px}
+.view{padding:24px 34px 60px}
+.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);background:var(--panel);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:22px}
 .kpi{padding:15px 18px;border-right:1px solid var(--border-soft)}
 .kpi:last-child{border-right:none}
 .kpi .kl{color:var(--muted);font-size:10.5px;letter-spacing:.7px;text-transform:uppercase}
-.kpi .kv{font-family:var(--font-serif);font-size:24px;margin-top:5px;font-variant-numeric:tabular-nums}
-.kpi .kv.accent{color:var(--accent)}
-/* status pill */
+.kpi .kv{font-family:var(--font-serif);font-size:23px;margin-top:5px;font-variant-numeric:tabular-nums}
+.kpi .kv.accent{color:var(--accent)} .kpi .kv.warn{color:var(--amber)} .kpi .kv.bad{color:var(--red)}
+.kpi .ks{color:var(--faint);font-size:11px;margin-top:2px}
 .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px}
 .pill.g{background:rgba(47,191,113,.14);color:var(--green)} .pill.a{background:rgba(242,163,60,.15);color:var(--amber)} .pill.r{background:rgba(239,83,80,.15);color:var(--red)}
 .pill.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
-/* panel */
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;margin-bottom:20px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:18px}
 .panel h3{font-family:var(--font-serif);font-weight:600;font-size:16px;margin:0 0 3px}
 .panel .sub{color:var(--muted);font-size:12.5px;margin-bottom:14px}
-/* source-health grid (Phase-0 plumbing check) */
-.src-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
-.src{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--border-soft);border-radius:var(--r-sm);padding:11px 13px}
-.src .st{font-size:16px}
-.src .sn{font-size:13px;font-weight:600}
-.src .sd{color:var(--muted);font-size:11.5px;margin-top:1px}
-.phase-note{margin-top:6px;padding:14px 16px;border:1px dashed var(--accent-line);border-radius:var(--r-sm);background:var(--accent-soft);color:var(--text);font-size:13px}
-.phase-note b{color:var(--accent)}
+/* priority queue */
+.qsec{margin-bottom:16px}
+.qsec .qh{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:0 2px 8px}
+.qsec .qh .qn{background:var(--panel-2);border:1px solid var(--border-soft);border-radius:20px;padding:0 8px;font-size:11px;color:var(--text)}
+.q-row{display:flex;align-items:center;gap:13px;padding:10px 14px;border:1px solid var(--border-soft);border-left:3px solid var(--border);border-radius:var(--r-sm);background:var(--panel-2);margin-bottom:7px}
+.q-row.red{border-left-color:var(--red)} .q-row.amber{border-left-color:var(--amber)} .q-row.info{border-left-color:var(--blue)} .q-row.fade{border-left-color:#c07adf}
+.q-job{font-weight:600;font-size:13.5px;min-width:210px;max-width:210px}
+.q-job .q-jno{color:var(--faint);font-size:11px;font-weight:500;display:block}
+.q-detail{color:var(--muted);font-size:12.5px;flex:1}
+.q-detail b{color:var(--text);font-weight:600}
+.q-val{font-family:var(--font-serif);font-size:15px;font-variant-numeric:tabular-nums;text-align:right;min-width:78px}
+.q-val.bad{color:var(--red)} .q-val.warn{color:var(--amber)}
+.q-empty{color:var(--faint);font-size:12.5px;padding:4px 2px}
+.src-strip{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.src-chip{display:flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--border-soft);border-radius:20px;padding:5px 12px;font-size:11.5px;color:var(--muted)}
+.src-chip b{color:var(--text);font-weight:600}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:980px){.grid2{grid-template-columns:1fr}.kpi-strip{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -106,7 +108,7 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit
       <div class="side-foot">
         <a href="/ryc/estimate">&#128208; Estimating Tools &rarr;</a>
         <a href="/ryc/dashboard">&#11116; Legacy Dashboard</a>
-        <div class="ver">v2.0.0-command &middot; Phase 0 shell</div>
+        <div class="ver">v2.1.0-command &middot; Phase 1</div>
       </div>
     </aside>
     <main class="content">
@@ -120,9 +122,10 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit
 
 <script>
 "use strict";
-/* ===== RYC Command Center — Phase 0 shell logic ============================== */
+/* ===== RYC Command Center — Phase 1 (compute reimplemented from the legacy dashboard,
+   verified against the frozen §8a baseline). Reads the SAME data sources; live untouched. ===== */
 var CRM = "https://crm.jbkdevelopment.com";
-var STATE = { procore:null, foundation:null, ar:null, buildr:null, portfolio:null, subs:null, loadedAt:null };
+var activeData=null, foundationData=null, arData=null, buildrData=null, portfolioData=null, subsData=null, loadedAt=null, foundationOnly=[];
 
 var NAV = [
   { key:"command",  label:"Command Center", ic:"&#129517;" },
@@ -135,96 +138,250 @@ var NAV = [
 ];
 var currentView = "command";
 
-/* ---- gate ---- */
-function showApp(){ document.getElementById("gate").style.display="none"; document.getElementById("app").hidden=false; init(); }
-function tryGate(){
-  var v = document.getElementById("gate-input").value.trim();
-  if (v === "ryc2026"){ sessionStorage.setItem("ryc_cmd_auth","1"); showApp(); }
-  else { document.getElementById("gate-err").textContent = "Incorrect access code"; }
+var CLOSEOUT_STAGES = { "Warranty":1, "Post-Construction":1 };
+var GF_MOVE_PTS = 1.0, GF_BURN_PTS = 12, GF_BURN_MINPCT = 20;
+
+/* ---- format helpers ---- */
+function fmt(n){ return n==null?"—":"$"+Math.round(n).toLocaleString("en-US"); }
+function fmtCompact(n){ if(n==null) return "—"; var a=Math.abs(n),s=n<0?"-":""; if(a>=1e6) return s+"$"+(a/1e6).toFixed(1)+"M"; if(a>=1e3) return s+"$"+Math.round(a/1e3).toLocaleString("en-US")+"K"; return s+"$"+Math.round(a).toLocaleString("en-US"); }
+function pct(n){ return n==null?"—":n.toFixed(1)+"%"; }
+function esc(s){ if(!s) return ""; var d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+function pmName(job){ return (job.foundation && job.foundation.pmName) || (job.pm && job.pm.name) || null; }
+function contractedMargin(job){ var cv=job.contractValue, bo=job.budget && job.budget.original; if(!(cv>0 && bo>0)) return null; return bo>=cv?0:((cv-bo)/cv*100); }
+function marginToDate(job){ var cv=job.contractValue, dc=(job.costToDate!=null?job.costToDate:(job.budget&&job.budget.direct)); return (cv>0 && dc>0)?((cv-dc)/cv*100):null; }
+
+/* ---- Foundation merge (Procore-revised contract priority; ported from legacy v1.29.0) ---- */
+function mergeFoundation(){
+  foundationOnly=[];
+  if(!activeData || !activeData.jobs) return;
+  var fjobs=(foundationData && foundationData.jobs)||{};
+  var procoreNums=new Set();
+  for(var i=0;i<activeData.jobs.length;i++){
+    var j=activeData.jobs[i];
+    var num=(j.projectNumber||"").trim(); procoreNums.add(num);
+    var f=fjobs[num]; j.flags=[];
+    var rev=(j.revisedContract>0)?j.revisedContract:0;
+    if(!f){ j.foundation=null; j.costToDate=(j.budget&&j.budget.direct)!=null?j.budget.direct:null; if(rev){ j.procoreContractValue=j.contractValue; j.contractValue=rev; } continue; }
+    j.foundation=f;
+    if(rev){
+      j.procoreContractValue=j.contractValue; j.contractValue=rev;
+      var fd=(f.currentContract||0)-rev;
+      if(f.currentContract>0 && Math.abs(fd)>50000 && Math.abs(fd)>rev*0.02) j.flags.push({type:"contract",text:"Foundation "+fmtCompact(f.currentContract)});
+    } else if(f.currentContract>0){
+      j.procoreContractValue=j.contractValue; j.contractValue=f.currentContract;
+      var d=j.contractValue-(j.procoreContractValue||0);
+      if(j.procoreContractValue && Math.abs(d)>50000 && Math.abs(d)>j.contractValue*0.02) j.flags.push({type:"contract",text:"Procore "+fmtCompact(j.procoreContractValue)});
+    }
+    j.costToDate=(f.totalCosts!=null)?f.totalCosts:((j.budget&&j.budget.direct)!=null?j.budget.direct:null);
+    if(j.costToDate!=null && j.contractValue>0) j.costOverrun=j.costToDate>j.contractValue;
+    if(f.jobStatus==="C") j.flags.push({type:"closed",text:"Foundation: closed"});
+  }
+  foundationOnly=Object.values(fjobs).filter(function(f){ return f.jobStatus==="A" && !procoreNums.has((f.jobNo||"").trim()) && (((f.currentContract||0)>0)||((f.originalContract||0)>0)); });
 }
-document.getElementById("gate-btn").addEventListener("click", tryGate);
-document.getElementById("gate-input").addEventListener("keydown", function(e){ if(e.key==="Enter") tryGate(); });
 
-/* ---- data ---- */
-function bust(u){ return u + (u.indexOf("?")>-1?"&":"?") + "t=" + Date.now(); }
-function getJSON(u){ return fetch(bust(u)).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); }).catch(function(){ return null; }); }
+function getActiveJobs(){ return ((activeData&&activeData.jobs)||[]).filter(function(j){ return !CLOSEOUT_STAGES[j.stage]; }); }
 
-function loadData(){
-  return Promise.all([
-    getJSON("/ryc-dashboard/procore-cache.json"),
-    getJSON(CRM + "/api/ryc-foundation"),
-    getJSON(CRM + "/api/ryc-ar"),
-    getJSON(CRM + "/api/ryc-buildr"),
-    getJSON("/ryc-dashboard/ryc-portfolio.json"),
-    getJSON("/ryc-dashboard/ryc-subcontractors.json")
-  ]).then(function(r){
-    STATE.procore=r[0]; STATE.foundation=r[1]; STATE.ar=r[2]; STATE.buildr=r[3]; STATE.portfolio=r[4]; STATE.subs=r[5];
-    STATE.loadedAt = new Date();
+function getStoplight(job, live){
+  var stage=live?live.stage:null, pctComp=live?live.pctComplete:null, costOverrun=live?live.costOverrun:null;
+  var finishDate=live?(live.projectedFinish||live.completionDate):null, verifyStatus=live?live.verifyStatus:null;
+  var cMargin=contractedMargin(job), mtd=marginToDate(job);
+  var co=live?live.changeOrders:null;
+  var coExposure=(co&&co.netValue&&job.contractValue)?Math.abs(co.netValue)/job.contractValue:0;
+  var isPrecon=stage==="Pre-Construction"||(!(live&&live.budget)&&(pctComp==null||pctComp===0));
+  if(isPrecon) return {color:"gray",reasons:[]};
+  var daysOverdue=finishDate?Math.floor((Date.now()-new Date(finishDate))/86400000):0;
+  var reasons=[];
+  if(costOverrun) reasons.push({level:"red",text:"Cost overrun"});
+  if(mtd!=null && mtd<0) reasons.push({level:"red",text:"Margin to date "+mtd.toFixed(1)+"%"});
+  if(daysOverdue>30 && !verifyStatus) reasons.push({level:"red",text:Math.abs(daysOverdue)+" days past projected finish"});
+  var red=reasons.some(function(r){return r.level==="red";});
+  if(!red){
+    if(cMargin!=null && cMargin>0 && cMargin<5) reasons.push({level:"amber",text:"Contracted margin "+cMargin.toFixed(1)+"% (below 5%)"});
+    if(pctComp!=null && pctComp>=10 && mtd!=null && cMargin!=null && mtd<cMargin) reasons.push({level:"amber",text:"Margin declining "+mtd.toFixed(1)+"% vs "+cMargin.toFixed(1)+"% contracted"});
+    if(daysOverdue>=1 && daysOverdue<=30) reasons.push({level:"amber",text:daysOverdue+" days past projected finish"});
+    if(coExposure>0.07) reasons.push({level:"amber",text:"CO exposure "+(coExposure*100).toFixed(1)+"% of contract"});
+    if(finishDate && !verifyStatus && daysOverdue<=0 && Math.abs(daysOverdue)<=30) reasons.push({level:"amber",text:"Finishing in "+Math.abs(daysOverdue)+" days"});
+  }
+  var amber=!red && reasons.some(function(r){return r.level==="amber";});
+  return {color:red?"red":amber?"amber":"green",reasons:reasons};
+}
+
+/* ---- gain/fade (ported) ---- */
+function gainFadeRows(){
+  var rows=[];
+  var jobs=getActiveJobs();
+  for(var i=0;i<jobs.length;i++){
+    var j=jobs[i], f=j.foundation, b=j.budget||{}, pctc=j.pctComplete;
+    var pC=j.procoreContractValue!=null?j.procoreContractValue:j.contractValue;
+    var curContract=(f&&f.currentContract>0)?f.currentContract:pC;
+    var asbidContract=(f&&f.originalContract>0)?f.originalContract:pC;
+    var asbidCost=(f&&f.originalCost!=null)?f.originalCost:b.original;
+    if(!(curContract>0)||asbidCost==null) continue;
+    var costGrowth=(b.revised>0&&b.original>0)?(b.revised-b.original):0;
+    var coIncome=(f&&f.originalContract>0)?(curContract-asbidContract):null;
+    var projCost=asbidCost+costGrowth;
+    var asbid=(asbidContract-asbidCost)/asbidContract*100;
+    var curMargin=(curContract-projCost)/curContract*100;
+    var gfPts=curMargin-asbid;
+    var gfDollars=(coIncome!=null?coIncome:0)-costGrowth;
+    var costToDate=f?f.totalCosts:null;
+    var burnPct=(costToDate!=null&&projCost>0)?costToDate/projCost*100:null;
+    var burnRisk=burnPct!=null&&pctc!=null&&pctc>=GF_BURN_MINPCT&&(burnPct-pctc)>=GF_BURN_PTS;
+    rows.push({job:j.projectNumber||"",name:j.name||(f&&f.description)||"",pm:pmName(j)||"(no PM)",pct:pctc,gfPts:gfPts,gfDollars:gfDollars,burnRisk:burnRisk});
+  }
+  return rows;
+}
+
+/* ---- billing / AR (ported) ---- */
+function activeJobSet(){ var fj=(foundationData&&foundationData.jobs)||{}; var s=new Set(); Object.values(fj).forEach(function(j){ if(j.jobStatus==="A") s.add(String(j.jobNo)); }); return s; }
+function arRows(cat,scope){ var active=scope?activeJobSet():null; return ((arData&&arData.invoices)||[]).filter(function(v){ if(v.category!==cat) return false; if(!scope) return true; var isA=active.has(String(v.jobNo||"")); return scope==="active"?isA:!isA; }); }
+function overdueByJob(scope){ var m={}; arRows("overdue",scope).forEach(function(v){ var k=String(v.jobNo||""); m[k]=(m[k]||0)+(v.openBalance||0); }); return m; }
+function activeAccountRows(){
+  var fj=(foundationData&&foundationData.jobs)||{}; var odo=overdueByJob("active"); var rows=[];
+  Object.values(fj).forEach(function(f){
+    if(f.jobStatus!=="A") return;
+    var cost=f.totalCosts||0, estCost=f.originalCost||0, invoiced=f.totalInvoiced||0;
+    var contract=f.currentContract||f.originalContract||0, oh=f.ohMarkup, pr=f.profitMarkup;
+    var deficit=null, exact=false;
+    if(cost>0&&oh>0&&pr>0){ deficit=invoiced-cost*oh*pr; exact=true; }
+    else if(cost>0&&estCost>0&&(f.originalContract||0)>0){ deficit=invoiced-cost*(f.originalContract/estCost); }
+    rows.push({pm:f.pmName||"(no PM)",job:f.jobNo,name:f.description||"",contract:contract,cost:cost,invoiced:invoiced,retainage:f.retainage||0,deficit:deficit,exact:exact,under:(deficit!=null&&deficit<0)?-deficit:0,over:(deficit!=null&&deficit>0)?deficit:0,overdue:odo[String(f.jobNo)]||0});
   });
+  return rows;
 }
 
-/* ---- nav ---- */
-function renderNav(){
-  var el = document.getElementById("nav");
-  el.innerHTML = NAV.map(function(n){
-    return "<a data-key=\"" + n.key + "\" class=\"" + (n.key===currentView?"active":"") + "\"><span class=\"ic\">" + n.ic + "</span>" + n.label + "</a>";
-  }).join("");
-  Array.prototype.forEach.call(el.querySelectorAll("a"), function(a){
-    a.addEventListener("click", function(){ setView(a.getAttribute("data-key")); });
+/* ---- Buildr follow-ups ---- */
+function buildrFollowUps(){
+  if(!buildrData||!buildrData.jobs) return [];
+  var out=[]; var activeNums={}; getActiveJobs().forEach(function(j){ activeNums[j.projectNumber]=j; });
+  Object.keys(buildrData.jobs).forEach(function(k){
+    var rec=buildrData.jobs[k]; var job=activeNums[k]; if(!job) return;
+    if(rec && rec.needsAttention){
+      var last=rec.daysSinceLastMeeting;
+      out.push({job:k,name:job.name||"",pm:pmName(job)||"(no PM)",detail:last==null?"No owner visit logged in Buildr":"Last owner visit "+last+"d ago",open:(rec.openTasks||[]).length});
+    }
   });
-}
-function setView(key){ currentView = key; renderNav(); renderView(); }
-
-/* ---- helpers ---- */
-function count(x){ if(!x) return 0; if(Array.isArray(x)) return x.length; if(x.jobs) return Array.isArray(x.jobs)?x.jobs.length:Object.keys(x.jobs).length; if(typeof x==="object") return Object.keys(x).length; return 0; }
-function srcCard(ok, name, detail){
-  return "<div class=\"src\"><span class=\"st\">" + (ok?"&#9989;":"&#10060;") + "</span><div><div class=\"sn\">" + name + "</div><div class=\"sd\">" + detail + "</div></div></div>";
+  return out;
 }
 
-/* ---- views ---- */
-function renderView(){
-  var titles = { command:"Command Center", portfolio:"Portfolio", billing:"Billing & Cash", margin:"Margin & Risk", brief:"Executive Brief", trust:"Data Trust", ai:"AI Assistant" };
-  document.getElementById("view-title").textContent = titles[currentView] || "Command Center";
-  var t = STATE.loadedAt ? STATE.loadedAt.toLocaleString() : "&hellip;";
-  document.getElementById("view-ctx").innerHTML = "Procore + Foundation &middot; loaded " + t;
-  var view = document.getElementById("view");
-  if (currentView === "command"){ view.innerHTML = renderCommand(); return; }
-  view.innerHTML = "<div class=\"panel\"><h3>" + (titles[currentView]||"") + "</h3><div class=\"sub\">Phase 1+ — not built yet. The shell, routing, design tokens, and data plumbing are live; this view comes in a later phase.</div></div>";
+/* ===== Command Center ======================================================== */
+function projectedGrossMargin(){
+  var jobs=getActiveJobs(), tC=0, tPC=0;
+  jobs.forEach(function(j){ var b=j.budget||{}; var pc=b.revised>0?b.revised:(b.original>0?b.original:0); if(j.contractValue>0&&pc>0){ tC+=j.contractValue; tPC+=pc; } });
+  return tC>0?((tC-tPC)/tC*100):null;
 }
 
 function renderCommand(){
-  var pc = count(STATE.procore), fj = count(STATE.foundation), ar = count(STATE.ar), bd = count(STATE.buildr), pf = count(STATE.portfolio), sb = count(STATE.subs);
-  var strip = "<div class=\"kpi-strip\">"
-    + "<div class=\"kpi\"><div class=\"kl\">Active jobs (raw)</div><div class=\"kv accent\">" + pc + "</div></div>"
-    + "<div class=\"kpi\"><div class=\"kl\">Foundation jobs</div><div class=\"kv\">" + fj + "</div></div>"
-    + "<div class=\"kpi\"><div class=\"kl\">AR rows</div><div class=\"kv\">" + ar + "</div></div>"
-    + "<div class=\"kpi\"><div class=\"kl\">Buildr records</div><div class=\"kv\">" + bd + "</div></div>"
-    + "<div class=\"kpi\"><div class=\"kl\">Subcontractors</div><div class=\"kv\">" + sb + "</div></div>"
-    + "</div>";
-  var health = "<div class=\"panel\"><h3>Source health</h3><div class=\"sub\">Phase 0 plumbing check — every data source the cockpit will read, loaded live from the same endpoints as the legacy dashboard (zero duplication).</div>"
-    + "<div class=\"src-grid\">"
-    + srcCard(!!STATE.procore, "Procore cache", pc + " active jobs")
-    + srcCard(!!STATE.foundation, "Foundation (accounting)", fj + " jobs")
-    + srcCard(!!STATE.ar, "AR (billing)", ar + " rows")
-    + srcCard(!!STATE.buildr, "Buildr (Client Relations)", bd + " records")
-    + srcCard(!!STATE.portfolio, "Completed portfolio", pf + " jobs")
-    + srcCard(!!STATE.subs, "Subcontractors", sb + " records")
-    + "</div>"
-    + "<div class=\"phase-note\"><b>Phase 0 shell.</b> Next (Phase 1): the real Command Center &mdash; priority queue (jobs to talk about), KPI strip, and source-health strip, computed against the frozen §8a baseline. Cinematic stays restrained; orbit / embedded AI come later.</div>"
-    + "</div>";
-  var legend = "<div class=\"panel\"><h3>Design system</h3><div class=\"sub\">Status vocabulary + accent, shared across every view.</div>"
-    + "<span class=\"pill g dot\">On track</span> &nbsp; <span class=\"pill a dot\">Watch</span> &nbsp; <span class=\"pill r dot\">Action required</span></div>";
-  return strip + health + legend;
+  var jobs=getActiveJobs();
+  var totalContract=jobs.reduce(function(s,j){return s+(j.contractValue||0);},0);
+  var lights=jobs.map(function(j){return {j:j,sl:getStoplight(j,j)};});
+  var reds=lights.filter(function(x){return x.sl.color==="red";});
+  var ambers=lights.filter(function(x){return x.sl.color==="amber";});
+  var gm=projectedGrossMargin();
+  var accts=activeAccountRows();
+  var needsInv=accts.reduce(function(s,r){return s+r.under;},0);
+  var overdue=accts.reduce(function(s,r){return s+r.overdue;},0);
+  var flagged=reds.length+ambers.length;
+
+  /* KPI strip */
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var strip="<div class=\"kpi-strip\">"
+    +kpi("Active contract value",fmt(totalContract),jobs.length+" active jobs","accent")
+    +kpi("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast · Procore budget",(gm!=null&&gm<8)?"warn":"")
+    +kpi("Overdue AR (active)",fmtCompact(overdue),"needs collection",overdue>0?"bad":"")
+    +kpi("Needs invoicing",fmtCompact(needsInv),"earned, not billed",needsInv>0?"warn":"")
+    +kpi("Jobs flagged",String(flagged),reds.length+" red · "+ambers.length+" amber",flagged>0?"warn":"")
+    +"</div>";
+
+  /* Priority queue */
+  function row(cls,name,jno,detail,val,vcls){
+    return "<div class=\"q-row "+cls+"\"><div class=\"q-job\">"+esc(name)+"<span class=\"q-jno\">"+esc(jno||"")+"</span></div>"
+      +"<div class=\"q-detail\">"+detail+"</div>"+(val!=null?"<div class=\"q-val "+(vcls||"")+"\">"+val+"</div>":"")+"</div>";
+  }
+  function section(title,n,rowsHtml,empty){
+    return "<div class=\"qsec\"><div class=\"qh\">"+title+" <span class=\"qn\">"+n+"</span></div>"+(n?rowsHtml:"<div class=\"q-empty\">"+empty+"</div>")+"</div>";
+  }
+  // red
+  var redRows=reds.map(function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="red";}).map(function(z){return z.text;}).join(" · "); return row("red",x.j.name||"",x.j.projectNumber,"<b>"+esc(r)+"</b>",fmtCompact(x.j.contractValue),""); }).join("");
+  // amber
+  var amberRows=ambers.map(function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="amber";}).map(function(z){return z.text;}).join(" · "); return row("amber",x.j.name||"",x.j.projectNumber,esc(r),fmtCompact(x.j.contractValue),""); }).join("");
+  // billing follow-up: needs-invoiced + overdue
+  var billRows=accts.filter(function(r){return r.under>1000||r.overdue>0;})
+    .sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);}).slice(0,10)
+    .map(function(r){ var bits=[]; if(r.under>0) bits.push("needs invoicing <b>"+fmtCompact(r.under)+"</b>"+(r.exact?"":" <span style=\"color:var(--faint)\">(bid-est)</span>")); if(r.overdue>0) bits.push("overdue AR <b>"+fmtCompact(r.overdue)+"</b>"); return row("info",r.name||"",r.job,bits.join(" · ")+" · "+esc(r.pm),null,""); }).join("");
+  var billCount=accts.filter(function(r){return r.under>1000||r.overdue>0;}).length;
+  // margin fades
+  var fades=gainFadeRows().filter(function(r){return r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;}).slice(0,8);
+  var fadeRows=fades.map(function(r){ return row("fade",r.name,r.job,"fading <b>"+r.gfPts.toFixed(1)+" pts</b>"+(r.burnRisk?" · cost-burn risk":"")+" · "+esc(r.pm),fmtCompact(r.gfDollars),r.gfDollars<0?"bad":""); }).join("");
+  // client follow-ups (Buildr)
+  var cfu=buildrFollowUps();
+  var cfuRows=cfu.slice(0,10).map(function(r){ return row("info",r.name,r.job,esc(r.detail)+(r.open?" · <b>"+r.open+" open</b>":"")+" · "+esc(r.pm),null,""); }).join("");
+
+  var queue="<div class=\"panel\"><h3>Priority queue</h3><div class=\"sub\">What leadership should talk about this week — jobs to act on, most urgent first. Contract = Procore Revised; billing/AR/cost = Foundation.</div>"
+    +section("🔴 Needs attention now",reds.length,redRows,"No red jobs.")
+    +section("🟠 Watch",ambers.length,amberRows,"No amber jobs.")
+    +section("💵 Billing & cash follow-up",billCount,billRows,"Nothing needs invoicing or overdue.")
+    +section("📉 Margin fades",fades.length,fadeRows,"No jobs fading.")
+    +section("🤝 Client follow-up (Buildr)",cfu.length,cfuRows,"No owner-visit follow-ups flagged.")
+    +"</div>";
+
+  /* source-health strip */
+  function chip(ok,label,detail){ return "<div class=\"src-chip\">"+(ok?"✅":"⚠️")+" <b>"+label+"</b> "+detail+"</div>"; }
+  var fCount=foundationData&&foundationData.jobs?Object.keys(foundationData.jobs).length:0;
+  var health="<div class=\"panel\"><h3>Source health</h3><div class=\"sub\">Every feed the cockpit reads, loaded live from the same endpoints as the legacy dashboard.</div><div class=\"src-strip\">"
+    +chip(!!activeData,"Procore",((activeData&&activeData.jobs)||[]).length+" active · revised contracts")
+    +chip(!!foundationData,"Foundation",fCount+" jobs · cost/billing/AR")
+    +chip(!!arData,"AR",(((arData&&arData.invoices)||[]).length)+" invoices")
+    +chip(!!buildrData,"Buildr",(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects")
+    +chip(foundationOnly.length>=0,"Coverage",foundationOnly.length+" Foundation-only active jobs not on board")
+    +"</div></div>";
+
+  return strip+queue+health;
 }
 
-/* ---- boot ---- */
+/* ---- gate / nav / boot ---- */
+function showApp(){ document.getElementById("gate").style.display="none"; document.getElementById("app").hidden=false; init(); }
+function tryGate(){ var v=document.getElementById("gate-input").value.trim(); if(v==="ryc2026"){ sessionStorage.setItem("ryc_cmd_auth","1"); showApp(); } else { document.getElementById("gate-err").textContent="Incorrect access code"; } }
+document.getElementById("gate-btn").addEventListener("click",tryGate);
+document.getElementById("gate-input").addEventListener("keydown",function(e){ if(e.key==="Enter") tryGate(); });
+
+function bust(u){ return u+(u.indexOf("?")>-1?"&":"?")+"t="+Date.now(); }
+function getJSON(u){ return fetch(bust(u)).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); }).catch(function(){ return null; }); }
+function loadData(){
+  return Promise.all([
+    getJSON("/ryc-dashboard/procore-cache.json"),
+    getJSON(CRM+"/api/ryc-foundation"),
+    getJSON(CRM+"/api/ryc-ar"),
+    getJSON(CRM+"/api/ryc-buildr"),
+    getJSON("/ryc-dashboard/ryc-portfolio.json"),
+    getJSON("/ryc-dashboard/ryc-subcontractors.json")
+  ]).then(function(r){
+    activeData=r[0]; foundationData=r[1]; arData=r[2]; buildrData=r[3]; portfolioData=r[4]; subsData=r[5]; loadedAt=new Date();
+    mergeFoundation();
+  });
+}
+
+function renderNav(){
+  var el=document.getElementById("nav");
+  el.innerHTML=NAV.map(function(n){ return "<a data-key=\""+n.key+"\" class=\""+(n.key===currentView?"active":"")+"\"><span class=\"ic\">"+n.ic+"</span>"+n.label+"</a>"; }).join("");
+  Array.prototype.forEach.call(el.querySelectorAll("a"),function(a){ a.addEventListener("click",function(){ setView(a.getAttribute("data-key")); }); });
+}
+function setView(k){ currentView=k; renderNav(); renderView(); }
+function renderView(){
+  var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",margin:"Margin & Risk",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
+  document.getElementById("view-title").textContent=titles[currentView]||"Command Center";
+  document.getElementById("view-ctx").innerHTML="Procore (revised contract) + Foundation · loaded "+(loadedAt?loadedAt.toLocaleString():"…");
+  var view=document.getElementById("view");
+  if(currentView==="command"){ view.innerHTML=renderCommand(); return; }
+  view.innerHTML="<div class=\"panel\"><h3>"+(titles[currentView]||"")+"</h3><div class=\"sub\">Coming in a later phase. Shell, data plumbing, and the Command Center are live.</div></div>";
+}
 function init(){
   renderNav();
-  document.getElementById("view").innerHTML = "<div class=\"panel\"><div class=\"sub\">Loading data&hellip;</div></div>";
+  document.getElementById("view").innerHTML="<div class=\"panel\"><div class=\"sub\">Loading data…</div></div>";
   loadData().then(function(){ renderView(); });
 }
-if (sessionStorage.getItem("ryc_cmd_auth") === "1"){ showApp(); }
-else { setTimeout(function(){ document.getElementById("gate-input").focus(); }, 100); }
+if(sessionStorage.getItem("ryc_cmd_auth")==="1"){ showApp(); }
+else { setTimeout(function(){ document.getElementById("gate-input").focus(); },100); }
 </script>
 </body>
 </html>
