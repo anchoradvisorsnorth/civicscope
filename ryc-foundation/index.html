@@ -48,6 +48,7 @@
     <div class="t">Foundation Reports</div>
     <div class="sub">Ask in plain English — read-only · payroll/employee data blocked</div>
   </div>
+  <button onclick="openDataSources()" style="margin-left:auto;background:#374151;color:#fff;font-size:13px;padding:8px 12px" title="Where every number comes from & how it relates to the dashboard">📖 Data Sources</button>
 </header>
 
 <div class="wrap">
@@ -65,6 +66,9 @@
 
   <!-- Tool -->
   <div id="tool" class="hidden">
+    <div class="warn" style="margin-bottom:14px;font-size:13px;line-height:1.5">
+      <strong>Live Foundation data — raw values.</strong> This queries Foundation in <strong>real time</strong> and returns <em>raw</em> numbers. The <a href="/ryc/dashboard" style="color:#92400e;font-weight:600">RYC dashboard</a> reads a <strong>nightly</strong> snapshot and applies conventions (contract incl. change orders, gross billings, forecast margins) — so the two can legitimately differ by up to a day, or by definition. Tap <a href="#" onclick="openDataSources();return false;" style="color:#92400e;font-weight:600">📖 Data Sources</a> for exactly how each number is defined and reconciled.
+    </div>
     <div class="card">
       <label style="font-weight:600;display:block;margin-bottom:8px;">What do you want to know?</label>
       <textarea id="q" rows="2" placeholder="e.g. Show total billed and total cost for each active job"></textarea>
@@ -183,5 +187,6 @@ $('askBtn').onclick = ask;
 $('q').addEventListener('keydown', e => { if (e.key==='Enter' && (e.metaKey||e.ctrlKey)) ask(); });
 if (sessionStorage.getItem(pwKey)) call({ verify:true }).then(({status}) => { if (status===200) showTool(); else sessionStorage.removeItem(pwKey); });
 </script>
+<script src="/ryc-dashboard/data-sources.js"></script>
 </body>
 </html>
