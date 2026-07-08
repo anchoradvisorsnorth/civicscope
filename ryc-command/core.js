@@ -80,9 +80,11 @@ var BUILDR_ACCT="1411";
 // and the webclients form only looked valid because the SPA shell returns 200 unauthenticated.)
 function procoreUrl(j){ return (j&&j.procoreId)?("https://us02.procore.com/"+j.procoreId+"/project/home"):null; }
 // Budget tool deep-link — Work-on-Hand's "Total Job Costs" = the ERP budget view's Projected
-// Budget, so audit scrutiny should land in the Budget tool (Procore reopens the user's last
-// selected view; if the ERP view ever carries a URL param, pin it here).
-function procoreBudgetUrl(j){ return (j&&j.procoreId)?("https://us02.procore.com/"+j.procoreId+"/project/budgeting"):null; }
+// Budget, so audit scrutiny lands in the Budget tool. URL shape from Keith's live session
+// 2026-07-08 (webclients form, unlike project home). View selection is client-state (no URL
+// param), so Procore reopens the user's last-selected view — ERP can't be pinned.
+var PROCORE_COMPANY="598134325557276";
+function procoreBudgetUrl(j){ return (j&&j.procoreId)?("https://us02.procore.com/webclients/host/companies/"+PROCORE_COMPANY+"/projects/"+j.procoreId+"/tools/budgets"):null; }
 function buildrUrl(id){ return id?("https://buildr.app/a/"+BUILDR_ACCT+"/projects/"+id):null; }
 function buildrIdFor(jno){ var r=buildrData&&buildrData.jobs&&buildrData.jobs[String(jno||"").trim()]; return (r&&r.projectId)||null; }
 
