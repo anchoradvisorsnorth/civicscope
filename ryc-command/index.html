@@ -113,6 +113,22 @@ table.ptable{width:100%;border-collapse:collapse;font-size:12.5px}
 .warn-banner{background:rgba(239,83,80,.12);border:1px solid rgba(239,83,80,.4);color:#ffd9d7;border-radius:var(--r-sm);padding:11px 15px;font-size:13px;margin-bottom:18px}
 .warn-banner b{color:#fff}
 .q-more{font-size:11px;color:var(--faint);font-weight:500;text-transform:none;letter-spacing:0;margin-left:6px}
+/* light-theme KPI strip + tables (Billing/Cash, Margin/Risk — Phase 4) */
+.kpi-strip.k4{grid-template-columns:repeat(4,1fr)}
+.light .kpi-strip{background:#fff;border-color:#dfe4ec}
+.light .kpi{border-right-color:#eef1f6}
+.light .kpi .kl{color:#67718a}
+.light .kpi .kv{color:#1c2433}
+.light .kpi .kv.warn{color:#c07f1a}.light .kpi .kv.bad{color:#d64545}.light .kpi .kv.accent{color:var(--accent)}
+.light .kpi .ks{color:#8b95ab}
+.light .warn-banner{background:rgba(214,69,69,.08);border-color:rgba(214,69,69,.35);color:#8a2f2f}
+.light .warn-banner b{color:#5c1f1f}
+.vhead{font-family:var(--font-serif);font-size:15.5px;font-weight:600;margin:20px 0 3px;color:#1c2433}
+.vhead:first-child{margin-top:0}
+.vsub{color:#67718a;font-size:12px;margin-bottom:10px}
+.ptable tr.static{cursor:default}
+details.lgcy{margin-top:14px}
+details.lgcy summary{cursor:pointer;font-size:12.5px;color:#4a5670;font-weight:600;padding:8px 2px}
 /* ===== job detail drawer (Phase 3a) ========================================== */
 .ptable tbody tr{cursor:pointer}
 .ptable tbody tr:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
@@ -180,7 +196,7 @@ table.dwt{width:100%;border-collapse:collapse;font-size:12px}
       <div class="side-foot">
         <a href="/ryc/estimate">&#128208; Estimating Tools &rarr;</a>
         <a href="/ryc/dashboard">&#11116; Legacy Dashboard</a>
-        <div class="ver">v2.5.0-command &middot; Phase 3b</div>
+        <div class="ver">v2.6.0-command &middot; Phase 4</div>
       </div>
     </aside>
     <main class="content">
@@ -562,6 +578,195 @@ function renderPortfolio(){
   updatePTable();
 }
 
+/* ===== Billing & Cash (Phase 4 — light operator worklist) ==================== */
+var blShowAll=false;
+function agingBucket(d){ return d<=30?0:d<=90?1:d<=180?2:3; }
+function rowAttr(jno){ return jobByNo(jno)?(" data-jno=\""+attrEsc(jno)+"\" tabindex=\"0\" role=\"button\""):" class=\"static\""; }
+function hookDrawerRows(){
+  Array.prototype.forEach.call(document.querySelectorAll(".view tbody"),function(tb){
+    tb.addEventListener("click",function(e){ var tr=e.target.closest("tr[data-jno]"); if(tr) openDrawer(tr.getAttribute("data-jno"),tr); });
+    tb.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ var tr=e.target.closest("tr[data-jno]"); if(tr){ e.preventDefault(); openDrawer(tr.getAttribute("data-jno"),tr); } } });
+  });
+}
+function renderBilling(){
+  var view=document.getElementById("view");
+  var haveFnd=!!(foundationData&&foundationData.jobs), haveAr=!!(arData&&arData.invoices);
+  if(!haveFnd&&!haveAr){ view.innerHTML="<div class=\"warn-banner\">⚠️ Foundation + AR feeds unavailable — billing cannot be computed. Figures show Unavailable, not $0.</div>"; return; }
+  var warn=(!haveFnd||!haveAr)?("<div class=\"warn-banner\">⚠️ "+(!haveFnd?"Foundation":"AR")+" feed unavailable — affected figures show <b>Unavailable</b>, not $0.</div>"):"";
+  var accts=haveFnd?activeAccountRows():[];
+  var needsInv=accts.reduce(function(s,r){return s+r.under;},0);
+  var needsInvN=accts.filter(function(r){return r.under>1000;}).length;
+  var retainage=accts.reduce(function(s,r){return s+(r.retainage||0);},0);
+
+  /* aging — Jason split: current (<=90d, the list leadership chases) vs aged tail (>90d + retainage-era items) */
+  var over=haveAr?arRows("overdue","active"):[];
+  var buckets=[0,0,0,0];
+  over.forEach(function(v){ buckets[agingBucket(v.daysOverdue||0)]+=(v.openBalance||0); });
+  var current=buckets[0]+buckets[1], aged=buckets[2]+buckets[3];
+
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var strip="<div class=\"kpi-strip k4\">"
+    +kpi("Needs invoicing",haveFnd?fmtCompact(needsInv):"Unavailable",haveFnd?(needsInvN+" active jobs"):"Foundation feed down",needsInv>0?"warn":"")
+    +kpi("Current overdue (≤90d)",haveAr?fmtCompact(current):"Unavailable",haveAr?"the actionable list":"AR feed down",current>0?"bad":"")
+    +kpi("Aged overdue (>90d)",haveAr?fmtCompact(aged):"Unavailable",haveAr?(fmtCompact(buckets[3])+" of it 180d+"):"AR feed down",aged>0?"warn":"")
+    +kpi("Retainage held",haveFnd?fmtCompact(retainage):"Unavailable","active jobs","")
+    +"</div>";
+
+  /* overdue AR by job, bucketed */
+  var byJob={};
+  over.forEach(function(v){
+    var k=String(v.jobNo||"");
+    if(!byJob[k]) byJob[k]={jno:k,name:v.jobName||"",b:[0,0,0,0],total:0,oldest:0};
+    var r=byJob[k]; r.b[agingBucket(v.daysOverdue||0)]+=(v.openBalance||0); r.total+=(v.openBalance||0);
+    if((v.daysOverdue||0)>r.oldest) r.oldest=v.daysOverdue||0;
+  });
+  var arJobs=Object.values(byJob).sort(function(a,b){return b.total-a.total;});
+  var fj=(foundationData&&foundationData.jobs)||{};
+  var arRowsHtml=arJobs.map(function(r){
+    var pm=fj[r.jno]?fj[r.jno].pmName:null;
+    function cell(v){ return "<td class=\"r\">"+(v>0?fmtCompact(v):"<span class=\"m-m\">—</span>")+"</td>"; }
+    return "<tr"+rowAttr(r.jno)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(pm?" · "+esc(pm):"")+"</div></td>"
+      +cell(r.b[0])+cell(r.b[1])+cell(r.b[2])+cell(r.b[3])
+      +"<td class=\"r\"><b>"+fmtCompact(r.total)+"</b></td><td class=\"r\">"+r.oldest+"d</td></tr>";
+  }).join("");
+  var arTotalRow="<tr><td>"+arJobs.length+" jobs</td>"+buckets.map(function(v){return "<td class=\"r\">"+fmtCompact(v)+"</td>";}).join("")+"<td class=\"r\">"+fmtCompact(current+aged)+"</td><td></td></tr>";
+  var arTable=arJobs.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">1–30d</th><th class=\"r\">31–90d</th><th class=\"r\">91–180d</th><th class=\"r\">180d+</th><th class=\"r\">Total</th><th class=\"r\">Oldest</th></tr></thead><tbody>"+arRowsHtml+"</tbody><tfoot>"+arTotalRow+"</tfoot></table></div>")
+    :"<div class=\"vsub\">No overdue AR on active jobs.</div>";
+
+  /* billing position worklist */
+  var flagged=accts.filter(function(r){return r.under>1000||r.overdue>0;});
+  var posRows=(blShowAll?accts:flagged).slice().sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);});
+  var posHtml=posRows.map(function(r){
+    var ni=r.under>0?("<span class=\"m-a\">"+fmtCompact(r.under)+"</span>"+(r.exact?"":" <span class=\"cell-sub\">bid-est</span>")):(r.over>0?("<span class=\"m-g\">+"+fmtCompact(r.over)+"</span>"):"<span class=\"m-m\">—</span>");
+    return "<tr"+rowAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(String(r.job))+" · "+esc(r.pm)+"</div></td>"
+      +"<td class=\"r\">"+fmtCompact(r.contract)+"</td><td class=\"r\">"+fmtCompact(r.cost)+"</td><td class=\"r\">"+fmtCompact(r.invoiced)+"</td>"
+      +"<td class=\"r\">"+ni+"</td><td class=\"r\">"+(r.retainage>0?fmtCompact(r.retainage):"<span class=\"m-m\">—</span>")+"</td>"
+      +"<td class=\"r\">"+(r.overdue>0?("<span class=\"m-r\">"+fmtCompact(r.overdue)+"</span>"):"<span class=\"m-m\">—</span>")+"</td></tr>";
+  }).join("");
+  var posTable=haveFnd
+    ?("<div class=\"pbar\"><button class=\"pfill"+(blShowAll?"":" on")+"\" onclick=\"blShowAll=false;renderBilling()\">Flagged ("+flagged.length+")</button>"
+      +"<button class=\"pfill"+(blShowAll?" on":"")+"\" onclick=\"blShowAll=true;renderBilling()\">All active ("+accts.length+")</button></div>"
+      +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th><th class=\"r\">Needs invoiced</th><th class=\"r\">Retainage</th><th class=\"r\">Overdue AR</th></tr></thead><tbody>"+posHtml+"</tbody></table></div>"
+      +"<div class=\"vsub\" style=\"margin-top:8px\">Needs invoiced = cost × OH × Profit markups − billed (Holly's exact markups; \"bid-est\" = bid-ratio fallback). Positive green = billed ahead of cost (cash-positive, not behind).</div>")
+    :"<div class=\"vsub\">Foundation feed unavailable.</div>";
+
+  /* legacy / closed-job overdue */
+  var legacy=haveAr?arRows("overdue","legacy"):[];
+  var legacyTotal=legacy.reduce(function(s,v){return s+(v.openBalance||0);},0);
+  var lgByJob={};
+  legacy.forEach(function(v){ var k=String(v.jobNo||""); if(!lgByJob[k]) lgByJob[k]={jno:k,name:v.jobName||"",total:0,oldest:0}; lgByJob[k].total+=(v.openBalance||0); if((v.daysOverdue||0)>lgByJob[k].oldest) lgByJob[k].oldest=v.daysOverdue||0; });
+  var lgRows=Object.values(lgByJob).sort(function(a,b){return b.total-a.total;}).slice(0,15).map(function(r){
+    return "<tr class=\"static\"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+"</div></td><td class=\"r\">"+fmtCompact(r.total)+"</td><td class=\"r\">"+r.oldest+"d</td></tr>";
+  }).join("");
+  var legacySec=legacy.length
+    ?("<details class=\"lgcy\"><summary>Legacy / closed-job overdue AR — "+fmtCompact(legacyTotal)+" across "+legacy.length+" invoices (kept off the active view)</summary>"
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">Overdue</th><th class=\"r\">Oldest</th></tr></thead><tbody>"+lgRows+"</tbody></table></div></details>")
+    :"";
+
+  view.innerHTML=warn+strip
+    +"<div class=\"vhead\">Overdue AR by job — active work</div><div class=\"vsub\">Aged 90d+ is the tail leadership is not actively chasing (old finals, retainage-era items) — split out so the current number is the actionable one.</div>"+arTable
+    +"<div class=\"vhead\">Billing position — active jobs</div><div class=\"vsub\">Earned vs billed per job from Foundation. Click a row for the job drawer (jobs on the Procore board).</div>"+posTable
+    +legacySec;
+  hookDrawerRows();
+}
+
+/* ===== Margin & Risk (Phase 4 — light operator view) ========================= */
+function renderMargin(){
+  var view=document.getElementById("view");
+  var jobs=getActiveJobs();
+  var haveFnd=!!(foundationData&&foundationData.jobs);
+  var warn=(!activeData||!activeData.jobs)?"<div class=\"warn-banner\">⚠️ Procore feed unavailable.</div>":(!haveFnd?"<div class=\"warn-banner\">⚠️ Foundation feed unavailable — gain/fade falls back to Procore-only figures.</div>":"");
+
+  /* gain/fade */
+  var gf=gainFadeRows().sort(function(a,b){return a.gfPts-b.gfPts;});
+  var fading=gf.filter(function(r){return r.gfPts<=-GF_MOVE_PTS;});
+  var fadeDollars=fading.reduce(function(s,r){return s+r.gfDollars;},0);
+  var gaining=gf.filter(function(r){return r.gfPts>=GF_MOVE_PTS;});
+
+  /* buyout rollup (Phase 3b data) */
+  var bo=jobs.filter(function(j){return j.commitments&&j.budget&&((j.budget.revised>0)||(j.budget.original>0));})
+    .map(function(j){ var cb=j.budget.revised>0?j.budget.revised:j.budget.original;
+      return {j:j,jno:j.projectNumber||"",name:j.name||"",pm:pmName(j)||"(no PM)",pct:j.pctComplete,budget:cb,
+        committed:j.commitments.committedTotal,pending:j.commitments.pendingTotal||0,
+        uncommitted:cb-j.commitments.committedTotal,cov:cb>0?(j.commitments.committedTotal/cb*100):null}; });
+  var boBudget=bo.reduce(function(s,r){return s+r.budget;},0);
+  var boCommitted=bo.reduce(function(s,r){return s+r.committed;},0);
+  var boCov=boBudget>0?(boCommitted/boBudget*100):null;
+
+  /* exceptions */
+  var exc=[];
+  jobs.forEach(function(j){
+    (j.flags||[]).forEach(function(f){
+      if(f.type==="contract") exc.push({jno:j.projectNumber,name:j.name,issue:"Contract conflict",detail:"Board shows "+fmtCompact(j.contractValue)+" vs "+esc(f.text)+" — reconcile CO posting between systems"});
+      if(f.type==="closed") exc.push({jno:j.projectNumber,name:j.name,issue:"Lifecycle mismatch",detail:"Foundation shows this job CLOSED; still active on the Procore board"});
+    });
+    if(j.budget&&j.budget.projCostSuspect) exc.push({jno:j.projectNumber,name:j.name,issue:"Projected cost ⚑ verify",detail:"ERP projected cost "+fmtCompact(j.budget.projectedCost)+" exceeds revised budget "+fmtCompact(j.budget.revised)+" by >30% — sub costs may be double-booked in Direct"});
+    if(j.budget&&j.budget.projectedCost==null&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"Missing projected cost",detail:"No ERP-view Projected Costs on an in-flight job"});
+    if(!j.foundation&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"No Foundation match",detail:"Financials are Procore-only — unverified by accounting"});
+  });
+
+  var gm=projectedGrossMargin();
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var strip="<div class=\"kpi-strip k4\">"
+    +kpi("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast · Procore budget",(gm!=null&&gm<8)?"warn":"")
+    +kpi("Margin fades",String(fading.length),fading.length?("net "+fmtCompact(fadeDollars)+" vs as-bid"):"no jobs fading",fading.length?"bad":"")
+    +kpi("Buyout coverage",boCov!=null?boCov.toFixed(0)+"%":"—",fmtCompact(boCommitted)+" committed of "+fmtCompact(boBudget),"")
+    +kpi("Data exceptions",String(exc.length),exc.length?"need reconciliation":"all clean",exc.length?"warn":"")
+    +"</div>";
+
+  /* gain/fade table */
+  function pcls(v){ return v==null?"m-m":v<=-GF_MOVE_PTS?"m-r":v>=GF_MOVE_PTS?"m-g":"m-m"; }
+  var gfHtml=gf.map(function(r){
+    return "<tr"+rowAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.job)+" · "+esc(r.pm)+"</div></td>"
+      +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
+      +"<td class=\"r\">"+r.asbidMargin.toFixed(1)+"%</td><td class=\"r\">"+r.curMargin.toFixed(1)+"%</td>"
+      +"<td class=\"r\"><span class=\""+pcls(r.gfPts)+"\">"+(r.gfPts>=0?"+":"")+r.gfPts.toFixed(1)+"</span></td>"
+      +"<td class=\"r\"><span class=\""+pcls(r.gfDollars>=0?1.1:-1.1)+"\">"+fmtCompact(r.gfDollars)+"</span></td>"
+      +"<td>"+(r.burnRisk?"<span class=\"m-r\">⚠ burn</span>":"<span class=\"m-m\">—</span>")+"</td></tr>";
+  }).join("");
+  var gfTable=gf.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">%</th><th class=\"r\">As-bid</th><th class=\"r\">Current</th><th class=\"r\">Δ pts</th><th class=\"r\">Δ $</th><th>Cost burn</th></tr></thead><tbody>"+gfHtml+"</tbody></table></div>")
+    :"<div class=\"vsub\">No jobs with enough data for gain/fade.</div>";
+
+  /* buyout table */
+  var boHtml=bo.slice().sort(function(a,b){return b.uncommitted-a.uncommitted;}).map(function(r){
+    return "<tr"+rowAttr(r.jno)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+" · "+esc(r.pm)+"</div></td>"
+      +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
+      +"<td class=\"r\">"+fmtCompact(r.budget)+"</td><td class=\"r\">"+fmtCompact(r.committed)+"</td>"
+      +"<td class=\"r\">"+(r.pending>0?fmtCompact(r.pending):"<span class=\"m-m\">—</span>")+"</td>"
+      +"<td class=\"r\"><b>"+fmtCompact(r.uncommitted)+"</b></td>"
+      +"<td class=\"r\">"+(r.cov!=null?("<span class=\""+(r.cov>=90?"m-g":r.cov>=70?"m-a":"m-r")+"\">"+r.cov.toFixed(0)+"%</span>"):"—")+"</td></tr>";
+  }).join("");
+  var boFoot="<tr><td>"+bo.length+" jobs</td><td></td><td class=\"r\">"+fmtCompact(boBudget)+"</td><td class=\"r\">"+fmtCompact(boCommitted)+"</td><td></td><td class=\"r\">"+fmtCompact(boBudget-boCommitted)+"</td><td class=\"r\">"+(boCov!=null?boCov.toFixed(0)+"%":"—")+"</td></tr>";
+  var boTable=bo.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">%</th><th class=\"r\">Cost budget</th><th class=\"r\">Committed</th><th class=\"r\">In flight</th><th class=\"r\">Uncommitted</th><th class=\"r\">Coverage</th></tr></thead><tbody>"+boHtml+"</tbody><tfoot>"+boFoot+"</tfoot></table></div>")
+    :"<div class=\"vsub\">No commitment data yet — populates with the nightly Procore refresh.</div>";
+
+  /* exceptions table */
+  var excHtml=exc.map(function(r){
+    return "<tr"+rowAttr(r.jno||"")+"><td><div class=\"jname\">"+esc(r.name||"")+"</div><div class=\"jno\">"+esc(r.jno||"")+"</div></td><td>"+esc(r.issue)+"</td><td style=\"white-space:normal\">"+r.detail+"</td></tr>";
+  }).join("");
+  var excTable=exc.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th>Issue</th><th>Detail</th></tr></thead><tbody>"+excHtml+"</tbody></table></div>")
+    :"<div class=\"vsub\">No data exceptions — Procore and Foundation agree everywhere.</div>";
+
+  var fOnly=(foundationOnly||[]).slice().sort(function(a,b){return (b.currentContract||0)-(a.currentContract||0);});
+  var fOnlySec=fOnly.length
+    ?("<details class=\"lgcy\"><summary>"+fOnly.length+" active Foundation jobs not on the Procore board — "+fmtCompact(fOnly.reduce(function(s,f){return s+(f.currentContract||0);},0))+" of contract value with no field/PM tracking</summary>"
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th>PM</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th></tr></thead><tbody>"
+      +fOnly.slice(0,15).map(function(f){ return "<tr class=\"static\"><td><div class=\"jname\">"+esc(f.description||"")+"</div><div class=\"jno\">"+esc(f.jobNo||"")+"</div></td><td>"+esc(f.pmName||"—")+"</td><td class=\"r\">"+fmtCompact(f.currentContract||0)+"</td><td class=\"r\">"+fmtCompact(f.totalCosts||0)+"</td><td class=\"r\">"+fmtCompact(f.totalInvoiced||0)+"</td></tr>"; }).join("")
+      +"</tbody></table></div>"+(fOnly.length>15?"<div class=\"vsub\" style=\"margin-top:6px\">Top 15 by contract shown.</div>":"")+"</details>")
+    :"";
+
+  view.innerHTML=warn+strip
+    +"<div class=\"vhead\">Gain / fade — margin movement vs as-bid</div><div class=\"vsub\">Current projected margin vs the margin the job was bid at (Foundation as-bid + Procore cost growth). Worst first. ⚠ burn = cost burn running ≥12 pts ahead of % complete.</div>"+gfTable
+    +"<div class=\"vhead\">Buyout exposure — committed vs cost budget</div><div class=\"vsub\">Procore sub + PO contracts vs revised cost budget. Uncommitted = still to buy (includes RYC-carried general conditions). Sorted by open exposure.</div>"+boTable
+    +"<div class=\"vhead\">Data exceptions</div><div class=\"vsub\">Cross-source disagreements to reconcile before quoting numbers — the audit-layer worklist.</div>"+excTable
+    +fOnlySec;
+  hookDrawerRows();
+}
+
 /* ===== Job detail drawer (Phase 3a — existing data only; commitments arrive in 3b) ===== */
 var _dwTrigger=null;
 function jobByNo(jno){
@@ -774,7 +979,9 @@ function renderView(){
   document.querySelector(".content").classList.toggle("light",currentView!=="command");
   if(currentView==="command"){ view.innerHTML=renderCommand(); return; }
   if(currentView==="portfolio"){ renderPortfolio(); return; }
-  view.innerHTML="<div class=\"panel\"><h3>"+(titles[currentView]||"")+"</h3><div class=\"sub\">Coming in a later phase. Shell, data plumbing, Command Center, and Portfolio are live.</div></div>";
+  if(currentView==="billing"){ renderBilling(); return; }
+  if(currentView==="margin"){ renderMargin(); return; }
+  view.innerHTML="<div class=\"panel\"><h3>"+(titles[currentView]||"")+"</h3><div class=\"sub\">Coming in a later phase. Shell, data plumbing, Command Center, Portfolio, Billing &amp; Cash, and Margin &amp; Risk are live.</div></div>";
 }
 function init(){
   renderNav();
