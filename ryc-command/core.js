@@ -3,7 +3,7 @@
 /* ===== RYC Command Center — Phase 1 (compute reimplemented from the legacy dashboard,
    verified against the frozen §8a baseline). Reads the SAME data sources; live untouched. ===== */
 var CRM = "https://crm.jbkdevelopment.com";
-var activeData=null, foundationData=null, arData=null, buildrData=null, portfolioData=null, subsData=null, forecastData=null, loadedAt=null, foundationOnly=[];
+var activeData=null, foundationData=null, arData=null, buildrData=null, portfolioData=null, subsData=null, forecastData=null, bcData=null, loadedAt=null, foundationOnly=[];
 
 var NAV = [
   { key:"command",  label:"Command Center", ic:"&#129517;" },
@@ -11,6 +11,7 @@ var NAV = [
   { key:"billing",  label:"Billing & Cash", ic:"&#128181;" },
   { key:"margin",   label:"Margin & Risk",  ic:"&#128201;" },
   { key:"forecast", label:"Forecast",       ic:"&#128200;" },
+  { key:"estimating",label:"Estimating",    ic:"&#128208;" },
   { key:"brief",    label:"Executive Brief",ic:"&#128196;" },
   { key:"trust",    label:"Data Trust",     ic:"&#128270;" },
   { key:"ai",       label:"AI Assistant",   ic:"&#128172;" }

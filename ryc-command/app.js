@@ -17,9 +17,10 @@ function loadData(){
     getJSON(CRM+"/api/ryc-buildr"),
     getJSON("/ryc-dashboard/ryc-portfolio.json"),
     getJSON("/ryc-dashboard/ryc-subcontractors.json"),
-    getJSON(CRM+"/api/ryc-buildr-forecast")
+    getJSON(CRM+"/api/ryc-buildr-forecast"),
+    getJSON("/ryc-dashboard/bc-bidboard.json")
   ]).then(function(r){
-    activeData=r[0]; foundationData=r[1]; arData=r[2]; buildrData=r[3]; portfolioData=r[4]; subsData=r[5]; forecastData=r[6]; loadedAt=new Date();
+    activeData=r[0]; foundationData=r[1]; arData=r[2]; buildrData=r[3]; portfolioData=r[4]; subsData=r[5]; forecastData=r[6]; bcData=r[7]; loadedAt=new Date();
     mergeFoundation();
   });
 }
@@ -33,7 +34,7 @@ function setView(k){ closeDrawer(true); currentView=k; renderNav(); renderView()
   var btn=document.querySelector("#nav button.active"); if(btn) btn.focus(); // restore focus after re-render (a11y)
 }
 function renderView(){
-  var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",margin:"Margin & Risk",forecast:"Revenue Forecast",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
+  var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",margin:"Margin & Risk",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
   document.getElementById("view-title").textContent=titles[currentView]||"Command Center";
   document.getElementById("view-ctx").innerHTML="Procore (revised contract) + Foundation · loaded "+(loadedAt?loadedAt.toLocaleString():"…");
   var view=document.getElementById("view");
@@ -46,6 +47,7 @@ function renderView(){
   if(currentView==="billing"){ renderBilling(); return; }
   if(currentView==="margin"){ renderMargin(); return; }
   if(currentView==="forecast"){ renderForecast(); return; }
+  if(currentView==="estimating"){ renderEstimating(); return; }
   if(currentView==="brief"){ renderBrief(); return; }
   if(currentView==="trust"){ renderTrust(); return; }
   if(currentView==="ai"){ renderAI(); return; }

@@ -105,6 +105,7 @@ function renderCommand(){
     +chip(!!foundationData,"Foundation",fCount+" jobs · cost/billing/AR",foundationData&&foundationData.refreshed)
     +chip(!!arData,"AR",(((arData&&arData.invoices)||[]).length)+" invoices",arData&&arData.refreshed)
     +chip(!!buildrData,"Buildr",(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",buildrData&&buildrData.refreshed)
+    +chip(!!bcData,"BC bid board",(bcData&&bcData.published?bcData.published.length:0)+" out to bid",bcData&&bcData.generatedAt)
     +chip(foundationOnly.length>=0,"Coverage",foundationOnly.length+" Foundation-only active jobs not on board",null)
     +"</div></div>";
 
@@ -420,6 +421,7 @@ function renderTrust(){
     +srow("Foundation snapshot","Cost to date, billings, retainage, PM names, CO postings, markups","Nightly 09:00 UTC (4am ET)",foundationData&&foundationData.refreshed,(foundationData&&foundationData.jobs?Object.keys(foundationData.jobs).length:0)+" jobs",!!foundationData)
     +srow("Foundation AR","Open / overdue invoices with aging","Nightly 09:00 UTC (same run)",arData&&arData.refreshed,(((arData&&arData.invoices)||[]).length)+" invoices",!!arData)
     +srow("Buildr","Client-relations visits + follow-up tasks","Live API on page load",buildrData&&buildrData.refreshed,(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",!!buildrData)
+    +srow("BC bid board","Projects out to bid, trade-package invite coverage, bids received (Estimating view)","Daily 09:30 UTC (VM, bc-bidboard)",bcData&&bcData.generatedAt,(bcData&&bcData.published?bcData.published.length+" out to bid":"—"),!!bcData)
     +srow("Portfolio archive","Completed jobs (pegged at archive time)","On job completion",null,((portfolioData&&portfolioData.jobs)||portfolioData||[]).length?(((portfolioData&&portfolioData.jobs)||portfolioData||[]).length+" jobs"):"—",!!portfolioData)
     +"</tbody></table></div>"
     +"<div class=\"vsub\" style=\"margin-top:8px\">Stale = no fresh data in 30h (a scheduled run was missed — check the Automation Health card on the CRM dashboard). Foundation is read-only by design; nothing here can write.</div>";
@@ -663,6 +665,96 @@ function renderForecast(){
     +projTable("Pipeline — pursuits",pursuit)
     +recon;
   hookDrawerRows();
+}
+
+/* ===== Estimating — Bid Board (v2.12.0, BuildingConnected) ===================
+   Daily VM pull (bc-bidboard-refresh.js) of the LIVE BC bid board: what's out to bid,
+   when it's due, and which trade packages have no bid in and no committed bidder —
+   the empty-package scramble surfaced BEFORE bid day instead of on it. */
+function daysUntil(ts){ if(!ts) return null; return Math.ceil((new Date(ts)-Date.now())/86400000); }
+function bcProjUrl(id){ return id?("https://app.buildingconnected.com/projects/"+id):null; }
+function dueChip(ts){
+  var d=daysUntil(ts);
+  if(d==null) return "<span class=\"pill dot\" style=\"background:#eceff4;color:#7c8699\">no due date</span>";
+  if(d<0) return "<span class=\"pill dot\" style=\"background:#eceff4;color:#7c8699\">due "+fmtDate(ts)+" · "+Math.abs(d)+"d ago</span>";
+  var cls=d<=7?"r":d<=14?"a":"g";
+  return "<span class=\"pill "+cls+" dot\">due "+fmtDate(ts)+" · "+(d===0?"TODAY":"in "+d+"d")+"</span>";
+}
+function renderEstimating(){
+  var view=document.getElementById("view");
+  if(!bcData||!Object.prototype.toString.call(bcData.published).includes("Array")){
+    view.innerHTML="<div class=\"warn-banner\">⚠️ BuildingConnected bid-board feed unavailable (/ryc-dashboard/bc-bidboard.json) — figures show Unavailable, not $0. The daily VM pull (bc-bidboard) may not have run yet.</div>";
+    return;
+  }
+  var pubs=bcData.published;
+  // Active bidding vs past-due-but-never-closed (BC board hygiene — same story as Procore dates)
+  var active=pubs.filter(function(p){ var d=daysUntil(p.bidsDueAt); return d==null||d>=-3; });
+  var stale=pubs.filter(function(p){ var d=daysUntil(p.bidsDueAt); return d!=null&&d<-3; });
+  var next=active.filter(function(p){return daysUntil(p.bidsDueAt)!=null;}).sort(function(a,b){return String(a.bidsDueAt).localeCompare(String(b.bidsDueAt));})[0];
+  var atRisk=active.reduce(function(s,p){return s+p.atRisk;},0);
+  var closed=bcData.recentClosed||[];
+  var won=closed.filter(function(c){return c.awarded==="WON";}).length;
+  var lost=closed.filter(function(c){return c.awarded==="LOST";}).length;
+
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var strip="<div class=\"kpi-strip k4\">"
+    +kpi("Out to bid",String(active.length),active.reduce(function(s,p){return s+p.packages;},0)+" trade packages"+(bcData.draftCount?" · "+bcData.draftCount+" draft":""),"accent")
+    +kpi("Next bid due",next?fmtDate(next.bidsDueAt):"—",next?(esc(next.name.slice(0,36))+" · "+(daysUntil(next.bidsDueAt)===0?"TODAY":"in "+daysUntil(next.bidsDueAt)+"d")):"no dated deadlines",(next&&daysUntil(next.bidsDueAt)<=7)?"warn":"")
+    +kpi("Packages at risk",String(atRisk),"no bid in · no committed bidder",atRisk>0?"bad":"")
+    +kpi("Win rate (180d)",(won+lost)>0?Math.round(won/(won+lost)*100)+"%":"—",won+" won · "+lost+" lost in BuildingConnected","")
+    +"</div>";
+
+  function pkgTable(p){
+    var rows=p.pkgs.map(function(k){
+      var risk=k.bidsReceived===0&&k.bidding===0&&!k.awardedCompany;
+      var st=k.awardedCompany?("<span class=\"m-g\">awarded · "+esc(k.awardedCompany)+"</span>")
+        :risk?"<span class=\"m-r\">⚠ at risk</span>"
+        :(k.bidsReceived>0?"<span class=\"m-g\">"+k.bidsReceived+" bid"+(k.bidsReceived>1?"s":"")+" in</span>":"<span class=\"m-a\">committed only</span>");
+      return "<tr class=\"static\""+(risk?" style=\"background:#fdf3f0\"":"")+">"
+        +"<td><div class=\"jname\" style=\"font-weight:600\">"+esc(k.name)+"</div><div class=\"jno\">"+esc(k.number||"")+"</div></td>"
+        +"<td class=\"r\">"+k.invites+"</td><td class=\"r\">"+(k.bidding||"<span class=\"m-m\">—</span>")+"</td>"
+        +"<td class=\"r\">"+(k.undecided||"<span class=\"m-m\">—</span>")+"</td><td class=\"r\">"+(k.notBidding||"<span class=\"m-m\">—</span>")+"</td>"
+        +"<td class=\"r\">"+(k.bidsReceived||"<span class=\"m-m\">—</span>")+"</td><td>"+st+"</td></tr>";
+    }).join("");
+    return "<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Trade package</th><th class=\"r\">Invited</th><th class=\"r\">Bidding</th><th class=\"r\">Undecided</th><th class=\"r\">Declined</th><th class=\"r\">Bids in</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table></div>";
+  }
+  function projPanel(p){
+    var meta=[p.city?esc(p.city+(p.st?", "+p.st:"")):null,p.architect?("Arch: "+esc(p.architect)):null,p.rfisDueAt?("RFIs due "+fmtDate(p.rfisDueAt)):null,p.jobWalkAt?("Job walk "+fmtDate(p.jobWalkAt)):null].filter(Boolean).join(" · ");
+    var covPct=p.packages>0?Math.round(p.covered/p.packages*100):null;
+    var covCls=covPct==null?"m-m":covPct>=80?"m-g":covPct>=50?"m-a":"m-r";
+    return "<div style=\"background:#fff;border:1px solid #dfe4ec;border-radius:var(--r);padding:16px 20px;margin-bottom:14px\">"
+      +"<div style=\"display:flex;flex-wrap:wrap;align-items:center;gap:10px\">"
+      +"<div style=\"flex:1 1 260px\"><div class=\"jname\" style=\"font-size:15px\">"+esc(p.name)+srcLink(bcProjUrl(p.id),"BuildingConnected")+"</div>"
+      +"<div class=\"jno\" style=\"margin-top:2px\">"+meta+"</div></div>"
+      +dueChip(p.bidsDueAt)+"</div>"
+      +"<div style=\"margin-top:10px;font-size:12.5px;color:#4a5670\"><b>"+p.packages+"</b> packages · <span class=\""+covCls+"\"><b>"+p.covered+"</b> covered ("+(covPct!=null?covPct+"%":"—")+")</span> · <span class=\""+(p.atRisk>0?"m-r":"m-g")+"\"><b>"+p.atRisk+"</b> at risk</span> · "+p.invites+" invites → "+p.bidding+" bidding · "+p.undecided+" undecided · <b>"+p.bidsReceived+"</b> bids in</div>"
+      +"<details"+(p.atRisk>0&&daysUntil(p.bidsDueAt)!=null&&daysUntil(p.bidsDueAt)<=14?" open":"")+" style=\"margin-top:8px\"><summary style=\"cursor:pointer;font-size:12px;color:#67718a\">Trade coverage detail — riskiest first</summary>"+pkgTable(p)+"</details>"
+      +"</div>";
+  }
+
+  var board=active.length?active.map(projPanel).join(""):"<div class=\"vsub\">Nothing currently out to bid in BuildingConnected.</div>";
+
+  var staleSec=stale.length
+    ?("<details class=\"lgcy\"><summary>"+stale.length+" published project"+(stale.length>1?"s":"")+" past bid due and never closed out in BC — board hygiene</summary>"
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Project</th><th>Bids were due</th><th class=\"r\">Packages</th><th class=\"r\">Bids in</th></tr></thead><tbody>"
+      +stale.map(function(p){ return "<tr class=\"static\"><td><div class=\"jname\">"+esc(p.name)+srcLink(bcProjUrl(p.id),"BuildingConnected")+"</div></td><td>"+fmtDate(p.bidsDueAt)+" <span class=\"m-a\">("+Math.abs(daysUntil(p.bidsDueAt))+"d ago)</span></td><td class=\"r\">"+p.packages+"</td><td class=\"r\">"+p.bidsReceived+"</td></tr>"; }).join("")
+      +"</tbody></table></div><div class=\"vsub\" style=\"margin-top:6px\">Mark these awarded/closed in BuildingConnected so the board reflects reality — same hygiene story as Procore stage/dates.</div></details>")
+    :"";
+
+  var drafts=bcData.draftCount?("<div class=\"vsub\" style=\"margin-top:4px\">✏️ "+bcData.draftCount+" draft (not yet published): "+esc((bcData.draftNames||[]).join(" · "))+"</div>"):"";
+
+  var outcomes=closed.length
+    ?("<details class=\"lgcy\"><summary>Recent outcomes — "+won+" won · "+lost+" lost (180 days)</summary>"
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Project</th><th>Closed</th><th>Result</th><th class=\"r\">Value</th></tr></thead><tbody>"
+      +closed.map(function(c){ var b=c.awarded==="WON"?"<span class=\"pill g dot\">Won</span>":c.awarded==="LOST"?"<span class=\"pill r dot\">Lost</span>":"<span class=\"pill dot\" style=\"background:#eceff4;color:#7c8699\">—</span>";
+        return "<tr class=\"static\"><td><div class=\"jname\">"+esc(c.name)+srcLink(bcProjUrl(c.id),"BC")+"</div></td><td>"+fmtDate(c.closedAt)+"</td><td>"+b+"</td><td class=\"r\">"+(c.value?fmtCompact(c.value):"—")+"</td></tr>"; }).join("")
+      +"</tbody></table></div></details>")
+    :"";
+
+  view.innerHTML=strip
+    +"<div class=\"vhead\">Bid board — projects out to bid</div>"
+    +"<div class=\"vsub\">Straight from BuildingConnected (read-only, pulled daily; this pull "+(ageTxt(bcData.generatedAt)||"just now")+"). <b>At risk</b> = a trade package with zero bids received and zero subs committed to bidding — the packages that come in empty on bid day unless someone works the phones. Estimating tools: <a href=\"/ryc/estimate\" style=\"color:var(--accent);font-weight:600\">/ryc/estimate</a>.</div>"
+    +board+drafts+staleSec+outcomes;
 }
 
 /* ===== Executive Brief (Phase 5) ============================================= */
