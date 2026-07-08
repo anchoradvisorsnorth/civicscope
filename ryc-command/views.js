@@ -299,10 +299,28 @@ function renderBilling(){
 }
 
 /* cross-source reconciliation exceptions — used by Margin & Risk and Data Trust */
+/* Curated-client vs Foundation-customer guard (2026-07-08 — born from the Walt Disney miss:
+   labeled "School City of Mishawaka" for 4 months while Foundation billed PHM). Fires only when
+   the two names share no meaningful token AND neither contains the other. Known-legit divergences
+   (BOT payer-of-record, SPE billing entities) are allow-listed. Dormant until foundation-refresh
+   lands customer_name (DDL pending). */
+var CLIENT_DIVERGENCE_OK={"26X012":1,"2513CO04":1}; // Bristol (JBK Investments = BOT payer) · Helix (Orchard on Wallen SPE)
+var CLIENT_STOPWORDS={of:1,the:1,a:1,and:1,inc:1,llc:1,corp:1,co:1,city:1,town:1,county:1,village:1,board:1,public:1,works:1,dept:1,department:1,school:1,schools:1,corporation:1,group:1,company:1,indiana:1,michigan:1};
+function clientMismatch(j){
+  var f=j.foundation;
+  if(!f||!f.customerName||!j.client||CLIENT_DIVERGENCE_OK[j.projectNumber]) return false;
+  var norm=function(s){return String(s).toLowerCase().replace(/[^a-z0-9]/g,"");};
+  var a=norm(j.client), b=norm(f.customerName);
+  if(!a||!b||a.indexOf(b)>-1||b.indexOf(a)>-1) return false;
+  var toks=function(s){return String(s).toLowerCase().split(/[^a-z0-9]+/).filter(function(t){return t.length>1&&!CLIENT_STOPWORDS[t];});};
+  var ta=toks(j.client), tb={}; toks(f.customerName).forEach(function(t){tb[t]=1;});
+  return !ta.some(function(t){return tb[t]||Object.keys(tb).some(function(x){return x.indexOf(t)===0||t.indexOf(x)===0;});});
+}
 function buildExceptions(jobs){
   var exc=[];
   jobs.forEach(function(j){
     var pl=srcLink(procoreUrl(j),"Procore");
+    if(clientMismatch(j)) exc.push({jno:j.projectNumber,name:j.name,issue:"Client label mismatch",detail:"Board shows client “"+esc(j.client)+"” but Foundation bills “"+esc(j.foundation.customerName)+"” — verify the CURATED map in procore-refresh.js (or allow-list if the divergence is legit, e.g. BOT payer / SPE)"});
     (j.flags||[]).forEach(function(f){
       if(f.type==="contract") exc.push({jno:j.projectNumber,name:j.name,issue:"Contract conflict",detail:"Board shows "+fmtCompact(j.contractValue)+" vs "+esc(f.text)+" — reconcile CO posting between systems"+pl});
       if(f.type==="closed") exc.push({jno:j.projectNumber,name:j.name,issue:"Lifecycle mismatch",detail:"Foundation shows this job CLOSED; still active on the Procore board"+pl});
