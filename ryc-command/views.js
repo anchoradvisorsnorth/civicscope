@@ -546,6 +546,121 @@ function aiCSV(){
   a.download="foundation-report.csv"; a.click(); URL.revokeObjectURL(a.href);
 }
 
+/* ===== Revenue Forecast (2026-07-07 — Buildr forecast, Steve's report) ======== */
+/* Mirrors buildr.app → Analytics → Forecast (the source of Steve's "revenue projections"):
+   each open Buildr project's amount spread LINEARLY across start→end by month, grouped
+   Booked (active + upcoming/awarded) vs Potential (pursuit). Forward-only — months already
+   elapsed are treated as earned and excluded. Probability weighting deliberately omitted
+   (RYC keys probability as 0/1 on all but a handful — matches Steve's weighted=0 display).
+   Undated projects can't spread; they're surfaced as an explicit bucket, never dropped. */
+function fcMonthIdx(d){ return d.getFullYear()*12+d.getMonth(); }
+function fcMonthLabel(idx){ var y=Math.floor(idx/12), m=idx%12; return new Date(y,m,1).toLocaleDateString("en-US",{month:"short",year:"numeric"}); }
+function fcSpread(projects){
+  var nowIdx=fcMonthIdx(new Date());
+  var buckets={}, undated=[], horizon=nowIdx;
+  projects.forEach(function(p){
+    if(!(p.amount>0)) return;
+    var cls=(p.status==="pursuit")?"potential":"booked";
+    if(!p.startDate||!p.endDate){ undated.push(p); return; }
+    var s=fcMonthIdx(new Date(p.startDate)), e=fcMonthIdx(new Date(p.endDate));
+    if(!(e>=s)){ undated.push(p); return; }
+    var perMonth=p.amount/(e-s+1);
+    for(var m=Math.max(s,nowIdx);m<=e;m++){
+      if(!buckets[m]) buckets[m]={booked:0,potential:0};
+      buckets[m][cls]+=perMonth;
+      if(m>horizon) horizon=m;
+    }
+  });
+  return {buckets:buckets,undated:undated,nowIdx:nowIdx,horizon:horizon};
+}
+function renderForecast(){
+  var view=document.getElementById("view");
+  if(!forecastData||!forecastData.projects){
+    view.innerHTML="<div class=\"warn-banner\">⚠️ Buildr forecast feed unavailable — revenue projections cannot be computed. Figures show Unavailable, not $0.</div>";
+    return;
+  }
+  var projects=forecastData.projects;
+  var booked=projects.filter(function(p){return p.status!=="pursuit";});
+  var pursuit=projects.filter(function(p){return p.status==="pursuit";});
+  var sp=fcSpread(projects);
+  var months=Object.keys(sp.buckets).map(Number).sort(function(a,b){return a-b;});
+  var CAP=18, capIdx=sp.nowIdx+CAP-1;
+  var bookedFwd=0, potentialFwd=0, next12b=0, next12p=0;
+  months.forEach(function(m){
+    var b=sp.buckets[m];
+    bookedFwd+=b.booked; potentialFwd+=b.potential;
+    if(m<sp.nowIdx+12){ next12b+=b.booked; next12p+=b.potential; }
+  });
+  var undatedAmt=sp.undated.reduce(function(s,p){return s+p.amount;},0);
+
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var strip="<div class=\"kpi-strip k4\">"
+    +kpi("Booked forward revenue",fmtCompact(bookedFwd),booked.length+" active + awarded jobs","accent")
+    +kpi("Pipeline (pursuit)",fmtCompact(pursuit.reduce(function(s,p){return s+p.amount;},0)),pursuit.length+" pursuits · "+fmtCompact(potentialFwd)+" dated/spread","")
+    +kpi("Next 12 months",fmtCompact(next12b+next12p),fmtCompact(next12b)+" booked · "+fmtCompact(next12p)+" potential","")
+    +kpi("Undated (not in spread)",fmtCompact(undatedAmt),sp.undated.length+" projects missing start/end dates",sp.undated.length?"warn":"")
+    +"</div>";
+
+  /* period table — month rows + quarter subtotals + grand total (Steve's Buildr display) */
+  var rows="", qB=0,qP=0, tB=0,tP=0, beyondB=0,beyondP=0, lastQ=null;
+  function qKey(m){ var y=Math.floor(m/12), q=Math.floor((m%12)/3)+1; return "Q"+q+" "+y; }
+  function qRow(label,b,p){ return "<tr style=\"background:#f7f9fc;font-weight:700\"><td>"+label+"</td><td class=\"r\">"+fmtCompact(b)+"</td><td class=\"r\">"+fmtCompact(p)+"</td><td class=\"r\">"+fmtCompact(b+p)+"</td></tr>"; }
+  var lastIdx=Math.min(sp.horizon,capIdx);
+  for(var m=sp.nowIdx;m<=lastIdx;m++){
+    var b=sp.buckets[m]||{booked:0,potential:0};
+    var q=qKey(m);
+    if(lastQ!==null&&q!==lastQ){ rows+=qRow(lastQ+" subtotal",qB,qP); qB=0;qP=0; }
+    lastQ=q;
+    qB+=b.booked; qP+=b.potential; tB+=b.booked; tP+=b.potential;
+    rows+="<tr class=\"static\"><td>"+fcMonthLabel(m)+"</td><td class=\"r\">"+(b.booked>0?fmtCompact(b.booked):"<span class=\"m-m\">—</span>")+"</td><td class=\"r\">"+(b.potential>0?fmtCompact(b.potential):"<span class=\"m-m\">—</span>")+"</td><td class=\"r\"><b>"+fmtCompact(b.booked+b.potential)+"</b></td></tr>";
+  }
+  if(lastQ!==null) rows+=qRow(lastQ+" subtotal",qB,qP);
+  months.forEach(function(m){ if(m>capIdx){ beyondB+=sp.buckets[m].booked; beyondP+=sp.buckets[m].potential; } });
+  if(beyondB+beyondP>0){ tB+=beyondB; tP+=beyondP; rows+="<tr class=\"static\"><td>Beyond "+fcMonthLabel(capIdx)+"</td><td class=\"r\">"+fmtCompact(beyondB)+"</td><td class=\"r\">"+fmtCompact(beyondP)+"</td><td class=\"r\"><b>"+fmtCompact(beyondB+beyondP)+"</b></td></tr>"; }
+  var periodTable="<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Period</th><th class=\"r\">Booked</th><th class=\"r\">Potential</th><th class=\"r\">Total</th></tr></thead><tbody>"+rows
+    +"</tbody><tfoot><tr><td>Total forward</td><td class=\"r\">"+fmtCompact(tB)+"</td><td class=\"r\">"+fmtCompact(tP)+"</td><td class=\"r\">"+fmtCompact(tB+tP)+"</td></tr></tfoot></table></div>";
+
+  /* project detail tables */
+  function projRows(list){
+    return list.slice().sort(function(a,b){return (b.amount||0)-(a.amount||0);}).map(function(p){
+      var dated=p.startDate&&p.endDate;
+      return "<tr"+rowAttr(p.projectNumber||"")+"><td><div class=\"jname\">"+esc(p.name)+"</div><div class=\"jno\">"+esc(p.company||"")+(p.assignedTo?" · "+esc(p.assignedTo):"")+"</div></td>"
+        +"<td>"+esc(p.status==="pursuit"?(p.stage||"pursuit"):p.status)+"</td>"
+        +"<td>"+(dated?(fmtDate(p.startDate)+" → "+fmtDate(p.endDate)):"<span class=\"m-a\">no dates</span>")+"</td>"
+        +"<td class=\"r\">"+fmtCompact(p.amount)+"</td>"
+        +"<td class=\"r\">"+(p.profit>0?fmtCompact(p.profit):"<span class=\"m-m\">—</span>")+"</td></tr>";
+    }).join("");
+  }
+  function projTable(title,list){
+    var total=list.reduce(function(s,p){return s+(p.amount||0);},0);
+    return "<details class=\"lgcy\"><summary>"+title+" — "+list.length+" projects · "+fmtCompact(total)+"</summary>"
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Project</th><th>Status / stage</th><th>Schedule</th><th class=\"r\">Amount</th><th class=\"r\">Buildr profit</th></tr></thead><tbody>"+projRows(list)+"</tbody></table></div></details>";
+  }
+
+  /* reconciliation vs Procore/Foundation left-to-bill */
+  var recon="";
+  if(activeData&&activeData.jobs&&foundationData&&foundationData.jobs){
+    var woh=wohRows();
+    var leftToBill=woh.reduce(function(s,r){return s+((r.contract||0)-(r.billed||0));},0);
+    var buildrActiveFwd=0;
+    var spA=fcSpread(projects.filter(function(p){return p.status==="active";}));
+    Object.values(spA.buckets).forEach(function(b){ buildrActiveFwd+=b.booked; });
+    var d=buildrActiveFwd-leftToBill;
+    recon="<div class=\"vhead\">Cross-check — Buildr vs the board</div>"
+      +"<div class=\"vsub\">Buildr <b>active</b> forward revenue (linear spread) = <b>"+fmtCompact(buildrActiveFwd)+"</b> vs Procore/Foundation left-to-bill on the "+woh.length+" board jobs (Contract − Billings) = <b>"+fmtCompact(leftToBill)+"</b> · Δ "+fmtCompact(Math.abs(d))+". "
+      +"They measure the same work differently: Buildr covers ALL "+projects.filter(function(p){return p.status==="active";}).length+" active Buildr projects (incl. jobs not on the Procore board) and spreads linearly from original schedules; left-to-bill is actuals-based. A large gap = stale Buildr schedules/amounts or board coverage — worth a look, not an alarm.</div>";
+  }
+
+  view.innerHTML=strip
+    +"<div class=\"vhead\">Revenue by period</div><div class=\"vsub\">Each project&#8217;s amount spread evenly across its start → end months, from this month forward — the same math as Buildr&#8217;s Forecast report (Steve&#8217;s revenue projections). Booked = active + awarded/upcoming · Potential = pursuits (unweighted). Undated projects are excluded from the spread and totaled in the KPI above.</div>"
+    +periodTable
+    +"<div class=\"vhead\">Projects behind the numbers</div><div class=\"vsub\">Straight from Buildr — BD&#8217;s system of record (Brad/Jake maintain it). Source freshness: "+(ageTxt(forecastData.refreshed)||"live")+".</div>"
+    +projTable("Booked — active + awarded",booked)
+    +projTable("Pipeline — pursuits",pursuit)
+    +recon;
+  hookDrawerRows();
+}
+
 /* ===== Executive Brief (Phase 5) ============================================= */
 /* Work-on-Hand rows — EXACT legacy conventions (columns/sources per Tristan/Steve 2026-07-07):
    Contract Price = Procore Revised Contract Amount; Total Job Costs = Procore ERP Projected Budget;
