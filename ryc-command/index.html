@@ -129,6 +129,39 @@ table.ptable{width:100%;border-collapse:collapse;font-size:12.5px}
 .ptable tr.static{cursor:default}
 details.lgcy{margin-top:14px}
 details.lgcy summary{cursor:pointer;font-size:12.5px;color:#4a5670;font-weight:600;padding:8px 2px}
+/* ===== Data Trust + AI Assistant (Phase 6) =================================== */
+.trust{max-width:1000px}
+.trust .ds-head .ds-btn{display:none} /* overlay-mode buttons — page has its own */
+.trust #ds-panel h2{font-family:var(--font-serif);font-size:19px;margin:0;color:#1c2433}
+.trust #ds-panel h3{font-size:13.5px;font-weight:700;color:#1c2433;margin:18px 0 6px;border-bottom:1px solid #e2e7ef;padding-bottom:4px}
+.trust #ds-panel table{border-collapse:collapse;width:100%;margin:6px 0;font-size:12px}
+.trust #ds-panel th,.trust #ds-panel td{border:1px solid #e2e7ef;padding:5px 8px;text-align:left;vertical-align:top;white-space:normal;color:#26304a}
+.trust #ds-panel th{background:#f7f9fc;color:#5b6578}
+.trust #ds-panel code{background:#f1f4f9;padding:1px 4px;border-radius:3px;font-size:11px}
+.trust #ds-panel .ds-note{background:#fdf3ea;border:1px solid #f0d5bc;border-radius:8px;padding:10px 12px;color:#8a4b12;margin:10px 0;font-size:12px}
+.trust #ds-panel .ds-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1c2433;padding-bottom:10px;margin-bottom:8px}
+.trust #ds-panel ol li{margin-bottom:3px}
+.ai{max-width:900px}
+.ai textarea{width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid #d5dbe6;border-radius:var(--r-sm);font-size:14px;font-family:inherit;resize:vertical;background:#fff;color:#1c2433}
+.ai textarea:focus{outline:2px solid var(--accent-line)}
+.ai .ask-btn{background:var(--accent);color:#fff;border:none;border-radius:var(--r-sm);padding:10px 20px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.ai .ask-btn[disabled]{opacity:.55;cursor:default}
+.ai-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.ai-card{background:#fff;border:1px solid #dfe4ec;border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:#4a5670;cursor:pointer;line-height:1.45}
+.ai-card:hover{border-color:var(--accent);color:#1c2433}
+.ai-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ai-chip{background:#f1f4f9;border:1px solid #e2e7ef;border-radius:14px;padding:3px 11px;font-size:11.5px;color:#4a5670;cursor:pointer}
+.ai-chip:hover{border-color:var(--accent)}
+.ai .out-table{background:#fff;border:1px solid #dfe4ec;border-radius:var(--r);overflow:auto;margin-top:10px}
+.ai .out-table table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ai .out-table th{position:sticky;top:0;background:#f7f9fc;color:#5b6578;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid #e2e7ef;white-space:nowrap}
+.ai .out-table td{padding:7px 10px;border-top:1px solid #eef1f6;color:#26304a;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ai .out-table th.num,.ai .out-table td.num{text-align:right}
+.ai details{margin-top:10px;font-size:12px;color:#4a5670}
+.ai details pre{background:#0e1626;color:#c6d3ea;border-radius:7px;padding:12px;overflow-x:auto;font-size:11.5px;line-height:1.5}
+.ai .err-box{background:rgba(214,69,69,.08);border:1px solid rgba(214,69,69,.35);color:#8a2f2f;border-radius:var(--r-sm);padding:11px 14px;font-size:13px;margin-top:10px}
+.ai .spin{display:inline-block;width:14px;height:14px;border:2px solid #d5dbe6;border-top-color:var(--accent);border-radius:50%;animation:aispin .8s linear infinite;vertical-align:-2px}
+@keyframes aispin{to{transform:rotate(360deg)}}
 /* ===== Executive Brief (Phase 5 — light editorial + Present + print) ========= */
 .brief{max-width:980px}
 .brief .bh{border-bottom:3px solid #1c2433;padding-bottom:14px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;gap:14px}
@@ -213,6 +246,8 @@ table.dwt{width:100%;border-collapse:collapse;font-size:12px}
   .q-row{flex-wrap:wrap;gap:6px 12px}
   .q-job{min-width:0;max-width:none;flex:1 1 100%}
   .q-val{min-width:0;text-align:left}
+  .ai-cards{grid-template-columns:1fr}
+  .stat-band{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
@@ -240,7 +275,7 @@ table.dwt{width:100%;border-collapse:collapse;font-size:12px}
       <div class="side-foot">
         <a href="/ryc/estimate">&#128208; Estimating Tools &rarr;</a>
         <a href="/ryc/dashboard">&#11116; Legacy Dashboard</a>
-        <div class="ver">v2.7.0-command &middot; Phase 5</div>
+        <div class="ver">v2.8.0-command &middot; Phase 6</div>
       </div>
     </aside>
     <main class="content">
@@ -252,6 +287,7 @@ table.dwt{width:100%;border-collapse:collapse;font-size:12px}
   </div>
 </div>
 
+<script src="/ryc-dashboard/data-sources.js"></script>
 <script>
 "use strict";
 /* ===== RYC Command Center — Phase 1 (compute reimplemented from the legacy dashboard,
@@ -715,6 +751,21 @@ function renderBilling(){
   hookDrawerRows();
 }
 
+/* cross-source reconciliation exceptions — used by Margin & Risk and Data Trust */
+function buildExceptions(jobs){
+  var exc=[];
+  jobs.forEach(function(j){
+    (j.flags||[]).forEach(function(f){
+      if(f.type==="contract") exc.push({jno:j.projectNumber,name:j.name,issue:"Contract conflict",detail:"Board shows "+fmtCompact(j.contractValue)+" vs "+esc(f.text)+" — reconcile CO posting between systems"});
+      if(f.type==="closed") exc.push({jno:j.projectNumber,name:j.name,issue:"Lifecycle mismatch",detail:"Foundation shows this job CLOSED; still active on the Procore board"});
+    });
+    if(j.budget&&j.budget.projCostSuspect) exc.push({jno:j.projectNumber,name:j.name,issue:"Projected cost ⚑ verify",detail:"ERP projected cost "+fmtCompact(j.budget.projectedCost)+" exceeds revised budget "+fmtCompact(j.budget.revised)+" by >30% — sub costs may be double-booked in Direct"});
+    if(j.budget&&j.budget.projectedCost==null&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"Missing projected cost",detail:"No ERP-view Projected Costs on an in-flight job"});
+    if(!j.foundation&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"No Foundation match",detail:"Financials are Procore-only — unverified by accounting"});
+  });
+  return exc;
+}
+
 /* ===== Margin & Risk (Phase 4 — light operator view) ========================= */
 function renderMargin(){
   var view=document.getElementById("view");
@@ -738,17 +789,8 @@ function renderMargin(){
   var boCommitted=bo.reduce(function(s,r){return s+r.committed;},0);
   var boCov=boBudget>0?(boCommitted/boBudget*100):null;
 
-  /* exceptions */
-  var exc=[];
-  jobs.forEach(function(j){
-    (j.flags||[]).forEach(function(f){
-      if(f.type==="contract") exc.push({jno:j.projectNumber,name:j.name,issue:"Contract conflict",detail:"Board shows "+fmtCompact(j.contractValue)+" vs "+esc(f.text)+" — reconcile CO posting between systems"});
-      if(f.type==="closed") exc.push({jno:j.projectNumber,name:j.name,issue:"Lifecycle mismatch",detail:"Foundation shows this job CLOSED; still active on the Procore board"});
-    });
-    if(j.budget&&j.budget.projCostSuspect) exc.push({jno:j.projectNumber,name:j.name,issue:"Projected cost ⚑ verify",detail:"ERP projected cost "+fmtCompact(j.budget.projectedCost)+" exceeds revised budget "+fmtCompact(j.budget.revised)+" by >30% — sub costs may be double-booked in Direct"});
-    if(j.budget&&j.budget.projectedCost==null&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"Missing projected cost",detail:"No ERP-view Projected Costs on an in-flight job"});
-    if(!j.foundation&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"No Foundation match",detail:"Financials are Procore-only — unverified by accounting"});
-  });
+  /* exceptions (shared with Data Trust) */
+  var exc=buildExceptions(jobs);
 
   var gm=projectedGrossMargin();
   function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
@@ -809,6 +851,155 @@ function renderMargin(){
     +"<div class=\"vhead\">Data exceptions</div><div class=\"vsub\">Cross-source disagreements to reconcile before quoting numbers — the audit-layer worklist.</div>"+excTable
     +fOnlySec;
   hookDrawerRows();
+}
+
+/* ===== Data Trust (Phase 6 — source health + the shared provenance reference) === */
+function renderTrust(){
+  var view=document.getElementById("view");
+  var now=Date.now();
+  function health(loaded,ts){
+    if(!loaded) return "<span class=\"pill r dot\">Down</span>";
+    if(ts&&(now-new Date(ts))/3600000>30) return "<span class=\"pill a dot\">Stale</span>";
+    return "<span class=\"pill g dot\">OK</span>";
+  }
+  function srow(name,provides,cadence,ts,count,loaded){
+    return "<tr class=\"static\"><td><div class=\"jname\">"+name+"</div></td><td style=\"white-space:normal\">"+provides+"</td><td>"+cadence+"</td>"
+      +"<td>"+(ts?(ageTxt(ts)+"<div class=\"cell-sub\">"+new Date(ts).toLocaleString()+"</div>"):"—")+"</td>"
+      +"<td class=\"r\">"+count+"</td><td>"+health(loaded,ts)+"</td></tr>";
+  }
+  var srcTable="<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Source</th><th>Provides</th><th>Cadence</th><th>Last data</th><th class=\"r\">Records</th><th>Health</th></tr></thead><tbody>"
+    +srow("Procore cache","Schedule, %, RFIs, submittals, CO types, revised contracts, budgets, commitments/buyout","Daily 04:00 UTC (11pm ET) + on-demand",activeData&&activeData.refreshed,((activeData&&activeData.jobs)||[]).length+" jobs",!!activeData)
+    +srow("Foundation snapshot","Cost to date, billings, retainage, PM names, CO postings, markups","Nightly 09:00 UTC (4am ET)",foundationData&&foundationData.refreshed,(foundationData&&foundationData.jobs?Object.keys(foundationData.jobs).length:0)+" jobs",!!foundationData)
+    +srow("Foundation AR","Open / overdue invoices with aging","Nightly 09:00 UTC (same run)",arData&&arData.refreshed,(((arData&&arData.invoices)||[]).length)+" invoices",!!arData)
+    +srow("Buildr","Client-relations visits + follow-up tasks","Live API on page load",buildrData&&buildrData.refreshed,(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",!!buildrData)
+    +srow("Portfolio archive","Completed jobs (pegged at archive time)","On job completion",null,((portfolioData&&portfolioData.jobs)||portfolioData||[]).length?(((portfolioData&&portfolioData.jobs)||portfolioData||[]).length+" jobs"):"—",!!portfolioData)
+    +"</tbody></table></div>"
+    +"<div class=\"vsub\" style=\"margin-top:8px\">Stale = no fresh data in 30h (a scheduled run was missed — check the Automation Health card on the CRM dashboard). Foundation is read-only by design; nothing here can write.</div>";
+
+  var exc=buildExceptions(getActiveJobs());
+  var byIssue={};
+  exc.forEach(function(e){ byIssue[e.issue]=(byIssue[e.issue]||0)+1; });
+  var excSummary=exc.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Exception type</th><th class=\"r\">Jobs</th></tr></thead><tbody>"
+      +Object.keys(byIssue).map(function(k){ return "<tr class=\"static\"><td>"+esc(k)+"</td><td class=\"r\">"+byIssue[k]+"</td></tr>"; }).join("")
+      +"</tbody></table></div><div class=\"vsub\" style=\"margin-top:8px\">Full job-by-job list with details on <a href=\"#\" onclick=\"setView(&quot;margin&quot;);return false\" style=\"color:var(--accent);font-weight:600\">Margin &amp; Risk → Data exceptions</a>.</div>")
+    :"<div class=\"vsub\">No open reconciliation exceptions — Procore and Foundation agree everywhere.</div>";
+
+  view.innerHTML="<div class=\"trust\">"
+    +"<div class=\"vhead\">Source health</div><div class=\"vsub\">Every feed this cockpit reads, its cadence, and the age of the data on screen right now.</div>"+srcTable
+    +"<div class=\"vhead\">Reconciliation exceptions</div><div class=\"vsub\">Cross-source disagreements currently open — the audit-layer worklist.</div>"+excSummary
+    +"<div class=\"vhead\" style=\"display:flex;align-items:center;gap:10px\">Field provenance reference <button class=\"pfill\" onclick=\"printDS()\">🖨 Print</button></div>"
+    +"<div class=\"vsub\">The shared Data Sources dictionary — one definition, loaded by this cockpit, the legacy dashboard, and the Foundation query tool. Git-tracked source: RYC_Dashboard_Data_Dictionary.md.</div>"
+    +"<div id=\"ds-panel\" style=\"background:#fff;border:1px solid #dfe4ec;border-radius:var(--r);padding:18px 22px\">"
+    +(typeof dataSourcesHTML==="function"?dataSourcesHTML():"<div class=\"vsub\">data-sources.js failed to load — provenance reference unavailable.</div>")
+    +"</div></div>";
+  hookDrawerRows();
+}
+
+/* ===== AI Assistant (Phase 6 — the /ryc/foundation NL→SQL, restyled) ========= */
+/* Same API (/api/ryc-foundation-query), same sessionStorage key (fdn_pw) and recents
+   (fdn_recent) as /ryc/foundation — a login or question history carries across both tools.
+   The tool password is FOUNDATION_TOOL_PASSWORD (server-side check), separate from the gate. */
+var AI_EXAMPLES=[
+  "Top 10 active jobs by cost to date",
+  "Total billed and total cost for each active job",
+  "Which jobs have the most overdue AR?",
+  "Current contract value by job including change orders",
+  "Retainage held on active jobs",
+  "Active jobs by project manager"
+];
+var _aiLast=null;
+function aiCall(payload){
+  var body=Object.assign({password:sessionStorage.getItem("fdn_pw")},payload);
+  return fetch("/api/ryc-foundation-query",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {status:r.status,data:d}; }); });
+}
+function aiDisclaimer(){
+  return "<div class=\"warn-banner\" style=\"background:#fdf3ea;border-color:#f0d5bc;color:#8a4b12\"><b>Live Foundation data — raw values.</b> "
+    +"This queries Foundation in real time and returns raw numbers; the rest of this cockpit reads a nightly snapshot and applies conventions (contract incl. COs, gross billings, forecast margins) — the two can legitimately differ by up to a day or by definition. Answers reconcile to Foundation; see <a href=\"#\" onclick=\"setView(&quot;trust&quot;);return false\" style=\"color:#8a4b12;font-weight:700\">Data Trust</a> for how each number is defined. Read-only; payroll/employee data blocked.</div>";
+}
+function renderAI(){
+  var view=document.getElementById("view");
+  if(!sessionStorage.getItem("fdn_pw")){
+    view.innerHTML="<div class=\"ai\">"+aiDisclaimer()
+      +"<div class=\"panel\" style=\"max-width:420px\"><h3>Unlock Foundation reports</h3><div class=\"sub\">This tool has its own password (not the dashboard access code).</div>"
+      +"<input id=\"ai-pw\" type=\"password\" placeholder=\"Foundation Reports password\" style=\"width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d5dbe6;border-radius:7px;font-size:14px\">"
+      +"<div id=\"ai-pw-err\" style=\"color:#d64545;font-size:12px;height:16px;margin-top:6px\"></div>"
+      +"<button class=\"ask-btn\" style=\"margin-top:6px\" onclick=\"aiLogin()\">Unlock</button></div></div>";
+    var pw=document.getElementById("ai-pw");
+    pw.addEventListener("keydown",function(e){ if(e.key==="Enter") aiLogin(); });
+    pw.focus();
+    return;
+  }
+  var recents=[];
+  try{ recents=JSON.parse(localStorage.getItem("fdn_recent")||"[]"); }catch(e){}
+  view.innerHTML="<div class=\"ai\">"+aiDisclaimer()
+    +"<div class=\"panel\"><h3>Ask Foundation</h3><div class=\"sub\">Plain English in — Claude writes the SQL, runs it read-only against Foundation live, and shows the result.</div>"
+    +"<textarea id=\"ai-q\" rows=\"2\" placeholder=\"e.g. Show total billed and total cost for each active job\"></textarea>"
+    +"<div style=\"display:flex;justify-content:flex-end;margin-top:10px\"><button class=\"ask-btn\" id=\"ai-ask\" onclick=\"aiAsk()\">Ask</button></div>"
+    +"<div class=\"ai-cards\">"+AI_EXAMPLES.map(function(t){ return "<div class=\"ai-card\" data-q=\""+attrEsc(t)+"\">"+esc(t)+"</div>"; }).join("")+"</div>"
+    +(recents.length?("<div class=\"sub\" style=\"margin:12px 0 0\">Recent</div><div class=\"ai-chips\">"+recents.map(function(t){ return "<span class=\"ai-chip\" data-q=\""+attrEsc(t)+"\">"+esc(t)+"</span>"; }).join("")+"</div>"):"")
+    +"</div><div id=\"ai-out\"></div></div>";
+  Array.prototype.forEach.call(view.querySelectorAll("[data-q]"),function(el){
+    el.addEventListener("click",function(){ document.getElementById("ai-q").value=el.getAttribute("data-q"); aiAsk(); });
+  });
+  var q=document.getElementById("ai-q");
+  q.addEventListener("keydown",function(e){ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)) aiAsk(); });
+}
+function aiLogin(){
+  var pw=document.getElementById("ai-pw").value;
+  if(!pw) return;
+  sessionStorage.setItem("fdn_pw",pw);
+  aiCall({verify:true}).then(function(r){
+    if(r.status===200){ renderAI(); }
+    else{ sessionStorage.removeItem("fdn_pw"); document.getElementById("ai-pw-err").textContent="Incorrect password."; }
+  });
+}
+function aiIsNum(v){ return v!==null&&v!==""&&!isNaN(Number(v)); }
+function aiFmt(v){ return aiIsNum(v)?Number(v).toLocaleString("en-US",{maximumFractionDigits:2}):(v==null?"":v); }
+function aiSql(sql){ return sql?("<details><summary>View the SQL Claude wrote</summary><pre>"+esc(sql)+"</pre></details>"):""; }
+function aiPushRecent(q){
+  var r=[];
+  try{ r=JSON.parse(localStorage.getItem("fdn_recent")||"[]"); }catch(e){}
+  r=[q].concat(r.filter(function(x){return x!==q;})).slice(0,8);
+  localStorage.setItem("fdn_recent",JSON.stringify(r));
+}
+function aiAsk(){
+  var q=(document.getElementById("ai-q").value||"").trim();
+  if(!q) return;
+  var btn=document.getElementById("ai-ask"), out=document.getElementById("ai-out");
+  btn.disabled=true;
+  out.innerHTML="<div class=\"panel\" style=\"margin-top:14px\"><span class=\"spin\"></span>&nbsp; Thinking — writing SQL, querying Foundation live…</div>";
+  aiCall({question:q}).then(function(r){
+    btn.disabled=false;
+    if(r.status===401){ sessionStorage.removeItem("fdn_pw"); renderAI(); return; }
+    aiPushRecent(q);
+    var d=r.data||{};
+    if(d.status==="refused"){ out.innerHTML="<div class=\"err-box\"><b>Cannot answer that one.</b><br>"+esc(d.explanation||"")+"</div>"; return; }
+    if(d.status==="blocked"){ out.innerHTML="<div class=\"err-box\"><b>Query blocked by the safety guard.</b><br>"+esc(d.error||"")+"</div>"+aiSql(d.sql); return; }
+    if(d.status!=="ok"){ out.innerHTML="<div class=\"err-box\"><b>Something went wrong.</b><br>"+esc(d.error||"Unknown error")+"</div>"+(d.sql?aiSql(d.sql):""); return; }
+    var cols=d.columns||[], rows=d.rows||[];
+    var numCol=cols.map(function(_,i){ return rows.length&&rows.every(function(rr){ return rr[i]==null||aiIsNum(rr[i]); }); });
+    var html="";
+    if(d.explanation) html+="<div class=\"vsub\" style=\"margin:14px 0 6px\">"+esc(d.explanation)+"</div>";
+    html+="<div style=\"display:flex;justify-content:space-between;align-items:center;margin:8px 0 4px\"><span class=\"vsub\" style=\"margin:0\">"+rows.length+" row"+(rows.length===1?"":"s")+(d.truncated?(" (capped at "+d.row_cap+")"):"")+"</span><button class=\"pfill\" onclick=\"aiCSV()\">⬇ CSV</button></div>";
+    html+="<div class=\"out-table\"><table><thead><tr>"+cols.map(function(c,i){ return "<th class=\""+(numCol[i]?"num":"")+"\">"+esc(c)+"</th>"; }).join("")+"</tr></thead><tbody>";
+    rows.forEach(function(rr){ html+="<tr>"+rr.map(function(v,i){ return "<td class=\""+(numCol[i]?"num":"")+"\">"+esc(aiFmt(v))+"</td>"; }).join("")+"</tr>"; });
+    html+="</tbody></table></div>"+aiSql(d.sql);
+    out.innerHTML=html;
+    _aiLast={cols:cols,rows:rows};
+  }).catch(function(e){
+    btn.disabled=false;
+    out.innerHTML="<div class=\"err-box\"><b>Request failed.</b><br>"+esc(e.message||String(e))+"</div>";
+  });
+}
+function aiCSV(){
+  if(!_aiLast) return;
+  function qv(v){ v=v==null?"":String(v); return /[\",\n]/.test(v)?("\""+v.replace(/\"/g,"\"\"")+"\""):v; }
+  var csv=[_aiLast.cols.map(qv).join(",")].concat(_aiLast.rows.map(function(r){ return r.map(qv).join(","); })).join("\n");
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="foundation-report.csv"; a.click(); URL.revokeObjectURL(a.href);
 }
 
 /* ===== Executive Brief (Phase 5) ============================================= */
@@ -1133,7 +1324,8 @@ function renderView(){
   if(currentView==="billing"){ renderBilling(); return; }
   if(currentView==="margin"){ renderMargin(); return; }
   if(currentView==="brief"){ renderBrief(); return; }
-  view.innerHTML="<div class=\"panel\"><h3>"+(titles[currentView]||"")+"</h3><div class=\"sub\">Coming in a later phase. Everything except this view is live.</div></div>";
+  if(currentView==="trust"){ renderTrust(); return; }
+  if(currentView==="ai"){ renderAI(); return; }
 }
 function init(){
   renderNav();
