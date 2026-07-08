@@ -32,7 +32,8 @@ button{background:var(--orange);color:#fff;border:0;border-radius:9px;padding:12
 button:hover{filter:brightness(.95)}
 a{color:var(--orange)}
 .small{font-size:13px;color:var(--muted);margin-top:18px}
-</style></head><body><div class="card"><div class="brand">Civic<span>SCOPE</span></div>${bodyHtml}</div></body></html>`;
+.addr{font-size:11px;color:#b9b2a6;margin-top:22px;padding-top:14px;border-top:1px solid var(--rule)}
+</style></head><body><div class="card"><div class="brand">Civic<span>SCOPE</span></div>${bodyHtml}<div class="addr">CivicScope · PO Box 69, Nappanee, IN 46550</div></div></body></html>`;
 }
 
 export default async function handler(req, res) {
