@@ -129,6 +129,50 @@ table.ptable{width:100%;border-collapse:collapse;font-size:12.5px}
 .ptable tr.static{cursor:default}
 details.lgcy{margin-top:14px}
 details.lgcy summary{cursor:pointer;font-size:12.5px;color:#4a5670;font-weight:600;padding:8px 2px}
+/* ===== Executive Brief (Phase 5 — light editorial + Present + print) ========= */
+.brief{max-width:980px}
+.brief .bh{border-bottom:3px solid #1c2433;padding-bottom:14px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;gap:14px}
+.brief .bh h1{font-family:var(--font-serif);font-size:30px;font-weight:600;margin:0;color:#1c2433}
+.brief .bh .bsub{color:#67718a;font-size:13px;margin-top:5px}
+.brief-actions{display:flex;gap:8px;flex-shrink:0}
+.brief-sec{margin-bottom:28px}
+.brief-sec h2{font-family:var(--font-serif);font-size:19px;font-weight:600;margin:0 0 4px;color:#1c2433}
+.brief-sec .ssub{color:#67718a;font-size:12.5px;margin-bottom:12px}
+.stat-band{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:6px}
+.stat-band .sb{border-top:2px solid #1c2433;padding-top:10px}
+.stat-band .sb .l{color:#5b6578;font-size:10.5px;letter-spacing:.7px;text-transform:uppercase}
+.stat-band .sb .v{font-family:var(--font-serif);font-size:27px;margin-top:4px;color:#1c2433;font-variant-numeric:tabular-nums}
+.stat-band .sb .s{color:#8b95ab;font-size:11.5px;margin-top:2px}
+.brief .risk{display:flex;gap:12px;align-items:baseline;padding:9px 0;border-bottom:1px solid #eef1f6;font-size:13.5px}
+.brief .risk .rtag{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.5px;border-radius:4px;padding:2px 7px;text-transform:uppercase}
+.brief .risk .rtag.red{background:rgba(214,69,69,.12);color:#d64545}.brief .risk .rtag.co{background:rgba(20,160,140,.12);color:#0f9080}.brief .risk .rtag.fade{background:rgba(160,90,200,.12);color:#8f4bb8}.brief .risk .rtag.cash{background:rgba(90,130,200,.13);color:#3f6bb5}
+.brief .risk .rname{font-weight:600;color:#1c2433;flex-shrink:0}
+.brief .risk .rtext{color:#4a5670}
+.brief .risk .rval{margin-left:auto;font-family:var(--font-serif);font-variant-numeric:tabular-nums;color:#1c2433;flex-shrink:0}
+.brief .woh-note,.brief-foot{color:#67718a;font-size:11.5px;line-height:1.6;margin-top:8px}
+.brief-foot{border-top:1px solid #dfe4ec;padding-top:12px;margin-top:26px}
+/* Present mode — full-screen, sidebar hidden, type up */
+body.present .sidebar{display:none}
+body.present .shell{grid-template-columns:1fr}
+body.present .topbar{display:none}
+body.present .view{padding:38px 7vw 80px}
+body.present .brief{max-width:1200px}
+body.present .brief .bh h1{font-size:40px}
+body.present .stat-band .sb .v{font-size:36px}
+body.present .brief-sec h2{font-size:25px}
+body.present .brief .risk{font-size:16px}
+body.present .ptable{font-size:14px}
+/* Print — brief only prints clean; chrome hidden, forced light */
+@media print{
+  .sidebar,.topbar,.brief-actions,.warn-banner{display:none!important}
+  .shell{display:block!important}
+  body,.content,.content.light{background:#fff!important;background-image:none!important;color:#000!important}
+  .view{padding:0!important}
+  .brief{max-width:none}
+  .brief-sec{break-inside:avoid}
+  .ptable-wrap{overflow:visible!important;box-shadow:none!important;border-color:#bbb!important}
+  .ptable th{position:static!important}
+}
 /* ===== job detail drawer (Phase 3a) ========================================== */
 .ptable tbody tr{cursor:pointer}
 .ptable tbody tr:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
@@ -196,7 +240,7 @@ table.dwt{width:100%;border-collapse:collapse;font-size:12px}
       <div class="side-foot">
         <a href="/ryc/estimate">&#128208; Estimating Tools &rarr;</a>
         <a href="/ryc/dashboard">&#11116; Legacy Dashboard</a>
-        <div class="ver">v2.6.0-command &middot; Phase 4</div>
+        <div class="ver">v2.7.0-command &middot; Phase 5</div>
       </div>
     </aside>
     <main class="content">
@@ -767,6 +811,111 @@ function renderMargin(){
   hookDrawerRows();
 }
 
+/* ===== Executive Brief (Phase 5) ============================================= */
+/* Work-on-Hand rows — EXACT legacy conventions (columns/sources per Tristan/Steve 2026-07-07):
+   Contract Price = Procore Revised Contract Amount; Total Job Costs = Procore ERP Projected Budget;
+   Cost to Date + Billings = FOUNDATION. Cost to Complete = Total Job Costs − Cost to Date. */
+function wohRows(){
+  var rows=[];
+  getActiveJobs().forEach(function(j){
+    var f=j.foundation, b=j.budget||{};
+    var contract=(j.revisedContract>0)?j.revisedContract:((j.contractValue>0)?j.contractValue:null);
+    var ctd=f?f.totalCosts:null;
+    var tec=(b.projectedBudget!=null)?b.projectedBudget:null;
+    var billed=f?f.totalInvoiced:null;
+    var ctc=(tec!=null&&ctd!=null)?(tec-ctd):null;
+    rows.push({jno:j.projectNumber||"",name:j.name||(f&&f.description)||(j.projectNumber||""),contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null});
+  });
+  rows.sort(function(a,b2){return (b2.contract||0)-(a.contract||0);});
+  return rows;
+}
+function briefDol(n){ return n==null?"<span class=\"m-m\">—</span>":(n<0?"$("+Math.abs(Math.round(n)).toLocaleString("en-US")+")":"$"+Math.round(n).toLocaleString("en-US")); }
+function briefPresent(){
+  if(document.fullscreenElement){ document.exitFullscreen(); return; }
+  document.body.classList.add("present");
+  var el=document.documentElement;
+  if(el.requestFullscreen) el.requestFullscreen().catch(function(){});
+}
+document.addEventListener("fullscreenchange",function(){ if(!document.fullscreenElement) document.body.classList.remove("present"); });
+function renderBrief(){
+  var view=document.getElementById("view");
+  var haveFnd=!!(foundationData&&foundationData.jobs), haveAr=!!(arData&&arData.invoices);
+  var warn=(!haveFnd||!haveAr)?("<div class=\"warn-banner\">⚠️ "+(!haveFnd?"Foundation":"AR")+" feed unavailable — affected figures show <b>Unavailable</b>, not $0. Do not present until resolved.</div>"):"";
+  var jobs=getActiveJobs();
+  var totalContract=jobs.reduce(function(s,j){return s+(j.contractValue||0);},0);
+  var gm=projectedGrossMargin();
+  var woh=wohRows();
+  var ctcRows=woh.filter(function(r){return r.ctc!=null;});
+  var ctcSum=ctcRows.reduce(function(s,r){return s+r.ctc;},0);
+  var dateStr=new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
+  var pAge=ageTxt(activeData&&activeData.refreshed), fAge=ageTxt(foundationData&&foundationData.refreshed);
+
+  /* headline band */
+  function sb(l,v,s){ return "<div class=\"sb\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div><div class=\"s\">"+(s||"")+"</div></div>"; }
+  var band="<div class=\"stat-band\">"
+    +sb("Active work",String(jobs.length)+" jobs",fmtCompact(totalContract)+" under contract")
+    +sb("Cost to complete",fmtCompact(ctcSum),"remaining on "+ctcRows.length+" costed jobs")
+    +sb("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast, Procore budgets")
+    +sb("Billed to date",haveFnd?fmtCompact(woh.reduce(function(s,r){return s+(r.billed||0);},0)):"Unavailable","Foundation, active jobs")
+    +"</div>";
+
+  /* attention list: reds + closeout + biggest fades */
+  var lights=jobs.map(function(j){return {j:j,sl:getStoplight(j,j)};});
+  var closeouts=lights.filter(function(x){return isCloseoutOnly(x.j);});
+  var closeoutSet=new Set(closeouts.map(function(x){return x.j;}));
+  var reds=lights.filter(function(x){return x.sl.color==="red"&&!closeoutSet.has(x.j);});
+  var fades=gainFadeRows().filter(function(r){return r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;});
+  var risks=[];
+  reds.forEach(function(x){ risks.push({tag:"red",tl:"Risk",name:x.j.name,text:x.sl.reasons.filter(function(r){return r.level==="red";}).map(function(r){return r.text;}).join(" · ")+" — "+(pmName(x.j)||"(no PM)"),val:fmtCompact(x.j.contractValue)}); });
+  closeouts.forEach(function(x){ var f=x.j.foundation||{}; risks.push({tag:"co",tl:"Closeout",name:x.j.name,text:daysPastFinish(x.j)+"d past finish, "+fmtCompact(f.retainage||0)+" retainage held — close out to release cash",val:fmtCompact(x.j.contractValue)}); });
+  fades.slice(0,3).forEach(function(r){ risks.push({tag:"fade",tl:"Fade",name:r.name,text:"margin "+r.gfPts.toFixed(1)+" pts vs as-bid"+(r.burnRisk?", cost burn ahead of progress":"")+" — "+r.pm,val:fmtCompact(r.gfDollars)}); });
+  var riskHtml=risks.slice(0,7).map(function(r){
+    return "<div class=\"risk\"><span class=\"rtag "+r.tag+"\">"+r.tl+"</span><span class=\"rname\">"+esc(r.name)+"</span><span class=\"rtext\">"+esc(r.text)+"</span><span class=\"rval\">"+r.val+"</span></div>";
+  }).join("")||"<div class=\"ssub\">Nothing flagged — no red jobs, closeout aging, or material fades.</div>";
+
+  /* cash watchlist */
+  var accts=haveFnd?activeAccountRows():[];
+  var needsInv=accts.reduce(function(s,r){return s+r.under;},0);
+  var over=haveAr?arRows("overdue","active"):[];
+  var buckets=[0,0,0,0]; over.forEach(function(v){ buckets[agingBucket(v.daysOverdue||0)]+=(v.openBalance||0); });
+  var curOver=buckets[0]+buckets[1], agedOver=buckets[2]+buckets[3];
+  var watch=accts.filter(function(r){return r.under>1000||r.overdue>0;}).sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);}).slice(0,5);
+  var watchHtml=watch.map(function(r){
+    var bits=[]; if(r.under>0) bits.push("needs invoicing "+fmtCompact(r.under)); if(r.overdue>0) bits.push("overdue AR "+fmtCompact(r.overdue));
+    return "<div class=\"risk\"><span class=\"rtag cash\">Cash</span><span class=\"rname\">"+esc(r.name)+"</span><span class=\"rtext\">"+esc(bits.join(" · ")+" — "+r.pm)+"</span><span class=\"rval\">"+fmtCompact(r.under+r.overdue)+"</span></div>";
+  }).join("");
+  var cashSub=haveFnd&&haveAr
+    ?("Needs invoicing <b>"+fmtCompact(needsInv)+"</b> · current overdue (≤90d) <b>"+fmtCompact(curOver)+"</b> · aged overdue <b>"+fmtCompact(agedOver)+"</b> · top 5 below — full detail on Billing &amp; Cash.")
+    :"Foundation/AR feed unavailable.";
+
+  /* work-on-hand table */
+  var wohBody=woh.map(function(r){
+    return "<tr"+rowAttr(r.jno)+"><td>"+esc(r.name)+"</td><td class=\"r\">"+briefDol(r.contract)+"</td><td class=\"r\">"+briefDol(r.ctd)+"</td>"
+      +"<td class=\"r\">"+briefDol(r.ctc)+"</td><td class=\"r\">"+briefDol(r.tec)+"</td><td class=\"r\">"+briefDol(r.billed)+"</td></tr>";
+  }).join("");
+  function wsum(k){ return woh.reduce(function(s,r){return s+(r[k]||0);},0); }
+  var wohFoot="<tr><td>"+woh.length+" jobs</td><td class=\"r\">"+briefDol(wsum("contract"))+"</td><td class=\"r\">"+briefDol(wsum("ctd"))+"</td><td class=\"r\">"+briefDol(wsum("ctc"))+"</td><td class=\"r\">"+briefDol(wsum("tec"))+"</td><td class=\"r\">"+briefDol(wsum("billed"))+"</td></tr>";
+  var missingTec=woh.filter(function(r){return r.noTec;}).length;
+
+  /* exceptions + provenance */
+  var conflicts=jobs.filter(function(j){return (j.flags||[]).some(function(f){return f.type==="contract";});}).length;
+
+  view.innerHTML=warn+"<div class=\"brief\">"
+    +"<div class=\"bh\"><div><h1>Executive Brief</h1><div class=\"bsub\">R. Yoder Construction — active work · as of "+dateStr+" · Procore data "+(pAge||"—")+", Foundation "+(fAge||"—")+"</div></div>"
+    +"<div class=\"brief-actions\"><button class=\"pfill\" onclick=\"briefPresent()\">🖥 Present</button><button class=\"pfill\" onclick=\"window.print()\">🖨 Print</button></div></div>"
+    +"<div class=\"brief-sec\">"+band+"</div>"
+    +"<div class=\"brief-sec\"><h2>What needs attention</h2><div class=\"ssub\">Real risk, aging closeouts, and the biggest margin fades — the week&#8217;s conversation list.</div>"+riskHtml+"</div>"
+    +"<div class=\"brief-sec\"><h2>Billing &amp; cash</h2><div class=\"ssub\">"+cashSub+"</div>"+watchHtml+"</div>"
+    +"<div class=\"brief-sec\"><h2>Work-on-Hand Analysis</h2><div class=\"ssub\">The audit table — reconciles to Foundation. Largest contract first.</div>"
+    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Project Name</th><th class=\"r\">Contract Price</th><th class=\"r\">Cost to Date</th><th class=\"r\">Cost to Complete</th><th class=\"r\">Total Job Costs</th><th class=\"r\">Billings to Date</th></tr></thead><tbody>"+wohBody+"</tbody><tfoot>"+wohFoot+"</tfoot></table></div>"
+    +"<div class=\"woh-note\"><b>Contract Price</b> (Revised Contract Amount) &amp; <b>Total Job Costs</b> (ERP Projected Budget) from Procore; <b>Cost to Date</b> &amp; <b>Billings to Date</b> from Foundation. Cost to Complete = Total Job Costs − Cost to Date."
+    +(missingTec?" <b>"+missingTec+"</b> job(s) missing Procore Projected Budget — Cost to Complete blank for those.":"")+"</div></div>"
+    +"<div class=\"brief-foot\">"+(conflicts?("<b>"+conflicts+"</b> contract conflict(s) between Procore and Foundation are open — see Margin &amp; Risk → Data exceptions before quoting those jobs. "):"Procore and Foundation contracts agree on every active job. ")
+    +"Decision-layer figures (margins, stoplights, gain/fade) are forecasts; source-of-record figures (cost, billings, AR, this Work-on-Hand table) mirror Foundation. Full provenance: RYC_Dashboard_Data_Dictionary.md.</div>"
+    +"</div>";
+  hookDrawerRows();
+}
+
 /* ===== Job detail drawer (Phase 3a — existing data only; commitments arrive in 3b) ===== */
 var _dwTrigger=null;
 function jobByNo(jno){
@@ -977,11 +1126,14 @@ function renderView(){
   var view=document.getElementById("view");
   // dark showcase for the Command Center; light operator theme for work views (FundView tiering)
   document.querySelector(".content").classList.toggle("light",currentView!=="command");
+  // the brief carries its own editorial header (title + date + freshness) — drop the redundant topbar
+  document.querySelector(".topbar").style.display=(currentView==="brief")?"none":"";
   if(currentView==="command"){ view.innerHTML=renderCommand(); return; }
   if(currentView==="portfolio"){ renderPortfolio(); return; }
   if(currentView==="billing"){ renderBilling(); return; }
   if(currentView==="margin"){ renderMargin(); return; }
-  view.innerHTML="<div class=\"panel\"><h3>"+(titles[currentView]||"")+"</h3><div class=\"sub\">Coming in a later phase. Shell, data plumbing, Command Center, Portfolio, Billing &amp; Cash, and Margin &amp; Risk are live.</div></div>";
+  if(currentView==="brief"){ renderBrief(); return; }
+  view.innerHTML="<div class=\"panel\"><h3>"+(titles[currentView]||"")+"</h3><div class=\"sub\">Coming in a later phase. Everything except this view is live.</div></div>";
 }
 function init(){
   renderNav();
