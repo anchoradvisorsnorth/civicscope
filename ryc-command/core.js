@@ -63,13 +63,30 @@ function mergeFoundation(){
 
 function getActiveJobs(){ return ((activeData&&activeData.jobs)||[]).filter(function(j){ return !CLOSEOUT_STAGES[j.stage]; }); }
 
+/* Stage-trust guard (2026-07-08): Procore `stage` is PM-maintained and often stale
+   (May 28 audit: wrong/null on 7 of 13 — jobs at 65% cost still marked Pre-Construction).
+   Cost activity is the ground truth: >=5% of cost budget spent means the job is in
+   construction whatever the stage field says. Consulted by the stoplight, the Portfolio
+   stage ⚑, and the data-exceptions worklist. */
+function hasCostActivity(j){ return !!j && j.pctComplete!=null && j.pctComplete>=5; }
+function stageConflict(j){ return !!j && j.stage==="Pre-Construction" && hasCostActivity(j); }
+
+/* Source deep-links (2026-07-08): every project reference is one click from its record
+   in the source system, so a data problem lands next to its fix. */
+var BUILDR_ACCT="1411";
+function procoreUrl(j){ return (j&&j.procoreId)?("https://app.procore.com/"+j.procoreId+"/project/home"):null; }
+function buildrUrl(id){ return id?("https://buildr.app/a/"+BUILDR_ACCT+"/projects/"+id):null; }
+function buildrIdFor(jno){ var r=buildrData&&buildrData.jobs&&buildrData.jobs[String(jno||"").trim()]; return (r&&r.projectId)||null; }
+
 function getStoplight(job, live){
   var stage=live?live.stage:null, pctComp=live?live.pctComplete:null, costOverrun=live?live.costOverrun:null;
   var finishDate=live?(live.projectedFinish||live.completionDate):null, verifyStatus=live?live.verifyStatus:null;
   var cMargin=contractedMargin(job), mtd=marginToDate(job);
   var co=live?live.changeOrders:null;
   var coExposure=(co&&co.netValue&&job.contractValue)?Math.abs(co.netValue)/job.contractValue:0;
-  var isPrecon=stage==="Pre-Construction"||(!(live&&live.budget)&&(pctComp==null||pctComp===0));
+  // effective stage: a stale "Pre-Construction" no longer exempts a job with real cost
+  // activity from every risk check (the old check silently grayed a job at 65% complete)
+  var isPrecon=(stage==="Pre-Construction"&&!hasCostActivity(live))||(!(live&&live.budget)&&(pctComp==null||pctComp===0));
   if(isPrecon) return {color:"gray",reasons:[]};
   var daysOverdue=finishDate?Math.floor((Date.now()-new Date(finishDate))/86400000):0;
   var reasons=[];
@@ -150,7 +167,7 @@ function buildrFollowUps(){
     if(rec && rec.needsAttention){
       res.flagged++;
       var last=rec.daysSinceLastMeeting;
-      res.items.push({job:num,name:job.name||"",pm:pmName(job)||"(no PM)",detail:last==null?"No owner visit logged in Buildr":"Last owner visit "+last+"d ago",open:(rec.openTasks||[]).length});
+      res.items.push({job:num,name:job.name||"",pm:pmName(job)||"(no PM)",buildrId:rec.projectId||null,detail:last==null?"No owner visit logged in Buildr":"Last owner visit "+last+"d ago",open:(rec.openTasks||[]).length});
     }
   });
   return res;

@@ -241,3 +241,9 @@ table.dwt{width:100%;border-collapse:collapse;font-size:12px}
   .ai-cards{grid-template-columns:1fr}
   .stat-band{grid-template-columns:1fr 1fr}
 }
+
+/* source deep-links (2026-07-08) — one click from any project reference to its source record */
+.srclink{display:inline-block;margin-left:7px;font-size:10.5px;font-weight:600;letter-spacing:.02em;color:#7c8699;text-decoration:none;border:1px solid rgba(124,134,153,.35);border-radius:9px;padding:0 7px;line-height:16px;vertical-align:middle;white-space:nowrap}
+.srclink:hover{color:var(--accent);border-color:var(--accent)}
+.q-detail .srclink,.dw-sub~div .srclink{border-color:rgba(255,255,255,.22);color:#9aa5bd}
+.content:not(.light) .srclink:hover{color:var(--accent);border-color:var(--accent)}

@@ -58,7 +58,7 @@ function renderCommand(){
     var bits=[daysPastFinish(j)+"d past projected finish","<b>"+fmtCompact(f.retainage||0)+"</b> retainage held"];
     if(leftToBill>1000) bits.push("<b>"+fmtCompact(leftToBill)+"</b> left to bill");
     bits.push(esc(pmName(j)||"(no PM)"));
-    return row("closeout",j.name||"",j.projectNumber,bits.join(" · "),fmtCompact(j.contractValue),"");
+    return row("closeout",j.name||"",j.projectNumber,bits.join(" · ")+srcLink(procoreUrl(j),"Procore"),fmtCompact(j.contractValue),"");
   }).join("");
   // data conflicts — Procore revised vs Foundation contract divergence (⚑ flags), surfaced for reconciliation
   var conflicts=jobs.filter(function(j){return j.revisedContract>0 && j.foundation && j.foundation.currentContract>0 &&
@@ -66,7 +66,7 @@ function renderCommand(){
   var conflictRows=conflicts.map(function(j){
     var d=j.revisedContract-j.foundation.currentContract;
     var detail="Procore revised <b>"+fmtCompact(j.revisedContract)+"</b> vs Foundation <b>"+fmtCompact(j.foundation.currentContract)+"</b> · "
-      +(d>0?"Procore ahead — check CO posting in Foundation":"Foundation ahead — check Procore prime contract");
+      +(d>0?"Procore ahead — check CO posting in Foundation":"Foundation ahead — check Procore prime contract")+srcLink(procoreUrl(j),"Procore");
     return row("conflict",j.name||"",j.projectNumber,detail,"Δ "+fmtCompact(Math.abs(d)),"warn");
   }).join("");
   // billing follow-up: needs-invoiced + overdue
@@ -79,7 +79,7 @@ function renderCommand(){
   var fadeRows=fades.map(function(r){ return row("fade",r.name,r.job,"fading <b>"+r.gfPts.toFixed(1)+" pts</b>"+(r.burnRisk?" · cost-burn risk":"")+" · "+esc(r.pm),fmtCompact(r.gfDollars),r.gfDollars<0?"bad":""); }).join("");
   // client follow-ups (Buildr)
   var bf=buildrFollowUps();
-  var cfuRows=bf.items.slice(0,10).map(function(r){ return row("info",r.name,r.job,esc(r.detail)+(r.open?" · <b>"+r.open+" open</b>":"")+" · "+esc(r.pm),null,""); }).join("");
+  var cfuRows=bf.items.slice(0,10).map(function(r){ return row("info",r.name,r.job,esc(r.detail)+(r.open?" · <b>"+r.open+" open</b>":"")+" · "+esc(r.pm)+srcLink(buildrUrl(r.buildrId),"Buildr"),null,""); }).join("");
   var cfuEmpty=bf.loaded===0?"Buildr feed unavailable.":(bf.matched===0?bf.loaded+" Buildr projects loaded, but none matched active job numbers — check the join.":"0 flagged · "+bf.loaded+" loaded, "+bf.matched+" matched active jobs.");
 
   var queue="<div class=\"panel\"><h3>Priority queue</h3><div class=\"sub\">What leadership should talk about this week — jobs to act on, most urgent first. Contract = Procore Revised; billing/AR/cost = Foundation.</div>"
@@ -114,6 +114,7 @@ function renderCommand(){
 /* ===== Portfolio (Phase 2 — light operator table) ============================ */
 var pfSort={col:"contract",dir:-1}, pfFilter="active", pfSearch="", _pfRows=[];
 function attrEsc(s){ return esc(s).replace(/"/g,"&quot;"); }
+function srcLink(url,label){ if(!url) return ""; return " <a class=\"srclink\" href=\""+attrEsc(url)+"\" target=\"_blank\" rel=\"noopener\" title=\"Open in "+attrEsc(label)+"\" onclick=\"event.stopPropagation()\">"+esc(label)+" &#8599;</a>"; }
 function billingByJob(){ var m={}; if(foundationData&&foundationData.jobs){ activeAccountRows().forEach(function(r){ m[String(r.job)]=r; }); } return m; }
 function confOf(j){
   var n=(j.revisedContract>0?1:0)+(j.foundation?1:0)+((j.budget&&j.budget.original>0)?1:0);
@@ -126,6 +127,7 @@ function buildPfRows(){
     var b=bb[String(j.projectNumber)]||null;
     var conf=confOf(j);
     return { name:j.name||"", jno:j.projectNumber||"", pm:pmName(j)||"", client:j.client||"", stage:j.stage||"",
+      stageConflict:stageConflict(j), procoreUrl:procoreUrl(j),
       closeoutStage:!!CLOSEOUT_STAGES[j.stage],
       contract:j.contractValue||0, conflict:(j.flags||[]).some(function(f){return f.type==="contract";}),
       ctd:(j.costToDate!=null?j.costToDate:null), pct:j.pctComplete,
@@ -164,8 +166,8 @@ function updatePTable(){
     if(r.overdue>0) bill+=(bill?" · ":"")+"<span class=\"m-r\">od "+fmtCompact(r.overdue)+"</span>";
     if(!bill) bill="<span class=\"m-m\">—</span>";
     tb+="<tr tabindex=\"0\" role=\"button\" data-jno=\""+attrEsc(r.jno)+"\" aria-label=\"Open job detail: "+attrEsc(r.name)+"\">"
-      +"<td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(r.client?" · "+esc(r.client):"")+"</div></td>"
-      +"<td>"+esc(r.pm||"—")+"</td><td>"+esc(r.stage||"—")+"</td>"
+      +"<td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(r.client?" · "+esc(r.client):"")+srcLink(r.procoreUrl,"Procore")+"</div></td>"
+      +"<td>"+esc(r.pm||"—")+"</td><td>"+esc(r.stage||"—")+(r.stageConflict?" <span title=\"Procore stage says Pre-Construction but the job shows real cost activity — stage is stale; update it in Procore (see Data exceptions)\" style=\"color:#c07f1a;cursor:help\">⚑</span>":"")+"</td>"
       +"<td class=\"r\">"+fmtCompact(r.contract)+(r.conflict?" <span title=\"Procore and Foundation contracts diverge — see Data conflicts on the Command Center\" style=\"color:#c07f1a\">⚑</span>":"")+"</td>"
       +"<td class=\"r\">"+(r.ctd!=null?fmtCompact(r.ctd):"—")+"</td>"
       +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
@@ -299,12 +301,14 @@ function renderBilling(){
 function buildExceptions(jobs){
   var exc=[];
   jobs.forEach(function(j){
+    var pl=srcLink(procoreUrl(j),"Procore");
     (j.flags||[]).forEach(function(f){
-      if(f.type==="contract") exc.push({jno:j.projectNumber,name:j.name,issue:"Contract conflict",detail:"Board shows "+fmtCompact(j.contractValue)+" vs "+esc(f.text)+" — reconcile CO posting between systems"});
-      if(f.type==="closed") exc.push({jno:j.projectNumber,name:j.name,issue:"Lifecycle mismatch",detail:"Foundation shows this job CLOSED; still active on the Procore board"});
+      if(f.type==="contract") exc.push({jno:j.projectNumber,name:j.name,issue:"Contract conflict",detail:"Board shows "+fmtCompact(j.contractValue)+" vs "+esc(f.text)+" — reconcile CO posting between systems"+pl});
+      if(f.type==="closed") exc.push({jno:j.projectNumber,name:j.name,issue:"Lifecycle mismatch",detail:"Foundation shows this job CLOSED; still active on the Procore board"+pl});
     });
-    if(j.budget&&j.budget.projCostSuspect) exc.push({jno:j.projectNumber,name:j.name,issue:"Projected cost ⚑ verify",detail:"ERP projected cost "+fmtCompact(j.budget.projectedCost)+" exceeds revised budget "+fmtCompact(j.budget.revised)+" by >30% — sub costs may be double-booked in Direct"});
-    if(j.budget&&j.budget.projectedCost==null&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"Missing projected cost",detail:"No ERP-view Projected Costs on an in-flight job"});
+    if(stageConflict(j)) exc.push({jno:j.projectNumber,name:j.name,issue:"Stale stage in Procore",detail:"Stage says Pre-Construction but the job is "+Math.round(j.pctComplete)+"% cost-complete"+(j.costToDate!=null?" ("+fmtCompact(j.costToDate)+" spent)":"")+" — update the stage in Procore"+pl});
+    if(j.budget&&j.budget.projCostSuspect) exc.push({jno:j.projectNumber,name:j.name,issue:"Projected cost ⚑ verify",detail:"ERP projected cost "+fmtCompact(j.budget.projectedCost)+" exceeds revised budget "+fmtCompact(j.budget.revised)+" by >30% — sub costs may be double-booked in Direct"+pl});
+    if(j.budget&&j.budget.projectedCost==null&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"Missing projected cost",detail:"No ERP-view Projected Costs on an in-flight job"+pl});
     if(!j.foundation&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"No Foundation match",detail:"Financials are Procore-only — unverified by accounting"});
   });
   return exc;
@@ -624,9 +628,9 @@ function renderForecast(){
   function projRows(list){
     return list.slice().sort(function(a,b){return (b.amount||0)-(a.amount||0);}).map(function(p){
       var dated=p.startDate&&p.endDate;
-      return "<tr"+rowAttr(p.projectNumber||"")+"><td><div class=\"jname\">"+esc(p.name)+"</div><div class=\"jno\">"+esc(p.company||"")+(p.assignedTo?" · "+esc(p.assignedTo):"")+"</div></td>"
+      return "<tr"+rowAttr(p.projectNumber||"")+"><td><div class=\"jname\">"+esc(p.name)+"</div><div class=\"jno\">"+esc(p.company||"")+(p.assignedTo?" · "+esc(p.assignedTo):"")+srcLink(buildrUrl(p.id),"Buildr")+"</div></td>"
         +"<td>"+esc(p.status==="pursuit"?(p.stage||"pursuit"):p.status)+"</td>"
-        +"<td>"+(dated?(fmtDate(p.startDate)+" → "+fmtDate(p.endDate)):"<span class=\"m-a\">no dates</span>")+"</td>"
+        +"<td>"+(dated?(fmtDate(p.startDate)+" → "+fmtDate(p.endDate)):"<span class=\"m-a\">no dates</span>"+srcLink(buildrUrl(p.id),"fix"))+"</td>"
         +"<td class=\"r\">"+fmtCompact(p.amount)+"</td>"
         +"<td class=\"r\">"+(p.profit>0?fmtCompact(p.profit):"<span class=\"m-m\">—</span>")+"</td></tr>";
     }).join("");
@@ -798,7 +802,8 @@ function drawerHtml(j){
   if(j.superintendent&&j.superintendent.name) subBits.push("Super "+esc(j.superintendent.name));
   var head="<div class=\"dw-head\"><div><h3>"+esc(j.name||"")+"</h3>"
     +"<div class=\"dw-sub\">"+subBits.join(" · ")+(j.address?"<br>"+esc(j.address):"")+"</div>"
-    +"<div style=\"margin-top:8px\">"+statusPill(status,reasons)+" <span style=\"color:#67718a;font-size:11.5px;margin-left:6px\">"+esc(j.stage||"")+"</span></div>"
+    +"<div style=\"margin-top:8px\">"+statusPill(status,reasons)+" <span style=\"color:#67718a;font-size:11.5px;margin-left:6px\">"+esc(j.stage||"")+(stageConflict(j)?" <span title=\"Stage is stale — job shows real cost activity\" style=\"color:#c07f1a\">⚑</span>":"")+"</span>"
+    +srcLink(procoreUrl(j),"Procore")+srcLink(buildrUrl(buildrIdFor(j.projectNumber)),"Buildr")+"</div>"
     +(reasons?"<div class=\"dw-reason\">"+esc(reasons)+"</div>":"")
     +"</div><button class=\"dw-close\" onclick=\"closeDrawer()\" aria-label=\"Close\">&times;</button></div>";
 
