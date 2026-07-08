@@ -675,10 +675,25 @@ function renderForecast(){
       +"They measure the same work differently: Buildr covers ALL "+projects.filter(function(p){return p.status==="active";}).length+" active Buildr projects (incl. jobs not on the Procore board) and spreads linearly from original schedules; left-to-bill is actuals-based. A large gap = stale Buildr schedules/amounts or board coverage — worth a look, not an alarm.</div>";
   }
 
+  /* undated worklist — the actionable data-fix queue, visible by default (not buried in the
+     collapsed tables): each row deep-links to its Buildr card so entering dates is one click away */
+  var undatedSec="";
+  if(sp.undated.length){
+    var uRows=sp.undated.slice().sort(function(a,b){return (b.amount||0)-(a.amount||0);}).map(function(p){
+      return "<tr class=\"static\"><td><div class=\"jname\">"+esc(p.name)+srcLink(buildrUrl(p.id),"Buildr — add dates")+"</div><div class=\"jno\">"+esc(p.company||"")+(p.assignedTo?" · "+esc(p.assignedTo):"")+"</div></td>"
+        +"<td>"+esc(p.status==="pursuit"?(p.stage||"pursuit"):p.status)+"</td>"
+        +"<td class=\"r\">"+fmtCompact(p.amount)+"</td></tr>";
+    }).join("");
+    undatedSec="<div class=\"vhead\">Undated projects — not in the spread</div>"
+      +"<div class=\"vsub\">"+sp.undated.length+" projects · "+fmtCompact(undatedAmt)+" carry no start/end dates in Buildr, so Buildr&#8217;s own Forecast silently drops them. Click through and enter dates to pull them into the projection.</div>"
+      +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Project</th><th>Status / stage</th><th class=\"r\">Amount</th></tr></thead><tbody>"+uRows+"</tbody></table></div>";
+  }
+
   view.innerHTML=strip
     +"<div class=\"vhead\">Revenue by period</div><div class=\"vsub\">Each project&#8217;s amount spread evenly across its start → end months, from this month forward — the same math as Buildr&#8217;s Forecast report (Steve&#8217;s revenue projections). Booked = active + awarded/upcoming · Potential = pursuits (unweighted). Undated projects are excluded from the spread and totaled in the KPI above.</div>"
     +periodTable
-    +"<div class=\"vhead\">Projects behind the numbers</div><div class=\"vsub\">Straight from Buildr — BD&#8217;s system of record (Brad/Jake maintain it). Source freshness: "+(ageTxt(forecastData.refreshed)||"live")+".</div>"
+    +undatedSec
+    +"<div class=\"vhead\">Projects behind the numbers</div><div class=\"vsub\">Straight from Buildr — BD&#8217;s system of record (Brad/Jake maintain it). Every row links to its Buildr card. Source freshness: "+(ageTxt(forecastData.refreshed)||"live")+".</div>"
     +projTable("Booked — active + awarded",booked)
     +projTable("Pipeline — pursuits",pursuit)
     +recon;

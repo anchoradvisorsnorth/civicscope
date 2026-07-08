@@ -74,8 +74,10 @@ function stageConflict(j){ return !!j && j.stage==="Pre-Construction" && hasCost
 
 /* Source deep-links (2026-07-08): every project reference is one click from its record
    in the source system, so a data problem lands next to its fix. */
-var BUILDR_ACCT="1411";
-function procoreUrl(j){ return (j&&j.procoreId)?("https://app.procore.com/"+j.procoreId+"/project/home"):null; }
+var BUILDR_ACCT="1411", PROCORE_COMPANY="598134325557276";
+// URL shape verified 2026-07-08: the legacy app.procore.com/{id}/project/home form 404s on
+// RYC's new-style global project IDs; the webclients company-scoped form resolves (200).
+function procoreUrl(j){ return (j&&j.procoreId)?("https://app.procore.com/webclients/host/companies/"+PROCORE_COMPANY+"/projects/"+j.procoreId+"/tools/project-home"):null; }
 function buildrUrl(id){ return id?("https://buildr.app/a/"+BUILDR_ACCT+"/projects/"+id):null; }
 function buildrIdFor(jno){ var r=buildrData&&buildrData.jobs&&buildrData.jobs[String(jno||"").trim()]; return (r&&r.projectId)||null; }
 
