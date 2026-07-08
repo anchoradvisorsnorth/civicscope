@@ -180,7 +180,7 @@ table.dwt{width:100%;border-collapse:collapse;font-size:12px}
       <div class="side-foot">
         <a href="/ryc/estimate">&#128208; Estimating Tools &rarr;</a>
         <a href="/ryc/dashboard">&#11116; Legacy Dashboard</a>
-        <div class="ver">v2.4.0-command &middot; Phase 3a</div>
+        <div class="ver">v2.5.0-command &middot; Phase 3b</div>
       </div>
     </aside>
     <main class="content">
@@ -645,6 +645,30 @@ function drawerHtml(j){
       +"</div>";
   }
 
+  /* commitments / buyout (Procore v1.1 contracts — unlocked 2026-07-07, Phase 3b) */
+  var buyout="";
+  var cm2=j.commitments;
+  if(cm2&&cm2.count>0){
+    var costBudget=(b.revised>0?b.revised:(b.original>0?b.original:null));
+    var uncommitted=(costBudget!=null)?(costBudget-cm2.committedTotal):null;
+    var covPct=(costBudget>0)?(cm2.committedTotal/costBudget*100):null;
+    var cRows=(cm2.rows||[]).slice(0,10).map(function(r){
+      return "<tr><td>"+esc(r.vendor||r.title||"—")+(r.vendor?"<div class=\"cell-sub\" style=\"white-space:normal\">"+esc(r.title||"")+"</div>":"")+"</td>"
+        +"<td>"+(r.kind==="po"?"PO":"Sub")+"</td><td>"+esc(r.status||"—")+"</td>"
+        +"<td class=\"r\">"+fmtCompact(r.total)+"</td></tr>";
+    }).join("");
+    var more=cm2.rows.length>10?("<div class=\"dw-note\">+ "+(cm2.rows.length-10)+" more commitments totaling "+fmtCompact(cm2.rows.slice(10).reduce(function(s,r){return s+r.total;},0))+".</div>"):"";
+    buyout="<div class=\"dw-sec\"><h4>Commitments &amp; buyout (Procore)</h4><div class=\"dw-stats\">"
+      +stat("Committed",fmtCompact(cm2.committedTotal),cm2.subcontracts+" subs · "+cm2.purchaseOrders+" POs"+(cm2.pendingTotal>0?" · <b>"+fmtCompact(cm2.pendingTotal)+" in flight</b>":""))
+      +stat("Uncommitted budget",uncommitted!=null?fmtCompact(uncommitted):"—",costBudget!=null?"of "+fmtCompact(costBudget)+" cost budget":"no budget")
+      +stat("Buyout coverage",covPct!=null?covPct.toFixed(0)+"%":"—","committed / cost budget")
+      +"</div>"
+      +"<table class=\"dwt\" style=\"margin-top:10px\"><tr><th>Vendor / commitment</th><th>Type</th><th>Status</th><th class=\"r\">Committed</th></tr>"+cRows+"</table>"+more
+      +"<div class=\"dw-note\">Committed = Approved/Complete contracts at revised value (approved CCOs included); \"in flight\" = out for signature / processing. Uncommitted budget includes RYC-carried costs — RYC self-performs nothing, so on a fully bought-out job this trends toward general conditions. Sub pay apps live in Foundation, not Procore.</div></div>";
+  } else if(!j.commitmentsTracked){
+    buyout="<div class=\"dw-sec\"><h4>Commitments &amp; buyout (Procore)</h4><div class=\"dw-note\">No commitment data for this job yet — buyout pull runs with the nightly Procore refresh (unlocked 2026-07-07).</div></div>";
+  }
+
   /* cost breakdown (Foundation, by class) */
   var costSec="";
   if(f&&f.costBreakdown){
@@ -686,9 +710,10 @@ function drawerHtml(j){
     +"<tr><td>Cost, billed, retainage, PM, CO postings</td><td>Foundation nightly ODBC</td><td class=\"r\">"+(fAge||"—")+"</td></tr>"
     +"<tr><td>Open / overdue invoices</td><td>Foundation AR feed</td><td class=\"r\">"+(aAge||"—")+"</td></tr>"
     +"<tr><td>Schedule, %, RFIs, submittals, CO types</td><td>Procore daily cache</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
-    +"</table><div class=\"dw-note\">Full field-by-field provenance: 📖 Data Sources on the legacy dashboard, or RYC_Dashboard_Data_Dictionary.md. Commitments / buyout arrive in Phase 3b.</div></div>";
+    +"<tr><td>Commitments / buyout</td><td>Procore sub + PO contracts (daily cache)</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
+    +"</table><div class=\"dw-note\">Full field-by-field provenance: 📖 Data Sources on the legacy dashboard, or RYC_Dashboard_Data_Dictionary.md.</div></div>";
 
-  return head+"<div class=\"dw-body\">"+snap+recon+billing+costSec+coSec+field+trail+"</div>";
+  return head+"<div class=\"dw-body\">"+snap+recon+billing+buyout+costSec+coSec+field+trail+"</div>";
 }
 function openDrawer(jno,trigger){
   var j=jobByNo(jno); if(!j) return;
