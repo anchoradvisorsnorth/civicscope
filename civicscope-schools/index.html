@@ -774,6 +774,11 @@ footer span {
   .cta-block { flex-direction: column; }
   .cta-action { text-align: left; }
   .header-tagline, .header-divider { display: none; }
+  /* 375px overflow fixes (2026-07-08): smaller mark, drop the badge (free-banner repeats it) */
+  .wordmark-svg { width: 150px; height: auto; }
+  .header-inner { gap: 12px; }
+  .header-badge { display: none; }
+  .for-schools-tag { font-size: 0.85rem; }
 }
 
 .free-banner {

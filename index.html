@@ -162,6 +162,13 @@
   .chooser { grid-template-columns: 1fr; }
   .steps { grid-template-columns: 1fr; gap: 24px; }
 }
+@media (max-width: 480px) {
+  /* 375px overflow fix (2026-07-08) */
+  .cs-wordmark-svg { width: 160px; height: auto; }
+  .cs-header-inner { gap: 12px; }
+  .cs-nav { gap: 10px; }
+  .cs-nav a:not(.cs-btn-nav) { display: none; }
+}
 </style>
 </head>
 <body>
@@ -218,6 +225,7 @@
   </a>
 
   <a class="choice" href="/for-infrastructure">
+    <span class="choice-badge">Live</span>
     <div class="choice-icon">🛣️</div>
     <div class="choice-name">Infrastructure</div>
     <div class="choice-desc">For horizontal public works — roads, water mains, sanitary and storm sewer, lift stations, treatment upgrades.</div>

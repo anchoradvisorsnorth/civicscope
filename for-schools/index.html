@@ -972,6 +972,13 @@ footer {
   .footer-links { flex-wrap: wrap; justify-content: center; }
   nav { gap: 12px; }
   nav a:not(.btn-nav) { display: none; }
+  /* 375px overflow fixes (2026-07-08): header wraps + smaller mark; grid tracks clamp to container */
+  .header-inner { flex-wrap: wrap; height: auto; min-height: 64px; padding-top: 10px; padding-bottom: 10px; gap: 14px; row-gap: 4px; }
+  .wordmark-svg { width: 170px; height: auto; }
+  .problem-grid { grid-template-columns: minmax(0, 1fr); }
+  .problem-grid > div { min-width: 0; }
+  .use-case-card { position: static; }
+  .use-case-card svg, .use-case-card img { max-width: 100%; height: auto; }
 }
 </style>
 </head>
