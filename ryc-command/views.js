@@ -1,0 +1,826 @@
+"use strict";
+/* ryc-command/views.js — all view renderers + job-detail drawer
+   Split from index.html (Phase 7). Classic scripts, load order: core → views → app. */
+/* ===== Command Center ======================================================== */
+function projectedGrossMargin(){
+  var jobs=getActiveJobs(), tC=0, tPC=0;
+  jobs.forEach(function(j){ var b=j.budget||{}; var pc=b.revised>0?b.revised:(b.original>0?b.original:0); if(j.contractValue>0&&pc>0){ tC+=j.contractValue; tPC+=pc; } });
+  return tC>0?((tC-tPC)/tC*100):null;
+}
+
+function renderCommand(){
+  var haveFnd=!!(foundationData&&foundationData.jobs);
+  var haveAr=!!(arData&&arData.invoices);
+  var jobs=getActiveJobs();
+  var totalContract=jobs.reduce(function(s,j){return s+(j.contractValue||0);},0);
+  var lights=jobs.map(function(j){return {j:j,sl:getStoplight(j,j)};});
+  var closeouts=lights.filter(function(x){ return isCloseoutOnly(x.j); });
+  var closeoutSet=new Set(closeouts.map(function(x){return x.j;}));
+  var reds=lights.filter(function(x){return x.sl.color==="red" && !closeoutSet.has(x.j);});
+  var ambers=lights.filter(function(x){return x.sl.color==="amber";});
+  var gm=projectedGrossMargin();
+  var accts=haveFnd?activeAccountRows():[];
+  var needsInv=accts.reduce(function(s,r){return s+r.under;},0);
+  var overdue=accts.reduce(function(s,r){return s+r.overdue;},0);
+  var flagged=reds.length+ambers.length;
+  var missing=[];
+  if(!activeData||!activeData.jobs) missing.push("Procore");
+  if(!haveFnd) missing.push("Foundation");
+  if(!haveAr) missing.push("AR");
+  var warn=missing.length?("<div class=\"warn-banner\">⚠️ "+missing.join(" + ")+" feed unavailable — affected figures show <b>Unavailable</b>, not $0.</div>"):"";
+
+  /* KPI strip */
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var strip="<div class=\"kpi-strip\">"
+    +kpi("Active contract value",fmt(totalContract),jobs.length+" active jobs","accent")
+    +kpi("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast · Procore budget",(gm!=null&&gm<8)?"warn":"")
+    +kpi("Overdue AR (active)",haveAr?fmtCompact(overdue):"Unavailable",haveAr?"needs collection":"AR feed down",haveAr?(overdue>0?"bad":""):"warn")
+    +kpi("Needs invoicing",haveFnd?fmtCompact(needsInv):"Unavailable",haveFnd?"earned, not billed":"Foundation feed down",haveFnd?(needsInv>0?"warn":""):"warn")
+    +kpi("Jobs flagged",String(flagged),reds.length+" red · "+ambers.length+" amber · "+closeouts.length+" closeout",flagged>0?"warn":"")
+    +"</div>";
+
+  /* Priority queue */
+  function row(cls,name,jno,detail,val,vcls){
+    return "<div class=\"q-row "+cls+"\"><div class=\"q-job\">"+esc(name)+"<span class=\"q-jno\">"+esc(jno||"")+"</span></div>"
+      +"<div class=\"q-detail\">"+detail+"</div>"+(val!=null?"<div class=\"q-val "+(vcls||"")+"\">"+val+"</div>":"")+"</div>";
+  }
+  function section(title,n,rowsHtml,empty,badge){
+    return "<div class=\"qsec\"><div class=\"qh\">"+title+" <span class=\"qn\">"+(badge!=null?badge:n)+"</span></div>"+(n?rowsHtml:"<div class=\"q-empty\">"+empty+"</div>")+"</div>";
+  }
+  // red
+  var redRows=reds.map(function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="red";}).map(function(z){return z.text;}).join(" · "); return row("red",x.j.name||"",x.j.projectNumber,"<b>"+esc(r)+"</b>",fmtCompact(x.j.contractValue),""); }).join("");
+  // amber
+  var amberRows=ambers.map(function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="amber";}).map(function(z){return z.text;}).join(" · "); return row("amber",x.j.name||"",x.j.projectNumber,esc(r),fmtCompact(x.j.contractValue),""); }).join("");
+  // closeout aging — Foundation-side closeout test: retainage still held, billing gap, job still open
+  var closeoutRows=closeouts.map(function(x){
+    var j=x.j, f=j.foundation||{};
+    var leftToBill=(j.contractValue||0)-(f.totalInvoiced||0);
+    var bits=[daysPastFinish(j)+"d past projected finish","<b>"+fmtCompact(f.retainage||0)+"</b> retainage held"];
+    if(leftToBill>1000) bits.push("<b>"+fmtCompact(leftToBill)+"</b> left to bill");
+    bits.push(esc(pmName(j)||"(no PM)"));
+    return row("closeout",j.name||"",j.projectNumber,bits.join(" · "),fmtCompact(j.contractValue),"");
+  }).join("");
+  // data conflicts — Procore revised vs Foundation contract divergence (⚑ flags), surfaced for reconciliation
+  var conflicts=jobs.filter(function(j){return j.revisedContract>0 && j.foundation && j.foundation.currentContract>0 &&
+    Math.abs(j.foundation.currentContract-j.revisedContract)>50000 && Math.abs(j.foundation.currentContract-j.revisedContract)>j.revisedContract*0.02;});
+  var conflictRows=conflicts.map(function(j){
+    var d=j.revisedContract-j.foundation.currentContract;
+    var detail="Procore revised <b>"+fmtCompact(j.revisedContract)+"</b> vs Foundation <b>"+fmtCompact(j.foundation.currentContract)+"</b> · "
+      +(d>0?"Procore ahead — check CO posting in Foundation":"Foundation ahead — check Procore prime contract");
+    return row("conflict",j.name||"",j.projectNumber,detail,"Δ "+fmtCompact(Math.abs(d)),"warn");
+  }).join("");
+  // billing follow-up: needs-invoiced + overdue
+  var billAll=accts.filter(function(r){return r.under>1000||r.overdue>0;}).sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);});
+  var billCount=billAll.length;
+  var billRows=billAll.slice(0,10).map(function(r){ var bits=[]; if(r.under>0) bits.push("needs invoicing <b>"+fmtCompact(r.under)+"</b>"+(r.exact?"":" <span style=\"color:var(--faint)\">(bid-est)</span>")); if(r.overdue>0) bits.push("overdue AR <b>"+fmtCompact(r.overdue)+"</b>"); return row("info",r.name||"",r.job,bits.join(" · ")+" · "+esc(r.pm),null,""); }).join("");
+  var billBadge=!haveFnd?"n/a":(billCount>10?"top 10 of "+billCount:String(billCount));
+  // margin fades
+  var fades=gainFadeRows().filter(function(r){return r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;}).slice(0,8);
+  var fadeRows=fades.map(function(r){ return row("fade",r.name,r.job,"fading <b>"+r.gfPts.toFixed(1)+" pts</b>"+(r.burnRisk?" · cost-burn risk":"")+" · "+esc(r.pm),fmtCompact(r.gfDollars),r.gfDollars<0?"bad":""); }).join("");
+  // client follow-ups (Buildr)
+  var bf=buildrFollowUps();
+  var cfuRows=bf.items.slice(0,10).map(function(r){ return row("info",r.name,r.job,esc(r.detail)+(r.open?" · <b>"+r.open+" open</b>":"")+" · "+esc(r.pm),null,""); }).join("");
+  var cfuEmpty=bf.loaded===0?"Buildr feed unavailable.":(bf.matched===0?bf.loaded+" Buildr projects loaded, but none matched active job numbers — check the join.":"0 flagged · "+bf.loaded+" loaded, "+bf.matched+" matched active jobs.");
+
+  var queue="<div class=\"panel\"><h3>Priority queue</h3><div class=\"sub\">What leadership should talk about this week — jobs to act on, most urgent first. Contract = Procore Revised; billing/AR/cost = Foundation.</div>"
+    +section("🔴 Needs attention now",reds.length,redRows,"No red jobs — no financial or genuine schedule risk flagged.")
+    +section("🟠 Watch",ambers.length,amberRows,"No amber jobs.")
+    +section("🏁 Closeout aging",closeouts.length,closeoutRows,"No jobs stuck in closeout.")
+    +section("💵 Billing & cash follow-up",(haveFnd?billCount:1),(haveFnd?billRows:"<div class=\"q-empty\">Foundation data unavailable — billing/AR not computed.</div>"),"Nothing needs invoicing or overdue.",billBadge)
+    +section("📉 Margin fades",fades.length,fadeRows,"No jobs fading.")
+    +section("⚖️ Data conflicts",conflicts.length,conflictRows,"Procore and Foundation contracts agree on every job.")
+    +section("🤝 Client follow-up (Buildr)",bf.items.length,cfuRows,cfuEmpty)
+    +"</div>";
+
+  /* source-health strip — freshness from each feed's own `refreshed` timestamp; >30h = stale
+     (Procore cron daily 04:00 UTC, Foundation/AR nightly 09:00 UTC — 30h means a run was missed) */
+  function chip(ok,label,detail,ts){
+    var a=ageTxt(ts); var stale=ts?((Date.now()-new Date(ts))/3600000>30):false;
+    var icon=!ok?"⚠️":(stale?"⚠️":"✅");
+    return "<div class=\"src-chip\">"+icon+" <b>"+label+"</b> "+detail+(a?(" · "+a+(stale?" <b style=\"color:var(--amber)\">STALE</b>":"")):"")+"</div>";
+  }
+  var fCount=foundationData&&foundationData.jobs?Object.keys(foundationData.jobs).length:0;
+  var health="<div class=\"panel\"><h3>Source health</h3><div class=\"sub\">Every feed the cockpit reads, loaded live from the same endpoints as the legacy dashboard — with the age of each feed's data.</div><div class=\"src-strip\">"
+    +chip(!!activeData,"Procore",((activeData&&activeData.jobs)||[]).length+" active · revised contracts",activeData&&activeData.refreshed)
+    +chip(!!foundationData,"Foundation",fCount+" jobs · cost/billing/AR",foundationData&&foundationData.refreshed)
+    +chip(!!arData,"AR",(((arData&&arData.invoices)||[]).length)+" invoices",arData&&arData.refreshed)
+    +chip(!!buildrData,"Buildr",(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",buildrData&&buildrData.refreshed)
+    +chip(foundationOnly.length>=0,"Coverage",foundationOnly.length+" Foundation-only active jobs not on board",null)
+    +"</div></div>";
+
+  return warn+strip+queue+health;
+}
+
+/* ===== Portfolio (Phase 2 — light operator table) ============================ */
+var pfSort={col:"contract",dir:-1}, pfFilter="active", pfSearch="", _pfRows=[];
+function attrEsc(s){ return esc(s).replace(/"/g,"&quot;"); }
+function billingByJob(){ var m={}; if(foundationData&&foundationData.jobs){ activeAccountRows().forEach(function(r){ m[String(r.job)]=r; }); } return m; }
+function confOf(j){
+  var n=(j.revisedContract>0?1:0)+(j.foundation?1:0)+((j.budget&&j.budget.original>0)?1:0);
+  return n>=3?{cls:"ok",txt:"full",rank:3}:n===2?{cls:"mid",txt:"partial",rank:2}:{cls:"low",txt:"low",rank:1};
+}
+function buildPfRows(){
+  var bb=billingByJob();
+  return ((activeData&&activeData.jobs)||[]).map(function(j){
+    var sl=getStoplight(j,j);
+    var b=bb[String(j.projectNumber)]||null;
+    var conf=confOf(j);
+    return { name:j.name||"", jno:j.projectNumber||"", pm:pmName(j)||"", client:j.client||"", stage:j.stage||"",
+      closeoutStage:!!CLOSEOUT_STAGES[j.stage],
+      contract:j.contractValue||0, conflict:(j.flags||[]).some(function(f){return f.type==="contract";}),
+      ctd:(j.costToDate!=null?j.costToDate:null), pct:j.pctComplete,
+      mtd:marginToDate(j), cm:contractedMargin(j),
+      needsInv:b?b.under:0, overdue:b?b.overdue:0,
+      status:isCloseoutOnly(j)?"closeout":sl.color,
+      reasons:sl.reasons.map(function(r){return r.text;}).join(" · "),
+      conf:conf, confRank:conf.rank };
+  });
+}
+function pfSetSort(col){ if(pfSort.col===col) pfSort.dir=-pfSort.dir; else pfSort={col:col,dir:(col==="name"||col==="pm"||col==="stage"||col==="status")?1:-1}; updatePTable(); }
+function pfSetFilter(k){ pfFilter=k; updatePTable(); }
+function pfSearchInput(v){ pfSearch=v.toLowerCase(); updatePTable(); }
+function statusPill(s,reasons){
+  var t=attrEsc(reasons||"");
+  if(s==="gray") return "<span class=\"pill dot\" style=\"background:#eceff4;color:#7c8699\" title=\""+t+"\">Pre-Con</span>";
+  if(s==="closeout") return "<span class=\"pill dot\" style=\"background:rgba(20,160,140,.13);color:#0f9080\" title=\""+t+"\">Closeout</span>";
+  var map={red:["r","Action"],amber:["a","Watch"],green:["g","On track"]};
+  var m=map[s]||["g",s];
+  return "<span class=\"pill "+m[0]+" dot\" title=\""+t+"\">"+m[1]+"</span>";
+}
+function updatePTable(){
+  var rows=_pfRows.slice();
+  if(pfFilter==="active") rows=rows.filter(function(r){return !r.closeoutStage;});
+  else if(pfFilter!=="all") rows=rows.filter(function(r){return r.status===pfFilter;});
+  if(pfSearch) rows=rows.filter(function(r){ return (r.name+" "+r.jno+" "+r.pm+" "+r.client+" "+r.stage).toLowerCase().indexOf(pfSearch)>-1; });
+  var c=pfSort.col, d=pfSort.dir;
+  rows.sort(function(a,b){ var va=a[c], vb=b[c];
+    if(typeof va==="string"||typeof vb==="string"){ va=(va==null?"":String(va)).toLowerCase(); vb=(vb==null?"":String(vb)).toLowerCase(); return va<vb?-d:va>vb?d:0; }
+    va=(va==null?-Infinity:va); vb=(vb==null?-Infinity:vb); return (va-vb)*d; });
+  var tb="";
+  rows.forEach(function(r){
+    var mcls=r.mtd==null?"m-m":r.mtd>=10?"m-g":r.mtd>=5?"m-a":"m-r";
+    var bill="";
+    if(r.needsInv>1000) bill="<span class=\"m-a\">inv "+fmtCompact(r.needsInv)+"</span>";
+    if(r.overdue>0) bill+=(bill?" · ":"")+"<span class=\"m-r\">od "+fmtCompact(r.overdue)+"</span>";
+    if(!bill) bill="<span class=\"m-m\">—</span>";
+    tb+="<tr tabindex=\"0\" role=\"button\" data-jno=\""+attrEsc(r.jno)+"\" aria-label=\"Open job detail: "+attrEsc(r.name)+"\">"
+      +"<td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(r.client?" · "+esc(r.client):"")+"</div></td>"
+      +"<td>"+esc(r.pm||"—")+"</td><td>"+esc(r.stage||"—")+"</td>"
+      +"<td class=\"r\">"+fmtCompact(r.contract)+(r.conflict?" <span title=\"Procore and Foundation contracts diverge — see Data conflicts on the Command Center\" style=\"color:#c07f1a\">⚑</span>":"")+"</td>"
+      +"<td class=\"r\">"+(r.ctd!=null?fmtCompact(r.ctd):"—")+"</td>"
+      +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
+      +"<td class=\"r\"><span class=\""+mcls+"\">"+(r.mtd!=null?r.mtd.toFixed(1)+"%":"—")+"</span>"+(r.cm!=null?"<div class=\"cell-sub\">bid "+r.cm.toFixed(1)+"%</div>":"")+"</td>"
+      +"<td>"+bill+"</td>"
+      +"<td>"+statusPill(r.status,r.reasons)+"</td>"
+      +"<td><span class=\"conf "+r.conf.cls+"\">"+r.conf.txt+"</span></td>"
+      +"</tr>";
+  });
+  var tC=rows.reduce(function(s,r){return s+r.contract;},0), tD=rows.reduce(function(s,r){return s+(r.ctd||0);},0);
+  var el=document.getElementById("ptbody"); if(el) el.innerHTML=tb;
+  var ft=document.getElementById("ptfoot"); if(ft) ft.innerHTML="<tr><td>"+rows.length+" jobs</td><td></td><td></td><td class=\"r\">"+fmtCompact(tC)+"</td><td class=\"r\">"+fmtCompact(tD)+"</td><td></td><td></td><td></td><td></td><td></td></tr>";
+  var pc=document.getElementById("pcount"); if(pc) pc.textContent=rows.length+" of "+_pfRows.length+" jobs shown";
+  Array.prototype.forEach.call(document.querySelectorAll(".ptable th[data-col]"),function(th){
+    th.innerHTML=th.getAttribute("data-lbl")+(th.getAttribute("data-col")===pfSort.col?" <span class=\"arr\">"+(pfSort.dir>0?"▲":"▼")+"</span>":"");
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".pfill"),function(bn){ bn.className="pfill"+(bn.getAttribute("data-f")===pfFilter?" on":""); });
+}
+function renderPortfolio(){
+  _pfRows=buildPfRows();
+  var pills=[["active","Active"],["all","All"],["red","Red"],["amber","Amber"],["closeout","Closeout"],["green","Green"],["gray","Pre-Con"]];
+  var bar="<div class=\"pbar\">"
+    +"<input id=\"psearch\" type=\"text\" placeholder=\"Search job, PM, client, stage…\" oninput=\"pfSearchInput(this.value)\" value=\""+attrEsc(pfSearch)+"\">"
+    +pills.map(function(p){ return "<button class=\"pfill\" data-f=\""+p[0]+"\" onclick=\"pfSetFilter('"+p[0]+"')\">"+p[1]+"</button>"; }).join("")
+    +"<span class=\"pcount\" id=\"pcount\"></span></div>";
+  var cols=[["name","Job"],["pm","PM"],["stage","Stage"],["contract","Contract"],["ctd","Cost to date"],["pct","%"],["mtd","Margin"],["needsInv","Billing"],["status","Status"],["confRank","Conf"]];
+  var head="<tr>"+cols.map(function(cd){ var right=["contract","ctd","pct","mtd"].indexOf(cd[0])>-1?" class=\"r\"":""; return "<th"+right+" data-col=\""+cd[0]+"\" data-lbl=\""+cd[1]+"\" onclick=\"pfSetSort('"+cd[0]+"')\">"+cd[1]+"</th>"; }).join("")+"</tr>";
+  document.getElementById("view").innerHTML=bar
+    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead>"+head+"</thead><tbody id=\"ptbody\"></tbody><tfoot id=\"ptfoot\"></tfoot></table></div>"
+    +"<div style=\"margin-top:10px;font-size:11.5px;color:#67718a\">Contract = Procore Revised Contract Amount (⚑ = diverges from Foundation) · Cost to date = Foundation actuals · Margin = margin to date on cost basis, \"bid\" = contracted margin · Billing = needs invoicing / overdue AR (Foundation) · Click a row (or press Enter) for the job detail drawer.</div>";
+  var tbody=document.getElementById("ptbody");
+  tbody.addEventListener("click",function(e){ var tr=e.target.closest("tr[data-jno]"); if(tr) openDrawer(tr.getAttribute("data-jno"),tr); });
+  tbody.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ var tr=e.target.closest("tr[data-jno]"); if(tr){ e.preventDefault(); openDrawer(tr.getAttribute("data-jno"),tr); } } });
+  updatePTable();
+}
+
+/* ===== Billing & Cash (Phase 4 — light operator worklist) ==================== */
+var blShowAll=false;
+function agingBucket(d){ return d<=30?0:d<=90?1:d<=180?2:3; }
+function rowAttr(jno){ return jobByNo(jno)?(" data-jno=\""+attrEsc(jno)+"\" tabindex=\"0\" role=\"button\""):" class=\"static\""; }
+function hookDrawerRows(){
+  Array.prototype.forEach.call(document.querySelectorAll(".view tbody"),function(tb){
+    tb.addEventListener("click",function(e){ var tr=e.target.closest("tr[data-jno]"); if(tr) openDrawer(tr.getAttribute("data-jno"),tr); });
+    tb.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ var tr=e.target.closest("tr[data-jno]"); if(tr){ e.preventDefault(); openDrawer(tr.getAttribute("data-jno"),tr); } } });
+  });
+}
+function renderBilling(){
+  var view=document.getElementById("view");
+  var haveFnd=!!(foundationData&&foundationData.jobs), haveAr=!!(arData&&arData.invoices);
+  if(!haveFnd&&!haveAr){ view.innerHTML="<div class=\"warn-banner\">⚠️ Foundation + AR feeds unavailable — billing cannot be computed. Figures show Unavailable, not $0.</div>"; return; }
+  var warn=(!haveFnd||!haveAr)?("<div class=\"warn-banner\">⚠️ "+(!haveFnd?"Foundation":"AR")+" feed unavailable — affected figures show <b>Unavailable</b>, not $0.</div>"):"";
+  var accts=haveFnd?activeAccountRows():[];
+  var needsInv=accts.reduce(function(s,r){return s+r.under;},0);
+  var needsInvN=accts.filter(function(r){return r.under>1000;}).length;
+  var retainage=accts.reduce(function(s,r){return s+(r.retainage||0);},0);
+
+  /* aging — Jason split: current (<=90d, the list leadership chases) vs aged tail (>90d + retainage-era items) */
+  var over=haveAr?arRows("overdue","active"):[];
+  var buckets=[0,0,0,0];
+  over.forEach(function(v){ buckets[agingBucket(v.daysOverdue||0)]+=(v.openBalance||0); });
+  var current=buckets[0]+buckets[1], aged=buckets[2]+buckets[3];
+
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var strip="<div class=\"kpi-strip k4\">"
+    +kpi("Needs invoicing",haveFnd?fmtCompact(needsInv):"Unavailable",haveFnd?(needsInvN+" active jobs"):"Foundation feed down",needsInv>0?"warn":"")
+    +kpi("Current overdue (≤90d)",haveAr?fmtCompact(current):"Unavailable",haveAr?"the actionable list":"AR feed down",current>0?"bad":"")
+    +kpi("Aged overdue (>90d)",haveAr?fmtCompact(aged):"Unavailable",haveAr?(fmtCompact(buckets[3])+" of it 180d+"):"AR feed down",aged>0?"warn":"")
+    +kpi("Retainage held",haveFnd?fmtCompact(retainage):"Unavailable","active jobs","")
+    +"</div>";
+
+  /* overdue AR by job, bucketed */
+  var byJob={};
+  over.forEach(function(v){
+    var k=String(v.jobNo||"");
+    if(!byJob[k]) byJob[k]={jno:k,name:v.jobName||"",b:[0,0,0,0],total:0,oldest:0};
+    var r=byJob[k]; r.b[agingBucket(v.daysOverdue||0)]+=(v.openBalance||0); r.total+=(v.openBalance||0);
+    if((v.daysOverdue||0)>r.oldest) r.oldest=v.daysOverdue||0;
+  });
+  var arJobs=Object.values(byJob).sort(function(a,b){return b.total-a.total;});
+  var fj=(foundationData&&foundationData.jobs)||{};
+  var arRowsHtml=arJobs.map(function(r){
+    var pm=fj[r.jno]?fj[r.jno].pmName:null;
+    function cell(v){ return "<td class=\"r\">"+(v>0?fmtCompact(v):"<span class=\"m-m\">—</span>")+"</td>"; }
+    return "<tr"+rowAttr(r.jno)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(pm?" · "+esc(pm):"")+"</div></td>"
+      +cell(r.b[0])+cell(r.b[1])+cell(r.b[2])+cell(r.b[3])
+      +"<td class=\"r\"><b>"+fmtCompact(r.total)+"</b></td><td class=\"r\">"+r.oldest+"d</td></tr>";
+  }).join("");
+  var arTotalRow="<tr><td>"+arJobs.length+" jobs</td>"+buckets.map(function(v){return "<td class=\"r\">"+fmtCompact(v)+"</td>";}).join("")+"<td class=\"r\">"+fmtCompact(current+aged)+"</td><td></td></tr>";
+  var arTable=arJobs.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">1–30d</th><th class=\"r\">31–90d</th><th class=\"r\">91–180d</th><th class=\"r\">180d+</th><th class=\"r\">Total</th><th class=\"r\">Oldest</th></tr></thead><tbody>"+arRowsHtml+"</tbody><tfoot>"+arTotalRow+"</tfoot></table></div>")
+    :"<div class=\"vsub\">No overdue AR on active jobs.</div>";
+
+  /* billing position worklist */
+  var flagged=accts.filter(function(r){return r.under>1000||r.overdue>0;});
+  var posRows=(blShowAll?accts:flagged).slice().sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);});
+  var posHtml=posRows.map(function(r){
+    var ni=r.under>0?("<span class=\"m-a\">"+fmtCompact(r.under)+"</span>"+(r.exact?"":" <span class=\"cell-sub\">bid-est</span>")):(r.over>0?("<span class=\"m-g\">+"+fmtCompact(r.over)+"</span>"):"<span class=\"m-m\">—</span>");
+    return "<tr"+rowAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(String(r.job))+" · "+esc(r.pm)+"</div></td>"
+      +"<td class=\"r\">"+fmtCompact(r.contract)+"</td><td class=\"r\">"+fmtCompact(r.cost)+"</td><td class=\"r\">"+fmtCompact(r.invoiced)+"</td>"
+      +"<td class=\"r\">"+ni+"</td><td class=\"r\">"+(r.retainage>0?fmtCompact(r.retainage):"<span class=\"m-m\">—</span>")+"</td>"
+      +"<td class=\"r\">"+(r.overdue>0?("<span class=\"m-r\">"+fmtCompact(r.overdue)+"</span>"):"<span class=\"m-m\">—</span>")+"</td></tr>";
+  }).join("");
+  var posTable=haveFnd
+    ?("<div class=\"pbar\"><button class=\"pfill"+(blShowAll?"":" on")+"\" onclick=\"blShowAll=false;renderBilling()\">Flagged ("+flagged.length+")</button>"
+      +"<button class=\"pfill"+(blShowAll?" on":"")+"\" onclick=\"blShowAll=true;renderBilling()\">All active ("+accts.length+")</button></div>"
+      +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th><th class=\"r\">Needs invoiced</th><th class=\"r\">Retainage</th><th class=\"r\">Overdue AR</th></tr></thead><tbody>"+posHtml+"</tbody></table></div>"
+      +"<div class=\"vsub\" style=\"margin-top:8px\">Needs invoiced = cost × OH × Profit markups − billed (Holly's exact markups; \"bid-est\" = bid-ratio fallback). Positive green = billed ahead of cost (cash-positive, not behind).</div>")
+    :"<div class=\"vsub\">Foundation feed unavailable.</div>";
+
+  /* legacy / closed-job overdue */
+  var legacy=haveAr?arRows("overdue","legacy"):[];
+  var legacyTotal=legacy.reduce(function(s,v){return s+(v.openBalance||0);},0);
+  var lgByJob={};
+  legacy.forEach(function(v){ var k=String(v.jobNo||""); if(!lgByJob[k]) lgByJob[k]={jno:k,name:v.jobName||"",total:0,oldest:0}; lgByJob[k].total+=(v.openBalance||0); if((v.daysOverdue||0)>lgByJob[k].oldest) lgByJob[k].oldest=v.daysOverdue||0; });
+  var lgRows=Object.values(lgByJob).sort(function(a,b){return b.total-a.total;}).slice(0,15).map(function(r){
+    return "<tr class=\"static\"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+"</div></td><td class=\"r\">"+fmtCompact(r.total)+"</td><td class=\"r\">"+r.oldest+"d</td></tr>";
+  }).join("");
+  var legacySec=legacy.length
+    ?("<details class=\"lgcy\"><summary>Legacy / closed-job overdue AR — "+fmtCompact(legacyTotal)+" across "+legacy.length+" invoices (kept off the active view)</summary>"
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">Overdue</th><th class=\"r\">Oldest</th></tr></thead><tbody>"+lgRows+"</tbody></table></div></details>")
+    :"";
+
+  view.innerHTML=warn+strip
+    +"<div class=\"vhead\">Overdue AR by job — active work</div><div class=\"vsub\">Aged 90d+ is the tail leadership is not actively chasing (old finals, retainage-era items) — split out so the current number is the actionable one.</div>"+arTable
+    +"<div class=\"vhead\">Billing position — active jobs</div><div class=\"vsub\">Earned vs billed per job from Foundation. Click a row for the job drawer (jobs on the Procore board).</div>"+posTable
+    +legacySec;
+  hookDrawerRows();
+}
+
+/* cross-source reconciliation exceptions — used by Margin & Risk and Data Trust */
+function buildExceptions(jobs){
+  var exc=[];
+  jobs.forEach(function(j){
+    (j.flags||[]).forEach(function(f){
+      if(f.type==="contract") exc.push({jno:j.projectNumber,name:j.name,issue:"Contract conflict",detail:"Board shows "+fmtCompact(j.contractValue)+" vs "+esc(f.text)+" — reconcile CO posting between systems"});
+      if(f.type==="closed") exc.push({jno:j.projectNumber,name:j.name,issue:"Lifecycle mismatch",detail:"Foundation shows this job CLOSED; still active on the Procore board"});
+    });
+    if(j.budget&&j.budget.projCostSuspect) exc.push({jno:j.projectNumber,name:j.name,issue:"Projected cost ⚑ verify",detail:"ERP projected cost "+fmtCompact(j.budget.projectedCost)+" exceeds revised budget "+fmtCompact(j.budget.revised)+" by >30% — sub costs may be double-booked in Direct"});
+    if(j.budget&&j.budget.projectedCost==null&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"Missing projected cost",detail:"No ERP-view Projected Costs on an in-flight job"});
+    if(!j.foundation&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"No Foundation match",detail:"Financials are Procore-only — unverified by accounting"});
+  });
+  return exc;
+}
+
+/* ===== Margin & Risk (Phase 4 — light operator view) ========================= */
+function renderMargin(){
+  var view=document.getElementById("view");
+  var jobs=getActiveJobs();
+  var haveFnd=!!(foundationData&&foundationData.jobs);
+  var warn=(!activeData||!activeData.jobs)?"<div class=\"warn-banner\">⚠️ Procore feed unavailable.</div>":(!haveFnd?"<div class=\"warn-banner\">⚠️ Foundation feed unavailable — gain/fade falls back to Procore-only figures.</div>":"");
+
+  /* gain/fade */
+  var gf=gainFadeRows().sort(function(a,b){return a.gfPts-b.gfPts;});
+  var fading=gf.filter(function(r){return r.gfPts<=-GF_MOVE_PTS;});
+  var fadeDollars=fading.reduce(function(s,r){return s+r.gfDollars;},0);
+  var gaining=gf.filter(function(r){return r.gfPts>=GF_MOVE_PTS;});
+
+  /* buyout rollup (Phase 3b data) */
+  var bo=jobs.filter(function(j){return j.commitments&&j.budget&&((j.budget.revised>0)||(j.budget.original>0));})
+    .map(function(j){ var cb=j.budget.revised>0?j.budget.revised:j.budget.original;
+      return {j:j,jno:j.projectNumber||"",name:j.name||"",pm:pmName(j)||"(no PM)",pct:j.pctComplete,budget:cb,
+        committed:j.commitments.committedTotal,pending:j.commitments.pendingTotal||0,
+        uncommitted:cb-j.commitments.committedTotal,cov:cb>0?(j.commitments.committedTotal/cb*100):null}; });
+  var boBudget=bo.reduce(function(s,r){return s+r.budget;},0);
+  var boCommitted=bo.reduce(function(s,r){return s+r.committed;},0);
+  var boCov=boBudget>0?(boCommitted/boBudget*100):null;
+
+  /* exceptions (shared with Data Trust) */
+  var exc=buildExceptions(jobs);
+
+  var gm=projectedGrossMargin();
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var strip="<div class=\"kpi-strip k4\">"
+    +kpi("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast · Procore budget",(gm!=null&&gm<8)?"warn":"")
+    +kpi("Margin fades",String(fading.length),fading.length?("net "+fmtCompact(fadeDollars)+" vs as-bid"):"no jobs fading",fading.length?"bad":"")
+    +kpi("Buyout coverage",boCov!=null?boCov.toFixed(0)+"%":"—",fmtCompact(boCommitted)+" committed of "+fmtCompact(boBudget),"")
+    +kpi("Data exceptions",String(exc.length),exc.length?"need reconciliation":"all clean",exc.length?"warn":"")
+    +"</div>";
+
+  /* gain/fade table */
+  function pcls(v){ return v==null?"m-m":v<=-GF_MOVE_PTS?"m-r":v>=GF_MOVE_PTS?"m-g":"m-m"; }
+  var gfHtml=gf.map(function(r){
+    return "<tr"+rowAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.job)+" · "+esc(r.pm)+"</div></td>"
+      +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
+      +"<td class=\"r\">"+r.asbidMargin.toFixed(1)+"%</td><td class=\"r\">"+r.curMargin.toFixed(1)+"%</td>"
+      +"<td class=\"r\"><span class=\""+pcls(r.gfPts)+"\">"+(r.gfPts>=0?"+":"")+r.gfPts.toFixed(1)+"</span></td>"
+      +"<td class=\"r\"><span class=\""+pcls(r.gfDollars>=0?1.1:-1.1)+"\">"+fmtCompact(r.gfDollars)+"</span></td>"
+      +"<td>"+(r.burnRisk?"<span class=\"m-r\">⚠ burn</span>":"<span class=\"m-m\">—</span>")+"</td></tr>";
+  }).join("");
+  var gfTable=gf.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">%</th><th class=\"r\">As-bid</th><th class=\"r\">Current</th><th class=\"r\">Δ pts</th><th class=\"r\">Δ $</th><th>Cost burn</th></tr></thead><tbody>"+gfHtml+"</tbody></table></div>")
+    :"<div class=\"vsub\">No jobs with enough data for gain/fade.</div>";
+
+  /* buyout table */
+  var boHtml=bo.slice().sort(function(a,b){return b.uncommitted-a.uncommitted;}).map(function(r){
+    return "<tr"+rowAttr(r.jno)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+" · "+esc(r.pm)+"</div></td>"
+      +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
+      +"<td class=\"r\">"+fmtCompact(r.budget)+"</td><td class=\"r\">"+fmtCompact(r.committed)+"</td>"
+      +"<td class=\"r\">"+(r.pending>0?fmtCompact(r.pending):"<span class=\"m-m\">—</span>")+"</td>"
+      +"<td class=\"r\"><b>"+fmtCompact(r.uncommitted)+"</b></td>"
+      +"<td class=\"r\">"+(r.cov!=null?("<span class=\""+(r.cov>=90?"m-g":r.cov>=70?"m-a":"m-r")+"\">"+r.cov.toFixed(0)+"%</span>"):"—")+"</td></tr>";
+  }).join("");
+  var boFoot="<tr><td>"+bo.length+" jobs</td><td></td><td class=\"r\">"+fmtCompact(boBudget)+"</td><td class=\"r\">"+fmtCompact(boCommitted)+"</td><td></td><td class=\"r\">"+fmtCompact(boBudget-boCommitted)+"</td><td class=\"r\">"+(boCov!=null?boCov.toFixed(0)+"%":"—")+"</td></tr>";
+  var boTable=bo.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">%</th><th class=\"r\">Cost budget</th><th class=\"r\">Committed</th><th class=\"r\">In flight</th><th class=\"r\">Uncommitted</th><th class=\"r\">Coverage</th></tr></thead><tbody>"+boHtml+"</tbody><tfoot>"+boFoot+"</tfoot></table></div>")
+    :"<div class=\"vsub\">No commitment data yet — populates with the nightly Procore refresh.</div>";
+
+  /* exceptions table */
+  var excHtml=exc.map(function(r){
+    return "<tr"+rowAttr(r.jno||"")+"><td><div class=\"jname\">"+esc(r.name||"")+"</div><div class=\"jno\">"+esc(r.jno||"")+"</div></td><td>"+esc(r.issue)+"</td><td style=\"white-space:normal\">"+r.detail+"</td></tr>";
+  }).join("");
+  var excTable=exc.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th>Issue</th><th>Detail</th></tr></thead><tbody>"+excHtml+"</tbody></table></div>")
+    :"<div class=\"vsub\">No data exceptions — Procore and Foundation agree everywhere.</div>";
+
+  var fOnly=(foundationOnly||[]).slice().sort(function(a,b){return (b.currentContract||0)-(a.currentContract||0);});
+  var fOnlySec=fOnly.length
+    ?("<details class=\"lgcy\"><summary>"+fOnly.length+" active Foundation jobs not on the Procore board — "+fmtCompact(fOnly.reduce(function(s,f){return s+(f.currentContract||0);},0))+" of contract value with no field/PM tracking</summary>"
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th>PM</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th></tr></thead><tbody>"
+      +fOnly.slice(0,15).map(function(f){ return "<tr class=\"static\"><td><div class=\"jname\">"+esc(f.description||"")+"</div><div class=\"jno\">"+esc(f.jobNo||"")+"</div></td><td>"+esc(f.pmName||"—")+"</td><td class=\"r\">"+fmtCompact(f.currentContract||0)+"</td><td class=\"r\">"+fmtCompact(f.totalCosts||0)+"</td><td class=\"r\">"+fmtCompact(f.totalInvoiced||0)+"</td></tr>"; }).join("")
+      +"</tbody></table></div>"+(fOnly.length>15?"<div class=\"vsub\" style=\"margin-top:6px\">Top 15 by contract shown.</div>":"")+"</details>")
+    :"";
+
+  view.innerHTML=warn+strip
+    +"<div class=\"vhead\">Gain / fade — margin movement vs as-bid</div><div class=\"vsub\">Current projected margin vs the margin the job was bid at (Foundation as-bid + Procore cost growth). Worst first. ⚠ burn = cost burn running ≥12 pts ahead of % complete.</div>"+gfTable
+    +"<div class=\"vhead\">Buyout exposure — committed vs cost budget</div><div class=\"vsub\">Procore sub + PO contracts vs revised cost budget. Uncommitted = still to buy (includes RYC-carried general conditions). Sorted by open exposure.</div>"+boTable
+    +"<div class=\"vhead\">Data exceptions</div><div class=\"vsub\">Cross-source disagreements to reconcile before quoting numbers — the audit-layer worklist.</div>"+excTable
+    +fOnlySec;
+  hookDrawerRows();
+}
+
+/* ===== Data Trust (Phase 6 — source health + the shared provenance reference) === */
+function renderTrust(){
+  var view=document.getElementById("view");
+  var now=Date.now();
+  function health(loaded,ts){
+    if(!loaded) return "<span class=\"pill r dot\">Down</span>";
+    if(ts&&(now-new Date(ts))/3600000>30) return "<span class=\"pill a dot\">Stale</span>";
+    return "<span class=\"pill g dot\">OK</span>";
+  }
+  function srow(name,provides,cadence,ts,count,loaded){
+    return "<tr class=\"static\"><td><div class=\"jname\">"+name+"</div></td><td style=\"white-space:normal\">"+provides+"</td><td>"+cadence+"</td>"
+      +"<td>"+(ts?(ageTxt(ts)+"<div class=\"cell-sub\">"+new Date(ts).toLocaleString()+"</div>"):"—")+"</td>"
+      +"<td class=\"r\">"+count+"</td><td>"+health(loaded,ts)+"</td></tr>";
+  }
+  var srcTable="<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Source</th><th>Provides</th><th>Cadence</th><th>Last data</th><th class=\"r\">Records</th><th>Health</th></tr></thead><tbody>"
+    +srow("Procore cache","Schedule, %, RFIs, submittals, CO types, revised contracts, budgets, commitments/buyout","Daily 04:00 UTC (11pm ET) + on-demand",activeData&&activeData.refreshed,((activeData&&activeData.jobs)||[]).length+" jobs",!!activeData)
+    +srow("Foundation snapshot","Cost to date, billings, retainage, PM names, CO postings, markups","Nightly 09:00 UTC (4am ET)",foundationData&&foundationData.refreshed,(foundationData&&foundationData.jobs?Object.keys(foundationData.jobs).length:0)+" jobs",!!foundationData)
+    +srow("Foundation AR","Open / overdue invoices with aging","Nightly 09:00 UTC (same run)",arData&&arData.refreshed,(((arData&&arData.invoices)||[]).length)+" invoices",!!arData)
+    +srow("Buildr","Client-relations visits + follow-up tasks","Live API on page load",buildrData&&buildrData.refreshed,(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",!!buildrData)
+    +srow("Portfolio archive","Completed jobs (pegged at archive time)","On job completion",null,((portfolioData&&portfolioData.jobs)||portfolioData||[]).length?(((portfolioData&&portfolioData.jobs)||portfolioData||[]).length+" jobs"):"—",!!portfolioData)
+    +"</tbody></table></div>"
+    +"<div class=\"vsub\" style=\"margin-top:8px\">Stale = no fresh data in 30h (a scheduled run was missed — check the Automation Health card on the CRM dashboard). Foundation is read-only by design; nothing here can write.</div>";
+
+  var exc=buildExceptions(getActiveJobs());
+  var byIssue={};
+  exc.forEach(function(e){ byIssue[e.issue]=(byIssue[e.issue]||0)+1; });
+  var excSummary=exc.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Exception type</th><th class=\"r\">Jobs</th></tr></thead><tbody>"
+      +Object.keys(byIssue).map(function(k){ return "<tr class=\"static\"><td>"+esc(k)+"</td><td class=\"r\">"+byIssue[k]+"</td></tr>"; }).join("")
+      +"</tbody></table></div><div class=\"vsub\" style=\"margin-top:8px\">Full job-by-job list with details on <a href=\"#\" onclick=\"setView(&quot;margin&quot;);return false\" style=\"color:var(--accent);font-weight:600\">Margin &amp; Risk → Data exceptions</a>.</div>")
+    :"<div class=\"vsub\">No open reconciliation exceptions — Procore and Foundation agree everywhere.</div>";
+
+  view.innerHTML="<div class=\"trust\">"
+    +"<div class=\"vhead\">Source health</div><div class=\"vsub\">Every feed this cockpit reads, its cadence, and the age of the data on screen right now.</div>"+srcTable
+    +"<div class=\"vhead\">Reconciliation exceptions</div><div class=\"vsub\">Cross-source disagreements currently open — the audit-layer worklist.</div>"+excSummary
+    +"<div class=\"vhead\" style=\"display:flex;align-items:center;gap:10px\">Field provenance reference <button class=\"pfill\" onclick=\"printDS()\">🖨 Print</button></div>"
+    +"<div class=\"vsub\">The shared Data Sources dictionary — one definition, loaded by this cockpit, the legacy dashboard, and the Foundation query tool. Git-tracked source: RYC_Dashboard_Data_Dictionary.md.</div>"
+    +"<div id=\"ds-panel\" style=\"background:#fff;border:1px solid #dfe4ec;border-radius:var(--r);padding:18px 22px\">"
+    +(typeof dataSourcesHTML==="function"?dataSourcesHTML():"<div class=\"vsub\">data-sources.js failed to load — provenance reference unavailable.</div>")
+    +"</div></div>";
+  hookDrawerRows();
+}
+
+/* ===== AI Assistant (Phase 6 — the /ryc/foundation NL→SQL, restyled) ========= */
+/* Same API (/api/ryc-foundation-query), same sessionStorage key (fdn_pw) and recents
+   (fdn_recent) as /ryc/foundation — a login or question history carries across both tools.
+   The tool password is FOUNDATION_TOOL_PASSWORD (server-side check), separate from the gate. */
+var AI_EXAMPLES=[
+  "Top 10 active jobs by cost to date",
+  "Total billed and total cost for each active job",
+  "Which jobs have the most overdue AR?",
+  "Current contract value by job including change orders",
+  "Retainage held on active jobs",
+  "Active jobs by project manager"
+];
+var _aiLast=null;
+function aiCall(payload){
+  var body=Object.assign({password:sessionStorage.getItem("fdn_pw")},payload);
+  return fetch("/api/ryc-foundation-query",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {status:r.status,data:d}; }); });
+}
+function aiDisclaimer(){
+  return "<div class=\"warn-banner\" style=\"background:#fdf3ea;border-color:#f0d5bc;color:#8a4b12\"><b>Live Foundation data — raw values.</b> "
+    +"This queries Foundation in real time and returns raw numbers; the rest of this cockpit reads a nightly snapshot and applies conventions (contract incl. COs, gross billings, forecast margins) — the two can legitimately differ by up to a day or by definition. Answers reconcile to Foundation; see <a href=\"#\" onclick=\"setView(&quot;trust&quot;);return false\" style=\"color:#8a4b12;font-weight:700\">Data Trust</a> for how each number is defined. Read-only; payroll/employee data blocked.</div>";
+}
+function renderAI(){
+  var view=document.getElementById("view");
+  if(!sessionStorage.getItem("fdn_pw")){
+    view.innerHTML="<div class=\"ai\">"+aiDisclaimer()
+      +"<div class=\"panel\" style=\"max-width:420px\"><h3>Unlock Foundation reports</h3><div class=\"sub\">This tool has its own password (not the dashboard access code).</div>"
+      +"<input id=\"ai-pw\" type=\"password\" placeholder=\"Foundation Reports password\" style=\"width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d5dbe6;border-radius:7px;font-size:14px\">"
+      +"<div id=\"ai-pw-err\" style=\"color:#d64545;font-size:12px;height:16px;margin-top:6px\"></div>"
+      +"<button class=\"ask-btn\" style=\"margin-top:6px\" onclick=\"aiLogin()\">Unlock</button></div></div>";
+    var pw=document.getElementById("ai-pw");
+    pw.addEventListener("keydown",function(e){ if(e.key==="Enter") aiLogin(); });
+    pw.focus();
+    return;
+  }
+  var recents=[];
+  try{ recents=JSON.parse(localStorage.getItem("fdn_recent")||"[]"); }catch(e){}
+  view.innerHTML="<div class=\"ai\">"+aiDisclaimer()
+    +"<div class=\"panel\"><h3>Ask Foundation</h3><div class=\"sub\">Plain English in — Claude writes the SQL, runs it read-only against Foundation live, and shows the result.</div>"
+    +"<textarea id=\"ai-q\" rows=\"2\" placeholder=\"e.g. Show total billed and total cost for each active job\"></textarea>"
+    +"<div style=\"display:flex;justify-content:flex-end;margin-top:10px\"><button class=\"ask-btn\" id=\"ai-ask\" onclick=\"aiAsk()\">Ask</button></div>"
+    +"<div class=\"ai-cards\">"+AI_EXAMPLES.map(function(t){ return "<div class=\"ai-card\" data-q=\""+attrEsc(t)+"\">"+esc(t)+"</div>"; }).join("")+"</div>"
+    +(recents.length?("<div class=\"sub\" style=\"margin:12px 0 0\">Recent</div><div class=\"ai-chips\">"+recents.map(function(t){ return "<span class=\"ai-chip\" data-q=\""+attrEsc(t)+"\">"+esc(t)+"</span>"; }).join("")+"</div>"):"")
+    +"</div><div id=\"ai-out\"></div></div>";
+  Array.prototype.forEach.call(view.querySelectorAll("[data-q]"),function(el){
+    el.addEventListener("click",function(){ document.getElementById("ai-q").value=el.getAttribute("data-q"); aiAsk(); });
+  });
+  var q=document.getElementById("ai-q");
+  q.addEventListener("keydown",function(e){ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)) aiAsk(); });
+}
+function aiLogin(){
+  var pw=document.getElementById("ai-pw").value;
+  if(!pw) return;
+  sessionStorage.setItem("fdn_pw",pw);
+  aiCall({verify:true}).then(function(r){
+    if(r.status===200){ renderAI(); }
+    else{ sessionStorage.removeItem("fdn_pw"); document.getElementById("ai-pw-err").textContent="Incorrect password."; }
+  });
+}
+function aiIsNum(v){ return v!==null&&v!==""&&!isNaN(Number(v)); }
+function aiFmt(v){ return aiIsNum(v)?Number(v).toLocaleString("en-US",{maximumFractionDigits:2}):(v==null?"":v); }
+function aiSql(sql){ return sql?("<details><summary>View the SQL Claude wrote</summary><pre>"+esc(sql)+"</pre></details>"):""; }
+function aiPushRecent(q){
+  var r=[];
+  try{ r=JSON.parse(localStorage.getItem("fdn_recent")||"[]"); }catch(e){}
+  r=[q].concat(r.filter(function(x){return x!==q;})).slice(0,8);
+  localStorage.setItem("fdn_recent",JSON.stringify(r));
+}
+function aiAsk(){
+  var q=(document.getElementById("ai-q").value||"").trim();
+  if(!q) return;
+  var btn=document.getElementById("ai-ask"), out=document.getElementById("ai-out");
+  btn.disabled=true;
+  out.innerHTML="<div class=\"panel\" style=\"margin-top:14px\"><span class=\"spin\"></span>&nbsp; Thinking — writing SQL, querying Foundation live…</div>";
+  aiCall({question:q}).then(function(r){
+    btn.disabled=false;
+    if(r.status===401){ sessionStorage.removeItem("fdn_pw"); renderAI(); return; }
+    aiPushRecent(q);
+    var d=r.data||{};
+    if(d.status==="refused"){ out.innerHTML="<div class=\"err-box\"><b>Cannot answer that one.</b><br>"+esc(d.explanation||"")+"</div>"; return; }
+    if(d.status==="blocked"){ out.innerHTML="<div class=\"err-box\"><b>Query blocked by the safety guard.</b><br>"+esc(d.error||"")+"</div>"+aiSql(d.sql); return; }
+    if(d.status!=="ok"){ out.innerHTML="<div class=\"err-box\"><b>Something went wrong.</b><br>"+esc(d.error||"Unknown error")+"</div>"+(d.sql?aiSql(d.sql):""); return; }
+    var cols=d.columns||[], rows=d.rows||[];
+    var numCol=cols.map(function(_,i){ return rows.length&&rows.every(function(rr){ return rr[i]==null||aiIsNum(rr[i]); }); });
+    var html="";
+    if(d.explanation) html+="<div class=\"vsub\" style=\"margin:14px 0 6px\">"+esc(d.explanation)+"</div>";
+    html+="<div style=\"display:flex;justify-content:space-between;align-items:center;margin:8px 0 4px\"><span class=\"vsub\" style=\"margin:0\">"+rows.length+" row"+(rows.length===1?"":"s")+(d.truncated?(" (capped at "+d.row_cap+")"):"")+"</span><button class=\"pfill\" onclick=\"aiCSV()\">⬇ CSV</button></div>";
+    html+="<div class=\"out-table\"><table><thead><tr>"+cols.map(function(c,i){ return "<th class=\""+(numCol[i]?"num":"")+"\">"+esc(c)+"</th>"; }).join("")+"</tr></thead><tbody>";
+    rows.forEach(function(rr){ html+="<tr>"+rr.map(function(v,i){ return "<td class=\""+(numCol[i]?"num":"")+"\">"+esc(aiFmt(v))+"</td>"; }).join("")+"</tr>"; });
+    html+="</tbody></table></div>"+aiSql(d.sql);
+    out.innerHTML=html;
+    _aiLast={cols:cols,rows:rows};
+  }).catch(function(e){
+    btn.disabled=false;
+    out.innerHTML="<div class=\"err-box\"><b>Request failed.</b><br>"+esc(e.message||String(e))+"</div>";
+  });
+}
+function aiCSV(){
+  if(!_aiLast) return;
+  function qv(v){ v=v==null?"":String(v); return /[\",\n]/.test(v)?("\""+v.replace(/\"/g,"\"\"")+"\""):v; }
+  var csv=[_aiLast.cols.map(qv).join(",")].concat(_aiLast.rows.map(function(r){ return r.map(qv).join(","); })).join("\n");
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="foundation-report.csv"; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ===== Executive Brief (Phase 5) ============================================= */
+/* Work-on-Hand rows — EXACT legacy conventions (columns/sources per Tristan/Steve 2026-07-07):
+   Contract Price = Procore Revised Contract Amount; Total Job Costs = Procore ERP Projected Budget;
+   Cost to Date + Billings = FOUNDATION. Cost to Complete = Total Job Costs − Cost to Date. */
+function wohRows(){
+  var rows=[];
+  getActiveJobs().forEach(function(j){
+    var f=j.foundation, b=j.budget||{};
+    var contract=(j.revisedContract>0)?j.revisedContract:((j.contractValue>0)?j.contractValue:null);
+    var ctd=f?f.totalCosts:null;
+    var tec=(b.projectedBudget!=null)?b.projectedBudget:null;
+    var billed=f?f.totalInvoiced:null;
+    var ctc=(tec!=null&&ctd!=null)?(tec-ctd):null;
+    rows.push({jno:j.projectNumber||"",name:j.name||(f&&f.description)||(j.projectNumber||""),contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null});
+  });
+  rows.sort(function(a,b2){return (b2.contract||0)-(a.contract||0);});
+  return rows;
+}
+function briefDol(n){ return n==null?"<span class=\"m-m\">—</span>":(n<0?"$("+Math.abs(Math.round(n)).toLocaleString("en-US")+")":"$"+Math.round(n).toLocaleString("en-US")); }
+function briefPresent(){
+  if(document.fullscreenElement){ document.exitFullscreen(); return; }
+  document.body.classList.add("present");
+  var el=document.documentElement;
+  if(el.requestFullscreen) el.requestFullscreen().catch(function(){});
+}
+document.addEventListener("fullscreenchange",function(){ if(!document.fullscreenElement) document.body.classList.remove("present"); });
+function renderBrief(){
+  var view=document.getElementById("view");
+  var haveFnd=!!(foundationData&&foundationData.jobs), haveAr=!!(arData&&arData.invoices);
+  var warn=(!haveFnd||!haveAr)?("<div class=\"warn-banner\">⚠️ "+(!haveFnd?"Foundation":"AR")+" feed unavailable — affected figures show <b>Unavailable</b>, not $0. Do not present until resolved.</div>"):"";
+  var jobs=getActiveJobs();
+  var totalContract=jobs.reduce(function(s,j){return s+(j.contractValue||0);},0);
+  var gm=projectedGrossMargin();
+  var woh=wohRows();
+  var ctcRows=woh.filter(function(r){return r.ctc!=null;});
+  var ctcSum=ctcRows.reduce(function(s,r){return s+r.ctc;},0);
+  var dateStr=new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
+  var pAge=ageTxt(activeData&&activeData.refreshed), fAge=ageTxt(foundationData&&foundationData.refreshed);
+
+  /* headline band */
+  function sb(l,v,s){ return "<div class=\"sb\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div><div class=\"s\">"+(s||"")+"</div></div>"; }
+  var band="<div class=\"stat-band\">"
+    +sb("Active work",String(jobs.length)+" jobs",fmtCompact(totalContract)+" under contract")
+    +sb("Cost to complete",fmtCompact(ctcSum),"remaining on "+ctcRows.length+" costed jobs")
+    +sb("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast, Procore budgets")
+    +sb("Billed to date",haveFnd?fmtCompact(woh.reduce(function(s,r){return s+(r.billed||0);},0)):"Unavailable","Foundation, active jobs")
+    +"</div>";
+
+  /* attention list: reds + closeout + biggest fades */
+  var lights=jobs.map(function(j){return {j:j,sl:getStoplight(j,j)};});
+  var closeouts=lights.filter(function(x){return isCloseoutOnly(x.j);});
+  var closeoutSet=new Set(closeouts.map(function(x){return x.j;}));
+  var reds=lights.filter(function(x){return x.sl.color==="red"&&!closeoutSet.has(x.j);});
+  var fades=gainFadeRows().filter(function(r){return r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;});
+  var risks=[];
+  reds.forEach(function(x){ risks.push({tag:"red",tl:"Risk",name:x.j.name,text:x.sl.reasons.filter(function(r){return r.level==="red";}).map(function(r){return r.text;}).join(" · ")+" — "+(pmName(x.j)||"(no PM)"),val:fmtCompact(x.j.contractValue)}); });
+  closeouts.forEach(function(x){ var f=x.j.foundation||{}; risks.push({tag:"co",tl:"Closeout",name:x.j.name,text:daysPastFinish(x.j)+"d past finish, "+fmtCompact(f.retainage||0)+" retainage held — close out to release cash",val:fmtCompact(x.j.contractValue)}); });
+  fades.slice(0,3).forEach(function(r){ risks.push({tag:"fade",tl:"Fade",name:r.name,text:"margin "+r.gfPts.toFixed(1)+" pts vs as-bid"+(r.burnRisk?", cost burn ahead of progress":"")+" — "+r.pm,val:fmtCompact(r.gfDollars)}); });
+  var riskHtml=risks.slice(0,7).map(function(r){
+    return "<div class=\"risk\"><span class=\"rtag "+r.tag+"\">"+r.tl+"</span><span class=\"rname\">"+esc(r.name)+"</span><span class=\"rtext\">"+esc(r.text)+"</span><span class=\"rval\">"+r.val+"</span></div>";
+  }).join("")||"<div class=\"ssub\">Nothing flagged — no red jobs, closeout aging, or material fades.</div>";
+
+  /* cash watchlist */
+  var accts=haveFnd?activeAccountRows():[];
+  var needsInv=accts.reduce(function(s,r){return s+r.under;},0);
+  var over=haveAr?arRows("overdue","active"):[];
+  var buckets=[0,0,0,0]; over.forEach(function(v){ buckets[agingBucket(v.daysOverdue||0)]+=(v.openBalance||0); });
+  var curOver=buckets[0]+buckets[1], agedOver=buckets[2]+buckets[3];
+  var watch=accts.filter(function(r){return r.under>1000||r.overdue>0;}).sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);}).slice(0,5);
+  var watchHtml=watch.map(function(r){
+    var bits=[]; if(r.under>0) bits.push("needs invoicing "+fmtCompact(r.under)); if(r.overdue>0) bits.push("overdue AR "+fmtCompact(r.overdue));
+    return "<div class=\"risk\"><span class=\"rtag cash\">Cash</span><span class=\"rname\">"+esc(r.name)+"</span><span class=\"rtext\">"+esc(bits.join(" · ")+" — "+r.pm)+"</span><span class=\"rval\">"+fmtCompact(r.under+r.overdue)+"</span></div>";
+  }).join("");
+  var cashSub=haveFnd&&haveAr
+    ?("Needs invoicing <b>"+fmtCompact(needsInv)+"</b> · current overdue (≤90d) <b>"+fmtCompact(curOver)+"</b> · aged overdue <b>"+fmtCompact(agedOver)+"</b> · top 5 below — full detail on Billing &amp; Cash.")
+    :"Foundation/AR feed unavailable.";
+
+  /* work-on-hand table */
+  var wohBody=woh.map(function(r){
+    return "<tr"+rowAttr(r.jno)+"><td>"+esc(r.name)+"</td><td class=\"r\">"+briefDol(r.contract)+"</td><td class=\"r\">"+briefDol(r.ctd)+"</td>"
+      +"<td class=\"r\">"+briefDol(r.ctc)+"</td><td class=\"r\">"+briefDol(r.tec)+"</td><td class=\"r\">"+briefDol(r.billed)+"</td></tr>";
+  }).join("");
+  function wsum(k){ return woh.reduce(function(s,r){return s+(r[k]||0);},0); }
+  var wohFoot="<tr><td>"+woh.length+" jobs</td><td class=\"r\">"+briefDol(wsum("contract"))+"</td><td class=\"r\">"+briefDol(wsum("ctd"))+"</td><td class=\"r\">"+briefDol(wsum("ctc"))+"</td><td class=\"r\">"+briefDol(wsum("tec"))+"</td><td class=\"r\">"+briefDol(wsum("billed"))+"</td></tr>";
+  var missingTec=woh.filter(function(r){return r.noTec;}).length;
+
+  /* exceptions + provenance */
+  var conflicts=jobs.filter(function(j){return (j.flags||[]).some(function(f){return f.type==="contract";});}).length;
+
+  view.innerHTML=warn+"<div class=\"brief\">"
+    +"<div class=\"bh\"><div><h1>Executive Brief</h1><div class=\"bsub\">R. Yoder Construction — active work · as of "+dateStr+" · Procore data "+(pAge||"—")+", Foundation "+(fAge||"—")+"</div></div>"
+    +"<div class=\"brief-actions\"><button class=\"pfill\" onclick=\"briefPresent()\">🖥 Present</button><button class=\"pfill\" onclick=\"window.print()\">🖨 Print</button></div></div>"
+    +"<div class=\"brief-sec\">"+band+"</div>"
+    +"<div class=\"brief-sec\"><h2>What needs attention</h2><div class=\"ssub\">Real risk, aging closeouts, and the biggest margin fades — the week&#8217;s conversation list.</div>"+riskHtml+"</div>"
+    +"<div class=\"brief-sec\"><h2>Billing &amp; cash</h2><div class=\"ssub\">"+cashSub+"</div>"+watchHtml+"</div>"
+    +"<div class=\"brief-sec\"><h2>Work-on-Hand Analysis</h2><div class=\"ssub\">The audit table — reconciles to Foundation. Largest contract first.</div>"
+    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Project Name</th><th class=\"r\">Contract Price</th><th class=\"r\">Cost to Date</th><th class=\"r\">Cost to Complete</th><th class=\"r\">Total Job Costs</th><th class=\"r\">Billings to Date</th></tr></thead><tbody>"+wohBody+"</tbody><tfoot>"+wohFoot+"</tfoot></table></div>"
+    +"<div class=\"woh-note\"><b>Contract Price</b> (Revised Contract Amount) &amp; <b>Total Job Costs</b> (ERP Projected Budget) from Procore; <b>Cost to Date</b> &amp; <b>Billings to Date</b> from Foundation. Cost to Complete = Total Job Costs − Cost to Date."
+    +(missingTec?" <b>"+missingTec+"</b> job(s) missing Procore Projected Budget — Cost to Complete blank for those.":"")+"</div></div>"
+    +"<div class=\"brief-foot\">"+(conflicts?("<b>"+conflicts+"</b> contract conflict(s) between Procore and Foundation are open — see Margin &amp; Risk → Data exceptions before quoting those jobs. "):"Procore and Foundation contracts agree on every active job. ")
+    +"Decision-layer figures (margins, stoplights, gain/fade) are forecasts; source-of-record figures (cost, billings, AR, this Work-on-Hand table) mirror Foundation. Full provenance: RYC_Dashboard_Data_Dictionary.md.</div>"
+    +"</div>";
+  hookDrawerRows();
+}
+
+/* ===== Job detail drawer (Phase 3a — existing data only; commitments arrive in 3b) ===== */
+var _dwTrigger=null;
+function jobByNo(jno){
+  var jobs=(activeData&&activeData.jobs)||[];
+  for(var i=0;i<jobs.length;i++){ if(String(jobs[i].projectNumber||"").trim()===String(jno).trim()) return jobs[i]; }
+  return null;
+}
+function reconRow(label,pv,fv,fmtFn){
+  var f=fmtFn||fmtCompact;
+  var pTxt=(pv!=null&&pv!==0)?f(pv):"—", fTxt=(fv!=null&&fv!==0)?f(fv):"—";
+  if(pv==null||fv==null||pv===0||fv===0) return "<tr><td>"+label+"</td><td class=\"r\">"+pTxt+"</td><td class=\"r\">"+fTxt+"</td><td class=\"r\">—</td></tr>";
+  var d=pv-fv, big=Math.abs(d)>50000&&Math.abs(d)>Math.max(Math.abs(pv),Math.abs(fv))*0.02;
+  var dTxt=big?("<span title=\"Diverges — reconcile\">⚑ "+fmtCompact(d)+"</span>"):("✓ "+(Math.abs(d)<1000?"match":fmtCompact(d)));
+  return "<tr><td>"+label+"</td><td class=\"r\">"+pTxt+"</td><td class=\"r\">"+fTxt+"</td><td class=\"r "+(big?"dv":"ok")+"\">"+dTxt+"</td></tr>";
+}
+function drawerHtml(j){
+  var f=j.foundation||null, b=j.budget||{}, sl=getStoplight(j,j);
+  var status=isCloseoutOnly(j)?"closeout":sl.color;
+  var reasons=sl.reasons.map(function(r){return r.text;}).join(" · ");
+  var bill=billingByJob()[String(j.projectNumber)]||null;
+  var gf=gainFadeFor(j);
+  var mtd=marginToDate(j), cm=contractedMargin(j);
+  var dpf=daysPastFinish(j);
+  var pAge=ageTxt(activeData&&activeData.refreshed), fAge=ageTxt(foundationData&&foundationData.refreshed), aAge=ageTxt(arData&&arData.refreshed);
+
+  /* header */
+  var subBits=[esc(j.projectNumber||"")];
+  if(j.client) subBits.push(esc(j.client));
+  if(pmName(j)) subBits.push("PM "+esc(pmName(j)));
+  if(j.superintendent&&j.superintendent.name) subBits.push("Super "+esc(j.superintendent.name));
+  var head="<div class=\"dw-head\"><div><h3>"+esc(j.name||"")+"</h3>"
+    +"<div class=\"dw-sub\">"+subBits.join(" · ")+(j.address?"<br>"+esc(j.address):"")+"</div>"
+    +"<div style=\"margin-top:8px\">"+statusPill(status,reasons)+" <span style=\"color:#67718a;font-size:11.5px;margin-left:6px\">"+esc(j.stage||"")+"</span></div>"
+    +(reasons?"<div class=\"dw-reason\">"+esc(reasons)+"</div>":"")
+    +"</div><button class=\"dw-close\" onclick=\"closeDrawer()\" aria-label=\"Close\">&times;</button></div>";
+
+  /* financial snapshot */
+  function stat(l,v,s){ return "<div class=\"dw-stat\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div>"+(s?"<div class=\"s\">"+s+"</div>":"")+"</div>"; }
+  var atCompletion=(j.contractValue>0&&b.projectedCost>0)?((j.contractValue-b.projectedCost)/j.contractValue*100):null;
+  var snap="<div class=\"dw-sec\"><h4>Financial snapshot</h4><div class=\"dw-stats\">"
+    +stat("Contract",fmtCompact(j.contractValue),j.revisedContract>0?"Procore revised":"Foundation")
+    +stat("Cost to date",j.costToDate!=null?fmtCompact(j.costToDate):"—",f?"Foundation actuals":"Procore direct")
+    +stat("Complete",j.pctComplete!=null?Math.round(j.pctComplete)+"%":"—",dpf>0?dpf+"d past finish":"")
+    +stat("Margin to date",mtd!=null?mtd.toFixed(1)+"%":"—",cm!=null?"bid "+cm.toFixed(1)+"%":"")
+    +stat("Proj. cost (ERP)",b.projectedCost>0?fmtCompact(b.projectedCost):"—",(b.projCostSuspect?"⚑ verify · ":"")+(atCompletion!=null?"margin at compl. "+atCompletion.toFixed(1)+"%":""))
+    +stat("Gain / fade",gf?(gf.gfPts>=0?"+":"")+gf.gfPts.toFixed(1)+" pts":"—",gf?fmtCompact(gf.gfDollars)+(gf.burnRisk?" · cost-burn risk":""):"insufficient data")
+    +"</div></div>";
+
+  /* Procore vs Foundation reconciliation */
+  var recon;
+  if(f){
+    recon="<div class=\"dw-sec\"><h4>Procore ⇄ Foundation reconciliation</h4>"
+      +"<table class=\"dwt\"><tr><th></th><th class=\"r\">Procore</th><th class=\"r\">Foundation</th><th class=\"r\">Δ</th></tr>"
+      +reconRow("Contract",j.revisedContract>0?j.revisedContract:null,f.currentContract)
+      +reconRow("Original contract",j.procoreContractValue,f.originalContract)
+      +reconRow("Cost to date",b.direct,f.totalCosts)
+      +reconRow("Original budget / cost",b.original,f.originalCost)
+      +reconRow("CO net value",(j.changeOrders&&j.changeOrders.netValue)||null,(f.changeOrders&&f.changeOrders.incomeAdj)||null)
+      +"</table><div class=\"dw-note\">⚑ = diverges by more than $50K and 2% — reconcile before quoting either number. Procore cost is budget direct; Foundation cost is posted job cost (all classes, no committed).</div></div>";
+  } else {
+    recon="<div class=\"dw-sec\"><h4>Procore ⇄ Foundation reconciliation</h4><div class=\"dw-note\">No Foundation match for job number "+esc(j.projectNumber||"—")+" — Procore-only job. Financials here are Procore budget figures, unverified by accounting.</div></div>";
+  }
+
+  /* billing & AR */
+  var billing="";
+  if(f){
+    var invs=((arData&&arData.invoices)||[]).filter(function(v){ return String(v.jobNo||"")===String(j.projectNumber) && (v.category==="overdue"||v.category==="open") && (v.openBalance||0)>0; })
+      .sort(function(a,c){ return (c.daysOverdue||0)-(a.daysOverdue||0); });
+    var invRows=invs.slice(0,12).map(function(v){
+      var od=(v.daysOverdue||0)>0;
+      return "<tr><td>"+esc(v.payApp?("Pay app "+v.payApp):("Inv "+(v.invoiceNo||"")))+"</td><td>"+fmtDate(v.invoiceDate)+"</td><td>"+fmtDate(v.dueDate)+"</td>"
+        +"<td class=\"r\">"+fmtCompact(v.openBalance)+"</td><td class=\"r "+(od?"dv":"")+"\">"+(od?(v.daysOverdue+"d overdue"):"current")+"</td></tr>";
+    }).join("");
+    billing="<div class=\"dw-sec\"><h4>Billing &amp; AR</h4><div class=\"dw-stats\">"
+      +stat("Billed to date",fmtCompact(f.totalInvoiced||0),"")
+      +stat("Needs invoicing",bill?fmtCompact(bill.under):"—",bill?(bill.exact?"exact (OH/Profit markups)":"bid-est fallback"):"")
+      +stat("Retainage held",fmtCompact(f.retainage||0),"")
+      +"</div>"
+      +(invs.length?("<table class=\"dwt\" style=\"margin-top:10px\"><tr><th>Invoice</th><th>Invoiced</th><th>Due</th><th class=\"r\">Open balance</th><th class=\"r\">Age</th></tr>"+invRows+"</table>"
+        +(invs.length>12?"<div class=\"dw-note\">+ "+(invs.length-12)+" more open invoices.</div>":"")):"<div class=\"dw-note\" style=\"margin-top:8px\">No open or overdue invoices.</div>")
+      +"</div>";
+  }
+
+  /* commitments / buyout (Procore v1.1 contracts — unlocked 2026-07-07, Phase 3b) */
+  var buyout="";
+  var cm2=j.commitments;
+  if(cm2&&cm2.count>0){
+    var costBudget=(b.revised>0?b.revised:(b.original>0?b.original:null));
+    var uncommitted=(costBudget!=null)?(costBudget-cm2.committedTotal):null;
+    var covPct=(costBudget>0)?(cm2.committedTotal/costBudget*100):null;
+    var cRows=(cm2.rows||[]).slice(0,10).map(function(r){
+      return "<tr><td>"+esc(r.vendor||r.title||"—")+(r.vendor?"<div class=\"cell-sub\" style=\"white-space:normal\">"+esc(r.title||"")+"</div>":"")+"</td>"
+        +"<td>"+(r.kind==="po"?"PO":"Sub")+"</td><td>"+esc(r.status||"—")+"</td>"
+        +"<td class=\"r\">"+fmtCompact(r.total)+"</td></tr>";
+    }).join("");
+    var more=cm2.rows.length>10?("<div class=\"dw-note\">+ "+(cm2.rows.length-10)+" more commitments totaling "+fmtCompact(cm2.rows.slice(10).reduce(function(s,r){return s+r.total;},0))+".</div>"):"";
+    buyout="<div class=\"dw-sec\"><h4>Commitments &amp; buyout (Procore)</h4><div class=\"dw-stats\">"
+      +stat("Committed",fmtCompact(cm2.committedTotal),cm2.subcontracts+" subs · "+cm2.purchaseOrders+" POs"+(cm2.pendingTotal>0?" · <b>"+fmtCompact(cm2.pendingTotal)+" in flight</b>":""))
+      +stat("Uncommitted budget",uncommitted!=null?fmtCompact(uncommitted):"—",costBudget!=null?"of "+fmtCompact(costBudget)+" cost budget":"no budget")
+      +stat("Buyout coverage",covPct!=null?covPct.toFixed(0)+"%":"—","committed / cost budget")
+      +"</div>"
+      +"<table class=\"dwt\" style=\"margin-top:10px\"><tr><th>Vendor / commitment</th><th>Type</th><th>Status</th><th class=\"r\">Committed</th></tr>"+cRows+"</table>"+more
+      +"<div class=\"dw-note\">Committed = Approved/Complete contracts at revised value (approved CCOs included); \"in flight\" = out for signature / processing. Uncommitted budget includes RYC-carried costs — RYC self-performs nothing, so on a fully bought-out job this trends toward general conditions. Sub pay apps live in Foundation, not Procore.</div></div>";
+  } else if(!j.commitmentsTracked){
+    buyout="<div class=\"dw-sec\"><h4>Commitments &amp; buyout (Procore)</h4><div class=\"dw-note\">No commitment data for this job yet — buyout pull runs with the nightly Procore refresh (unlocked 2026-07-07).</div></div>";
+  }
+
+  /* cost breakdown (Foundation, by class) */
+  var costSec="";
+  if(f&&f.costBreakdown){
+    var cbKeys=Object.keys(f.costBreakdown).sort(function(a,c){ return f.costBreakdown[c]-f.costBreakdown[a]; });
+    var cbTotal=cbKeys.reduce(function(s,k){ return s+(f.costBreakdown[k]||0); },0);
+    if(cbTotal>0){
+      var cbRows=cbKeys.map(function(k){ var v=f.costBreakdown[k]||0; return "<tr><td>"+esc(k)+"</td><td class=\"r\">"+fmtCompact(v)+"</td><td class=\"r\">"+(v/cbTotal*100).toFixed(0)+"%</td></tr>"; }).join("");
+      costSec="<div class=\"dw-sec\"><h4>Cost to date by class (Foundation)</h4><table class=\"dwt\"><tr><th>Class</th><th class=\"r\">Posted</th><th class=\"r\">Share</th></tr>"+cbRows+"</table></div>";
+    }
+  }
+
+  /* change orders */
+  var coSec="";
+  var co=j.changeOrders;
+  if((co&&co.count)||(f&&f.changeOrders&&f.changeOrders.count)){
+    var chips="";
+    if(co&&co.byType){ chips=Object.keys(co.byType).map(function(k){ return "<span class=\"dw-chip\">"+esc(k)+" &middot; "+co.byType[k]+"</span>"; }).join(""); }
+    coSec="<div class=\"dw-sec\"><h4>Change orders</h4><div class=\"dw-stats\">"
+      +stat("Procore COs",co?String(co.count):"—",co?("net "+fmtCompact(co.netValue||0)):"")
+      +stat("Foundation CO income",f&&f.changeOrders?fmtCompact(f.changeOrders.incomeAdj||0):"—",f&&f.changeOrders?(f.changeOrders.count+" posted"):"")
+      +stat("Foundation CO cost",f&&f.changeOrders?fmtCompact(f.changeOrders.costAdj||0):"—","")
+      +"</div>"+(chips?"<div style=\"margin-top:9px\">"+chips+"</div>":"")+"</div>";
+  }
+
+  /* field & schedule */
+  var field="<div class=\"dw-sec\"><h4>Field &amp; schedule (Procore)</h4><div class=\"dw-stats\">"
+    +stat("Start",fmtDate(j.start),"")
+    +stat("Projected finish",fmtDate(j.projectedFinish||j.completionDate),dpf>0?("<span style=\"color:#c07f1a\">"+dpf+"d past</span>"):(j.projectedFinish?Math.abs(dpf)+"d out":""))
+    +stat("RFIs open",j.rfis?(j.rfis.open+" <span style=\"color:#8b95ab;font-size:12px\">/ "+j.rfis.total+"</span>"):"—","")
+    +stat("Submittals open",j.submittals?(j.submittals.open+" <span style=\"color:#8b95ab;font-size:12px\">/ "+j.submittals.total+"</span>"):"—","")
+    +stat("Work type",esc((j.workType||"—").replace(/_/g," ")),"")
+    +stat("Client type",esc(j.clientType||"—"),"")
+    +"</div></div>";
+
+  /* source trail */
+  var trail="<div class=\"dw-sec\"><h4>Source trail</h4><table class=\"dwt\">"
+    +"<tr><th>Fields</th><th>Source</th><th class=\"r\">Data age</th></tr>"
+    +"<tr><td>Contract (revised)</td><td>Procore prime contract</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
+    +"<tr><td>Cost, billed, retainage, PM, CO postings</td><td>Foundation nightly ODBC</td><td class=\"r\">"+(fAge||"—")+"</td></tr>"
+    +"<tr><td>Open / overdue invoices</td><td>Foundation AR feed</td><td class=\"r\">"+(aAge||"—")+"</td></tr>"
+    +"<tr><td>Schedule, %, RFIs, submittals, CO types</td><td>Procore daily cache</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
+    +"<tr><td>Commitments / buyout</td><td>Procore sub + PO contracts (daily cache)</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
+    +"</table><div class=\"dw-note\">Full field-by-field provenance: 📖 Data Sources on the legacy dashboard, or RYC_Dashboard_Data_Dictionary.md.</div></div>";
+
+  return head+"<div class=\"dw-body\">"+snap+recon+billing+buyout+costSec+coSec+field+trail+"</div>";
+}
+function openDrawer(jno,trigger){
+  var j=jobByNo(jno); if(!j) return;
+  closeDrawer(true);
+  _dwTrigger=trigger||null;
+  var wrap=document.createElement("div"); wrap.id="dwrap";
+  wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Job detail: "+attrEsc(j.name||jno)+"\">"+drawerHtml(j)+"</aside>";
+  document.body.appendChild(wrap);
+  document.addEventListener("keydown",dwEsc);
+  var cb=wrap.querySelector(".dw-close"); if(cb) cb.focus();
+}
+function dwEsc(e){ if(e.key==="Escape") closeDrawer(); }
+function closeDrawer(silent){
+  var w=document.getElementById("dwrap");
+  if(!w) return;
+  w.remove();
+  document.removeEventListener("keydown",dwEsc);
+  if(!silent&&_dwTrigger&&document.contains(_dwTrigger)) _dwTrigger.focus();
+  _dwTrigger=null;
+}
+

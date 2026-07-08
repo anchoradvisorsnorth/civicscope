@@ -1,0 +1,169 @@
+
+"use strict";
+/* ===== RYC Command Center — Phase 1 (compute reimplemented from the legacy dashboard,
+   verified against the frozen §8a baseline). Reads the SAME data sources; live untouched. ===== */
+var CRM = "https://crm.jbkdevelopment.com";
+var activeData=null, foundationData=null, arData=null, buildrData=null, portfolioData=null, subsData=null, loadedAt=null, foundationOnly=[];
+
+var NAV = [
+  { key:"command",  label:"Command Center", ic:"&#129517;" },
+  { key:"portfolio",label:"Portfolio",      ic:"&#128203;" },
+  { key:"billing",  label:"Billing & Cash", ic:"&#128181;" },
+  { key:"margin",   label:"Margin & Risk",  ic:"&#128201;" },
+  { key:"brief",    label:"Executive Brief",ic:"&#128196;" },
+  { key:"trust",    label:"Data Trust",     ic:"&#128270;" },
+  { key:"ai",       label:"AI Assistant",   ic:"&#128172;" }
+];
+var currentView = "command";
+
+var CLOSEOUT_STAGES = { "Warranty":1, "Post-Construction":1 };
+var GF_MOVE_PTS = 1.0, GF_BURN_PTS = 12, GF_BURN_MINPCT = 20;
+
+/* ---- format helpers ---- */
+function fmt(n){ return n==null?"—":"$"+Math.round(n).toLocaleString("en-US"); }
+function fmtCompact(n){ if(n==null) return "—"; var a=Math.abs(n),s=n<0?"-":""; if(a>=1e6) return s+"$"+(a/1e6).toFixed(1)+"M"; if(a>=1e3) return s+"$"+Math.round(a/1e3).toLocaleString("en-US")+"K"; return s+"$"+Math.round(a).toLocaleString("en-US"); }
+function pct(n){ return n==null?"—":n.toFixed(1)+"%"; }
+function fmtDate(s){ if(!s) return "—"; var d=new Date(s); return isNaN(d.getTime())?"—":d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
+function ageTxt(ts){ if(!ts) return null; var h=(Date.now()-new Date(ts))/3600000; if(!(h>=0)) return null;
+  if(h<1.5) return Math.max(1,Math.round(h*60))+"m ago"; if(h<48) return (h<10?h.toFixed(1):Math.round(h))+"h ago"; return Math.round(h/24)+"d ago"; }
+function esc(s){ if(!s) return ""; var d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+function pmName(job){ return (job.foundation && job.foundation.pmName) || (job.pm && job.pm.name) || null; }
+function contractedMargin(job){ var cv=job.contractValue, bo=job.budget && job.budget.original; if(!(cv>0 && bo>0)) return null; return bo>=cv?0:((cv-bo)/cv*100); }
+function marginToDate(job){ var cv=job.contractValue, dc=(job.costToDate!=null?job.costToDate:(job.budget&&job.budget.direct)); return (cv>0 && dc>0)?((cv-dc)/cv*100):null; }
+
+/* ---- Foundation merge (Procore-revised contract priority; ported from legacy v1.29.0) ---- */
+function mergeFoundation(){
+  foundationOnly=[];
+  if(!activeData || !activeData.jobs) return;
+  var fjobs=(foundationData && foundationData.jobs)||{};
+  var procoreNums=new Set();
+  for(var i=0;i<activeData.jobs.length;i++){
+    var j=activeData.jobs[i];
+    var num=(j.projectNumber||"").trim(); procoreNums.add(num);
+    var f=fjobs[num]; j.flags=[];
+    var rev=(j.revisedContract>0)?j.revisedContract:0;
+    if(!f){ j.foundation=null; j.costToDate=(j.budget&&j.budget.direct)!=null?j.budget.direct:null; if(rev){ j.procoreContractValue=j.contractValue; j.contractValue=rev; } continue; }
+    j.foundation=f;
+    if(rev){
+      j.procoreContractValue=j.contractValue; j.contractValue=rev;
+      var fd=(f.currentContract||0)-rev;
+      if(f.currentContract>0 && Math.abs(fd)>50000 && Math.abs(fd)>rev*0.02) j.flags.push({type:"contract",text:"Foundation "+fmtCompact(f.currentContract)});
+    } else if(f.currentContract>0){
+      j.procoreContractValue=j.contractValue; j.contractValue=f.currentContract;
+      var d=j.contractValue-(j.procoreContractValue||0);
+      if(j.procoreContractValue && Math.abs(d)>50000 && Math.abs(d)>j.contractValue*0.02) j.flags.push({type:"contract",text:"Procore "+fmtCompact(j.procoreContractValue)});
+    }
+    j.costToDate=(f.totalCosts!=null)?f.totalCosts:((j.budget&&j.budget.direct)!=null?j.budget.direct:null);
+    if(j.costToDate!=null && j.contractValue>0) j.costOverrun=j.costToDate>j.contractValue;
+    if(f.jobStatus==="C") j.flags.push({type:"closed",text:"Foundation: closed"});
+  }
+  foundationOnly=Object.values(fjobs).filter(function(f){ return f.jobStatus==="A" && !procoreNums.has((f.jobNo||"").trim()) && (((f.currentContract||0)>0)||((f.originalContract||0)>0)); });
+}
+
+function getActiveJobs(){ return ((activeData&&activeData.jobs)||[]).filter(function(j){ return !CLOSEOUT_STAGES[j.stage]; }); }
+
+function getStoplight(job, live){
+  var stage=live?live.stage:null, pctComp=live?live.pctComplete:null, costOverrun=live?live.costOverrun:null;
+  var finishDate=live?(live.projectedFinish||live.completionDate):null, verifyStatus=live?live.verifyStatus:null;
+  var cMargin=contractedMargin(job), mtd=marginToDate(job);
+  var co=live?live.changeOrders:null;
+  var coExposure=(co&&co.netValue&&job.contractValue)?Math.abs(co.netValue)/job.contractValue:0;
+  var isPrecon=stage==="Pre-Construction"||(!(live&&live.budget)&&(pctComp==null||pctComp===0));
+  if(isPrecon) return {color:"gray",reasons:[]};
+  var daysOverdue=finishDate?Math.floor((Date.now()-new Date(finishDate))/86400000):0;
+  var reasons=[];
+  if(costOverrun) reasons.push({level:"red",text:"Cost overrun"});
+  if(mtd!=null && mtd<0) reasons.push({level:"red",text:"Margin to date "+mtd.toFixed(1)+"%"});
+  if(daysOverdue>30 && !verifyStatus) reasons.push({level:"red",text:Math.abs(daysOverdue)+" days past projected finish"});
+  var red=reasons.some(function(r){return r.level==="red";});
+  if(!red){
+    if(cMargin!=null && cMargin>0 && cMargin<5) reasons.push({level:"amber",text:"Contracted margin "+cMargin.toFixed(1)+"% (below 5%)"});
+    if(pctComp!=null && pctComp>=10 && mtd!=null && cMargin!=null && mtd<cMargin) reasons.push({level:"amber",text:"Margin declining "+mtd.toFixed(1)+"% vs "+cMargin.toFixed(1)+"% contracted"});
+    if(daysOverdue>=1 && daysOverdue<=30) reasons.push({level:"amber",text:daysOverdue+" days past projected finish"});
+    if(coExposure>0.07) reasons.push({level:"amber",text:"CO exposure "+(coExposure*100).toFixed(1)+"% of contract"});
+    if(finishDate && !verifyStatus && daysOverdue<=0 && Math.abs(daysOverdue)<=30) reasons.push({level:"amber",text:"Finishing in "+Math.abs(daysOverdue)+" days"});
+  }
+  var amber=!red && reasons.some(function(r){return r.level==="amber";});
+  return {color:red?"red":amber?"amber":"green",reasons:reasons};
+}
+
+/* ---- gain/fade (ported; gainFadeFor extracted for the Phase-3a drawer — same math) ---- */
+function gainFadeFor(j){
+  var f=j.foundation, b=j.budget||{}, pctc=j.pctComplete;
+  var pC=j.procoreContractValue!=null?j.procoreContractValue:j.contractValue;
+  var curContract=(f&&f.currentContract>0)?f.currentContract:pC;
+  var asbidContract=(f&&f.originalContract>0)?f.originalContract:pC;
+  var asbidCost=(f&&f.originalCost!=null)?f.originalCost:b.original;
+  if(!(curContract>0)||asbidCost==null) return null;
+  var costGrowth=(b.revised>0&&b.original>0)?(b.revised-b.original):0;
+  var coIncome=(f&&f.originalContract>0)?(curContract-asbidContract):null;
+  var projCost=asbidCost+costGrowth;
+  var asbid=(asbidContract-asbidCost)/asbidContract*100;
+  var curMargin=(curContract-projCost)/curContract*100;
+  var gfPts=curMargin-asbid;
+  var gfDollars=(coIncome!=null?coIncome:0)-costGrowth;
+  var costToDate=f?f.totalCosts:null;
+  var burnPct=(costToDate!=null&&projCost>0)?costToDate/projCost*100:null;
+  var burnRisk=burnPct!=null&&pctc!=null&&pctc>=GF_BURN_MINPCT&&(burnPct-pctc)>=GF_BURN_PTS;
+  return {job:j.projectNumber||"",name:j.name||(f&&f.description)||"",pm:pmName(j)||"(no PM)",pct:pctc,gfPts:gfPts,gfDollars:gfDollars,burnRisk:burnRisk,asbidMargin:asbid,curMargin:curMargin};
+}
+function gainFadeRows(){
+  var rows=[];
+  var jobs=getActiveJobs();
+  for(var i=0;i<jobs.length;i++){
+    var r=gainFadeFor(jobs[i]);
+    if(r) rows.push(r);
+  }
+  return rows;
+}
+
+/* ---- billing / AR (ported) ---- */
+function activeJobSet(){ var fj=(foundationData&&foundationData.jobs)||{}; var s=new Set(); Object.values(fj).forEach(function(j){ if(j.jobStatus==="A") s.add(String(j.jobNo)); }); return s; }
+function arRows(cat,scope){ var active=scope?activeJobSet():null; return ((arData&&arData.invoices)||[]).filter(function(v){ if(v.category!==cat) return false; if(!scope) return true; var isA=active.has(String(v.jobNo||"")); return scope==="active"?isA:!isA; }); }
+function overdueByJob(scope){ var m={}; arRows("overdue",scope).forEach(function(v){ var k=String(v.jobNo||""); m[k]=(m[k]||0)+(v.openBalance||0); }); return m; }
+function activeAccountRows(){
+  var fj=(foundationData&&foundationData.jobs)||{}; var odo=overdueByJob("active"); var rows=[];
+  Object.values(fj).forEach(function(f){
+    if(f.jobStatus!=="A") return;
+    var cost=f.totalCosts||0, estCost=f.originalCost||0, invoiced=f.totalInvoiced||0;
+    var contract=f.currentContract||f.originalContract||0, oh=f.ohMarkup, pr=f.profitMarkup;
+    var deficit=null, exact=false;
+    if(cost>0&&oh>0&&pr>0){ deficit=invoiced-cost*oh*pr; exact=true; }
+    else if(cost>0&&estCost>0&&(f.originalContract||0)>0){ deficit=invoiced-cost*(f.originalContract/estCost); }
+    rows.push({pm:f.pmName||"(no PM)",job:f.jobNo,name:f.description||"",contract:contract,cost:cost,invoiced:invoiced,retainage:f.retainage||0,deficit:deficit,exact:exact,under:(deficit!=null&&deficit<0)?-deficit:0,over:(deficit!=null&&deficit>0)?deficit:0,overdue:odo[String(f.jobNo)]||0});
+  });
+  return rows;
+}
+
+/* ---- Buildr follow-ups ---- */
+function buildrFollowUps(){
+  var res={items:[],loaded:0,matched:0,flagged:0};
+  if(!buildrData||!buildrData.jobs) return res;
+  var byNum={}; getActiveJobs().forEach(function(j){ byNum[String(j.projectNumber||"").trim()]=j; });
+  var keys=Object.keys(buildrData.jobs); res.loaded=keys.length;
+  keys.forEach(function(k){
+    var rec=buildrData.jobs[k];
+    var num=String((rec&&rec.projectNumber)||k||"").trim();
+    var job=byNum[num]; if(!job) return;
+    res.matched++;
+    if(rec && rec.needsAttention){
+      res.flagged++;
+      var last=rec.daysSinceLastMeeting;
+      res.items.push({job:num,name:job.name||"",pm:pmName(job)||"(no PM)",detail:last==null?"No owner visit logged in Buildr":"Last owner visit "+last+"d ago",open:(rec.openTasks||[]).length});
+    }
+  });
+  return res;
+}
+
+// Closeout-aging split (Keith, 2026-07-07): jobs that are cost-complete (>=98%) and >30d past
+// projected finish but STILL OPEN in Foundation are in punchlist/closeout — a different leadership
+// conversation (retainage tied up, closeout dragging) than financial risk. The REAL closeout test
+// is Foundation-side: retainage to zero, all subs paid, job closed. Only jobs whose sole red
+// trigger is "past projected finish" move there; a cost-overrun/negative-margin red stays red.
+function daysPastFinish(j){ var fin=j.projectedFinish||j.completionDate; return fin?Math.floor((Date.now()-new Date(fin))/86400000):0; }
+function isCloseoutAging(j){ return daysPastFinish(j)>30 && j.pctComplete!=null && j.pctComplete>=98 && !!j.foundation; }
+function isCloseoutOnly(j){ var sl=getStoplight(j,j);
+  return sl.color==="red" && isCloseoutAging(j) &&
+    sl.reasons.filter(function(r){return r.level==="red";}).every(function(r){return r.text.indexOf("past projected finish")>-1;});
+}
+
