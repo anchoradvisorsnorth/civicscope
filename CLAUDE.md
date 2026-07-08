@@ -102,6 +102,7 @@ brand_statement, brand_values (jsonb array)
 ## Deploy Workflow
 1. Edit files locally in Cowork\Civicscope\
 2. Run PUSH_CIVICSCOPE.bat — pushes product HTML + api/*.js
+   - ⚠ `push_civicscope.ps1` must stay **UTF-8 WITH BOM** — the .bat runs Windows PowerShell 5.1, which reads no-BOM as ANSI and shatters on the script's em-dashes (bit 2026-07-08: deploy died at a parse error + "Press any key"). If a tool re-saves it without BOM, re-add before deploying.
 3. Run PUSH_RYC_SCHEDULE.bat separately for RYC scheduler only
 4. CLAUDE.md pushed separately via GitHub Contents API PUT
 5. Validate at app.civicscope.io/qa after deploy
