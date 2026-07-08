@@ -743,11 +743,18 @@ function renderEstimating(){
       var st=k.awardedCompany?("<span class=\"m-g\">awarded · "+esc(k.awardedCompany)+"</span>")
         :risk?"<span class=\"m-r\">⚠ at risk</span>"
         :(k.bidsReceived>0?"<span class=\"m-g\">"+k.bidsReceived+" bid"+(k.bidsReceived>1?"s":"")+" in</span>":"<span class=\"m-a\">committed only</span>");
-      return "<tr class=\"static\""+(risk?" style=\"background:#fdf3f0\"":"")+">"
+      var tr="<tr class=\"static\""+(risk?" style=\"background:#fdf3f0\"":"")+">"
         +"<td><div class=\"jname\" style=\"font-weight:600\">"+esc(k.name)+"</div><div class=\"jno\">"+esc(k.number||"")+"</div></td>"
         +"<td class=\"r\">"+k.invites+"</td><td class=\"r\">"+(k.bidding||"<span class=\"m-m\">—</span>")+"</td>"
         +"<td class=\"r\">"+(k.undecided||"<span class=\"m-m\">—</span>")+"</td><td class=\"r\">"+(k.notBidding||"<span class=\"m-m\">—</span>")+"</td>"
         +"<td class=\"r\">"+(k.bidsReceived||"<span class=\"m-m\">—</span>")+"</td><td>"+st+"</td></tr>";
+      // the call sheet: undecided invitees on an empty package — who to chase, by name
+      if(risk&&k.undecidedSubs&&k.undecidedSubs.length){
+        tr+="<tr class=\"static\" style=\"background:#fdf3f0\"><td colspan=\"7\" style=\"padding:2px 12px 10px;border-top:none\">"
+          +"<span style=\"font-size:11px;font-weight:700;color:#b23c17;letter-spacing:.03em\">CHASE ("+k.undecidedSubs.length+(k.undecided>k.undecidedSubs.length?" of "+k.undecided:"")+"):</span> "
+          +"<span style=\"font-size:11.5px;color:#6b4a3a\">"+k.undecidedSubs.map(function(s){return esc(s);}).join(" · ")+"</span></td></tr>";
+      }
+      return tr;
     }).join("");
     return "<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Trade package</th><th class=\"r\">Invited</th><th class=\"r\">Bidding</th><th class=\"r\">Undecided</th><th class=\"r\">Declined</th><th class=\"r\">Bids in</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table></div>";
   }
