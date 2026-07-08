@@ -79,6 +79,10 @@ var BUILDR_ACCT="1411";
 // zone — us02.procore.com/{procoreId}/project/home. (app.procore.com 404s these project IDs,
 // and the webclients form only looked valid because the SPA shell returns 200 unauthenticated.)
 function procoreUrl(j){ return (j&&j.procoreId)?("https://us02.procore.com/"+j.procoreId+"/project/home"):null; }
+// Budget tool deep-link — Work-on-Hand's "Total Job Costs" = the ERP budget view's Projected
+// Budget, so audit scrutiny should land in the Budget tool (Procore reopens the user's last
+// selected view; if the ERP view ever carries a URL param, pin it here).
+function procoreBudgetUrl(j){ return (j&&j.procoreId)?("https://us02.procore.com/"+j.procoreId+"/project/budgeting"):null; }
 function buildrUrl(id){ return id?("https://buildr.app/a/"+BUILDR_ACCT+"/projects/"+id):null; }
 function buildrIdFor(jno){ var r=buildrData&&buildrData.jobs&&buildrData.jobs[String(jno||"").trim()]; return (r&&r.projectId)||null; }
 

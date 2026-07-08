@@ -803,7 +803,7 @@ function wohRows(){
     var tec=(b.projectedBudget!=null)?b.projectedBudget:null;
     var billed=f?f.totalInvoiced:null;
     var ctc=(tec!=null&&ctd!=null)?(tec-ctd):null;
-    rows.push({jno:j.projectNumber||"",name:j.name||(f&&f.description)||(j.projectNumber||""),contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null});
+    rows.push({jno:j.projectNumber||"",name:j.name||(f&&f.description)||(j.projectNumber||""),contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null,budgetUrl:procoreBudgetUrl(j)});
   });
   rows.sort(function(a,b2){return (b2.contract||0)-(a.contract||0);});
   return rows;
@@ -869,7 +869,7 @@ function renderBrief(){
 
   /* work-on-hand table */
   var wohBody=woh.map(function(r){
-    return "<tr"+rowAttr(r.jno)+"><td>"+esc(r.name)+"</td><td class=\"r\">"+briefDol(r.contract)+"</td><td class=\"r\">"+briefDol(r.ctd)+"</td>"
+    return "<tr"+rowAttr(r.jno)+"><td>"+esc(r.name)+srcLink(r.budgetUrl,"Budget")+"</td><td class=\"r\">"+briefDol(r.contract)+"</td><td class=\"r\">"+briefDol(r.ctd)+"</td>"
       +"<td class=\"r\">"+briefDol(r.ctc)+"</td><td class=\"r\">"+briefDol(r.tec)+"</td><td class=\"r\">"+briefDol(r.billed)+"</td></tr>";
   }).join("");
   function wsum(k){ return woh.reduce(function(s,r){return s+(r[k]||0);},0); }

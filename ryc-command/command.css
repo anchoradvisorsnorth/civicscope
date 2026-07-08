@@ -189,7 +189,7 @@ body.present .brief .risk{font-size:16px}
 body.present .ptable{font-size:14px}
 /* Print — brief only prints clean; chrome hidden, forced light */
 @media print{
-  .sidebar,.topbar,.brief-actions,.warn-banner{display:none!important}
+  .sidebar,.topbar,.brief-actions,.warn-banner,.srclink{display:none!important}
   .shell{display:block!important}
   body,.content,.content.light{background:#fff!important;background-image:none!important;color:#000!important}
   .view{padding:0!important}
