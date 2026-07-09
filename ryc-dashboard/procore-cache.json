@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-07-08T11:46:40.303Z",
+  "refreshed": "2026-07-09T04:03:40.303Z",
   "jobCount": 28,
   "jobs": [
     {
@@ -1163,8 +1163,8 @@
         "open": 25
       },
       "submittals": {
-        "total": 403,
-        "open": 109
+        "total": 415,
+        "open": 121
       },
       "budget": {
         "original": 15085716.219999999,
@@ -3757,11 +3757,11 @@
         ]
       },
       "changeOrders": {
-        "count": 14,
+        "count": 15,
         "netValue": 33638,
         "byType": {
+          "Owner Change": 5,
           "TBD": 9,
-          "Owner Change": 4,
           "Contingency": 1
         }
       },
@@ -4250,8 +4250,8 @@
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 23,
-        "open": 0
+        "total": 26,
+        "open": 3
       },
       "submittals": {
         "total": 75,
@@ -4754,7 +4754,7 @@
       },
       "submittals": {
         "total": 138,
-        "open": 35
+        "open": 34
       },
       "budget": {
         "original": 2205118.7800000003,
@@ -5129,7 +5129,7 @@
       },
       "submittals": {
         "total": 139,
-        "open": 66
+        "open": 64
       },
       "budget": {
         "original": 2180018.8899999997,
@@ -5816,8 +5816,8 @@
         "revised": 1323528.6199999999,
         "committed": 0,
         "direct": 0,
-        "projectedCost": 782522.34,
-        "projectedBudget": 1323528.62,
+        "projectedCost": 848286.62,
+        "projectedBudget": 1461738.83,
         "projCostSuspect": false
       },
       "contractValue": 1458000,
@@ -5826,7 +5826,7 @@
         "count": 12,
         "subcontracts": 9,
         "purchaseOrders": 3,
-        "committedTotal": 666072.34,
+        "committedTotal": 731836.62,
         "originalTotal": 666072.34,
         "pendingTotal": 116450,
         "invoicedTotal": 0,
@@ -5836,7 +5836,7 @@
             "title": "Niblock Subcontract - Bristol Street Garages",
             "vendor": "Niblock Excavating Inc",
             "status": "Approved",
-            "total": 238467.3,
+            "total": 304231.58,
             "original": 238467.3,
             "invoiced": 0
           },
@@ -5942,9 +5942,11 @@
         ]
       },
       "changeOrders": {
-        "count": 0,
-        "netValue": 0,
-        "byType": {}
+        "count": 1,
+        "netValue": 65764.28,
+        "byType": {
+          "Owner Change": 1
+        }
       },
       "pm": {
         "name": "Erik Parcell",
