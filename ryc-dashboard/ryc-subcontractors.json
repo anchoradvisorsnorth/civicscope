@@ -1,9 +1,9 @@
 {
- "generated": "2026-07-09T09:30:41.852Z",
+ "generated": "2026-07-10T09:30:46.432Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 123217149,
- "totalCommitted": 135604802,
- "subCount": 626,
+ "totalActual": 123217410,
+ "totalCommitted": 137158022,
+ "subCount": 628,
  "subs": [
   {
    "vendorNo": "3662",
@@ -403,9 +403,9 @@
    "name": "Griffen Plumbing & Heating  In",
    "actualCost": 2073076,
    "actualJobs": 6,
-   "committed": 12545,
-   "committedJobs": 1,
-   "variance": -2060531,
+   "committed": 649695,
+   "committedJobs": 2,
+   "variance": -1423381,
    "jobs": [
     {
      "jobNo": "2313GO09",
@@ -448,6 +448,12 @@
      "jobName": "",
      "actual": 0,
      "committed": 12545
+    },
+    {
+     "jobNo": "26X019",
+     "jobName": "",
+     "actual": 0,
+     "committed": 637150
     }
    ]
   },
@@ -587,9 +593,9 @@
    "name": "Yoder Concrete LLC",
    "actualCost": 1994834,
    "actualJobs": 63,
-   "committed": 1522018,
-   "committedJobs": 11,
-   "variance": -472816,
+   "committed": 1567508,
+   "committedJobs": 13,
+   "variance": -427326,
    "jobs": [
     {
      "jobNo": "2413GO02",
@@ -1362,9 +1368,9 @@
    "name": "Niblock Excavating  Inc",
    "actualCost": 1320637,
    "actualJobs": 9,
-   "committed": 1941529,
-   "committedJobs": 10,
-   "variance": 620892,
+   "committed": 2179997,
+   "committedJobs": 11,
+   "variance": 859360,
    "jobs": [
     {
      "jobNo": "2304RO04",
@@ -1437,6 +1443,12 @@
      "jobName": "",
      "actual": 0,
      "committed": 242174
+    },
+    {
+     "jobNo": "26X012",
+     "jobName": "",
+     "actual": 0,
+     "committed": 238467
     }
    ]
   },
@@ -3636,9 +3648,9 @@
    "name": "Universal Services Company LLC",
    "actualCost": 567869,
    "actualJobs": 28,
-   "committed": 352770,
-   "committedJobs": 6,
-   "variance": -215099,
+   "committed": 384224,
+   "committedJobs": 8,
+   "variance": -183645,
    "jobs": [
     {
      "jobNo": "2508CO01",
@@ -3710,7 +3722,7 @@
      "jobNo": "2618RO01",
      "jobName": "Greencroft 2020 WPC",
      "actual": 11159,
-     "committed": 0
+     "committed": 13529
     },
     {
      "jobNo": "2518RO16",
@@ -3758,7 +3770,7 @@
      "jobNo": "26X010",
      "jobName": "Greencroft South 6582 Chestnut",
      "actual": 3090,
-     "committed": 0
+     "committed": 17925
     }
    ]
   },
@@ -4313,9 +4325,9 @@
    "name": "Michiana Steel Erectors Inc",
    "actualCost": 430476,
    "actualJobs": 7,
-   "committed": 673756,
-   "committedJobs": 5,
-   "variance": 243280,
+   "committed": 732631,
+   "committedJobs": 6,
+   "variance": 302155,
    "jobs": [
     {
      "jobNo": "2402GP08",
@@ -4358,6 +4370,12 @@
      "jobName": "CTB 2026 Addition",
      "actual": 11000,
      "committed": 421015
+    },
+    {
+     "jobNo": "26X012",
+     "jobName": "",
+     "actual": 0,
+     "committed": 58875
     }
    ]
   },
@@ -4994,7 +5012,7 @@
    "actualCost": 312620,
    "actualJobs": 26,
    "committed": 322607,
-   "committedJobs": 12,
+   "committedJobs": 13,
    "variance": 9987,
    "jobs": [
     {
@@ -11495,9 +11513,9 @@
    "name": "JCS Fireplace",
    "actualCost": 55939,
    "actualJobs": 8,
-   "committed": 11520,
-   "committedJobs": 2,
-   "variance": -44419,
+   "committed": 16984,
+   "committedJobs": 3,
+   "variance": -38955,
    "jobs": [
     {
      "jobNo": "2316RO01",
@@ -11533,7 +11551,7 @@
      "jobNo": "2518RO12",
      "jobName": "Greencroft 2029 WPC",
      "actual": 5464,
-     "committed": 0
+     "committed": 5464
     },
     {
      "jobNo": "2416RO11",
@@ -14748,7 +14766,7 @@
   {
    "vendorNo": "3494",
    "name": "Indiana Michigan Power-ONLINE",
-   "actualCost": 18621,
+   "actualCost": 18882,
    "actualJobs": 4,
    "committed": 0,
    "committedJobs": 0,
@@ -14757,7 +14775,7 @@
     {
      "jobNo": "2513CO04",
      "jobName": "Helix Orchard Wallen Road",
-     "actual": 16549,
+     "actual": 16811,
      "committed": 0
     },
     {
@@ -15401,9 +15419,9 @@
    "name": "Neptune Construction Inc",
    "actualCost": 14500,
    "actualJobs": 2,
-   "committed": 14300,
-   "committedJobs": 1,
-   "variance": -200,
+   "committed": 24900,
+   "committedJobs": 2,
+   "variance": 10400,
    "jobs": [
     {
      "jobNo": "2510GP04",
@@ -15416,6 +15434,12 @@
      "jobName": "INDOT Roselawn Unit & Salt Bld",
      "actual": 4500,
      "committed": 0
+    },
+    {
+     "jobNo": "2611CO01",
+     "jobName": "",
+     "actual": 0,
+     "committed": 10600
     }
    ]
   },
@@ -18575,15 +18599,15 @@
    "name": "Weber Steel",
    "actualCost": 3500,
    "actualJobs": 1,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
+   "committed": 77000,
+   "committedJobs": 1,
+   "variance": 73500,
    "jobs": [
     {
      "jobNo": "2515CO01",
      "jobName": "Huntertown Wastewater Treatmen",
      "actual": 3500,
-     "committed": 0
+     "committed": 77000
     }
    ]
   },
@@ -19462,9 +19486,9 @@
    "name": "Kammerer Dynamics Inc",
    "actualCost": 1978,
    "actualJobs": 1,
-   "committed": 446431,
-   "committedJobs": 9,
-   "variance": 444453,
+   "committed": 849431,
+   "committedJobs": 10,
+   "variance": 847453,
    "jobs": [
     {
      "jobNo": "2502GP07",
@@ -19519,6 +19543,12 @@
      "jobName": "",
      "actual": 0,
      "committed": 18875
+    },
+    {
+     "jobNo": "26X019",
+     "jobName": "",
+     "actual": 0,
+     "committed": 403000
     }
    ]
   },
@@ -21907,6 +21937,40 @@
      "jobName": "",
      "actual": 0,
      "committed": 4495
+    }
+   ]
+  },
+  {
+   "vendorNo": "4120",
+   "name": "Gripp Incorporated",
+   "actualCost": 0,
+   "actualJobs": 0,
+   "committed": 10769,
+   "committedJobs": 1,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "26P001",
+     "jobName": "",
+     "actual": 0,
+     "committed": 10769
+    }
+   ]
+  },
+  {
+   "vendorNo": "4135",
+   "name": "Golden Harvest Inc",
+   "actualCost": 0,
+   "actualJobs": 0,
+   "committed": 34950,
+   "committedJobs": 1,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2515CO01",
+     "jobName": "",
+     "actual": 0,
+     "committed": 34950
     }
    ]
   },
