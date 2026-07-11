@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-07-10T04:03:39.435Z",
+  "refreshed": "2026-07-11T04:03:37.562Z",
   "jobCount": 28,
   "jobs": [
     {
@@ -33,9 +33,9 @@
         "original": 19281323.549999997,
         "revised": 20155991.33,
         "committed": 0,
-        "direct": 12039522.149999999,
-        "projectedCost": 18745845.13,
-        "projectedBudget": 20079531.05,
+        "direct": 12039783.809999999,
+        "projectedCost": 19032436.64,
+        "projectedBudget": 20096315.81,
         "projCostSuspect": false
       },
       "contractValue": 18537636,
@@ -44,7 +44,7 @@
         "count": 33,
         "subcontracts": 23,
         "purchaseOrders": 10,
-        "committedTotal": 18338101.35,
+        "committedTotal": 18624431.2,
         "originalTotal": 16700848.05,
         "pendingTotal": 0,
         "invoicedTotal": 0,
@@ -131,6 +131,15 @@
             "invoiced": 0
           },
           {
+            "kind": "sub",
+            "title": "Landscaping",
+            "vendor": "Bojrab Landscape ManagementLLC",
+            "status": "Approved",
+            "total": 459046,
+            "original": 101970,
+            "invoiced": 0
+          },
+          {
             "kind": "po",
             "title": "ABC Supply - Roofing - Clubhouse",
             "vendor": "ABC Supply Co. Inc.",
@@ -164,15 +173,6 @@
             "status": "Approved",
             "total": 252000,
             "original": 252000,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Landscaping",
-            "vendor": "Bojrab Landscape ManagementLLC",
-            "status": "Approved",
-            "total": 190246,
-            "original": 101970,
             "invoiced": 0
           },
           {
@@ -221,6 +221,15 @@
             "invoiced": 0
           },
           {
+            "kind": "sub",
+            "title": "Express Sign - wallen Road - Subcontract",
+            "vendor": "Express Signs Inc",
+            "status": "Approved",
+            "total": 42935.05,
+            "original": 25405.2,
+            "invoiced": 0
+          },
+          {
             "kind": "po",
             "title": "Salsbury PO - Helix Orchard Road",
             "vendor": "Salsbury Industries, Inc.",
@@ -254,15 +263,6 @@
             "status": "Approved",
             "total": 26500,
             "original": 26500,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Express Sign - wallen Road - Subcontract",
-            "vendor": "Express Signs Inc",
-            "status": "Approved",
-            "total": 25405.2,
-            "original": 25405.2,
             "invoiced": 0
           },
           {
@@ -4754,7 +4754,7 @@
       },
       "submittals": {
         "total": 138,
-        "open": 34
+        "open": 32
       },
       "budget": {
         "original": 2205118.7800000003,
@@ -5128,8 +5128,8 @@
         "open": 0
       },
       "submittals": {
-        "total": 139,
-        "open": 64
+        "total": 141,
+        "open": 65
       },
       "budget": {
         "original": 2180018.8899999997,
@@ -6331,7 +6331,7 @@
         "committed": 0,
         "direct": 0,
         "projectedCost": 615251.41,
-        "projectedBudget": 786664.84,
+        "projectedBudget": 788114.5,
         "projCostSuspect": false
       },
       "contractValue": 938600,
@@ -6429,9 +6429,10 @@
         ]
       },
       "changeOrders": {
-        "count": 1,
-        "netValue": 10769,
+        "count": 2,
+        "netValue": 12149.65,
         "byType": {
+          "TBD": 1,
           "Owner Change": 1
         }
       },
@@ -6757,8 +6758,8 @@
         "open": 0
       },
       "submittals": {
-        "total": 16,
-        "open": 7
+        "total": 21,
+        "open": 12
       },
       "budget": {
         "original": 262510.03,
