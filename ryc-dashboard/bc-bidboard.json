@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-07-11T09:30:10.922Z",
+ "generatedAt": "2026-07-12T09:30:11.016Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -653,22 +653,6 @@
      ]
     },
     {
-     "id": "69a70f671e2ea8632c1dbb80",
-     "name": "Flooring",
-     "number": "09",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Carpet Service Outlet"
-     ]
-    },
-    {
      "id": "69a70f671e2ea832d11dbb85",
      "name": "Fire Protection",
      "number": "21",
@@ -683,6 +667,22 @@
      "biddingSubs": [
       "F.E. Moran, Inc. HVAC",
       "Ryan Fireprotection Inc."
+     ]
+    },
+    {
+     "id": "69a70f671e2ea8632c1dbb80",
+     "name": "Flooring",
+     "number": "09",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Carpet Service Outlet"
      ]
     },
     {
@@ -1267,8 +1267,8 @@
    "covered": 12,
    "atRisk": 7,
    "invites": 214,
-   "bidding": 25,
-   "undecided": 137,
+   "bidding": 26,
+   "undecided": 136,
    "bidsReceived": 3,
    "pkgs": [
     {
@@ -1440,22 +1440,6 @@
      ]
     },
     {
-     "id": "6a29915d84c6504917f04268",
-     "name": "Cast-in-Place Concrete, Concrete Paving, Grouting",
-     "number": "03-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-14T16:00:00.000Z",
-     "invites": 11,
-     "bidding": 1,
-     "undecided": 9,
-     "notBidding": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Witmer&Witmer LLC"
-     ]
-    },
-    {
      "id": "6a29915d84c650226ff04277",
      "name": "Dewatering",
      "number": "31-02",
@@ -1532,6 +1516,23 @@
      "biddingSubs": [
       "Construction Field Services LLC",
       "Patriot Engineering and Environmental, Inc."
+     ]
+    },
+    {
+     "id": "6a29915d84c6504917f04268",
+     "name": "Cast-in-Place Concrete, Concrete Paving, Grouting",
+     "number": "03-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-14T16:00:00.000Z",
+     "invites": 11,
+     "bidding": 2,
+     "undecided": 8,
+     "notBidding": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Witmer&Witmer LLC",
+      "Sterling Contracting"
      ]
     },
     {
