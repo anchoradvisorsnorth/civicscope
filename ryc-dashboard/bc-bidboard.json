@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-07-12T09:30:11.016Z",
+ "generatedAt": "2026-07-13T09:30:11.920Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -150,6 +150,19 @@
      ]
     },
     {
+     "id": "69a0a4ba6003fae13b1c906d",
+     "name": "Paving",
+     "number": "32",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 2,
+     "notBidding": 0,
+     "bidsReceived": 1,
+     "awardedCompany": null
+    },
+    {
      "id": "69a0a1061cf93a1282df272c",
      "name": "Painting and Drywall",
      "number": "09-01",
@@ -164,19 +177,6 @@
      "biddingSubs": [
       "Commercial Painting Services"
      ]
-    },
-    {
-     "id": "69a0a4ba6003fae13b1c906d",
-     "name": "Paving",
-     "number": "32",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 2,
-     "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null
     },
     {
      "id": "69a051b5c96354b6c85f1cf8",
@@ -266,19 +266,6 @@
      "awardedCompany": null
     },
     {
-     "id": "69a0a7ec76c3da91c3bc98ee",
-     "name": "FFE package",
-     "number": "12-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "69a0a4e99b0a64677df52943",
      "name": "Landscape",
      "number": "32-01",
@@ -293,6 +280,19 @@
      "biddingSubs": [
       "Bojrab Landscape Management"
      ]
+    },
+    {
+     "id": "69a0a7ec76c3da91c3bc98ee",
+     "name": "FFE package",
+     "number": "12-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "69a0a0c3cc84d4e8461230dd",
@@ -653,6 +653,22 @@
      ]
     },
     {
+     "id": "69a70f671e2ea8632c1dbb80",
+     "name": "Flooring",
+     "number": "09",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Carpet Service Outlet"
+     ]
+    },
+    {
      "id": "69a70f671e2ea832d11dbb85",
      "name": "Fire Protection",
      "number": "21",
@@ -667,22 +683,6 @@
      "biddingSubs": [
       "F.E. Moran, Inc. HVAC",
       "Ryan Fireprotection Inc."
-     ]
-    },
-    {
-     "id": "69a70f671e2ea8632c1dbb80",
-     "name": "Flooring",
-     "number": "09",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Carpet Service Outlet"
      ]
     },
     {
@@ -907,19 +907,6 @@
      ]
     },
     {
-     "id": "6a021d9b0b9343200b33a5f4",
-     "name": "Masonry",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 0,
-     "undecided": 3,
-     "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "6a021d2288ed57c2a441b604",
      "name": "Concrete",
      "number": null,
@@ -934,6 +921,19 @@
      "biddingSubs": [
       "Jess Concrete INC"
      ]
+    },
+    {
+     "id": "6a021d9b0b9343200b33a5f4",
+     "name": "Masonry",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 0,
+     "undecided": 3,
+     "notBidding": 0,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a022d0bae28a07b4d475101",
