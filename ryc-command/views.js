@@ -816,6 +816,23 @@ function wohRows(){
   return rows;
 }
 function briefDol(n){ return n==null?"<span class=\"m-m\">—</span>":(n<0?"$("+Math.abs(Math.round(n)).toLocaleString("en-US")+")":"$"+Math.round(n).toLocaleString("en-US")); }
+/* CSV export — ported from the legacy dashboard's exportWOHCSV (v1.23.1): values in
+   Excel "Accounting" style ( $1,234.56 / $(1,234.56) ), UTF-8 BOM, CRLF. Same file shape. */
+function exportWOHCSV(){
+  var rows=wohRows();
+  var header=["Project Name"," Contract Price "," Cost to Date "," Cost to Complete "," Total Job Costs "," Billings to Date "];
+  function q(v){ var s=(v==null?"":String(v)); return /[",\n\r]/.test(s)?"\""+s.replace(/"/g,"\"\"")+"\"":s; }
+  function acct(n){ if(n==null) return ""; var v=Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); return n<0?" $("+v+")":" $"+v+" "; }
+  var lines=[header.map(q).join(",")];
+  rows.forEach(function(r){ lines.push([r.name,acct(r.contract),acct(r.ctd),acct(r.ctc),acct(r.tec),acct(r.billed)].map(q).join(",")); });
+  var csv=String.fromCharCode(0xFEFF)+lines.join("\r\n");
+  var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  var url=URL.createObjectURL(blob);
+  var d=new Date(); var stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  var a=document.createElement("a"); a.href=url; a.download="ryc-work-on-hand-"+stamp+".csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+}
 function briefPresent(){
   if(document.fullscreenElement){ document.exitFullscreen(); return; }
   document.body.classList.add("present");
@@ -892,7 +909,7 @@ function renderBrief(){
     +"<div class=\"brief-sec\">"+band+"</div>"
     +"<div class=\"brief-sec\"><h2>What needs attention</h2><div class=\"ssub\">Real risk, aging closeouts, and the biggest margin fades — the week&#8217;s conversation list.</div>"+riskHtml+"</div>"
     +"<div class=\"brief-sec\"><h2>Billing &amp; cash</h2><div class=\"ssub\">"+cashSub+"</div>"+watchHtml+"</div>"
-    +"<div class=\"brief-sec\"><h2>Work-on-Hand Analysis</h2><div class=\"ssub\">The audit table — reconciles to Foundation. Largest contract first.</div>"
+    +"<div class=\"brief-sec\"><div class=\"sech\"><h2>Work-on-Hand Analysis</h2><button class=\"pfill woh-csv\" onclick=\"exportWOHCSV()\" title=\"Download in the Work-on-Hand format (Excel Accounting-style values)\">⬇ CSV</button></div><div class=\"ssub\">The audit table — reconciles to Foundation. Largest contract first.</div>"
     +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Project Name</th><th class=\"r\">Contract Price</th><th class=\"r\">Cost to Date</th><th class=\"r\">Cost to Complete</th><th class=\"r\">Total Job Costs</th><th class=\"r\">Billings to Date</th></tr></thead><tbody>"+wohBody+"</tbody><tfoot>"+wohFoot+"</tfoot></table></div>"
     +"<div class=\"woh-note\"><b>Contract Price</b> (Revised Contract Amount) &amp; <b>Total Job Costs</b> (ERP Projected Budget) from Procore; <b>Cost to Date</b> &amp; <b>Billings to Date</b> from Foundation. Cost to Complete = Total Job Costs − Cost to Date."
     +(missingTec?" <b>"+missingTec+"</b> job(s) missing Procore Projected Budget — Cost to Complete blank for those.":"")+"</div></div>"

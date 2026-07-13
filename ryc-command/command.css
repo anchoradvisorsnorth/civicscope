@@ -155,7 +155,9 @@ details.lgcy summary{cursor:pointer;font-size:12.5px;color:#4a5670;font-weight:6
 .ai .spin{display:inline-block;width:14px;height:14px;border:2px solid #d5dbe6;border-top-color:var(--accent);border-radius:50%;animation:aispin .8s linear infinite;vertical-align:-2px}
 @keyframes aispin{to{transform:rotate(360deg)}}
 /* ===== Executive Brief (Phase 5 — light editorial + Present + print) ========= */
-.brief{max-width:980px}
+.brief{max-width:1240px}
+.brief .sech{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.brief .ptable td:first-child,.brief .ptable th:first-child{white-space:normal;min-width:220px}
 .brief .bh{border-bottom:3px solid #1c2433;padding-bottom:14px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;gap:14px}
 .brief .bh h1{font-family:var(--font-serif);font-size:30px;font-weight:600;margin:0;color:#1c2433}
 .brief .bh .bsub{color:#67718a;font-size:13px;margin-top:5px}
@@ -181,7 +183,7 @@ body.present .sidebar{display:none}
 body.present .shell{grid-template-columns:1fr}
 body.present .topbar{display:none}
 body.present .view{padding:38px 7vw 80px}
-body.present .brief{max-width:1200px}
+body.present .brief{max-width:1360px}
 body.present .brief .bh h1{font-size:40px}
 body.present .stat-band .sb .v{font-size:36px}
 body.present .brief-sec h2{font-size:25px}
@@ -189,7 +191,7 @@ body.present .brief .risk{font-size:16px}
 body.present .ptable{font-size:14px}
 /* Print — brief only prints clean; chrome hidden, forced light */
 @media print{
-  .sidebar,.topbar,.brief-actions,.warn-banner,.srclink{display:none!important}
+  .sidebar,.topbar,.brief-actions,.warn-banner,.srclink,.woh-csv{display:none!important}
   .shell{display:block!important}
   body,.content,.content.light{background:#fff!important;background-image:none!important;color:#000!important}
   .view{padding:0!important}
