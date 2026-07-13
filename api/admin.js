@@ -1,8 +1,10 @@
-// api/admin.js — CivicScope admin write proxy
-// Gates service_role writes behind CIVICSCOPE_ADMIN_SECRET so the key
-// never ships to the browser. Reads stay client-side on the anon key.
+// api/admin.js — CivicScope admin read/write proxy
+// Gates service_role access behind CIVICSCOPE_ADMIN_SECRET so no key
+// ships to the browser. Reads moved here 2026-07-13 when RLS was enabled
+// (tables were publicly readable via the anon key in the public repo).
 
 const ALLOWED_TABLES = new Set(['tenants']);
+const READABLE_TABLES = new Set(['tenants', 'leads', 'sessions', 'tool_runs', 'qa_runs']);
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -29,6 +31,28 @@ export default async function handler(req, res) {
 
     if (action === 'auth_check') {
       return res.status(200).json({ ok: true });
+    }
+
+    if (action === 'read') {
+      const { path } = req.body || {};
+      if (typeof path !== 'string' || path.includes('..') || path.startsWith('/')) {
+        return res.status(400).json({ error: 'Bad path' });
+      }
+      const tableName = path.split('?')[0];
+      if (!READABLE_TABLES.has(tableName)) {
+        return res.status(400).json({ error: `Table not readable: ${tableName}` });
+      }
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      if (!r.ok) {
+        const err = await r.text();
+        return res.status(r.status).json({ error: err });
+      }
+      return res.status(200).json(await r.json());
     }
 
     if (action === 'write') {

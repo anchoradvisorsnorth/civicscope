@@ -700,10 +700,10 @@
 
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────
-// Service-role key removed — writes now go through /api/admin, gated by
-// CIVICSCOPE_ADMIN_SECRET (set in Vercel env vars). Reads use anon key.
-const SUPABASE_URL   = 'https://tyvtmqzaydrbjwzvjoei.supabase.co';
-const SUPABASE_ANON  = 'sb_publishable_3klksETx0Hy5uOJ-I5Gi0g_YbDAGQ6y';
+// Service-role key removed — ALL data access (reads AND writes) goes
+// through /api/admin, gated by CIVICSCOPE_ADMIN_SECRET (Vercel env var).
+// RLS enabled 2026-07-13: the anon key can no longer read any table,
+// so no Supabase key ships in this page at all.
 
 // ── AUTH ─────────────────────────────────────────────────────────
 // Passphrase is validated server-side against CIVICSCOPE_ADMIN_SECRET.
@@ -743,8 +743,12 @@ function switchTab(name) {
 
 // ── SUPABASE ─────────────────────────────────────────────────────
 async function sbRead(path) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
+  const secret = sessionStorage.getItem('cs_admin_secret');
+  if (!secret) throw new Error('Not authenticated');
+  const r = await fetch('/api/admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+    body: JSON.stringify({ action: 'read', path })
   });
   if (!r.ok) throw new Error(`${r.status}`);
   return r.json();
@@ -1252,7 +1256,7 @@ async function smokeTest(key, url) {
   modal.classList.add('open');
   const checks = [
     { label: 'Page reachable', fn: () => fetch(url, { method:'HEAD', mode:'no-cors' }).then(() => 'reachable') },
-    { label: 'Supabase REST reachable', fn: async () => { const r = await fetch(`${SUPABASE_URL}/rest/v1/tool_runs?select=id&limit=1`,{headers:{'apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`}}); if(!r.ok) throw new Error(`HTTP ${r.status}`); return 'connected'; }},
+    { label: 'Supabase REST reachable', fn: async () => { await sbRead('tool_runs?select=id&limit=1'); return 'connected'; }},
     { label: 'Recent runs in DB', fn: async () => { const rows = await sbRead(`tool_runs?select=id&product=eq.${PRODUCTS[key].product_prefix}&order=created_at.desc&limit=1`); if(!rows.length) throw new Error('no runs'); return `found`; }},
     { label: 'gc-config API', fn: () => key.startsWith('gc') ? fetch('https://app.civicscope.io/api/gc-config?slug=acme').then(async r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); const d=await r.json(); if(!d.gc_name) throw new Error('empty config'); return d.gc_name; }) : Promise.resolve('skip') },
   ];
