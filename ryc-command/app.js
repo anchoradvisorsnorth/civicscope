@@ -25,6 +25,31 @@ function loadData(){
   });
 }
 
+/* On-demand Foundation refresh — POSTs to /api/ryc-foundation-refresh (Vercel proxy →
+   VM foundation-refresh.sh → ODBC → CRM Supabase, ~5s), then reloads all feeds.
+   VM enforces a single-flight lock + 5-min success cooldown; statuses surface on the button. */
+function refreshFoundation(btn){
+  if(!btn||btn.disabled) return;
+  var orig=btn.textContent;
+  btn.disabled=true; btn.textContent="⟳ Refreshing…";
+  function restore(msg){
+    btn.textContent=msg;
+    setTimeout(function(){ btn.disabled=false; btn.textContent=orig; },4000);
+  }
+  fetch("/api/ryc-foundation-refresh",{method:"POST"})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.status==="completed"){
+        btn.textContent="⟳ Reloading data…";
+        return loadData().then(function(){ renderView(); });
+      }
+      if(d.status==="cooldown"){ restore("Fresh — retry in "+Math.ceil((d.retry_in_s||300)/60)+" min"); return; }
+      if(d.status==="running"){ restore("Already running…"); return; }
+      restore("Failed — see Data Trust");
+    })
+    .catch(function(){ restore("Unreachable"); });
+}
+
 function renderNav(){
   var el=document.getElementById("nav");
   el.innerHTML=NAV.map(function(n){ var on=n.key===currentView; return "<button type=\"button\" data-key=\""+n.key+"\" class=\""+(on?"active":"")+"\""+(on?" aria-current=\"page\"":"")+"><span class=\"ic\">"+n.ic+"</span>"+n.label+"</button>"; }).join("");

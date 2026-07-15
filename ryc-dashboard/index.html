@@ -292,6 +292,7 @@
       <a href="/ryc/estimate" style="background:#ea580c;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-right:14px">📐 Estimating Tools →</a>
       <div class="meta" id="refresh-status"></div>
       <button class="refresh-btn" id="btn-refresh" onclick="triggerRefresh()">Refresh Procore</button>
+      <button class="refresh-btn" id="btn-refresh-fdn" onclick="triggerFoundationRefresh()" title="Re-pull Foundation (accounting) now — catches posting batches since the 5am snapshot" style="margin-left:8px">Refresh Foundation</button>
     </div>
   </header>
 
@@ -447,6 +448,31 @@ async function triggerRefresh() {
     status.textContent = 'Could not reach refresh service.';
     btn.textContent = 'Refresh Procore'; btn.disabled = false;
   }
+}
+
+async function triggerFoundationRefresh() {
+  const btn = document.getElementById('btn-refresh-fdn');
+  const status = document.getElementById('refresh-status');
+  btn.textContent = 'Refreshing...'; btn.disabled = true;
+  status.textContent = 'Pulling Foundation (accounting) now...';
+  try {
+    const r = await fetch('/api/ryc-foundation-refresh', { method: 'POST' });
+    const d = await r.json();
+    if (d.status === 'completed') {
+      status.textContent = 'Foundation refreshed — reloading data...';
+      await init();
+      status.textContent = 'Foundation data current as of just now.';
+    } else if (d.status === 'cooldown') {
+      status.textContent = 'Refreshed recently — try again in ' + Math.ceil((d.retry_in_s || 300) / 60) + ' min.';
+    } else if (d.status === 'running') {
+      status.textContent = 'A refresh is already running — reload the page in a minute.';
+    } else {
+      status.textContent = 'Foundation refresh failed: ' + (d.status || d.error || 'unknown');
+    }
+  } catch {
+    status.textContent = 'Could not reach refresh service.';
+  }
+  btn.textContent = 'Refresh Foundation'; btn.disabled = false;
 }
 
 function wireToggle() {

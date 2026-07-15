@@ -31,12 +31,13 @@
       <div class="side-foot">
         <a href="/ryc/estimate">&#128208; Estimating Tools &rarr;</a>
         <a href="/ryc/dashboard">&#11116; Legacy Dashboard</a>
-        <div class="ver">v2.15.0-command &middot; Snapshot-time trust</div>
+        <div class="ver">v2.16.0-command &middot; On-demand Foundation refresh</div>
       </div>
     </aside>
     <main class="content">
       <div class="topbar">
         <div><h2 id="view-title">Command Center</h2><div class="ctx" id="view-ctx">Loading&hellip;</div></div>
+        <button class="pfill" id="fdn-refresh-top" onclick="refreshFoundation(this)" title="Re-pull Foundation (accounting) now &mdash; catches posting batches since the ~5am snapshot">&#10227; Refresh Foundation</button>
       </div>
       <div class="view" id="view"></div>
     </main>
@@ -44,8 +45,8 @@
 </div>
 
 <script src="/ryc-dashboard/data-sources.js"></script>
-<script src="/ryc-command/core.js?v2.15.0"></script>
-<script src="/ryc-command/views.js?v2.15.0"></script>
-<script src="/ryc-command/app.js?v2.15.0"></script>
+<script src="/ryc-command/core.js?v2.16.0"></script>
+<script src="/ryc-command/views.js?v2.16.0"></script>
+<script src="/ryc-command/app.js?v2.16.0"></script>
 </body>
 </html>
