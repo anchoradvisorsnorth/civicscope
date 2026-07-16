@@ -71,7 +71,12 @@
         <button class="btn gray" onclick="loadGames('cfb')">Load college games</button>
       </div>
       <div class="muted" id="loadstat">Load a league to list its games with live DraftKings spreads. Tap ＋ to add to the slate.</div>
-      <div id="gamelist" style="max-height:340px;overflow:auto;margin-top:8px"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn gray" id="tab-nfl" onclick="setLeagueTab('nfl')">NFL (0)</button>
+        <button class="btn gray" id="tab-cfb" onclick="setLeagueTab('cfb')">College (0)</button>
+        <input id="gfilter" placeholder="Filter by team…" style="flex:1;min-width:160px" oninput="renderLoaded()">
+      </div>
+      <div id="gamelist" style="max-height:60vh;overflow:auto;margin-top:8px;border:1px solid var(--line);border-radius:10px"></div>
     </div>
   </div>
 
@@ -143,18 +148,27 @@ async function loadGames(league){
     });
     loaded=loaded.filter(g=>g.league!==league).concat(evs);
     document.getElementById('loadstat').textContent=evs.length+' '+league.toUpperCase()+' games loaded ('+evs.filter(g=>g.line!=null).length+' with live spreads).';
+    viewLeague=league;
     renderLoaded();
   }catch(e){document.getElementById('loadstat').textContent='Load failed: '+e.message;}
 }
+let viewLeague='nfl';
+function setLeagueTab(lg){viewLeague=lg;renderLoaded();}
 function renderLoaded(){
   const inSlate=new Set(slate.map(g=>g.id));
-  document.getElementById('gamelist').innerHTML=loaded.map(g=>`
+  const counts={nfl:loaded.filter(g=>g.league==='nfl').length,cfb:loaded.filter(g=>g.league==='cfb').length};
+  const tn=document.getElementById('tab-nfl'),tc=document.getElementById('tab-cfb');
+  tn.textContent='NFL ('+counts.nfl+')';tc.textContent='College ('+counts.cfb+')';
+  tn.className='btn '+(viewLeague==='nfl'?'gold':'gray');tc.className='btn '+(viewLeague==='cfb'?'gold':'gray');
+  const q=(document.getElementById('gfilter').value||'').trim().toLowerCase();
+  const show=loaded.filter(g=>g.league===viewLeague&&(!q||(g.name+' '+g.short).toLowerCase().includes(q)));
+  document.getElementById('gamelist').innerHTML=(show.length?show:[]).map(g=>`
     <div class="gm">
       <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}</span></span>
       <span class="dt">${new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} ET</span>
       <span class="sp">${g.spreadText?esc(g.spreadText):'<span style="color:#b42318">no line</span>'}</span>
       <button class="btn ${inSlate.has(g.id)?'gray':'gold'}" onclick="toggleGame('${g.id}')">${inSlate.has(g.id)?'✓ in slate':'＋'}</button>
-    </div>`).join('');
+    </div>`).join('')||('<div style="padding:16px;color:var(--muted);font-size:13px">'+(loaded.some(g=>g.league===viewLeague)?'No team matches that filter.':'Nothing loaded for this league yet — use the Load buttons above.')+'</div>');
 }
 function toggleGame(id){
   const i=slate.findIndex(g=>g.id===id);
