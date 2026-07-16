@@ -126,12 +126,13 @@ async function renderWeek(slug){
   viewSlug=slug;
   const j=await(await fetch(API+'?week='+slug,{cache:'no-store'})).json();
   const wk=j.data; if(!wk){document.getElementById('content').innerHTML='<div class="note">Week not found.</div>';return;}
-  const open=wk.deadline&&Date.now()<Date.parse(wk.deadline);
+  const revealed=j.revealed;   // server: all locked OR past first kickoff
   const games=wk.games||[];
   const players=Object.keys(wk.picks||{}).sort();
-  const scores=open?{}:await liveScores(games);
-  const {pts,detail}=open?{pts:{},detail:{}}:weekPoints(wk,scores);
+  const scores=revealed?await liveScores(games):{};
+  const {pts,detail}=revealed?weekPoints(wk,scores):{pts:{},detail:{}};
   const ranked=players.slice().sort((a,b)=>(pts[b]||0)-(pts[a]||0));
+  let roster=[]; try{roster=(await(await fetch(API+'?players=1',{cache:'no-store'})).json()).players.map(p=>p.name);}catch(e){}
   const sel='<select onchange="renderWeek(this.value)">'+weeks.map(w=>'<option value="'+w.slug+'" '+(w.slug===slug?'selected':'')+'>'+esc(w.label||w.slug)+'</option>').join('')+'</select>';
 
   let html='<div class="section-title"><span>'+esc(wk.label||slug)+' — '+games.length+' games'+(wk.slateLocked?' · spreads frozen '+new Date(wk.lockedAt).toLocaleDateString():'')+'</span>'+sel+'</div>';
@@ -139,10 +140,11 @@ async function renderWeek(slug){
   if(wk.finalized&&wk.weeklyWinner){
     html+='<div class="champ" style="display:block"><div class="ct">🏆 Week winner</div><div class="cn">'+esc(wk.weeklyWinner)+'</div></div>';
   }
-  if(open){
+  if(!revealed){
     const lockedIn=players.filter(p=>wk.picks[p].locked);
-    html+='<div class="note">🔒 Picks are hidden until first kickoff ('+fmtDT(wk.deadline)+'). Locked in so far: <b>'+
-      (lockedIn.join(', ')||'nobody yet')+'</b>. Make yours at <a href="/football/picks">/football/picks</a>.</div>';
+    const waiting=roster.filter(n=>!lockedIn.includes(n));
+    html+='<div class="note">🔒 <b>Picks are hidden until everyone locks in</b> (or first kickoff '+fmtDT(wk.deadline)+', whichever comes first).<br>Locked in: <b>'+
+      (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/football/picks">/football/picks</a>.</div>';
     html+='<div class="card tblwrap"><table><thead><tr><th>Game</th><th>Kickoff</th><th>Frozen line</th></tr></thead><tbody>'+
       games.map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td>'+fmtDT(g.date)+'</td><td style="font-weight:800;color:var(--green)">'+esc(g.spreadText)+'</td></tr>').join('')+
       '</tbody></table></div>';
@@ -167,7 +169,7 @@ async function renderWeek(slug){
     html+='<div class="note">Slate is set but nobody has picks in yet.</div>';
   }
   document.getElementById('content').innerHTML=html;
-  document.getElementById('status').innerHTML='<b>'+esc(wk.label||slug)+'</b> · '+(open?'picks open until '+fmtDT(wk.deadline):wk.finalized?'final':'live')+'<br>Updated '+new Date().toLocaleTimeString();
+  document.getElementById('status').innerHTML='<b>'+esc(wk.label||slug)+'</b> · '+(!revealed?'picks open — hidden until all lock':wk.finalized?'final':'live')+'<br>Updated '+new Date().toLocaleTimeString();
 }
 
 function renderSeason(){
