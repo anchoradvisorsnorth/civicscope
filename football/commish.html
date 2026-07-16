@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Football Pool — Commissioner</title>
+<style>
+  :root{--navy:#0a2240;--green:#14532d;--gold:#c8a24b;--line:#e4e7ec;--muted:#667085;--bg:#f4f6f9;--card:#fff;--red:#b42318}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#101828}
+  header{background:linear-gradient(135deg,var(--navy),var(--green));color:#fff;padding:16px 18px}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{margin:0;font-size:20px}
+  h1 .sub{display:block;font-size:12px;font-weight:400;color:#b9c6da;margin-top:3px}
+  main{max-width:980px;margin:0 auto;padding:16px 14px 80px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+  .card h2{margin:0;padding:11px 14px;background:var(--navy);color:#fff;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+  .card .body{padding:12px 14px}
+  .btn{border:none;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer;font-size:13px}
+  .btn.gold{background:var(--gold);color:#1a1300}
+  .btn.gray{background:#eef2f7;color:var(--navy)}
+  .btn.red{background:#fef3f2;color:var(--red);border:1px solid #fecdca}
+  .btn:disabled{opacity:.5;cursor:default}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:7px 10px;text-align:left;border-bottom:1px solid #f0f2f5}
+  th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  input,select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px}
+  input.sm{width:70px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700}
+  .pill.live{background:#dcfce7;color:#14532d}.pill.draft{background:#fef9c3;color:#854d0e}.pill.done{background:#e0e7ff;color:#3730a3}
+  .gm{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #f0f2f5;font-size:13px}
+  .gm:last-child{border-bottom:none}
+  .gm .t{font-weight:600}
+  .gm .sp{font-weight:800;color:var(--green);min-width:80px;text-align:right}
+  .gm .dt{color:var(--muted);font-size:12px;min-width:130px}
+  .msg{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:10px;padding:10px 18px;font-size:14px;display:none;z-index:5}
+  .muted{color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>🏈 Football Pool — Commissioner<span class="sub">Build the weekly slate · spreads freeze when you lock · the group picks against them</span></h1>
+</div></header>
+<main>
+
+  <div class="card"><h2>1 · Players <button class="btn gray" onclick="loadPlayers()">Load / refresh</button></h2>
+    <div class="body">
+      <table id="ptable"><thead><tr><th>Name</th><th>Email</th><th>PIN</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="row" style="margin-top:10px">
+        <button class="btn gray" onclick="addPlayer()">+ Add player</button>
+        <button class="btn gold" onclick="savePlayers()">Save players</button>
+        <span class="muted">PINs auto-generate when blank. Each guy gets his PIN in the slate-lock email.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><h2>2 · Build a week</h2>
+    <div class="body">
+      <div class="row">
+        <label>Week label <input id="wklabel" placeholder="Week 1" style="width:110px"></label>
+        <label>Slug <input id="wkslug" placeholder="2026-w01" style="width:110px"></label>
+        <span class="muted">slug format: 2026-w01, 2026-w02…</span>
+      </div>
+      <div class="row">
+        <label>NFL week <input class="sm" id="nflweek" type="number" value="1" min="1" max="18"></label>
+        <label>College week <input class="sm" id="cfbweek" type="number" value="1" min="1" max="16"></label>
+        <label>Season <input class="sm" id="season" type="number" value="2026"></label>
+        <button class="btn gray" onclick="loadGames('nfl')">Load NFL games</button>
+        <button class="btn gray" onclick="loadGames('cfb')">Load college games</button>
+      </div>
+      <div class="muted" id="loadstat">Load a league to list its games with live DraftKings spreads. Tap ＋ to add to the slate.</div>
+      <div id="gamelist" style="max-height:340px;overflow:auto;margin-top:8px"></div>
+    </div>
+  </div>
+
+  <div class="card"><h2>3 · The slate <span id="slatestat" class="pill draft">draft</span></h2>
+    <div class="body">
+      <div id="slate"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn gray" onclick="saveWeek()">💾 Save draft</button>
+        <label style="font-size:13px"><input type="checkbox" id="notify" checked> email the group on lock</label>
+        <button class="btn gold" onclick="lockSlate()">🔒 Lock slate (freeze spreads)</button>
+      </div>
+      <div class="muted" style="margin-top:6px">Locking freezes every spread as shown, sets the pick deadline to the first kickoff, and (if checked) emails every player their PIN + the games.</div>
+    </div>
+  </div>
+
+  <div class="card"><h2>4 · Existing weeks <button class="btn gray" onclick="listWeeks()">Refresh</button></h2>
+    <div class="body"><div id="weeks" class="muted">—</div></div>
+  </div>
+
+</main>
+<div class="msg" id="msg"></div>
+
+<script>
+const API='/api/football-pool';
+const SB={nfl:'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
+          cfb:'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard'};
+let players=[], loaded=[], slate=[], slateLocked=false;
+
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(t,ms){const m=document.getElementById('msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(()=>m.style.display='none',ms||3000);}
+function code(){let c=sessionStorage.getItem('fb_code');if(!c){c=prompt('Commissioner code:')||'';sessionStorage.setItem('fb_code',c);}return c;}
+async function post(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.status===403){sessionStorage.removeItem('fb_code');toast('Wrong code');throw new Error('403');}
+  const j=await r.json(); if(!r.ok){toast(j.error||('error '+r.status),4500);throw new Error(j.error);} return j;}
+
+/* players */
+function renderPlayers(){
+  document.querySelector('#ptable tbody').innerHTML=players.map((p,i)=>`
+    <tr><td><input value="${esc(p.name)}" style="width:110px" onchange="players[${i}].name=this.value.toUpperCase()"></td>
+    <td><input value="${esc(p.email||'')}" style="width:230px" placeholder="email for notifications" onchange="players[${i}].email=this.value"></td>
+    <td><input value="${esc(p.pin||'')}" class="sm" placeholder="auto" onchange="players[${i}].pin=this.value"></td>
+    <td><button class="btn red" onclick="players.splice(${i},1);renderPlayers()">✕</button></td></tr>`).join('');
+}
+async function loadPlayers(){try{const j=await post({action:'get_players_full',code:code()});players=j.players;
+  if(!players.length)players=['BRAD','BOB','BRANDON','MIKE','MARK','NICK'].map(n=>({name:n,email:'',pin:''}));renderPlayers();}catch(e){}}
+function addPlayer(){players.push({name:'',email:'',pin:''});renderPlayers();}
+async function savePlayers(){try{const j=await post({action:'save_players',code:code(),players});players=j.players;renderPlayers();toast('Players saved — PINs assigned ✓');}catch(e){}}
+
+/* game loading */
+function parseOdds(comp){
+  const o=(comp.odds||[])[0]; if(!o||!o.details||o.details==='EVEN')return null;
+  const m=String(o.details).match(/^([A-Z&\.\-']+)\s+(-?\d+(\.\d+)?)/i); if(!m)return null;
+  return {favAbbrev:m[1].toUpperCase(),line:Math.abs(parseFloat(m[2])),spreadText:o.details};
+}
+async function loadGames(league){
+  const wk=document.getElementById(league==='nfl'?'nflweek':'cfbweek').value;
+  const season=document.getElementById('season').value;
+  document.getElementById('loadstat').textContent='Loading '+league.toUpperCase()+' week '+wk+'…';
+  try{
+    const url=SB[league]+'?seasontype=2&week='+wk+'&dates='+season+(league==='cfb'?'&groups=80':'');
+    const j=await(await fetch(url,{cache:'no-store'})).json();
+    const evs=(j.events||[]).map(e=>{
+      const c=e.competitions[0];
+      const home=c.competitors.find(x=>x.homeAway==='home'), away=c.competitors.find(x=>x.homeAway==='away');
+      const odds=parseOdds(c);
+      return {id:String(e.id),league,date:e.date,name:e.name,short:e.shortName,
+        homeAbbrev:home.team.abbreviation,awayAbbrev:away.team.abbreviation,
+        favAbbrev:odds?odds.favAbbrev:null,line:odds?odds.line:null,spreadText:odds?odds.spreadText:null,manual:false};
+    });
+    loaded=loaded.filter(g=>g.league!==league).concat(evs);
+    document.getElementById('loadstat').textContent=evs.length+' '+league.toUpperCase()+' games loaded ('+evs.filter(g=>g.line!=null).length+' with live spreads).';
+    renderLoaded();
+  }catch(e){document.getElementById('loadstat').textContent='Load failed: '+e.message;}
+}
+function renderLoaded(){
+  const inSlate=new Set(slate.map(g=>g.id));
+  document.getElementById('gamelist').innerHTML=loaded.map(g=>`
+    <div class="gm">
+      <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}</span></span>
+      <span class="dt">${new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} ET</span>
+      <span class="sp">${g.spreadText?esc(g.spreadText):'<span style="color:#b42318">no line</span>'}</span>
+      <button class="btn ${inSlate.has(g.id)?'gray':'gold'}" onclick="toggleGame('${g.id}')">${inSlate.has(g.id)?'✓ in slate':'＋'}</button>
+    </div>`).join('');
+}
+function toggleGame(id){
+  const i=slate.findIndex(g=>g.id===id);
+  if(i>-1)slate.splice(i,1); else{const g=loaded.find(x=>x.id===id); if(g)slate.push({...g});}
+  renderSlate();renderLoaded();
+}
+function renderSlate(){
+  document.getElementById('slatestat').className='pill '+(slateLocked?'live':'draft');
+  document.getElementById('slatestat').textContent=slateLocked?'LOCKED':'draft';
+  document.getElementById('slate').innerHTML=slate.length?slate.map((g,i)=>`
+    <div class="gm">
+      <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}</span></span>
+      <span class="dt">${new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})} ET</span>
+      <span class="sp">${g.spreadText?esc(g.spreadText):''}</span>
+      ${slateLocked?'':`<input class="sm" placeholder="e.g. SEA -3.5" value="${g.manual&&g.spreadText?esc(g.spreadText):''}" onchange="manualSpread(${i},this.value)" title="manual spread override">`}
+      ${slateLocked?'':`<button class="btn red" onclick="slate.splice(${i},1);renderSlate();renderLoaded()">✕</button>`}
+    </div>`).join(''):'<div class="muted">No games in the slate yet.</div>';
+}
+function manualSpread(i,v){
+  const m=String(v).trim().match(/^([A-Za-z&\.\-']+)\s+(-?\d+(\.\d+)?)$/);
+  if(!m){toast('Format: ABBREV -3.5 (e.g. SEA -3.5)');return;}
+  slate[i].favAbbrev=m[1].toUpperCase();slate[i].line=Math.abs(parseFloat(m[2]));
+  slate[i].spreadText=m[1].toUpperCase()+' '+(parseFloat(m[2])<=0?m[2]:'-'+m[2]);slate[i].manual=true;renderSlate();
+}
+
+/* save / lock / list */
+function slug(){const s=document.getElementById('wkslug').value.trim();if(!s){toast('Set a slug (2026-w01)');throw new Error('no slug');}return s;}
+async function saveWeek(){try{await post({action:'save_week',code:code(),slug:slug(),
+  data:{label:document.getElementById('wklabel').value||slug(),games:slate,slateLocked:false}});toast('Draft saved ✓');listWeeks();}catch(e){}}
+async function lockSlate(){
+  if(!slate.length){toast('Slate is empty');return;}
+  if(!confirm('Lock the slate? Spreads freeze exactly as shown and '+(document.getElementById('notify').checked?'the group gets emailed':'NO emails go out')+'.'))return;
+  try{
+    await post({action:'save_week',code:code(),slug:slug(),data:{label:document.getElementById('wklabel').value||slug(),games:slate}});
+    const j=await post({action:'lock_slate',code:code(),slug:slug(),notify:document.getElementById('notify').checked});
+    slateLocked=true;renderSlate();listWeeks();
+    toast('🔒 Slate locked — deadline '+new Date(j.deadline).toLocaleString()+' · '+j.emailed+' email(s) sent',6000);
+  }catch(e){}
+}
+async function listWeeks(){
+  const season=document.getElementById('season').value;
+  const rows=await(await fetch(API+'?list='+season,{cache:'no-store'})).json();
+  document.getElementById('weeks').innerHTML=rows.length?rows.map(w=>`
+    <div class="gm"><span class="t">${esc(w.label||w.slug)}</span>
+    <span class="muted">${w.games} games · picked-in: ${w.pickedBy.join(', ')||'none'}</span>
+    <span class="pill ${w.finalized?'done':w.slateLocked?'live':'draft'}">${w.finalized?'final — '+esc(w.weeklyWinner||''):w.slateLocked?'LIVE':'draft'}</span>
+    <button class="btn gray" onclick="openWeek('${w.slug}')">open</button>
+    ${w.slateLocked&&!w.finalized?`<button class="btn gold" onclick="finalizeWeek('${w.slug}')">🏆 finalize</button>`:''}</div>`).join(''):'No weeks yet.';
+}
+async function openWeek(s){
+  const j=await(await fetch(API+'?week='+s,{cache:'no-store'})).json();
+  if(!j.data)return;
+  document.getElementById('wkslug').value=s;
+  document.getElementById('wklabel').value=j.data.label||'';
+  slate=j.data.games||[];slateLocked=!!j.data.slateLocked;renderSlate();
+  toast('Loaded '+s+(slateLocked?' (locked — view only)':' (draft, editable)'));
+}
+async function finalizeWeek(s){
+  const w=prompt('Weekly winner (name, or "TIE: A, B") — check the points at /football first:');
+  if(!w)return;
+  try{await post({action:'finalize_week',code:code(),slug:s,weeklyWinner:w.toUpperCase()});toast('Week finalized — '+w.toUpperCase()+' 🏆');listWeeks();}catch(e){}
+}
+loadPlayers();listWeeks();renderSlate();
+</script>
+</body>
+</html>
