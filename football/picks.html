@@ -64,7 +64,7 @@ const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt
 function toast(t,ms){const m=document.getElementById('msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(()=>m.style.display='none',ms||3000);}
 
 async function boot(){
-  const j=await(await fetch(API+'?players',{cache:'no-store'})).json();
+  const j=await(await fetch(API+'?players=1',{cache:'no-store'})).json();
   document.getElementById('who').innerHTML=(j.players||[]).map(p=>'<option>'+esc(p.name)+'</option>').join('')||'<option>No players set</option>';
   const saved=JSON.parse(sessionStorage.getItem('fb_me')||'null');
   if(saved){document.getElementById('who').value=saved.name;document.getElementById('pin').value=saved.pin;enter();}

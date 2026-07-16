@@ -55,7 +55,7 @@ export default async function handler(req, res) {
         })));
       }
       // players roster — names only, never pins/emails
-      if (req.query.players) {
+      if (req.query.players !== undefined) {
         const cfg = await getRow('config');
         return res.status(200).json({ players: ((cfg?.data?.players) || []).map(p => ({ name: p.name })) });
       }
