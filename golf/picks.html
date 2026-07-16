@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>The Open Pool — Commissioner Picks</title>
+<style>
+  :root{--navy:#0a2240;--navy2:#0e2c54;--gold:#c8a24b;--line:#e4e7ec;--muted:#667085;--bg:#f4f6f9;--card:#fff;--green:#157347;--red:#b42318}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#101828}
+  header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:16px 18px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{margin:0;font-size:20px}
+  h1 .sub{display:block;font-size:12px;font-weight:400;color:#b9c6da;margin-top:3px}
+  main{max-width:860px;margin:0 auto;padding:16px 14px 120px}
+  .note{background:#fffaf0;border:1px solid #e7c84b;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:14px;line-height:1.5}
+  .locked-banner{display:none;background:linear-gradient(135deg,#1a1300,#3a2e00);border:1px solid var(--gold);color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:14px}
+  .locked-banner b{color:var(--gold)}
+  .team{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:14px;overflow:hidden}
+  .team-head{display:flex;justify-content:space-between;align-items:center;background:var(--navy);color:#fff;padding:10px 14px}
+  .team-head input{background:transparent;border:none;color:#fff;font-size:16px;font-weight:700;width:150px;border-bottom:1px dashed #4a6088}
+  .team-head input:focus{outline:none;border-bottom-color:var(--gold)}
+  .count{font-size:12px;font-weight:700;padding:3px 10px;border-radius:12px;background:#22385c;color:#b9c6da}
+  .count.full{background:var(--gold);color:#1a1300}
+  .picks{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;min-height:44px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:#eef2f7;border:1px solid var(--line);border-radius:16px;padding:4px 6px 4px 12px;font-size:13px;font-weight:600}
+  .chip button{background:none;border:none;color:var(--red);font-weight:800;cursor:pointer;font-size:14px;padding:0 4px}
+  .adder{padding:0 12px 12px}
+  .adder input{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+  .sugg{border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px;max-height:210px;overflow:auto;background:#fff;display:none}
+  .sugg div{padding:8px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid #f0f2f5}
+  .sugg div:hover{background:#f4f6f9}
+  .sugg div.taken{color:#98a2b3}
+  .bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:12px 14px;display:flex;gap:10px;justify-content:center;box-shadow:0 -4px 16px rgba(16,24,40,.08)}
+  .btn{border:none;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn.save{background:#eef2f7;color:var(--navy)}
+  .btn.lock{background:var(--gold);color:#1a1300}
+  .btn:disabled{opacity:.5;cursor:default}
+  .msg{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:10px;padding:10px 18px;font-size:14px;display:none;z-index:5;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  .addteam{width:100%;background:none;border:2px dashed #cbd5e1;border-radius:12px;color:var(--muted);font-size:14px;font-weight:600;padding:12px;cursor:pointer;margin-bottom:14px}
+  .rmteam{background:none;border:none;color:#b9c6da;font-size:11px;cursor:pointer;margin-left:8px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>⛳ The Open Pool — Commissioner Picks<span class="sub">Royal Birkdale · July 16–19, 2026 · 10 golfers per player</span></h1>
+</div></header>
+<main>
+  <div class="note"><b>How this works:</b> type in the search box under each player and tap golfers to add them (10 each — same golfer can be on multiple teams). <b>Save draft</b> anytime; when everything's final hit <b>🔒 Lock picks</b>. You'll need the commissioner code for either. The live pool tracker is at <a href="/golf">/golf</a>.</div>
+  <div class="locked-banner" id="lockbanner">🔒 <b>Picks are LOCKED</b> — the pool is live at <a href="/golf" style="color:var(--gold)">/golf</a>. Need a change? Unlock below (commissioner code required).</div>
+  <div id="teams"></div>
+  <button class="addteam" id="addteam" onclick="addTeam()">+ Add a player</button>
+</main>
+<div class="msg" id="msg"></div>
+<div class="bar">
+  <button class="btn save" id="saveBtn" onclick="save(false)">💾 Save draft</button>
+  <button class="btn lock" id="lockBtn" onclick="save(true)">🔒 Lock picks</button>
+</div>
+
+<script>
+const ESPN='https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard';
+const EVENT_ID='401811957'; // The Open 2026 — Royal Birkdale
+const API='/api/golf-pool', SLUG='open-2026', MAX=10;
+const DEFAULT_PLAYERS=['BRAD','BOB','BRANDON','MIKE','MARK','NICK'];
+
+let field=[];            // [{name}] from ESPN
+let teams=[];            // [{name, picks:[]}]
+let locked=false;
+
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(t,ms){const m=document.getElementById('msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(()=>m.style.display='none',ms||2600);}
+
+function render(){
+  document.getElementById('lockbanner').style.display=locked?'block':'none';
+  document.getElementById('addteam').style.display=locked?'none':'block';
+  document.getElementById('lockBtn').textContent=locked?'🔓 Unlock':'🔒 Lock picks';
+  document.getElementById('saveBtn').disabled=locked;
+  document.getElementById('teams').innerHTML=teams.map((t,ti)=>`
+    <div class="team">
+      <div class="team-head">
+        <span><input value="${esc(t.name)}" ${locked?'disabled':''} onchange="teams[${ti}].name=this.value.toUpperCase();"/>
+        ${locked?'':`<button class="rmteam" onclick="rmTeam(${ti})">remove</button>`}</span>
+        <span class="count ${t.picks.length===MAX?'full':''}">${t.picks.length}/${MAX}</span>
+      </div>
+      <div class="picks">${t.picks.map((p,pi)=>`
+        <span class="chip">${esc(p)}${locked?'':`<button onclick="rmPick(${ti},${pi})">×</button>`}</span>`).join('')||'<span style="color:#98a2b3;font-size:13px">No golfers yet</span>'}
+      </div>
+      ${locked?'':`<div class="adder">
+        <input placeholder="Search the ${field.length}-man field…" oninput="suggest(this,${ti})" onfocus="suggest(this,${ti})">
+        <div class="sugg" id="sugg-${ti}"></div>
+      </div>`}
+    </div>`).join('');
+}
+function suggest(inp,ti){
+  const q=inp.value.trim().toLowerCase();
+  const box=document.getElementById('sugg-'+ti);
+  if(!q){box.style.display='none';return;}
+  const hits=field.filter(g=>g.name.toLowerCase().includes(q)).slice(0,12);
+  box.innerHTML=hits.map(g=>{
+    const taken=teams[ti].picks.includes(g.name);
+    return `<div class="${taken?'taken':''}" onmousedown="addPick(${ti},'${esc(g.name).replace(/'/g,"\\'")}')">${esc(g.name)}${taken?' ✓':''}</div>`;
+  }).join('')||'<div class="taken">No match in the field</div>';
+  box.style.display='block';
+}
+function addPick(ti,name){
+  const t=teams[ti];
+  if(t.picks.includes(name)){toast(name+' is already on '+t.name);return;}
+  if(t.picks.length>=MAX){toast(t.name+' already has '+MAX+' golfers');return;}
+  t.picks.push(name); render();
+}
+function rmPick(ti,pi){teams[ti].picks.splice(pi,1);render();}
+function addTeam(){teams.push({name:'PLAYER '+(teams.length+1),picks:[]});render();}
+function rmTeam(ti){if(confirm('Remove '+teams[ti].name+' and their picks?')){teams.splice(ti,1);render();}}
+
+function code(){
+  let c=sessionStorage.getItem('golf_code');
+  if(!c){c=prompt('Commissioner code:')||'';sessionStorage.setItem('golf_code',c);}
+  return c;
+}
+async function save(toggleLock){
+  const incomplete=teams.filter(t=>t.picks.length!==MAX);
+  let nextLocked=locked;
+  if(toggleLock){
+    if(locked){ if(!confirm('Unlock picks for editing?')) return; nextLocked=false; }
+    else{
+      if(incomplete.length){toast('Not full yet: '+incomplete.map(t=>t.name+' ('+t.picks.length+')').join(', '),5000);return;}
+      if(!confirm('Lock in all picks? The pool goes live and editing stops.'))return;
+      nextLocked=true;
+    }
+  }
+  const body={slug:SLUG,code:code(),name:'The Open 2026 — Royal Birkdale',
+    data:{participants:teams,locked:nextLocked,lockedAt:nextLocked?new Date().toISOString():null,lockedBy:nextLocked?'commissioner':null}};
+  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.status===403){sessionStorage.removeItem('golf_code');toast('Wrong code — try again');return;}
+  if(!r.ok){toast('Save failed ('+r.status+')');return;}
+  locked=nextLocked; render();
+  toast(toggleLock?(locked?'🔒 Picks LOCKED — pool is live at /golf':'Unlocked for editing'):'Draft saved ✓');
+}
+
+async function boot(){
+  try{
+    const lb=await(await fetch(ESPN,{cache:'no-store'})).json();
+    const ev=(lb.events||[]).find(e=>e.id===EVENT_ID)||(lb.events||[]).find(e=>/The Open|Open Championship/i.test(e.name));
+    field=(ev?.competitions?.[0]?.competitors||[]).map(c=>({name:c.athlete.displayName})).sort((a,b)=>a.name.localeCompare(b.name));
+  }catch(e){toast('Could not load the ESPN field — search disabled');}
+  try{
+    const pool=await(await fetch(API+'?slug='+SLUG,{cache:'no-store'})).json();
+    if(pool.data&&pool.data.participants){teams=pool.data.participants;locked=!!pool.data.locked;}
+  }catch(e){}
+  if(!teams.length) teams=DEFAULT_PLAYERS.map(n=>({name:n,picks:[]}));
+  render();
+}
+boot();
+</script>
+</body>
+</html>
