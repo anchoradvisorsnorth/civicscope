@@ -1248,10 +1248,10 @@ function wohReportHTML() {
     + `<button class="billing-toggle" onclick="closeWOH()">✕ Close</button></div></div>`
     + `<div style="overflow-x:auto"><table class="billing-table woh-table"><thead><tr>`
     + `<th>Project Name</th><th class="r">Contract Price</th><th class="r">Cost to Date</th><th class="r">Cost to Complete</th>`
-    + `<th class="r">Total Job Costs</th><th class="r">Billings to Date</th>`
+    + `<th class="r">Projected Budget Cost</th><th class="r">Billings to Date</th>`
     + `</tr></thead><tbody>${tbody}</tbody></table></div>`
-    + `<div class="woh-foot"><strong>Contract Price</strong> (Revised Contract Amount) &amp; <strong>Total Job Costs</strong> (Projected Budget) from Procore; <strong>Cost to Date</strong> &amp; <strong>Billings to Date</strong> from Foundation. `
-    + `Cost to Complete = Total Job Costs − Cost to Date.`
+    + `<div class="woh-foot"><strong>Contract Price</strong> (Revised Contract Amount) &amp; <strong>Projected Budget Cost</strong> (Projected Budget) from Procore; <strong>Cost to Date</strong> &amp; <strong>Billings to Date</strong> from Foundation. `
+    + `Cost to Complete = Projected Budget Cost − Cost to Date.`
     + (missing ? ` <strong>${missing}</strong> job(s) missing Procore Projected Budget — Cost to Complete blank for those.` : '') + `</div>`;
 }
 function runWorkOnHand() {
@@ -1281,7 +1281,7 @@ function printWOH() {
 }
 function exportWOHCSV() {
   const rows = wohRows();
-  const header = ['Project Name', ' Contract Price ', ' Cost to Date ', ' Cost to Complete ', ' Total Job Costs ', ' Billings to Date '];
+  const header = ['Project Name', ' Contract Price ', ' Cost to Date ', ' Cost to Complete ', ' Projected Budget Cost ', ' Billings to Date '];
   const q = v => { const s = (v == null ? '' : String(v)); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const acct = n => { if (n == null) return ''; const v = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return n < 0 ? ' $(' + v + ')' : ' $' + v + ' '; };
   const lines = [header.map(q).join(',')];

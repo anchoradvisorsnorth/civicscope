@@ -820,7 +820,7 @@ function briefDol(n){ return n==null?"<span class=\"m-m\">—</span>":(n<0?"$("+
    Excel "Accounting" style ( $1,234.56 / $(1,234.56) ), UTF-8 BOM, CRLF. Same file shape. */
 function exportWOHCSV(){
   var rows=wohRows();
-  var header=["Project Name"," Contract Price "," Cost to Date "," Cost to Complete "," Total Job Costs "," Billings to Date "];
+  var header=["Project Name"," Contract Price "," Cost to Date "," Cost to Complete "," Projected Budget Cost "," Billings to Date "];
   function q(v){ var s=(v==null?"":String(v)); return /[",\n\r]/.test(s)?"\""+s.replace(/"/g,"\"\"")+"\"":s; }
   function acct(n){ if(n==null) return ""; var v=Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); return n<0?" $("+v+")":" $"+v+" "; }
   var lines=[header.map(q).join(",")];
@@ -911,8 +911,8 @@ function renderBrief(){
     +"<div class=\"brief-sec\"><h2>What needs attention</h2><div class=\"ssub\">Real risk, aging closeouts, and the biggest margin fades — the week&#8217;s conversation list.</div>"+riskHtml+"</div>"
     +"<div class=\"brief-sec\"><h2>Billing &amp; cash</h2><div class=\"ssub\">"+cashSub+"</div>"+watchHtml+"</div>"
     +"<div class=\"brief-sec\"><div class=\"sech\"><h2>Work-on-Hand Analysis</h2><div class=\"woh-csv\" style=\"display:flex;gap:8px\"><button class=\"pfill\" onclick=\"refreshFoundation(this)\" title=\"Re-pull Foundation now &mdash; catches posting batches since the snapshot\">&#10227; Refresh</button><button class=\"pfill\" onclick=\"exportWOHCSV()\" title=\"Download in the Work-on-Hand format (Excel Accounting-style values)\">⬇ CSV</button></div></div><div class=\"ssub\">The audit table — reconciles to Foundation <b>as of the nightly snapshot"+(fSnap?" ("+fSnap+")":"")+"</b>. Anything posted in Foundation after that time lands here after the next ~5:00 AM ET refresh — reconciling against live Foundation screens? Check for same-day posting batches first. Largest contract first.</div>"
-    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Project Name</th><th class=\"r\">Contract Price</th><th class=\"r\">Cost to Date</th><th class=\"r\">Cost to Complete</th><th class=\"r\">Total Job Costs</th><th class=\"r\">Billings to Date</th></tr></thead><tbody>"+wohBody+"</tbody><tfoot>"+wohFoot+"</tfoot></table></div>"
-    +"<div class=\"woh-note\"><b>Contract Price</b> (Revised Contract Amount) &amp; <b>Total Job Costs</b> (ERP Projected Budget) from Procore; <b>Cost to Date</b> &amp; <b>Billings to Date</b> from Foundation. Cost to Complete = Total Job Costs − Cost to Date."
+    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Project Name</th><th class=\"r\">Contract Price</th><th class=\"r\">Cost to Date</th><th class=\"r\">Cost to Complete</th><th class=\"r\">Projected Budget Cost</th><th class=\"r\">Billings to Date</th></tr></thead><tbody>"+wohBody+"</tbody><tfoot>"+wohFoot+"</tfoot></table></div>"
+    +"<div class=\"woh-note\"><b>Contract Price</b> (Revised Contract Amount) &amp; <b>Projected Budget Cost</b> (ERP Projected Budget) from Procore; <b>Cost to Date</b> &amp; <b>Billings to Date</b> from Foundation. Cost to Complete = Projected Budget Cost − Cost to Date."
     +(missingTec?" <b>"+missingTec+"</b> job(s) missing Procore Projected Budget — Cost to Complete blank for those.":"")+"</div></div>"
     +"<div class=\"brief-foot\">"+(conflicts?("<b>"+conflicts+"</b> contract conflict(s) between Procore and Foundation are open — see Margin &amp; Risk → Data exceptions before quoting those jobs. "):"Procore and Foundation contracts agree on every active job. ")
     +"Decision-layer figures (margins, stoplights, gain/fade) are forecasts; source-of-record figures (cost, billings, AR, this Work-on-Hand table) mirror Foundation. Full provenance: RYC_Dashboard_Data_Dictionary.md.</div>"
