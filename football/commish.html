@@ -146,8 +146,15 @@ async function loadGames(league){
         homeAbbrev:home.team.abbreviation,awayAbbrev:away.team.abbreviation,
         favAbbrev:odds?odds.favAbbrev:null,line:odds?odds.line:null,spreadText:odds?odds.spreadText:null,manual:false};
     });
+    // Weekly competition runs Tue–Sun — the group never bets Monday games. Gate them out.
+    // Evaluate day-of-week in EASTERN time: night games cross the UTC date line (Sun-night ET
+    // reads Monday UTC; Mon-night ET reads Tuesday UTC), so a UTC check would drop SNF + keep MNF.
+    const etDay=d=>new Date(d).toLocaleDateString('en-US',{timeZone:'America/New_York',weekday:'long'});
+    const before=evs.length;
+    evs=evs.filter(g=>etDay(g.date)!=='Monday');
+    const dropped=before-evs.length;
     loaded=loaded.filter(g=>g.league!==league).concat(evs);
-    document.getElementById('loadstat').textContent=evs.length+' '+league.toUpperCase()+' games loaded ('+evs.filter(g=>g.line!=null).length+' with live spreads).';
+    document.getElementById('loadstat').textContent=evs.length+' '+league.toUpperCase()+' games loaded ('+evs.filter(g=>g.line!=null).length+' with live spreads)'+(dropped?' · '+dropped+' Monday game'+(dropped>1?'s':'')+' excluded (Tue–Sun only)':'')+'.';
     viewLeague=league;
     renderLoaded();
   }catch(e){document.getElementById('loadstat').textContent='Load failed: '+e.message;}
