@@ -36,6 +36,41 @@ export default async function handler(req, res) {
   };
   const cleanSlug = (s) => String(s || '').replace(/[^a-z0-9-]/gi, '').slice(0, 30);
   const pastDeadline = (wk) => wk.deadline && Date.now() > Date.parse(wk.deadline);
+  // All roster players have a locked pick → the competitive reason to hide picks is gone.
+  const allLocked = (wk, roster) => {
+    if (!roster || !roster.length || !wk.picks) return false;
+    return roster.every(p => wk.picks[p.name] && wk.picks[p.name].locked);
+  };
+  // Reveal everyone's picks once all are locked OR first kickoff passes, whichever comes first.
+  const isRevealed = (wk, roster) => pastDeadline(wk) || allLocked(wk, roster);
+
+  // Email the group that all picks are in and the board is live. Best-effort; SMS added later.
+  async function notifyAllLocked(wk, slug, roster) {
+    const picked = Object.keys(wk.picks || {});
+    const rows = picked.sort().map(n => `<tr><td style="padding:3px 12px 3px 0;font-weight:700">${n}</td><td style="padding:3px 0;color:#475467">locked</td></tr>`).join('');
+    const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#101828">
+      <div style="background:linear-gradient(135deg,#0a2240,#14532d);color:#fff;padding:18px 22px;border-radius:10px 10px 0 0">
+        <div style="font-size:20px;font-weight:800">🏈 All picks are in — ${wk.label || slug} is locked</div>
+        <div style="font-size:13px;color:#b9c6da;margin-top:3px">Everyone's locked in, so all picks are now visible.</div>
+      </div>
+      <div style="border:1px solid #e4e7ec;border-top:none;border-radius:0 0 10px 10px;padding:18px 22px;background:#fff">
+        <table style="font-size:13px;border-collapse:collapse;margin-bottom:12px">${rows}</table>
+        <div style="text-align:center;margin:8px 0">
+          <a href="https://app.civicscope.io/football" style="display:inline-block;background:#c8a24b;color:#1a1300;font-weight:800;font-size:16px;padding:12px 24px;border-radius:10px;text-decoration:none">See everyone's picks →</a>
+        </div>
+        <div style="font-size:12px;color:#667085">Live scoring against the spread all weekend. Good luck.</div>
+      </div></div>`;
+    for (const p of roster) {
+      if (!p.email) continue;
+      try {
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', to: [p.email], subject: `🏈 All picks are in — ${wk.label || slug} is locked`, html }),
+        });
+      } catch (e) { /* best-effort */ }
+    }
+  }
 
   try {
     if (req.method === 'GET') {
@@ -65,12 +100,14 @@ export default async function handler(req, res) {
       const row = await getRow(slug);
       if (!row) return res.status(200).json({ slug, data: null });
       const wk = row.data;
-      if (!pastDeadline(wk) && wk.picks) {
-        // pick privacy: before the deadline only your own picks come back (name+pin), others show locked-status only
+      const cfg = await getRow('config');
+      const roster = (cfg?.data?.players) || [];
+      const revealed = isRevealed(wk, roster);
+      if (!revealed && wk.picks) {
+        // pick privacy: until everyone locks (or kickoff), only your own picks come back (name+pin); others show locked-status only
         const name = String(req.query.name || '').toUpperCase();
         const pin = String(req.query.pin || '');
-        const cfg = await getRow('config');
-        const me = ((cfg?.data?.players) || []).find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
+        const me = roster.find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
         const masked = {};
         for (const [player, v] of Object.entries(wk.picks)) {
           masked[player] = (me && player.toUpperCase() === name)
@@ -79,7 +116,7 @@ export default async function handler(req, res) {
         }
         wk.picks = masked;
       }
-      return res.status(200).json({ slug: row.slug, data: wk, updated_at: row.updated_at });
+      return res.status(200).json({ slug: row.slug, data: wk, revealed, updated_at: row.updated_at });
     }
 
     if (req.method === 'POST') {
@@ -191,8 +228,17 @@ export default async function handler(req, res) {
           if (valid.has(String(gid))) picks[gid] = String(side).slice(0, 6);
         }
         wk.picks[me.name] = { picks, locked: !!req.body.lock, savedAt: new Date().toISOString() };
+        const roster = (cfg?.data?.players) || [];
+        // If this lock completes the board (everyone locked), fire the "all in" email once.
+        // Set the guard flag BEFORE persisting so a retry can't double-send.
+        let fireNotify = false;
+        if (req.body.lock && !wk.notifiedAllLocked && allLocked(wk, roster)) {
+          wk.notifiedAllLocked = true;
+          fireNotify = true;
+        }
         await putRow(slug, wk);
-        return res.status(200).json({ ok: true, locked: !!req.body.lock, count: Object.keys(picks).length });
+        if (fireNotify) await notifyAllLocked(wk, slug, roster);
+        return res.status(200).json({ ok: true, locked: !!req.body.lock, count: Object.keys(picks).length, allLocked: fireNotify });
       }
 
       return res.status(400).json({ error: 'unknown action' });
