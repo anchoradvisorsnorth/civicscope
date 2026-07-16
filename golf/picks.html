@@ -44,10 +44,10 @@
 </head>
 <body>
 <header><div class="wrap">
-  <h1>⛳ The Open Pool — Commissioner Picks<span class="sub">Royal Birkdale · July 16–19, 2026 · 10 golfers per player</span></h1>
+  <h1>⛳ The Open Pool — Commissioner Picks<span class="sub">Royal Birkdale · July 16–19, 2026 · 15 golfers per player</span></h1>
 </div></header>
 <main>
-  <div class="note"><b>How this works:</b> type in the search box under each player and tap golfers to add them (10 each — same golfer can be on multiple teams). <b>Save draft</b> anytime; when everything's final hit <b>🔒 Lock picks</b>. You'll need the commissioner code for either. The live pool tracker is at <a href="/golf">/golf</a>.</div>
+  <div class="note"><b>How this works:</b> type in the search box under each player and tap golfers to add them (15 each — same golfer can be on multiple teams). <b>Save draft</b> anytime; when everything's final hit <b>🔒 Lock picks</b>. You'll need the commissioner code for either. The live pool tracker is at <a href="/golf">/golf</a>.</div>
   <div class="locked-banner" id="lockbanner">🔒 <b>Picks are LOCKED</b> — the pool is live at <a href="/golf" style="color:var(--gold)">/golf</a>. Need a change? Unlock below (commissioner code required).</div>
   <div id="teams"></div>
   <button class="addteam" id="addteam" onclick="addTeam()">+ Add a player</button>
@@ -61,7 +61,7 @@
 <script>
 const ESPN='https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard';
 const EVENT_ID='401811957'; // The Open 2026 — Royal Birkdale
-const API='/api/golf-pool', SLUG='open-2026', MAX=10;
+const API='/api/golf-pool', SLUG='open-2026', MAX=15;
 const DEFAULT_PLAYERS=['BRAD','BOB','BRANDON','MIKE','MARK','NICK'];
 
 let field=[];            // [{name}] from ESPN
