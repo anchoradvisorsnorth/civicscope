@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-07-17T09:30:10.280Z",
+ "generatedAt": "2026-07-18T09:30:10.609Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -253,6 +253,19 @@
      "awardedCompany": null
     },
     {
+     "id": "69a0a4fc92686bf148973931",
+     "name": "Fences & Gates",
+     "number": "32-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "bidsReceived": 1,
+     "awardedCompany": null
+    },
+    {
      "id": "69a0a7ec76c3da91c3bc98ee",
      "name": "FFE package",
      "number": "12-01",
@@ -280,19 +293,6 @@
      "biddingSubs": [
       "Bojrab Landscape Management"
      ]
-    },
-    {
-     "id": "69a0a4fc92686bf148973931",
-     "name": "Fences & Gates",
-     "number": "32-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null
     },
     {
      "id": "69a0a0c3cc84d4e8461230dd",
@@ -327,22 +327,6 @@
      ]
     },
     {
-     "id": "69a0489404a42d55770a38d3",
-     "name": "Equipment",
-     "number": "11",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 1,
-     "undecided": 0,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Abt Electronics, Inc."
-     ]
-    },
-    {
      "id": "69a0427dd5712328e4c883c0",
      "name": "Flooring",
      "number": "09",
@@ -356,6 +340,22 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Avanti Flooring LLC"
+     ]
+    },
+    {
+     "id": "69a0489404a42d55770a38d3",
+     "name": "Equipment",
+     "number": "11",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 1,
+     "undecided": 0,
+     "notBidding": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Abt Electronics, Inc."
      ]
     },
     {
@@ -468,22 +468,6 @@
      ]
     },
     {
-     "id": "69a7158c18d056078e1fb9bf",
-     "name": "Demolition",
-     "number": "02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Michiana Recycling and Disposal"
-     ]
-    },
-    {
      "id": "69a71a7957b080769f6b0957",
      "name": "Awnings",
      "number": "06-02",
@@ -497,6 +481,22 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "BH Awning"
+     ]
+    },
+    {
+     "id": "69a7158c18d056078e1fb9bf",
+     "name": "Demolition",
+     "number": "02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Michiana Recycling and Disposal"
      ]
     },
     {
@@ -653,6 +653,22 @@
      ]
     },
     {
+     "id": "69a70f671e2ea8632c1dbb80",
+     "name": "Flooring",
+     "number": "09",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Carpet Service Outlet"
+     ]
+    },
+    {
      "id": "69a70f671e2ea832d11dbb85",
      "name": "Fire Protection",
      "number": "21",
@@ -667,22 +683,6 @@
      "biddingSubs": [
       "F.E. Moran, Inc.",
       "Ryan Fireprotection Inc."
-     ]
-    },
-    {
-     "id": "69a70f671e2ea8632c1dbb80",
-     "name": "Flooring",
-     "number": "09",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Carpet Service Outlet"
      ]
     },
     {
@@ -1229,9 +1229,9 @@
    "covered": 46,
    "atRisk": 15,
    "invites": 1024,
-   "bidding": 90,
-   "undecided": 792,
-   "bidsReceived": 7,
+   "bidding": 86,
+   "undecided": 794,
+   "bidsReceived": 12,
    "pkgs": [
     {
      "id": "6a3d8c2c360ef670d4a52b34",
@@ -1394,12 +1394,11 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 6,
      "bidding": 0,
-     "undecided": 5,
-     "notBidding": 1,
+     "undecided": 4,
+     "notBidding": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "Midwest Recreation Products LLC",
       "Midwest Recreation Products",
       "Great Lakes Recreation",
       "Parkreation Inc.",
@@ -1624,22 +1623,6 @@
      ]
     },
     {
-     "id": "6a3d8c2c360ef69312a52b28",
-     "name": "Aluminum Doors & Frames",
-     "number": "08-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-20T16:00:00.000Z",
-     "invites": 29,
-     "bidding": 1,
-     "undecided": 24,
-     "notBidding": 4,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Midwest Glass & Mirror"
-     ]
-    },
-    {
      "id": "6a3d8c2c360ef6823ba52b2c",
      "name": "Painting",
      "number": "09-03",
@@ -1678,14 +1661,11 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 24,
-     "bidding": 1,
-     "undecided": 18,
+     "bidding": 0,
+     "undecided": 19,
      "notBidding": 5,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Division Seven Indianapolis"
-     ]
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a3d8c2c360ef64001a52b31",
@@ -1893,6 +1873,23 @@
      ]
     },
     {
+     "id": "6a3d8c2c360ef69312a52b28",
+     "name": "Aluminum Doors & Frames",
+     "number": "08-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-20T16:00:00.000Z",
+     "invites": 29,
+     "bidding": 2,
+     "undecided": 23,
+     "notBidding": 4,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Noble Glass and Aluminum, LLC.",
+      "Midwest Glass & Mirror"
+     ]
+    },
+    {
      "id": "6a3d8c2c360ef6da42a52b1b",
      "name": "Structural Steel & Handrail",
      "number": "05-01",
@@ -1951,8 +1948,8 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 15,
      "bidding": 1,
-     "undecided": 11,
-     "notBidding": 3,
+     "undecided": 10,
+     "notBidding": 4,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2068,13 +2065,12 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 4,
-     "bidding": 2,
-     "undecided": 2,
+     "bidding": 1,
+     "undecided": 3,
      "notBidding": 0,
-     "bidsReceived": 0,
+     "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
-      "Mike's Fencing",
       "Milestone Fence, LLC"
      ]
     },
@@ -2103,13 +2099,12 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 25,
-     "bidding": 2,
-     "undecided": 17,
+     "bidding": 1,
+     "undecided": 18,
      "notBidding": 6,
-     "bidsReceived": 1,
+     "bidsReceived": 2,
      "awardedCompany": null,
      "biddingSubs": [
-      "Prime Doors Sales & Services LLC",
       "Big C Lumber"
      ]
     },
@@ -2265,15 +2260,13 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 11,
-     "bidding": 5,
-     "undecided": 3,
+     "bidding": 3,
+     "undecided": 5,
      "notBidding": 3,
-     "bidsReceived": 0,
+     "bidsReceived": 2,
      "awardedCompany": null,
      "biddingSubs": [
-      "Mike's Fencing",
       "Custom Fence Co.",
-      "CF Fence LLC",
       "Richmond Guttering Co dba Richmond Exteriors",
       "Milestone Fence, LLC"
      ]
