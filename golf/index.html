@@ -24,11 +24,7 @@
   main{max-width:1100px;margin:0 auto;padding:18px 20px 60px}
   .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:22px 4px 10px}
   .standings{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .srow{display:grid;grid-template-columns:42px 1fr auto auto;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--line)}
-  .swin{text-align:right;min-width:62px;font-size:20px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums;line-height:1.05}
-  .srow.leader .swin{color:#0f7a3d}
-  .swl{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-  .wp{display:inline-block;background:var(--gold);color:#1a1300;border-radius:6px;padding:1px 7px;font-size:12px;font-weight:800;margin-right:8px;vertical-align:middle}
+  .srow{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--line)}
   .srow:last-child{border-bottom:none}
   .srow.leader{background:linear-gradient(90deg,#fffaf0,#fff)}
   .rank{font-size:18px;font-weight:800;color:var(--navy);text-align:center}
@@ -107,30 +103,7 @@ const fmtM=n=>'$'+Math.round(n).toLocaleString('en-US');
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const toNum=s=>(!s||s==='E')?0:Number(String(s).replace('+',''));
 
-// Monte Carlo win probability — same engine as the US Open pool (form-regressed normals, seeded RNG).
-const SIM={N:10000,SD:3.0,W:0.55};
-function winOdds(comps){
-  const teams=Object.keys(TEAMS); const out={}; teams.forEach(t=>out[t]=null);
-  const made=comps.filter(c=>c.status?.type?.name!=='STATUS_CUT'&&c.status?.position?.displayName&&c.status.position.displayName!=='-');
-  if(!made.length) return out;
-  const field=made.map(c=>{const cur=toNum(c.score?.displayValue);
-    const rp=Math.max(1,(c.linescores||[]).filter(l=>l.displayValue&&l.displayValue!=='-').length);
-    return {name:c.athlete.displayName,cur,rp,rl:Math.max(0,4-rp),amateur:!!c.amateur};});
-  const fieldAvg=field.reduce((s,g)=>s+g.cur/g.rp,0)/field.length;
-  field.forEach(g=>g.mean=SIM.W*(g.cur/g.rp)+(1-SIM.W)*fieldAvg);
-  const cutMoney={}; comps.forEach(c=>{if(c.status?.type?.name==='STATUS_CUT')cutMoney[c.athlete.displayName]=c.amateur?0:CUT_PAY;});
-  let seed=987654321; const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
-  const norm=()=>{let u=0,v=0;while(!u)u=rnd();while(!v)v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);};
-  const wins={}; teams.forEach(t=>wins[t]=0);
-  for(let s=0;s<SIM.N;s++){
-    const finals=field.map(g=>({name:g.name,amateur:g.amateur,fin:g.cur+g.mean*g.rl+SIM.SD*Math.sqrt(g.rl)*norm()}));
-    finals.sort((a,b)=>a.fin-b.fin);
-    const money={}; finals.forEach((g,i)=>money[g.name]=g.amateur?0:placeAt(i+1)); Object.assign(money,cutMoney);
-    let best=-1,bt=[]; for(const t of teams){let tot=0;for(const pk of TEAMS[t])tot+=money[pk]||0; if(tot>best){best=tot;bt=[t];}else if(tot===best)bt.push(t);}
-    const sh=1/bt.length; bt.forEach(t=>wins[t]+=sh);
-  }
-  teams.forEach(t=>out[t]=wins[t]/SIM.N); return out;
-}
+// (Win-probability simulation removed 2026-07-19 — Keith's call: no "chance to win" on pool pages.)
 
 function compute(comps){
   const made=comps.filter(c=>c.status?.type?.name!=='STATUS_CUT'&&c.status?.position?.displayName&&c.status.position.displayName!=='-');
@@ -151,12 +124,12 @@ function compute(comps){
 }
 function toparCls(t){ if(!t||t==='E')return 'even'; return t.startsWith('-')?'under':'over'; }
 
-function render(info, odds, meta, final){
+function render(info, meta, final){
   const teams=Object.entries(TEAMS).map(([team,picks])=>{
     const rows=picks.map(pk=>{const d=info[pk]||{money:0,pos:'—',topar:'',cut:false,posNum:998}; return {pk,...d};});
     rows.sort((a,b)=>a.posNum-b.posNum || b.money-a.money);
     const total=rows.reduce((s,r)=>s+(r.money||0),0);
-    return {team,total,rows,win:odds?odds[team]:null};
+    return {team,total,rows};
   }).sort((a,b)=>b.total-a.total);
 
   const leader=teams[0]?.total||0;
@@ -169,18 +142,16 @@ function render(info, odds, meta, final){
       `${teams.length>1?` &nbsp;·&nbsp; beat ${esc(teams[1].team)} by ${fmtM(gap)}`:''}</div>`;
     champ.style.display='block';
   } else { champ.style.display='none'; }
-  const winPct=w=>w==null?'':(w>=0.995?'>99%':w<0.005&&w>0?'<1%':Math.round(w*100)+'%');
   document.getElementById('standings').innerHTML=teams.map((t,i)=>`
     <div class="srow ${i===0?'leader':''}">
       <div class="rank">${i+1}</div>
       <div><div class="sname">${esc(t.team)}</div><div class="ssub">${t.rows.filter(r=>!r.cut&&r.pos!=='—').length} active · ${t.rows.filter(r=>r.cut).length} cut</div></div>
-      <div class="swin">${winPct(t.win)}<div class="swl">to win</div></div>
       <div style="text-align:right"><div class="stotal">${fmtM(t.total)}</div><div class="sgap">${i===0?'leader':'-'+fmtM(leader-t.total)}</div></div>
     </div>`).join('');
 
   document.getElementById('teams').innerHTML=teams.map((t,i)=>`
     <div class="team">
-      <h3><span><span class="tr">#${i+1}</span> &nbsp;${esc(t.team)}</span><span class="tt">${t.win!=null?`<span class="wp">${winPct(t.win)}</span>`:''}${fmtM(t.total)}</span></h3>
+      <h3><span><span class="tr">#${i+1}</span> &nbsp;${esc(t.team)}</span><span class="tt">${fmtM(t.total)}</span></h3>
       <table><thead><tr><th>Golfer</th><th>Pos</th><th>Score</th><th style="text-align:right">Proj $</th></tr></thead>
       <tbody>${t.rows.map(r=>`
         <tr class="${r.cut?'cut':''}">
@@ -195,7 +166,6 @@ function render(info, odds, meta, final){
     `<b>How scoring works:</b> Winner = highest total prize money earned by your 15 golfers. `+
     `Money is <b>projected</b> from each golfer's current position against the official 2026 Open Championship payout table ($17.75M purse, winner $3.2M), `+
     `with ties split evenly and missed-cut pros credited $10,300. Figures firm up to official payouts as the tournament finishes. `+
-    `<br><b>% to win</b> is a live Monte Carlo simulation (10,000 runs): each active golfer's remaining rounds are projected from their form so far (regressed toward the field) with realistic round-to-round variance; cut golfers are locked in. It's a model, not a betting line. `+
     `Live scoring via ESPN. ${meta||''}`;
 }
 
@@ -228,9 +198,8 @@ async function load(){
     const comp=ev.competitions[0];
     if(havePicks){
       const info=compute(comp.competitors);
-      const odds=winOdds(comp.competitors);
       const final=comp.status?.type?.state==='post';
-      render(info,odds,'',final);
+      render(info,'',final);
       if(final && timer){ clearInterval(timer); timer=null; }
     }
     const st=comp.status?.type?.description||''; const when=new Date().toLocaleTimeString();
