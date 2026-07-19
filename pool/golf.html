@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>The Open Pool</title>
+<style>
+  :root{
+    --navy:#0a2240; --navy2:#0e2c54; --gold:#c8a24b; --line:#e4e7ec; --muted:#667085;
+    --bg:#f4f6f9; --card:#fff; --green:#157347; --red:#b42318; --cut:#fff6d6; --cutline:#e7c84b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#101828}
+  header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:18px 20px}
+  .wrap{max-width:1100px;margin:0 auto}
+  .htop{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  h1{margin:0;font-size:22px;letter-spacing:.3px}
+  h1 .sub{display:block;font-size:12px;font-weight:400;color:#b9c6da;margin-top:3px}
+  .status{font-size:12px;color:#b9c6da;text-align:right}
+  .status b{color:#fff}
+  .btn{background:var(--gold);color:#1a1300;border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;font-size:13px}
+  .btn:disabled{opacity:.6;cursor:default}
+  main{max-width:1100px;margin:0 auto;padding:18px 20px 60px}
+  .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:22px 4px 10px}
+  .standings{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .srow{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .srow:last-child{border-bottom:none}
+  .srow.leader{background:linear-gradient(90deg,#fffaf0,#fff)}
+  .rank{font-size:18px;font-weight:800;color:var(--navy);text-align:center}
+  .srow.leader .rank{color:var(--gold)}
+  .sname{font-size:17px;font-weight:700}
+  .ssub{font-size:12px;color:var(--muted);margin-top:2px}
+  .stotal{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+  .sgap{font-size:11px;color:var(--muted);text-align:right}
+  .teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+  .team{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .team h3{margin:0;padding:12px 14px;background:var(--navy);color:#fff;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+  .team h3 .tt{font-weight:800;font-variant-numeric:tabular-nums}
+  .team h3 .tr{font-size:11px;color:#b9c6da;font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:7px 12px;text-align:left}
+  th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--line)}
+  tbody tr{border-bottom:1px solid #f0f2f5}
+  tbody tr:last-child{border-bottom:none}
+  .g-name{font-weight:600}
+  .pos{display:inline-block;min-width:34px;padding:2px 6px;border-radius:5px;background:#eef2f7;color:var(--navy);font-weight:700;font-size:11px;text-align:center}
+  .topar{font-variant-numeric:tabular-nums}
+  .under{color:var(--green);font-weight:700}.over{color:#475467}.even{color:#475467}
+  .money{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  tr.cut{background:var(--cut)}
+  tr.cut .pos{background:var(--cutline);color:#3a2e00}
+  tr.cut .money{color:#8a6d00}
+  .foot{color:var(--muted);font-size:11.5px;line-height:1.6;margin-top:22px;padding:0 4px}
+  .err{background:#fef3f2;border:1px solid #fecdca;color:#b42318;padding:10px 14px;border-radius:8px;margin:14px 0;font-size:13px;display:none}
+  .waiting{background:#fffaf0;border:1px solid #e7c84b;border-radius:12px;padding:22px;text-align:center;font-size:15px;margin:14px 0}
+  .champ{display:none;background:linear-gradient(135deg,#1a1300,#3a2e00);border:1px solid var(--gold);border-radius:14px;padding:20px 22px;margin:4px 0 10px;color:#fff;box-shadow:0 4px 18px rgba(200,162,75,.25)}
+  .champ .ct{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold)}
+  .champ .cn{font-size:30px;font-weight:900;margin:4px 0 2px;letter-spacing:.5px}
+  .champ .cm{font-size:15px;color:#e8dcc0;font-weight:600}
+  .champ .cm b{color:var(--gold)}
+</style>
+</head>
+<body>
+<div style="background:#08192e;font-family:-apple-system,'Segoe UI',Arial,sans-serif;font-size:13px;padding:8px 18px;display:flex;gap:18px;align-items:center"><a href="/pool" style="color:#fff;font-weight:800;text-decoration:none">🏆 The Pool</a><a href="/pool/golf" style="color:#b9c6da;text-decoration:none">Golf</a><a href="/pool/football" style="color:#b9c6da;text-decoration:none">Football</a></div>
+<header><div class="wrap htop">
+  <h1>⛳ The Open Pool<span class="sub">Royal Birkdale · 2026 · $17.75M purse</span></h1>
+  <div>
+    <div class="status" id="status">Loading…</div>
+    <div style="text-align:right;margin-top:8px"><button class="btn" id="refresh" onclick="load()">Refresh</button></div>
+  </div>
+</div></header>
+<main>
+  <div class="err" id="err"></div>
+  <div class="waiting" id="waiting" style="display:none"></div>
+  <div class="champ" id="champ"></div>
+  <div id="poolbody" style="display:none">
+    <div class="section-title">Standings — projected prize money</div>
+    <div class="standings" id="standings"></div>
+    <div class="section-title">Teams — live golfer positions</div>
+    <div class="teams" id="teams"></div>
+  </div>
+  <div class="foot" id="foot"></div>
+</main>
+
+<script>
+const ESPN='https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard';
+const EVENT_ID='401811957'; // The Open 2026 — Royal Birkdale
+const API='/api/golf-pool', SLUG='open-2026';
+// Official 2026 Open Championship payouts, places 1-70 (thegolfnewsnet.com, 2026-07-15).
+const PLACE=[0,3200000,1842000,1181000,917000,738000,639700,549700,463250,406200,367000,
+ 334200,296000,278500,260700,241900,222700,212000,202000,193600,184500,
+ 175900,167100,158100,149300,144250,138000,133000,128400,122800,116500,
+ 112700,106900,103100,100200,96700,92900,88500,84100,81000,78400,
+ 75200,71500,68300,64400,60700,57600,55300,53100,50700,49400,
+ 48350,47500,46800,46100,45300,44700,44250,43950,43625,43325,
+ 43100,42900,42700,42500,42150,41825,41500,41200,40900,40700];
+const LAST=PLACE[PLACE.length-1]; const placeAt=p=>p<PLACE.length?PLACE[p]:LAST;
+const CUT_PAY=10300; // middle missed-cut tier ($12,350 / $10,300 / $8,750 by position — flat approximation)
+
+let TEAMS={}, POOL_LOCKED=false;   // loaded from /api/golf-pool
+
+const fmtM=n=>'$'+Math.round(n).toLocaleString('en-US');
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const toNum=s=>(!s||s==='E')?0:Number(String(s).replace('+',''));
+
+// (Win-probability simulation removed 2026-07-19 — Keith's call: no "chance to win" on pool pages.)
+
+function compute(comps){
+  const made=comps.filter(c=>c.status?.type?.name!=='STATUS_CUT'&&c.status?.position?.displayName&&c.status.position.displayName!=='-');
+  const byPos={};
+  for(const c of made){const p=parseInt(String(c.status.position.displayName).replace('T',''),10); (byPos[p]=byPos[p]||[]).push(c);}
+  const info={};
+  for(const c of comps){
+    const nm=c.athlete.displayName, cut=c.status?.type?.name==='STATUS_CUT';
+    const topar=c.score?.displayValue||'';
+    if(cut){ const actual=Number(c.earnings)||0; info[nm]={money:c.amateur?0:(actual>0?actual:CUT_PAY),pos:'CUT',topar,cut:true,posNum:999}; }
+  }
+  for(const[p,group] of Object.entries(byPos)){
+    const N=parseInt(p,10),K=group.length; let pool=0; for(let i=0;i<K;i++) pool+=placeAt(N+i); const each=Math.round(pool/K);
+    for(const c of group){ const nm=c.athlete.displayName, actual=Number(c.earnings)||0;
+      info[nm]={money:c.amateur?0:(actual>0?actual:each),pos:c.status.position.displayName,topar:c.score?.displayValue||'',cut:false,posNum:N}; }
+  }
+  return info;
+}
+function toparCls(t){ if(!t||t==='E')return 'even'; return t.startsWith('-')?'under':'over'; }
+
+function render(info, meta, final){
+  const teams=Object.entries(TEAMS).map(([team,picks])=>{
+    const rows=picks.map(pk=>{const d=info[pk]||{money:0,pos:'—',topar:'',cut:false,posNum:998}; return {pk,...d};});
+    rows.sort((a,b)=>a.posNum-b.posNum || b.money-a.money);
+    const total=rows.reduce((s,r)=>s+(r.money||0),0);
+    return {team,total,rows};
+  }).sort((a,b)=>b.total-a.total);
+
+  const leader=teams[0]?.total||0;
+  const champ=document.getElementById('champ');
+  if(final && teams.length){
+    const w=teams[0], gap=teams.length>1?leader-teams[1].total:0;
+    champ.innerHTML=`<div class="ct">🏆 Champion · Final</div>`+
+      `<div class="cn">${esc(w.team)}</div>`+
+      `<div class="cm"><b>${fmtM(w.total)}</b>`+
+      `${teams.length>1?` &nbsp;·&nbsp; beat ${esc(teams[1].team)} by ${fmtM(gap)}`:''}</div>`;
+    champ.style.display='block';
+  } else { champ.style.display='none'; }
+  document.getElementById('standings').innerHTML=teams.map((t,i)=>`
+    <div class="srow ${i===0?'leader':''}">
+      <div class="rank">${i+1}</div>
+      <div><div class="sname">${esc(t.team)}</div><div class="ssub">${t.rows.filter(r=>!r.cut&&r.pos!=='—').length} active · ${t.rows.filter(r=>r.cut).length} cut</div></div>
+      <div style="text-align:right"><div class="stotal">${fmtM(t.total)}</div><div class="sgap">${i===0?'leader':'-'+fmtM(leader-t.total)}</div></div>
+    </div>`).join('');
+
+  document.getElementById('teams').innerHTML=teams.map((t,i)=>`
+    <div class="team">
+      <h3><span><span class="tr">#${i+1}</span> &nbsp;${esc(t.team)}</span><span class="tt">${fmtM(t.total)}</span></h3>
+      <table><thead><tr><th>Golfer</th><th>Pos</th><th>Score</th><th style="text-align:right">Proj $</th></tr></thead>
+      <tbody>${t.rows.map(r=>`
+        <tr class="${r.cut?'cut':''}">
+          <td class="g-name">${esc(r.pk)}</td>
+          <td><span class="pos">${esc(r.pos)}</span></td>
+          <td class="topar ${toparCls(r.topar)}">${esc(r.topar||'')}</td>
+          <td class="money">${r.money?fmtM(r.money):'—'}</td>
+        </tr>`).join('')}</tbody></table>
+    </div>`).join('');
+
+  document.getElementById('foot').innerHTML=
+    `<b>How scoring works:</b> Winner = highest total prize money earned by your 15 golfers. `+
+    `Money is <b>projected</b> from each golfer's current position against the official 2026 Open Championship payout table ($17.75M purse, winner $3.2M), `+
+    `with ties split evenly and missed-cut pros credited $10,300. Figures firm up to official payouts as the tournament finishes. `+
+    `Live scoring via ESPN. ${meta||''}`;
+}
+
+async function loadPool(){
+  const pool=await(await fetch(API+'?slug='+SLUG,{cache:'no-store'})).json();
+  const parts=pool.data&&pool.data.participants||[];
+  POOL_LOCKED=!!(pool.data&&pool.data.locked);
+  TEAMS={}; parts.forEach(p=>{if(p.picks&&p.picks.length)TEAMS[p.name]=p.picks;});
+  const waiting=document.getElementById('waiting'), body=document.getElementById('poolbody');
+  if(!Object.keys(TEAMS).length){
+    waiting.innerHTML='⏳ <b>Waiting on the commissioner…</b><br>Picks haven\'t been made yet. Mike sets them at <a href="/pool/golf/picks">/pool/golf/picks</a>.';
+    waiting.style.display='block'; body.style.display='none'; return false;
+  }
+  if(!POOL_LOCKED){
+    waiting.innerHTML='📝 <b>Draft picks below — not locked yet.</b> The commissioner can still edit at <a href="/pool/golf/picks">/pool/golf/picks</a>.';
+    waiting.style.display='block';
+  } else waiting.style.display='none';
+  body.style.display='block'; return true;
+}
+
+let timer=null;
+async function load(){
+  const btn=document.getElementById('refresh'); btn.disabled=true; btn.textContent='…';
+  const err=document.getElementById('err'); err.style.display='none';
+  try{
+    const havePicks=await loadPool();
+    const r=await fetch(ESPN,{cache:'no-store'}); if(!r.ok) throw new Error('ESPN '+r.status);
+    const j=await r.json();
+    const ev=(j.events||[]).find(e=>e.id===EVENT_ID)||(j.events||[]).find(e=>/The Open|Open Championship/i.test(e.name))||j.events[0];
+    const comp=ev.competitions[0];
+    if(havePicks){
+      const info=compute(comp.competitors);
+      const final=comp.status?.type?.state==='post';
+      render(info,'',final);
+      if(final && timer){ clearInterval(timer); timer=null; }
+    }
+    const st=comp.status?.type?.description||''; const when=new Date().toLocaleTimeString();
+    document.getElementById('status').innerHTML=`<b>${esc(ev.name)}</b> · ${esc(st)}<br>Updated ${when} · auto-refresh 90s`;
+  }catch(e){ err.textContent='Could not refresh: '+e.message+' (showing last data if any).'; err.style.display='block'; }
+  finally{ btn.disabled=false; btn.textContent='Refresh'; }
+}
+load(); timer=setInterval(load,90000);
+</script>
+</body>
+</html>

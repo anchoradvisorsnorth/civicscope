@@ -4,7 +4,12 @@
   ],
   "redirects": [
     { "source": "/index.html", "destination": "/", "statusCode": 301 },
-    { "source": "/pro", "destination": "/", "statusCode": 301 }
+    { "source": "/pro", "destination": "/", "statusCode": 301 },
+    { "source": "/golf", "destination": "/pool/golf", "statusCode": 301 },
+    { "source": "/golf/picks", "destination": "/pool/golf/picks", "statusCode": 301 },
+    { "source": "/football", "destination": "/pool/football", "statusCode": 301 },
+    { "source": "/football/picks", "destination": "/pool/football/picks", "statusCode": 301 },
+    { "source": "/football/commish", "destination": "/pool/commish", "statusCode": 301 }
   ],
   "rewrites": [
     { "source": "/", "destination": "/groundwork/index.html", "has": [{ "type": "host", "value": "groundwork.civicscope.io" }] },
@@ -21,11 +26,12 @@
     { "source": "/for-infrastructure", "destination": "/for-infrastructure/index.html" },
     { "source": "/ryc/dashboard", "destination": "/ryc-dashboard/index.html" },
     { "source": "/ryc/command", "destination": "/ryc-command/index.html" },
-    { "source": "/golf", "destination": "/golf/index.html" },
-    { "source": "/golf/picks", "destination": "/golf/picks.html" },
-    { "source": "/football", "destination": "/football/index.html" },
-    { "source": "/football/picks", "destination": "/football/picks.html" },
-    { "source": "/football/commish", "destination": "/football/commish.html" },
+    { "source": "/pool", "destination": "/pool/index.html" },
+    { "source": "/pool/golf", "destination": "/pool/golf.html" },
+    { "source": "/pool/golf/picks", "destination": "/pool/golf-picks.html" },
+    { "source": "/pool/football", "destination": "/pool/football.html" },
+    { "source": "/pool/football/picks", "destination": "/pool/football-picks.html" },
+    { "source": "/pool/commish", "destination": "/pool/commish.html" },
     { "source": "/pool/privacy", "destination": "/pool/privacy.html" },
     { "source": "/pool/terms", "destination": "/pool/terms.html" },
     { "source": "/ryc/estimate", "destination": "/ryc-estimate/index.html" },

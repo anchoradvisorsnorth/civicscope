@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>The Pool</title>
+<style>
+  :root{--navy:#0a2240;--green:#14532d;--gold:#c8a24b;--line:#e4e7ec;--muted:#667085;--bg:#f8f7f4}
+  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:#101828}
+  .hero{background:linear-gradient(135deg,var(--navy),var(--green));color:#fff;padding:34px 20px 30px;text-align:center}
+  .hero h1{margin:0;font-size:30px;letter-spacing:.3px}
+  .hero p{margin:8px 0 0;color:#b9c6da;font-size:14px}
+  .wrap{max-width:720px;margin:0 auto;padding:22px 16px 60px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+  .card h2{margin:0 0 10px;font-size:15px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .big{display:flex;flex-wrap:wrap;gap:12px}
+  .tile{flex:1 1 200px;display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;transition:box-shadow .15s}
+  .tile:hover{box-shadow:0 4px 14px rgba(10,34,64,.12)}
+  .tile .t{font-size:18px;font-weight:800;color:var(--navy)}
+  .tile .s{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.5}
+  .status{font-size:12px;font-weight:800;border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:8px}
+  .live{background:#e8f6ee;color:#0f7a3d}
+  .idle{background:#f2f4f7;color:var(--muted)}
+  .champ{background:linear-gradient(135deg,#241d00,#3a3000);border:1px solid #6b5a1a;color:#fff}
+  .champ .t{color:var(--gold)}
+  .champ .s{color:#d8cfa9}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td{padding:8px 4px;border-bottom:1px solid var(--line)}
+  td:last-child{text-align:right;font-weight:700}
+  tr:last-child td{border-bottom:none}
+  .foot{text-align:center;font-size:12px;color:var(--muted);margin-top:22px;line-height:1.7}
+  .foot a{color:var(--navy)}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>🏆 The Pool</h1>
+  <p>Golf majors · Football ATS · same guys, all season</p>
+</div>
+<div class="wrap">
+
+  <div class="big">
+    <a class="tile champ" href="/pool/golf">
+      <div class="status live" id="golf-status">FINAL</div>
+      <div class="t" id="golf-title">⛳ The Open 2026 — BOB wins</div>
+      <div class="s" id="golf-sub">$3,654,372 · beat NICK by $882,892 · Royal Birkdale. Full board →</div>
+    </a>
+    <a class="tile" href="/pool/football">
+      <div class="status idle" id="fb-status">PRESEASON</div>
+      <div class="t">🏈 Football Pool</div>
+      <div class="s" id="fb-sub">Weekly picks against the spread, September–January. Board, standings &amp; results →</div>
+    </a>
+  </div>
+
+  <div class="big" style="margin-top:2px">
+    <a class="tile" href="/pool/football/picks">
+      <div class="t">📝 Make picks</div>
+      <div class="s">Football weekly picks — name + PIN</div>
+    </a>
+    <a class="tile" href="/pool/commish">
+      <div class="t">🛠️ Commissioner</div>
+      <div class="s">Mike's tools — build the slate, lock, finalize</div>
+    </a>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2>Champions</h2>
+    <table>
+      <tr><td>⛳ US Open 2026</td><td>MARK</td></tr>
+      <tr><td>⛳ The Open 2026</td><td>BOB</td></tr>
+      <tr><td>🏈 Football 2026</td><td id="fb-champ">season starts September</td></tr>
+    </table>
+  </div>
+
+  <div class="foot">
+    A private pool for the crew · <a href="/pool/privacy">Privacy</a> · <a href="/pool/terms">Terms</a>
+  </div>
+</div>
+
+<script>
+// Light status check — if a football week is live, promote the football tile. Fails silent.
+(async()=>{
+  try{
+    const r=await fetch('/api/football-pool?list=2026',{cache:'no-store'});
+    const weeks=await r.json();
+    if(!Array.isArray(weeks)||!weeks.length) return;
+    const open=weeks.find(w=>w.slateLocked&&!w.finalized);
+    const done=weeks.filter(w=>w.finalized);
+    if(open){
+      const st=document.getElementById('fb-status');
+      st.textContent='LIVE — '+(open.label||open.slug); st.className='status live';
+      document.getElementById('fb-sub').innerHTML='Picks are open — get yours in before kickoff. Board &amp; standings →';
+    } else if(done.length){
+      document.getElementById('fb-status').textContent=done.length+' WEEKS PLAYED';
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>

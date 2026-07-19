@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.1.0-reply-to-aan';
+const VER = '1.2.0-pool-merge';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
       <div style="border:1px solid #e4e7ec;border-top:none;border-radius:0 0 10px 10px;padding:18px 22px;background:#fff">
         <table style="font-size:13px;border-collapse:collapse;margin-bottom:12px">${rows}</table>
         <div style="text-align:center;margin:8px 0">
-          <a href="https://app.civicscope.io/football" style="display:inline-block;background:#c8a24b;color:#1a1300;font-weight:800;font-size:16px;padding:12px 24px;border-radius:10px;text-decoration:none">See everyone's picks →</a>
+          <a href="https://app.civicscope.io/pool/football" style="display:inline-block;background:#c8a24b;color:#1a1300;font-weight:800;font-size:16px;padding:12px 24px;border-radius:10px;text-decoration:none">See everyone's picks →</a>
         </div>
         <div style="font-size:12px;color:#667085">Live scoring against the spread all weekend. Good luck.</div>
       </div></div>`;
@@ -170,7 +170,7 @@ export default async function handler(req, res) {
           if (req.body.notify) {
             const cfg = await getRow('config');
             const players = (cfg?.data?.players) || [];
-            const base = `https://app.civicscope.io/football`;
+            const base = `https://app.civicscope.io/pool/football`;
             const gameRows = wk.games.map(g =>
               `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085">${new Date(g.date).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET</td></tr>`).join('');
             for (const p of players) {
