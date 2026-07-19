@@ -8,6 +8,9 @@
 // Pick privacy: GET strips other players' picks until the week deadline passes (name+pin reveals your own).
 
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
+// Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
+// (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
+const VER = '1.1.0-reply-to-aan';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -66,7 +69,7 @@ export default async function handler(req, res) {
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@jbkdevelopment.com', to: [p.email], subject: `🏈 All picks are in — ${wk.label || slug} is locked`, html }),
+          body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `🏈 All picks are in — ${wk.label || slug} is locked`, html }),
         });
       } catch (e) { /* best-effort */ }
     }
@@ -74,6 +77,8 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
+      // live-build check: curl "…/api/football-pool?ver=1" → must match the VER in the repo
+      if (req.query.ver !== undefined) return res.status(200).json({ ver: VER });
       // list all weeks for a season (summaries only — no picks)
       if (req.query.list) {
         const season = String(req.query.list).replace(/\D/g, '');
@@ -186,7 +191,7 @@ export default async function handler(req, res) {
               const r = await fetch('https://api.resend.com/emails', {
                 method: 'POST',
                 headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@jbkdevelopment.com', to: [p.email], subject: `🏈 ${wk.label || slug} slate is locked — picks due before first kickoff`, html }),
+                body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `🏈 ${wk.label || slug} slate is locked — picks due before first kickoff`, html }),
               });
               if (r.ok) emailed++;
             }
