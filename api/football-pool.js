@@ -66,7 +66,7 @@ export default async function handler(req, res) {
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', to: [p.email], subject: `🏈 All picks are in — ${wk.label || slug} is locked`, html }),
+          body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@jbkdevelopment.com', to: [p.email], subject: `🏈 All picks are in — ${wk.label || slug} is locked`, html }),
         });
       } catch (e) { /* best-effort */ }
     }
@@ -186,7 +186,7 @@ export default async function handler(req, res) {
               const r = await fetch('https://api.resend.com/emails', {
                 method: 'POST',
                 headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', to: [p.email], subject: `🏈 ${wk.label || slug} slate is locked — picks due before first kickoff`, html }),
+                body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@jbkdevelopment.com', to: [p.email], subject: `🏈 ${wk.label || slug} slate is locked — picks due before first kickoff`, html }),
               });
               if (r.ok) emailed++;
             }
