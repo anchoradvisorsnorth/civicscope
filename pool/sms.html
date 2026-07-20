@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>The Pool — Text Alerts Sign-Up</title>
+<style>
+  :root{--navy:#0a2240;--green:#14532d;--gold:#c8a24b;--line:#e4e7ec;--muted:#667085;--bg:#f8f7f4}
+  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:#101828}
+  .wrap{max-width:560px;margin:0 auto;padding:26px 18px 60px}
+  .head{background:linear-gradient(135deg,var(--navy),var(--green));color:#fff;padding:20px 22px;border-radius:12px;margin-bottom:20px}
+  .head h1{margin:0;font-size:21px}
+  .head p{margin:6px 0 0;font-size:13px;color:#b9c6da}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 22px}
+  label{display:block;font-size:13px;font-weight:700;margin:14px 0 5px}
+  input[type=text],input[type=tel]{width:100%;padding:10px 12px;font-size:15px;border:1px solid #cbd2dc;border-radius:8px}
+  .consent{display:flex;gap:10px;align-items:flex-start;margin:18px 0 6px}
+  .consent input{margin-top:3px;width:17px;height:17px;flex:none}
+  .consent span{font-size:13px;line-height:1.55;color:#344054}
+  button{width:100%;margin-top:16px;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:13px;font-size:16px;font-weight:800;cursor:pointer}
+  button:disabled{opacity:.5;cursor:default}
+  .fine{font-size:12px;color:var(--muted);line-height:1.7;margin-top:16px}
+  .fine a{color:var(--navy)}
+  .ok{display:none;background:#e8f6ee;color:#0f7a3d;border:1px solid #b7e0c6;border-radius:9px;padding:12px 14px;font-size:14px;margin-top:14px;font-weight:600}
+  .err{display:none;background:#fdecea;color:#b42318;border:1px solid #f4b9b2;border-radius:9px;padding:12px 14px;font-size:14px;margin-top:14px}
+  .hp{position:absolute;left:-6000px}
+</style>
+</head>
+<body>
+<div style="background:#08192e;font-family:-apple-system,'Segoe UI',Arial,sans-serif;font-size:13px;padding:8px 18px;display:flex;gap:18px;align-items:center"><a href="/pool" style="color:#fff;font-weight:800;text-decoration:none">🏆 The Pool</a><a href="/pool/golf" style="color:#b9c6da;text-decoration:none">Golf</a><a href="/pool/football" style="color:#b9c6da;text-decoration:none">Football</a></div>
+<div class="wrap">
+  <div class="head">
+    <h1>📱 The Pool — Text Alerts</h1>
+    <p>Pick reminders, deadlines, your PIN, and results by text. Invited members only.</p>
+  </div>
+  <div class="card">
+    <form id="f">
+      <label for="nm">Your name</label>
+      <input type="text" id="nm" autocomplete="name" maxlength="60" required>
+      <label for="ph">Mobile number</label>
+      <input type="tel" id="ph" autocomplete="tel" placeholder="(574) 555-0100" maxlength="20" required>
+      <input class="hp" type="text" id="company" tabindex="-1" autocomplete="off">
+      <div class="consent">
+        <input type="checkbox" id="agree">
+        <span><b>I agree to receive recurring automated text messages from The Pool</b> at the mobile number provided, with contest notifications such as pick reminders, deadline notices, entry PINs, and results. Message frequency varies (typically 1–5 per active contest week). <b>Message and data rates may apply.</b> Consent is not a condition of participating in the pool. Reply <b>STOP</b> to cancel at any time or <b>HELP</b> for help.</span>
+      </div>
+      <button id="btn" type="submit" disabled>Sign me up for texts</button>
+      <div class="ok" id="ok">✅ You're on the list — you'll get a confirmation once texting goes live. You can opt out any time by replying STOP.</div>
+      <div class="err" id="er"></div>
+    </form>
+    <div class="fine">
+      The Pool is a private, invitation-only recreational contest among friends — there is no public membership.
+      Your number is used only for pool notifications and is never shared with third parties or affiliates for
+      marketing purposes. <a href="/pool/privacy">Privacy Policy</a> · <a href="/pool/terms">Terms &amp; Conditions</a>
+    </div>
+  </div>
+</div>
+<script>
+const agree=document.getElementById('agree'), btn=document.getElementById('btn');
+agree.addEventListener('change',()=>{btn.disabled=!agree.checked;});
+document.getElementById('f').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const ok=document.getElementById('ok'), er=document.getElementById('er');
+  ok.style.display='none'; er.style.display='none';
+  const name=document.getElementById('nm').value.trim(), phone=document.getElementById('ph').value.trim();
+  const digits=phone.replace(/\D/g,'');
+  if(!name){er.textContent='Please enter your name.';er.style.display='block';return;}
+  if(digits.length<10||digits.length>11){er.textContent='That doesn’t look like a valid US mobile number.';er.style.display='block';return;}
+  if(!agree.checked) return;
+  btn.disabled=true; btn.textContent='Signing up…';
+  try{
+    const r=await fetch('/api/football-pool',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'sms_optin',name,phone,hp:document.getElementById('company').value,consentText:document.querySelector('.consent span').innerText})});
+    const j=await r.json();
+    if(!r.ok||j.error){throw new Error(j.error||('HTTP '+r.status));}
+    ok.style.display='block'; document.getElementById('f').reset(); btn.textContent='Sign me up for texts';
+  }catch(ex){ er.textContent='Could not sign up: '+ex.message; er.style.display='block'; btn.textContent='Sign me up for texts'; btn.disabled=!agree.checked; }
+});
+</script>
+</body>
+</html>
