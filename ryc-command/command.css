@@ -98,6 +98,10 @@ table.ptable{width:100%;border-collapse:collapse;font-size:12.5px}
 .ptable .jname{font-weight:600;max-width:250px;overflow:hidden;text-overflow:ellipsis}
 .ptable .jno{color:#8b95ab;font-size:11px}
 .ptable tfoot td{background:#f7f9fc;font-weight:700;border-top:2px solid #dfe4ec}
+/* WOH as-of gate — columns whose values the date gate changes (matches the banner blue) */
+.ptable th.gated{background:#dbe8fb;color:#27476e}
+.ptable td.gated{background:#eef4fd}
+.ptable tfoot td.gated{background:#dbe8fb}
 .m-g{color:#1d9e63;font-weight:600}.m-a{color:#c07f1a;font-weight:600}.m-r{color:#d64545;font-weight:600}.m-m{color:#9aa3b5}
 .conf{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 6px}
 .conf.ok{background:rgba(29,158,99,.12);color:#1d9e63}.conf.mid{background:rgba(192,127,26,.13);color:#c07f1a}.conf.low{background:rgba(214,69,69,.12);color:#d64545}

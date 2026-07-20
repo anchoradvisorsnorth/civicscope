@@ -910,23 +910,28 @@ function renderWOH(){
      shows the PREVIOUS day in ET (caught live 2026-07-20: 05-25 rendered "May 24") */
   var asOfLabel=wohAsOf?new Date(wohAsOf.date+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):null;
   var asOfBanner=wohAsOf
-    ?("<div class=\"warn-banner\" style=\"background:#eef4fd;border-color:#b9cff2;color:#27476e\">📅 <b>As-of view — Foundation activity through "+asOfLabel+"</b> (live ODBC: cost by <code>date_posted</code>, billings by <code>transaction_date</code>). Contract Price and Projected Budget Cost are current values, not gated. Cost to Complete recomputed off the gated cost.</div>")
+    ?("<div class=\"warn-banner\" style=\"background:#eef4fd;border-color:#b9cff2;color:#27476e\">📅 <b>As-of view — Foundation activity through "+asOfLabel+"</b> (live ODBC: cost by <code>date_posted</code>, billings by <code>transaction_date</code>). <b>Highlighted columns</b> reflect the gate — Cost to Date and Billings are the gated sums; Cost to Complete is recomputed off the gated cost. Contract Price and Projected Budget Cost are current values, not gated.</div>")
     :"";
 
+  /* gated-column tint: when the as-of view is active, the columns whose values the gate
+     changes (Cost to Date, Billings = gated sums; Cost to Complete = recomputed off the
+     gated cost) carry the banner's blue so the affected numbers are unmistakable */
+  var GATED={ctd:1,ctc:1,billed:1};
+  function colCls(key,base){ var c=base||""; if(wohAsOf&&GATED[key]) c+=(c?" ":"")+"gated"; return c?(" class=\""+c+"\""):""; }
   var cols=[["name","Project Name"],["contract","Contract Price"],["ctd","Cost to Date"],["ctc","Cost to Complete"],["tec","Projected Budget Cost"],["billed","Billings to Date"]];
   var head="<tr>"+cols.map(function(cd){
-    var right=cd[0]==="name"?"":" class=\"r\"";
     var arr=cd[0]===wohSort.col?(" <span class=\"arr\">"+(wohSort.dir>0?"▲":"▼")+"</span>"):"";
-    return "<th"+right+" data-col=\""+cd[0]+"\" style=\"cursor:pointer\" onclick=\"wohSetSort('"+cd[0]+"')\">"+cd[1]+arr+"</th>";
+    var gate=(wohAsOf&&GATED[cd[0]])?" <span title=\"Gated to the as-of date\">📅</span>":"";
+    return "<th"+colCls(cd[0],cd[0]==="name"?"":"r")+" data-col=\""+cd[0]+"\" style=\"cursor:pointer\" onclick=\"wohSetSort('"+cd[0]+"')\">"+cd[1]+gate+arr+"</th>";
   }).join("")+"</tr>";
   var body=rows.map(function(r){
     return "<tr"+rowAttr(r.jno)+"><td>"+esc(r.name)+(r.gc?" <span class=\"conf mid\" title=\"Greencroft program — Foundation-sourced; Projected Budget Cost = Foundation as-bid cost + CO cost adj (no Procore ERP budget)\">F</span>":srcLink(r.budgetUrl,"Budget"))+"</td>"
-      +"<td class=\"r\">"+briefDol(r.contract)+"</td><td class=\"r\">"+briefDol(r.ctd)+"</td>"
-      +"<td class=\"r\">"+briefDol(r.ctc)+"</td><td class=\"r\">"+briefDol(r.tec)+"</td><td class=\"r\">"+briefDol(r.billed)+"</td></tr>";
+      +"<td"+colCls("contract","r")+">"+briefDol(r.contract)+"</td><td"+colCls("ctd","r")+">"+briefDol(r.ctd)+"</td>"
+      +"<td"+colCls("ctc","r")+">"+briefDol(r.ctc)+"</td><td"+colCls("tec","r")+">"+briefDol(r.tec)+"</td><td"+colCls("billed","r")+">"+briefDol(r.billed)+"</td></tr>";
   }).join("");
   function sum(list,k){ return list.reduce(function(s,r){return s+(r[k]||0);},0); }
   function footRow(label,list,bold){
-    return "<tr"+(bold?" style=\"font-weight:700\"":"")+"><td>"+label+"</td><td class=\"r\">"+briefDol(sum(list,"contract"))+"</td><td class=\"r\">"+briefDol(sum(list,"ctd"))+"</td><td class=\"r\">"+briefDol(sum(list,"ctc"))+"</td><td class=\"r\">"+briefDol(sum(list,"tec"))+"</td><td class=\"r\">"+briefDol(sum(list,"billed"))+"</td></tr>";
+    return "<tr"+(bold?" style=\"font-weight:700\"":"")+"><td>"+label+"</td><td"+colCls("contract","r")+">"+briefDol(sum(list,"contract"))+"</td><td"+colCls("ctd","r")+">"+briefDol(sum(list,"ctd"))+"</td><td"+colCls("ctc","r")+">"+briefDol(sum(list,"ctc"))+"</td><td"+colCls("tec","r")+">"+briefDol(sum(list,"tec"))+"</td><td"+colCls("billed","r")+">"+briefDol(sum(list,"billed"))+"</td></tr>";
   }
   var foot=footRow(board.length+" board jobs",board,false)
     +(gc.length?footRow(gc.length+" Greencroft",gc,false):"")
