@@ -5,6 +5,8 @@
 function projectedGrossMargin(){
   var jobs=getActiveJobs(), tC=0, tPC=0;
   jobs.forEach(function(j){ var b=j.budget||{}; var pc=b.revised>0?b.revised:(b.original>0?b.original:0); if(j.contractValue>0&&pc>0){ tC+=j.contractValue; tPC+=pc; } });
+  // Greencroft program (Foundation-sourced, no Procore budget): contract vs as-bid cost + CO cost adj
+  greencroftJobs().forEach(function(f){ var c=(f.currentContract>0)?f.currentContract:(f.originalContract||0); var pc=gcProjCost(f); if(c>0&&pc>0){ tC+=c; tPC+=pc; } });
   return tC>0?((tC-tPC)/tC*100):null;
 }
 
@@ -12,7 +14,9 @@ function renderCommand(){
   var haveFnd=!!(foundationData&&foundationData.jobs);
   var haveAr=!!(arData&&arData.invoices);
   var jobs=getActiveJobs();
-  var totalContract=jobs.reduce(function(s,j){return s+(j.contractValue||0);},0);
+  var gc=greencroftJobs();
+  var gcContract=gc.reduce(function(s,f){return s+((f.currentContract>0)?f.currentContract:(f.originalContract||0));},0);
+  var totalContract=jobs.reduce(function(s,j){return s+(j.contractValue||0);},0)+gcContract;
   var lights=jobs.map(function(j){return {j:j,sl:getStoplight(j,j)};});
   var closeouts=lights.filter(function(x){ return isCloseoutOnly(x.j); });
   var closeoutSet=new Set(closeouts.map(function(x){return x.j;}));
@@ -32,7 +36,7 @@ function renderCommand(){
   /* KPI strip */
   function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
   var strip="<div class=\"kpi-strip\">"
-    +kpi("Active contract value",fmt(totalContract),jobs.length+" active jobs","accent")
+    +kpi("Active contract value",fmt(totalContract),(jobs.length+gc.length)+" active jobs — "+jobs.length+" board + "+gc.length+" Greencroft","accent")
     +kpi("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast · Procore budget",(gm!=null&&gm<8)?"warn":"")
     +kpi("Overdue AR (active)",haveAr?fmtCompact(overdue):"Unavailable",haveAr?"needs collection":"AR feed down",haveAr?(overdue>0?"bad":""):"warn")
     +kpi("Needs invoicing",haveFnd?fmtCompact(needsInv):"Unavailable",haveFnd?"earned, not billed":"Foundation feed down",haveFnd?(needsInv>0?"warn":""):"warn")
@@ -106,7 +110,7 @@ function renderCommand(){
     +chip(!!arData,"AR",(((arData&&arData.invoices)||[]).length)+" invoices",arData&&arData.refreshed)
     +chip(!!buildrData,"Buildr",(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",buildrData&&buildrData.refreshed)
     +chip(!!bcData,"BC bid board",(bcData&&bcData.published?bcData.published.length:0)+" out to bid",bcData&&bcData.generatedAt)
-    +chip(foundationOnly.length>=0,"Coverage",foundationOnly.length+" Foundation-only active jobs not on board",null)
+    +chip(foundationOnly.length>=0,"Coverage",foundationOnlyNonGC().length+" Foundation-only active jobs not on board · "+gc.length+" Greencroft surfaced",null)
     +"</div></div>";
 
   return warn+strip+queue+health;
@@ -196,9 +200,33 @@ function renderPortfolio(){
     +"<span class=\"pcount\" id=\"pcount\"></span></div>";
   var cols=[["name","Job"],["pm","PM"],["stage","Stage"],["contract","Contract"],["ctd","Cost to date"],["pct","%"],["mtd","Margin"],["needsInv","Billing"],["status","Status"],["confRank","Conf"]];
   var head="<tr>"+cols.map(function(cd){ var right=["contract","ctd","pct","mtd"].indexOf(cd[0])>-1?" class=\"r\"":""; return "<th"+right+" data-col=\""+cd[0]+"\" data-lbl=\""+cd[1]+"\" onclick=\"pfSetSort('"+cd[0]+"')\">"+cd[1]+"</th>"; }).join("")+"</tr>";
+  /* Greencroft program — rolled-up band (Keith 2026-07-20): Foundation-sourced unit jobs,
+     no Procore stage/%/stoplight, so they'd be dash-rows in the main table. One summary
+     band + expandable per-unit list; individual lines live on the Work on Hand view. */
+  var gc=greencroftJobs().slice().sort(function(a,b){return ((b.currentContract||b.originalContract||0)-(a.currentContract||a.originalContract||0));});
+  var gcSec="";
+  if(gc.length){
+    var gcC=0,gcCtd=0,gcInv=0;
+    gc.forEach(function(f){ gcC+=(f.currentContract>0)?f.currentContract:(f.originalContract||0); gcCtd+=(f.totalCosts||0); gcInv+=(f.totalInvoiced||0); });
+    var gcRows=gc.map(function(f){
+      var c=(f.currentContract>0)?f.currentContract:(f.originalContract||0);
+      var pos=(f.totalInvoiced||0)-(f.totalCosts||0);
+      return "<tr class=\"static\"><td><div class=\"jname\">"+esc(f.description||"")+"</div><div class=\"jno\">"+esc(f.jobNo||"")+(f.pmName?" · "+esc(f.pmName):"")+"</div></td>"
+        +"<td>"+esc(f.customerName||"—")+"</td>"
+        +"<td class=\"r\">"+(c>0?fmtCompact(c):"<span class=\"m-m\">—</span>")+"</td>"
+        +"<td class=\"r\">"+fmtCompact(f.totalCosts||0)+"</td><td class=\"r\">"+fmtCompact(f.totalInvoiced||0)+"</td>"
+        +"<td class=\"r\">"+(pos>=0?("<span class=\"m-g\">+"+fmtCompact(pos)+"</span>"):("<span class=\"m-a\">"+fmtCompact(pos)+"</span>"))+"</td></tr>";
+    }).join("");
+    gcSec="<div style=\"margin-top:18px\"><div class=\"vhead\">Greencroft program</div>"
+      +"<div class=\"vsub\">"+gc.length+" active unit jobs (Greencroft Communities / Southfield Village) · <b>"+fmtCompact(gcC)+"</b> contract · "+fmtCompact(gcCtd)+" cost to date · "+fmtCompact(gcInv)+" billed. Foundation-sourced (not on the Procore board — no stage/stoplight tracking). Lines also appear on the <b>Work on Hand</b> view.</div>"
+      +"<details class=\"lgcy\"><summary>Per-unit detail — "+gc.length+" jobs</summary>"
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th>Customer</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th><th class=\"r\">Billed − cost</th></tr></thead><tbody>"+gcRows+"</tbody>"
+      +"<tfoot><tr><td>"+gc.length+" jobs</td><td></td><td class=\"r\">"+fmtCompact(gcC)+"</td><td class=\"r\">"+fmtCompact(gcCtd)+"</td><td class=\"r\">"+fmtCompact(gcInv)+"</td><td class=\"r\">"+fmtCompact(gcInv-gcCtd)+"</td></tr></tfoot></table></div></details></div>";
+  }
   document.getElementById("view").innerHTML=bar
     +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead>"+head+"</thead><tbody id=\"ptbody\"></tbody><tfoot id=\"ptfoot\"></tfoot></table></div>"
-    +"<div style=\"margin-top:10px;font-size:11.5px;color:#67718a\">Contract = Procore Revised Contract Amount (⚑ = diverges from Foundation) · Cost to date = Foundation actuals · Margin = margin to date on cost basis, \"bid\" = contracted margin · Billing = needs invoicing / overdue AR (Foundation) · Click a row (or press Enter) for the job detail drawer.</div>";
+    +"<div style=\"margin-top:10px;font-size:11.5px;color:#67718a\">Contract = Procore Revised Contract Amount (⚑ = diverges from Foundation) · Cost to date = Foundation actuals · Margin = margin to date on cost basis, \"bid\" = contracted margin · Billing = needs invoicing / overdue AR (Foundation) · Click a row (or press Enter) for the job detail drawer.</div>"
+    +gcSec;
   var tbody=document.getElementById("ptbody");
   tbody.addEventListener("click",function(e){ var tr=e.target.closest("tr[data-jno]"); if(tr) openDrawer(tr.getAttribute("data-jno"),tr); });
   tbody.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ var tr=e.target.closest("tr[data-jno]"); if(tr){ e.preventDefault(); openDrawer(tr.getAttribute("data-jno"),tr); } } });
@@ -404,9 +432,9 @@ function renderMargin(){
     ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th>Issue</th><th>Detail</th></tr></thead><tbody>"+excHtml+"</tbody></table></div>")
     :"<div class=\"vsub\">No data exceptions — Procore and Foundation agree everywhere.</div>";
 
-  var fOnly=(foundationOnly||[]).slice().sort(function(a,b){return (b.currentContract||0)-(a.currentContract||0);});
+  var fOnly=foundationOnlyNonGC().slice().sort(function(a,b){return (b.currentContract||0)-(a.currentContract||0);});
   var fOnlySec=fOnly.length
-    ?("<details class=\"lgcy\"><summary>"+fOnly.length+" active Foundation jobs not on the Procore board — "+fmtCompact(fOnly.reduce(function(s,f){return s+(f.currentContract||0);},0))+" of contract value with no field/PM tracking</summary>"
+    ?("<details class=\"lgcy\"><summary>"+fOnly.length+" active Foundation jobs not on the Procore board (excl. Greencroft — surfaced on Work on Hand) — "+fmtCompact(fOnly.reduce(function(s,f){return s+(f.currentContract||0);},0))+" of contract value with no field/PM tracking</summary>"
       +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th>PM</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th></tr></thead><tbody>"
       +fOnly.slice(0,15).map(function(f){ return "<tr class=\"static\"><td><div class=\"jname\">"+esc(f.description||"")+"</div><div class=\"jno\">"+esc(f.jobNo||"")+"</div></td><td>"+esc(f.pmName||"—")+"</td><td class=\"r\">"+fmtCompact(f.currentContract||0)+"</td><td class=\"r\">"+fmtCompact(f.totalCosts||0)+"</td><td class=\"r\">"+fmtCompact(f.totalInvoiced||0)+"</td></tr>"; }).join("")
       +"</tbody></table></div>"+(fOnly.length>15?"<div class=\"vsub\" style=\"margin-top:6px\">Top 15 by contract shown.</div>":"")+"</details>")
@@ -664,7 +692,7 @@ function renderForecast(){
   /* reconciliation vs Procore/Foundation left-to-bill */
   var recon="";
   if(activeData&&activeData.jobs&&foundationData&&foundationData.jobs){
-    var woh=wohRows();
+    var woh=wohRows().filter(function(r){return !r.gc;}); /* board scope — the Buildr cross-check predates Greencroft rows */
     var leftToBill=woh.reduce(function(s,r){return s+((r.contract||0)-(r.billed||0));},0);
     var buildrActiveFwd=0;
     var spA=fcSpread(projects.filter(function(p){return p.status==="active";}));
@@ -797,29 +825,122 @@ function renderEstimating(){
     +board+drafts+staleSec+outcomes;
 }
 
-/* ===== Executive Brief (Phase 5) ============================================= */
+/* ===== Work on Hand (own view since v2.18.0; previously inside the Executive Brief) ===== */
 /* Work-on-Hand rows — EXACT legacy conventions (columns/sources per Tristan/Steve 2026-07-07):
    Contract Price = Procore Revised Contract Amount; Total Job Costs = Procore ERP Projected Budget;
-   Cost to Date + Billings = FOUNDATION. Cost to Complete = Total Job Costs − Cost to Date. */
-function wohRows(){
+   Cost to Date + Billings = FOUNDATION. Cost to Complete = Total Job Costs − Cost to Date.
+   + Greencroft program rows (2026-07-20): Foundation-sourced — Contract = Foundation
+   current contract, Projected Budget Cost = Foundation as-bid cost + CO cost adj (marked F).
+   + optional as-of gate (wohAsOf): Cost to Date / Billings restricted to Foundation
+   transactions on/before a user-picked date (live ODBC: v_job_history.date_posted,
+   v_em_jc_billings.transaction_date — date_posted per Data Dictionary #10, date_booked
+   carries future payroll pay-dates). Contract + Projected Budget are NOT gated. */
+var wohSort={col:"contract",dir:-1};
+var wohAsOf=null; /* {date:"YYYY-MM-DD", cost:{jobNo:sum}, billed:{jobNo:sum}} */
+function wohRows(gated){
   var rows=[];
+  var gate=gated?wohAsOf:null; /* gate applies ONLY where explicitly requested (WOH view + its CSV) — the Brief always shows current snapshot figures */
   getActiveJobs().forEach(function(j){
     var f=j.foundation, b=j.budget||{};
+    var jno=j.projectNumber||"";
     var contract=(j.revisedContract>0)?j.revisedContract:((j.contractValue>0)?j.contractValue:null);
     var ctd=f?f.totalCosts:null;
     var tec=(b.projectedBudget!=null)?b.projectedBudget:null;
     var billed=f?f.totalInvoiced:null;
+    if(gate&&f){ ctd=gate.cost[jno]||0; billed=gate.billed[jno]||0; }
     var ctc=(tec!=null&&ctd!=null)?(tec-ctd):null;
-    rows.push({jno:j.projectNumber||"",name:j.name||(f&&f.description)||(j.projectNumber||""),contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null,budgetUrl:procoreBudgetUrl(j)});
+    rows.push({jno:jno,name:j.name||(f&&f.description)||jno,contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null,gc:false,budgetUrl:procoreBudgetUrl(j)});
   });
-  rows.sort(function(a,b2){return (b2.contract||0)-(a.contract||0);});
+  greencroftJobs().forEach(function(f){
+    var jno=f.jobNo||"";
+    var contract=(f.currentContract>0)?f.currentContract:((f.originalContract>0)?f.originalContract:null);
+    var ctd=f.totalCosts!=null?f.totalCosts:null;
+    var tec=gcProjCost(f);
+    var billed=f.totalInvoiced!=null?f.totalInvoiced:null;
+    if(gate){ ctd=gate.cost[jno]||0; billed=gate.billed[jno]||0; }
+    var ctc=(tec!=null&&ctd!=null)?(tec-ctd):null;
+    rows.push({jno:jno,name:f.description||jno,contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null,gc:true,budgetUrl:null});
+  });
+  var c=wohSort.col,d=wohSort.dir;
+  rows.sort(function(a,b2){
+    var va=a[c],vb=b2[c];
+    if(c==="name"){ va=(va||"").toLowerCase(); vb=(vb||"").toLowerCase(); return va<vb?-d:va>vb?d:0; }
+    va=(va==null?-Infinity:va); vb=(vb==null?-Infinity:vb); return (va-vb)*d;
+  });
   return rows;
+}
+function wohSetSort(col){ if(wohSort.col===col) wohSort.dir=-wohSort.dir; else wohSort={col:col,dir:col==="name"?1:-1}; renderView(); }
+function wohRunAsOf(){
+  var inp=document.getElementById("woh-asof");
+  var d=inp?inp.value:"";
+  if(!d){ alert("Pick a date first."); return; }
+  var today=new Date().toISOString().slice(0,10);
+  if(d>today){ alert("Future dates can't be gated — pick "+today+" or earlier."); return; }
+  var btn=document.getElementById("woh-run");
+  if(btn){ btn.disabled=true; btn.textContent="Running…"; }
+  fetch("/api/ryc-foundation-asof",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({date:d})})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if(j&&j.cost){ wohAsOf={date:d,cost:j.cost,billed:j.billed||{}}; renderView(); }
+      else { if(btn){ btn.disabled=false; btn.textContent="Run"; } alert("As-of query failed: "+((j&&j.error)||"unknown error")); }
+    })
+    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent="Run"; } alert("Could not reach the as-of endpoint."); });
+}
+function wohClearAsOf(){ wohAsOf=null; renderView(); }
+function renderWOH(){
+  var view=document.getElementById("view");
+  var haveFnd=!!(foundationData&&foundationData.jobs);
+  var warn=haveFnd?"":"<div class=\"warn-banner\">⚠️ Foundation feed unavailable — Cost to Date / Billings show <b>Unavailable</b>, not $0.</div>";
+  var rows=wohRows(true);
+  var board=rows.filter(function(r){return !r.gc;}), gc=rows.filter(function(r){return r.gc;});
+  var fSnap=(foundationData&&foundationData.refreshed)?new Date(foundationData.refreshed).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):null;
+  var missingTec=rows.filter(function(r){return r.noTec;}).length;
+  var today=new Date().toISOString().slice(0,10);
+
+  var controls="<div class=\"pbar\" style=\"align-items:center\">"
+    +"<button class=\"pfill\" onclick=\"refreshFoundation(this)\" title=\"Re-pull Foundation now — catches posting batches since the snapshot\">&#10227; Refresh Foundation</button>"
+    +"<button class=\"pfill\" onclick=\"exportWOHCSV()\" title=\"Download in the Work-on-Hand format (Excel Accounting-style values)\">⬇ CSV</button>"
+    +"<span style=\"margin-left:auto;display:flex;gap:6px;align-items:center;font-size:12px;color:#4a5670\">Cost/Billings through "
+    +"<input id=\"woh-asof\" type=\"date\" max=\""+today+"\" value=\""+(wohAsOf?wohAsOf.date:"")+"\" style=\"padding:5px 8px;border:1px solid #cfd6e2;border-radius:6px;font:inherit;font-size:12px\">"
+    +"<button class=\"pfill\" id=\"woh-run\" onclick=\"wohRunAsOf()\" title=\"Re-query Foundation live, counting only cost posted (date_posted) and billings invoiced (transaction_date) on or before this date\">Run</button>"
+    +(wohAsOf?"<button class=\"pfill\" onclick=\"wohClearAsOf()\">✕ Clear</button>":"")
+    +"</span></div>";
+
+  var asOfBanner=wohAsOf
+    ?("<div class=\"warn-banner\" style=\"background:#eef4fd;border-color:#b9cff2;color:#27476e\">📅 <b>As-of view — Foundation activity through "+fmtDate(wohAsOf.date)+"</b> (live ODBC: cost by <code>date_posted</code>, billings by <code>transaction_date</code>). Contract Price and Projected Budget Cost are current values, not gated. Cost to Complete recomputed off the gated cost.</div>")
+    :"";
+
+  var cols=[["name","Project Name"],["contract","Contract Price"],["ctd","Cost to Date"],["ctc","Cost to Complete"],["tec","Projected Budget Cost"],["billed","Billings to Date"]];
+  var head="<tr>"+cols.map(function(cd){
+    var right=cd[0]==="name"?"":" class=\"r\"";
+    var arr=cd[0]===wohSort.col?(" <span class=\"arr\">"+(wohSort.dir>0?"▲":"▼")+"</span>"):"";
+    return "<th"+right+" data-col=\""+cd[0]+"\" style=\"cursor:pointer\" onclick=\"wohSetSort('"+cd[0]+"')\">"+cd[1]+arr+"</th>";
+  }).join("")+"</tr>";
+  var body=rows.map(function(r){
+    return "<tr"+rowAttr(r.jno)+"><td>"+esc(r.name)+(r.gc?" <span class=\"conf mid\" title=\"Greencroft program — Foundation-sourced; Projected Budget Cost = Foundation as-bid cost + CO cost adj (no Procore ERP budget)\">F</span>":srcLink(r.budgetUrl,"Budget"))+"</td>"
+      +"<td class=\"r\">"+briefDol(r.contract)+"</td><td class=\"r\">"+briefDol(r.ctd)+"</td>"
+      +"<td class=\"r\">"+briefDol(r.ctc)+"</td><td class=\"r\">"+briefDol(r.tec)+"</td><td class=\"r\">"+briefDol(r.billed)+"</td></tr>";
+  }).join("");
+  function sum(list,k){ return list.reduce(function(s,r){return s+(r[k]||0);},0); }
+  function footRow(label,list,bold){
+    return "<tr"+(bold?" style=\"font-weight:700\"":"")+"><td>"+label+"</td><td class=\"r\">"+briefDol(sum(list,"contract"))+"</td><td class=\"r\">"+briefDol(sum(list,"ctd"))+"</td><td class=\"r\">"+briefDol(sum(list,"ctc"))+"</td><td class=\"r\">"+briefDol(sum(list,"tec"))+"</td><td class=\"r\">"+briefDol(sum(list,"billed"))+"</td></tr>";
+  }
+  var foot=footRow(board.length+" board jobs",board,false)
+    +(gc.length?footRow(gc.length+" Greencroft",gc,false):"")
+    +footRow(rows.length+" jobs total",rows,true);
+
+  view.innerHTML=warn+controls+asOfBanner
+    +"<div class=\"vsub\" style=\"margin-top:4px\">The audit table — reconciles to Foundation <b>as of the nightly snapshot"+(fSnap?" ("+fSnap+")":"")+"</b>. Anything posted in Foundation after that time lands here after the next ~5:00 AM ET refresh — reconciling against live Foundation screens? Check for same-day posting batches first. Click a column header to sort"+(wohAsOf?"":" · default: largest contract first")+".</div>"
+    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead>"+head+"</thead><tbody>"+body+"</tbody><tfoot>"+foot+"</tfoot></table></div>"
+    +"<div style=\"margin-top:10px;font-size:11.5px;color:#67718a\"><b>Contract Price</b> (Revised Contract Amount) &amp; <b>Projected Budget Cost</b> (ERP Projected Budget) from Procore; <b>Cost to Date</b> &amp; <b>Billings to Date</b> from Foundation. Cost to Complete = Projected Budget Cost − Cost to Date. Rows marked <span class=\"conf mid\">F</span> are Greencroft program jobs — Foundation-sourced throughout (Projected Budget Cost = as-bid cost + CO cost adj)."
+    +(missingTec?" <b>"+missingTec+"</b> job(s) missing a projected budget — Cost to Complete blank for those.":"")+"</div>";
+  hookDrawerRows();
 }
 function briefDol(n){ return n==null?"<span class=\"m-m\">—</span>":(n<0?"$("+Math.abs(Math.round(n)).toLocaleString("en-US")+")":"$"+Math.round(n).toLocaleString("en-US")); }
 /* CSV export — ported from the legacy dashboard's exportWOHCSV (v1.23.1): values in
    Excel "Accounting" style ( $1,234.56 / $(1,234.56) ), UTF-8 BOM, CRLF. Same file shape. */
 function exportWOHCSV(){
-  var rows=wohRows();
+  var rows=wohRows(true); /* honors the active as-of gate + current sort */
   var header=["Project Name"," Contract Price "," Cost to Date "," Cost to Complete "," Projected Budget Cost "," Billings to Date "];
   function q(v){ var s=(v==null?"":String(v)); return /[",\n\r]/.test(s)?"\""+s.replace(/"/g,"\"\"")+"\"":s; }
   function acct(n){ if(n==null) return ""; var v=Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); return n<0?" $("+v+")":" $"+v+" "; }
@@ -829,6 +950,7 @@ function exportWOHCSV(){
   var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
   var url=URL.createObjectURL(blob);
   var d=new Date(); var stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  if(wohAsOf) stamp+="-asof-"+wohAsOf.date;
   var a=document.createElement("a"); a.href=url; a.download="ryc-work-on-hand-"+stamp+".csv";
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){URL.revokeObjectURL(url);},1000);
@@ -845,19 +967,19 @@ function renderBrief(){
   var haveFnd=!!(foundationData&&foundationData.jobs), haveAr=!!(arData&&arData.invoices);
   var warn=(!haveFnd||!haveAr)?("<div class=\"warn-banner\">⚠️ "+(!haveFnd?"Foundation":"AR")+" feed unavailable — affected figures show <b>Unavailable</b>, not $0. Do not present until resolved.</div>"):"";
   var jobs=getActiveJobs();
-  var totalContract=jobs.reduce(function(s,j){return s+(j.contractValue||0);},0);
   var gm=projectedGrossMargin();
-  var woh=wohRows();
+  var woh=wohRows(); /* ungated — the Brief always reads the current snapshot; incl. Greencroft rows */
+  var gcN=woh.filter(function(r){return r.gc;}).length;
+  var totalContract=woh.reduce(function(s,r){return s+(r.contract||0);},0);
   var ctcRows=woh.filter(function(r){return r.ctc!=null;});
   var ctcSum=ctcRows.reduce(function(s,r){return s+r.ctc;},0);
   var dateStr=new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
   var pAge=ageTxt(activeData&&activeData.refreshed), fAge=ageTxt(foundationData&&foundationData.refreshed);
-  var fSnap=(foundationData&&foundationData.refreshed)?new Date(foundationData.refreshed).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):null;
 
   /* headline band */
   function sb(l,v,s){ return "<div class=\"sb\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div><div class=\"s\">"+(s||"")+"</div></div>"; }
   var band="<div class=\"stat-band\">"
-    +sb("Active work",String(jobs.length)+" jobs",fmtCompact(totalContract)+" under contract")
+    +sb("Active work",String(woh.length)+" jobs",fmtCompact(totalContract)+" under contract — "+jobs.length+" board + "+gcN+" Greencroft")
     +sb("Cost to complete",fmtCompact(ctcSum),"remaining on "+ctcRows.length+" costed jobs")
     +sb("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast, Procore budgets")
     +sb("Billed to date",haveFnd?fmtCompact(woh.reduce(function(s,r){return s+(r.billed||0);},0)):"Unavailable","Foundation, active jobs")
@@ -892,15 +1014,6 @@ function renderBrief(){
     ?("Needs invoicing <b>"+fmtCompact(needsInv)+"</b> · current overdue (≤90d) <b>"+fmtCompact(curOver)+"</b> · aged overdue <b>"+fmtCompact(agedOver)+"</b> · top 5 below — full detail on Billing &amp; Cash.")
     :"Foundation/AR feed unavailable.";
 
-  /* work-on-hand table */
-  var wohBody=woh.map(function(r){
-    return "<tr"+rowAttr(r.jno)+"><td>"+esc(r.name)+srcLink(r.budgetUrl,"Budget")+"</td><td class=\"r\">"+briefDol(r.contract)+"</td><td class=\"r\">"+briefDol(r.ctd)+"</td>"
-      +"<td class=\"r\">"+briefDol(r.ctc)+"</td><td class=\"r\">"+briefDol(r.tec)+"</td><td class=\"r\">"+briefDol(r.billed)+"</td></tr>";
-  }).join("");
-  function wsum(k){ return woh.reduce(function(s,r){return s+(r[k]||0);},0); }
-  var wohFoot="<tr><td>"+woh.length+" jobs</td><td class=\"r\">"+briefDol(wsum("contract"))+"</td><td class=\"r\">"+briefDol(wsum("ctd"))+"</td><td class=\"r\">"+briefDol(wsum("ctc"))+"</td><td class=\"r\">"+briefDol(wsum("tec"))+"</td><td class=\"r\">"+briefDol(wsum("billed"))+"</td></tr>";
-  var missingTec=woh.filter(function(r){return r.noTec;}).length;
-
   /* exceptions + provenance */
   var conflicts=jobs.filter(function(j){return (j.flags||[]).some(function(f){return f.type==="contract";});}).length;
 
@@ -910,12 +1023,9 @@ function renderBrief(){
     +"<div class=\"brief-sec\">"+band+"</div>"
     +"<div class=\"brief-sec\"><h2>What needs attention</h2><div class=\"ssub\">Real risk, aging closeouts, and the biggest margin fades — the week&#8217;s conversation list.</div>"+riskHtml+"</div>"
     +"<div class=\"brief-sec\"><h2>Billing &amp; cash</h2><div class=\"ssub\">"+cashSub+"</div>"+watchHtml+"</div>"
-    +"<div class=\"brief-sec\"><div class=\"sech\"><h2>Work-on-Hand Analysis</h2><div class=\"woh-csv\" style=\"display:flex;gap:8px\"><button class=\"pfill\" onclick=\"refreshFoundation(this)\" title=\"Re-pull Foundation now &mdash; catches posting batches since the snapshot\">&#10227; Refresh</button><button class=\"pfill\" onclick=\"exportWOHCSV()\" title=\"Download in the Work-on-Hand format (Excel Accounting-style values)\">⬇ CSV</button></div></div><div class=\"ssub\">The audit table — reconciles to Foundation <b>as of the nightly snapshot"+(fSnap?" ("+fSnap+")":"")+"</b>. Anything posted in Foundation after that time lands here after the next ~5:00 AM ET refresh — reconciling against live Foundation screens? Check for same-day posting batches first. Largest contract first.</div>"
-    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Project Name</th><th class=\"r\">Contract Price</th><th class=\"r\">Cost to Date</th><th class=\"r\">Cost to Complete</th><th class=\"r\">Projected Budget Cost</th><th class=\"r\">Billings to Date</th></tr></thead><tbody>"+wohBody+"</tbody><tfoot>"+wohFoot+"</tfoot></table></div>"
-    +"<div class=\"woh-note\"><b>Contract Price</b> (Revised Contract Amount) &amp; <b>Projected Budget Cost</b> (ERP Projected Budget) from Procore; <b>Cost to Date</b> &amp; <b>Billings to Date</b> from Foundation. Cost to Complete = Projected Budget Cost − Cost to Date."
-    +(missingTec?" <b>"+missingTec+"</b> job(s) missing Procore Projected Budget — Cost to Complete blank for those.":"")+"</div></div>"
     +"<div class=\"brief-foot\">"+(conflicts?("<b>"+conflicts+"</b> contract conflict(s) between Procore and Foundation are open — see Margin &amp; Risk → Data exceptions before quoting those jobs. "):"Procore and Foundation contracts agree on every active job. ")
-    +"Decision-layer figures (margins, stoplights, gain/fade) are forecasts; source-of-record figures (cost, billings, AR, this Work-on-Hand table) mirror Foundation. Full provenance: RYC_Dashboard_Data_Dictionary.md.</div>"
+    +"The Work-on-Hand Analysis table lives on the <b>Work on Hand</b> view (sortable, as-of date gate, CSV). "
+    +"Decision-layer figures (margins, stoplights, gain/fade) are forecasts; source-of-record figures (cost, billings, AR, Work-on-Hand) mirror Foundation. Full provenance: RYC_Dashboard_Data_Dictionary.md.</div>"
     +"</div>";
   hookDrawerRows();
 }

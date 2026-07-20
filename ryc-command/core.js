@@ -9,6 +9,7 @@ var NAV = [
   { key:"command",  label:"Command Center", ic:"&#129517;" },
   { key:"portfolio",label:"Portfolio",      ic:"&#128203;" },
   { key:"billing",  label:"Billing & Cash", ic:"&#128181;" },
+  { key:"woh",      label:"Work on Hand",   ic:"&#128202;" },
   { key:"margin",   label:"Margin & Risk",  ic:"&#128201;" },
   { key:"forecast", label:"Forecast",       ic:"&#128200;" },
   { key:"estimating",label:"Estimating",    ic:"&#128208;" },
@@ -63,6 +64,23 @@ function mergeFoundation(){
 }
 
 function getActiveJobs(){ return ((activeData&&activeData.jobs)||[]).filter(function(j){ return !CLOSEOUT_STAGES[j.stage]; }); }
+
+/* Greencroft program (2026-07-20, Keith): 30+ active WPC/unit jobs for Greencroft
+   Communities / Greencroft Southfield Village, deliberately excluded from the Procore
+   curated board since day one ("not dashboard-relevant") — now surfaced. Sourced from
+   the Foundation feed (they already flow nightly); customer name is the identifier.
+   Presented as WOH lines + a rolled-up Portfolio section + folded into headline KPIs. */
+function isGreencroft(f){ return !!f && /greencroft/i.test((f.customerName||"")+" "+(f.description||"")); }
+function greencroftJobs(){ return (foundationOnly||[]).filter(isGreencroft)
+  .concat(((foundationData&&foundationData.jobs)?Object.values(foundationData.jobs):[]).filter(function(f){
+    // $0-contract Greencroft misc jobs fail foundationOnly's contract>0 test but are real work
+    return f.jobStatus==="A" && isGreencroft(f) && !((f.currentContract||0)>0||((f.originalContract||0)>0) ) && !jobByNo(f.jobNo);
+  })); }
+/* Foundation-only coverage EXCLUDING Greencroft — the "no field tracking" worklist */
+function foundationOnlyNonGC(){ return (foundationOnly||[]).filter(function(f){ return !isGreencroft(f); }); }
+/* Greencroft projected cost = Foundation as-bid cost + CO cost adj (no Procore ERP budget
+   exists for these — provenance-marked wherever shown) */
+function gcProjCost(f){ if(!f||!(f.originalCost>0)) return null; return f.originalCost+((f.changeOrders&&f.changeOrders.costAdj)||0); }
 
 /* Stage-trust guard (2026-07-08): Procore `stage` is PM-maintained and often stale
    (May 28 audit: wrong/null on 7 of 13 — jobs at 65% cost still marked Pre-Construction).
