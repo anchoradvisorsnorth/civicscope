@@ -906,8 +906,11 @@ function renderWOH(){
     +(wohAsOf?"<button class=\"pfill\" onclick=\"wohClearAsOf()\">✕ Clear</button>":"")
     +"</span></div>";
 
+  /* format the gate date from its parts — new Date("YYYY-MM-DD") parses UTC midnight and
+     shows the PREVIOUS day in ET (caught live 2026-07-20: 05-25 rendered "May 24") */
+  var asOfLabel=wohAsOf?new Date(wohAsOf.date+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):null;
   var asOfBanner=wohAsOf
-    ?("<div class=\"warn-banner\" style=\"background:#eef4fd;border-color:#b9cff2;color:#27476e\">📅 <b>As-of view — Foundation activity through "+fmtDate(wohAsOf.date)+"</b> (live ODBC: cost by <code>date_posted</code>, billings by <code>transaction_date</code>). Contract Price and Projected Budget Cost are current values, not gated. Cost to Complete recomputed off the gated cost.</div>")
+    ?("<div class=\"warn-banner\" style=\"background:#eef4fd;border-color:#b9cff2;color:#27476e\">📅 <b>As-of view — Foundation activity through "+asOfLabel+"</b> (live ODBC: cost by <code>date_posted</code>, billings by <code>transaction_date</code>). Contract Price and Projected Budget Cost are current values, not gated. Cost to Complete recomputed off the gated cost.</div>")
     :"";
 
   var cols=[["name","Project Name"],["contract","Contract Price"],["ctd","Cost to Date"],["ctc","Cost to Complete"],["tec","Projected Budget Cost"],["billed","Billings to Date"]];
