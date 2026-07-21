@@ -732,7 +732,10 @@ function renderForecast(){
    Daily VM pull (bc-bidboard-refresh.js) of the LIVE BC bid board: what's out to bid,
    when it's due, and which trade packages have no bid in and no committed bidder —
    the empty-package scramble surfaced BEFORE bid day instead of on it. */
-function daysUntil(ts){ if(!ts) return null; return Math.ceil((new Date(ts)-Date.now())/86400000); }
+function daysUntil(ts){ // calendar-day diff in local time — Math.ceil on raw ms rounds past-due-within-24h up to 0 ("TODAY")
+  if(!ts) return null; var d=new Date(ts); if(isNaN(d.getTime())) return null; var n=new Date();
+  return Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-new Date(n.getFullYear(),n.getMonth(),n.getDate()))/86400000);
+}
 function bcProjUrl(id){ return id?("https://app.buildingconnected.com/projects/"+id):null; }
 function dueChip(ts){
   var d=daysUntil(ts);

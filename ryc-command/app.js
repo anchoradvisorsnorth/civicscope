@@ -56,12 +56,26 @@ function renderNav(){
   Array.prototype.forEach.call(el.querySelectorAll("button"),function(a){ a.addEventListener("click",function(){ setView(a.getAttribute("data-key")); }); });
 }
 function setView(k){ closeDrawer(true); currentView=k; renderNav(); renderView();
+  if(location.hash.replace(/^#\/?/,"")!==k) location.hash=k; // deep-linkable views; no-op when driven by hashchange
   var btn=document.querySelector("#nav button.active"); if(btn) btn.focus(); // restore focus after re-render (a11y)
+}
+function hashKey(){ return location.hash.replace(/^#\/?/,""); }
+window.addEventListener("hashchange",function(){ var k=hashKey(); if(k!==currentView && NAV.some(function(n){ return n.key===k; })) setView(k); });
+/* per-view provenance — the topbar must not claim Foundation on views that never read it */
+var FDN_FED={command:1,portfolio:1,billing:1,woh:1,margin:1,brief:1,trust:1};
+function viewCtx(){
+  var loaded=loadedAt?loadedAt.toLocaleString():"…";
+  if(currentView==="forecast") return "Buildr (BD's system of record) · pulled live · loaded "+loaded;
+  if(currentView==="estimating") return "BuildingConnected (read-only, daily pull) · this pull "+((bcData&&ageTxt(bcData.generatedAt))||"…");
+  if(currentView==="ai") return "Foundation via live ODBC · queries run at ask time (not the nightly snapshot)";
+  if(currentView==="trust") return "All sources · loaded "+loaded;
+  return "Procore (revised contract) + Foundation · loaded "+loaded;
 }
 function renderView(){
   var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
   document.getElementById("view-title").textContent=titles[currentView]||"Command Center";
-  document.getElementById("view-ctx").innerHTML="Procore (revised contract) + Foundation · loaded "+(loadedAt?loadedAt.toLocaleString():"…");
+  document.getElementById("view-ctx").innerHTML=viewCtx();
+  document.getElementById("fdn-refresh-top").style.display=FDN_FED[currentView]?"":"none";
   var view=document.getElementById("view");
   // dark showcase for the Command Center; light operator theme for work views (FundView tiering)
   document.querySelector(".content").classList.toggle("light",currentView!=="command");
@@ -79,6 +93,7 @@ function renderView(){
   if(currentView==="ai"){ renderAI(); return; }
 }
 function init(){
+  var k=hashKey(); if(NAV.some(function(n){ return n.key===k; })) currentView=k; // honor deep link on boot
   renderNav();
   document.getElementById("view").innerHTML="<div class=\"panel\"><div class=\"sub\">Loading data…</div></div>";
   loadData().then(function(){ renderView(); });
