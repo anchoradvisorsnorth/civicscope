@@ -857,7 +857,7 @@ function wohRows(gated){
     var billed=f?f.totalInvoiced:null;
     if(gate&&f){ ctd=gate.cost[jno]||0; billed=gate.billed[jno]||0; }
     var ctc=(tec!=null&&ctd!=null)?(tec-ctd):null;
-    rows.push({jno:jno,name:j.name||(f&&f.description)||jno,contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null,gc:false,fTec:fTec,budgetUrl:procoreBudgetUrl(j)});
+    rows.push({jno:jno,name:j.name||(f&&f.description)||jno,contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null,gc:false,fTec:fTec,pgm:j.program||null,budgetUrl:procoreBudgetUrl(j)});
   });
   greencroftJobs().forEach(function(f){
     var jno=f.jobNo||"";
@@ -995,7 +995,7 @@ function renderBrief(){
   /* headline band */
   function sb(l,v,s){ return "<div class=\"sb\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div><div class=\"s\">"+(s||"")+"</div></div>"; }
   var band="<div class=\"stat-band\">"
-    +sb("Active work",String(woh.length)+" jobs",fmtCompact(totalContract)+" under contract — incl. "+(woh.filter(function(r){return r.gc||r.fTec;}).length)+" Greencroft"+(gcN?" ("+gcN+" off-board)":""))
+    +sb("Active work",String(woh.length)+" jobs",fmtCompact(totalContract)+" under contract — incl. "+(woh.filter(function(r){return r.gc||r.pgm==="greencroft";}).length)+" Greencroft"+(gcN?" ("+gcN+" off-board)":""))
     +sb("Cost to complete",fmtCompact(ctcSum),"remaining on "+ctcRows.length+" costed jobs")
     +sb("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast, Procore budgets")
     +sb("Billed to date",haveFnd?fmtCompact(woh.reduce(function(s,r){return s+(r.billed||0);},0)):"Unavailable","Foundation, active jobs")
