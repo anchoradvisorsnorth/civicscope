@@ -1,6 +1,6 @@
 {
-  "refreshed": "2026-07-21T04:03:42.356Z",
-  "jobCount": 28,
+  "refreshed": "2026-07-21T21:09:21.003Z",
+  "jobCount": 53,
   "jobs": [
     {
       "slug": "helix-orchard-wallen-road",
@@ -33,8 +33,8 @@
         "original": 19281323.549999997,
         "revised": 20155991.33,
         "committed": 0,
-        "direct": 12207515.529999997,
-        "projectedCost": 19067152.06,
+        "direct": 12209115.099999998,
+        "projectedCost": 19068751.63,
         "projectedBudget": 20096315.81,
         "projCostSuspect": false
       },
@@ -381,7 +381,7 @@
       "projectedFinish": "2027-01-01",
       "completionDate": "2027-08-01",
       "sqft": null,
-      "pctComplete": 28.3,
+      "pctComplete": 30.2,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -397,8 +397,8 @@
         "original": 16017608.15,
         "revised": 16017608.150000002,
         "committed": 0,
-        "direct": 5116890.63,
-        "projectedCost": 13536804.03,
+        "direct": 5451283.28,
+        "projectedCost": 13538484.78,
         "projectedBudget": 16221550.53,
         "projCostSuspect": false
       },
@@ -1170,7 +1170,7 @@
         "original": 15085716.219999999,
         "revised": 15842068.219999999,
         "committed": 0,
-        "direct": 16437258.920000002,
+        "direct": 16438608.920000002,
         "projectedCost": 17323264.03,
         "projectedBudget": 16388376.52,
         "projCostSuspect": false
@@ -3529,8 +3529,8 @@
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 13,
-        "open": 3
+        "total": 14,
+        "open": 4
       },
       "submittals": {
         "total": 74,
@@ -3551,9 +3551,9 @@
         "count": 22,
         "subcontracts": 18,
         "purchaseOrders": 4,
-        "committedTotal": 3166472.43,
-        "originalTotal": 3126620.43,
-        "pendingTotal": 0,
+        "committedTotal": 3162868.8,
+        "originalTotal": 3123016.8,
+        "pendingTotal": 3603.63,
         "invoicedTotal": 0,
         "rows": [
           {
@@ -3749,7 +3749,7 @@
             "kind": "po",
             "title": "Construction Specialties inc. - Michiana Eye Center  - Purchase Order",
             "vendor": "Construction Specialities Inc",
-            "status": "Approved",
+            "status": "Processing",
             "total": 3603.63,
             "original": 3603.63,
             "invoiced": 0
@@ -4065,9 +4065,9 @@
         "original": 3393854.23,
         "revised": 3473992.2600000007,
         "committed": 0,
-        "direct": 2409303.31,
-        "projectedCost": 4480241.41,
-        "projectedBudget": 3437371.2,
+        "direct": 2409418.01,
+        "projectedCost": 4480356.11,
+        "projectedBudget": 3437189.9,
         "projCostSuspect": false
       },
       "contractValue": 3695500,
@@ -4261,8 +4261,8 @@
         "original": 3089475.19,
         "revised": 3089475.19,
         "committed": 0,
-        "direct": 2011454.0300000003,
-        "projectedCost": 3053052.38,
+        "direct": 2011494.06,
+        "projectedCost": 3053092.41,
         "projectedBudget": 3083146.03,
         "projCostSuspect": false
       },
@@ -4754,7 +4754,7 @@
       },
       "submittals": {
         "total": 138,
-        "open": 31
+        "open": 29
       },
       "budget": {
         "original": 2205118.7800000003,
@@ -5128,8 +5128,8 @@
         "open": 0
       },
       "submittals": {
-        "total": 141,
-        "open": 64
+        "total": 143,
+        "open": 63
       },
       "budget": {
         "original": 2180018.8899999997,
@@ -5312,7 +5312,7 @@
       "projectedFinish": "2027-05-18T21:00:00Z",
       "completionDate": "2027-04-06",
       "sqft": null,
-      "pctComplete": 8,
+      "pctComplete": 8.2,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -5328,8 +5328,8 @@
         "original": 2071633.13,
         "revised": 2074434.5,
         "committed": 0,
-        "direct": 182469.08000000002,
-        "projectedCost": 1643445.82,
+        "direct": 185938.65000000002,
+        "projectedCost": 1643510.49,
         "projectedBudget": 2073608.66,
         "projCostSuspect": false
       },
@@ -5626,165 +5626,6 @@
       }
     },
     {
-      "slug": "northern-heights-elementary",
-      "procoreId": 598134326053700,
-      "projectNumber": "2504GO04",
-      "name": "Northern Heights Elementary",
-      "client": "Whitley County Consolidated Schools",
-      "clientType": "school",
-      "workType": "new_construction",
-      "active": true,
-      "stage": "Course of Construction",
-      "address": "5029 IN-109, Columbia City, IN",
-      "start": "2025-04-14",
-      "projectedFinish": "2025-09-30",
-      "completionDate": "2025-09-30",
-      "sqft": null,
-      "pctComplete": 94.8,
-      "costOverrun": false,
-      "commitmentsTracked": true,
-      "verifyStatus": true,
-      "rfis": {
-        "total": 4,
-        "open": 1
-      },
-      "submittals": {
-        "total": 51,
-        "open": 13
-      },
-      "budget": {
-        "original": 1507345.3599999999,
-        "revised": 1507345.3599999999,
-        "committed": 0,
-        "direct": 1421473.66,
-        "projectedCost": 1420865.25,
-        "projectedBudget": 1594973.59,
-        "projCostSuspect": false
-      },
-      "contractValue": 1500000,
-      "revisedContract": 1715000,
-      "commitments": {
-        "count": 10,
-        "subcontracts": 8,
-        "purchaseOrders": 2,
-        "committedTotal": 1370537.45,
-        "originalTotal": 1281840.27,
-        "pendingTotal": 0,
-        "invoicedTotal": 0,
-        "rows": [
-          {
-            "kind": "sub",
-            "title": "Northern Heights - Amex Nooter",
-            "vendor": "Amex Nooter LLC",
-            "status": "Approved",
-            "total": 971376.64,
-            "original": 896320,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Northern Heights - Kissinger Electric",
-            "vendor": "Kissinger Electric",
-            "status": "Approved",
-            "total": 252668.2,
-            "original": 251335,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Northern Heights - Matteson Acoustics",
-            "vendor": "Matteson Acoustics",
-            "status": "Approved",
-            "total": 86735,
-            "original": 84355,
-            "invoiced": 0
-          },
-          {
-            "kind": "po",
-            "title": "Northern Heights Elementary - Faco",
-            "vendor": "Lakeside Equipment Corporation",
-            "status": "Approved",
-            "total": 24865,
-            "original": 24865,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Northern Heights - Integrity Demolition",
-            "vendor": "Integrity Demolition and Construction Services",
-            "status": "Approved",
-            "total": 18600,
-            "original": 18600,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Northern Heights Elementary - Fort Wayne Roofing",
-            "vendor": "Fort Wayne Roofing",
-            "status": "Approved",
-            "total": 7500,
-            "original": 3000,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Northern Heights Elementary - Jack Laurie Group",
-            "vendor": "Jack Laurie Group",
-            "status": "Approved",
-            "total": 4888.18,
-            "original": 0,
-            "invoiced": 0
-          },
-          {
-            "kind": "po",
-            "title": "Uline - Floor Protection",
-            "vendor": "Uline Inc",
-            "status": "Approved",
-            "total": 3365.27,
-            "original": 3365.27,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Northern Heights - MPS",
-            "vendor": "Mechanical Plumbing Solutions",
-            "status": "Approved",
-            "total": 539.16,
-            "original": 0,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Northern Heights Elementary - Tony Stone",
-            "vendor": "Tony's Stone Brick&Block LLC",
-            "status": "Approved",
-            "total": 0,
-            "original": 0,
-            "invoiced": 0
-          }
-        ]
-      },
-      "changeOrders": {
-        "count": 24,
-        "netValue": 87628.23,
-        "byType": {
-          "Transfer": 1,
-          "Allowance": 22,
-          "Contingency": 1
-        }
-      },
-      "pm": {
-        "name": "Logan Moore",
-        "email": "lmoore@ryoderconstruction.com",
-        "title": "Project Engineer"
-      },
-      "superintendent": {
-        "name": "Larry Jennings",
-        "email": "ljennings@ryoderconstruction.com",
-        "title": "Site Superintendent"
-      }
-    },
-    {
       "slug": "bristol-street-garage",
       "procoreId": 598134326578005,
       "projectNumber": "26X012",
@@ -5816,8 +5657,8 @@
         "revised": 1323528.6199999999,
         "committed": 0,
         "direct": 0,
-        "projectedCost": 848286.62,
-        "projectedBudget": 1461738.83,
+        "projectedCost": 856195.2,
+        "projectedBudget": 1395974.55,
         "projCostSuspect": false
       },
       "contractValue": 1458000,
@@ -5942,9 +5783,10 @@
         ]
       },
       "changeOrders": {
-        "count": 1,
-        "netValue": 65764.28,
+        "count": 2,
+        "netValue": 75779.4,
         "byType": {
+          "Contingency": 1,
           "Owner Change": 1
         }
       },
@@ -5954,145 +5796,6 @@
         "title": "Project Manager"
       },
       "superintendent": null
-    },
-    {
-      "slug": "wabash-pickleball-courts",
-      "procoreId": 598134326170149,
-      "projectNumber": "2502GO06",
-      "name": "Wabash Pickleball Courts",
-      "client": "City of Wabash",
-      "clientType": "municipal",
-      "workType": "new_construction",
-      "active": true,
-      "stage": "Course of Construction",
-      "address": "370 Harrison Ave, Wabash, IN",
-      "start": "2025-07-28",
-      "projectedFinish": "2025-10-31",
-      "completionDate": "2025-10-31",
-      "sqft": null,
-      "pctComplete": 74.8,
-      "costOverrun": false,
-      "commitmentsTracked": true,
-      "verifyStatus": true,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 33,
-        "open": 3
-      },
-      "budget": {
-        "original": 1033799.5299999999,
-        "revised": 1033799.5299999999,
-        "committed": 0,
-        "direct": 977016.2999999999,
-        "projectedCost": 1535405.73,
-        "projectedBudget": 1046842.96,
-        "projCostSuspect": true
-      },
-      "contractValue": 1306310,
-      "revisedContract": 1306310,
-      "commitments": {
-        "count": 8,
-        "subcontracts": 8,
-        "purchaseOrders": 0,
-        "committedTotal": 928895.03,
-        "originalTotal": 920951.6,
-        "pendingTotal": 0,
-        "invoicedTotal": 0,
-        "rows": [
-          {
-            "kind": "sub",
-            "title": "Wabash Pickleball - Brainard Excavating Subcontract",
-            "vendor": "Brainard Excavating, LLC",
-            "status": "Approved",
-            "total": 344270,
-            "original": 341760,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Wabash Pickleball - Gaunt Asphalt Subcontract",
-            "vendor": "Gaunt & Son Asphalt Inc.",
-            "status": "Approved",
-            "total": 250992,
-            "original": 250992,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Wabash Pickleball - Trager Electric Subcontract",
-            "vendor": "Trager Electric",
-            "status": "Approved",
-            "total": 131658.43,
-            "original": 126750,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Wabash Pickleball - Milestone Fence Subcontract",
-            "vendor": "Milestone Fence LLC",
-            "status": "Approved",
-            "total": 87777.6,
-            "original": 87777.6,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Wabash Pickleball - Leslie Coatings Subcontract",
-            "vendor": "Leslie Coatings Inc",
-            "status": "Approved",
-            "total": 81950,
-            "original": 81950,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Wabash Pickleball - Bojrab Landscape Subcontract",
-            "vendor": "Bojrab Landscape ManagementLLC",
-            "status": "Approved",
-            "total": 14645,
-            "original": 14645,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Wabash Pickleball - Bertsch Frank Subcontract",
-            "vendor": "Bertsch-Frank & Associates",
-            "status": "Approved",
-            "total": 11900,
-            "original": 11900,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Wabash Pickleball - Inline Painting",
-            "vendor": "Inline Painting",
-            "status": "Approved",
-            "total": 5702,
-            "original": 5177,
-            "invoiced": 0
-          }
-        ]
-      },
-      "changeOrders": {
-        "count": 4,
-        "netValue": 13043.43,
-        "byType": {
-          "Allowance": 4
-        }
-      },
-      "pm": {
-        "name": "Logan Moore",
-        "email": "lmoore@ryoderconstruction.com",
-        "title": "Project Engineer"
-      },
-      "superintendent": {
-        "name": "Dale Jones",
-        "email": "djones@ryoderconstruction.com",
-        "title": "Field Superintendent"
-      }
     },
     {
       "slug": "nptech-community-fiber",
@@ -6545,6 +6248,1283 @@
       "superintendent": null
     },
     {
+      "slug": "greencroft-26x018",
+      "procoreId": 598134326667816,
+      "projectNumber": "26X018",
+      "name": "Greencroft South 6517 Chestnut",
+      "client": "Greencroft Southfield Village",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "6517 Chestnut Lane, South Bend, IN",
+      "start": "2026-06-30",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 0.5,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 449441.63,
+        "revised": 449441.63,
+        "committed": 0,
+        "direct": 2494.83,
+        "projectedCost": 2494.83,
+        "projectedBudget": 449441.63,
+        "projCostSuspect": false
+      },
+      "contractValue": 503203,
+      "revisedContract": null,
+      "commitments": null,
+      "changeOrders": {
+        "count": 0,
+        "netValue": 0,
+        "byType": {}
+      },
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "greencroft-2518ro23",
+      "procoreId": 598134326388224,
+      "projectNumber": "2518RO23",
+      "name": "Greencroft 2016 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2016 Whispering Pines Court, Goshen, IN",
+      "start": "2025-12-11",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 7,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 382800.95,
+        "revised": 382800.95,
+        "committed": 0,
+        "direct": 33261.11,
+        "projectedCost": 118836.77,
+        "projectedBudget": 382800.95,
+        "projCostSuspect": false
+      },
+      "contractValue": 475650,
+      "revisedContract": 475650,
+      "commitments": {
+        "count": 8,
+        "subcontracts": 6,
+        "purchaseOrders": 2,
+        "committedTotal": 78355.76,
+        "originalTotal": 78355.76,
+        "pendingTotal": 7219.9,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Subcontract - 2016",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Approved",
+            "total": 48111.56,
+            "original": 48111.56,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services Subcontract",
+            "vendor": null,
+            "status": "Draft",
+            "total": 17533,
+            "original": 17533,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 16300.75,
+            "original": 16300.75,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J and N Subcontractor",
+            "vendor": "J & N Stone Inc.",
+            "status": "Draft",
+            "total": 8243.6,
+            "original": 8243.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtite insulation - Sub Contract",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Approved",
+            "total": 7652.25,
+            "original": 7652.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Miller Door & Trim - Subcontract",
+            "vendor": "Miller Door & Trim Inc.",
+            "status": "Received",
+            "total": 7219.9,
+            "original": 7219.9,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry - Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Approved",
+            "total": 6291.2,
+            "original": 6291.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "JCS - 2016 Fireplace P.O",
+            "vendor": "JCS Fireplace",
+            "status": "Draft",
+            "total": 5464,
+            "original": 5464,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 1,
+        "netValue": 0,
+        "byType": {
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro22",
+      "procoreId": 598134326334514,
+      "projectNumber": "2518RO22",
+      "name": "Greencroft South 6576 Chestnut",
+      "client": "Greencroft Southfield Village",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "6576 Chestnut Lane, South Bend, IN",
+      "start": "2025-10-28",
+      "projectedFinish": "2026-10-31",
+      "completionDate": "2026-10-31",
+      "sqft": null,
+      "pctComplete": 5.7,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 32281.67,
+        "revised": 32281.67,
+        "committed": 0,
+        "direct": 24051.74,
+        "projectedCost": 24051.74,
+        "projectedBudget": 32281.67,
+        "projCostSuspect": false
+      },
+      "contractValue": 422165,
+      "revisedContract": null,
+      "commitments": {
+        "count": 2,
+        "subcontracts": 1,
+        "purchaseOrders": 1,
+        "committedTotal": 34787.6,
+        "originalTotal": 34787.6,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "po",
+            "title": "Doors & Windows Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 23888.6,
+            "original": 23888.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services LLC Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 10899,
+            "original": 10899,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 1,
+        "netValue": 0,
+        "byType": {
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "greencroft-2518ro20",
+      "procoreId": 598134326334262,
+      "projectNumber": "2518RO20",
+      "name": "Greencroft South 6516 Chestnut",
+      "client": "Greencroft Southfield Village",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "6516 Chestnut Lane, South Bend, IN",
+      "start": "2025-10-28",
+      "projectedFinish": "2026-10-31",
+      "completionDate": "2026-10-31",
+      "sqft": null,
+      "pctComplete": null,
+      "costOverrun": null,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": null,
+      "contractValue": 404131.12,
+      "revisedContract": null,
+      "commitments": {
+        "count": 14,
+        "subcontracts": 9,
+        "purchaseOrders": 5,
+        "committedTotal": 33525.42,
+        "originalTotal": 33525.42,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 44512,
+            "original": 44512,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Doors & Windows Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 22142.42,
+            "original": 22142.42,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Miller Building Supply P.O",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 19614.52,
+            "original": 19614.52,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 18965.2,
+            "original": 18965.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 17817.95,
+            "original": 17817.95,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 11383,
+            "original": 11383,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 9292,
+            "original": 9292,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Draft",
+            "total": 8388.15,
+            "original": 8388.15,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Miller Door and Trim P.O",
+            "vendor": "Miller Door & Trim Inc.",
+            "status": "Draft",
+            "total": 7371.62,
+            "original": 7371.62,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6355,
+            "original": 6355,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 3962.8,
+            "original": 3962.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1400,
+            "original": 1400,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 1,
+        "netValue": 5368,
+        "byType": {
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "greencroft-2518ro21",
+      "procoreId": 598134326334537,
+      "projectNumber": "2518RO21",
+      "name": "Greencroft South 6570 Chestnut",
+      "client": "Greencroft Southfield Village",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "6570 Chestnut Lane, South Bend, IN",
+      "start": "2025-10-28",
+      "projectedFinish": "2026-10-31",
+      "completionDate": "2026-10-31",
+      "sqft": null,
+      "pctComplete": 26.5,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 335173.62,
+        "revised": 335173.62,
+        "committed": 0,
+        "direct": 107105.95999999998,
+        "projectedCost": 107105.96,
+        "projectedBudget": 335173.62,
+        "projCostSuspect": false
+      },
+      "contractValue": 403954,
+      "revisedContract": 403954.19,
+      "commitments": {
+        "count": 3,
+        "subcontracts": 2,
+        "purchaseOrders": 1,
+        "committedTotal": 52837.65,
+        "originalTotal": 52837.65,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 23718.5,
+            "original": 23718.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Doors & Windows Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 18220.15,
+            "original": 18220.15,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services LLC",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 10899,
+            "original": 10899,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 0,
+        "netValue": 0,
+        "byType": {}
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "greencroft-2618ro01",
+      "procoreId": 598134326452931,
+      "projectNumber": "2618RO01",
+      "name": "Greencroft 2020 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2020 Whispering Pines Court, Goshen, IN",
+      "start": "2026-01-22",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 30.9,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 313419.69,
+        "revised": 313419.69,
+        "committed": 0,
+        "direct": 124952.55,
+        "projectedCost": 168630.55,
+        "projectedBudget": 314169.69,
+        "projCostSuspect": false
+      },
+      "contractValue": 403818,
+      "revisedContract": null,
+      "commitments": {
+        "count": 5,
+        "subcontracts": 3,
+        "purchaseOrders": 2,
+        "committedTotal": 51921.6,
+        "originalTotal": 51921.6,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 30149,
+            "original": 30149,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services LLC Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 13529,
+            "original": 13529,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 8243.6,
+            "original": 8243.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "JCS - 2020 Fireplace P.O",
+            "vendor": "JCS Fireplace",
+            "status": "Draft",
+            "total": 5464,
+            "original": 5464,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leathermans - P.O",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 2,
+        "netValue": 1770,
+        "byType": {
+          "Allowance": 1,
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro19",
+      "procoreId": 598134326334259,
+      "projectNumber": "2518RO19",
+      "name": "Greencroft South 6508 Chestnut",
+      "client": "Greencroft Southfield Village",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "6508 Chestnut Lane, South Bend, IN",
+      "start": "2025-10-28",
+      "projectedFinish": "2026-10-31",
+      "completionDate": "2026-10-31",
+      "sqft": null,
+      "pctComplete": 40.1,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 352783.61,
+        "revised": 352783.61,
+        "committed": 0,
+        "direct": 157804.94000000003,
+        "projectedCost": 171657.09,
+        "projectedBudget": 352783.61,
+        "projCostSuspect": false
+      },
+      "contractValue": 393706.12,
+      "revisedContract": null,
+      "commitments": {
+        "count": 16,
+        "subcontracts": 10,
+        "purchaseOrders": 6,
+        "committedTotal": 161604.29,
+        "originalTotal": 161604.29,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Approved",
+            "total": 44512,
+            "original": 44512,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 31135,
+            "original": 31135,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Windows and Doors Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 22142.42,
+            "original": 22142.42,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Miller Building Supply P.O",
+            "vendor": "Millers Building Supply",
+            "status": "Approved",
+            "total": 19614.52,
+            "original": 19614.52,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Approved",
+            "total": 18965.2,
+            "original": 18965.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 17817.95,
+            "original": 17817.95,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 11383,
+            "original": 11383,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 9292,
+            "original": 9292,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 8388.15,
+            "original": 8388.15,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Miller Door and Trim P.O",
+            "vendor": "Miller Door & Trim Inc.",
+            "status": "Draft",
+            "total": 7371.62,
+            "original": 7371.62,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6335,
+            "original": 6335,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "JCS - 6508 Fireplace P.O",
+            "vendor": "JCS Fireplace",
+            "status": "Approved",
+            "total": 5464,
+            "original": 5464,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 3962.8,
+            "original": 3962.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1400,
+            "original": 1400,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 1,
+        "netValue": 180,
+        "byType": {
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "greencroft-26x002",
+      "procoreId": 598134326474414,
+      "projectNumber": "26X002",
+      "name": "Greencroft 2021 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2021 Whispering Pines Court, Goshen, IN",
+      "start": "2026-02-06",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": null,
+      "costOverrun": null,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": null,
+      "contractValue": 386773,
+      "revisedContract": null,
+      "commitments": {
+        "count": 3,
+        "subcontracts": 2,
+        "purchaseOrders": 1,
+        "committedTotal": 67109.72,
+        "originalTotal": 67109.72,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 28125,
+            "original": 28125,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "2021 - Leatherman - P.O",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 25455.72,
+            "original": 25455.72,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services LLC Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 13529,
+            "original": 13529,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 0,
+        "netValue": 0,
+        "byType": {}
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-26x003",
+      "procoreId": 598134326474443,
+      "projectNumber": "26X003",
+      "name": "Greencroft 2023 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2023 Whispering Pines Court, Goshen, IN",
+      "start": "2026-02-06",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": null,
+      "costOverrun": null,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": null,
+      "contractValue": 386773,
+      "revisedContract": null,
+      "commitments": {
+        "count": 2,
+        "subcontracts": 1,
+        "purchaseOrders": 1,
+        "committedTotal": 38984.72,
+        "originalTotal": 38984.72,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "po",
+            "title": "Leatherman's P.O",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 25455.72,
+            "original": 25455.72,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services LLC Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 13529,
+            "original": 13529,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 0,
+        "netValue": 0,
+        "byType": {}
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro07",
+      "procoreId": 598134326144581,
+      "projectNumber": "2518RO07",
+      "name": "Greencroft 2026 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2026 Whispering Pines Court, Goshen, IN",
+      "start": "2025-06-16",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 78.9,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 297095.71,
+        "revised": 299515.71,
+        "committed": 0,
+        "direct": 296592.96,
+        "projectedCost": 373491.66,
+        "projectedBudget": 299515.71,
+        "projCostSuspect": false
+      },
+      "contractValue": 375820,
+      "revisedContract": 375820,
+      "commitments": {
+        "count": 20,
+        "subcontracts": 14,
+        "purchaseOrders": 6,
+        "committedTotal": 26136.7,
+        "originalTotal": 26136.7,
+        "pendingTotal": 50762,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 43850,
+            "original": 43850,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Advanced Excavating Subcontract",
+            "vendor": "Advanced Excavating LLC",
+            "status": "Out For Signature",
+            "total": 28370,
+            "original": 28370,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 26136.7,
+            "original": 26136.7,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Out For Signature",
+            "total": 22392,
+            "original": 22392,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 18730.39,
+            "original": 18730.39,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 17039.3,
+            "original": 17039.3,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 14443.3,
+            "original": 14443.3,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 13479,
+            "original": 13479,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 12723.75,
+            "original": 12723.75,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Draft",
+            "total": 9038,
+            "original": 9038,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6960,
+            "original": 6960,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 6818.8,
+            "original": 6818.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 6346.11,
+            "original": 6346.11,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4895,
+            "original": 4895,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 2,
+        "netValue": 2420,
+        "byType": {
+          "TBD": 1,
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
       "slug": "akron-wtp-improvements",
       "procoreId": 598134326213157,
       "projectNumber": "2502GP08",
@@ -6663,21 +7643,329 @@
       "superintendent": null
     },
     {
-      "slug": "eha-generator-replacement",
-      "procoreId": 598134326132126,
-      "projectNumber": "2502GP05",
-      "name": "EHA Generator Replacement",
-      "client": "Elkhart Housing Authority",
-      "clientType": "municipal",
+      "slug": "greencroft-26x010",
+      "procoreId": 598134326572496,
+      "projectNumber": "26X010",
+      "name": "Greencroft South 6582 Chestnut",
+      "client": "Greencroft Southfield Village",
+      "clientType": "commercial",
       "workType": "renovation",
+      "program": "greencroft",
       "active": true,
-      "stage": "Warranty",
-      "address": "181 E Elkhart Ave, Elkhart, IN",
-      "start": "2025-06-04",
-      "projectedFinish": "2026-02-20",
-      "completionDate": "2026-02-20",
+      "stage": null,
+      "address": "6582 Chestnut Ln, South Bend, IN",
+      "start": "2026-04-21",
+      "projectedFinish": null,
+      "completionDate": null,
       "sqft": null,
-      "pctComplete": 76.4,
+      "pctComplete": 6.5,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 314071.83999999997,
+        "revised": 314071.83999999997,
+        "committed": 0,
+        "direct": 24338.17,
+        "projectedCost": 109769.42,
+        "projectedBudget": 314071.84,
+        "projCostSuspect": false
+      },
+      "contractValue": 372723,
+      "revisedContract": 372723,
+      "commitments": {
+        "count": 3,
+        "subcontracts": 3,
+        "purchaseOrders": 0,
+        "committedTotal": 33266.25,
+        "originalTotal": 33266.25,
+        "pendingTotal": 52165,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Bills Heating Subcontract",
+            "vendor": "Bill's Heating Inc",
+            "status": "Out For Signature",
+            "total": 52165,
+            "original": 52165,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 17925,
+            "original": 17925,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 15341.25,
+            "original": 15341.25,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 0,
+        "netValue": 0,
+        "byType": {}
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": null
+    },
+    {
+      "slug": "greencroft-2518ro25",
+      "procoreId": 598134326391376,
+      "projectNumber": "2518RO25",
+      "name": "Greencroft 2047 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2047 Whispering Pines Court, Goshen, IN",
+      "start": "2025-12-15",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 41.7,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 298048.37000000005,
+        "revised": 298048.37000000005,
+        "committed": 0,
+        "direct": 155343.38,
+        "projectedCost": 155343.38,
+        "projectedBudget": 298048.37,
+        "projCostSuspect": false
+      },
+      "contractValue": 372638,
+      "revisedContract": 372638,
+      "commitments": {
+        "count": 2,
+        "subcontracts": 2,
+        "purchaseOrders": 0,
+        "committedTotal": 22220.6,
+        "originalTotal": 22220.6,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Universal Services Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 13977,
+            "original": 13977,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 8243.6,
+            "original": 8243.6,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 0,
+        "netValue": 0,
+        "byType": {}
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2416ro07",
+      "procoreId": 598134326010754,
+      "projectNumber": "2416RO07",
+      "name": "Greencroft 2032 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2032 Whispering Pines Court, Goshen, IN",
+      "start": "2025-02-21",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 76.9,
+      "costOverrun": false,
+      "commitmentsTracked": false,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 292907.74,
+        "revised": 292907.74,
+        "committed": 0,
+        "direct": 285729.43,
+        "projectedCost": 285729.43,
+        "projectedBudget": 294957.74,
+        "projCostSuspect": false
+      },
+      "contractValue": 371512,
+      "revisedContract": null,
+      "commitments": null,
+      "changeOrders": {
+        "count": 1,
+        "netValue": 2050,
+        "byType": {
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2618ro02",
+      "procoreId": 598134326452936,
+      "projectNumber": "2618RO02",
+      "name": "Greencroft 2022 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2022 Whispering Pines Court, Goshen, IN",
+      "start": "2026-01-22",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": null,
+      "costOverrun": null,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": null,
+      "contractValue": 370668,
+      "revisedContract": null,
+      "commitments": {
+        "count": 2,
+        "subcontracts": 2,
+        "purchaseOrders": 0,
+        "committedTotal": 21912.6,
+        "originalTotal": 21912.6,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Universal Services LLC Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 13669,
+            "original": 13669,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 8243.6,
+            "original": 8243.6,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 0,
+        "netValue": 0,
+        "byType": {}
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro03",
+      "procoreId": 598134326131027,
+      "projectNumber": "2518RO03",
+      "name": "Greencroft 2060 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2060 Whispering Pines Court, Goshen, IN",
+      "start": "2025-07-01",
+      "projectedFinish": "2025-12-16T22:00:00Z",
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 80.7,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": true,
@@ -6686,62 +7974,2781 @@
         "open": 0
       },
       "submittals": {
-        "total": 5,
+        "total": 0,
         "open": 0
       },
       "budget": {
-        "original": 273622.89,
-        "revised": 273622.89,
+        "original": 297160.4,
+        "revised": 297160.4,
         "committed": 0,
-        "direct": 252983.25,
-        "projectedCost": 490381.47,
-        "projectedBudget": 293928.09,
-        "projCostSuspect": true
+        "direct": 293920.39999999997,
+        "projectedCost": 368182.4,
+        "projectedBudget": 297160.4,
+        "projCostSuspect": false
       },
-      "contractValue": 330975,
-      "revisedContract": 330975,
+      "contractValue": 364008,
+      "revisedContract": 297160.4,
       "commitments": {
-        "count": 2,
-        "subcontracts": 2,
-        "purchaseOrders": 0,
-        "committedTotal": 237398.22,
-        "originalTotal": 223259.07,
-        "pendingTotal": 0,
+        "count": 18,
+        "subcontracts": 12,
+        "purchaseOrders": 6,
+        "committedTotal": 65874,
+        "originalTotal": 65874,
+        "pendingTotal": 8388,
         "invoicedTotal": 0,
         "rows": [
           {
             "kind": "sub",
-            "title": "EHA Generator Replacement - Trager Electric",
-            "vendor": "Trager Electric",
+            "title": "AJ's Plumbing & Electrical Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
             "status": "Approved",
-            "total": 229398.22,
-            "original": 215259.07,
+            "total": 41451.25,
+            "original": 41451.25,
             "invoiced": 0
           },
           {
             "kind": "sub",
-            "title": "Premier Painting - EHA Generator Subcontract",
-            "vendor": "Premier Painting LLC",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 24579.1,
+            "original": 24579.1,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
             "status": "Approved",
-            "total": 8000,
-            "original": 8000,
+            "total": 24422.75,
+            "original": 24422.75,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 18730.39,
+            "original": 18730.39,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 17039.3,
+            "original": 17039.3,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 12723.75,
+            "original": 12723.75,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 12639,
+            "original": 12639,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Out For Signature",
+            "total": 8388,
+            "original": 8388,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6960,
+            "original": 6960,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 6380.4,
+            "original": 6380.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 6346.11,
+            "original": 6346.11,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4895,
+            "original": 4895,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
             "invoiced": 0
           }
         ]
       },
       "changeOrders": {
         "count": 1,
-        "netValue": 10152.6,
+        "netValue": 0,
+        "byType": {
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro24",
+      "procoreId": 598134326391375,
+      "projectNumber": "2518RO24",
+      "name": "Greencroft 2045 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2045 Whispering Pines Court, Goshen, IN",
+      "start": "2025-12-15",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 36.7,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 284619.62,
+        "revised": 284619.62,
+        "committed": 0,
+        "direct": 129766.22000000002,
+        "projectedCost": 160048.22,
+        "projectedBudget": 284619.62,
+        "projCostSuspect": false
+      },
+      "contractValue": 353298,
+      "revisedContract": 353298,
+      "commitments": {
+        "count": 7,
+        "subcontracts": 6,
+        "purchaseOrders": 1,
+        "committedTotal": 37627.55,
+        "originalTotal": 37627.55,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 30282,
+            "original": 30282,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Draft",
+            "total": 23906.48,
+            "original": 23906.48,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services Subcontract",
+            "vendor": null,
+            "status": "Draft",
+            "total": 13081,
+            "original": 13081,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 7345.55,
+            "original": 7345.55,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Air Tite Insulation Subcontract",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6393,
+            "original": 6393,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4596,
+            "original": 4596,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J and N Stone Subcontract4",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 0,
+        "netValue": 0,
+        "byType": {}
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro01",
+      "procoreId": 598134326126024,
+      "projectNumber": "2518RO01",
+      "name": "Greencroft 2033 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2033 Whispering Pines Court, Goshen, IN",
+      "start": "2025-05-04",
+      "projectedFinish": "2025-11-15T22:00:00Z",
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 78.6,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 287083.13,
+        "revised": 287083.13,
+        "committed": 0,
+        "direct": 275799.51000000007,
+        "projectedCost": 416683.04,
+        "projectedBudget": 288127.84,
+        "projCostSuspect": true
+      },
+      "contractValue": 350906,
+      "revisedContract": 287083.13,
+      "commitments": {
+        "count": 13,
+        "subcontracts": 9,
+        "purchaseOrders": 4,
+        "committedTotal": 124259.23,
+        "originalTotal": 123214.52,
+        "pendingTotal": 16624.3,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing & Electric Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Approved",
+            "total": 39996.25,
+            "original": 39996.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Approved",
+            "total": 18054.78,
+            "original": 18054.78,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Out For Signature",
+            "total": 16624.3,
+            "original": 16624.3,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 15604.31,
+            "original": 15604.31,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Approved",
+            "total": 11799,
+            "original": 11799,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 8243.6,
+            "original": 8243.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Approved",
+            "total": 6818.8,
+            "original": 6818.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Approved",
+            "total": 6246,
+            "original": 6246,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Approved",
+            "total": 5560.36,
+            "original": 5560.36,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Approved",
+            "total": 4115,
+            "original": 4115,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Approved",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendal Electric P.O",
+            "vendor": "Kendall Electric Inc",
+            "status": "Approved",
+            "total": 3244.71,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Approved",
+            "total": 889.5,
+            "original": 889.5,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 1,
+        "netValue": 1044.71,
         "byType": {
           "Allowance": 1
         }
       },
       "pm": {
-        "name": "Troy Jennings",
-        "email": "troy@ryoderconstruction.com",
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
         "title": "Project Manager"
       },
-      "superintendent": null
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro12",
+      "procoreId": 598134326181531,
+      "projectNumber": "2518RO12",
+      "name": "Greencroft 2029 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": "Course of Construction",
+      "address": "2029 Whispering Pines Court, Goshen, IN",
+      "start": "2025-08-01",
+      "projectedFinish": "2026-02-05",
+      "completionDate": "2026-02-05",
+      "sqft": null,
+      "pctComplete": 75.4,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 286231.73,
+        "revised": 286231.73,
+        "committed": 0,
+        "direct": 263098.91000000003,
+        "projectedCost": 268562.91,
+        "projectedBudget": 286782.53,
+        "projCostSuspect": false
+      },
+      "contractValue": 348875,
+      "revisedContract": 348875,
+      "commitments": {
+        "count": 19,
+        "subcontracts": 12,
+        "purchaseOrders": 7,
+        "committedTotal": 5464,
+        "originalTotal": 5464,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 40806.25,
+            "original": 40806.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Draft",
+            "total": 23398.47,
+            "original": 23398.47,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 22178.2,
+            "original": 22178.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 17334.1,
+            "original": 17334.1,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 17013.81,
+            "original": 17013.81,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 12977.5,
+            "original": 12977.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 10464,
+            "original": 10464,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Draft",
+            "total": 7829,
+            "original": 7829,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 6436.6,
+            "original": 6436.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6393,
+            "original": 6393,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 5961.79,
+            "original": 5961.79,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "JCS Fireplace P.O",
+            "vendor": "JCS Fireplace",
+            "status": "Approved",
+            "total": 5464,
+            "original": 5464,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4596.4,
+            "original": 4596.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 3,
+        "netValue": 550.8,
+        "byType": {
+          "TBD": 1,
+          "Allowance": 1,
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro11",
+      "procoreId": 598134326176629,
+      "projectNumber": "2518RO11",
+      "name": "Greencroft 2027 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2027 Whispering Pines Court, Goshen, IN",
+      "start": "2025-07-17",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 73.6,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 281892.42,
+        "revised": 281892.42,
+        "committed": 0,
+        "direct": 256100.43999999997,
+        "projectedCost": 306722.94,
+        "projectedBudget": 284367.42,
+        "projCostSuspect": false
+      },
+      "contractValue": 347760,
+      "revisedContract": 347760,
+      "commitments": {
+        "count": 20,
+        "subcontracts": 14,
+        "purchaseOrders": 6,
+        "committedTotal": 22252.5,
+        "originalTotal": 22252.5,
+        "pendingTotal": 28370,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 40806.25,
+            "original": 40806.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Advanced Excavating LLC Subcontract",
+            "vendor": "Advanced Excavating LLC",
+            "status": "Out For Signature",
+            "total": 28370,
+            "original": 28370,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Draft",
+            "total": 23531.82,
+            "original": 23531.82,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 22252.5,
+            "original": 22252.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 22178.2,
+            "original": 22178.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 17334.1,
+            "original": 17334.1,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 17024.81,
+            "original": 17024.81,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 12977.5,
+            "original": 12977.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 10464,
+            "original": 10464,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Draft",
+            "total": 7829,
+            "original": 7829,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 6436.6,
+            "original": 6436.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6393,
+            "original": 6393,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 5961.79,
+            "original": 5961.79,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4596.4,
+            "original": 4596.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 2,
+        "netValue": 1530,
+        "byType": {
+          "Allowance": 1,
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro14",
+      "procoreId": 598134326208542,
+      "projectNumber": "2518RO14",
+      "name": "Greencroft 2048 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2048 Whispering Pines Court, Elkhart, IN",
+      "start": "2025-05-05",
+      "projectedFinish": "2026-07-15",
+      "completionDate": "2026-07-15",
+      "sqft": null,
+      "pctComplete": 39.7,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 285014.87,
+        "revised": 291404.87,
+        "committed": 0,
+        "direct": 136996.56,
+        "projectedCost": 175918.91,
+        "projectedBudget": 285014.87,
+        "projCostSuspect": false
+      },
+      "contractValue": 344845,
+      "revisedContract": 351235,
+      "commitments": {
+        "count": 20,
+        "subcontracts": 14,
+        "purchaseOrders": 6,
+        "committedTotal": 38922.35,
+        "originalTotal": 38922.35,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing & Electrical Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 40806.25,
+            "original": 40806.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 30678.75,
+            "original": 30678.75,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 22178.2,
+            "original": 22178.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Draft",
+            "total": 19832.46,
+            "original": 19832.46,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 17334.1,
+            "original": 17334.1,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 17024.81,
+            "original": 17024.81,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Draft",
+            "total": 13613,
+            "original": 13613,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 12977.5,
+            "original": 12977.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 10464,
+            "original": 10464,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 8243.6,
+            "original": 8243.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 6436,
+            "original": 6436,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6393,
+            "original": 6393,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 5961.79,
+            "original": 5961.79,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4596.4,
+            "original": 4596.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 1,
+        "netValue": 0,
+        "byType": {
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro16",
+      "procoreId": 598134326214948,
+      "projectNumber": "2518RO16",
+      "name": "Greencroft 2050 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2050 Whispering Pines Cout, Goshen, IN",
+      "start": "2025-05-05",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 35.9,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 283635.62,
+        "revised": 283635.62,
+        "committed": 0,
+        "direct": 123713.63999999998,
+        "projectedCost": 144336.19,
+        "projectedBudget": 283810.62,
+        "projCostSuspect": false
+      },
+      "contractValue": 344845,
+      "revisedContract": 344845,
+      "commitments": {
+        "count": 19,
+        "subcontracts": 13,
+        "purchaseOrders": 6,
+        "committedTotal": 20622.55,
+        "originalTotal": 20622.55,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing & Electrical Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 40806.25,
+            "original": 40806.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 22178.2,
+            "original": 22178.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Draft",
+            "total": 19832.46,
+            "original": 19832.46,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 17334.1,
+            "original": 17334.1,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 17024.81,
+            "original": 17024.81,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 13277,
+            "original": 13277,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 12977.5,
+            "original": 12977.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 10464,
+            "original": 10464,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 7345.55,
+            "original": 7345.55,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 6436,
+            "original": 6436,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6393,
+            "original": 6393,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 5961.79,
+            "original": 5961.79,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4596.4,
+            "original": 4596.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 1,
+        "netValue": 175,
+        "byType": {
+          "Allowance": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro09",
+      "procoreId": 598134326145540,
+      "projectNumber": "2518RO09",
+      "name": "Greencroft 2036 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2036 Whispering Pines Court, Goshen, IN",
+      "start": "2025-06-16",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 81.7,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 279801.9,
+        "revised": 297511.89999999997,
+        "committed": 0,
+        "direct": 281405.1,
+        "projectedCost": 364951.51,
+        "projectedBudget": 289929.15,
+        "projCostSuspect": false
+      },
+      "contractValue": 344480,
+      "revisedContract": 344480,
+      "commitments": {
+        "count": 21,
+        "subcontracts": 14,
+        "purchaseOrders": 7,
+        "committedTotal": 38197.18,
+        "originalTotal": 38197.18,
+        "pendingTotal": 52357.25,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 43300,
+            "original": 43300,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Advanced Excavating LLC Subcontract",
+            "vendor": "Advanced Excavating LLC",
+            "status": "Out For Signature",
+            "total": 28370,
+            "original": 28370,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Out For Signature",
+            "total": 23987.25,
+            "original": 23987.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 20095.56,
+            "original": 20095.56,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 16733.18,
+            "original": 16733.18,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 16650.9,
+            "original": 16650.9,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 16624.3,
+            "original": 16624.3,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 11799,
+            "original": 11799,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 11223.75,
+            "original": 11223.75,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 8893.6,
+            "original": 8893.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Miller Door And Trim",
+            "vendor": "Miller Door & Trim Inc.",
+            "status": "Approved",
+            "total": 7008.02,
+            "original": 7008.02,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 6818.8,
+            "original": 6818.8,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6246,
+            "original": 6246,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 5949.59,
+            "original": 5949.59,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4355,
+            "original": 4355,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Approved",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 3,
+        "netValue": 10127.25,
+        "byType": {
+          "Owner Change": 1,
+          "Allowance": 2
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro08",
+      "procoreId": 598134326145448,
+      "projectNumber": "2518RO08",
+      "name": "Greencroft 2034 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2034 Whispering Pines Court, Goshen, IN",
+      "start": "2025-06-16",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 85.5,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 270136.7,
+        "revised": 276151.7,
+        "committed": 0,
+        "direct": 293914.43000000005,
+        "projectedCost": 350179.07,
+        "projectedBudget": 273590.59,
+        "projCostSuspect": false
+      },
+      "contractValue": 343820,
+      "revisedContract": 270136.7,
+      "commitments": {
+        "count": 24,
+        "subcontracts": 17,
+        "purchaseOrders": 7,
+        "committedTotal": 53544.86,
+        "originalTotal": 53544.86,
+        "pendingTotal": 10888.25,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 43850,
+            "original": 43850,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 21607.39,
+            "original": 21607.39,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 17976.83,
+            "original": 17976.83,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 16481.6,
+            "original": 16481.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 16266.2,
+            "original": 16266.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Advanced Excavating Subcontract",
+            "vendor": "Advanced Excavating LLC",
+            "status": "Draft",
+            "total": 14685,
+            "original": 14685,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 12677.5,
+            "original": 12677.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 11384,
+            "original": 11384,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Cherry Creek - Sidewalk Contract",
+            "vendor": "Cherry Creek Builders LLC",
+            "status": "Approved",
+            "total": 10960,
+            "original": 10960,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Out For Signature",
+            "total": 10888.25,
+            "original": 10888.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 7345,
+            "original": 7345,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Miller Door and Trim P.O",
+            "vendor": "Miller Door & Trim Inc.",
+            "status": "Approved",
+            "total": 6901.47,
+            "original": 6901.47,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6238.6,
+            "original": 6238.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 5475.6,
+            "original": 5475.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "JCS Fireplace Subcontract",
+            "vendor": "JCS Fireplace",
+            "status": "Approved",
+            "total": 5464,
+            "original": 5464,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 5438.55,
+            "original": 5438.55,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4337.4,
+            "original": 4337.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & J Stone - Fireplace - Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 1267,
+            "original": 1267,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 1,
+        "netValue": 3453.89,
+        "byType": {
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro02",
+      "procoreId": 598134326131024,
+      "projectNumber": "2518RO02",
+      "name": "Greencroft 2058 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2058 Whispering Pines Court, Goshen, IN",
+      "start": "2025-07-02",
+      "projectedFinish": "2025-12-16T22:00:00Z",
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 80.7,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": true,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 279288.39,
+        "revised": 279288.39,
+        "committed": 0,
+        "direct": 263935.68999999994,
+        "projectedCost": 326605.94,
+        "projectedBudget": 279288.39,
+        "projCostSuspect": false
+      },
+      "contractValue": 326873,
+      "revisedContract": 279288.39,
+      "commitments": {
+        "count": 19,
+        "subcontracts": 13,
+        "purchaseOrders": 6,
+        "committedTotal": 14685,
+        "originalTotal": 14685,
+        "pendingTotal": 47985.25,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Out For Signature",
+            "total": 40806.25,
+            "original": 40806.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 22178.2,
+            "original": 22178.2,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Draft",
+            "total": 19832.46,
+            "original": 19832.46,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 17334.1,
+            "original": 17334.1,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 17024.81,
+            "original": 17024.81,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Advanced Excavating Subcontract",
+            "vendor": "Advanced Excavating LLC",
+            "status": "Approved",
+            "total": 14685,
+            "original": 14685,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 12977.5,
+            "original": 12977.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 10464,
+            "original": 10464,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Out For Signature",
+            "total": 7179,
+            "original": 7179,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 6436.6,
+            "original": 6436.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6393,
+            "original": 6393,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 5961.79,
+            "original": 5961.79,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4596.4,
+            "original": 4596.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 1,
+        "netValue": 0,
+        "byType": {
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Erik Parcell",
+        "email": "eparcell@ryoderconstruction.com",
+        "title": "Project Manager"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro17",
+      "procoreId": 598134326246425,
+      "projectNumber": "2518RO17",
+      "name": "Greencroft Midd 525 Pkwy Lot50",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "525 Greencroft Parkway, Middlebury, IN",
+      "start": "2025-09-09",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 83.5,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 268659.6000000001,
+        "revised": 277346.22000000003,
+        "committed": 0,
+        "direct": 267063.94999999995,
+        "projectedCost": 330861.97,
+        "projectedBudget": 278426.6,
+        "projCostSuspect": false
+      },
+      "contractValue": 319970,
+      "revisedContract": 319970,
+      "commitments": {
+        "count": 22,
+        "subcontracts": 16,
+        "purchaseOrders": 6,
+        "committedTotal": 33129.92,
+        "originalTotal": 33129.92,
+        "pendingTotal": 30668.1,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Draft",
+            "total": 19059.84,
+            "original": 19059.84,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 17384.37,
+            "original": 17384.37,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Out For Signature",
+            "total": 16481.6,
+            "original": 16481.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Out For Signature",
+            "total": 14186.5,
+            "original": 14186.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 7995.55,
+            "original": 7995.55,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Dave's Lawn Subcontract",
+            "vendor": "Dave's Lawn",
+            "status": "Approved",
+            "total": 5850,
+            "original": 5850,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Legacy Porch Railing - Subcontract",
+            "vendor": "Legacy Fence & Decks",
+            "status": "Approved",
+            "total": 1900,
+            "original": 1900,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 4,
+        "netValue": 9430,
+        "byType": {
+          "TBD": 2,
+          "Owner Change": 1,
+          "Allowance": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro10",
+      "procoreId": 598134326208550,
+      "projectNumber": "2518RO10",
+      "name": "Greencroft 2028 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2028 Whispering Pines Court, Goshen, IN",
+      "start": "2025-08-05",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 83.4,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 269971.29000000004,
+        "revised": 269971.29000000004,
+        "committed": 0,
+        "direct": 265398.89,
+        "projectedCost": 284393.27,
+        "projectedBudget": 273282.29,
+        "projCostSuspect": false
+      },
+      "contractValue": 318200,
+      "revisedContract": 318200,
+      "commitments": {
+        "count": 18,
+        "subcontracts": 12,
+        "purchaseOrders": 6,
+        "committedTotal": 18994.38,
+        "originalTotal": 18994.38,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 42120,
+            "original": 42120,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 18994.38,
+            "original": 18994.38,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 16066.6,
+            "original": 16066.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 15979.62,
+            "original": 15979.62,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 15685.9,
+            "original": 15685.9,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 11177.5,
+            "original": 11177.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 10424,
+            "original": 10424,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Draft",
+            "total": 7829,
+            "original": 7829,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 6811,
+            "original": 6811,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 5709,
+            "original": 5709,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 5186.78,
+            "original": 5186.78,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 3797.4,
+            "original": 3797.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 2,
+        "netValue": 1496,
+        "byType": {
+          "TBD": 1,
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
     },
     {
       "slug": "eha-bannerker-hts-kitchen-reno",
@@ -6851,6 +10858,763 @@
         "title": "Project Engineer"
       },
       "superintendent": null
+    },
+    {
+      "slug": "greencroft-2518ro13",
+      "procoreId": 598134326199194,
+      "projectNumber": "2518RO13",
+      "name": "Greencroft 2042 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2042 Whispering Pines Court, Goshen, IN",
+      "start": "2025-07-28",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 71.5,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 269812.16000000003,
+        "revised": 274609.16000000003,
+        "committed": 0,
+        "direct": 225076.12999999998,
+        "projectedCost": 255638.13,
+        "projectedBudget": 272886.31,
+        "projCostSuspect": false
+      },
+      "contractValue": 314772,
+      "revisedContract": 314772,
+      "commitments": {
+        "count": 22,
+        "subcontracts": 16,
+        "purchaseOrders": 6,
+        "committedTotal": 30562,
+        "originalTotal": 30562,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 41475,
+            "original": 41475,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Advanced Excavating LLC Subcontract",
+            "vendor": "Advanced Excavating LLC",
+            "status": "Draft",
+            "total": 28370,
+            "original": 28370,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Draft",
+            "total": 21119.86,
+            "original": 21119.86,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 19295.5,
+            "original": 19295.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 16919.1,
+            "original": 16919.1,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 15027.6,
+            "original": 15027.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 13799.3,
+            "original": 13799.3,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 11477.5,
+            "original": 11477.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 9624,
+            "original": 9624,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 7829,
+            "original": 7829,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 5949.59,
+            "original": 5949.59,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 5721,
+            "original": 5721,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 4929.6,
+            "original": 4929.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4056.4,
+            "original": 4056.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Cherry Creek Subcontract",
+            "vendor": "Cherry Creek Builders LLC",
+            "status": "Approved",
+            "total": 3437.5,
+            "original": 3437.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Cherry Creek Subcontract",
+            "vendor": "Cherry Creek Builders LLC",
+            "status": "Approved",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 4,
+        "netValue": 3307.01,
+        "byType": {
+          "Owner Change": 2,
+          "Allowance": 2
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro15",
+      "procoreId": 598134326212167,
+      "projectNumber": "2518RO15",
+      "name": "Greencroft 2044 WPC",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "2042 Whispering Pines Court, Goshen, MI",
+      "start": "2025-05-05",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 74.6,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 292873.61000000004,
+        "revised": 292873.61000000004,
+        "committed": 0,
+        "direct": 234863.41,
+        "projectedCost": 246129.91,
+        "projectedBudget": 299469.79,
+        "projCostSuspect": false
+      },
+      "contractValue": 314772,
+      "revisedContract": 354450,
+      "commitments": {
+        "count": 19,
+        "subcontracts": 13,
+        "purchaseOrders": 6,
+        "committedTotal": 11266.5,
+        "originalTotal": 11266.5,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Draft",
+            "total": 41451.25,
+            "original": 41451.25,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 22003.9,
+            "original": 22003.9,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Draft",
+            "total": 20481.56,
+            "original": 20481.56,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 17976.83,
+            "original": 17976.83,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Draft",
+            "total": 16481.6,
+            "original": 16481.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 12677.5,
+            "original": 12677.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 11384,
+            "original": 11384,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 7829,
+            "original": 7829,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Draft",
+            "total": 6811,
+            "original": 6811,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Draft",
+            "total": 6238.6,
+            "original": 6238.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 5438.55,
+            "original": 5438.55,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Draft",
+            "total": 4337.4,
+            "original": 4337.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 3686.92,
+            "original": 3686.92,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Cherry Creek Subcontract",
+            "vendor": "Cherry Creek Builders LLC",
+            "status": "Approved",
+            "total": 3437.5,
+            "original": 3437.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 2200,
+            "original": 2200,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 1100,
+            "original": 1100,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 437,
+            "original": 437,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 3,
+        "netValue": 2928.09,
+        "byType": {
+          "Allowance": 1,
+          "TBD": 1,
+          "Owner Change": 1
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
+    },
+    {
+      "slug": "greencroft-2518ro18",
+      "procoreId": 598134326246426,
+      "projectNumber": "2518RO18",
+      "name": "Greencroft Midd 529 Pkwy Lot51",
+      "client": "Greencroft Communities",
+      "clientType": "commercial",
+      "workType": "renovation",
+      "program": "greencroft",
+      "active": true,
+      "stage": null,
+      "address": "529 Greencroft Parkway, Middlebury, IN",
+      "start": "2025-09-09",
+      "projectedFinish": null,
+      "completionDate": null,
+      "sqft": null,
+      "pctComplete": 78.8,
+      "costOverrun": false,
+      "commitmentsTracked": true,
+      "verifyStatus": false,
+      "rfis": {
+        "total": 0,
+        "open": 0
+      },
+      "submittals": {
+        "total": 0,
+        "open": 0
+      },
+      "budget": {
+        "original": 265361.54000000004,
+        "revised": 268266.54000000004,
+        "committed": 0,
+        "direct": 244108.7,
+        "projectedCost": 376063.52,
+        "projectedBudget": 266621.54,
+        "projCostSuspect": true
+      },
+      "contractValue": 309770,
+      "revisedContract": 309770,
+      "commitments": {
+        "count": 20,
+        "subcontracts": 14,
+        "purchaseOrders": 6,
+        "committedTotal": 39399.88,
+        "originalTotal": 39399.88,
+        "pendingTotal": 92554.94,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "sub",
+            "title": "AJ's Plumbing Subcontract",
+            "vendor": "AJ's Plumbing & Electric LLC",
+            "status": "Out For Signature",
+            "total": 41475,
+            "original": 41475,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman Supply Inc. Purchase Order",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Processing",
+            "total": 18388.84,
+            "original": 18388.84,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Yoder Concrete LLC Subcontract",
+            "vendor": "Yoder Concrete LLC",
+            "status": "Approved",
+            "total": 17384.38,
+            "original": 17384.38,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Burt Electric Subcontract",
+            "vendor": "Burt Electric Inc",
+            "status": "Out For Signature",
+            "total": 16919.1,
+            "original": 16919.1,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Universal Services Subcontract",
+            "vendor": "Universal Services Company LLC",
+            "status": "Approved",
+            "total": 14186.5,
+            "original": 14186.5,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J & N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 7829,
+            "original": 7829,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Airtight Insulation Subcontractor",
+            "vendor": "Air Tite Insulation LLC",
+            "status": "Out For Signature",
+            "total": 6246,
+            "original": 6246,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "EW Drywall Subcontract",
+            "vendor": "EW Drywall & Painting LLC",
+            "status": "Out For Signature",
+            "total": 4929.6,
+            "original": 4929.6,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Jenks Carpentry Subcontract",
+            "vendor": "Jenks Carpentry",
+            "status": "Out For Signature",
+            "total": 4596.4,
+            "original": 4596.4,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Premier Painting Subcontract",
+            "vendor": "Premier Painting LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Quality Seamless Gutters LLC Subcontract",
+            "vendor": "Quality Seamless Gutters LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Culp Door Sales & Service Subcontract",
+            "vendor": "Culp Door Sales & Service Inc",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Mels Dust Subcontract",
+            "vendor": "Mel's Dust to Shine",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Southern Ridge Subcontract",
+            "vendor": "Southern Ridge Concrete",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Straight Line Subcontract",
+            "vendor": "Straight Line Siding Inc.",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Millers Building Supply Purchase Order",
+            "vendor": "Millers Building Supply",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "QXO Building Products Purchase Order",
+            "vendor": "QXO",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Plymouth Glass P.O.",
+            "vendor": "Plymouth Glass Company LLC",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Radon Control Purchase Order",
+            "vendor": "Radon Control of Goshen",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Kendall Electric Purchase Order",
+            "vendor": "Kendall Electric Inc",
+            "status": "Draft",
+            "total": 0,
+            "original": 0,
+            "invoiced": 0
+          }
+        ]
+      },
+      "changeOrders": {
+        "count": 3,
+        "netValue": 1260,
+        "byType": {
+          "TBD": 1,
+          "Owner Change": 2
+        }
+      },
+      "pm": {
+        "name": "Logan Moore",
+        "email": "lmoore@ryoderconstruction.com",
+        "title": "Project Engineer"
+      },
+      "superintendent": {
+        "name": "Anthony Gorsuch",
+        "email": "agorsuch@ryoderconstruction.com",
+        "title": "Superintendent "
+      }
     },
     {
       "slug": "phm-educational-svc-elevator",
@@ -6989,83 +11753,6 @@
       "superintendent": {
         "name": "Brian Hubbard",
         "email": "bhubbard@ryoderconstruction.com",
-        "title": "Field Superintendent"
-      }
-    },
-    {
-      "slug": "alum-ins-presezzi-fdtn",
-      "procoreId": 598134326353356,
-      "projectNumber": "2507CO04",
-      "name": "Alum Ins Presezzi Fdtn",
-      "client": "Aluminum Insights",
-      "clientType": "commercial",
-      "workType": "new_construction",
-      "active": true,
-      "stage": null,
-      "address": "104 E. Innovation Blvd., Syracuse, IN",
-      "start": "2025-11-01",
-      "projectedFinish": "2026-05-05",
-      "completionDate": "2026-05-05",
-      "sqft": null,
-      "pctComplete": 95.7,
-      "costOverrun": false,
-      "commitmentsTracked": true,
-      "verifyStatus": false,
-      "rfis": {
-        "total": 0,
-        "open": 0
-      },
-      "submittals": {
-        "total": 0,
-        "open": 0
-      },
-      "budget": {
-        "original": 57373.51,
-        "revised": 70028.51000000001,
-        "committed": 0,
-        "direct": 62881.11,
-        "projectedCost": 82544.64,
-        "projectedBudget": 69489.19,
-        "projCostSuspect": false
-      },
-      "contractValue": 65680,
-      "revisedContract": 78335,
-      "commitments": {
-        "count": 1,
-        "subcontracts": 1,
-        "purchaseOrders": 0,
-        "committedTotal": 19663.53,
-        "originalTotal": 18924.85,
-        "pendingTotal": 0,
-        "invoicedTotal": 0,
-        "rows": [
-          {
-            "kind": "sub",
-            "title": "M.E. Subcontract - AI Presezzi Foundations",
-            "vendor": "Middlebury Electric Inc",
-            "status": "Approved",
-            "total": 19663.53,
-            "original": 18924.85,
-            "invoiced": 0
-          }
-        ]
-      },
-      "changeOrders": {
-        "count": 2,
-        "netValue": 12115.68,
-        "byType": {
-          "Allowance": 1,
-          "Owner Change": 1
-        }
-      },
-      "pm": {
-        "name": "Erik Parcell",
-        "email": "eparcell@ryoderconstruction.com",
-        "title": "Project Manager"
-      },
-      "superintendent": {
-        "name": "Nick Lechlitner",
-        "email": "nlechlitner@ryoderconstruction.com",
         "title": "Field Superintendent"
       }
     }
