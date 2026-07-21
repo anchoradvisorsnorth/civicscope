@@ -65,12 +65,15 @@ function mergeFoundation(){
 
 function getActiveJobs(){ return ((activeData&&activeData.jobs)||[]).filter(function(j){ return !CLOSEOUT_STAGES[j.stage]; }); }
 
-/* Greencroft program (2026-07-20, Keith): 30+ active WPC/unit jobs for Greencroft
-   Communities / Greencroft Southfield Village, deliberately excluded from the Procore
-   curated board since day one ("not dashboard-relevant") — now surfaced. Sourced from
-   the Foundation feed (they already flow nightly); customer name is the identifier.
-   Presented as WOH lines + a rolled-up Portfolio section + folded into headline KPIs. */
+/* Greencroft program (2026-07-20 surfaced Foundation-only; 2026-07-21 PROMOTED to full
+   board membership, Keith: "they're in all three platforms — no different than the other
+   projects"). procore-refresh.js auto-includes active Procore projects matching /greencroft/i
+   as normal board jobs carrying program:'greencroft'. greencroftJobs() is built on
+   foundationOnly, so it self-shrinks to the LEFTOVERS: units active in Foundation but not
+   active in Procore — still shown as WOH F-lines + the Portfolio band. Their Projected
+   Budget stays Foundation-sourced everywhere (no ERP budget view exists on these units). */
 function isGreencroft(f){ return !!f && /greencroft/i.test((f.customerName||"")+" "+(f.description||"")); }
+function greencroftBoardJobs(){ return getActiveJobs().filter(function(j){ return j.program==="greencroft"; }); }
 function greencroftJobs(){ return (foundationOnly||[]).filter(isGreencroft)
   .concat(((foundationData&&foundationData.jobs)?Object.values(foundationData.jobs):[]).filter(function(f){
     // $0-contract Greencroft misc jobs fail foundationOnly's contract>0 test but are real work

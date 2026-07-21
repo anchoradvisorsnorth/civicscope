@@ -4,8 +4,11 @@
 /* ===== Command Center ======================================================== */
 function projectedGrossMargin(){
   var jobs=getActiveJobs(), tC=0, tPC=0;
-  jobs.forEach(function(j){ var b=j.budget||{}; var pc=b.revised>0?b.revised:(b.original>0?b.original:0); if(j.contractValue>0&&pc>0){ tC+=j.contractValue; tPC+=pc; } });
-  // Greencroft program (Foundation-sourced, no Procore budget): contract vs as-bid cost + CO cost adj
+  jobs.forEach(function(j){ var b=j.budget||{}; var pc=b.revised>0?b.revised:(b.original>0?b.original:0);
+    // Greencroft board jobs carry no Procore budget — their projected cost is Foundation as-bid + CO cost adj
+    if(!(pc>0) && j.program==="greencroft" && j.foundation) pc=gcProjCost(j.foundation)||0;
+    if(j.contractValue>0&&pc>0){ tC+=j.contractValue; tPC+=pc; } });
+  // Greencroft leftovers (active in Foundation, not on the Procore board)
   greencroftJobs().forEach(function(f){ var c=(f.currentContract>0)?f.currentContract:(f.originalContract||0); var pc=gcProjCost(f); if(c>0&&pc>0){ tC+=c; tPC+=pc; } });
   return tC>0?((tC-tPC)/tC*100):null;
 }
@@ -36,7 +39,7 @@ function renderCommand(){
   /* KPI strip */
   function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
   var strip="<div class=\"kpi-strip\">"
-    +kpi("Active contract value",fmt(totalContract),(jobs.length+gc.length)+" active jobs — "+jobs.length+" board + "+gc.length+" Greencroft","accent")
+    +kpi("Active contract value",fmt(totalContract),(jobs.length+gc.length)+" active jobs — incl. "+(greencroftBoardJobs().length+gc.length)+" Greencroft"+(gc.length?" ("+gc.length+" off-board)":""),"accent")
     +kpi("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast · Procore budget",(gm!=null&&gm<8)?"warn":"")
     +kpi("Overdue AR (active)",haveAr?fmtCompact(overdue):"Unavailable",haveAr?"needs collection":"AR feed down",haveAr?(overdue>0?"bad":""):"warn")
     +kpi("Needs invoicing",haveFnd?fmtCompact(needsInv):"Unavailable",haveFnd?"earned, not billed":"Foundation feed down",haveFnd?(needsInv>0?"warn":""):"warn")
@@ -110,7 +113,7 @@ function renderCommand(){
     +chip(!!arData,"AR",(((arData&&arData.invoices)||[]).length)+" invoices",arData&&arData.refreshed)
     +chip(!!buildrData,"Buildr",(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",buildrData&&buildrData.refreshed)
     +chip(!!bcData,"BC bid board",(bcData&&bcData.published?bcData.published.length:0)+" out to bid",bcData&&bcData.generatedAt)
-    +chip(foundationOnly.length>=0,"Coverage",foundationOnlyNonGC().length+" Foundation-only active jobs not on board · "+gc.length+" Greencroft surfaced",null)
+    +chip(foundationOnly.length>=0,"Coverage",foundationOnlyNonGC().length+" Foundation-only active jobs not on board · Greencroft: "+greencroftBoardJobs().length+" on board + "+gc.length+" Foundation-only",null)
     +"</div></div>";
 
   return warn+strip+queue+health;
@@ -200,9 +203,9 @@ function renderPortfolio(){
     +"<span class=\"pcount\" id=\"pcount\"></span></div>";
   var cols=[["name","Job"],["pm","PM"],["stage","Stage"],["contract","Contract"],["ctd","Cost to date"],["pct","%"],["mtd","Margin"],["needsInv","Billing"],["status","Status"],["confRank","Conf"]];
   var head="<tr>"+cols.map(function(cd){ var right=["contract","ctd","pct","mtd"].indexOf(cd[0])>-1?" class=\"r\"":""; return "<th"+right+" data-col=\""+cd[0]+"\" data-lbl=\""+cd[1]+"\" onclick=\"pfSetSort('"+cd[0]+"')\">"+cd[1]+"</th>"; }).join("")+"</tr>";
-  /* Greencroft program — rolled-up band (Keith 2026-07-20): Foundation-sourced unit jobs,
-     no Procore stage/%/stoplight, so they'd be dash-rows in the main table. One summary
-     band + expandable per-unit list; individual lines live on the Work on Hand view. */
+  /* Greencroft leftovers band (2026-07-21): since the program's promotion to the board,
+     greencroftJobs() = only units active in Foundation but NOT active in Procore. The
+     promoted units render as normal table rows above. */
   var gc=greencroftJobs().slice().sort(function(a,b){return ((b.currentContract||b.originalContract||0)-(a.currentContract||a.originalContract||0));});
   var gcSec="";
   if(gc.length){
@@ -217,8 +220,8 @@ function renderPortfolio(){
         +"<td class=\"r\">"+fmtCompact(f.totalCosts||0)+"</td><td class=\"r\">"+fmtCompact(f.totalInvoiced||0)+"</td>"
         +"<td class=\"r\">"+(pos>=0?("<span class=\"m-g\">+"+fmtCompact(pos)+"</span>"):("<span class=\"m-a\">"+fmtCompact(pos)+"</span>"))+"</td></tr>";
     }).join("");
-    gcSec="<div style=\"margin-top:18px\"><div class=\"vhead\">Greencroft program</div>"
-      +"<div class=\"vsub\">"+gc.length+" active unit jobs (Greencroft Communities / Southfield Village) · <b>"+fmtCompact(gcC)+"</b> contract · "+fmtCompact(gcCtd)+" cost to date · "+fmtCompact(gcInv)+" billed. Foundation-sourced (not on the Procore board — no stage/stoplight tracking). Lines also appear on the <b>Work on Hand</b> view.</div>"
+    gcSec="<div style=\"margin-top:18px\"><div class=\"vhead\">Greencroft — off-board units</div>"
+      +"<div class=\"vsub\">"+gc.length+" unit jobs active in Foundation but not active in Procore (the rest of the program lives in the main table above) · <b>"+fmtCompact(gcC)+"</b> contract · "+fmtCompact(gcCtd)+" cost to date · "+fmtCompact(gcInv)+" billed. Foundation-sourced — no stage/stoplight tracking. Lines also appear on the <b>Work on Hand</b> view.</div>"
       +"<details class=\"lgcy\"><summary>Per-unit detail — "+gc.length+" jobs</summary>"
       +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th>Customer</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th><th class=\"r\">Billed − cost</th></tr></thead><tbody>"+gcRows+"</tbody>"
       +"<tfoot><tr><td>"+gc.length+" jobs</td><td></td><td class=\"r\">"+fmtCompact(gcC)+"</td><td class=\"r\">"+fmtCompact(gcCtd)+"</td><td class=\"r\">"+fmtCompact(gcInv)+"</td><td class=\"r\">"+fmtCompact(gcInv-gcCtd)+"</td></tr></tfoot></table></div></details></div>";
@@ -849,10 +852,12 @@ function wohRows(gated){
     var contract=(j.revisedContract>0)?j.revisedContract:((j.contractValue>0)?j.contractValue:null);
     var ctd=f?f.totalCosts:null;
     var tec=(b.projectedBudget!=null)?b.projectedBudget:null;
+    var fTec=false;
+    if(tec==null && j.program==="greencroft" && f){ tec=gcProjCost(f); fTec=tec!=null; } // no ERP budget on Greencroft units — Foundation as-bid + CO cost adj, F-marked
     var billed=f?f.totalInvoiced:null;
     if(gate&&f){ ctd=gate.cost[jno]||0; billed=gate.billed[jno]||0; }
     var ctc=(tec!=null&&ctd!=null)?(tec-ctd):null;
-    rows.push({jno:jno,name:j.name||(f&&f.description)||jno,contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null,gc:false,budgetUrl:procoreBudgetUrl(j)});
+    rows.push({jno:jno,name:j.name||(f&&f.description)||jno,contract:contract,ctd:ctd,ctc:ctc,tec:tec,billed:billed,noTec:tec==null,gc:false,fTec:fTec,budgetUrl:procoreBudgetUrl(j)});
   });
   greencroftJobs().forEach(function(f){
     var jno=f.jobNo||"";
@@ -928,7 +933,7 @@ function renderWOH(){
     return "<th"+colCls(cd[0],cd[0]==="name"?"":"r")+" data-col=\""+cd[0]+"\" style=\"cursor:pointer\" onclick=\"wohSetSort('"+cd[0]+"')\">"+cd[1]+gate+arr+"</th>";
   }).join("")+"</tr>";
   var body=rows.map(function(r){
-    return "<tr"+rowAttr(r.jno)+"><td>"+esc(r.name)+(r.gc?" <span class=\"conf mid\" title=\"Greencroft program — Foundation-sourced; Projected Budget Cost = Foundation as-bid cost + CO cost adj (no Procore ERP budget)\">F</span>":srcLink(r.budgetUrl,"Budget"))+"</td>"
+    return "<tr"+rowAttr(r.jno)+"><td>"+esc(r.name)+((r.gc||r.fTec)?" <span class=\"conf mid\" title=\"Greencroft program — Projected Budget Cost is Foundation-sourced: as-bid cost + CO cost adj (no Procore ERP budget on these units)\">F</span>":srcLink(r.budgetUrl,"Budget"))+"</td>"
       +"<td"+colCls("contract","r")+">"+briefDol(r.contract)+"</td><td"+colCls("ctd","r")+">"+briefDol(r.ctd)+"</td>"
       +"<td"+colCls("ctc","r")+">"+briefDol(r.ctc)+"</td><td"+colCls("tec","r")+">"+briefDol(r.tec)+"</td><td"+colCls("billed","r")+">"+briefDol(r.billed)+"</td></tr>";
   }).join("");
@@ -990,7 +995,7 @@ function renderBrief(){
   /* headline band */
   function sb(l,v,s){ return "<div class=\"sb\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div><div class=\"s\">"+(s||"")+"</div></div>"; }
   var band="<div class=\"stat-band\">"
-    +sb("Active work",String(woh.length)+" jobs",fmtCompact(totalContract)+" under contract — "+jobs.length+" board + "+gcN+" Greencroft")
+    +sb("Active work",String(woh.length)+" jobs",fmtCompact(totalContract)+" under contract — incl. "+(woh.filter(function(r){return r.gc||r.fTec;}).length)+" Greencroft"+(gcN?" ("+gcN+" off-board)":""))
     +sb("Cost to complete",fmtCompact(ctcSum),"remaining on "+ctcRows.length+" costed jobs")
     +sb("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast, Procore budgets")
     +sb("Billed to date",haveFnd?fmtCompact(woh.reduce(function(s,r){return s+(r.billed||0);},0)):"Unavailable","Foundation, active jobs")
