@@ -103,7 +103,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.7.0 · plan takeoff · spec-book scope constraints · autofill · market sub-pricing · BC draft loader</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.7.1 · plan takeoff · spec-book scope constraints · autofill · market sub-pricing · BC draft loader</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -615,7 +615,7 @@ function parseResponse(raw) {
     const o = m ? { name: m[1].trim(), amount: parseInt(m[2].replace(/,/g, ''), 10) || 0, scope: (m[3] || '').trim() } : { name: line, amount: 0, scope: '' };
     const dm = o.name.match(/\b(\d{2})\b/); o.div = dm ? dm[1] : null;
     return o;
-  });
+  }).filter(o => o.amount > 0 || /^\d{2}\b/.test(o.name.trim())); // drop model math-commentary lines (subtotal checks, margin musings) that aren't real division rows
   const gRaw = block('GAP_QUESTIONS', '[A-Z_]+');
   let gaps = [];
   if (gRaw && gRaw.toLowerCase() !== 'none') gaps = lines(gRaw).map(l => { const m = l.match(/^(.*?)\s*\((.*?)\)\s*$/); return m ? { q: m[1].trim(), impact: m[2].trim() } : { q: l, impact: '' }; });
