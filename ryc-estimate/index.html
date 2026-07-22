@@ -103,7 +103,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.6.1 · plan takeoff · cover-sheet autofill · quick check · market sub-pricing · BC draft loader</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.7.0 · plan takeoff · spec-book scope constraints · autofill · market sub-pricing · BC draft loader</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -437,6 +437,56 @@ function setLoading(on) {
 }
 function showErr(m) { const e = document.getElementById('errorMsg'); e.textContent = m; e.style.display = 'block'; }
 
+/* ===== Contract-scope constraints from a spec book (2026-07-22) =====
+   Northern Heights lesson: the drawings show the WHOLE building, but the Project Manual defines
+   the CONTRACT — Divisions marked NOT APPLICABLE, owner-furnished (OFCI) equipment, alternates.
+   Without it the takeoff priced roofing/restoration/equipment that wasn't in the $1.7M contract
+   and landed at $10M. So: before the takeoff, one cheap pass over the FIRST pages of each
+   uploaded file looks for a project manual (TOC / Summary of Work / OFCI table) and extracts
+   hard scope boundaries that get injected into every takeoff prompt. */
+async function extractScopeConstraints() {
+  const key = uploadedFiles.map(f => f.name).join('|');
+  if (window._scopeCKey === key) return window._scopeC || null;
+  window._scopeCKey = key; window._scopeC = null;
+  // first pages of each distinct uploaded file (TOC/summary live early), max 10 total
+  const byFile = {};
+  for (const f of uploadedFiles) {
+    const base = f.name.replace(/\s*\(p\d+\)$/, '');
+    const pm = f.name.match(/\(p(\d+)\)$/); const pg = pm ? parseInt(pm[1], 10) : 1;
+    (byFile[base] = byFile[base] || []).push({ f, pg });
+  }
+  const pages = [];
+  for (const arr of Object.values(byFile)) {
+    arr.sort((a, b) => a.pg - b.pg);
+    for (const x of arr.slice(0, 5)) { if (pages.length < 10) pages.push(x.f); }
+  }
+  if (!pages.length) return null;
+  try {
+    const prompt = `These are the first pages of documents uploaded for a construction estimate. Determine whether they include a PROJECT MANUAL / SPECIFICATION BOOK (look for: Table of Contents listing CSI divisions, "NOT APPLICABLE" division markers, Instructions to Bidders, Section 01 10 00 Summary / scope narrative, an Owner-Furnished/Contractor-Installed (OFCI) responsibility table, Alternates).
+Reply with ONLY a JSON object, no prose:
+{"hasSpecBook": bool, "inScope": [string descriptions of in-contract divisions/work, e.g. "Div 23 HVAC — unit ventilator replacement, piping, ductwork"], "notApplicable": [division names/numbers explicitly marked NOT APPLICABLE], "ofci": [equipment the OWNER furnishes and contractor only installs, e.g. "Unit ventilators (Temspec)", "Chiller (Trane)"], "byOthers": [work handled under separate contracts, e.g. "Temperature controls by Trane"], "alternates": [named alternates to price separately], "scopeSummary": string|null (1-2 sentences: what THIS contract actually covers)}
+Use null/[] for anything not stated. Do not invent constraints not on these pages.`;
+    const raw = await callClaude(prompt, pages, 800);
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    const d = JSON.parse(m[0]);
+    if (!d.hasSpecBook) return null;
+    window._scopeC = d;
+    return d;
+  } catch (e) { return null; }
+}
+function scopeConstraintText() {
+  const c = window._scopeC;
+  if (!c) return '';
+  const L = [];
+  if (c.scopeSummary) L.push(`- CONTRACT SCOPE: ${c.scopeSummary}`);
+  if (c.inScope && c.inScope.length) L.push(`- IN-SCOPE work: ${c.inScope.join('; ')}`);
+  if (c.notApplicable && c.notApplicable.length) L.push(`- NOT APPLICABLE (DO NOT PRICE, even where the drawings show that part of the building): ${c.notApplicable.join('; ')}`);
+  if (c.ofci && c.ofci.length) L.push(`- OWNER-FURNISHED / CONTRACTOR-INSTALLED (OFCI): ${c.ofci.join('; ')} — the owner buys this equipment; price INSTALLATION labor, rigging, piping/wiring connections and accessories ONLY, NOT the equipment purchase.`);
+  if (c.byOthers && c.byOthers.length) L.push(`- BY OTHERS (separate contracts — exclude entirely): ${c.byOthers.join('; ')}`);
+  if (c.alternates && c.alternates.length) L.push(`- ALTERNATES (exclude from the base estimate; note in assumptions): ${c.alternates.join('; ')}`);
+  return `\nCONTRACT SCOPE CONSTRAINTS — extracted from the uploaded PROJECT MANUAL. These are HARD boundaries that override anything the drawings appear to show. The drawings may depict the entire existing building; the CONTRACT covers only the work below. Work visible in the drawings but outside these boundaries is existing-to-remain or by others — do not price it.\n${L.join('\n')}\n`;
+}
 async function runEstimate() {
   const inp = getInputs();
   document.getElementById('errorMsg').style.display = 'none';
@@ -446,6 +496,11 @@ async function runEstimate() {
   const bm = segBenchmarks(inp.ct, inp.wt, inp.name);
   setLoading(true);
   try {
+    if (uploadedFiles.length) {
+      loadLabel('Checking for a spec book / contract scope…');
+      const sc = await extractScopeConstraints();
+      if (sc) loadLabel('Contract scope found — constraining takeoff…');
+    }
     const prompt = buildPrompt(inp, bm);
     let raw;
     if (uploadedFiles.length === 0) { loadLabel('Estimating from scope + RYC history…'); raw = await callClaude(prompt, null, 2000); }
@@ -460,7 +515,8 @@ async function runEstimate() {
         for (let i = 1; i < batches.length; i++) {
           loadLabel(`Rate-limit cooldown before batch ${i + 1}…`); await sleep(15000);
           loadLabel(`Reading plans (batch ${i + 1} of ${steps})…`);
-          const sp = `You are reviewing ADDITIONAL plan/spec pages for a project you began analyzing.\n\nINITIAL ANALYSIS:\n${first}\n\nReview these ${batches[i].length} new page(s). List ONLY new cost-relevant findings (scope, MEP, structural, finishes, site, quantities) as bullets with cost impact where possible. If nothing new, reply exactly: NO_NEW_DETAILS`;
+          const scNote = window._scopeC ? `\nRESPECT THE CONTRACT SCOPE: divisions marked NOT APPLICABLE in the project manual are excluded even if shown in these pages; owner-furnished (OFCI) equipment is install-labor only. Only report findings within the contract scope.\n` : '';
+          const sp = `You are reviewing ADDITIONAL plan/spec pages for a project you began analyzing.\n\nINITIAL ANALYSIS:\n${first}\n${scNote}\nReview these ${batches[i].length} new page(s). List ONLY new cost-relevant findings (scope, MEP, structural, finishes, site, quantities) as bullets with cost impact where possible. If nothing new, reply exactly: NO_NEW_DETAILS`;
           const r = await callClaude(sp, batches[i], 2048);
           if (r && !r.includes('NO_NEW_DETAILS')) sup.push(r);
         }
@@ -487,8 +543,9 @@ function rycGroundingText(inp, bm) {
 - Subcontract buyout: RYC historically lands ${money(bm.buy)} under estimate${bm.buySubPct != null ? ` (${Math.round(bm.buySubPct)}% of it on subs)` : ''}.`;
   if (hasPlans) {
     return `${ratios}
-
-Determine the TOTAL purely BOTTOM-UP from the plan takeoff: measure the real quantities and scope in the drawings, price each division from those quantities at RYC's northern-Indiana subcontract market, then sum. Do NOT reverse-engineer the total from RYC's average job size or from other projects — price THIS building at THIS scale from what the drawings actually show. RYC builds economical municipal / PEMB / light-commercial work: a pre-engineered metal building or bare shell commonly runs far below national institutional $/SF, and generic $400–500/SF benchmarks almost always OVERSTATE this work. Anchor magnitude to the drawings' real square footage and quantities, apply RYC's realistic achieved margin above, and reflect the subcontract-heavy split — nothing else sets the total.`;
+${scopeConstraintText()}
+Determine the TOTAL purely BOTTOM-UP from the plan takeoff: measure the real quantities and scope in the drawings, price each division from those quantities at RYC's northern-Indiana subcontract market, then sum. Do NOT reverse-engineer the total from RYC's average job size or from other projects — price THIS building at THIS scale from what the drawings actually show. RYC builds economical municipal / PEMB / light-commercial work: a pre-engineered metal building or bare shell commonly runs far below national institutional $/SF, and generic $400–500/SF benchmarks almost always OVERSTATE this work. Anchor magnitude to the drawings' real square footage and quantities, apply RYC's realistic achieved margin above, and reflect the subcontract-heavy split — nothing else sets the total.
+PRICE ONLY THE CONTRACT, NOT THE DRAWINGS: on renovation/replacement work the drawing set typically shows the ENTIRE existing building for context — the contract covers only the new/renovated work. Price the work being ADDED or REPLACED; do not price restoration of everything visible. If equipment is noted as owner-furnished (OFCI) or pre-purchased, price installation only. If the contract boundary is ambiguous from the documents, keep the estimate narrow and raise the ambiguity in GAP_QUESTIONS instead of pricing whole-building scope.`;
   }
   const anchorLines = (bm.analogs || []).filter(a => a.contract).map(a => `  • ${a.name}: ${money(a.contract)}${a.psf ? ` (${a.sqft.toLocaleString()} SF, $${a.psf}/SF)` : ''}`).join('\n');
   return `${ratios}${bm.medianPSF ? `\n- Historical $/SF on this work: ~$${Math.round(bm.medianPSF).toLocaleString()}/SF (thin sample — directional).` : ''}
