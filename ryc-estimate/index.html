@@ -103,7 +103,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.6.0 · plan takeoff · cost intelligence · quick check · market sub-pricing · BC draft loader</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.6.1 · plan takeoff · cover-sheet autofill · quick check · market sub-pricing · BC draft loader</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -143,6 +143,7 @@
       </div>
       <input type="file" id="fileInput" accept="application/pdf,image/png,image/jpeg" multiple style="display:none">
       <div class="err" id="uploadError"></div>
+      <div class="hint" id="autofillNote" style="display:none;margin-top:8px"></div>
       <div class="hint" style="margin-top:8px">The estimate is grounded in RYC's own completed-job actuals for the selected client/work type — margins, buyout, and cost composition come from RYC history, not generic pricing.</div>
     </div>
 
@@ -321,7 +322,52 @@ async function handleFiles(fileList) {
     } catch (err) { errEl.textContent = `Error on "${file.name}": ${err.message || 'unknown'}`; errEl.style.display = 'block'; }
   }
   fileInput.value = '';
+  autofillFromPlans(); // background — reads the cover sheet, prefills empty fields only
 }
+
+/* ===== cover-sheet autofill (2026-07-22) — the plans carry the project name, owner, architect,
+   address, and usually SF, so the human shouldn't retype them. One cheap Vision call on the first
+   pages; fills ONLY empty fields (never overwrites what the user typed); owner/architect ride into
+   the BC draft description. Best-effort: any failure just leaves the form manual. ===== */
+async function autofillFromPlans() {
+  if (!uploadedFiles.length || window._autofillBusy) return;
+  const nameEl = document.getElementById('f-name');
+  if (nameEl.value.trim() && window._autofillDone) return; // already ran and user has a name — don't nag
+  window._autofillBusy = true;
+  const note = document.getElementById('autofillNote');
+  note.style.display = 'block'; note.textContent = '📋 Reading cover sheet…';
+  try {
+    const pages = uploadedFiles.slice(0, 3);
+    const prompt = `These are the first pages of a construction plan set or spec book (cover sheet / title block / index). Extract project metadata. Reply with ONLY a JSON object, no prose:
+{"project_name": string|null, "location": string|null (city, ST), "owner": string|null (the client/owner entity), "architect": string|null, "client_type": one of "school","municipal","commercial","industrial","private","mixed_use" or null (infer from the owner: school corp=school, city/town/county/utility=municipal), "work_type": one of "new_construction","renovation","addition","repair" or null, "size_sf": number|null (building area if stated), "scope_summary": string|null (one sentence, from the drawing index or project description)}
+Use null for anything not actually on these pages — do not guess names.`;
+    const rawTxt = await callClaude(prompt, pages, 500);
+    const m = rawTxt.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('no JSON');
+    const d = JSON.parse(m[0]);
+    const filled = [];
+    const setIf = (id, v, label) => { const el = document.getElementById(id); if (v && el && !el.value.trim()) { el.value = v; filled.push(label); } };
+    setIf('f-name', d.project_name, 'name');
+    setIf('f-loc', d.location, 'location');
+    setIf('f-sf', d.size_sf, 'SF');
+    setIf('f-scope', d.scope_summary, 'scope');
+    const ctEl = document.getElementById('f-ct'), wtEl = document.getElementById('f-wt');
+    if (d.client_type && [...ctEl.options].some(o => o.value === d.client_type) && !window._ctTouched) { ctEl.value = d.client_type; filled.push('client type'); }
+    if (d.work_type && [...wtEl.options].some(o => o.value === d.work_type) && !window._wtTouched) { wtEl.value = d.work_type; filled.push('work type'); }
+    window._planMeta = { owner: d.owner || null, architect: d.architect || null };
+    const meta = [d.owner ? 'Owner: ' + d.owner : null, d.architect ? 'Architect: ' + d.architect : null].filter(Boolean).join(' · ');
+    note.textContent = filled.length
+      ? `📋 Prefilled from cover sheet: ${filled.join(', ')}${meta ? ' · ' + meta : ''} — verify before running.`
+      : (meta ? `📋 From cover sheet — ${meta}` : '📋 Cover sheet read — nothing new to fill.');
+    window._autofillDone = true;
+  } catch (e) {
+    note.textContent = '📋 Could not read a cover sheet from these pages — fill the fields manually.';
+  }
+  window._autofillBusy = false;
+}
+// user touching the selects wins over any later autofill
+document.getElementById('f-ct').addEventListener('change', () => { window._ctTouched = true; });
+document.getElementById('f-wt').addEventListener('change', () => { window._wtTouched = true; });
 function compressImage(file, maxWidth, quality) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -664,9 +710,12 @@ async function bcCreate(btn) {
   if (!name) { alert('Project name required.'); return; }
   const due = document.getElementById('bcDue').value || null;
   btn.disabled = true; btn.textContent = 'Creating draft…';
+  const pm = window._planMeta || {};
+  const desc = [pm.owner ? 'Owner: ' + pm.owner : null, pm.architect ? 'Architect: ' + pm.architect : null,
+    (window._lastInp && window._lastInp.loc) ? 'Location: ' + window._lastInp.loc : null].filter(Boolean).join('\n') || null;
   try {
     const r = await fetch('/api/ryc-bc-load', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'create', projectName: name, bidsDueAt: due, divisions: chosen }) });
+      body: JSON.stringify({ mode: 'create', projectName: name, bidsDueAt: due, description: desc, divisions: chosen }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || d.detail || ('HTTP ' + r.status));
     const rows = d.packages.map(p =>
