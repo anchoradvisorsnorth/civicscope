@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-07-21T09:30:10.133Z",
+ "generatedAt": "2026-07-22T09:30:11.446Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -150,19 +150,6 @@
      ]
     },
     {
-     "id": "69a0a4ba6003fae13b1c906d",
-     "name": "Paving",
-     "number": "32",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 2,
-     "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "69a0a1061cf93a1282df272c",
      "name": "Painting and Drywall",
      "number": "09-01",
@@ -177,6 +164,19 @@
      "biddingSubs": [
       "Commercial Painting Services"
      ]
+    },
+    {
+     "id": "69a0a4ba6003fae13b1c906d",
+     "name": "Paving",
+     "number": "32",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 2,
+     "notBidding": 0,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "69a051b5c96354b6c85f1cf8",
@@ -653,6 +653,22 @@
      ]
     },
     {
+     "id": "69a70f671e2ea8632c1dbb80",
+     "name": "Flooring",
+     "number": "09",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Carpet Service Outlet"
+     ]
+    },
+    {
      "id": "69a70f671e2ea832d11dbb85",
      "name": "Fire Protection",
      "number": "21",
@@ -667,22 +683,6 @@
      "biddingSubs": [
       "F.E. Moran, Inc.",
       "Ryan Fireprotection Inc."
-     ]
-    },
-    {
-     "id": "69a70f671e2ea8632c1dbb80",
-     "name": "Flooring",
-     "number": "09",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Carpet Service Outlet"
      ]
     },
     {
@@ -997,19 +997,6 @@
      "awardedCompany": null
     },
     {
-     "id": "6a022160e2751b37f7554aa8",
-     "name": "Building Insulation",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "6a02212e44826dba5a600a30",
      "name": "PEMB Insulation",
      "number": null,
@@ -1024,6 +1011,19 @@
      "biddingSubs": [
       "Silvercote"
      ]
+    },
+    {
+     "id": "6a022160e2751b37f7554aa8",
+     "name": "Building Insulation",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a022a285e266905149cee3c",
@@ -1225,13 +1225,13 @@
    "architect": "LBBA & Kil",
    "value": null,
    "isPublic": true,
-   "packages": 61,
-   "covered": 46,
+   "packages": 62,
+   "covered": 47,
    "atRisk": 15,
-   "invites": 1025,
-   "bidding": 88,
-   "undecided": 773,
-   "bidsReceived": 16,
+   "invites": 1039,
+   "bidding": 89,
+   "undecided": 780,
+   "bidsReceived": 17,
    "pkgs": [
     {
      "id": "6a3d8c2c360ef670d4a52b34",
@@ -1266,31 +1266,31 @@
      ]
     },
     {
-     "id": "6a3d8c2c360ef64216a52b37",
-     "name": "Window Coverings",
-     "number": "12-01",
+     "id": "6a564c31b836f09badf7f60b",
+     "name": "Gutters",
+     "number": "07-008",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
-     "invites": 15,
+     "invites": 14,
      "bidding": 0,
      "undecided": 13,
-     "notBidding": 2,
+     "notBidding": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "American Interiors",
-      "L.J. Wagner Home Interiors",
-      "Quality Window Treatments",
-      "Budget Blinds of Kalamazoo & Mattawan",
-      "Triangle Window Fashions, Inc.",
-      "C E Lee Decorating",
-      "Triangle Windows Fashions",
-      "Budget Blinds of Mishawaka",
-      "Blinds of All Kinds",
-      "Doelling Decorating Center, Inc.",
-      "Vernon Inc",
-      "Indiana Window Coverings, LLC DBA C Ed Mullins",
-      "Creative Window Treatment"
+      "Graber Roofing & Gutters, INC",
+      "Tucker Seamless Gutter",
+      "ABC Seamless Gutters",
+      "Worthy Construction LLC",
+      "Lowery’s Roof & Gutters",
+      "Royalty Roofing USA, LLC",
+      "Horner Roofing and Siding LLC ",
+      "Homeland Gutters INC",
+      "Homeland Gutters INC",
+      "L & A Gutters",
+      "J and B West Roofing",
+      "LaPorte Seamless Gutter",
+      "Quality Seamless Gutters LLC"
      ]
     },
     {
@@ -1301,14 +1301,13 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 11,
      "bidding": 0,
-     "undecided": 9,
-     "notBidding": 2,
+     "undecided": 8,
+     "notBidding": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
       "CRG Residential, LLC",
       "The Roof Squad",
-      "TBG Construction, LLC",
       "Clover roofing ",
       "J & B West Roofing",
       "Michiana Roofing and Sheet Metal",
@@ -1349,8 +1348,8 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 9,
      "bidding": 0,
-     "undecided": 8,
-     "notBidding": 1,
+     "undecided": 7,
+     "notBidding": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1360,8 +1359,7 @@
       "Frost Signs, Inc.",
       "Legacy Sign Group, LLC",
       "North American Signs",
-      "U.S. Sign Crafters",
-      "ASI Sign Systems, Inc."
+      "U.S. Sign Crafters"
      ]
     },
     {
@@ -1513,6 +1511,20 @@
      ]
     },
     {
+     "id": "6a3d8c2c360ef6656fa52b4b",
+     "name": "Smoke Containment Curtains",
+     "number": "28-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-20T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": []
+    },
+    {
      "id": "6a3d8c2c360ef667dfa52b4c",
      "name": "bike racks",
      "number": "bike racks ",
@@ -1527,20 +1539,6 @@
      "undecidedSubs": [
       "Saris Infrastructure/Bike Fixation"
      ]
-    },
-    {
-     "id": "6a3d8c2c360ef6656fa52b4b",
-     "name": "Smoke Containment Curtains",
-     "number": "28-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-20T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": []
     },
     {
      "id": "6a3d8c2c360ef662bda52b3c",
@@ -1598,8 +1596,8 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 28,
      "bidding": 1,
-     "undecided": 26,
-     "notBidding": 1,
+     "undecided": 25,
+     "notBidding": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1682,6 +1680,19 @@
      "biddingSubs": [
       "Crane Industrial Service Company"
      ]
+    },
+    {
+     "id": "6a3d8c2c360ef64216a52b37",
+     "name": "Window Coverings",
+     "number": "12-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-20T16:00:00.000Z",
+     "invites": 15,
+     "bidding": 0,
+     "undecided": 13,
+     "notBidding": 2,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a3d8c2c360ef64fd0a52b2f",
@@ -1803,8 +1814,8 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 5,
      "bidding": 0,
-     "undecided": 4,
-     "notBidding": 1,
+     "undecided": 3,
+     "notBidding": 2,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -1848,8 +1859,8 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 45,
      "bidding": 2,
-     "undecided": 36,
-     "notBidding": 7,
+     "undecided": 35,
+     "notBidding": 8,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2186,12 +2197,13 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 8,
-     "bidding": 2,
-     "undecided": 4,
+     "bidding": 3,
+     "undecided": 3,
      "notBidding": 2,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
+      "Majestic Irrigation Landscaping & Design",
       "Wissco Irrigation, Inc.",
       "Fuerbringer Landscaping & Design, Inc."
      ]
@@ -2319,6 +2331,64 @@
    ]
   },
   {
+   "id": "6a5f4e4551d4d5348f457a43",
+   "name": "Wanatah WWTP",
+   "number": null,
+   "state": "PUBLISHED",
+   "bidsDueAt": "2026-07-24T16:00:00.000Z",
+   "rfisDueAt": null,
+   "jobWalkAt": null,
+   "startsAt": null,
+   "publishedAt": "2026-07-21T10:49:53.882Z",
+   "city": "Wanatah",
+   "st": "IN",
+   "architect": "VS Engineering",
+   "value": null,
+   "isPublic": false,
+   "packages": 2,
+   "covered": 1,
+   "atRisk": 1,
+   "invites": 6,
+   "bidding": 1,
+   "undecided": 5,
+   "bidsReceived": 0,
+   "pkgs": [
+    {
+     "id": "6a5f4ef0f66ba5ece05e7f68",
+     "name": "Materials Testing",
+     "number": "01-2",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-24T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 2,
+     "notBidding": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "ALT & Witzig Engineering, Inc.",
+      "Construction Field Services LLC"
+     ]
+    },
+    {
+     "id": "6a5f4e8ba71054e533ca8676",
+     "name": "Surveying",
+     "number": "01-1",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-24T16:00:00.000Z",
+     "invites": 4,
+     "bidding": 1,
+     "undecided": 3,
+     "notBidding": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Falk-Pli Engineering & Surveying, Inc."
+     ]
+    }
+   ]
+  },
+  {
    "id": "6a5e3dc47f0c4a99b1332527",
    "name": "Turkey Creek Fire Station #2 Addition",
    "number": null,
@@ -2334,11 +2404,11 @@
    "value": null,
    "isPublic": false,
    "packages": 10,
-   "covered": 3,
-   "atRisk": 7,
-   "invites": 12,
-   "bidding": 2,
-   "undecided": 10,
+   "covered": 5,
+   "atRisk": 5,
+   "invites": 13,
+   "bidding": 4,
+   "undecided": 9,
    "bidsReceived": 1,
    "pkgs": [
     {
@@ -2359,38 +2429,6 @@
      ]
     },
     {
-     "id": "6a5e40b1c1e6346dabec73ca",
-     "name": "Plumbing & HVAC",
-     "number": "22/23-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "MW Chupp Inc"
-     ]
-    },
-    {
-     "id": "6a5e403fb5a4a5378831970c",
-     "name": "Electrical",
-     "number": "26-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Photon Electric, LLC"
-     ]
-    },
-    {
      "id": "6a5e4021a21b1ed85d711132",
      "name": "Cabinets",
      "number": "12-01",
@@ -2404,22 +2442,6 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "LUE Manufacturing"
-     ]
-    },
-    {
-     "id": "6a5e3ff5610262832998be8c",
-     "name": "Acoustical Ceilings",
-     "number": "09-04",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Matteson Acoustics"
      ]
     },
     {
@@ -2439,9 +2461,9 @@
      ]
     },
     {
-     "id": "6a5e3f011c5ea01e862bf4bb",
-     "name": "Site Work",
-     "number": "32-01",
+     "id": "6a5e3ff5610262832998be8c",
+     "name": "Acoustical Ceilings",
+     "number": "09-04",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-27T16:00:00.000Z",
      "invites": 1,
@@ -2451,7 +2473,23 @@
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "Martin Forestry and Excavating LLC."
+      "Matteson Acoustics"
+     ]
+    },
+    {
+     "id": "6a5e40b1c1e6346dabec73ca",
+     "name": "Plumbing & HVAC",
+     "number": "22/23-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "MW Chupp Inc"
      ]
     },
     {
@@ -2468,6 +2506,38 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Custom paint and finish"
+     ]
+    },
+    {
+     "id": "6a5e3f011c5ea01e862bf4bb",
+     "name": "Site Work",
+     "number": "32-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Elf Excavating"
+     ]
+    },
+    {
+     "id": "6a5e403fb5a4a5378831970c",
+     "name": "Electrical",
+     "number": "26-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 1,
+     "undecided": 0,
+     "notBidding": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Photon Electric, LLC"
      ]
     },
     {
@@ -2505,6 +2575,13 @@
  "draftCount": 0,
  "draftNames": [],
  "recentClosed": [
+  {
+   "id": "69ea4adfdd5a30682034cd8c",
+   "name": "Wanatah WWTP Improvements",
+   "closedAt": "2026-07-21T10:44:40.588Z",
+   "awarded": "WON",
+   "value": null
+  },
   {
    "id": "6a29915d84c6506913f04266",
    "name": "Monon WWTP Improvements",
@@ -2551,13 +2628,6 @@
    "id": "69dce36330cf68f80924c78e",
    "name": "Birch Meadows Additions and Renovations",
    "closedAt": "2026-06-15T20:55:23.334Z",
-   "awarded": "WON",
-   "value": null
-  },
-  {
-   "id": "69ea4adfdd5a30682034cd8c",
-   "name": "Wanatah WWTP Improvements",
-   "closedAt": "2026-05-15T18:37:56.522Z",
    "awarded": "WON",
    "value": null
   },
@@ -2658,13 +2728,6 @@
    "closedAt": "2026-02-05T21:55:38.035Z",
    "awarded": "LOST",
    "value": null
-  },
-  {
-   "id": "69528d05515be3e79db5216b",
-   "name": "PHM Transportation Center Fuel Tanks",
-   "closedAt": "2026-01-22T12:23:01.392Z",
-   "awarded": "LOST",
-   "value": 588601
   }
  ]
 }
