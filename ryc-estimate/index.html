@@ -175,6 +175,11 @@
       <div id="divisionsWrap"></div>
     </div>
 
+    <div class="card" id="bcCard" style="display:none">
+      <h3 style="margin-top:0">Load into BuildingConnected <span class="note">— creates a DRAFT project with these packages + bidder lists copied from recent similar work. Nothing emails anyone until you review and publish in BC.</span></h3>
+      <div id="bcBody"></div>
+    </div>
+
     <div class="card" id="gapCard" style="display:none">
       <h3 style="margin-top:0">Open questions to tighten the number <span class="note">— resolve before pricing</span></h3>
       <div id="gapWrap"></div>
@@ -602,8 +607,87 @@ function setQuote(i, val, conceptual) {
   if (ve) { if (anyQuote && window._pkgConceptualTotal) { const dv = (assembled - window._pkgConceptualTotal) / window._pkgConceptualTotal * 100; const c = dv > 3 ? '#dc2626' : dv < -3 ? '#16a34a' : '#6b7280'; ve.innerHTML = `<span style="color:${c};font-weight:600" title="assembled vs conceptual">${dv >= 0 ? '+' : ''}${dv.toFixed(0)}%</span>`; } else ve.innerHTML = ''; }
 }
 
+/* ===== BuildingConnected draft loader (Estimating Agent Phase 1, 2026-07-22) =====
+   preview: /api/ryc-bc-load mode=preview — NO writes; shows the package plan (trade match,
+   bidder-list template from recent similar work, preferred-subs top picks) with per-package
+   checkboxes. create: builds the DRAFT project in BC. Publishing stays a human step in BC —
+   that's what makes BC send the ITB emails, so a draft can never email a sub. */
+function bcDivisions() {
+  return (window._lastDivisions || []).map((d, i) => ({
+    div: d.div || null, name: d.name, scope: d.scope || null,
+    amount: (typeof quotes === 'object' && quotes[i]) ? quotes[i] : (d.amount || null),
+  }));
+}
+function bcResetCard() {
+  const b = document.getElementById('bcBody');
+  if (b) b.innerHTML = `<button class="btn" onclick="bcPreview(this)">Preview packages &amp; bidders</button>
+    <span class="note" style="margin-left:10px">Step 1 of 2 — nothing is created yet</span>`;
+}
+async function bcPreview(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Building preview…'; }
+  try {
+    const r = await fetch('/api/ryc-bc-load', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'preview', projectName: (window._lastInp && window._lastInp.name) || 'Untitled', divisions: bcDivisions() }) });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || d.detail || ('HTTP ' + r.status));
+    const rows = d.packages.map((p, i) => {
+      const tpl = p.template
+        ? `bidders from <strong>${esc(p.template.fromProject)}</strong> <span class="note">(${p.template.bidders} bidding subs, last ${esc(p.template.lastBid || '—')}${p.template.sameClass ? ', same class' : ''})</span>`
+        : '<span class="note">no template — add bidders in BC</span>';
+      const sug = p.suggested.length ? `<div class="note" style="margin-top:2px">Preferred: ${p.suggested.slice(0, 3).map(s => esc(s.company)).join(' · ')}</div>` : '';
+      return `<tr><td style="width:26px"><input type="checkbox" id="bcpk-${i}" checked></td>`
+        + `<td>${esc(p.division)}<div class="note">${esc(p.trade)}</div>${sug}</td>`
+        + `<td>${tpl}</td>`
+        + `<td class="r">${p.estimatedCost ? '$' + p.estimatedCost.toLocaleString() : '—'}</td></tr>`;
+    }).join('');
+    document.getElementById('bcBody').innerHTML =
+      `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
+        <label style="flex:1;min-width:260px">Project name<br><input id="bcName" value="${esc(d.projectName)}" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px"></label>
+        <label>Bids due (optional)<br><input id="bcDue" type="date" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px"></label>
+      </div>
+      <table><thead><tr><th></th><th>Package</th><th>Bidder list</th><th class="r">Est. cost (private)</th></tr></thead><tbody>${rows}</tbody></table>
+      <div style="margin-top:12px">
+        <button class="btn" onclick="bcCreate(this)">Create DRAFT in BuildingConnected</button>
+        <button class="btn btn-ghost" onclick="bcResetCard()">Cancel</button>
+        <div class="note" style="margin-top:6px">Creates a DRAFT only — review packages and bidders in BC, adjust, then publish there. Publishing is what sends the invitations.</div>
+      </div>`;
+    window._bcPlan = d.packages;
+  } catch (e) {
+    document.getElementById('bcBody').innerHTML = `<span style="color:#dc2626;font-size:13px">Preview failed: ${esc(e.message)}</span> <button class="btn btn-ghost" onclick="bcResetCard()">Retry</button>`;
+  }
+}
+async function bcCreate(btn) {
+  const all = bcDivisions();
+  const chosen = all.filter((d, i) => { const cb = document.getElementById('bcpk-' + i); return cb && cb.checked; });
+  if (!chosen.length) { alert('Select at least one package.'); return; }
+  const name = (document.getElementById('bcName').value || '').trim();
+  if (!name) { alert('Project name required.'); return; }
+  const due = document.getElementById('bcDue').value || null;
+  btn.disabled = true; btn.textContent = 'Creating draft…';
+  try {
+    const r = await fetch('/api/ryc-bc-load', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'create', projectName: name, bidsDueAt: due, divisions: chosen }) });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || d.detail || ('HTTP ' + r.status));
+    const rows = d.packages.map(p =>
+      `<tr><td>${esc(p.division)}</td><td>${p.ok ? '✓' : '✗ ' + esc(p.error || '')}</td>`
+      + `<td class="r">${p.biddersCopied || 0} bidders${p.templateFrom ? ` <span class="note">(from ${esc(p.templateFrom)})</span>` : ''}</td></tr>`).join('');
+    document.getElementById('bcBody').innerHTML =
+      `<div style="font-size:14px;margin-bottom:8px">✓ <strong>DRAFT created</strong> — ${d.created} package${d.created === 1 ? '' : 's'}, ${d.totalBiddersCopied} bidders loaded${d.failed ? ` · <span style="color:#dc2626">${d.failed} failed</span>` : ''}</div>
+      <table><thead><tr><th>Package</th><th>Status</th><th class="r">Bidders</th></tr></thead><tbody>${rows}</tbody></table>
+      <div style="margin-top:12px"><a class="btn" href="${esc(d.url)}" target="_blank" rel="noopener">Open in BuildingConnected →</a>
+      <span class="note" style="margin-left:10px">Review + adjust bidders there, then publish to send invitations.</span></div>`;
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Create DRAFT in BuildingConnected';
+    alert('Create failed: ' + e.message);
+  }
+}
+
 function renderResults(p, inp, bm) {
   setLoading(false);
+  window._lastInp = inp;
+  document.getElementById('bcCard').style.display = 'block';
+  bcResetCard();
   document.getElementById('costMid').textContent = fmt$(p.mid);
   document.getElementById('costRange').textContent = fmt$(p.low) + ' – ' + fmt$(p.high);
   const tag = document.getElementById('confTag');
