@@ -111,7 +111,7 @@ brand_statement, brand_values (jsonb array)
 - Sandbox (START_SANDBOX.bat → localhost:8888) — retain for risky changes only
 - RYC Scheduler deploy is isolated — zero risk to civicscope.io
 - Acme = demo tenant only, never modify
-- RYC = first real GC tenant (onboarding deferred to backlog)
+- **RYC = first REAL GC tenant — CREATED 2026-07-21** (slug `ryc`, id `ca502d19`, inserted via Supabase service key pulled from Vercel env — the admin secret is write-only "sensitive" type). `/gc/ryc` + `/gc/ryc-internal` LIVE but **unlisted** (leads notify keith@jbkdevelopment.com, NOT RYC — reveal held for Keith's dashboard-license conversation with Steve; see memory `project_ryc_dashboard_license_play`). Brand values/contact email pending Keith review in `/admin`. ⚠ Do NOT circulate `/gc/ryc-internal` inside RYC — the real internal estimator is `/ryc/estimate` (data-grounded); the generic white-label variant muddies that story. Command Center deliberately NOT tenant-wired until cutover auth or GC customer #2.
 
 ---
 
