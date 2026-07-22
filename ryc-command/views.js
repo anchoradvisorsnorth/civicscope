@@ -1220,3 +1220,243 @@ function closeDrawer(silent){
   _dwTrigger=null;
 }
 
+
+/* ===== PM Load (v2.21.0) — per-PM workload history + forward hiring signal.
+   Source: /ryc-dashboard/pm-history.json (Foundation ODBC weekly pull — the only system
+   with multi-year history; Procore only knows the current board). Tier convention
+   (Keith 2026-07-22): flat job counts lie (a $163 repair and an $11M fieldhouse both get a
+   job number; Greencroft is 30+ unit jobs under one PM) — so jobs are tiered and counts
+   are shown per tier. Palette validated (dataviz 6-check, light surface). */
+var PM_TIERS=["core","greencroft","small","service"];
+var PM_TIER_COLOR={core:"#9a3412",greencroft:"#4d8fc9",small:"#f26a1b",service:"#2f9d80"};
+var PM_TIER_LABEL={core:"Core projects",greencroft:"Greencroft units",small:"Small jobs",service:"Service / T&M"};
+var PM_FULL_LOAD=2000000; // annual billed >= $2M = a "full-load" PM-year (filters principals' residual volume)
+
+function pmTipShow(ev,html){
+  var t=document.getElementById("pmtip");
+  if(!t){ t=document.createElement("div"); t.id="pmtip"; document.body.appendChild(t); }
+  t.innerHTML=html; t.style.display="block";
+  var x=ev.clientX+14, y=ev.clientY+12;
+  if(x+t.offsetWidth>window.innerWidth-8) x=ev.clientX-t.offsetWidth-10;
+  if(y+t.offsetHeight>window.innerHeight-8) y=ev.clientY-t.offsetHeight-10;
+  t.style.left=x+"px"; t.style.top=y+"px";
+}
+function pmTipHide(){ var t=document.getElementById("pmtip"); if(t) t.style.display="none"; }
+function pmBindTips(root){
+  Array.prototype.forEach.call(root.querySelectorAll("[data-tip]"),function(el){
+    el.addEventListener("mousemove",function(ev){ pmTipShow(ev,el.getAttribute("data-tip")); });
+    el.addEventListener("mouseleave",pmTipHide);
+  });
+}
+
+function renderPMLoad(){
+  var view=document.getElementById("view");
+  if(!pmHistData||!pmHistData.jobs){
+    view.innerHTML="<div class=\"warn-banner\">&#9888;&#65039; PM history feed unavailable (/ryc-dashboard/pm-history.json) — workload history cannot be computed. Figures show Unavailable, not $0.</div>";
+    return;
+  }
+  var H=pmHistData;
+  var nm=function(c){ return (H.pmNames&&H.pmNames[c])||c||"—"; };
+
+  /* ---- annual billed + job counts by tier (from per-job per-year billed) ---- */
+  var YEARS=[2021,2022,2023,2024,2025,2026];
+  var lastYm=H.monthly.length?H.monthly[H.monthly.length-1].ym:"2026-07";
+  var curYr=+lastYm.slice(0,4), curMo=+lastYm.slice(5,7);
+  var annualFactor=(curMo>=12)?1:(12/curMo); // annualize the partial current year where marked
+  var tierYear={}; // yr -> tier -> {billed,jobs}
+  H.jobs.forEach(function(j){
+    var by=j.by||{};
+    Object.keys(by).forEach(function(y){
+      var v=by[y]; y=+y; if(!(v>0)||y<2021) return;
+      var t=(tierYear[y]=tierYear[y]||{}); var b=(t[j.t]=t[j.t]||{billed:0,jobs:0});
+      b.billed+=v; b.jobs++;
+    });
+  });
+
+  /* ---- per-PM annual + trailing-12-month billed (from monthly rows) ---- */
+  var cutY=(curMo===12)?curYr:curYr-1, cutM=(curMo===12)?1:curMo+1;
+  var cutYm=cutY+"-"+("0"+cutM).slice(-2); // first ym inside the TTM window
+  var pmYear={}, pmTTM={};
+  H.monthly.forEach(function(r){
+    if(!r.pm) return;
+    var y=+r.ym.slice(0,4);
+    (pmYear[r.pm]=pmYear[r.pm]||{})[y]=(pmYear[r.pm][y]||0)+r.billed;
+    if(r.ym>=cutYm) pmTTM[r.pm]=(pmTTM[r.pm]||0)+r.billed;
+  });
+
+  /* full-load PM-years (annual billed >= $2M; current partial year annualized) */
+  var fullYear={}; // yr -> [{pm,billed}] billed annualized for current year
+  YEARS.forEach(function(y){
+    var list=[];
+    Object.keys(pmYear).forEach(function(pm){
+      var b=pmYear[pm][y]||0; var ann=(y===curYr)?b*annualFactor:b;
+      if(ann>=PM_FULL_LOAD) list.push({pm:pm,billed:ann,raw:b});
+    });
+    list.sort(function(a,b){return b.billed-a.billed;});
+    fullYear[y]=list;
+  });
+  function avgPerPM(y){ var l=fullYear[y]; if(!l||!l.length) return null; return l.reduce(function(s,r){return s+r.billed;},0)/l.length; }
+
+  /* ---- current bench + active-job tiers per PM (Foundation job_status A) ---- */
+  var bench={}; // pm -> {core,gc,smallSvc,mgmt}
+  H.jobs.forEach(function(j){
+    if(j.s!=="A"||!j.pm) return;
+    var b=(bench[j.pm]=bench[j.pm]||{core:0,gc:0,smallSvc:0,mgmt:0});
+    if(j.t==="core"){ b.core++; b.mgmt+=(j.c||0); }
+    else if(j.t==="greencroft") b.gc++;
+    else b.smallSvc++;
+  });
+  var benchPMs=Object.keys(pmTTM).filter(function(pm){ return (pmTTM[pm]||0)>=PM_FULL_LOAD; });
+  var benchAvgTTM=benchPMs.length?benchPMs.reduce(function(s,pm){return s+pmTTM[pm];},0)/benchPMs.length:null;
+
+  /* baseline vs now — the "are we asking more of them" number */
+  var base=[avgPerPM(2021),avgPerPM(2022),avgPerPM(2023)].filter(function(v){return v!=null;});
+  var baseAvg=base.length?base.reduce(function(s,v){return s+v;},0)/base.length:null;
+  var loadX=(baseAvg&&benchAvgTTM)?(benchAvgTTM/baseAvg):null;
+
+  /* sustainable capacity = median full-load PM-year, 2024 -> current (annualized) */
+  var capSample=[];
+  [2024,2025,curYr].forEach(function(y){ (fullYear[y]||[]).forEach(function(r){ capSample.push(r.billed); }); });
+  capSample.sort(function(a,b){return a-b;});
+  var capacity=capSample.length?capSample[Math.floor(capSample.length/2)]:null;
+
+  /* forward demand from the Buildr forecast (already loaded for the Forecast view) */
+  var fwd12b=null,fwd12p=null;
+  if(forecastData&&forecastData.projects){
+    var sp=fcSpread(forecastData.projects);
+    fwd12b=0; fwd12p=0;
+    Object.keys(sp.buckets).forEach(function(m){
+      m=+m; if(m>=sp.nowIdx&&m<sp.nowIdx+12){ fwd12b+=sp.buckets[m].booked; fwd12p+=sp.buckets[m].potential; }
+    });
+  }
+
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var activeCore=0,activeGC=0,mgmtTotal=0;
+  Object.keys(bench).forEach(function(pm){ activeCore+=bench[pm].core; activeGC+=bench[pm].gc; mgmtTotal+=bench[pm].mgmt; });
+  var strip="<div class=\"kpi-strip k4\">"
+    +kpi("Billed per full-load PM (TTM)",benchAvgTTM!=null?fmtCompact(benchAvgTTM):"—",benchPMs.length+" PMs at &ge;"+fmtCompact(PM_FULL_LOAD)+"/yr","accent")
+    +kpi("Load vs 2021–23 baseline",loadX?("&times;"+loadX.toFixed(1)):"—",baseAvg!=null?("was "+fmtCompact(baseAvg)+"/PM/yr"):"","")
+    +kpi("Core projects in flight",activeCore,activeGC+" Greencroft units · "+fmtCompact(mgmtTotal)+" under mgmt","")
+    +kpi("Sustainable capacity / PM",capacity!=null?fmtCompact(capacity):"—","median full-load PM-year, 2024&rarr;now","")
+    +"</div>";
+
+  /* ---- Chart 1: annual billed stacked by tier ---- */
+  var W=760,CH=250,PAD_T=30,PAD_B=24,bw=74,gapX=(W-YEARS.length*bw)/(YEARS.length+1);
+  var maxTot=0;
+  YEARS.forEach(function(y){ var t=tierYear[y]||{}; var s=PM_TIERS.reduce(function(a,k){return a+((t[k]&&t[k].billed)||0);},0); if(s>maxTot) maxTot=s; });
+  var svg1="<svg viewBox=\"0 0 "+W+" "+(CH+PAD_T+PAD_B)+"\" style=\"width:100%;height:auto\" role=\"img\" aria-label=\"Annual billed revenue by job tier\">";
+  YEARS.forEach(function(y,i){
+    var t=tierYear[y]||{}; var x=gapX+i*(bw+gapX); var yTot=PM_TIERS.reduce(function(a,k){return a+((t[k]&&t[k].billed)||0);},0);
+    if(!(yTot>0)) return;
+    var yCur=CH+PAD_T; var segs=[];
+    PM_TIERS.forEach(function(k){ var v=(t[k]&&t[k].billed)||0; if(v>0) segs.push({k:k,v:v,jobs:t[k].jobs}); });
+    segs.forEach(function(s2,si){
+      var h=Math.max(2,s2.v/maxTot*CH); var isTop=(si===segs.length-1);
+      yCur-=h;
+      var tip="<b>"+PM_TIER_LABEL[s2.k]+" · "+y+"</b><br>"+fmtCompact(s2.v)+" billed · "+s2.jobs+" jobs · "+Math.round(s2.v/yTot*100)+"% of year";
+      if(isTop){
+        var r=4,x2=x+bw,yv=yCur,hb=h;
+        svg1+="<path d=\"M"+x+" "+(yv+hb)+" L"+x+" "+(yv+r)+" Q"+x+" "+yv+" "+(x+r)+" "+yv+" L"+(x2-r)+" "+yv+" Q"+x2+" "+yv+" "+x2+" "+(yv+r)+" L"+x2+" "+(yv+hb)+" Z\" fill=\""+PM_TIER_COLOR[s2.k]+"\" data-tip=\""+attrEsc(tip)+"\"/>";
+      } else {
+        svg1+="<rect x=\""+x+"\" y=\""+yCur+"\" width=\""+bw+"\" height=\""+Math.max(0.5,h-2)+"\" fill=\""+PM_TIER_COLOR[s2.k]+"\" data-tip=\""+attrEsc(tip)+"\"/>";
+      }
+    });
+    svg1+="<text x=\""+(x+bw/2)+"\" y=\""+(yCur-8)+"\" text-anchor=\"middle\" style=\"font-size:12px;font-weight:700;fill:#1c2433\">"+fmtCompact(yTot)+"</text>";
+    svg1+="<text x=\""+(x+bw/2)+"\" y=\""+(CH+PAD_T+16)+"\" text-anchor=\"middle\" style=\"font-size:11.5px;fill:#67718a\">"+y+(y===curYr?" &middot; thru "+new Date(curYr,curMo-1,1).toLocaleDateString("en-US",{month:"short"}):"")+"</text>";
+  });
+  svg1+="</svg>";
+  var legend="<div class=\"pm-leg\">"+PM_TIERS.map(function(k){ return "<span><i style=\"background:"+PM_TIER_COLOR[k]+"\"></i>"+PM_TIER_LABEL[k]+"</span>"; }).join("")+"</div>";
+
+  /* ---- chart pair: full-load bench + $/full-load-PM (small multiples, one measure each) ---- */
+  function miniBars(vals,fmtV){
+    var w=340,h=170,pt=26,pb=20,bw2=34,g=(w-YEARS.length*bw2)/(YEARS.length+1);
+    var mx=0; vals.forEach(function(v){ if((v||0)>mx) mx=v; });
+    var s="<svg viewBox=\"0 0 "+w+" "+h+"\" style=\"width:100%;height:auto\">";
+    YEARS.forEach(function(y,i){
+      var v=vals[i]||0; var bh=mx?Math.max(2,v/mx*(h-pt-pb)):2; var x=g+i*(bw2+g), yv=h-pb-bh;
+      s+="<path d=\"M"+x+" "+(h-pb)+" L"+x+" "+(yv+4)+" Q"+x+" "+yv+" "+(x+4)+" "+yv+" L"+(x+bw2-4)+" "+yv+" Q"+(x+bw2)+" "+yv+" "+(x+bw2)+" "+(yv+4)+" L"+(x+bw2)+" "+(h-pb)+" Z\" fill=\"#9a3412\"/>";
+      s+="<text x=\""+(x+bw2/2)+"\" y=\""+(yv-6)+"\" text-anchor=\"middle\" style=\"font-size:11px;font-weight:700;fill:#1c2433\">"+fmtV(v)+"</text>";
+      s+="<text x=\""+(x+bw2/2)+"\" y=\""+(h-6)+"\" text-anchor=\"middle\" style=\"font-size:10px;fill:#67718a\">&#39;"+String(y).slice(2)+(y===curYr?"*":"")+"</text>";
+    });
+    return s+"</svg>";
+  }
+  var benchCounts=YEARS.map(function(y){ return (fullYear[y]||[]).length; });
+  var perPM=YEARS.map(function(y){ return avgPerPM(y); });
+  var pair="<div class=\"pm-pair\">"
+    +"<div><div class=\"pm-ct\">Full-load PM bench by year <span class=\"pm-cs\">(PMs billing &ge;$2M; * annualized)</span></div>"+miniBars(benchCounts,function(v){return v||"—";})+"</div>"
+    +"<div><div class=\"pm-ct\">Avg billed per full-load PM <span class=\"pm-cs\">(* annualized)</span></div>"+miniBars(perPM,function(v){return v?fmtCompact(v):"—";})+"</div>"
+    +"</div>";
+
+  /* ---- annual table (the numbers behind the charts) ---- */
+  var atRows=YEARS.map(function(y){
+    var t=tierYear[y]||{}; function g(k,f){ return t[k]?(f==="j"?t[k].jobs:fmtCompact(t[k].billed)):"—"; }
+    var tot=PM_TIERS.reduce(function(a,k){return a+((t[k]&&t[k].billed)||0);},0);
+    var fl=(fullYear[y]||[]).length, ap=avgPerPM(y);
+    return "<tr class=\"static\"><td>"+y+(y===curYr?" (thru "+new Date(curYr,curMo-1,1).toLocaleDateString("en-US",{month:"short"})+")":"")+"</td>"
+      +"<td class=\"r\"><b>"+fmtCompact(tot)+"</b></td>"
+      +"<td class=\"r\">"+g("core","j")+" &middot; "+g("core")+"</td>"
+      +"<td class=\"r\">"+g("greencroft","j")+" &middot; "+g("greencroft")+"</td>"
+      +"<td class=\"r\">"+((t.small?t.small.jobs:0)+(t.service?t.service.jobs:0))+" &middot; "+fmtCompact(((t.small&&t.small.billed)||0)+((t.service&&t.service.billed)||0))+"</td>"
+      +"<td class=\"r\">"+(fl||"—")+"</td>"
+      +"<td class=\"r\">"+(ap?fmtCompact(ap)+(y===curYr?"*":""):"—")+"</td></tr>";
+  }).join("");
+  var annualTable="<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Year</th><th class=\"r\">Billed</th><th class=\"r\">Core (jobs &middot; $)</th><th class=\"r\">Greencroft (units &middot; $)</th><th class=\"r\">Small + service (jobs &middot; $)</th><th class=\"r\">Full-load PMs</th><th class=\"r\">$ / full-load PM</th></tr></thead><tbody>"+atRows+"</tbody></table></div>";
+
+  /* ---- per-PM table with sparklines ---- */
+  function spark(vals){
+    var w=110,h=26,mx=1;
+    vals.forEach(function(v){ if(v>mx) mx=v; });
+    var pts=vals.map(function(v,i){ return (i*(w-8)/(vals.length-1)+4)+","+(h-3-(v/mx)*(h-8)); });
+    var last=pts[pts.length-1].split(",");
+    return "<svg viewBox=\"0 0 "+w+" "+h+"\" style=\"width:110px;height:26px;vertical-align:middle\"><polyline points=\""+pts.join(" ")+"\" fill=\"none\" stroke=\"#f26a1b\" stroke-width=\"2\" stroke-linejoin=\"round\"/><circle cx=\""+last[0]+"\" cy=\""+last[1]+"\" r=\"2.6\" fill=\"#9a3412\"/></svg>";
+  }
+  var pmRows=Object.keys(pmYear).map(function(pm){
+    var b=bench[pm]||{core:0,gc:0,smallSvc:0,mgmt:0};
+    return { pm:pm, ttm:pmTTM[pm]||0, b:b,
+      years:YEARS.map(function(y){ return pmYear[pm][y]||0; }),
+      total:YEARS.reduce(function(s,y,i){ return s+(pmYear[pm][y]||0); },0) };
+  }).filter(function(r){ return r.total>100000||r.b.core>0||r.b.gc>0; })
+    .sort(function(a,b){ return b.ttm-a.ttm; });
+  var pmTable="<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>PM</th><th>Billed 2021&rarr;now</th>"
+    +"<th class=\"r\">TTM billed</th><th class=\"r\">2025</th><th class=\"r\">2026 YTD</th>"
+    +"<th class=\"r\">Core jobs now</th><th class=\"r\">GC units</th><th class=\"r\">Small/svc</th><th class=\"r\">$ under mgmt</th></tr></thead><tbody>"
+    +pmRows.map(function(r){
+      var full=(r.ttm>=PM_FULL_LOAD);
+      return "<tr class=\"static\"><td><div class=\"jname\">"+esc(nm(r.pm))+(full?" <span class=\"pill g\">full load</span>":"")+"</div></td>"
+        +"<td>"+spark(r.years)+"</td>"
+        +"<td class=\"r\"><b>"+fmtCompact(r.ttm)+"</b></td>"
+        +"<td class=\"r\">"+fmtCompact(r.years[4])+"</td>"
+        +"<td class=\"r\">"+fmtCompact(r.years[5])+"</td>"
+        +"<td class=\"r\">"+(r.b.core||"—")+"</td><td class=\"r\">"+(r.b.gc||"—")+"</td><td class=\"r\">"+(r.b.smallSvc||"—")+"</td>"
+        +"<td class=\"r\">"+(r.b.mgmt?fmtCompact(r.b.mgmt):"—")+"</td></tr>";
+    }).join("")+"</tbody></table></div>";
+
+  /* ---- hiring signal ---- */
+  var hire="";
+  if(capacity&&fwd12b!=null){
+    var needB=fwd12b/capacity, needBP=(fwd12b+fwd12p)/capacity;
+    var gapB=needB-benchPMs.length, gapBP=needBP-benchPMs.length;
+    var verdict, vcls;
+    if(gapBP<=0){ verdict="Headroom — current bench covers booked + pipeline"; vcls="g"; }
+    else if(gapB<=0){ verdict="Tight — booked is covered, pipeline conversion outruns the bench"; vcls="a"; }
+    else { verdict="Short — booked work alone exceeds bench capacity"; vcls="r"; }
+    hire="<div class=\"kpi-strip k4\">"
+      +kpi("Booked next 12 mo (Buildr)",fmtCompact(fwd12b),"needs ~"+needB.toFixed(1)+" full-load PMs","")
+      +kpi("Booked + pipeline next 12 mo",fmtCompact(fwd12b+fwd12p),"needs ~"+needBP.toFixed(1)+" full-load PMs","")
+      +kpi("Bench today",benchPMs.length+" PMs","capacity ~"+fmtCompact(capacity*benchPMs.length)+"/yr","accent")
+      +kpi("Verdict","<span class=\"pill "+vcls+"\">"+(gapBP>0?("+"+Math.ceil(Math.max(gapB,0))+"&ndash;"+Math.ceil(gapBP)+" PMs"):"OK")+"</span>",verdict,"")
+      +"</div>"
+      +"<div class=\"pm-note\">Method: sustainable capacity = median full-load PM-year (billed &ge;$2M/yr, 2024&rarr;now, partial year annualized) = "+fmtCompact(capacity)+". Forward demand = Buildr forecast spread over the next 12 months (undated projects excluded — see Forecast view). Superintendents are not tracked in Foundation; this is a PM lens only.</div>";
+  } else {
+    hire="<div class=\"pm-note\">Hiring signal unavailable — "+(capacity?"Buildr forecast feed did not load.":"not enough full-load PM-years to derive capacity.")+"</div>";
+  }
+
+  var caveats="<div class=\"pm-note\">"+((H.caveats||[]).map(esc).join(" &middot; "))+" Tiers: core = "+esc(H.tiers?H.tiers.core:"")+"; small = "+esc(H.tiers?H.tiers.small:"")+".</div>";
+
+  view.innerHTML=strip
+    +"<div class=\"panel\"><h3>Annual billed revenue by job tier</h3><div class=\"sub\">Where the dollars actually are — the service tail is ~1% of revenue but most of the job count</div>"+legend+svg1+annualTable+"</div>"
+    +"<div class=\"panel\"><h3>The load question</h3><div class=\"sub\">Same bench, roughly double the dollars — full-load = billed &ge;$2M in the year</div>"+pair+"</div>"
+    +"<div class=\"panel\"><h3>When to hire</h3><div class=\"sub\">Forward revenue vs what the current bench sustainably carries</div>"+hire+"</div>"
+    +"<div class=\"panel\"><h3>Per-PM detail</h3><div class=\"sub\">Sparkline = annual billed 2021&rarr;2026 &middot; active job counts and $ under management are core-tier, Foundation job status A</div>"+pmTable+caveats+"</div>";
+  pmBindTips(view);
+}

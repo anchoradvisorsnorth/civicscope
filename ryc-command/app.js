@@ -18,9 +18,10 @@ function loadData(){
     getJSON("/ryc-dashboard/ryc-portfolio.json"),
     getJSON("/ryc-dashboard/ryc-subcontractors.json"),
     getJSON(CRM+"/api/ryc-buildr-forecast"),
-    getJSON("/ryc-dashboard/bc-bidboard.json")
+    getJSON("/ryc-dashboard/bc-bidboard.json"),
+    getJSON("/ryc-dashboard/pm-history.json")
   ]).then(function(r){
-    activeData=r[0]; foundationData=r[1]; arData=r[2]; buildrData=r[3]; portfolioData=r[4]; subsData=r[5]; forecastData=r[6]; bcData=r[7]; loadedAt=new Date();
+    activeData=r[0]; foundationData=r[1]; arData=r[2]; buildrData=r[3]; portfolioData=r[4]; subsData=r[5]; forecastData=r[6]; bcData=r[7]; pmHistData=r[8]; loadedAt=new Date();
     mergeFoundation();
   });
 }
@@ -68,11 +69,12 @@ function viewCtx(){
   if(currentView==="forecast") return "Buildr (BD's system of record) · pulled live · loaded "+loaded;
   if(currentView==="estimating") return "BuildingConnected (read-only, daily pull) · this pull "+((bcData&&ageTxt(bcData.generatedAt))||"…");
   if(currentView==="ai") return "Foundation via live ODBC · queries run at ask time (not the nightly snapshot)";
+  if(currentView==="pmload") return "Foundation billing/cost history (full job record, 2021&rarr;) · pull "+((pmHistData&&ageTxt(pmHistData.generatedAt))||"&hellip;");
   if(currentView==="trust") return "All sources · loaded "+loaded;
   return "Procore (revised contract) + Foundation · loaded "+loaded;
 }
 function renderView(){
-  var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
+  var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
   document.getElementById("view-title").textContent=titles[currentView]||"Command Center";
   document.getElementById("view-ctx").innerHTML=viewCtx();
   document.getElementById("fdn-refresh-top").style.display=FDN_FED[currentView]?"":"none";
@@ -86,6 +88,7 @@ function renderView(){
   if(currentView==="billing"){ renderBilling(); return; }
   if(currentView==="woh"){ renderWOH(); return; }
   if(currentView==="margin"){ renderMargin(); return; }
+  if(currentView==="pmload"){ renderPMLoad(); return; }
   if(currentView==="forecast"){ renderForecast(); return; }
   if(currentView==="estimating"){ renderEstimating(); return; }
   if(currentView==="brief"){ renderBrief(); return; }

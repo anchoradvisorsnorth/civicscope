@@ -253,3 +253,13 @@ table.dwt{width:100%;border-collapse:collapse;font-size:12px}
 .srclink:hover{color:var(--accent);border-color:var(--accent)}
 .q-detail .srclink,.dw-sub~div .srclink{border-color:rgba(255,255,255,.22);color:#9aa5bd}
 .content:not(.light) .srclink:hover{color:var(--accent);border-color:var(--accent)}
+
+/* ---- PM Load (v2.21.0) ---- */
+#pmtip{position:fixed;z-index:80;display:none;background:#1c2433;color:#fff;font-size:12px;line-height:1.45;padding:8px 11px;border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.3);pointer-events:none;max-width:260px}
+.pm-leg{display:flex;gap:16px;flex-wrap:wrap;margin:6px 0 10px;font-size:12px;color:#67718a}
+.pm-leg i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.pm-pair{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.pm-ct{font-size:12.5px;font-weight:600;color:#1c2433;margin-bottom:4px}
+.pm-cs{font-weight:400;color:#8b95ab;font-size:11px}
+.pm-note{color:#8b95ab;font-size:11.5px;line-height:1.5;margin-top:10px}
+@media (max-width:700px){ .pm-pair{grid-template-columns:1fr} }
