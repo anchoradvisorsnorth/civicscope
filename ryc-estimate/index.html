@@ -103,7 +103,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.7.1 · plan takeoff · spec-book scope constraints · autofill · market sub-pricing · BC draft loader</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.8.0 · plan takeoff · spec-book scope constraints · autofill · market sub-pricing · BC draft loader · run history</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -111,6 +111,7 @@
     <button class="estnav-btn active" data-view="assist" onclick="setEstView('assist')">Estimating Assist</button>
     <button class="estnav-btn" data-view="costiq" onclick="setEstView('costiq')">Cost Intelligence</button>
     <button class="estnav-btn" data-view="quickcheck" onclick="setEstView('quickcheck')">Quick Check</button>
+    <button class="estnav-btn" data-view="history" onclick="setEstView('history')">Past Estimates</button>
   </div>
 
   <div id="view-assist">
@@ -131,6 +132,7 @@
         </select></label>
         <label>Size (SF) <span class="opt">optional</span><input id="f-sf" type="number" placeholder="e.g. 25000"></label>
         <label>Known budget / target $ <span class="opt">optional</span><input id="f-target" type="number" placeholder="e.g. 4000000"></label>
+        <label>Estimator <span class="opt">optional — initials, shown in run history</span><input id="f-est" maxlength="12" placeholder="e.g. KP"></label>
         <label class="full">Scope notes<textarea id="f-scope" rows="2" placeholder="e.g. HVAC + roof replacement, occupied during construction, tight summer window"></textarea></label>
       </div>
     </div>
@@ -205,6 +207,7 @@
 
   <div id="view-costiq" style="display:none"><div id="costiq-body"></div></div>
   <div id="view-quickcheck" style="display:none"><div id="quickcheck-body"></div></div>
+  <div id="view-history" style="display:none"><div id="history-body"></div></div>
 </div>
 
 <footer>R. Yoder Construction — internal estimating aid. Not a formal bid. &nbsp;|&nbsp; Powered by CivicScope</footer>
@@ -495,6 +498,8 @@ async function runEstimate() {
 
   const bm = segBenchmarks(inp.ct, inp.wt, inp.name);
   setLoading(true);
+  const runStart = Date.now();
+  let runBatches = uploadedFiles.length ? splitIntoBatches(uploadedFiles).length : 0;
   try {
     if (uploadedFiles.length) {
       loadLabel('Checking for a spec book / contract scope…');
@@ -524,7 +529,9 @@ async function runEstimate() {
         else { await sleep(10000); loadLabel(`Consolidating full plan set (${steps} of ${steps})…`); raw = await callClaude(consolidatePrompt(inp, bm, first, sup), null, 4096); }
       }
     }
-    renderResults(parseResponse(raw), inp, bm);
+    const parsed = parseResponse(raw);
+    renderResults(parsed, inp, bm);
+    saveRun(inp, parsed, runBatches, Date.now() - runStart);
   } catch (e) { setLoading(false); showErr(e.message || 'Something went wrong.'); }
 }
 
@@ -913,8 +920,10 @@ function setEstView(v) {
   document.getElementById('view-assist').style.display = v === 'assist' ? 'block' : 'none';
   document.getElementById('view-costiq').style.display = v === 'costiq' ? 'block' : 'none';
   document.getElementById('view-quickcheck').style.display = v === 'quickcheck' ? 'block' : 'none';
+  document.getElementById('view-history').style.display = v === 'history' ? 'block' : 'none';
   if (v === 'costiq') renderCostIQ();
   if (v === 'quickcheck') renderQuickCheck();
+  if (v === 'history') renderHistory();
 }
 
 // helpers the ported views need (these lived on the dashboard, not previously on this page)
@@ -1036,6 +1045,120 @@ async function runQuickCheck() {
     else { aiEl.innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-empty">No response.</div>`; }
   } catch (e) { document.getElementById('quickcheck-ai').innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-empty">AI layer unavailable (${esc(e.message || 'error')}).</div>`; }
 }
+
+/* ===== Run history (Phase A, 2026-07-23) =====
+   Every generated estimate auto-saves (inputs + parsed outputs + meta, NOT plan images) to
+   Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
+   Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
+   from stored JSON — including the BC draft loader — without re-burning a takeoff. */
+const TOOL_VERSION = 'v1.8.0';
+const LOG_API = '/api/ryc-estimate-log';
+function fileSummary() {
+  const agg = {};
+  for (const f of uploadedFiles) {
+    const base = f.name.replace(/ \(p\d+\)$/, '');
+    (agg[base] = agg[base] || { name: base, pages: 0, bytes: 0 }).pages++;
+    agg[base].bytes += f.size || 0;
+  }
+  return Object.values(agg);
+}
+async function saveRun(inp, p, batches, durationMs) {
+  const est = (document.getElementById('f-est').value || '').trim();
+  try { if (est) localStorage.setItem('ryc-est-initials', est); } catch {}
+  const record = {
+    estimator: est || null, project_name: inp.name, location: inp.loc || null,
+    client_type: inp.ct, work_type: inp.wt, size_sf: inp.sf, target_budget: inp.target,
+    scope_notes: inp.scope || null, files: fileSummary(), scope_constraints: window._scopeC || null,
+    cost_low: num(p.low), cost_high: num(p.high), cost_mid: num(p.mid),
+    confidence: p.confidence || null, narrative: p.narrative || null,
+    divisions: p.divisions, assumptions: p.assumptions, gaps: p.gaps,
+    version: TOOL_VERSION, batches, duration_ms: durationMs,
+  };
+  try {
+    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw: 'ryc2026', action: 'save', record }) });
+    const d = await r.json().catch(() => null);
+    const meta = document.getElementById('resMeta');
+    if (r.ok && d && d.ok) { window._runId = d.id; if (meta) meta.textContent += ' · saved to history ✓'; }
+    else if (meta) meta.textContent += ' · history save failed';
+  } catch { const meta = document.getElementById('resMeta'); if (meta) meta.textContent += ' · history save failed'; }
+}
+let historyCache = null;
+async function renderHistory(force) {
+  const el = document.getElementById('history-body');
+  el.innerHTML = '<div class="billing-empty">Loading run history…</div>';
+  try {
+    if (!historyCache || force) {
+      const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pw: 'ryc2026', action: 'list' }) });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      historyCache = d.runs || [];
+    }
+    const runs = historyCache;
+    if (!runs.length) {
+      el.innerHTML = `<div class="billing-block"><h3 class="section-header">Past estimates</h3><div class="billing-empty">No runs logged yet — every estimate generated from here on is saved automatically.</div></div>`;
+      return;
+    }
+    const groups = {};
+    for (const run of runs) {
+      const k = (run.project_name || '').trim().toLowerCase();
+      (groups[k] = groups[k] || []).push(run);
+    }
+    const ordered = Object.values(groups).sort((a, b) => (b[0].created_at || '').localeCompare(a[0].created_at || ''));
+    let html = '';
+    for (const g of ordered) {
+      const latest = g[0];
+      const mids = g.map(x => x.cost_mid).filter(Boolean);
+      const spread = mids.length > 1 ? Math.min(...mids).toLocaleString() + ' – ' + Math.max(...mids).toLocaleString() : null;
+      html += `<tr style="background:#f9fafb"><td colspan="6" style="padding-top:14px"><strong>${esc(latest.project_name)}</strong> <span class="note">· ${g.length} run${g.length === 1 ? '' : 's'}${spread ? ` · midpoint spread $${spread}` : ''}${latest.location ? ' · ' + esc(latest.location) : ''}</span></td></tr>`;
+      for (const run of g) {
+        const files = (run.files || []).reduce((s, f) => s + (f.pages || 0), 0);
+        html += `<tr class="hrow" style="cursor:pointer" onclick="openRun('${run.id}')">`
+          + `<td>${(run.created_at || '').slice(0, 10)}</td>`
+          + `<td class="r"><strong>${run.cost_mid ? '$' + run.cost_mid.toLocaleString() : '—'}</strong></td>`
+          + `<td class="r note">${run.cost_low && run.cost_high ? '$' + run.cost_low.toLocaleString() + ' – $' + run.cost_high.toLocaleString() : '—'}</td>`
+          + `<td>${esc(run.confidence || '—')}</td>`
+          + `<td>${files ? files + ' pp' : 'scope-only'}${run.estimator ? ' · ' + esc(run.estimator) : ''}</td>`
+          + `<td class="note">${esc(run.version || '')}</td></tr>`;
+      }
+    }
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Past estimates <span class="cnt">${runs.length} run${runs.length === 1 ? '' : 's'} · click a row to reopen</span>
+      <button class="btn btn-ghost" style="margin-left:auto;padding:4px 10px;font-size:12px" onclick="renderHistory(true)">⟳ Refresh</button></h3>
+      <div class="billing-sub">Every generated estimate is saved automatically (inputs, packages, narrative — not the plan images). Reopening restores the full results view including the BC draft loader; re-running against plans needs the files re-uploaded on the Assist tab.</div>
+      <table><thead><tr><th>Date</th><th class="r">Midpoint</th><th class="r">Range</th><th>Conf.</th><th>Plans · by</th><th>Ver</th></tr></thead><tbody>${html}</tbody></table></div>`;
+  } catch (e) {
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Past estimates</h3><div class="billing-empty">History unavailable: ${esc(e.message)}</div></div>`;
+  }
+}
+async function openRun(id) {
+  const el = document.getElementById('history-body');
+  const prev = el.innerHTML;
+  el.innerHTML = '<div class="billing-empty">Loading estimate…</div>';
+  try {
+    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw: 'ryc2026', action: 'get', id }) });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    const run = d.run;
+    const inp = { name: run.project_name, loc: run.location || '', ct: run.client_type, wt: run.work_type,
+      sf: run.size_sf, target: run.target_budget, scope: run.scope_notes || '' };
+    const p = { low: run.cost_low, high: run.cost_high, mid: run.cost_mid, confidence: run.confidence,
+      narrative: run.narrative, divisions: run.divisions || [], assumptions: run.assumptions || [], gaps: run.gaps || [] };
+    window._scopeC = run.scope_constraints || null;
+    window._planMeta = null;
+    el.innerHTML = prev;
+    setEstView('assist');
+    renderResults(p, inp, segBenchmarks(inp.ct, inp.wt, inp.name));
+    const pages = (run.files || []).reduce((s, f) => s + (f.pages || 0), 0);
+    document.getElementById('resMeta').textContent =
+      `${inp.name} · ${inp.ct} / ${inp.wt}${inp.sf ? ' · ' + inp.sf.toLocaleString() + ' SF' : ''} · from history: run of ${(run.created_at || '').slice(0, 10)}${pages ? ` · originally ${pages} plan pages` : ' · scope-only'}${run.estimator ? ' · ' + run.estimator : ''} · ${run.version || ''}`;
+  } catch (e) {
+    el.innerHTML = prev;
+    alert('Could not open run: ' + e.message);
+  }
+}
+try { const ini = localStorage.getItem('ryc-est-initials'); if (ini) document.getElementById('f-est').value = ini; } catch {}
 </script>
 </body>
 </html>
