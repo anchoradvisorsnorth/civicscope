@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
-  const GATE_PW = process.env.RYC_DASHBOARD_PASSWORD || 'ryc2026';
+  const GATE_PW = process.env.RYC_ESTIMATE_PASSWORD || 'ryc2026';
   if (!SUPABASE_URL || !SUPABASE_KEY) return res.status(500).json({ error: 'Server misconfigured' });
 
   const { pw, action } = req.body || {};
