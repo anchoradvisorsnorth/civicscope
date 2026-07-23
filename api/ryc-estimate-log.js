@@ -70,6 +70,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, run: rows[0] });
     }
 
+    if (action === 'delete') {
+      const id = String(req.body.id || '');
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
+      const r = await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc`, { method: 'DELETE' });
+      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+      return res.status(200).json({ ok: true });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     return res.status(500).json({ error: err.message });
