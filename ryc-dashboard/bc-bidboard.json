@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-07-22T09:30:11.446Z",
+ "generatedAt": "2026-07-23T09:30:11.013Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -35,6 +35,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -51,6 +52,7 @@
      "bidding": 0,
      "undecided": 0,
      "notBidding": 2,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": []
@@ -65,6 +67,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": []
@@ -79,6 +82,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -95,6 +99,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -111,6 +116,7 @@
      "bidding": 1,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -127,6 +133,7 @@
      "bidding": 1,
      "undecided": 1,
      "notBidding": 1,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -143,26 +150,11 @@
      "bidding": 1,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
       "Midwest Glass & Mirror"
-     ]
-    },
-    {
-     "id": "69a0a1061cf93a1282df272c",
-     "name": "Painting and Drywall",
-     "number": "09-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Commercial Painting Services"
      ]
     },
     {
@@ -175,8 +167,26 @@
      "bidding": 0,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null
+    },
+    {
+     "id": "69a0a1061cf93a1282df272c",
+     "name": "Painting and Drywall",
+     "number": "09-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Commercial Painting Services"
+     ]
     },
     {
      "id": "69a051b5c96354b6c85f1cf8",
@@ -188,6 +198,7 @@
      "bidding": 1,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -204,6 +215,7 @@
      "bidding": 1,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -220,6 +232,7 @@
      "bidding": 0,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -233,6 +246,7 @@
      "bidding": 1,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -249,6 +263,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 1,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -262,19 +277,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
-     "id": "69a0a7ec76c3da91c3bc98ee",
-     "name": "FFE package",
-     "number": "12-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -288,11 +291,26 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
       "Bojrab Landscape Management"
      ]
+    },
+    {
+     "id": "69a0a7ec76c3da91c3bc98ee",
+     "name": "FFE package",
+     "number": "12-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "69a0a0c3cc84d4e8461230dd",
@@ -304,6 +322,7 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -320,6 +339,7 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -336,6 +356,7 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -352,6 +373,7 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -368,6 +390,7 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -384,6 +407,7 @@
      "bidding": 2,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -401,6 +425,7 @@
      "bidding": 2,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -418,6 +443,7 @@
      "bidding": 2,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -460,6 +486,7 @@
      "bidding": 0,
      "undecided": 2,
      "notBidding": 1,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -477,6 +504,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -493,6 +521,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 1,
+     "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -509,6 +538,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -525,6 +555,7 @@
      "bidding": 0,
      "undecided": 0,
      "notBidding": 1,
+     "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": []
@@ -539,6 +570,7 @@
      "bidding": 1,
      "undecided": 3,
      "notBidding": 1,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -555,6 +587,7 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 2,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -571,6 +604,7 @@
      "bidding": 0,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -584,6 +618,7 @@
      "bidding": 0,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -597,6 +632,7 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -613,6 +649,7 @@
      "bidding": 1,
      "undecided": 4,
      "notBidding": 0,
+     "viewed": 3,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -629,6 +666,7 @@
      "bidding": 1,
      "undecided": 3,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -645,6 +683,7 @@
      "bidding": 2,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -662,6 +701,7 @@
      "bidding": 1,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -678,6 +718,7 @@
      "bidding": 2,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -695,6 +736,7 @@
      "bidding": 3,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -738,6 +780,7 @@
      "bidding": 0,
      "undecided": 7,
      "notBidding": 1,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -760,6 +803,7 @@
      "bidding": 0,
      "undecided": 2,
      "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -777,6 +821,7 @@
      "bidding": 0,
      "undecided": 2,
      "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -794,6 +839,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -810,6 +856,7 @@
      "bidding": 1,
      "undecided": 5,
      "notBidding": 2,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -826,6 +873,7 @@
      "bidding": 0,
      "undecided": 7,
      "notBidding": 0,
+     "viewed": 4,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -839,6 +887,7 @@
      "bidding": 0,
      "undecided": 5,
      "notBidding": 0,
+     "viewed": 3,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -852,6 +901,7 @@
      "bidding": 1,
      "undecided": 3,
      "notBidding": 0,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -868,6 +918,7 @@
      "bidding": 1,
      "undecided": 3,
      "notBidding": 0,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -884,6 +935,7 @@
      "bidding": 1,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -900,6 +952,7 @@
      "bidding": 1,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -916,6 +969,7 @@
      "bidding": 0,
      "undecided": 3,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -929,26 +983,11 @@
      "bidding": 1,
      "undecided": 1,
      "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
       "Jess Concrete INC"
-     ]
-    },
-    {
-     "id": "6a022cf0c3591c68c7a3215e",
-     "name": "HVAC",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Dynamic Mechanical Services, Inc."
      ]
     },
     {
@@ -961,10 +1000,28 @@
      "bidding": 1,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
       "D&D Electrical Contractors"
+     ]
+    },
+    {
+     "id": "6a022cf0c3591c68c7a3215e",
+     "name": "HVAC",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Dynamic Mechanical Services, Inc."
      ]
     },
     {
@@ -977,6 +1034,7 @@
      "bidding": 1,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -993,6 +1051,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -1006,6 +1065,7 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1022,6 +1082,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -1035,6 +1096,7 @@
      "bidding": 1,
      "undecided": 7,
      "notBidding": 0,
+     "viewed": 3,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1051,6 +1113,7 @@
      "bidding": 1,
      "undecided": 6,
      "notBidding": 0,
+     "viewed": 4,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1067,6 +1130,7 @@
      "bidding": 1,
      "undecided": 5,
      "notBidding": 0,
+     "viewed": 3,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1083,6 +1147,7 @@
      "bidding": 1,
      "undecided": 3,
      "notBidding": 2,
+     "viewed": 4,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1099,6 +1164,7 @@
      "bidding": 2,
      "undecided": 3,
      "notBidding": 0,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1116,6 +1182,7 @@
      "bidding": 1,
      "undecided": 3,
      "notBidding": 0,
+     "viewed": 3,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1132,6 +1199,7 @@
      "bidding": 1,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 3,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1148,6 +1216,7 @@
      "bidding": 2,
      "undecided": 0,
      "notBidding": 1,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1165,6 +1234,7 @@
      "bidding": 2,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1182,6 +1252,7 @@
      "bidding": 3,
      "undecided": 4,
      "notBidding": 0,
+     "viewed": 6,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1200,6 +1271,7 @@
      "bidding": 3,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 4,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1226,12 +1298,12 @@
    "value": null,
    "isPublic": true,
    "packages": 62,
-   "covered": 47,
-   "atRisk": 15,
+   "covered": 48,
+   "atRisk": 14,
    "invites": 1039,
-   "bidding": 89,
-   "undecided": 780,
-   "bidsReceived": 17,
+   "bidding": 90,
+   "undecided": 775,
+   "bidsReceived": 18,
    "pkgs": [
     {
      "id": "6a3d8c2c360ef670d4a52b34",
@@ -1243,6 +1315,7 @@
      "bidding": 0,
      "undecided": 17,
      "notBidding": 2,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1266,34 +1339,6 @@
      ]
     },
     {
-     "id": "6a564c31b836f09badf7f60b",
-     "name": "Gutters",
-     "number": "07-008",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-20T16:00:00.000Z",
-     "invites": 14,
-     "bidding": 0,
-     "undecided": 13,
-     "notBidding": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Graber Roofing & Gutters, INC",
-      "Tucker Seamless Gutter",
-      "ABC Seamless Gutters",
-      "Worthy Construction LLC",
-      "Lowery’s Roof & Gutters",
-      "Royalty Roofing USA, LLC",
-      "Horner Roofing and Siding LLC ",
-      "Homeland Gutters INC",
-      "Homeland Gutters INC",
-      "L & A Gutters",
-      "J and B West Roofing",
-      "LaPorte Seamless Gutter",
-      "Quality Seamless Gutters LLC"
-     ]
-    },
-    {
      "id": "6a3d909aa372c98ed84ef0cb",
      "name": "Asphalt Shingles",
      "number": "07-07 ",
@@ -1303,6 +1348,7 @@
      "bidding": 0,
      "undecided": 8,
      "notBidding": 3,
+     "viewed": 7,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1326,6 +1372,7 @@
      "bidding": 0,
      "undecided": 9,
      "notBidding": 2,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1350,6 +1397,7 @@
      "bidding": 0,
      "undecided": 7,
      "notBidding": 2,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1372,6 +1420,7 @@
      "bidding": 0,
      "undecided": 7,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1394,6 +1443,7 @@
      "bidding": 0,
      "undecided": 4,
      "notBidding": 2,
+     "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1413,6 +1463,7 @@
      "bidding": 0,
      "undecided": 5,
      "notBidding": 1,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1433,6 +1484,7 @@
      "bidding": 0,
      "undecided": 3,
      "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1451,6 +1503,7 @@
      "bidding": 0,
      "undecided": 4,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1470,6 +1523,7 @@
      "bidding": 0,
      "undecided": 3,
      "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1488,6 +1542,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 2,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1504,10 +1559,28 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 1,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
       "Lee Company"
+     ]
+    },
+    {
+     "id": "6a3d8c2c360ef667dfa52b4c",
+     "name": "bike racks",
+     "number": "bike racks ",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-20T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Saris Infrastructure/Bike Fixation"
      ]
     },
     {
@@ -1520,25 +1593,10 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": []
-    },
-    {
-     "id": "6a3d8c2c360ef667dfa52b4c",
-     "name": "bike racks",
-     "number": "bike racks ",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-20T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Saris Infrastructure/Bike Fixation"
-     ]
     },
     {
      "id": "6a3d8c2c360ef662bda52b3c",
@@ -1548,8 +1606,9 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 106,
      "bidding": 1,
-     "undecided": 89,
-     "notBidding": 16,
+     "undecided": 87,
+     "notBidding": 18,
+     "viewed": 26,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1566,6 +1625,7 @@
      "bidding": 1,
      "undecided": 21,
      "notBidding": 10,
+     "viewed": 14,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1580,8 +1640,9 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 31,
      "bidding": 1,
-     "undecided": 21,
-     "notBidding": 9,
+     "undecided": 20,
+     "notBidding": 10,
+     "viewed": 10,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1598,6 +1659,7 @@
      "bidding": 1,
      "undecided": 25,
      "notBidding": 2,
+     "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1614,6 +1676,7 @@
      "bidding": 1,
      "undecided": 23,
      "notBidding": 3,
+     "viewed": 9,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1630,6 +1693,7 @@
      "bidding": 0,
      "undecided": 19,
      "notBidding": 5,
+     "viewed": 6,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -1643,6 +1707,7 @@
      "bidding": 1,
      "undecided": 15,
      "notBidding": 5,
+     "viewed": 10,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1659,6 +1724,7 @@
      "bidding": 1,
      "undecided": 16,
      "notBidding": 0,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1675,6 +1741,7 @@
      "bidding": 1,
      "undecided": 13,
      "notBidding": 2,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1691,6 +1758,7 @@
      "bidding": 0,
      "undecided": 13,
      "notBidding": 2,
+     "viewed": 5,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -1704,6 +1772,7 @@
      "bidding": 1,
      "undecided": 10,
      "notBidding": 2,
+     "viewed": 10,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1720,6 +1789,7 @@
      "bidding": 1,
      "undecided": 11,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1736,6 +1806,7 @@
      "bidding": 1,
      "undecided": 9,
      "notBidding": 1,
+     "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1752,6 +1823,7 @@
      "bidding": 1,
      "undecided": 7,
      "notBidding": 0,
+     "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1768,6 +1840,7 @@
      "bidding": 1,
      "undecided": 4,
      "notBidding": 3,
+     "viewed": 6,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1784,6 +1857,7 @@
      "bidding": 1,
      "undecided": 5,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1800,6 +1874,7 @@
      "bidding": 1,
      "undecided": 5,
      "notBidding": 0,
+     "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1816,6 +1891,7 @@
      "bidding": 0,
      "undecided": 3,
      "notBidding": 2,
+     "viewed": 3,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -1829,6 +1905,7 @@
      "bidding": 1,
      "undecided": 4,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1845,6 +1922,7 @@
      "bidding": 1,
      "undecided": 4,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1861,6 +1939,7 @@
      "bidding": 2,
      "undecided": 35,
      "notBidding": 8,
+     "viewed": 11,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1878,6 +1957,7 @@
      "bidding": 2,
      "undecided": 21,
      "notBidding": 8,
+     "viewed": 9,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1895,6 +1975,7 @@
      "bidding": 2,
      "undecided": 23,
      "notBidding": 4,
+     "viewed": 9,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1912,6 +1993,7 @@
      "bidding": 2,
      "undecided": 19,
      "notBidding": 1,
+     "viewed": 8,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1929,6 +2011,7 @@
      "bidding": 2,
      "undecided": 13,
      "notBidding": 4,
+     "viewed": 11,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1946,6 +2029,7 @@
      "bidding": 1,
      "undecided": 9,
      "notBidding": 5,
+     "viewed": 8,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1962,10 +2046,29 @@
      "bidding": 1,
      "undecided": 13,
      "notBidding": 1,
+     "viewed": 5,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
       "GE Appliances Contract Sales"
+     ]
+    },
+    {
+     "id": "6a564c31b836f09badf7f60b",
+     "name": "Gutters",
+     "number": "07-008",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-20T16:00:00.000Z",
+     "invites": 14,
+     "bidding": 2,
+     "undecided": 11,
+     "notBidding": 1,
+     "viewed": 3,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Graber Roofing & Gutters, INC",
+      "Lowery’s Roof & Gutters"
      ]
     },
     {
@@ -1978,6 +2081,7 @@
      "bidding": 2,
      "undecided": 8,
      "notBidding": 3,
+     "viewed": 7,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1995,6 +2099,7 @@
      "bidding": 2,
      "undecided": 8,
      "notBidding": 3,
+     "viewed": 9,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2012,6 +2117,7 @@
      "bidding": 2,
      "undecided": 8,
      "notBidding": 1,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2029,6 +2135,7 @@
      "bidding": 1,
      "undecided": 7,
      "notBidding": 1,
+     "viewed": 7,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2045,6 +2152,7 @@
      "bidding": 1,
      "undecided": 3,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2061,6 +2169,7 @@
      "bidding": 3,
      "undecided": 16,
      "notBidding": 6,
+     "viewed": 13,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2079,6 +2188,7 @@
      "bidding": 1,
      "undecided": 18,
      "notBidding": 6,
+     "viewed": 11,
      "bidsReceived": 2,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2095,6 +2205,7 @@
      "bidding": 3,
      "undecided": 19,
      "notBidding": 3,
+     "viewed": 6,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2113,6 +2224,7 @@
      "bidding": 3,
      "undecided": 16,
      "notBidding": 3,
+     "viewed": 10,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2129,8 +2241,9 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 18,
      "bidding": 1,
-     "undecided": 13,
-     "notBidding": 4,
+     "undecided": 12,
+     "notBidding": 5,
+     "viewed": 7,
      "bidsReceived": 2,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2147,6 +2260,7 @@
      "bidding": 3,
      "undecided": 7,
      "notBidding": 1,
+     "viewed": 6,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2162,13 +2276,13 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 10,
-     "bidding": 3,
-     "undecided": 6,
+     "bidding": 2,
+     "undecided": 7,
      "notBidding": 1,
-     "bidsReceived": 0,
+     "viewed": 6,
+     "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
-      "Home & Closet",
       "Closet Tamers",
       "Rayhaven Group / Unified Door & Hardware"
      ]
@@ -2183,6 +2297,7 @@
      "bidding": 2,
      "undecided": 6,
      "notBidding": 1,
+     "viewed": 3,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2200,6 +2315,7 @@
      "bidding": 3,
      "undecided": 3,
      "notBidding": 2,
+     "viewed": 6,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2218,6 +2334,7 @@
      "bidding": 4,
      "undecided": 41,
      "notBidding": 6,
+     "viewed": 15,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2237,6 +2354,7 @@
      "bidding": 5,
      "undecided": 16,
      "notBidding": 1,
+     "viewed": 12,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2257,6 +2375,7 @@
      "bidding": 4,
      "undecided": 12,
      "notBidding": 1,
+     "viewed": 11,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2276,6 +2395,7 @@
      "bidding": 3,
      "undecided": 5,
      "notBidding": 3,
+     "viewed": 8,
      "bidsReceived": 2,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2294,6 +2414,7 @@
      "bidding": 7,
      "undecided": 24,
      "notBidding": 11,
+     "viewed": 19,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2316,6 +2437,7 @@
      "bidding": 7,
      "undecided": 10,
      "notBidding": 2,
+     "viewed": 7,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2363,6 +2485,7 @@
      "bidding": 0,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -2380,6 +2503,7 @@
      "bidding": 1,
      "undecided": 3,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2421,59 +2545,12 @@
      "bidding": 0,
      "undecided": 2,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
       "Zimmermans Construction",
       "Jaguar Buildings"
-     ]
-    },
-    {
-     "id": "6a5e4021a21b1ed85d711132",
-     "name": "Cabinets",
-     "number": "12-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "LUE Manufacturing"
-     ]
-    },
-    {
-     "id": "6a5e3fbce7db48c074646fb3",
-     "name": "Flooring",
-     "number": "09-03",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Avanti Flooring LLC"
-     ]
-    },
-    {
-     "id": "6a5e3ff5610262832998be8c",
-     "name": "Acoustical Ceilings",
-     "number": "09-04",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Matteson Acoustics"
      ]
     },
     {
@@ -2486,10 +2563,62 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
       "MW Chupp Inc"
+     ]
+    },
+    {
+     "id": "6a5e4021a21b1ed85d711132",
+     "name": "Cabinets",
+     "number": "12-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "LUE Manufacturing"
+     ]
+    },
+    {
+     "id": "6a5e3ff5610262832998be8c",
+     "name": "Acoustical Ceilings",
+     "number": "09-04",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Matteson Acoustics"
+     ]
+    },
+    {
+     "id": "6a5e3fbce7db48c074646fb3",
+     "name": "Flooring",
+     "number": "09-03",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Avanti Flooring LLC"
      ]
     },
     {
@@ -2502,6 +2631,7 @@
      "bidding": 1,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2518,6 +2648,7 @@
      "bidding": 1,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2534,6 +2665,7 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2550,6 +2682,7 @@
      "bidding": 1,
      "undecided": 0,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2566,6 +2699,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
+     "viewed": 1,
      "bidsReceived": 1,
      "awardedCompany": null
     }
