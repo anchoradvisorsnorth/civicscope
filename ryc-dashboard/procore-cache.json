@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-07-22T05:26:02.013Z",
+  "refreshed": "2026-07-23T05:26:01.013Z",
   "jobCount": 53,
   "jobs": [
     {
@@ -17,7 +17,7 @@
       "projectedFinish": "2026-08-21T16:00:00Z",
       "completionDate": "2026-08-31",
       "sqft": null,
-      "pctComplete": 65.9,
+      "pctComplete": 70.3,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -33,8 +33,8 @@
         "original": 19281323.549999997,
         "revised": 20155991.33,
         "committed": 0,
-        "direct": 12209115.099999998,
-        "projectedCost": 19068751.63,
+        "direct": 13029109.2,
+        "projectedCost": 19107993.75,
         "projectedBudget": 20096315.81,
         "projCostSuspect": false
       },
@@ -398,7 +398,7 @@
         "revised": 16017608.150000002,
         "committed": 0,
         "direct": 5454265.52,
-        "projectedCost": 13541467.02,
+        "projectedCost": 13509052.46,
         "projectedBudget": 16221550.53,
         "projCostSuspect": false
       },
@@ -743,8 +743,8 @@
         "original": 15960965.520000003,
         "revised": 16253605.520000003,
         "committed": 0,
-        "direct": 1333048.0699999998,
-        "projectedCost": 12534307.9,
+        "direct": 1334684.0699999998,
+        "projectedCost": 12535943.9,
         "projectedBudget": 16241375.73,
         "projCostSuspect": false
       },
@@ -1170,8 +1170,8 @@
         "original": 15085716.219999999,
         "revised": 15842068.219999999,
         "committed": 0,
-        "direct": 16438608.920000002,
-        "projectedCost": 17323264.03,
+        "direct": 16439797.09,
+        "projectedCost": 17324452.2,
         "projectedBudget": 16388376.52,
         "projCostSuspect": false
       },
@@ -1626,8 +1626,8 @@
         "original": 12630570.77,
         "revised": 12630570.77,
         "committed": 0,
-        "direct": 8474401.22,
-        "projectedCost": 12014212.69,
+        "direct": 8475156.22,
+        "projectedCost": 12014967.69,
         "projectedBudget": 11561068.46,
         "projCostSuspect": false
       },
@@ -2064,21 +2064,21 @@
       "pctComplete": 77.5,
       "costOverrun": false,
       "commitmentsTracked": true,
-      "verifyStatus": false,
+      "verifyStatus": true,
       "rfis": {
         "total": 99,
         "open": 1
       },
       "submittals": {
-        "total": 310,
-        "open": 58
+        "total": 311,
+        "open": 59
       },
       "budget": {
         "original": 10907043.73,
         "revised": 10951924.540000001,
         "committed": 0,
-        "direct": 9271164.519999998,
-        "projectedCost": 10076504.05,
+        "direct": 9271240.049999997,
+        "projectedCost": 10076579.58,
         "projectedBudget": 10966277.61,
         "projCostSuspect": false
       },
@@ -2446,7 +2446,7 @@
       "projectedFinish": "2027-01-15T22:00:00Z",
       "completionDate": "2027-01-31",
       "sqft": null,
-      "pctComplete": 11.2,
+      "pctComplete": 11.6,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -2462,9 +2462,9 @@
         "original": 7996197.17,
         "revised": 8158300.17,
         "committed": 0,
-        "direct": 1018602.0099999999,
-        "projectedCost": 7310262.19,
-        "projectedBudget": 8118483.42,
+        "direct": 1052230.2699999998,
+        "projectedCost": 7339245.45,
+        "projectedBudget": 8171078.42,
         "projCostSuspect": false
       },
       "contractValue": 9098536,
@@ -2473,7 +2473,7 @@
         "count": 25,
         "subcontracts": 20,
         "purchaseOrders": 5,
-        "committedTotal": 6831746.28,
+        "committedTotal": 6858126.28,
         "originalTotal": 6809334.53,
         "pendingTotal": 292477,
         "invoicedTotal": 0,
@@ -2492,7 +2492,7 @@
             "title": "L&M Subcontract - CTB 2026",
             "vendor": "L & M Electric Inc",
             "status": "Approved",
-            "total": 851625,
+            "total": 878005,
             "original": 809740,
             "invoiced": 0
           },
@@ -2706,11 +2706,11 @@
         ]
       },
       "changeOrders": {
-        "count": 13,
-        "netValue": 122286.25,
+        "count": 15,
+        "netValue": 171783.25,
         "byType": {
-          "Allowance": 6,
-          "Owner Change": 6,
+          "Allowance": 7,
+          "Owner Change": 7,
           "TBD": 1
         }
       },
@@ -2749,15 +2749,15 @@
         "open": 5
       },
       "submittals": {
-        "total": 505,
-        "open": 464
+        "total": 506,
+        "open": 465
       },
       "budget": {
         "original": 7730460.510000001,
         "revised": 7730460.510000001,
         "committed": 0,
-        "direct": 422667.28,
-        "projectedCost": 6402720.14,
+        "direct": 424345.38,
+        "projectedCost": 6404398.24,
         "projectedBudget": 7705897.51,
         "projCostSuspect": false
       },
@@ -3524,7 +3524,7 @@
       "projectedFinish": "2026-08-31",
       "completionDate": "2026-08-31",
       "sqft": null,
-      "pctComplete": 41.6,
+      "pctComplete": 44,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -3540,9 +3540,9 @@
         "original": 3552279.87,
         "revised": 3575456.87,
         "committed": 0,
-        "direct": 1653064.2699999998,
-        "projectedCost": 3243149.22,
-        "projectedBudget": 3582662.87,
+        "direct": 1747400.5199999998,
+        "projectedCost": 3246989.22,
+        "projectedBudget": 3582135.87,
         "projCostSuspect": false
       },
       "contractValue": 3970739,
@@ -3551,9 +3551,9 @@
         "count": 22,
         "subcontracts": 18,
         "purchaseOrders": 4,
-        "committedTotal": 3162868.8,
-        "originalTotal": 3123016.8,
-        "pendingTotal": 3603.63,
+        "committedTotal": 3168944.43,
+        "originalTotal": 3126620.43,
+        "pendingTotal": 0,
         "invoicedTotal": 0,
         "rows": [
           {
@@ -3606,7 +3606,7 @@
             "title": "Universal - Michiana Eye Center - Subcontract",
             "vendor": "Universal Services Company LLC",
             "status": "Approved",
-            "total": 164302,
+            "total": 166774,
             "original": 164302,
             "invoiced": 0
           },
@@ -3749,7 +3749,7 @@
             "kind": "po",
             "title": "Construction Specialties inc. - Michiana Eye Center  - Purchase Order",
             "vendor": "Construction Specialities Inc",
-            "status": "Processing",
+            "status": "Approved",
             "total": 3603.63,
             "original": 3603.63,
             "invoiced": 0
@@ -3791,7 +3791,7 @@
       "projectedFinish": "2026-10-03",
       "completionDate": "2026-10-03",
       "sqft": null,
-      "pctComplete": 62.1,
+      "pctComplete": 64.6,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -3807,8 +3807,8 @@
         "original": 3309736.6799999997,
         "revised": 3344962.6799999997,
         "committed": 0,
-        "direct": 2304647.77,
-        "projectedCost": 3224619.96,
+        "direct": 2396287.37,
+        "projectedCost": 3265069.96,
         "projectedBudget": 3530544.66,
         "projCostSuspect": false
       },
@@ -4049,7 +4049,7 @@
       "projectedFinish": "2025-08-08T21:00:00Z",
       "completionDate": "2026-09-28",
       "sqft": 67298,
-      "pctComplete": 65.4,
+      "pctComplete": 76.6,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": true,
@@ -4065,10 +4065,10 @@
         "original": 3393854.23,
         "revised": 3473992.2600000007,
         "committed": 0,
-        "direct": 2415642.32,
-        "projectedCost": 4486580.42,
+        "direct": 2830110.16,
+        "projectedCost": 4650784.89,
         "projectedBudget": 3437189.9,
-        "projCostSuspect": false
+        "projCostSuspect": true
       },
       "contractValue": 3695500,
       "revisedContract": 3775638.03,
@@ -4245,13 +4245,13 @@
       "projectedFinish": "2026-10-01",
       "completionDate": "2026-10-01",
       "sqft": null,
-      "pctComplete": 60.4,
+      "pctComplete": 60.5,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 29,
-        "open": 1
+        "open": 0
       },
       "submittals": {
         "total": 75,
@@ -4261,8 +4261,8 @@
         "original": 3089475.19,
         "revised": 3089475.19,
         "committed": 0,
-        "direct": 2216875.06,
-        "projectedCost": 3055302.61,
+        "direct": 2219165.03,
+        "projectedCost": 3057592.58,
         "projectedBudget": 3083146.03,
         "projCostSuspect": false
       },
@@ -4760,8 +4760,8 @@
         "original": 2205118.7800000003,
         "revised": 2205118.7800000003,
         "committed": 0,
-        "direct": 2125602.22,
-        "projectedCost": 2157130.96,
+        "direct": 2125637.7800000003,
+        "projectedCost": 2157166.52,
         "projectedBudget": 2488197.5,
         "projCostSuspect": false
       },
@@ -5129,14 +5129,14 @@
       },
       "submittals": {
         "total": 143,
-        "open": 63
+        "open": 62
       },
       "budget": {
         "original": 2180018.8899999997,
         "revised": 2180548.8899999997,
         "committed": 0,
-        "direct": 1532440.1500000001,
-        "projectedCost": 2003557.74,
+        "direct": 1532608.62,
+        "projectedCost": 2003726.21,
         "projectedBudget": 2162620.33,
         "projCostSuspect": false
       },
@@ -5326,20 +5326,20 @@
       },
       "budget": {
         "original": 2071633.13,
-        "revised": 2074434.5,
+        "revised": 2072579.5,
         "committed": 0,
         "direct": 188008.97000000003,
-        "projectedCost": 1645580.81,
-        "projectedBudget": 2073608.66,
+        "projectedCost": 1648275.81,
+        "projectedBudget": 2076235.46,
         "projCostSuspect": false
       },
       "contractValue": 2280743,
-      "revisedContract": 2283544.37,
+      "revisedContract": 2281689.37,
       "commitments": {
         "count": 29,
         "subcontracts": 25,
         "purchaseOrders": 4,
-        "committedTotal": 1543207.3,
+        "committedTotal": 1551004.3,
         "originalTotal": 1547798.25,
         "pendingTotal": 49370.29,
         "invoicedTotal": 0,
@@ -5394,7 +5394,7 @@
             "title": "Jess Concrete Enterprises - White Vet Clinic Improvements Subcontract",
             "vendor": "Jess Concrete Enterprises",
             "status": "Approved",
-            "total": 84647,
+            "total": 91179,
             "original": 84647,
             "invoiced": 0
           },
@@ -5445,20 +5445,20 @@
           },
           {
             "kind": "sub",
+            "title": "Midwest Glass & Mirror Co. - White Vet Clinic Improvements Subcontract",
+            "vendor": "Midwest Glass & Mirror Co",
+            "status": "Approved",
+            "total": 45442,
+            "original": 44177,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
             "title": "MGR Masonry Contractors - White Vet Clinic Improvements Subcontract",
             "vendor": "MGR Masonry Contractors",
             "status": "Approved",
             "total": 45248,
             "original": 45248,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Midwest Glass & Mirror Co. - White Vet Clinic Improvements Subcontract",
-            "vendor": "Midwest Glass & Mirror Co",
-            "status": "Approved",
-            "total": 44177,
-            "original": 44177,
             "invoiced": 0
           },
           {
@@ -5608,10 +5608,10 @@
         ]
       },
       "changeOrders": {
-        "count": 8,
-        "netValue": 1975.53,
+        "count": 9,
+        "netValue": 4602.33,
         "byType": {
-          "Allowance": 8
+          "Allowance": 9
         }
       },
       "pm": {
@@ -5667,7 +5667,7 @@
         "count": 12,
         "subcontracts": 9,
         "purchaseOrders": 3,
-        "committedTotal": 731836.62,
+        "committedTotal": 739745.2,
         "originalTotal": 666072.34,
         "pendingTotal": 116450,
         "invoicedTotal": 0,
@@ -5679,6 +5679,15 @@
             "status": "Approved",
             "total": 304231.58,
             "original": 238467.3,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Robert Geans Subcontract - Bristol Street Garages",
+            "vendor": "Robert Geans Corporation",
+            "status": "Approved",
+            "total": 112474.58,
+            "original": 104566,
             "invoiced": 0
           },
           {
@@ -5697,15 +5706,6 @@
             "status": "Approved",
             "total": 106613.24,
             "original": 106613.24,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Robert Geans Subcontract - Bristol Street Garages",
-            "vendor": "Robert Geans Corporation",
-            "status": "Approved",
-            "total": 104566,
-            "original": 104566,
             "invoiced": 0
           },
           {
@@ -5812,7 +5812,7 @@
       "projectedFinish": "2026-08-19T21:00:00Z",
       "completionDate": "2026-02-24",
       "sqft": 9600,
-      "pctComplete": 44,
+      "pctComplete": 48.8,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -5822,13 +5822,13 @@
       },
       "submittals": {
         "total": 9,
-        "open": 5
+        "open": 4
       },
       "budget": {
         "original": 823809.7699999999,
         "revised": 839430.3799999998,
         "committed": 0,
-        "direct": 430715.85,
+        "direct": 478065.85,
         "projectedCost": 609359.42,
         "projectedBudget": 831742.79,
         "projCostSuspect": false
@@ -10765,7 +10765,7 @@
       "projectedFinish": "2026-03-30",
       "completionDate": "2026-03-30",
       "sqft": null,
-      "pctComplete": 24.7,
+      "pctComplete": 25.1,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": true,
@@ -10781,7 +10781,7 @@
         "original": 262510.03,
         "revised": 262510.03,
         "committed": 0,
-        "direct": 77850.37999999999,
+        "direct": 78918.77,
         "projectedCost": 198774.37,
         "projectedBudget": 278067.03,
         "projCostSuspect": false
