@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-07-23T09:30:11.013Z",
+ "generatedAt": "2026-07-24T09:30:11.236Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -158,20 +158,6 @@
      ]
     },
     {
-     "id": "69a0a4ba6003fae13b1c906d",
-     "name": "Paving",
-     "number": "32",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "69a0a1061cf93a1282df272c",
      "name": "Painting and Drywall",
      "number": "09-01",
@@ -187,6 +173,20 @@
      "biddingSubs": [
       "Commercial Painting Services"
      ]
+    },
+    {
+     "id": "69a0a4ba6003fae13b1c906d",
+     "name": "Paving",
+     "number": "32",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 2,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "69a051b5c96354b6c85f1cf8",
@@ -282,6 +282,20 @@
      "awardedCompany": null
     },
     {
+     "id": "69a0a7ec76c3da91c3bc98ee",
+     "name": "FFE package",
+     "number": "12-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
+    },
+    {
      "id": "69a0a4e99b0a64677df52943",
      "name": "Landscape",
      "number": "32-01",
@@ -297,20 +311,6 @@
      "biddingSubs": [
       "Bojrab Landscape Management"
      ]
-    },
-    {
-     "id": "69a0a7ec76c3da91c3bc98ee",
-     "name": "FFE package",
-     "number": "12-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
     },
     {
      "id": "69a0a0c3cc84d4e8461230dd",
@@ -347,23 +347,6 @@
      ]
     },
     {
-     "id": "69a0489404a42d55770a38d3",
-     "name": "Equipment",
-     "number": "11",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 1,
-     "undecided": 0,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Abt Electronics, Inc."
-     ]
-    },
-    {
      "id": "69a0427dd5712328e4c883c0",
      "name": "Flooring",
      "number": "09",
@@ -378,6 +361,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Avanti Flooring LLC"
+     ]
+    },
+    {
+     "id": "69a0489404a42d55770a38d3",
+     "name": "Equipment",
+     "number": "11",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 1,
+     "undecided": 0,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Abt Electronics, Inc."
      ]
     },
     {
@@ -718,7 +718,7 @@
      "bidding": 2,
      "undecided": 0,
      "notBidding": 0,
-     "viewed": 2,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -839,7 +839,7 @@
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
-     "viewed": 1,
+     "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1301,9 +1301,9 @@
    "covered": 48,
    "atRisk": 14,
    "invites": 1039,
-   "bidding": 90,
-   "undecided": 775,
-   "bidsReceived": 18,
+   "bidding": 84,
+   "undecided": 776,
+   "bidsReceived": 26,
    "pkgs": [
     {
      "id": "6a3d8c2c360ef670d4a52b34",
@@ -1346,13 +1346,12 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 11,
      "bidding": 0,
-     "undecided": 8,
-     "notBidding": 3,
+     "undecided": 7,
+     "notBidding": 4,
      "viewed": 7,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "CRG Residential, LLC",
       "The Roof Squad",
       "Clover roofing ",
       "J & B West Roofing",
@@ -1370,16 +1369,14 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 11,
      "bidding": 0,
-     "undecided": 9,
-     "notBidding": 2,
+     "undecided": 7,
+     "notBidding": 4,
      "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
       "Premier Commercial Roofing",
-      "The Partner Caulking Company LLC",
       "Ikorcc",
-      "Air & Wellness Safety Training Company",
       "RAM Construction Services of Michigan, Inc. ",
       "Slager Restoration & Sealants",
       "Proformance Caulking/Tuckpointing",
@@ -1625,7 +1622,7 @@
      "bidding": 1,
      "undecided": 21,
      "notBidding": 10,
-     "viewed": 14,
+     "viewed": 15,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1656,15 +1653,12 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 28,
-     "bidding": 1,
-     "undecided": 25,
+     "bidding": 0,
+     "undecided": 26,
      "notBidding": 2,
      "viewed": 4,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Quality Drywall"
-     ]
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a3d8c2c360ef6c31ea52b23",
@@ -1936,15 +1930,14 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 45,
-     "bidding": 2,
-     "undecided": 35,
+     "bidding": 1,
+     "undecided": 36,
      "notBidding": 8,
      "viewed": 11,
-     "bidsReceived": 0,
+     "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
-      "P & P Drywall",
-      "Quality Drywall"
+      "P & P Drywall"
      ]
     },
     {
@@ -1991,9 +1984,9 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 22,
      "bidding": 2,
-     "undecided": 19,
-     "notBidding": 1,
-     "viewed": 8,
+     "undecided": 18,
+     "notBidding": 2,
+     "viewed": 9,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2026,15 +2019,12 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 15,
-     "bidding": 1,
+     "bidding": 0,
      "undecided": 9,
-     "notBidding": 5,
+     "notBidding": 6,
      "viewed": 8,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Falk-Pli Engineering & Surveying, Inc."
-     ]
+     "bidsReceived": 2,
+     "awardedCompany": null
     },
     {
      "id": "6a3d8c2c360ef6359ca52b33",
@@ -2114,15 +2104,14 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 11,
-     "bidding": 2,
-     "undecided": 8,
+     "bidding": 1,
+     "undecided": 9,
      "notBidding": 1,
      "viewed": 5,
-     "bidsReceived": 0,
+     "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
-      "Light-Crete Products & Services, Inc.",
-      "Kent Companies Inc."
+      "Light-Crete Products & Services, Inc."
      ]
     },
     {
@@ -2166,16 +2155,15 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 25,
-     "bidding": 3,
-     "undecided": 16,
+     "bidding": 2,
+     "undecided": 17,
      "notBidding": 6,
      "viewed": 13,
-     "bidsReceived": 0,
+     "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
       "Witmer&Witmer LLC",
-      "Jess Concrete INC",
-      "Yoder Concrete LLC"
+      "Jess Concrete INC"
      ]
     },
     {
@@ -2251,25 +2239,6 @@
      ]
     },
     {
-     "id": "6a3d8c2c360ef62ce0a52b22",
-     "name": "Building Insulation",
-     "number": "07-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-20T16:00:00.000Z",
-     "invites": 11,
-     "bidding": 3,
-     "undecided": 7,
-     "notBidding": 1,
-     "viewed": 6,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Air Tite Insulation",
-      "Momper Insulation",
-      "The Insulation Guys, LLC"
-     ]
-    },
-    {
      "id": "6a3d8c2c360ef6060da52b32",
      "name": "Wardrobe Closet Specialties",
      "number": "10-05",
@@ -2303,6 +2272,25 @@
      "biddingSubs": [
       "Brazilian Clean - Be Clean",
       "PCS Professional Cleaning Services, Inc."
+     ]
+    },
+    {
+     "id": "6a3d8c2c360ef62ce0a52b22",
+     "name": "Building Insulation",
+     "number": "07-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-20T16:00:00.000Z",
+     "invites": 11,
+     "bidding": 3,
+     "undecided": 7,
+     "notBidding": 1,
+     "viewed": 6,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Air Tite Insulation",
+      "Momper Insulation",
+      "The Insulation Guys, LLC"
      ]
     },
     {
@@ -2396,7 +2384,7 @@
      "undecided": 5,
      "notBidding": 3,
      "viewed": 8,
-     "bidsReceived": 2,
+     "bidsReceived": 3,
      "awardedCompany": null,
      "biddingSubs": [
       "Custom Fence Co.",
@@ -2434,18 +2422,17 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 19,
-     "bidding": 7,
-     "undecided": 10,
+     "bidding": 6,
+     "undecided": 11,
      "notBidding": 2,
      "viewed": 7,
-     "bidsReceived": 0,
+     "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
       "Harlow Enterprises, Inc.",
       "SOD FATHER LAWN LANDSCAPES LLC",
       "Lambs Lawn Service & Landscaping",
       "DBL Services Inc",
-      "Douglas Landscape, Inc.",
       "Landmark Landscaping",
       "Fuerbringer Landscaping & Design, Inc."
      ]
@@ -2472,7 +2459,7 @@
    "atRisk": 1,
    "invites": 6,
    "bidding": 1,
-   "undecided": 5,
+   "undecided": 4,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -2483,14 +2470,13 @@
      "bidsDueAt": "2026-07-24T16:00:00.000Z",
      "invites": 2,
      "bidding": 0,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 1,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "ALT & Witzig Engineering, Inc.",
-      "Construction Field Services LLC"
+      "ALT & Witzig Engineering, Inc."
      ]
     },
     {
@@ -2528,29 +2514,28 @@
    "value": null,
    "isPublic": false,
    "packages": 10,
-   "covered": 5,
-   "atRisk": 5,
+   "covered": 6,
+   "atRisk": 4,
    "invites": 13,
-   "bidding": 4,
-   "undecided": 9,
+   "bidding": 5,
+   "undecided": 8,
    "bidsReceived": 1,
    "pkgs": [
     {
-     "id": "6a5e3e3f23495160da859f93",
-     "name": "Wood Framing",
-     "number": "06-01",
+     "id": "6a5e4021a21b1ed85d711132",
+     "name": "Cabinets",
+     "number": "12-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 2,
+     "invites": 1,
      "bidding": 0,
-     "undecided": 2,
+     "undecided": 1,
      "notBidding": 0,
-     "viewed": 1,
+     "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "Zimmermans Construction",
-      "Jaguar Buildings"
+      "LUE Manufacturing"
      ]
     },
     {
@@ -2571,20 +2556,20 @@
      ]
     },
     {
-     "id": "6a5e4021a21b1ed85d711132",
-     "name": "Cabinets",
-     "number": "12-01",
+     "id": "6a5e3fbce7db48c074646fb3",
+     "name": "Flooring",
+     "number": "09-03",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-27T16:00:00.000Z",
      "invites": 1,
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
-     "viewed": 0,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "LUE Manufacturing"
+      "Avanti Flooring LLC"
      ]
     },
     {
@@ -2602,23 +2587,6 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "Matteson Acoustics"
-     ]
-    },
-    {
-     "id": "6a5e3fbce7db48c074646fb3",
-     "name": "Flooring",
-     "number": "09-03",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Avanti Flooring LLC"
      ]
     },
     {
@@ -2653,6 +2621,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Elf Excavating"
+     ]
+    },
+    {
+     "id": "6a5e3e3f23495160da859f93",
+     "name": "Wood Framing",
+     "number": "06-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Zimmermans Construction"
      ]
     },
     {
@@ -2706,8 +2691,10 @@
    ]
   }
  ],
- "draftCount": 0,
- "draftNames": [],
+ "draftCount": 1,
+ "draftNames": [
+  "TEST 2026 Wastewater Treatment Plant Improvements TEST Keith"
+ ],
  "recentClosed": [
   {
    "id": "69ea4adfdd5a30682034cd8c",
