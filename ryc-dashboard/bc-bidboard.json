@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-07-24T09:30:11.236Z",
+ "generatedAt": "2026-07-25T09:30:10.854Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -158,23 +158,6 @@
      ]
     },
     {
-     "id": "69a0a1061cf93a1282df272c",
-     "name": "Painting and Drywall",
-     "number": "09-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Commercial Painting Services"
-     ]
-    },
-    {
      "id": "69a0a4ba6003fae13b1c906d",
      "name": "Paving",
      "number": "32",
@@ -237,6 +220,23 @@
      "awardedCompany": null
     },
     {
+     "id": "69a0a1061cf93a1282df272c",
+     "name": "Painting and Drywall",
+     "number": "09-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Commercial Painting Services"
+     ]
+    },
+    {
      "id": "69a03f921cf93accfbded618",
      "name": "Structural Steel",
      "number": "05",
@@ -268,9 +268,9 @@
      "awardedCompany": null
     },
     {
-     "id": "69a0a4fc92686bf148973931",
-     "name": "Fences & Gates",
-     "number": "32-02",
+     "id": "69a0a7ec76c3da91c3bc98ee",
+     "name": "FFE package",
+     "number": "12-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-03-12T16:00:00.000Z",
      "invites": 1,
@@ -282,9 +282,9 @@
      "awardedCompany": null
     },
     {
-     "id": "69a0a7ec76c3da91c3bc98ee",
-     "name": "FFE package",
-     "number": "12-01",
+     "id": "69a0a4fc92686bf148973931",
+     "name": "Fences & Gates",
+     "number": "32-02",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-03-12T16:00:00.000Z",
      "invites": 1,
@@ -347,23 +347,6 @@
      ]
     },
     {
-     "id": "69a0427dd5712328e4c883c0",
-     "name": "Flooring",
-     "number": "09",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-03-12T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 1,
-     "undecided": 0,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Avanti Flooring LLC"
-     ]
-    },
-    {
      "id": "69a0489404a42d55770a38d3",
      "name": "Equipment",
      "number": "11",
@@ -378,6 +361,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Abt Electronics, Inc."
+     ]
+    },
+    {
+     "id": "69a0427dd5712328e4c883c0",
+     "name": "Flooring",
+     "number": "09",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-03-12T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 1,
+     "undecided": 0,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Avanti Flooring LLC"
      ]
     },
     {
@@ -991,23 +991,6 @@
      ]
     },
     {
-     "id": "6a022d0bae28a07b4d475101",
-     "name": "Electrical",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "D&D Electrical Contractors"
-     ]
-    },
-    {
      "id": "6a022cf0c3591c68c7a3215e",
      "name": "HVAC",
      "number": null,
@@ -1022,6 +1005,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Dynamic Mechanical Services, Inc."
+     ]
+    },
+    {
+     "id": "6a022d0bae28a07b4d475101",
+     "name": "Electrical",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "D&D Electrical Contractors"
      ]
     },
     {
@@ -1056,6 +1056,20 @@
      "awardedCompany": null
     },
     {
+     "id": "6a022160e2751b37f7554aa8",
+     "name": "Building Insulation",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
+    },
+    {
      "id": "6a02212e44826dba5a600a30",
      "name": "PEMB Insulation",
      "number": null,
@@ -1071,20 +1085,6 @@
      "biddingSubs": [
       "Silvercote"
      ]
-    },
-    {
-     "id": "6a022160e2751b37f7554aa8",
-     "name": "Building Insulation",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
     },
     {
      "id": "6a022a285e266905149cee3c",
@@ -1300,10 +1300,10 @@
    "packages": 62,
    "covered": 48,
    "atRisk": 14,
-   "invites": 1039,
-   "bidding": 84,
-   "undecided": 776,
-   "bidsReceived": 26,
+   "invites": 1042,
+   "bidding": 79,
+   "undecided": 774,
+   "bidsReceived": 34,
    "pkgs": [
     {
      "id": "6a3d8c2c360ef670d4a52b34",
@@ -1601,11 +1601,11 @@
      "number": "22-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
-     "invites": 106,
+     "invites": 109,
      "bidding": 1,
-     "undecided": 87,
-     "notBidding": 18,
-     "viewed": 26,
+     "undecided": 81,
+     "notBidding": 27,
+     "viewed": 28,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1654,28 +1654,11 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 28,
      "bidding": 0,
-     "undecided": 26,
-     "notBidding": 2,
+     "undecided": 25,
+     "notBidding": 3,
      "viewed": 4,
      "bidsReceived": 1,
      "awardedCompany": null
-    },
-    {
-     "id": "6a3d8c2c360ef6c31ea52b23",
-     "name": "Membrane Roofing",
-     "number": "07-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-20T16:00:00.000Z",
-     "invites": 27,
-     "bidding": 1,
-     "undecided": 23,
-     "notBidding": 3,
-     "viewed": 9,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Michiana Roofing and Sheet Metal"
-     ]
     },
     {
      "id": "6a3d8c2c360ef6c905a52b25",
@@ -1865,15 +1848,12 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 6,
-     "bidding": 1,
-     "undecided": 5,
+     "bidding": 0,
+     "undecided": 6,
      "notBidding": 0,
      "viewed": 4,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Schindler Elevator Corporation"
-     ]
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a3d8c2c360ef676afa52b44",
@@ -2050,14 +2030,13 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 14,
-     "bidding": 2,
-     "undecided": 11,
+     "bidding": 1,
+     "undecided": 12,
      "notBidding": 1,
      "viewed": 3,
-     "bidsReceived": 0,
+     "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
-      "Graber Roofing & Gutters, INC",
       "Lowery’s Roof & Gutters"
      ]
     },
@@ -2146,6 +2125,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Milestone Fence, LLC"
+     ]
+    },
+    {
+     "id": "6a3d8c2c360ef6c31ea52b23",
+     "name": "Membrane Roofing",
+     "number": "07-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-20T16:00:00.000Z",
+     "invites": 27,
+     "bidding": 1,
+     "undecided": 23,
+     "notBidding": 3,
+     "viewed": 10,
+     "bidsReceived": 2,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Michiana Roofing and Sheet Metal"
      ]
     },
     {
@@ -2294,41 +2290,21 @@
      ]
     },
     {
-     "id": "6a3d8c2c360ef6cbb9a52b4a",
-     "name": "Irrigation",
-     "number": "32-04",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-20T16:00:00.000Z",
-     "invites": 8,
-     "bidding": 3,
-     "undecided": 3,
-     "notBidding": 2,
-     "viewed": 6,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Majestic Irrigation Landscaping & Design",
-      "Wissco Irrigation, Inc.",
-      "Fuerbringer Landscaping & Design, Inc."
-     ]
-    },
-    {
      "id": "6a3d8c2c360ef6f13da52b1a",
      "name": "Masonry",
      "number": "04-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 51,
-     "bidding": 4,
-     "undecided": 41,
+     "bidding": 3,
+     "undecided": 42,
      "notBidding": 6,
      "viewed": 15,
-     "bidsReceived": 1,
+     "bidsReceived": 2,
      "awardedCompany": null,
      "biddingSubs": [
       "D. West Masonry & Restoration LLC",
       "GTO Masonry",
-      "Tony's Stone Brick and Block LLC",
       "MGR Masonry LLC"
      ]
     },
@@ -2374,6 +2350,25 @@
      ]
     },
     {
+     "id": "6a3d8c2c360ef6cbb9a52b4a",
+     "name": "Irrigation",
+     "number": "32-04",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-20T16:00:00.000Z",
+     "invites": 8,
+     "bidding": 3,
+     "undecided": 3,
+     "notBidding": 2,
+     "viewed": 6,
+     "bidsReceived": 2,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Majestic Irrigation Landscaping & Design",
+      "Wissco Irrigation, Inc.",
+      "Fuerbringer Landscaping & Design, Inc."
+     ]
+    },
+    {
      "id": "6a3d8c2c360ef621dfa52b48",
      "name": "Fences & Gates & Gate Operator",
      "number": "32-03",
@@ -2399,18 +2394,16 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 42,
-     "bidding": 7,
-     "undecided": 24,
+     "bidding": 5,
+     "undecided": 26,
      "notBidding": 11,
      "viewed": 19,
-     "bidsReceived": 0,
+     "bidsReceived": 2,
      "awardedCompany": null,
      "biddingSubs": [
       "Advanced American Electric",
       "Schwartz Electric, Inc.",
       "Communication CO. of South BEND",
-      "D&D Electrical Contractors",
-      "CBS Service LLC",
       "Pemberton-Davis Electric, Inc.",
       "Gaylor Electric, Inc"
      ]
@@ -2458,9 +2451,9 @@
    "covered": 1,
    "atRisk": 1,
    "invites": 6,
-   "bidding": 1,
-   "undecided": 4,
-   "bidsReceived": 0,
+   "bidding": 0,
+   "undecided": 5,
+   "bidsReceived": 1,
    "pkgs": [
     {
      "id": "6a5f4ef0f66ba5ece05e7f68",
@@ -2486,15 +2479,12 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-24T16:00:00.000Z",
      "invites": 4,
-     "bidding": 1,
-     "undecided": 3,
+     "bidding": 0,
+     "undecided": 4,
      "notBidding": 0,
      "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Falk-Pli Engineering & Surveying, Inc."
-     ]
+     "bidsReceived": 1,
+     "awardedCompany": null
     }
    ]
   },
@@ -2514,30 +2504,13 @@
    "value": null,
    "isPublic": false,
    "packages": 10,
-   "covered": 6,
-   "atRisk": 4,
+   "covered": 5,
+   "atRisk": 5,
    "invites": 13,
-   "bidding": 5,
-   "undecided": 8,
-   "bidsReceived": 1,
+   "bidding": 3,
+   "undecided": 9,
+   "bidsReceived": 2,
    "pkgs": [
-    {
-     "id": "6a5e4021a21b1ed85d711132",
-     "name": "Cabinets",
-     "number": "12-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "LUE Manufacturing"
-     ]
-    },
     {
      "id": "6a5e40b1c1e6346dabec73ca",
      "name": "Plumbing & HVAC",
@@ -2556,20 +2529,35 @@
      ]
     },
     {
-     "id": "6a5e3fbce7db48c074646fb3",
-     "name": "Flooring",
-     "number": "09-03",
+     "id": "6a5e403fb5a4a5378831970c",
+     "name": "Electrical",
+     "number": "26-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 0,
+     "notBidding": 1,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": []
+    },
+    {
+     "id": "6a5e4021a21b1ed85d711132",
+     "name": "Cabinets",
+     "number": "12-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-27T16:00:00.000Z",
      "invites": 1,
      "bidding": 0,
      "undecided": 1,
      "notBidding": 0,
-     "viewed": 1,
+     "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "Avanti Flooring LLC"
+      "LUE Manufacturing"
      ]
     },
     {
@@ -2587,6 +2575,23 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "Matteson Acoustics"
+     ]
+    },
+    {
+     "id": "6a5e3fbce7db48c074646fb3",
+     "name": "Flooring",
+     "number": "09-03",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Avanti Flooring LLC"
      ]
     },
     {
@@ -2630,32 +2635,12 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-07-27T16:00:00.000Z",
      "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
+     "bidding": 0,
+     "undecided": 2,
      "notBidding": 0,
      "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Zimmermans Construction"
-     ]
-    },
-    {
-     "id": "6a5e403fb5a4a5378831970c",
-     "name": "Electrical",
-     "number": "26-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 1,
-     "undecided": 0,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Photon Electric, LLC"
-     ]
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a5e3f9733ead85aaea5c060",
