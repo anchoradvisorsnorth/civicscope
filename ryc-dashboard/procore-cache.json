@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-07-24T05:26:01.014Z",
+  "refreshed": "2026-07-25T05:26:01.013Z",
   "jobCount": 53,
   "jobs": [
     {
@@ -732,7 +732,7 @@
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 17,
+        "total": 18,
         "open": 5
       },
       "submittals": {
@@ -2071,7 +2071,7 @@
       },
       "submittals": {
         "total": 311,
-        "open": 59
+        "open": 57
       },
       "budget": {
         "original": 10907043.73,
@@ -2463,8 +2463,8 @@
         "revised": 8158300.17,
         "committed": 0,
         "direct": 1148840.48,
-        "projectedCost": 7330205.8,
-        "projectedBudget": 8148983.42,
+        "projectedCost": 7331419.8,
+        "projectedBudget": 8122603.42,
         "projCostSuspect": false
       },
       "contractValue": 9098536,
@@ -2473,7 +2473,7 @@
         "count": 25,
         "subcontracts": 20,
         "purchaseOrders": 5,
-        "committedTotal": 6840391.28,
+        "committedTotal": 6841605.28,
         "originalTotal": 6809334.53,
         "pendingTotal": 292477,
         "invoicedTotal": 0,
@@ -2492,7 +2492,7 @@
             "title": "L&M Subcontract - CTB 2026",
             "vendor": "L & M Electric Inc",
             "status": "Approved",
-            "total": 878005,
+            "total": 879219,
             "original": 809740,
             "invoiced": 0
           },
@@ -2706,10 +2706,10 @@
         ]
       },
       "changeOrders": {
-        "count": 17,
-        "netValue": 149688.25,
+        "count": 18,
+        "netValue": 123308.25,
         "byType": {
-          "Allowance": 9,
+          "Allowance": 10,
           "Owner Change": 7,
           "TBD": 1
         }
@@ -2740,7 +2740,7 @@
       "projectedFinish": "2027-12-20T22:00:00Z",
       "completionDate": "2027-12-06",
       "sqft": null,
-      "pctComplete": 5,
+      "pctComplete": 6.7,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -2749,15 +2749,15 @@
         "open": 5
       },
       "submittals": {
-        "total": 506,
-        "open": 465
+        "total": 505,
+        "open": 464
       },
       "budget": {
         "original": 7730460.510000001,
         "revised": 7730460.510000001,
         "committed": 0,
-        "direct": 428257.46,
-        "projectedCost": 6404398.24,
+        "direct": 575011.11,
+        "projectedCost": 6406104.89,
         "projectedBudget": 7705897.51,
         "projCostSuspect": false
       },
@@ -4067,7 +4067,7 @@
         "committed": 0,
         "direct": 2830110.16,
         "projectedCost": 4650784.89,
-        "projectedBudget": 3437189.9,
+        "projectedBudget": 3444253.15,
         "projCostSuspect": true
       },
       "contractValue": 3695500,
@@ -4210,10 +4210,10 @@
         ]
       },
       "changeOrders": {
-        "count": 32,
-        "netValue": 102579.65,
+        "count": 33,
+        "netValue": 105136.61,
         "byType": {
-          "Owner Change": 16,
+          "Owner Change": 17,
           "TBD": 6,
           "Transfer": 2,
           "Allowance": 8
@@ -4250,8 +4250,8 @@
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 29,
-        "open": 0
+        "total": 32,
+        "open": 3
       },
       "submittals": {
         "total": 75,
@@ -5608,10 +5608,10 @@
         ]
       },
       "changeOrders": {
-        "count": 10,
-        "netValue": 9260.83,
+        "count": 11,
+        "netValue": 20310.83,
         "byType": {
-          "Allowance": 10
+          "Allowance": 11
         }
       },
       "pm": {
@@ -10782,7 +10782,7 @@
         "revised": 262510.03,
         "committed": 0,
         "direct": 78918.77,
-        "projectedCost": 198774.37,
+        "projectedCost": 201389.37,
         "projectedBudget": 278067.03,
         "projCostSuspect": false
       },
@@ -10845,9 +10845,10 @@
         ]
       },
       "changeOrders": {
-        "count": 5,
-        "netValue": 15962,
+        "count": 6,
+        "netValue": 16682,
         "byType": {
+          "Contingency": 1,
           "Owner Change": 3,
           "TBD": 2
         }
