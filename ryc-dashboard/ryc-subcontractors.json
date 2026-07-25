@@ -1,7 +1,7 @@
 {
- "generated": "2026-07-24T09:30:44.971Z",
+ "generated": "2026-07-25T09:30:49.440Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 127198893,
+ "totalActual": 127203686,
  "totalCommitted": 137228372,
  "subCount": 633,
  "subs": [
@@ -11726,6 +11726,23 @@
    ]
   },
   {
+   "vendorNo": "3722",
+   "name": "Hayes Design Co",
+   "actualCost": 53855,
+   "actualJobs": 1,
+   "committed": 48927,
+   "committedJobs": 1,
+   "variance": -4928,
+   "jobs": [
+    {
+     "jobNo": "2502GO03",
+     "jobName": "Byers Softball Complex Improve",
+     "actual": 53855,
+     "committed": 48927
+    }
+   ]
+  },
+  {
    "vendorNo": "1454",
    "name": "Custom Design Laminates  Inc.",
    "actualCost": 52349,
@@ -11921,23 +11938,6 @@
      "jobName": "CTB 2026 Addition",
      "actual": 93,
      "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "3722",
-   "name": "Hayes Design Co",
-   "actualCost": 49062,
-   "actualJobs": 1,
-   "committed": 48927,
-   "committedJobs": 1,
-   "variance": -135,
-   "jobs": [
-    {
-     "jobNo": "2502GO03",
-     "jobName": "Byers Softball Complex Improve",
-     "actual": 49062,
-     "committed": 48927
     }
    ]
   },
