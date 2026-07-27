@@ -2,7 +2,7 @@
 // Gate password verified SERVER-side; service key never ships to the browser.
 // Actions: save (insert one run), list (recent runs, light columns), get (full row).
 
-const LIST_COLS = 'id,created_at,estimator,project_name,location,client_type,work_type,cost_low,cost_high,cost_mid,confidence,version,files';
+const LIST_COLS = 'id,created_at,estimator,project_name,location,client_type,work_type,cost_low,cost_high,cost_mid,confidence,version,files,bc_project_id,bc_url';
 
 const SAVE_FIELDS = [
   'estimator', 'project_name', 'location', 'client_type', 'work_type', 'size_sf',
@@ -68,6 +68,22 @@ export default async function handler(req, res) {
       const rows = await r.json();
       if (!rows.length) return res.status(404).json({ error: 'Not found' });
       return res.status(200).json({ ok: true, run: rows[0] });
+    }
+
+    // Stamp a BC draft-project linkage onto an existing estimate row so the tool
+    // knows it was already loaded and can hard-block a duplicate BC create.
+    if (action === 'link_bc') {
+      const id = String(req.body.id || '');
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
+      const patch = {};
+      if (req.body.bc_url !== undefined) patch.bc_url = req.body.bc_url ? String(req.body.bc_url).slice(0, 500) : null;
+      if (req.body.bc_project_id !== undefined) patch.bc_project_id = req.body.bc_project_id ? String(req.body.bc_project_id).slice(0, 120) : null;
+      if (!Object.keys(patch).length) return res.status(400).json({ error: 'nothing to patch' });
+      const r = await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc`, {
+        method: 'PATCH', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+      return res.status(200).json({ ok: true });
     }
 
     if (action === 'delete') {

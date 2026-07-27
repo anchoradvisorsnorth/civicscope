@@ -103,7 +103,7 @@
 <div id="app">
   <header>
     <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.8.0 · plan takeoff · spec-book scope constraints · autofill · market sub-pricing · BC draft loader · run history</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.8.1 · plan takeoff · spec-book scope constraints · autofill · market sub-pricing · BC draft loader (dup-guard) · run history</div></div>
     <a class="back" href="/ryc/dashboard">← Dashboard</a>
   </header>
 
@@ -498,6 +498,7 @@ async function runEstimate() {
 
   const bm = segBenchmarks(inp.ct, inp.wt, inp.name);
   setLoading(true);
+  window._bcLoaded = null; // fresh estimate — no BC draft linked yet
   const runStart = Date.now();
   let runBatches = uploadedFiles.length ? splitIntoBatches(uploadedFiles).length : 0;
   try {
@@ -733,6 +734,16 @@ function bcResetCard() {
   if (b) b.innerHTML = `<button class="btn" onclick="bcPreview(this)">Preview packages &amp; bidders</button>
     <span class="note" style="margin-left:10px">Step 1 of 2 — nothing is created yet</span>`;
 }
+// Hard block: this estimate already has a BC draft — never offer to create another from here.
+function bcLoadedCard() {
+  const b = document.getElementById('bcBody');
+  if (!b) return;
+  const u = (window._bcLoaded && window._bcLoaded.url) || null;
+  b.innerHTML =
+    `<div style="font-size:14px;margin-bottom:8px">✓ <strong>Already loaded to BuildingConnected.</strong> A draft project was created from this estimate — to prevent a duplicate, it can't be loaded again from here.</div>`
+    + (u ? `<a class="btn" href="${esc(u)}" target="_blank" rel="noopener">Open in BuildingConnected →</a>` : `<span class="note">BC link not recorded on this run — find it in BuildingConnected.</span>`)
+    + `<div class="note" style="margin-top:6px">Need a fresh draft after major scope changes? Create it directly in BuildingConnected.</div>`;
+}
 async function bcPreview(btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Building preview…'; }
   try {
@@ -782,6 +793,16 @@ async function bcCreate(btn) {
       body: JSON.stringify({ mode: 'create', projectName: name, bidsDueAt: due, description: desc, divisions: chosen }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || d.detail || ('HTTP ' + r.status));
+    // Remember the draft so this estimate can't be loaded to BC twice (survives reopen from history).
+    const bcUrl = d.url || null;
+    const bcId = bcUrl ? ((bcUrl.match(/projects\/([a-zA-Z0-9]+)/) || [])[1] || null) : null;
+    window._bcLoaded = { url: bcUrl, id: bcId };
+    if (window._runId && (bcUrl || bcId)) {
+      fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pw: 'ryc2026', action: 'link_bc', id: window._runId, bc_project_id: bcId, bc_url: bcUrl }) })
+        .then(res => { if (!res.ok) console.warn('BC linkage not saved'); }).catch(() => {});
+      historyCache = null; // force history refresh so the ↗BC badge shows
+    }
     const rows = d.packages.map(p =>
       `<tr><td>${esc(p.division)}</td><td>${p.ok ? '✓' : '✗ ' + esc(p.error || '')}</td>`
       + `<td class="r">${p.biddersCopied || 0} bidders${p.templateFrom ? ` <span class="note">(from ${esc(p.templateFrom)})</span>` : ''}</td></tr>`).join('');
@@ -789,7 +810,7 @@ async function bcCreate(btn) {
       `<div style="font-size:14px;margin-bottom:8px">✓ <strong>DRAFT created</strong> — ${d.created} package${d.created === 1 ? '' : 's'}, ${d.totalBiddersCopied} bidders loaded${d.failed ? ` · <span style="color:#dc2626">${d.failed} failed</span>` : ''}</div>
       <table><thead><tr><th>Package</th><th>Status</th><th class="r">Bidders</th></tr></thead><tbody>${rows}</tbody></table>
       <div style="margin-top:12px"><a class="btn" href="${esc(d.url)}" target="_blank" rel="noopener">Open in BuildingConnected →</a>
-      <span class="note" style="margin-left:10px">Review + adjust bidders there, then publish to send invitations.</span></div>`;
+      <span class="note" style="margin-left:10px">Review + adjust bidders there, then publish to send invitations. This estimate is now locked from re-loading to BC.</span></div>`;
   } catch (e) {
     btn.disabled = false; btn.textContent = 'Create DRAFT in BuildingConnected';
     alert('Create failed: ' + e.message);
@@ -800,7 +821,7 @@ function renderResults(p, inp, bm) {
   setLoading(false);
   window._lastInp = inp;
   document.getElementById('bcCard').style.display = 'block';
-  bcResetCard();
+  if (window._bcLoaded && (window._bcLoaded.url || window._bcLoaded.id)) bcLoadedCard(); else bcResetCard();
   document.getElementById('costMid').textContent = fmt$(p.mid);
   document.getElementById('costRange').textContent = fmt$(p.low) + ' – ' + fmt$(p.high);
   const tag = document.getElementById('confTag');
@@ -1051,7 +1072,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.8.0';
+const TOOL_VERSION = 'v1.8.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -1119,7 +1140,7 @@ async function renderHistory(force) {
           + `<td class="r"><strong>${run.cost_mid ? '$' + run.cost_mid.toLocaleString() : '—'}</strong></td>`
           + `<td class="r note">${run.cost_low && run.cost_high ? '$' + run.cost_low.toLocaleString() + ' – $' + run.cost_high.toLocaleString() : '—'}</td>`
           + `<td>${esc(run.confidence || '—')}</td>`
-          + `<td>${files ? files + ' pp' : 'scope-only'}${run.estimator ? ' · ' + esc(run.estimator) : ''}</td>`
+          + `<td>${files ? files + ' pp' : 'scope-only'}${run.estimator ? ' · ' + esc(run.estimator) : ''}${run.bc_url ? ' · <span style="color:#ea580c;font-weight:600" title="Already loaded to BuildingConnected">↗BC</span>' : ''}</td>`
           + `<td class="note">${esc(run.version || '')}</td></tr>`;
       }
     }
@@ -1147,6 +1168,8 @@ async function openRun(id) {
       narrative: run.narrative, divisions: run.divisions || [], assumptions: run.assumptions || [], gaps: run.gaps || [] };
     window._scopeC = run.scope_constraints || null;
     window._planMeta = null;
+    window._runId = run.id;
+    window._bcLoaded = (run.bc_url || run.bc_project_id) ? { url: run.bc_url || null, id: run.bc_project_id || null } : null;
     el.innerHTML = prev;
     setEstView('assist');
     renderResults(p, inp, segBenchmarks(inp.ct, inp.wt, inp.name));
