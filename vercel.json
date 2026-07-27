@@ -9,7 +9,8 @@
     { "source": "/golf/picks", "destination": "/pool/golf/picks", "statusCode": 301 },
     { "source": "/football", "destination": "/pool/football", "statusCode": 301 },
     { "source": "/football/picks", "destination": "/pool/football/picks", "statusCode": 301 },
-    { "source": "/football/commish", "destination": "/pool/commish", "statusCode": 301 }
+    { "source": "/football/commish", "destination": "/pool/commish", "statusCode": 301 },
+    { "source": "/ryc/dashboard", "destination": "/ryc/command", "statusCode": 301 }
   ],
   "rewrites": [
     { "source": "/", "destination": "/groundwork/index.html", "has": [{ "type": "host", "value": "groundwork.civicscope.io" }] },
@@ -24,7 +25,6 @@
     { "source": "/for-government", "destination": "/for-government/index.html" },
     { "source": "/for-schools", "destination": "/for-schools/index.html" },
     { "source": "/for-infrastructure", "destination": "/for-infrastructure/index.html" },
-    { "source": "/ryc/dashboard", "destination": "/ryc-dashboard/index.html" },
     { "source": "/ryc/command", "destination": "/ryc-command/index.html" },
     { "source": "/pool", "destination": "/pool/index.html" },
     { "source": "/pool/golf", "destination": "/pool/golf.html" },

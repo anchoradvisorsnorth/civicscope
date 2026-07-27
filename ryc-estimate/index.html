@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RYC Estimating Assist — Plans → Grounded Estimate</title>
 <meta name="robots" content="noindex, nofollow">
-<link id="favicon" rel="icon" href="/ryc-dashboard/RYC_Shield_Orange.png">
+<link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
@@ -91,7 +91,7 @@
 
 <div id="lock-screen">
   <div class="lock-box">
-    <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
+    <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
     <h2>RYC Estimating Assist</h2>
     <div class="subtitle">R. Yoder Construction</div>
     <input type="password" id="pw-input" placeholder="Password" autofocus>
@@ -102,9 +102,8 @@
 
 <div id="app">
   <header>
-    <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.8.1 · plan takeoff · spec-book scope constraints · autofill · market sub-pricing · BC draft loader (dup-guard) · run history</div></div>
-    <a class="back" href="/ryc/dashboard">← Dashboard</a>
+    <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
+    <div><h1>RYC Estimating</h1><div class="meta">v1.8.2 · plan takeoff · spec-book scope constraints · autofill · market sub-pricing · BC draft loader (dup-guard) · run history</div></div>
   </header>
 
   <div class="estnav">
@@ -1072,7 +1071,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.8.1';
+const TOOL_VERSION = 'v1.8.2';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
