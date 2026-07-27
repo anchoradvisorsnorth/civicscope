@@ -121,7 +121,7 @@
 <div id="app">
   <header>
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.9.0 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow (status · bonding/builders-risk · pre-bid meeting)</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.9.1 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow (status · bonding/builders-risk · RFI builder · pre-bid meeting)</div></div>
   </header>
 
   <div class="estnav">
@@ -208,6 +208,11 @@
     <div class="card" id="gapCard" style="display:none">
       <h3 style="margin-top:0">Open questions to tighten the number <span class="note">— resolve before pricing</span></h3>
       <div id="gapWrap"></div>
+    </div>
+
+    <div class="card" id="rfiCard" style="display:none">
+      <h3 style="margin-top:0">RFI builder <span class="note">— turns the open questions into formal pre-bid RFIs, each with RYC's suggested assumption to carry unless the design team directs otherwise</span></h3>
+      <div id="rfiBody"></div>
     </div>
 
     <div class="card">
@@ -905,6 +910,14 @@ function renderPursuit() {
   const bcChip = bc === 'loaded' ? '<span class="chip ck-done">BC: loaded ✓</span>' : '<span class="chip ck-open">BC: not loaded</span>';
   const qChip = q.m ? `<span class="chip ${q.n >= q.m && q.m ? 'ck-done' : 'ck-open'}">Quotes: ${q.n} of ${q.m} priced</span>` : '';
 
+  const rfi = wf.checklist.rfis;
+  const rfiChip = rfi && rfi.items && rfi.items.length
+    ? `<span class="ck-pill ck-${rfi.status === 'answered' ? 'received' : rfi.status === 'sent' ? 'requested' : 'needed'}">${rfi.items.length} drafted${rfi.status && rfi.status !== 'drafted' ? ' · ' + rfi.status : ''}</span>`
+    : '<span class="ck-pill ck-na">none</span>';
+  const rfiRow = `<div class="ck-row"><span class="ck-name">RFIs</span>${rfiChip}<div class="ck-actions">${rfi && rfi.items && rfi.items.length
+    ? `<button class="btn-sm" onclick="rfiDoc()">📄 Print log</button><select class="ck-date" onchange="setRfiStatus(this.value)">` + ['drafted', 'sent', 'answered'].map(v => `<option value="${v}"${(rfi.status || 'drafted') === v ? ' selected' : ''}>${{ drafted: 'Drafted', sent: 'Sent', answered: 'Answered' }[v]}</option>`).join('') + `</select>`
+    : '<span class="note">build in the RFI card below</span>'}</div></div>`;
+
   const mtg = wf.checklist.prebid_meeting || {};
   const hasMtg = !!mtg.date;
   const mtgRow = `<div class="ck-row"><span class="ck-name">Pre-bid meeting</span>
@@ -926,6 +939,7 @@ function renderPursuit() {
      ${statusRow('builders_risk', 'Builders Risk', 'BR submission', 'genBuildersRisk()')}
      <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-actions note">managed in the BuildingConnected card below</div></div>
      <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-actions note">enter live quotes on the bid packages below</div></div>
+     ${rfiRow}
      ${mtgRow}`;
 }
 
@@ -1052,6 +1066,98 @@ function genBuildersRisk() {
   }
 }
 
+// ---- RFI builder: elevate the takeoff's open questions into formal pre-bid RFIs ----
+function rfiState() { return curWF().checklist.rfis || null; }
+function rfiInit() {
+  const card = document.getElementById('rfiCard'); if (card) card.style.display = 'block';
+  const st = rfiState();
+  if (st && st.items && st.items.length) renderRFIList(st.items, st.status); else rfiResetCard();
+}
+function rfiResetCard() {
+  const b = document.getElementById('rfiBody'); if (!b) return;
+  const gaps = (window._lastP && window._lastP.gaps) || [];
+  b.innerHTML = `<button class="btn" onclick="genRFIs(this)">Build RFIs from the open questions</button>
+    <span class="note" style="margin-left:10px">${gaps.length ? gaps.length + ' open question' + (gaps.length === 1 ? '' : 's') + ' to elevate' : 'reads the scope + drawings for pre-bid clarifications'} — drafts the question + RYC's suggested assumption + $ exposure</span>`;
+}
+async function genRFIs(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Drafting RFIs…'; }
+  try {
+    const raw = await callClaude(rfiPrompt(), null, 2500);
+    const items = parseRFIs(raw);
+    if (!items.length) throw new Error('no RFIs parsed from the model output');
+    curWF().checklist.rfis = { status: 'drafted', items, generated_at: new Date().toISOString() };
+    persistWF(); renderRFIList(items, 'drafted'); renderPursuit();
+  } catch (e) {
+    const b = document.getElementById('rfiBody');
+    if (b) b.innerHTML = `<span style="color:#dc2626;font-size:13px">RFI draft failed: ${esc(e.message)}</span> <button class="btn btn-ghost" onclick="rfiResetCard()">Retry</button>`;
+  }
+}
+function rfiPrompt() {
+  const d = pursuitData();
+  const gaps = ((window._lastP && window._lastP.gaps) || []).map(g => '- ' + g.q + (g.impact ? ' (' + g.impact + ')' : '')).join('\n') || '(none flagged — identify the pre-bid clarifications a careful estimator would raise from the scope below)';
+  const divs = (window._lastDivisions || []).map(x => x.name).join(', ');
+  const sc = window._scopeC || {};
+  const scope = [sc.scopeSummary ? 'Contract scope: ' + sc.scopeSummary : '', (sc.notApplicable || []).length ? 'Excluded / N/A: ' + sc.notApplicable.join('; ') : '', (sc.ofci || []).length ? 'Owner-furnished (OFCI): ' + sc.ofci.join('; ') : '', (sc.alternates || []).length ? 'Alternates: ' + sc.alternates.join('; ') : ''].filter(Boolean).join('\n');
+  return `You are a senior estimator at R. Yoder Construction, a general contractor that subcontracts every trade (self-performs nothing), preparing formal pre-bid RFIs to submit to the architect/engineer of record before pricing a bid.
+
+PROJECT: ${d.projectName || 'Unnamed'}${d.location ? ' — ' + d.location : ''}
+WORK TYPE: ${d.workType || 'n/a'}${d.sf ? ' · ' + d.sf.toLocaleString() + ' SF' : ''}
+DIVISIONS BEING PRICED: ${divs || 'n/a'}
+${scope ? scope + '\n' : ''}OPEN QUESTIONS FROM THE TAKEOFF (scope ambiguities that move the bid):
+${gaps}
+
+Write professional pre-bid RFIs that resolve these ambiguities. Each RFI must: pose ONE specific, answerable question (cite the likely drawing sheet or spec section if inferable, else "-"); name the affected division/trade; state RYC's SUGGESTED ASSUMPTION — the reasonable interpretation RYC will carry in its bid UNLESS the design team directs otherwise (a proposed assumption, NOT an authoritative answer); and note approximate dollar exposure if known. Order by dollar impact (highest first), merge duplicates, output 3-8 RFIs. Use EXACTLY this format and nothing else:
+
+RFI 1
+Q: <question>
+DIV: <division/trade>
+BASIS: <drawing sheet / spec section, or ->
+ASSUME: <RYC's suggested assumption>
+IMPACT: <approx +/-$ or ->
+---
+RFI 2
+...`;
+}
+function parseRFIs(raw) {
+  return raw.split(/\n(?=RFI\s*\d)/i).filter(b => /Q:/i.test(b)).map((b, i) => {
+    const grab = re => { const m = b.match(re); return m ? m[1].trim().replace(/\s*-+\s*$/, '').trim() : ''; };
+    return {
+      n: i + 1,
+      q: grab(/Q:\s*([\s\S]*?)(?:\n\s*DIV:|\n\s*BASIS:|\n\s*ASSUME:|\n\s*IMPACT:|$)/i),
+      div: grab(/DIV:\s*([\s\S]*?)(?:\n\s*BASIS:|\n\s*ASSUME:|\n\s*IMPACT:|$)/i),
+      basis: grab(/BASIS:\s*([\s\S]*?)(?:\n\s*ASSUME:|\n\s*IMPACT:|$)/i),
+      assume: grab(/ASSUME:\s*([\s\S]*?)(?:\n\s*IMPACT:|$)/i),
+      impact: grab(/IMPACT:\s*([\s\S]*?)(?:\n---|$)/i),
+    };
+  }).filter(r => r.q);
+}
+function renderRFIList(items, status) {
+  const b = document.getElementById('rfiBody'); if (!b) return;
+  const rows = items.map(r => `<tr>
+    <td class="r" style="vertical-align:top;width:26px"><strong>${r.n}</strong></td>
+    <td><div style="font-weight:600">${esc(r.q)}</div>
+      <div class="note" style="margin-top:3px">${r.div ? '<strong>' + esc(r.div) + '</strong>' : ''}${r.basis && r.basis !== '-' ? ' · ref ' + esc(r.basis) : ''}${r.impact && r.impact !== '-' ? ' · ' + esc(r.impact) : ''}</div>
+      <div style="margin-top:4px;font-size:12.5px"><span style="color:#9a3412;font-weight:600">RYC assumption:</span> ${r.assume ? esc(r.assume) : '<span class="note">—</span>'}</div></td></tr>`).join('');
+  b.innerHTML = `<div class="note" style="margin-bottom:8px">${items.length} RFI${items.length === 1 ? '' : 's'} drafted${status && status !== 'drafted' ? ' · status: ' + status : ''}. "RYC assumption" is the interpretation carried in the bid unless the design team responds otherwise — proposed, not an answer.</div>
+    <table>${rows}</table>
+    <div style="margin-top:12px"><button class="btn" onclick="rfiDoc()">📄 Print RFI log</button>
+    <button class="btn btn-ghost" onclick="genRFIs(this)">↻ Regenerate</button></div>`;
+}
+function rfiDoc() {
+  const st = rfiState(); if (!st || !st.items) return;
+  const d = pursuitData();
+  const rowsHtml = st.items.map(r => `<tr><td class="l" style="width:24px">${r.n}</td><td>
+    <div style="font-weight:600;margin-bottom:3px">${esc(r.q)}</div>
+    <table><tr><td class="l" style="width:130px">Division / trade</td><td>${TBC(r.div)}</td></tr>
+    <tr><td class="l">Reference</td><td>${r.basis && r.basis !== '-' ? esc(r.basis) : '<span class="tbc">—</span>'}</td></tr>
+    <tr><td class="l">RYC assumption</td><td>${TBC(r.assume)}</td></tr>
+    <tr><td class="l">Dollar exposure</td><td>${r.impact && r.impact !== '-' ? esc(r.impact) : '<span class="tbc">—</span>'}</td></tr>
+    <tr><td class="l">Design-team response</td><td><span class="tbc">[to be answered]</span></td></tr></table></td></tr>`).join('');
+  openSheet('rfi', 'Pre-Bid RFI Log', `<h2>${esc(d.projectName || 'Project')}${d.location ? ' · ' + esc(d.location) : ''}</h2><table>${rowsHtml}</table>`,
+    "Each RYC assumption is the interpretation carried in the bid pending the design team's response — proposed, not authoritative. Submit to the architect/engineer of record.");
+}
+function setRfiStatus(v) { if (curWF().checklist.rfis) { curWF().checklist.rfis.status = v; persistWF(); renderPursuit(); } }
+
 function renderResults(p, inp, bm) {
   setLoading(false);
   window._lastInp = inp;
@@ -1157,6 +1263,7 @@ function renderResults(p, inp, bm) {
     + flags;
 
   renderPursuit();
+  rfiInit();
 
   document.getElementById('inputPanel').style.display = 'none';
   document.getElementById('resultsPanel').style.display = 'block';
@@ -1310,7 +1417,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.9.0';
+const TOOL_VERSION = 'v1.9.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
