@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 
   // GET = serve cached data from static file
   try {
-    const cacheUrl = new URL('/ryc-dashboard/procore-cache.json', `https://${req.headers.host}`);
+    const cacheUrl = new URL('/ryc-data/procore-cache.json', `https://${req.headers.host}`);
     const r = await fetch(cacheUrl.toString());
     if (r.ok) {
       const data = await r.json();

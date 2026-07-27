@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="robots" content="noindex,nofollow" />
-<link id="favicon" rel="icon" href="/ryc-dashboard/RYC_Shield_Orange.png" />
+<link id="favicon" rel="icon" href="/ryc-data/RYC_Shield_Orange.png" />
 <title>RYC Foundation Reports</title>
 <style>
   :root { --ink:#1a1a1a; --orange:#c2410c; --orange-d:#9a3412; --line:#e7e2dc; --bg:#f7f5f2; --muted:#6b7280; }
@@ -43,7 +43,7 @@
 </head>
 <body>
 <header>
-  <img src="/ryc-dashboard/RYC_Shield_Orange.png" alt="RYC" onerror="this.style.display='none'" />
+  <img src="/ryc-data/RYC_Shield_Orange.png" alt="RYC" onerror="this.style.display='none'" />
   <div>
     <div class="t">Foundation Reports</div>
     <div class="sub">Ask in plain English — read-only · payroll/employee data blocked</div>
@@ -187,6 +187,6 @@ $('askBtn').onclick = ask;
 $('q').addEventListener('keydown', e => { if (e.key==='Enter' && (e.metaKey||e.ctrlKey)) ask(); });
 if (sessionStorage.getItem(pwKey)) call({ verify:true }).then(({status}) => { if (status===200) showTool(); else sessionStorage.removeItem(pwKey); });
 </script>
-<script src="/ryc-dashboard/data-sources.js"></script>
+<script src="/ryc-data/data-sources.js"></script>
 </body>
 </html>

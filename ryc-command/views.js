@@ -750,7 +750,7 @@ function dueChip(ts){
 function renderEstimating(){
   var view=document.getElementById("view");
   if(!bcData||!Object.prototype.toString.call(bcData.published).includes("Array")){
-    view.innerHTML="<div class=\"warn-banner\">⚠️ BuildingConnected bid-board feed unavailable (/ryc-dashboard/bc-bidboard.json) — figures show Unavailable, not $0. The daily VM pull (bc-bidboard) may not have run yet.</div>";
+    view.innerHTML="<div class=\"warn-banner\">⚠️ BuildingConnected bid-board feed unavailable (/ryc-data/bc-bidboard.json) — figures show Unavailable, not $0. The daily VM pull (bc-bidboard) may not have run yet.</div>";
     return;
   }
   var pubs=bcData.published;
@@ -1222,7 +1222,7 @@ function closeDrawer(silent){
 
 
 /* ===== PM Load (v2.21.0) — per-PM workload history + forward hiring signal.
-   Source: /ryc-dashboard/pm-history.json (Foundation ODBC weekly pull — the only system
+   Source: /ryc-data/pm-history.json (Foundation ODBC weekly pull — the only system
    with multi-year history; Procore only knows the current board). Tier convention
    (Keith 2026-07-22): flat job counts lie (a $163 repair and an $11M fieldhouse both get a
    job number; Greencroft is 30+ unit jobs under one PM) — so jobs are tiered and counts
@@ -1252,7 +1252,7 @@ function pmBindTips(root){
 function renderPMLoad(){
   var view=document.getElementById("view");
   if(!pmHistData||!pmHistData.jobs){
-    view.innerHTML="<div class=\"warn-banner\">&#9888;&#65039; PM history feed unavailable (/ryc-dashboard/pm-history.json) — workload history cannot be computed. Figures show Unavailable, not $0.</div>";
+    view.innerHTML="<div class=\"warn-banner\">&#9888;&#65039; PM history feed unavailable (/ryc-data/pm-history.json) — workload history cannot be computed. Figures show Unavailable, not $0.</div>";
     return;
   }
   var H=pmHistData;

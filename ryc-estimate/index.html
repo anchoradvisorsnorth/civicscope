@@ -231,7 +231,7 @@ let portfolio = null;
 let benchmarks = null;
 let subPricing = null;
 async function loadPortfolio() {
-  try { portfolio = await (await fetch('/ryc-dashboard/ryc-portfolio.json?t=' + Date.now())).json(); }
+  try { portfolio = await (await fetch('/ryc-data/ryc-portfolio.json?t=' + Date.now())).json(); }
   catch { portfolio = { jobs: [] }; }
   try { benchmarks = await (await fetch('/ryc-estimate/ryc-cost-benchmarks.json?t=' + Date.now())).json(); }
   catch { benchmarks = null; }

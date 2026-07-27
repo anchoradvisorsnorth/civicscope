@@ -1,0 +1,2125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link id="favicon" rel="icon" href="/ryc-data/RYC_Shield_Orange.png">
+<title>RYC Portfolio Dashboard</title>
+<style>
+  :root {
+    --bg: #f5f3ef; --bg-card: #f1f0eb; --surface: #fff; --text: #1a1a2e; --muted: #6b7280;
+    --border: #e5e7eb; --accent: #2563eb; --green: #16a34a; --amber: #d97706;
+    --red: #dc2626; --green-bg: #f0fdf4; --amber-bg: #fffbeb; --red-bg: #fef2f2;
+    --green-border: #86efac; --amber-border: #fcd34d; --red-border: #fca5a5;
+    --blue-bar: #3b82f6; --teal-bar: #0d9488; --amber-bar: #f59e0b; --purple-bar: #8b5cf6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+
+  /* Lock screen */
+  #lock-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .lock-box { background: var(--surface); border-radius: 12px; padding: 48px 40px; text-align: center; width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+  .lock-box img.lock-logo { height: 64px; width: auto; margin-bottom: 18px; }
+  .lock-box h2 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .lock-box .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .lock-box input { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; background: var(--bg); }
+  .lock-box input:focus { border-color: var(--accent); background: #fff; }
+  .lock-box button { margin-top: 14px; width: 100%; padding: 11px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .lock-box .error { color: var(--red); font-size: 12px; margin-top: 8px; display: none; }
+
+  /* App */
+  #app { display: none; max-width: 1320px; margin: 0 auto; padding: 28px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  header .brand { display: flex; align-items: center; gap: 14px; }
+  header .brand img { height: 44px; width: auto; display: block; }
+  header h1 { font-size: 22px; font-weight: 600; }
+  header .meta { font-size: 12px; color: var(--muted); }
+  .refresh-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--surface); cursor: pointer; margin-left: 8px; }
+  .refresh-btn:hover { background: var(--bg-card); }
+
+  /* View toggle */
+  .view-toggle { display: flex; gap: 0; margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .view-toggle button { padding: 8px 20px; border: none; background: var(--surface); font-size: 13px; font-weight: 500; cursor: pointer; color: var(--muted); border-right: 1px solid var(--border); }
+  .view-toggle button:last-child { border-right: none; }
+  .view-toggle button.active { background: var(--accent); color: #fff; }
+
+  /* Metrics */
+  .metrics { display: flex; gap: 12px; margin-bottom: 2.5rem; }
+  .metric-card { background: #f1f0eb; border-radius: 10px; padding: 14px 16px; flex: 1; min-width: 0; }
+  .metric-card .label { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .metric-card .value { font-size: 22px; font-weight: 600; }
+  .metric-card .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Section headers */
+  .section-header { font-size: 18px; font-weight: 500; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+
+  /* Breakdown */
+  .breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 2.5rem; }
+  .breakdown-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .breakdown-card .type-label { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .breakdown-card .stat { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+  .breakdown-card .stat .k { color: var(--muted); }
+  .revenue-bar { height: 6px; border-radius: 3px; background: #e8e7e3; margin-top: 10px; overflow: hidden; }
+  .revenue-bar .fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+
+  /* Filter bar */
+  .job-controls { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .job-controls input[type="text"] { min-width: 180px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); outline: none; }
+  .job-controls input[type="text"]:focus { border-color: var(--accent); }
+  .job-controls select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; background: var(--surface); outline: none; cursor: pointer; color: var(--text); flex-shrink: 0; }
+  .filter-pills { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .filter-pills button { padding: 6px 12px; border: none; background: var(--surface); font-size: 12px; font-weight: 500; cursor: pointer; color: var(--muted); border-right: 1px solid var(--border); }
+  .filter-pills button:last-child { border-right: none; }
+  .filter-pills button.active { background: var(--accent); color: #fff; }
+  .filter-pills button[data-sl="red"].active { background: var(--red); }
+  .filter-pills button[data-sl="amber"].active { background: var(--amber); }
+  .filter-pills button[data-sl="atrisk"].active { background: var(--red); }
+  .sort-right { margin-left: auto; }
+
+  /* Job cards */
+  .job-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px; margin-bottom: 2.5rem; }
+  .job-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px; transition: box-shadow 0.15s; position: relative; }
+  .job-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .job-card.sl-green { border-left: 4px solid var(--green); }
+  .job-card.sl-amber { border-left: 4px solid var(--amber); }
+  .job-card.sl-red { border-left: 4px solid var(--red); }
+  .job-card.sl-gray { border-left: 4px solid #d1d5db; }
+  .job-card .job-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .job-card .job-name { font-size: 16px; font-weight: 500; }
+  .job-card .job-client { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .job-card .personnel { font-size: 12px; color: var(--muted); margin-bottom: 12px; display: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+  .badge-live { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .badge-completed { background: #f3f4f6; color: var(--muted); }
+  .badge-stage { background: #e0e7ff; color: #3730a3; }
+  .badge-stage-null { background: #f3f4f6; color: #9ca3af; }
+  .badge-school { background: #ede9fe; color: #7c3aed; }
+  .badge-municipal { background: #dbeafe; color: #2563eb; }
+  .badge-commercial { background: #fef3c7; color: #92400e; }
+  .badge-mixed_use { background: #fce7f3; color: #be185d; }
+  .badge-municipal_water_wastewater { background: #ccfbf1; color: #0f766e; }
+  .badge-industrial { background: #e2e8f0; color: #475569; }
+  .badge-private { background: #f3f4f6; color: #374151; }
+  .badge-sp { background: #e0f2fe; color: #0369a1; font-size: 10px; }
+  .badge-procore { background: #fef9c3; color: #854d0e; font-size: 10px; }
+  .badge-foundation { background: #dcfce7; color: #15803d; font-size: 10px; }
+  .card-sources { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
+  .buyout-line { font-size: 12px; color: var(--green); margin-top: 10px; }
+  .ctx-tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600; }
+  .ctx-rev { background: #dbeafe; color: #2563eb; }
+  .ctx-marg { background: #dcfce7; color: #15803d; }
+  .ctx-vs { font-size: 11px; margin-left: 4px; }
+  .hint { border-bottom: 1px dotted var(--muted); cursor: help; }
+  #hint-tip { position: fixed; z-index: 2000; max-width: 260px; background: #1f2937; color: #fff; font-size: 11px; line-height: 1.45; padding: 8px 10px; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.25); display: none; pointer-events: none; }
+  .gf-learn { display: inline; } .gf-learn summary { cursor: pointer; color: #2563eb; display: inline; font-style: normal; }
+  .gf-learn[open] { display: block; margin-top: 4px; }
+  .job-card.clickable { cursor: pointer; transition: box-shadow .15s, transform .15s; }
+  .job-card.clickable:hover { box-shadow: 0 3px 16px rgba(0,0,0,.12); transform: translateY(-1px); }
+  #detail-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: none; z-index: 1000; }
+  #detail-overlay.open { display: block; }
+  #detail-panel { position: fixed; top: 0; right: 0; height: 100%; width: 640px; max-width: 94vw; background: var(--surface); box-shadow: -6px 0 28px rgba(0,0,0,.25); overflow-y: auto; transform: translateX(100%); transition: transform .22s ease; }
+  #detail-overlay.open #detail-panel { transform: translateX(0); }
+  .detail-head { padding: 22px 26px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .detail-head .dh-name { font-size: 19px; font-weight: 700; }
+  .detail-head .dh-client { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .detail-close { position: absolute; top: 18px; right: 22px; font-size: 24px; line-height: 1; cursor: pointer; color: var(--muted); background: none; border: none; }
+  .detail-body { padding: 18px 26px 40px; }
+  .detail-section { margin-bottom: 24px; }
+  .detail-section h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+  .detail-grid .k { font-size: 11px; color: var(--muted); display: block; }
+  .detail-grid .v { font-size: 15px; font-weight: 500; }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .detail-table th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 500; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  .detail-table td { padding: 6px 8px; border-bottom: 1px solid #f0efe9; }
+  .detail-table td.r, .detail-table th.r { text-align: right; }
+  .detail-table tr.sub-row td { font-weight: 600; background: #f6fdf9; }
+  .billing-table tr.sub-row-click { cursor: pointer; }
+  .billing-table tr.sub-row-click:hover td { background: #f0f4ff; }
+  .detail-table tfoot td { font-weight: 700; border-top: 2px solid var(--border); }
+  .badge-off { background: #f3f4f6 !important; color: #9ca3af !important; text-decoration: line-through; text-decoration-color: #dc2626; text-decoration-thickness: 2px; }
+  .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+
+  /* Stoplight */
+  .stoplight { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
+  .stoplight-green { background: var(--green); }
+  .stoplight-amber { background: var(--amber); }
+  .stoplight-red { background: var(--red); }
+  .stoplight-gray { background: #d1d5db; }
+
+  .job-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-top: 14px; }
+  .job-stat { font-size: 12px; }
+  .job-stat .k { color: var(--muted); display: block; margin-bottom: 1px; }
+  .job-stat .v { font-weight: 500; font-size: 14px; }
+  .flag-red { color: var(--red) !important; font-weight: 600 !important; }
+  .flag-amber { color: var(--amber) !important; font-weight: 500 !important; }
+  .margin-green { color: var(--green); } .margin-amber { color: var(--amber); } .margin-red { color: var(--red); }
+  .margin-missing { color: var(--muted); font-style: italic; }
+
+
+  /* Pre-con pending state */
+  .precon-pending .job-stat .v { color: #d1d5db; }
+  .precon-pending .job-stat .k { color: #d1d5db; }
+  .precon-note { font-size: 12px; color: var(--muted); font-style: italic; grid-column: 1 / -1; padding: 8px 0 0; }
+
+  /* Stage warning icon */
+  .stage-warn { cursor: default; position: relative; margin-left: 3px; }
+  .stage-warn .tooltip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: #fff; font-size: 11px; padding: 6px 10px; border-radius: 6px; white-space: nowrap; z-index: 10; margin-bottom: 4px; }
+  .stage-warn:hover .tooltip { display: block; }
+
+  .dq-confirmed::after { content: ' ✓'; color: var(--green); font-size: 10px; }
+  .dq-estimated::after { content: ' ~'; color: var(--amber); font-size: 10px; }
+  .dq-missing::after { content: ' ?'; color: var(--red); font-size: 10px; }
+
+  .live-dot { display: inline-block; width: 8px; height: 8px; background: var(--green); border-radius: 50%; margin-right: 4px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .action-items { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .action-items .label { font-size: 11px; color: var(--muted); }
+  .action-items .count { font-size: 20px; font-weight: 600; }
+  .action-items .touched { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+  .note { font-size: 11px; color: var(--muted); font-style: italic; }
+
+  /* Stoplight reason */
+  .sl-reason { font-size: 11px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .sl-reason-red { color: var(--red); }
+  .sl-reason-amber { color: var(--amber); }
+  /* Customer Success (Buildr) block */
+  .cs-block { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; }
+  .cs-block.cs-attn { border-top-color: var(--amber); }
+  .cs-block summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .cs-block summary::-webkit-details-marker { display: none; }
+  .cs-block summary::before { content: '▸'; color: var(--muted); font-size: 10px; }
+  .cs-block[open] summary::before { content: '▾'; }
+  .cs-empty { display: flex; gap: 8px; align-items: center; }
+  .cs-tag { font-weight: 600; color: var(--text); }
+  .cs-none, .cs-summary-meta { color: var(--muted); }
+  .cs-chip { font-size: 10px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--border); }
+  .cs-on { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+  .cs-off { background: var(--surface); color: var(--muted); }
+  .cs-summary-meta { font-size: 11px; }
+  .cs-i { color: var(--amber); } .cs-o { color: #2563eb; }
+  .cs-detail { margin-top: 8px; padding-left: 6px; border-left: 2px solid var(--border); }
+  .cs-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border); }
+  .cs-row:last-child { border-bottom: none; }
+  .cs-mtype { font-size: 9px; text-transform: uppercase; font-weight: 700; padding: 1px 6px; border-radius: 4px; height: fit-content; background: #e0e7ff; color: #3730a3; }
+  .cs-mtype.cs-kickoff { background: #dcfce7; color: #166534; }
+  .cs-mtype.cs-closeout { background: #fee2e2; color: #991b1b; }
+  .cs-mtype.cs-progress { background: #dbeafe; color: #1e40af; }
+  .cs-date { color: var(--muted); font-size: 11px; white-space: nowrap; min-width: 56px; }
+  .cs-title { font-weight: 600; }
+  .cs-notes { color: var(--muted); white-space: pre-wrap; margin-top: 2px; font-size: 11px; }
+  .cs-meta { color: var(--muted); font-size: 11px; }
+  .cs-sub { font-weight: 700; font-size: 10px; text-transform: uppercase; color: var(--muted); margin: 8px 0 2px; }
+  .cs-flag { color: var(--amber); min-width: 14px; }
+  .cs-opp .cs-flag { color: #2563eb; }
+
+  /* Foundation integration */
+  .foundation-line { font-size: 11px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); color: var(--muted); line-height: 1.7; }
+  .foundation-line .fl-label { display:inline-block; font-weight:600; color:#0891b2; letter-spacing:.04em; text-transform:uppercase; font-size:10px; margin-right:6px; }
+  .recon-ok { color: var(--green); }
+  .recon-warn { color: var(--amber); }
+  .integrity-flag { display:inline-block; margin-top:4px; padding:1px 6px; border-radius:4px; background:#fef3c7; color:#92400e; font-size:10px; font-weight:600; }
+  .contract-flag { color: var(--amber); font-size:11px; font-weight:600; }
+  .coverage-banner { background:#ecfeff; border:1px solid #a5f3fc; border-left:4px solid #0891b2; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:13px; color:#155e63; }
+  .coverage-banner strong { color:#0e7490; }
+  .job-people { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .job-people strong { color: #1f2937; font-weight: 700; }
+
+  /* Billing & AR */
+  .billing-stamp { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+  .billing-block { margin-bottom: 2.2rem; }
+  .billing-block .section-header { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .billing-block .big-num { font-size: 20px; font-weight: 700; color:#0e7490; }
+  .billing-block .cnt { font-size: 12px; color: var(--muted); font-weight:400; }
+  .billing-sub { font-size: 12px; color: var(--muted); margin: 4px 0 12px; font-style: italic; }
+  .billing-table { width:100%; border-collapse: collapse; font-size: 13px; background:#fff; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .billing-table th { text-align:left; padding:8px 12px; background:#f1f0eb; color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+  .billing-table td { padding:7px 12px; border-top:1px solid var(--border); }
+  .billing-table td.r, .billing-table th.r { text-align:right; font-variant-numeric: tabular-nums; }
+  .billing-table .jno { color:var(--muted); font-variant-numeric: tabular-nums; margin-right:4px; }
+  .billing-table .pm-row td { background:#fafaf8; border-top:2px solid var(--border); }
+  .billing-table .under { color:#b45309; font-weight:600; }
+  .billing-table .over-60 { color: var(--red); font-weight:600; }
+  .billing-empty, .billing-note, .billing-more { color: var(--muted); padding:12px; font-size:13px; }
+  .billing-table .over { color:#0e7490; font-weight:600; }
+  .billing-table .ontrack { color: var(--muted); font-size:12px; }
+  .billing-table .muted-cell { color: var(--border); }
+  .kpi-band { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:2rem; }
+  .kpi-card { flex:1 1 160px; background:#fff; border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .kpi-val { font-size:26px; font-weight:700; color:#0e7490; font-variant-numeric: tabular-nums; }
+  .kpi-val.kpi-warn { color:#b45309; }
+  .kpi-val.kpi-gain { color: var(--green); } .kpi-val.kpi-fade { color: var(--red); }
+  .billing-table .gf-gain { color: var(--green); font-weight:600; }
+  .billing-table .gf-fade { color: var(--red); font-weight:600; }
+  .billing-table .gf-flat { color: var(--muted); }
+  .billing-table .gf-conflict { color:#b45309; font-weight:600; }
+  .billing-table .gf-early { color: var(--muted); font-style:italic; font-size:12px; }
+  .billing-table .gf-sub { color: var(--muted); font-size:11px; }
+  .kpi-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-top:4px; }
+  .billing-toggle { margin-left:auto; font-size:12px; padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--muted); cursor:pointer; }
+  .billing-toggle:hover { background:#f1f0eb; color:var(--text); }
+  .billing-details { margin-bottom:2.2rem; background:#fff; border:1px solid var(--border); border-radius:8px; padding:0 14px; }
+  .billing-details summary { cursor:pointer; padding:12px 0; font-weight:600; font-size:14px; color:var(--text); }
+  .billing-details[open] summary { border-bottom:1px solid var(--border); margin-bottom:12px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 11px; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div id="lock-screen">
+  <div class="lock-box">
+    <img class="lock-logo" src="/ryc-data/RYC_Shield_Orange.png" alt="R. Yoder Construction">
+    <h2>RYC Portfolio Dashboard</h2>
+    <div class="subtitle">R. Yoder Construction</div>
+    <input type="password" id="pw-input" placeholder="Password" autofocus>
+    <button onclick="tryLogin()">Enter</button>
+    <div class="error" id="pw-error">Incorrect password</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <img src="/ryc-data/RYC_Shield_Orange.png" alt="R. Yoder Construction">
+      <div><h1>RYC Portfolio Dashboard</h1><div class="meta">v1.29.0-ryc-dashboard</div></div>
+    </div>
+    <div style="display:flex;align-items:center">
+      <button onclick="openDataSources()" title="Where every number comes from — data sources & how to reconcile to Foundation" style="background:#fff;color:#374151;border:1px solid #d1d5db;padding:7px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-right:10px">📖 Data Sources</button>
+      <a href="/ryc/estimate" style="background:#ea580c;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;margin-right:14px">📐 Estimating Tools →</a>
+      <div class="meta" id="refresh-status"></div>
+      <button class="refresh-btn" id="btn-refresh" onclick="triggerRefresh()">Refresh Procore</button>
+      <button class="refresh-btn" id="btn-refresh-fdn" onclick="triggerFoundationRefresh()" title="Re-pull Foundation (accounting) now — catches posting batches since the 5am snapshot" style="margin-left:8px">Refresh Foundation</button>
+    </div>
+  </header>
+
+  <div class="view-toggle" id="view-toggle">
+    <button class="active" data-view="active">Active</button>
+    <button data-view="completed">Completed</button>
+    <button data-view="closeout">Warranty/Post-Con</button>
+    <button data-view="billing">Billing &amp; AR</button>
+    <button data-view="gainfade">Gain/Fade</button>
+    <button data-view="wip">WIP</button>
+    <button data-view="subs">Subcontractors</button>
+    <button data-view="analysis">Portfolio Analysis</button>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+  <div id="analysis-section" style="display:none"></div>
+  <div id="billing-section" style="display:none"></div>
+  <div id="gainfade-section" style="display:none"></div>
+  <div id="wip-section" style="display:none"></div>
+  <div id="subs-section" style="display:none"></div>
+  <div id="jobs-section">
+    <div class="job-controls" id="job-controls" style="display:none">
+      <input type="text" id="job-search" placeholder="Search jobs, clients, PMs..." oninput="renderJobs()">
+      <div class="filter-pills" id="sl-filter">
+        <button class="active" data-sl="all" onclick="setSLFilter('all')">All</button>
+        <button data-sl="red" onclick="setSLFilter('red')">Red</button>
+        <button data-sl="amber" onclick="setSLFilter('amber')">Amber</button>
+        <button data-sl="atrisk" onclick="setSLFilter('atrisk')">At risk</button>
+      </div>
+      <select id="filter-stage" onchange="renderJobs()">
+        <option value="">All stages</option>
+        <option value="Pre-Construction">Pre-Construction</option>
+        <option value="Course of Construction">Course of Construction</option>
+        <option value="closeout">Closeout</option>
+      </select>
+      <select id="filter-client" onchange="renderJobs()">
+        <option value="">All types</option>
+        <option value="municipal_water_wastewater">Water/WW</option>
+        <option value="commercial">Commercial</option>
+        <option value="municipal">Municipal</option>
+        <option value="school">School</option>
+        <option value="industrial">Industrial</option>
+        <option value="mixed_use">Mixed use</option>
+      </select>
+      <select id="filter-pm" onchange="renderJobs()"></select>
+      <select id="job-sort" class="sort-right" onchange="renderJobs()">
+        <option value="stoplight">Sort: Stoplight</option>
+        <option value="contract">Sort: Contract value ↓</option>
+        <option value="finish">Sort: Finish date ↑</option>
+        <option value="pct">Sort: % Complete ↓</option>
+        <option value="pm">Sort: Project Manager (A–Z)</option>
+      </select>
+    </div>
+    <div class="job-grid" id="job-grid"></div>
+  </div>
+
+  <div id="coverage-banner" style="display:none;margin-top:6px"></div>
+
+  <div class="footer">
+    v1.29.0-ryc-dashboard — Data from Procore (PM) + Foundation (accounting)<br>
+    Jobs showing overdue may need status update in Procore. Margin data not tracked in Procore commitments.
+  </div>
+</div>
+
+<div id="detail-overlay" onclick="if(event.target.id==='detail-overlay')closeDetail()">
+  <div id="detail-panel"></div>
+</div>
+<div id="hint-tip"></div>
+
+<script>
+// Custom hover tooltips (.hint[data-tip]) — body-anchored fixed div so table overflow can't clip it.
+(function () {
+  const tip = document.getElementById('hint-tip');
+  document.addEventListener('mouseover', e => {
+    const h = e.target.closest('.hint'); if (!h || !h.dataset.tip) return;
+    tip.textContent = h.dataset.tip; tip.style.display = 'block';
+    const r = h.getBoundingClientRect();
+    let left = r.left; if (left + 270 > window.innerWidth) left = window.innerWidth - 278;
+    tip.style.left = Math.max(8, left) + 'px'; tip.style.top = (r.bottom + 6) + 'px';
+  });
+  document.addEventListener('mouseout', e => { if (e.target.closest('.hint')) tip.style.display = 'none'; });
+})();
+const PORTFOLIO_URL = '/ryc-data/ryc-portfolio.json';
+const CACHE_URL = '/ryc-data/procore-cache.json';
+const ACTIVE_API = '/api/ryc-active';
+const FOUNDATION_API = 'https://crm.jbkdevelopment.com/api/ryc-foundation';
+const AR_API = 'https://crm.jbkdevelopment.com/api/ryc-ar';
+const BUILDR_API = 'https://crm.jbkdevelopment.com/api/ryc-buildr';
+const SUBS_URL = '/ryc-data/ryc-subcontractors.json';
+let portfolioData = null, activeData = null, foundationData = null, foundationOnly = [], arData = null, buildrData = null, subsData = null, currentView = 'active';
+
+function tryLogin() {
+  if (document.getElementById('pw-input').value === 'ryc2026') {
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    sessionStorage.setItem('ryc-auth', '1');
+    init();
+  } else { document.getElementById('pw-error').style.display = 'block'; }
+}
+document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+if (sessionStorage.getItem('ryc-auth') === '1') {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  init();
+}
+
+async function init() {
+  try { portfolioData = await (await fetch(PORTFOLIO_URL)).json(); } catch { portfolioData = { jobs: [], activeJobs: [] }; }
+  document.getElementById('refresh-status').innerHTML = '<span class="spinner"></span>';
+  try {
+    activeData = await (await fetch(CACHE_URL + '?t=' + Date.now())).json();
+    document.getElementById('refresh-status').textContent = 'Procore data from ' + fmtDate(activeData?.refreshed);
+  } catch { document.getElementById('refresh-status').textContent = 'Procore data unavailable'; activeData = null; }
+  try { foundationData = await (await fetch(FOUNDATION_API + '?t=' + Date.now())).json(); } catch { foundationData = null; }
+  try { buildrData = await (await fetch(BUILDR_API + '?t=' + Date.now())).json(); } catch { buildrData = null; }
+  try { subsData = await (await fetch(SUBS_URL + '?t=' + Date.now())).json(); } catch { subsData = null; }
+  mergeFoundation(activeData, foundationData); // best-source merge; no-op/Procore-only if Foundation unreachable
+  renderView();
+  wireToggle();
+}
+
+async function triggerRefresh() {
+  const btn = document.getElementById('btn-refresh');
+  const status = document.getElementById('refresh-status');
+  btn.textContent = 'Refreshing...'; btn.disabled = true;
+  status.textContent = 'Triggering Procore refresh...';
+  try {
+    const r = await fetch(ACTIVE_API, { method: 'POST' });
+    const d = await r.json();
+    if (d.status === 'started' || d.status === 'already_running') {
+      status.textContent = 'Refresh running — data updates in ~2-3 min. Page will reload.';
+      // Poll for completion, then wait for Vercel redeploy
+      const poll = setInterval(async () => {
+        try {
+          const sr = await fetch(ACTIVE_API + '?check=status');
+          const sd = await sr.json();
+          if (sd.last_result === 'completed') {
+            clearInterval(poll);
+            status.textContent = 'Refresh done — waiting for Vercel deploy (~60s)...';
+            setTimeout(async () => { await init(); btn.textContent = 'Refresh Procore'; btn.disabled = false; }, 75000);
+          } else if (sd.last_result && sd.last_result !== null && !sd.running) {
+            clearInterval(poll);
+            status.textContent = 'Refresh finished: ' + sd.last_result;
+            btn.textContent = 'Refresh Procore'; btn.disabled = false;
+          }
+        } catch {}
+      }, 10000);
+    } else {
+      status.textContent = 'Refresh ' + (d.status || 'unknown') + '. Try again.';
+      btn.textContent = 'Refresh Procore'; btn.disabled = false;
+    }
+  } catch {
+    status.textContent = 'Could not reach refresh service.';
+    btn.textContent = 'Refresh Procore'; btn.disabled = false;
+  }
+}
+
+async function triggerFoundationRefresh() {
+  const btn = document.getElementById('btn-refresh-fdn');
+  const status = document.getElementById('refresh-status');
+  btn.textContent = 'Refreshing...'; btn.disabled = true;
+  status.textContent = 'Pulling Foundation (accounting) now...';
+  try {
+    const r = await fetch('/api/ryc-foundation-refresh', { method: 'POST' });
+    const d = await r.json();
+    if (d.status === 'completed') {
+      status.textContent = 'Foundation refreshed — reloading data...';
+      await init();
+      status.textContent = 'Foundation data current as of just now.';
+    } else if (d.status === 'cooldown') {
+      status.textContent = 'Refreshed recently — try again in ' + Math.ceil((d.retry_in_s || 300) / 60) + ' min.';
+    } else if (d.status === 'running') {
+      status.textContent = 'A refresh is already running — reload the page in a minute.';
+    } else {
+      status.textContent = 'Foundation refresh failed: ' + (d.status || d.error || 'unknown');
+    }
+  } catch {
+    status.textContent = 'Could not reach refresh service.';
+  }
+  btn.textContent = 'Refresh Foundation'; btn.disabled = false;
+}
+
+function wireToggle() {
+  document.querySelectorAll('#view-toggle button').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('#view-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentView = btn.dataset.view;
+      renderView();
+    };
+  });
+}
+
+// Closeout stages — jobs winding down, not active construction
+const CLOSEOUT_STAGES = new Set(['Warranty', 'Post-Construction']);
+
+function getActiveJobs() { return (activeData?.jobs || []).filter(j => !CLOSEOUT_STAGES.has(j.stage)); }
+function getCloseoutJobs() { return (activeData?.jobs || []).filter(j => CLOSEOUT_STAGES.has(j.stage)); }
+
+function renderView() {
+  const jobsEl = document.getElementById('jobs-section');
+  const analysisEl = document.getElementById('analysis-section');
+  const billingEl = document.getElementById('billing-section');
+  const gainfadeEl = document.getElementById('gainfade-section');
+  const wipEl = document.getElementById('wip-section');
+  const subsEl = document.getElementById('subs-section');
+  const controlsEl = document.getElementById('job-controls');
+  const metricsEl = document.getElementById('metrics');
+  jobsEl.style.display = 'none'; analysisEl.style.display = 'none'; billingEl.style.display = 'none'; gainfadeEl.style.display = 'none'; wipEl.style.display = 'none'; subsEl.style.display = 'none';
+  if (currentView === 'analysis') {
+    analysisEl.style.display = 'block'; metricsEl.style.display = '';
+    renderAnalysisMetrics(); renderAnalysis();
+  } else if (currentView === 'billing') {
+    billingEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
+    renderBilling();
+  } else if (currentView === 'gainfade') {
+    gainfadeEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
+    renderGainFade();
+  } else if (currentView === 'wip') {
+    wipEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
+    renderWIP();
+  } else if (currentView === 'subs') {
+    subsEl.style.display = 'block'; metricsEl.style.display = 'none'; controlsEl.style.display = 'none';
+    renderSubs();
+  } else {
+    jobsEl.style.display = 'block'; analysisEl.style.display = 'none'; metricsEl.style.display = '';
+    controlsEl.style.display = (currentView === 'active' || currentView === 'closeout') ? 'flex' : 'none';
+    populatePMFilter(); renderMetrics(); renderJobs();
+  }
+  renderCoverageBanner();
+}
+
+// --- Helpers ---
+function fmt(n) { return n == null ? '\u2014' : '$' + Math.round(n).toLocaleString('en-US'); }
+function fmtCompact(n) { if (n == null) return '\u2014'; const abs = Math.abs(n); const sign = n < 0 ? '-' : ''; if (abs >= 1e6) return sign + '$' + (abs / 1e6).toFixed(1) + 'M'; if (abs >= 1e3) return sign + '$' + Math.round(abs / 1e3).toLocaleString('en-US') + 'K'; return sign + '$' + Math.round(abs).toLocaleString('en-US'); }
+function fmtCO(co) { if (!co || co.count === 0) return '\u2014'; const sign = co.netValue >= 0 ? '+' : ''; let txt = co.count + ' COs \u00b7 ' + sign + fmtCompact(co.netValue); if (co.byType && Object.keys(co.byType).length > 0) { const parts = Object.entries(co.byType).sort((a, b) => b[1] - a[1]).map(([t, n]) => n + ' ' + t); txt += '<br><span class="note">' + parts.join(' \u00b7 ') + '</span>'; } return txt; }
+function pct(n) { return n == null ? '\u2014' : n.toFixed(1) + '%'; }
+function fmtDate(d) { if (!d) return '\u2014'; const dt = new Date(d); return isNaN(dt) ? '\u2014' : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+function fmtShort(d) { if (!d) return '\u2014'; const dt = new Date(d); return isNaN(dt) ? '\u2014' : dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); }
+function marginClass(m) { return m == null ? 'margin-missing' : m >= 12 ? 'margin-green' : m >= 8 ? 'margin-amber' : 'margin-red'; }
+function dqClass(q) { return 'dq-' + (q || 'missing'); }
+function typeColor(t) { return { school: 'var(--blue-bar)', municipal: 'var(--teal-bar)', municipal_water_wastewater: '#0891b2', commercial: 'var(--amber-bar)', mixed_use: 'var(--purple-bar)', industrial: '#78716c' }[t] || '#9ca3af'; }
+function typeName(t) { return { school: 'School', municipal: 'Municipal', municipal_water_wastewater: 'Municipal \u2013 Water/WW', commercial: 'Commercial', mixed_use: 'Mixed use', industrial: 'Industrial', private: 'Private / Institutional', new_construction: 'New construction', renovation: 'Renovation', repair: 'Repair', addition: 'Addition', expansion: 'Addition' }[t] || t; }
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function contractedMargin(job) { const cv = job.contractValue; const bo = job.budget?.original; if (!(cv > 0 && bo > 0)) return null; return bo >= cv ? 0 : ((cv - bo) / cv * 100); }
+function marginToDate(job) { const cv = job.contractValue; const dc = (job.costToDate != null ? job.costToDate : job.budget?.direct); return (cv > 0 && dc > 0) ? ((cv - dc) / cv * 100) : null; }
+function marginColorClass(m) { return m == null ? 'margin-missing' : m >= 10 ? 'margin-green' : m >= 5 ? 'margin-amber' : 'margin-red'; }
+
+function getLP(pid) { return activeData?.jobs?.find(j => j.procoreId === pid) || null; }
+function getBestMargin(j) { return j.projectedMarginPct ?? j.projectedMargin ?? (j.impliedMarginPct != null && j.impliedMarginPct < 40 ? j.impliedMarginPct : null); }
+// PM = Foundation-authoritative (Procore PM is unreliable), fallback Procore.
+// Site super removed from the UI — Foundation has no super field and Procore's is largely wrong/empty.
+function pmName(job) { return (job.foundation && job.foundation.pmName) || job.pm?.name || null; }
+
+// --- Foundation merge (best-source per field + integrity flags) ---
+// Merges the Foundation accounting snapshot onto each Procore job by jobNo === projectNumber.
+// Foundation wins contract/cost/lifecycle; Procore keeps schedule/RFIs/CO-type. Pure Procore-only
+// render if Foundation is unreachable (foundationData null → every job gets foundation:null).
+function mergeFoundation(active, fd) {
+  foundationOnly = [];
+  if (!active || !active.jobs) return;
+  const fjobs = (fd && fd.jobs) || {};
+  const procoreNums = new Set();
+  for (const j of active.jobs) {
+    const num = (j.projectNumber || '').trim();
+    procoreNums.add(num);
+    const f = fjobs[num];
+    j.flags = [];
+    // Contract value priority (2026-07-07, per Tristan/Steve): Procore Revised Contract Amount
+    // (freshest — approved COs post here before Foundation accounting) -> Foundation currentContract
+    // -> Procore estimated_value/budget. Whichever source loses shows as a divergence flag.
+    const rev = (j.revisedContract > 0) ? j.revisedContract : 0;
+    if (!f) {
+      j.foundation = null;
+      j.costToDate = j.budget?.direct ?? null;
+      if (rev) { j.procoreContractValue = j.contractValue; j.contractValue = rev; }
+      continue;
+    }
+    j.foundation = f;
+    if (rev) {
+      // Procore revised wins; flag Foundation when it materially diverges (COs not yet posted)
+      j.procoreContractValue = j.contractValue;
+      j.contractValue = rev;
+      const fdiff = (f.currentContract || 0) - rev;
+      if (f.currentContract > 0 && Math.abs(fdiff) > 50000 && Math.abs(fdiff) > rev * 0.02) {
+        j.flags.push({ type: 'contract', text: 'Foundation ' + fmtCompact(f.currentContract) });
+      }
+    } else if (f.currentContract > 0) {
+      // No prime contract in Procore (pre-con) — fall back to Foundation executed contract
+      j.procoreContractValue = j.contractValue;
+      j.contractValue = f.currentContract;
+      const d = j.contractValue - (j.procoreContractValue || 0);
+      if (j.procoreContractValue && Math.abs(d) > 50000 && Math.abs(d) > j.contractValue * 0.02) {
+        j.flags.push({ type: 'contract', text: 'Procore ' + fmtCompact(j.procoreContractValue) });
+      }
+    }
+    // Cost-to-date — prefer Foundation (authoritative, includes burden)
+    j.costToDate = (f.totalCosts != null) ? f.totalCosts : (j.budget?.direct ?? null);
+    // Recompute overrun against the corrected contract so the stoplight stays consistent
+    if (j.costToDate != null && j.contractValue > 0) j.costOverrun = j.costToDate > j.contractValue;
+    // Lifecycle — Foundation job_status is authoritative
+    if (f.jobStatus === 'C') j.flags.push({ type: 'closed', text: 'Foundation: closed' });
+  }
+  // Coverage gap — active Foundation jobs with a real contract that aren't on the board
+  foundationOnly = Object.values(fjobs).filter(f =>
+    f.jobStatus === 'A' && !procoreNums.has((f.jobNo || '').trim()) &&
+    ((f.currentContract || 0) > 0 || (f.originalContract || 0) > 0));
+}
+
+function renderFoundationLine(job) {
+  const f = job.foundation;
+  if (!f) return '';
+  const chips = Object.entries(f.costBreakdown || {}).sort((a, b) => b[1] - a[1]).slice(0, 4)
+    .map(([k, v]) => esc(k) + ' ' + fmtCompact(v)).join(' · ');
+  let recon = '';
+  const pCost = job.budget?.direct;
+  if (pCost != null && f.totalCosts != null) {
+    const d = f.totalCosts - pCost;
+    recon = (Math.abs(d) <= Math.max(50000, (job.contractValue || 0) * 0.02))
+      ? '<span class="recon-ok">✓ reconciled</span>'
+      : '<span class="recon-warn">Δ vs Procore ' + fmtCompact(d) + '</span>';
+  }
+  const flags = (job.flags || []).map(fl => '<span class="integrity-flag">⚑ ' + esc(fl.text) + '</span>').join(' ');
+  return `<div class="foundation-line"><span class="fl-label">Foundation</span>Cost ${fmtCompact(f.totalCosts)} ${recon} · Billed ${fmtCompact(f.totalInvoiced)} · Retainage ${fmtCompact(f.retainage)}${chips ? '<br><span class="note">' + chips + '</span>' : ''}${flags ? '<br>' + flags : ''}</div>`;
+}
+
+function renderPeopleLine(job) {
+  const pm = pmName(job);
+  return pm ? `<div class="job-people">PM <strong>${esc(pm)}</strong></div>` : '';
+}
+
+function renderCoverageBanner() {
+  const el = document.getElementById('coverage-banner');
+  if (!el) return;
+  if (currentView !== 'active' || !foundationOnly.length) { el.style.display = 'none'; return; }
+  const sum = foundationOnly.reduce((s, f) => s + (f.currentContract || f.originalContract || 0), 0);
+  const onBoard = activeData?.jobs?.length || 0;
+  el.style.display = 'block';
+  el.innerHTML = `<strong>${foundationOnly.length} active Foundation jobs</strong> aren't on this board (~${fmtCompact(sum)} contract value). Foundation tracks ${foundationOnly.length + onBoard} active jobs vs ${onBoard} shown from Procore. Full coverage view is a later phase.`;
+}
+
+// --- Stoplight ---
+function getStoplight(job, live) {
+  const stage = live?.stage || null;
+  const pctComp = live?.pctComplete;
+  const costOverrun = live?.costOverrun;
+  const finishDate = live?.projectedFinish || live?.completionDate;
+  const verifyStatus = live?.verifyStatus;
+  const cMargin = contractedMargin(job);
+  const mtd = marginToDate(job);
+  const co = live?.changeOrders;
+  const coExposure = (co?.netValue && job.contractValue) ? Math.abs(co.netValue) / job.contractValue : 0;
+
+  // Gray — Pre-Construction or no data yet
+  const isPrecon = stage === 'Pre-Construction' || (!live?.budget && (pctComp == null || pctComp === 0));
+  if (isPrecon) return { color: 'gray', reasons: [] };
+
+  // Days overdue
+  const daysOverdue = finishDate ? Math.floor((Date.now() - new Date(finishDate)) / 86400000) : 0;
+
+  // Collect reasons
+  const reasons = [];
+
+  // Red — action required
+  if (costOverrun) reasons.push({ level: 'red', text: 'Cost overrun' });
+  if (mtd != null && mtd < 0) reasons.push({ level: 'red', text: 'Margin to date ' + mtd.toFixed(1) + '%' });
+  if (daysOverdue > 30 && !verifyStatus) reasons.push({ level: 'red', text: Math.abs(daysOverdue) + ' days past projected finish' });
+
+  const red = reasons.some(r => r.level === 'red');
+
+  // Amber — watch closely
+  if (!red) {
+    if (cMargin != null && cMargin > 0 && cMargin < 5) reasons.push({ level: 'amber', text: 'Contracted margin ' + cMargin.toFixed(1) + '% (below 5%)' });
+    if (pctComp != null && pctComp >= 10 && mtd != null && cMargin != null && mtd < cMargin) reasons.push({ level: 'amber', text: 'Margin declining · ' + mtd.toFixed(1) + '% vs ' + cMargin.toFixed(1) + '% contracted' });
+    if (daysOverdue >= 1 && daysOverdue <= 30) reasons.push({ level: 'amber', text: daysOverdue + ' days past projected finish' });
+    if (coExposure > 0.07) reasons.push({ level: 'amber', text: 'CO exposure ' + (coExposure * 100).toFixed(1) + '% of contract' });
+    if (finishDate && !verifyStatus && daysOverdue <= 0 && Math.abs(daysOverdue) <= 30) reasons.push({ level: 'amber', text: 'Finishing in ' + Math.abs(daysOverdue) + ' days' });
+  }
+
+  const amber = !red && reasons.some(r => r.level === 'amber');
+
+  return { color: red ? 'red' : amber ? 'amber' : 'green', reasons };
+}
+
+// --- Metrics ---
+function renderMetrics() {
+  const el = document.getElementById('metrics');
+  if (currentView === 'active' || currentView === 'closeout') {
+    const active = currentView === 'closeout' ? getCloseoutJobs() : getActiveJobs();
+    const totalContract = active.reduce((s, j) => s + (j.contractValue || 0), 0);
+    let totalDirect = 0, pctVals = [];
+    let redCount = 0, amberCount = 0, finishing90 = 0;
+    const now = new Date(), in90 = new Date(now.getTime() + 90 * 86400000);
+    for (const j of active) {
+      if (j.budget?.direct) totalDirect += j.budget.direct;
+      if (j.pctComplete != null) pctVals.push(Math.min(j.pctComplete, 100));
+      const sl = getStoplight(j, j).color;
+      if (sl === 'red') redCount++;
+      if (sl === 'amber') amberCount++;
+      const fin = j.projectedFinish || j.completionDate;
+      if (fin) {
+        const fd = new Date(fin);
+        if (fd >= now && fd <= in90) finishing90++;
+      }
+    }
+    const avgPct = pctVals.length ? pctVals.reduce((s, v) => s + v, 0) / pctVals.length : null;
+    el.innerHTML = `
+      <div class="metric-card"><div class="label">Active contract value</div><div class="value">${fmt(totalContract)}</div><div class="sub">${active.length} active jobs</div></div>
+      <div class="metric-card"><div class="label">Direct cost to date</div><div class="value">${fmt(totalDirect)}</div><div class="sub">Across all active</div></div>
+      <div class="metric-card"><div class="label">Avg % complete</div><div class="value">${avgPct != null ? pct(avgPct) : '\u2014'}</div><div class="sub">(${pctVals.length} of ${active.length} jobs)</div></div>
+      <div class="metric-card"><div class="label">Red</div><div class="value${redCount > 0 ? ' flag-red' : ''}">${redCount}</div><div class="sub">Action required</div></div>
+      <div class="metric-card"><div class="label">Amber</div><div class="value${amberCount > 0 ? ' flag-amber' : ''}">${amberCount}</div><div class="sub">Watch closely</div></div>
+      <div class="metric-card"><div class="label">Finishing in 90 days</div><div class="value" style="${finishing90 > 0 ? 'color:var(--green)' : ''}">${finishing90}</div><div class="sub">Projected finish within 90d</div></div>`;
+  } else {
+    const completed = portfolioData?.jobs || [];
+    const totalRev = completed.reduce((s, j) => s + (j.contractFinal || 0), 0);
+    const margins = completed.map(getBestMargin).filter(m => m != null);
+    const avgM = margins.length ? margins.reduce((s, m) => s + m, 0) / margins.length : null;
+    const overruns = completed.map(j => j.scheduleOverrunMonths).filter(m => m != null);
+    const avgO = overruns.length ? overruns.reduce((s, m) => s + m, 0) / overruns.length : null;
+    el.innerHTML = `
+      <div class="metric-card"><div class="label">Total revenue</div><div class="value">${fmt(totalRev)}</div><div class="sub">${completed.length} completed jobs</div></div>
+      <div class="metric-card"><div class="label">Avg margin</div><div class="value ${marginClass(avgM)}">${avgM != null ? pct(avgM) : '\u2014'}</div><div class="sub">${margins.length} of ${completed.length} with data</div></div>
+      <div class="metric-card"><div class="label">Avg schedule overrun</div><div class="value">${avgO != null ? avgO.toFixed(1) + ' mo' : '\u2014'}</div><div class="sub">${overruns.length} jobs measured</div></div>`;
+  }
+}
+
+// --- Analysis ---
+function renderAnalysisMetrics() {
+  const completed = portfolioData?.jobs || [];
+  const active = activeData?.jobs || [];
+  const all = [...completed, ...active.map(a => ({ ...a, contractFinal: a.contractValue }))];
+  const totalRev = all.reduce((s, j) => s + (j.contractFinal || j.contractValue || 0), 0);
+  const margins = completed.map(getBestMargin).filter(m => m != null);
+  const avgM = margins.length ? margins.reduce((s, m) => s + m, 0) / margins.length : null;
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric-card"><div class="label">Total portfolio value</div><div class="value">${fmt(totalRev)}</div><div class="sub">${all.length} jobs</div></div>
+    <div class="metric-card"><div class="label">Total jobs</div><div class="value">${all.length}</div><div class="sub">${active.length} active, ${completed.length} completed</div></div>
+    <div class="metric-card"><div class="label">Avg margin (completed)</div><div class="value ${marginClass(avgM)}">${avgM != null ? pct(avgM) : '\u2014'}</div><div class="sub">${margins.length} of ${completed.length} with data</div></div>`;
+}
+
+function renderAnalysis() {
+  const all = [...(portfolioData?.jobs || []), ...(activeData?.jobs || []).map(a => ({ ...a, contractFinal: a.contractValue, clientType: a.clientType, workType: a.workType }))];
+  let totalRev = 0;
+  const byClient = {}, byWork = {};
+  for (const j of all) {
+    const rev = j.contractFinal || j.contractValue || 0;
+    totalRev += rev;
+    const ct = j.clientType || 'other';
+    if (!byClient[ct]) byClient[ct] = { count: 0, revenue: 0, margins: [] };
+    byClient[ct].count++; byClient[ct].revenue += rev;
+    const m = getBestMargin(j); if (m != null) byClient[ct].margins.push(m);
+
+    const wt = (j.workType === 'expansion' ? 'addition' : (j.workType || 'other')); // Expansion consolidated into Addition (2026-06-25)
+    if (!byWork[wt]) byWork[wt] = { count: 0, revenue: 0 };
+    byWork[wt].count++; byWork[wt].revenue += rev;
+  }
+
+  // Executive context: portfolio-average margin + largest-revenue / highest-margin segments, so an exec
+  // reads the standout segments without deriving them. (No new data \u2014 computed from the same aggregates.)
+  const clientAvg = (d) => d.margins.length ? d.margins.reduce((s, m) => s + m, 0) / d.margins.length : null;
+  const pooled = Object.values(byClient).flatMap(d => d.margins);
+  const portAvgM = pooled.length ? pooled.reduce((s, m) => s + m, 0) / pooled.length : null;
+  const entries = Object.entries(byClient);
+  const largestRev = entries.reduce((a, b) => b[1].revenue > (a ? a[1].revenue : -1) ? b : a, null)?.[0];
+  const highestM = entries.filter(([, d]) => d.margins.length).reduce((a, b) => clientAvg(b[1]) > (a ? clientAvg(a[1]) : -1) ? b : a, null)?.[0];
+
+  let html = '<h3 class="section-header">Client type breakdown</h3><div class="breakdown">';
+  for (const [type, data] of Object.entries(byClient)) {
+    const avgM = clientAvg(data);
+    const pctRev = totalRev > 0 ? (data.revenue / totalRev * 100) : 0;
+    const tags = (type === largestRev ? '<span class="ctx-tag ctx-rev">Largest segment</span>' : '')
+      + (type === highestM ? '<span class="ctx-tag ctx-marg">Highest margin</span>' : '');
+    const vs = (avgM != null && portAvgM != null)
+      ? (avgM >= portAvgM + 1 ? '<span class="ctx-vs flag-green">\u25b2 above avg</span>'
+        : avgM <= portAvgM - 1 ? '<span class="ctx-vs flag-red">\u25bc below avg</span>' : '<span class="ctx-vs note">~ at avg</span>') : '';
+    html += `<div class="breakdown-card"><div class="type-label"><span class="badge badge-${type}">${typeName(type)}</span>${tags}</div>
+      <div class="stat"><span class="k">Jobs</span><span>${data.count}</span></div>
+      <div class="stat"><span class="k">Revenue</span><span>${fmt(data.revenue)}</span></div>
+      <div class="stat"><span class="k">Avg margin</span><span><span class="${marginClass(avgM)}">${avgM != null ? pct(avgM) : '\u2014'}</span> ${vs}</span></div>
+      <div class="revenue-bar"><div class="fill" style="width:${pctRev}%;background:${typeColor(type)}"></div></div></div>`;
+  }
+  html += '</div>';
+
+  html += '<h3 class="section-header" style="margin-top:2.5rem">Work type breakdown</h3><div class="breakdown">';
+  for (const [type, data] of Object.entries(byWork)) {
+    const pctRev = totalRev > 0 ? (data.revenue / totalRev * 100) : 0;
+    html += `<div class="breakdown-card"><div class="type-label">${typeName(type)}</div>
+      <div class="stat"><span class="k">Jobs</span><span>${data.count}</span></div>
+      <div class="stat"><span class="k">Revenue</span><span>${fmt(data.revenue)}</span></div>
+      <div class="revenue-bar"><div class="fill" style="width:${pctRev}%;background:var(--accent)"></div></div></div>`;
+  }
+  html += '</div>';
+  document.getElementById('analysis-section').innerHTML = html;
+}
+
+// --- Billing & AR (Phase 2, v2 — summary-first, anchored to active accounts) ---
+async function renderBilling() {
+  const el = document.getElementById('billing-section');
+  if (!arData) {
+    el.innerHTML = '<div class="billing-note"><span class="spinner"></span> Loading billing &amp; AR…</div>';
+    try { arData = await (await fetch(AR_API + '?t=' + Date.now())).json(); }
+    catch { arData = { invoices: [], summary: {}, error: 'unreachable' }; }
+  }
+  const stamp = arData?.refreshed ? `<div class="billing-stamp">AR as of ${fmtDate(arData.refreshed)} · Foundation refreshes nightly</div>` : '';
+  el.innerHTML = stamp + sectionKPIs() + sectionActiveAccounts() + sectionOverdueAR() + sectionLegacyAR();
+}
+
+// Set of active Foundation job numbers (job_status 'A'), to anchor AR to active work.
+function activeJobSet() {
+  const fj = (foundationData && foundationData.jobs) || {};
+  const s = new Set();
+  for (const j of Object.values(fj)) if (j.jobStatus === 'A') s.add(String(j.jobNo));
+  return s;
+}
+
+// AR rows by category, optionally scoped to active vs. legacy (closed-job) jobs.
+function arRows(cat, scope) {
+  const active = scope ? activeJobSet() : null;
+  return ((arData && arData.invoices) || []).filter(v => {
+    if (v.category !== cat) return false;
+    if (!scope) return true;
+    const isActive = active.has(String(v.jobNo || ''));
+    return scope === 'active' ? isActive : !isActive;
+  });
+}
+
+// Overdue AR open balance summed per job number.
+function overdueByJob(scope) {
+  const m = {};
+  for (const v of arRows('overdue', scope)) {
+    const k = String(v.jobNo || '');
+    m[k] = (m[k] || 0) + (v.openBalance || 0);
+  }
+  return m;
+}
+
+// One roll-up row per active Foundation job: billing position + overdue AR together.
+// Should-bill-to-date = cost-to-date × billing markup. Exact markup = Holly's OH × Profit UDFs
+// (e.g. 1.03 × 1.025); falls back to the bid ratio (original_contract ÷ original_cost) when the
+// markups aren't keyed. deficit = invoiced − should-bill; < 0 ⇒ needs invoicing.
+function activeAccountRows() {
+  const fj = (foundationData && foundationData.jobs) || {};
+  const odo = overdueByJob('active');
+  const rows = [];
+  for (const f of Object.values(fj)) {
+    if (f.jobStatus !== 'A') continue;
+    const cost = f.totalCosts || 0, estCost = f.originalCost || 0, invoiced = f.totalInvoiced || 0;
+    const contract = f.currentContract || f.originalContract || 0;
+    const oh = f.ohMarkup, pr = f.profitMarkup;
+    let deficit = null, exact = false;
+    if (cost > 0 && oh > 0 && pr > 0) {
+      deficit = invoiced - cost * oh * pr;                          // exact: Holly's OH × Profit markups
+      exact = true;
+    } else if (cost > 0 && estCost > 0 && (f.originalContract || 0) > 0) {
+      deficit = invoiced - cost * (f.originalContract / estCost);   // fallback: bid ratio
+    }
+    rows.push({
+      pm: f.pmName || '(no PM)', job: f.jobNo, name: f.description || '',
+      contract, cost, invoiced, retainage: f.retainage || 0, deficit, exact,
+      under: deficit != null && deficit < 0 ? -deficit : 0,
+      over: deficit != null && deficit > 0 ? deficit : 0,
+      overdue: odo[String(f.jobNo)] || 0,
+    });
+  }
+  return rows;
+}
+
+function sectionKPIs() {
+  if (!foundationData || !foundationData.jobs) {
+    return '<div class="kpi-band"><div class="billing-empty">Foundation data unavailable — billing &amp; AR summary can\'t be computed.</div></div>';
+  }
+  const accts = activeAccountRows();
+  const needsInv = accts.reduce((s, r) => s + r.under, 0);
+  const overdueActive = accts.reduce((s, r) => s + r.overdue, 0);
+  const retain = accts.reduce((s, r) => s + r.retainage, 0);
+  const flagged = accts.filter(r => r.under > 1000 || r.overdue > 0).length;
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  return `<div class="kpi-band">
+    ${card('Needs invoicing', fmtCompact(needsInv), 'kpi-warn')}
+    ${card('Overdue AR · active', fmtCompact(overdueActive), 'kpi-warn')}
+    ${card('Retainage held', fmtCompact(retain), '')}
+    ${card('Active jobs flagged', flagged, '')}
+  </div>`;
+}
+
+let billingShowAll = false;
+function toggleBillingAll() { billingShowAll = !billingShowAll; renderBilling(); }
+
+function sectionActiveAccounts() {
+  const rows = activeAccountRows();
+  const flagged = rows.filter(r => r.under > 1000 || r.overdue > 0);
+  const shown = (billingShowAll ? rows.slice() : flagged.slice())
+    .sort((a, b) => (b.under + b.overdue) - (a.under + a.overdue));
+  let body;
+  if (!foundationData || !foundationData.jobs) {
+    body = '<div class="billing-empty">Foundation data unavailable.</div>';
+  } else if (!shown.length) {
+    body = '<div class="billing-empty">No active jobs need invoicing or carry overdue AR.</div>';
+  } else {
+    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">Contract</th><th class="r">Cost to date</th><th class="r">Billed</th><th class="r">Needs invoiced</th><th class="r">Retainage</th><th class="r">Overdue AR</th></tr></thead><tbody>';
+    for (const r of shown) {
+      const est = (r.deficit != null && !r.exact) ? ' <span class="gf-sub" title="No OH/Profit markup keyed in Foundation — bid-ratio estimate">bid-est</span>' : '';
+      const billCell = (r.under > 0 ? `<span class="under">${fmtCompact(r.under)}</span>`
+        : r.over > 0 ? `<span class="over">+${fmtCompact(r.over)} over</span>`
+        : r.deficit == null ? '<span class="muted-cell">—</span>' : '<span class="ontrack">on track</span>') + est;
+      const odCell = r.overdue > 0 ? `<span class="under">${fmtCompact(r.overdue)}</span>` : '<span class="muted-cell">—</span>';
+      body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td>${esc(r.pm)}</td><td class="r">${fmtCompact(r.contract)}</td><td class="r">${fmtCompact(r.cost)}</td><td class="r">${fmtCompact(r.invoiced)}</td><td class="r">${billCell}</td><td class="r">${r.retainage ? fmtCompact(r.retainage) : '<span class="muted-cell">—</span>'}</td><td class="r">${odCell}</td></tr>`;
+    }
+    body += '</tbody></table>';
+  }
+  const toggle = `<button class="billing-toggle" onclick="toggleBillingAll()">${billingShowAll ? 'Show flagged only' : 'Show all ' + rows.length + ' active jobs'}</button>`;
+  return `<div class="billing-block">
+    <h3 class="section-header">Active accounts — billing &amp; AR <span class="cnt">${flagged.length} flagged${billingShowAll ? ' · all shown' : ''}</span> ${toggle}</h3>
+    <div class="billing-sub"><strong>Needs invoiced</strong> = cost-to-date × billing markup − billed, using Holly's hand-keyed <strong>OH × Profit markups</strong> from Foundation; jobs with no markup keyed fall back to the bid ratio (contract ÷ est. cost) and are tagged <span class="gf-sub">bid-est</span>. <strong>Overdue AR</strong> netted (invoice − cash/retainage). One row per active job; default shows only jobs needing invoicing or carrying overdue AR.</div>
+    ${body}</div>`;
+}
+
+function sectionOverdueAR() {
+  const rows = arRows('overdue', 'active').slice().sort((a, b) => (b.openBalance * b.daysOverdue) - (a.openBalance * a.daysOverdue));
+  const total = rows.reduce((s, r) => s + r.openBalance, 0);
+  const cap = 60, shown = rows.slice(0, cap);
+  let body;
+  if (!rows.length) {
+    body = `<div class="billing-empty">${arData && !arData.error ? 'No overdue AR on active jobs.' : 'AR data unavailable.'}</div>`;
+  } else {
+    body = '<table class="billing-table"><thead><tr><th>Customer</th><th>Job</th><th>Pay app</th><th>Due</th><th class="r">Open balance</th><th class="r">Days overdue</th></tr></thead><tbody>';
+    for (const r of shown) {
+      const sev = r.daysOverdue > 60 ? ' over-60' : '';
+      body += `<tr><td>${esc(r.customer || '—')}</td><td><span class="jno">${esc(r.jobNo || '')}</span> ${esc(r.jobName || '')}</td><td>${esc(r.payApp || '')}</td><td>${esc(r.dueDate || '')}</td><td class="r">${fmt(r.openBalance)}</td><td class="r${sev}">${r.daysOverdue}</td></tr>`;
+    }
+    body += '</tbody></table>';
+    if (rows.length > cap) body += `<div class="billing-more">+ ${rows.length - cap} more overdue invoices</div>`;
+  }
+  return `<div class="billing-block">
+    <h3 class="section-header">Overdue AR — active jobs <span class="big-num">${fmt(total)}</span> <span class="cnt">${rows.length} invoices</span></h3>
+    <div class="billing-sub">Netted open balance (invoice − applied cash/discount/retainage), canonical ledger only, on active jobs. Provisional — retainage split + very-old items still being tuned.</div>
+    ${body}</div>`;
+}
+
+// Real overdue AR on jobs Foundation marks closed — still cash owed, but not active work. Collapsed.
+function sectionLegacyAR() {
+  const rows = arRows('overdue', 'legacy').slice().sort((a, b) => (b.openBalance * b.daysOverdue) - (a.openBalance * a.daysOverdue));
+  if (!rows.length) return '';
+  const total = rows.reduce((s, r) => s + r.openBalance, 0);
+  const cap = 40, shown = rows.slice(0, cap);
+  let body = '<table class="billing-table"><thead><tr><th>Customer</th><th>Job</th><th>Pay app</th><th>Due</th><th class="r">Open balance</th><th class="r">Days overdue</th></tr></thead><tbody>';
+  for (const r of shown) {
+    const sev = r.daysOverdue > 60 ? ' over-60' : '';
+    body += `<tr><td>${esc(r.customer || '—')}</td><td><span class="jno">${esc(r.jobNo || '')}</span> ${esc(r.jobName || '')}</td><td>${esc(r.payApp || '')}</td><td>${esc(r.dueDate || '')}</td><td class="r">${fmt(r.openBalance)}</td><td class="r${sev}">${r.daysOverdue}</td></tr>`;
+  }
+  body += '</tbody></table>';
+  if (rows.length > cap) body += `<div class="billing-more">+ ${rows.length - cap} more</div>`;
+  return `<details class="billing-details"><summary>Legacy / closed-job overdue AR — ${fmt(total)} · ${rows.length} invoices</summary>
+    <div class="billing-sub">Overdue receivables on jobs Foundation marks closed (job_status ≠ A). Still real cash owed — kept separate from active work.</div>
+    ${body}</details>`;
+}
+
+// Phantom-open section removed 2026-07-02: closed_flag is not maintained by RYC's front office (563
+// invoices / $75M paid-to-$0 but still flagged 'N', some back to 2022), so it was unmaintained-field
+// noise, not an actionable cleanup queue. Real receivables are netted-balance-driven (closed_flag-
+// independent) and unaffected. (Phantom rows still exist in the AR feed; just no longer surfaced.)
+
+// === Gain/Fade — Procore vs Foundation ============================================
+// Margin MOVEMENT from the as-bid baseline to the current recognized estimate, decomposed across the
+// two systems: Foundation owns REVENUE (executed CO income = currentContract − originalContract),
+// Procore owns COST (revised − original budget). gain/fade $ = CO income − cost growth; gain/fade pts
+// = current margin − as-bid margin. Not %-complete-sensitive. A separate "cost burn" check brings in
+// Foundation ACTUALS (cost-to-date vs % complete) to flag overruns the PM's budget hasn't recognized.
+// Limitation: reflects RECOGNIZED estimates (revised budgets + executed COs), not unbudgeted overruns.
+const GF_MOVE_PTS = 1.0;      // |pts| ≥ this is a real gain/fade (not rounding)
+const GF_BURN_PTS = 12;       // cost-spent% running this far ahead of % complete = burn risk
+const GF_BURN_MINPCT = 20;    // ...only meaningful once a job is genuinely underway
+let gfShowAll = true;
+
+function gainFadeRows() {
+  const rows = [];
+  for (const j of getActiveJobs()) {
+    const f = j.foundation, b = j.budget || {}, pct = j.pctComplete;
+    const pC = j.procoreContractValue != null ? j.procoreContractValue : j.contractValue;
+    const curContract = (f && f.currentContract > 0) ? f.currentContract : pC;     // authoritative revenue
+    const asbidContract = (f && f.originalContract > 0) ? f.originalContract : pC;
+    const asbidCost = (f && f.originalCost != null) ? f.originalCost : b.original;
+    if (!(curContract > 0) || asbidCost == null) continue;
+    const costGrowth = (b.revised > 0 && b.original > 0) ? (b.revised - b.original) : 0; // Procore cost side
+    const coIncome = (f && f.originalContract > 0) ? (curContract - asbidContract) : null; // Foundation revenue side
+    const projCost = asbidCost + costGrowth;
+    const asbid = (asbidContract - asbidCost) / asbidContract * 100;
+    const curMargin = (curContract - projCost) / curContract * 100;
+    const gfPts = curMargin - asbid;
+    const gfDollars = (coIncome != null ? coIncome : 0) - costGrowth;
+    // Foundation actuals reality-check: cost-to-date vs forecast cost, against physical % complete.
+    const costToDate = f ? f.totalCosts : null;
+    const burnPct = (costToDate != null && projCost > 0) ? costToDate / projCost * 100 : null;
+    const burnRisk = burnPct != null && pct != null && pct >= GF_BURN_MINPCT && (burnPct - pct) >= GF_BURN_PTS;
+    rows.push({
+      job: j.projectNumber || '', name: j.name || (f && f.description) || '',
+      pm: pmName(j) || '(no PM)', pct, asbid, curMargin, coIncome, costGrowth,
+      burnPct, burnRisk, gfPts, gfDollars, hasFnd: !!f,
+    });
+  }
+  return rows;
+}
+
+function gainFadeKPIs(rows) {
+  const net = rows.reduce((s, r) => s + (r.gfDollars || 0), 0);
+  const fading = rows.filter(r => r.gfPts <= -GF_MOVE_PTS).length;
+  const gaining = rows.filter(r => r.gfPts >= GF_MOVE_PTS).length;
+  const burn = rows.filter(r => r.burnRisk).length;
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  return { burn, band: `<div class="kpi-band">
+    ${card('Net gain/fade', (net >= 0 ? '+' : '') + fmtCompact(net), net >= 0 ? 'kpi-gain' : 'kpi-fade')}
+    ${card('Jobs fading', fading, fading ? 'kpi-fade' : '')}
+    ${card('Jobs gaining', gaining, gaining ? 'kpi-gain' : '')}
+    ${card('Cost-burn risk', burn, burn ? 'kpi-warn' : '')}
+  </div>` };
+}
+
+function gfPtsCell(pts, dollars) {
+  const cls = pts >= GF_MOVE_PTS ? 'gf-gain' : pts <= -GF_MOVE_PTS ? 'gf-fade' : 'gf-flat';
+  const arrow = pts >= GF_MOVE_PTS ? '▲ ' : pts <= -GF_MOVE_PTS ? '▼ ' : '';
+  const dol = (dollars != null && Math.abs(dollars) >= 500) ? `<br><span class="gf-sub">${(dollars >= 0 ? '+' : '') + fmtCompact(dollars)}</span>` : '';
+  return `<span class="${cls}">${arrow}${pts >= 0 ? '+' : ''}${pts.toFixed(1)} pts</span>${dol}`;
+}
+function gfMarginCell(m) { return m == null ? '<span class="muted-cell">—</span>' : `<span class="${marginColorClass(m)}">${m.toFixed(1)}%</span>`; }
+function gfMoneyCell(v, dir) { // dir 'gain' = green +, 'cost' = red +
+  if (v == null) return '<span class="muted-cell">—</span>';
+  if (Math.abs(v) < 500) return '<span class="gf-flat">—</span>';
+  const s = (v >= 0 ? '+' : '') + fmtCompact(v);
+  return `<span class="${dir === 'cost' ? 'gf-fade' : 'gf-gain'}">${s}</span>`;
+}
+function gfBurnCell(r) {
+  if (r.burnPct == null) return '<span class="muted-cell">—</span>';
+  const cls = r.burnRisk ? 'gf-conflict' : 'gf-flat';
+  const note = r.burnRisk ? ` <span class="gf-sub">vs ${r.pct.toFixed(0)}% done</span>` : '';
+  return `<span class="${cls}">${r.burnPct.toFixed(0)}% spent</span>${note}`;
+}
+
+function toggleGFAll() { gfShowAll = !gfShowAll; renderGainFade(); }
+
+function renderGainFade() {
+  const el = document.getElementById('gainfade-section');
+  const rows = gainFadeRows();
+  const k = gainFadeKPIs(rows);
+  // Worst fade first; burn-risk breaks ties.
+  rows.sort((a, b) => (a.gfPts - b.gfPts) || (a.burnRisk === b.burnRisk ? 0 : a.burnRisk ? -1 : 1));
+  const flagged = rows.filter(r => r.gfPts <= -GF_MOVE_PTS || r.gfPts >= GF_MOVE_PTS || r.burnRisk);
+  const shown = gfShowAll ? rows : flagged;
+
+  const pStamp = activeData?.refreshed ? 'Procore ' + fmtDate(activeData.refreshed) : 'Procore —';
+  const fStamp = foundationData?.refreshed ? 'Foundation ' + fmtDate(foundationData.refreshed) : 'Foundation unavailable';
+  const stamp = `<div class="billing-stamp">${pStamp} · ${fStamp}</div>`;
+  const noFnd = (!foundationData || !foundationData.jobs || !Object.keys(foundationData.jobs).length)
+    ? '<div class="billing-sub" style="color:#b45309">Foundation data unavailable — CO income (revenue side) can\'t be read; showing the Procore cost side only.</div>' : '';
+
+  let body;
+  if (!shown.length) {
+    body = '<div class="billing-empty">' + (rows.length ? 'No jobs are gaining, fading, or burning hot — all active jobs tracking at bid margin.' : 'No active jobs with usable financials.') + '</div>';
+  } else {
+    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">% Comp</th><th class="r">As-bid</th><th class="r">Current</th><th class="r">CO income (F)</th><th class="r"><span class="hint" data-tip="Procore revised − original budget — the recognized cost growth: buyout, base-scope reforecasting, allowances. NOT just change-order cost.">Cost growth (P)</span></th><th class="r"><span class="hint" data-tip="Foundation cost-to-date as a share of forecast cost. Amber when it outruns % complete — an overrun the budget may not have caught yet.">Cost burn (F)</span></th><th class="r">Gain / Fade</th></tr></thead><tbody>';
+    for (const r of shown) {
+      const pctCell = r.pct != null ? r.pct.toFixed(0) + '%' : '<span class="muted-cell">—</span>';
+      body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td>${esc(r.pm)}</td>`
+        + `<td class="r">${pctCell}</td><td class="r">${gfMarginCell(r.asbid)}</td><td class="r">${gfMarginCell(r.curMargin)}</td>`
+        + `<td class="r">${gfMoneyCell(r.coIncome, 'gain')}</td><td class="r">${gfMoneyCell(r.costGrowth, 'cost')}</td>`
+        + `<td class="r">${gfBurnCell(r)}</td><td class="r">${gfPtsCell(r.gfPts, r.gfDollars)}</td></tr>`;
+    }
+    body += '</tbody></table>';
+  }
+  const toggle = `<button class="billing-toggle" onclick="toggleGFAll()">${gfShowAll ? 'Show flagged only' : 'Show all ' + rows.length + ' active jobs'}</button>`;
+  el.innerHTML = stamp + noFnd + k.band + `<div class="billing-block">
+    <h3 class="section-header">Active jobs — gain / fade <span class="cnt">${flagged.length} flagged${gfShowAll ? ' · all shown' : ''}</span> ${toggle}</h3>
+    <div class="billing-sub"><strong>Gain/Fade</strong> — are we gaining or losing margin versus our original bid? <details class="gf-learn"><summary>How it's calculated</summary>Current recognized margin − as-bid margin, decomposed across systems: <strong>CO income</strong> (Foundation executed change-order revenue, a gain) minus <strong>cost growth</strong> (Procore revised − original budget, a fade). <strong>Cost burn</strong> = Foundation cost-to-date as a share of forecast cost; amber when it outruns % complete by ≥${GF_BURN_PTS} pts (a possible overrun the budget hasn't caught). Reflects recognized estimates, not unbudgeted overruns. Cost growth is the entire revised-vs-original budget delta (buyout, base-scope reforecasting, allowances — not only the cost of CO work), so CO income vs cost growth is a margin-movement read, not a measure of change-order markup.</details></div>
+    ${body}</div>`;
+}
+
+// === WIP — Earned value & billing position (Procore forecast + Foundation actuals) ===
+// The actuals-grounded companion to Gain/Fade. Procore supplies the forecast cost (revised budget =
+// EAC); Foundation supplies the ACTUALS (cost-to-date, billings-to-date). From those:
+//   cost % complete = cost-to-date ÷ EAC          (a real, cost-based progress measure)
+//   earned revenue  = % complete × revised contract
+//   over/(under)billed = billings − earned        (+ = billed ahead; − = work done not yet billed)
+// Underbilled = "costs in excess of billings" (cash tied up / invoice it). Overbilled = "billings in
+// excess of costs". Distinct from the Billing & AR tab's bid-ratio "Needs invoiced" — this is the
+// earned-value method. Cross-source caveat: Foundation cost (incl. burden) vs Procore EAC; the
+// dashboard already treats these bases as comparable (see Foundation reconciliation on cards).
+const WIP_FLAG_MIN = 50000;   // |over/(under)| ≥ this is worth surfacing
+let wipShowAll = true;
+
+function wipRows() {
+  const rows = [];
+  for (const j of getActiveJobs()) {
+    const f = j.foundation, b = j.budget || {}, pct = j.pctComplete;
+    if (!f) continue;                                  // WIP needs Foundation actuals
+    const contract = (f.currentContract > 0) ? f.currentContract : j.contractValue;
+    const eac = (b.revised > 0) ? b.revised : (b.original > 0 ? b.original : f.originalCost); // forecast cost
+    const ctd = f.totalCosts, billed = f.totalInvoiced;
+    if (!(contract > 0) || eac == null || ctd == null) continue;
+    const pctCost = eac > 0 ? ctd / eac * 100 : null;
+    const earned = pctCost != null ? Math.min(pctCost, 100) / 100 * contract : null;
+    const ou = (earned != null && billed != null) ? billed - earned : null; // + over / − under
+    const fMargin = (contract - eac) / contract * 100;
+    rows.push({
+      job: j.projectNumber || '', name: j.name || f.description || '',
+      pm: pmName(j) || '(no PM)', pct, pctCost, contract, eac, ctd, billed, earned, ou, fMargin,
+      projMarginUdf: (f.projectedMarginUdf == null ? null : f.projectedMarginUdf), // RYC hand-entered %, from Foundation UDF
+      projCost: (b.projectedCost ?? null),        // Procore ERP-view Projected Cost (commitment-loaded forecast)
+      projCostSuspect: !!b.projCostSuspect,       // sub costs not flowing through ERP invoices → value inflated
+    });
+  }
+  return rows;
+}
+
+function wipKPIs(rows) {
+  let under = 0, over = 0, backlog = 0;
+  for (const r of rows) {
+    if (r.ou != null) { if (r.ou < 0) under += -r.ou; else over += r.ou; }
+    backlog += r.contract - (r.billed || 0);
+  }
+  const net = over - under;
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  return { under, over, band: `<div class="kpi-band">
+    ${card('Underbilled · cost > billed', fmt(under), under ? 'kpi-warn' : '')}
+    ${card('Overbilled · billed > cost', fmt(over), '')}
+    ${card('Net position', (net >= 0 ? '+' : '−') + fmt(Math.abs(net)), net >= 0 ? 'kpi-gain' : 'kpi-warn')}
+    ${card('Backlog to bill', fmt(backlog), '')}
+  </div>` };
+}
+
+function wipPctCell(r) {
+  if (r.pctCost == null) return '<span class="muted-cell">—</span>';
+  const diverge = (r.pct != null && Math.abs(r.pctCost - r.pct) >= 10);
+  const sub = diverge ? ` <span class="gf-sub">vs ${r.pct.toFixed(0)}% Pcr</span>` : '';
+  const cls = diverge && r.pctCost > r.pct ? 'gf-conflict' : '';   // cost outrunning physical progress
+  return `<span class="${cls}">${r.pctCost.toFixed(0)}%</span>${sub}`;
+}
+function wipProjCostCell(r) {
+  if (r.projCost == null) return '<span class="muted-cell">—</span>';
+  const flag = r.projCostSuspect ? ' <span class="gf-sub" title="Projected cost likely overstated — subcontractor costs are in Direct Costs but not flowing through ERP invoices, so Committed + Direct double-counts. Verify/reconcile in Procore.">⚑ verify</span>' : '';
+  return fmt(r.projCost) + flag;
+}
+function wipOUCell(ou) {
+  if (ou == null) return '<span class="muted-cell">—</span>';
+  if (Math.abs(ou) < 500) return '<span class="gf-flat">—</span>';
+  return ou < 0 ? `<span class="under">(${fmt(-ou)})</span>` : `<span class="over">+${fmt(ou)}</span>`;
+}
+
+function toggleWIPAll() { wipShowAll = !wipShowAll; renderWIP(); }
+
+function exportWIPCSV() {
+  const rows = wipRows();
+  rows.sort((a, b) => (a.ou ?? 0) - (b.ou ?? 0));   // most underbilled first, matches display
+  const header = ['Job #', 'Job Name', 'PM', '% Comp (cost)', ' Contract ', ' Cost to Date ', ' Proj Cost (Procore) ', ' Billed ', ' Earned ', ' Over/(Under) ', 'Forecast Margin %', 'Projected Margin % (RYC)'];
+  const q = v => { const s = (v == null ? '' : String(v)); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  // Excel "Accounting" format to match the leadership report: ` $1,234.00 ` positive, ` $(1,234.00)` negative
+  const acct = n => { if (n == null) return ''; const v = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return n < 0 ? ' $(' + v + ')' : ' $' + v + ' '; };
+  const pctC = n => (n == null ? '' : Math.round(n) + '%');
+  const pctM = n => (n == null ? '' : n.toFixed(2).replace(/\.00$/, '') + '%');
+  const lines = [header.map(q).join(',')];
+  for (const r of rows) {
+    lines.push([
+      r.job, r.name, r.pm,
+      pctC(r.pctCost),
+      acct(r.contract), acct(r.ctd), acct(r.projCost), acct(r.billed), acct(r.earned), acct(r.ou),
+      pctM(r.fMargin), pctM(r.projMarginUdf)
+    ].map(q).join(','));
+  }
+  const csv = '﻿' + lines.join('\r\n');   // BOM so Excel reads UTF-8
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const d = new Date();
+  const stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ryc-wip-' + stamp + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function renderWIP() {
+  const el = document.getElementById('wip-section');
+  const rows = wipRows();
+  const k = wipKPIs(rows);
+  rows.sort((a, b) => (a.ou ?? 0) - (b.ou ?? 0));   // most underbilled first (action items up top)
+  const flagged = rows.filter(r => r.ou != null && Math.abs(r.ou) >= WIP_FLAG_MIN);
+  const shown = wipShowAll ? rows : flagged;
+
+  const pStamp = activeData?.refreshed ? 'Procore ' + fmtDate(activeData.refreshed) : 'Procore —';
+  const fStamp = foundationData?.refreshed ? 'Foundation ' + fmtDate(foundationData.refreshed) : 'Foundation unavailable';
+  const stamp = `<div class="billing-stamp">${pStamp} · ${fStamp}</div>`;
+  const noFnd = (!foundationData || !foundationData.jobs || !Object.keys(foundationData.jobs).length)
+    ? '<div class="billing-sub" style="color:#b45309">Foundation data unavailable — WIP needs cost-to-date + billings from Foundation; nothing to show.</div>' : '';
+
+  let body;
+  if (!shown.length) {
+    body = '<div class="billing-empty">' + (rows.length ? 'No jobs are materially over- or under-billed.' : 'No active jobs with Foundation actuals.') + '</div>';
+  } else {
+    body = '<table class="billing-table"><thead><tr><th>Job</th><th>PM</th><th class="r">% Comp (cost)</th><th class="r">Contract</th><th class="r">Cost to date</th><th class="r"><span class="hint" data-tip="Procore Projected Cost from the ERP Budget View (commitment-loaded forecast final cost). ⚑ verify = subcontractor costs not flowing through ERP invoices, so the value is inflated until reconciled.">Proj cost (Procore)</span></th><th class="r">Billed</th><th class="r"><span class="hint" data-tip="Earned revenue = % complete (cost-based) × contract value. The revenue earned by doing the work, regardless of what has been billed.">Earned</span></th><th class="r"><span class="hint" data-tip="Billed − Earned. (under) = earned work not yet invoiced (cash to collect); +over = billed ahead of work done.">Over/(under)</span></th><th class="r"><span class="hint" data-tip="(Contract − forecast cost) ÷ contract — the projected final margin.">Fcst margin</span></th><th class="r"><span class="hint" data-tip="RYC hand-entered Projected Margin (Foundation UDF) — the PM/accounting projection, not derived by this dashboard.">Proj margin (RYC)</span></th></tr></thead><tbody>';
+    for (const r of shown) {
+      body += `<tr><td><span class="jno">${esc(r.job)}</span> ${esc(r.name)}</td><td>${esc(r.pm)}</td>`
+        + `<td class="r">${wipPctCell(r)}</td><td class="r">${fmt(r.contract)}</td>`
+        + `<td class="r">${fmt(r.ctd)}</td><td class="r">${wipProjCostCell(r)}</td><td class="r">${fmt(r.billed)}</td><td class="r">${fmt(r.earned)}</td>`
+        + `<td class="r">${wipOUCell(r.ou)}</td><td class="r" style="font-weight:700">${gfMarginCell(r.fMargin)}</td>`
+        + `<td class="r">${r.projMarginUdf == null ? '<span class="muted-cell">—</span>' : r.projMarginUdf.toFixed(1) + '%'}</td></tr>`;
+    }
+    body += '</tbody></table>';
+  }
+  const toggle = `<button class="billing-toggle" onclick="toggleWIPAll()">${wipShowAll ? 'Show flagged only' : 'Show all ' + rows.length + ' active jobs'}</button>`;
+  const exportBtn = `<button class="billing-toggle" onclick="exportWIPCSV()" title="Download all active jobs with Foundation actuals as CSV">⬇ Export CSV</button>`;
+  const wohBtn = `<button class="billing-toggle" onclick="runWorkOnHand()" title="Run the on-demand Work-on-Hand Analysis report (Foundation WIP format)">📄 Work-on-Hand Report</button>`;
+  el.innerHTML = stamp + noFnd + k.band + `<div class="billing-block">
+    <h3 class="section-header">Work in progress — earned value &amp; billing <span class="cnt">${flagged.length} flagged${wipShowAll ? ' · all shown' : ''}</span> ${toggle} ${exportBtn} ${wohBtn}</h3>
+    <div class="billing-sub"><strong>% Comp (cost)</strong> = Foundation cost-to-date ÷ Procore forecast cost (revised budget); amber when it outruns Procore's % complete by ≥10 pts (cost ahead of progress). <strong>Earned</strong> = % complete × contract. <strong>Over/(under)</strong> = billed − earned: <span class="under">(under)</span> = earned work not yet invoiced (collect it), <span class="over">+over</span> = billed ahead of work. Earned-value method — distinct from Billing &amp; AR's bid-ratio "Needs invoiced." Forecast margin = (contract − forecast cost) ÷ contract.</div>
+    ${body}</div>`;
+}
+
+// ===== Work-on-Hand Report (on-demand; SEPARATE from the WIP tab — does NOT alter it) ==========
+// RYC audit report (columns/sources per Tristan/Steve 2026-07-07):
+//   Contract Price = Procore Revised Contract Amount; Total Job Costs = Procore ERP Projected Budget;
+//   Cost to Date + Billings = FOUNDATION. Cost to Complete = Total Job Costs − Cost to Date.
+//   (Earned Revenue column dropped 2026-07-07 — not needed for the audit report.)
+function wohRows() {
+  const rows = [];
+  for (const j of getActiveJobs()) {
+    const f = j.foundation, b = j.budget || {};
+    const contract = (j.revisedContract > 0) ? j.revisedContract
+      : ((j.contractValue > 0) ? j.contractValue : null);                  // Procore Revised Contract Amount
+    const ctd = f ? f.totalCosts : null;                                   // Foundation cost-to-date
+    const tec = (b.projectedBudget != null) ? b.projectedBudget : null;    // Procore ERP Projected Budget
+    const billed = f ? f.totalInvoiced : null;                             // Foundation billings-to-date
+    const ctc = (tec != null && ctd != null) ? (tec - ctd) : null;         // Cost to Complete
+    rows.push({ name: j.name || (f && f.description) || (j.projectNumber || ''),
+      contract, ctd, ctc, tec, billed, noTec: tec == null });
+  }
+  rows.sort((a, b2) => (b2.contract || 0) - (a.contract || 0));            // largest contract first
+  return rows;
+}
+function wohReportHTML() {
+  const rows = wohRows();
+  const d = new Date();
+  const dateStr = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const dol = n => n == null ? '<span class="muted-cell">—</span>' : (n < 0 ? '$(' + Math.abs(Math.round(n)).toLocaleString() + ')' : '$' + Math.round(n).toLocaleString());
+  let tbody = '';
+  for (const r of rows) {
+    const tecCell = r.tec == null ? '<span class="muted-cell">—</span>' : dol(r.tec);
+    tbody += `<tr><td>${esc(r.name)}</td><td class="r">${dol(r.contract)}</td><td class="r">${dol(r.ctd)}</td>`
+      + `<td class="r">${dol(r.ctc)}</td><td class="r">${tecCell}</td><td class="r">${dol(r.billed)}</td></tr>`;
+  }
+  const missing = rows.filter(r => r.noTec).length;
+  return `<div class="woh-head"><div><h2 style="margin:0">Work-on-Hand Analysis</h2>`
+    + `<div class="woh-sub">R. Yoder Construction — active jobs · as of ${dateStr}</div></div>`
+    + `<div class="woh-actions"><button class="billing-toggle" onclick="printWOH()">🖨 Print</button>`
+    + `<button class="billing-toggle" onclick="exportWOHCSV()">⬇ CSV</button>`
+    + `<button class="billing-toggle" onclick="closeWOH()">✕ Close</button></div></div>`
+    + `<div style="overflow-x:auto"><table class="billing-table woh-table"><thead><tr>`
+    + `<th>Project Name</th><th class="r">Contract Price</th><th class="r">Cost to Date</th><th class="r">Cost to Complete</th>`
+    + `<th class="r">Projected Budget Cost</th><th class="r">Billings to Date</th>`
+    + `</tr></thead><tbody>${tbody}</tbody></table></div>`
+    + `<div class="woh-foot"><strong>Contract Price</strong> (Revised Contract Amount) &amp; <strong>Projected Budget Cost</strong> (Projected Budget) from Procore; <strong>Cost to Date</strong> &amp; <strong>Billings to Date</strong> from Foundation. `
+    + `Cost to Complete = Projected Budget Cost − Cost to Date.`
+    + (missing ? ` <strong>${missing}</strong> job(s) missing Procore Projected Budget — Cost to Complete blank for those.` : '') + `</div>`;
+}
+function runWorkOnHand() {
+  let ov = document.getElementById('woh-overlay');
+  if (!ov) {
+    const st = document.createElement('style');
+    st.textContent = '.woh-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:none;overflow:auto;padding:24px}'
+      + '.woh-overlay.open{display:block}.woh-panel{background:#fff;max-width:1120px;margin:0 auto;border-radius:10px;padding:20px 24px;box-shadow:0 10px 40px rgba(0,0,0,.3)}'
+      + '.woh-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;border-bottom:2px solid #1f2937;padding-bottom:10px}'
+      + '.woh-sub{color:#6b7280;font-size:12px;margin-top:2px}.woh-actions{display:flex;gap:6px;flex-shrink:0}'
+      + '.woh-foot{margin-top:10px;font-size:11px;color:#6b7280;line-height:1.5}.woh-table td,.woh-table th{white-space:nowrap}';
+    document.head.appendChild(st);
+    ov = document.createElement('div'); ov.id = 'woh-overlay'; ov.className = 'woh-overlay';
+    ov.addEventListener('click', e => { if (e.target === ov) closeWOH(); });
+    const p = document.createElement('div'); p.id = 'woh-panel'; p.className = 'woh-panel';
+    ov.appendChild(p); document.body.appendChild(ov);
+  }
+  document.getElementById('woh-panel').innerHTML = wohReportHTML();
+  ov.classList.add('open');
+}
+function closeWOH() { const ov = document.getElementById('woh-overlay'); if (ov) ov.classList.remove('open'); }
+function printWOH() {
+  const html = document.getElementById('woh-panel').innerHTML;
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>Work-on-Hand Analysis</title><style>body{font-family:Arial,sans-serif;font-size:11px;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px 8px;text-align:left}td.r,th.r{text-align:right}.woh-actions{display:none}h2{margin:0 0 4px}.woh-sub{color:#555;font-size:11px;margin-bottom:10px}.woh-foot{margin-top:10px;font-size:10px;color:#555}</style></head><body>' + html + '</body></html>');
+  w.document.close(); w.focus(); setTimeout(() => w.print(), 250);
+}
+function exportWOHCSV() {
+  const rows = wohRows();
+  const header = ['Project Name', ' Contract Price ', ' Cost to Date ', ' Cost to Complete ', ' Projected Budget Cost ', ' Billings to Date '];
+  const q = v => { const s = (v == null ? '' : String(v)); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const acct = n => { if (n == null) return ''; const v = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return n < 0 ? ' $(' + v + ')' : ' $' + v + ' '; };
+  const lines = [header.map(q).join(',')];
+  for (const r of rows) lines.push([r.name, acct(r.contract), acct(r.ctd), acct(r.ctc), acct(r.tec), acct(r.billed)].map(q).join(','));
+  const csv = '﻿' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const d = new Date(); const stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const a = document.createElement('a'); a.href = url; a.download = 'ryc-work-on-hand-' + stamp + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Data Sources reference now lives in the shared /ryc-data/data-sources.js (loaded before
+// </body>), used by BOTH this dashboard and the /ryc/foundation query tool — edit the dictionary once, there.
+
+// === Job detail slide-over =========================================================
+function openDetail(id) {
+  const job = (portfolioData?.jobs || []).find(j => j.id === id);
+  if (!job) return;
+  document.getElementById('detail-panel').innerHTML = renderCompletedDetail(job);
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-panel').scrollTop = 0;
+}
+function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+
+function renderCompletedDetail(job) {
+  const actual = getBestMargin(job), bid = job.bidMarginPct, bo = job.buyout;
+  const mDelta = (actual != null && bid != null) ? actual - bid : null;
+  const srcTile = (label, on, cls) => `<span class="badge ${cls}${on ? '' : ' badge-off'}">${label}</span>`;
+  const sources = srcTile('Foundation', job.source === 'foundation', 'badge-foundation') + srcTile('Procore', !!job.procoreId, 'badge-procore');
+
+  const stat = (k, v) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const outcome = `<div class="detail-grid">
+    ${stat('Original contract', fmtCompact(job.contractOriginal))}
+    ${stat('Final contract', fmtCompact(job.contractFinal) + (job.coPct != null && job.changeOrders ? ` <span class="note">(${job.changeOrders >= 0 ? '+' : ''}${pct(job.coPct)} COs)</span>` : ''))}
+    ${stat('As-bid margin', bid != null ? pct(bid) : '—')}
+    ${stat('Actual margin', `<span class="${marginClass(actual)}">${actual != null ? pct(actual) : '—'}</span>` + (mDelta != null ? ` <span class="${mDelta >= 0 ? 'flag-green' : 'flag-red'}">${mDelta >= 0 ? '▲ +' : '▼ '}${mDelta.toFixed(1)} pts</span>` : ''))}
+    ${stat('Final cost', fmtCompact(job.directCost))}
+    ${stat('Duration', job.durationMonths != null ? job.durationMonths + ' mo' : '—')}
+    ${stat('Completed', fmtShort(job.actualCompletion))}
+    ${stat('PM', esc(job.pmName || '—'))}
+  </div>`;
+
+  let buyoutSec = '';
+  if (bo && bo.byClass && bo.byClass.length) {
+    const rows = bo.byClass.map(c => {
+      const isSub = /^sub/i.test(c.cls) || /ubcontract/i.test(c.cls), buy = c.est - c.act;
+      return `<tr class="${isSub ? 'sub-row' : ''}"><td>${esc(c.cls)}${isSub ? ' — subcontract' : ''}</td><td class="r">${fmtCompact(c.est)}</td><td class="r">${fmtCompact(c.act)}</td><td class="r ${buy >= 0 ? 'flag-green' : 'flag-red'}">${buy >= 0 ? '+' : ''}${fmtCompact(buy)}</td></tr>`;
+    }).join('');
+    buyoutSec = `<div class="detail-section"><h4>Buyout — estimate vs actual by cost class</h4>
+      <table class="detail-table"><thead><tr><th>Cost class</th><th class="r">Estimate</th><th class="r">Actual</th><th class="r">Buyout</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td>Total${bo.subPct > 0 ? ` · ${bo.subPct}% from subcontract` : ''}</td><td class="r"></td><td class="r"></td><td class="r ${bo.total >= 0 ? 'flag-green' : 'flag-red'}">${bo.total >= 0 ? '+' : ''}${fmtCompact(bo.total)}</td></tr></tfoot></table>
+      <div class="note" style="margin-top:6px">Estimate = Foundation job budget by cost class; actual = costs booked. Positive = came in under bid (buyout/savings).</div></div>`;
+  }
+
+  let subsSec = '';
+  if (job.subs && job.subs.length) {
+    const rows = job.subs.map(s => `<tr><td>${esc(s.name)}</td><td class="r">${fmtCompact(s.cost)}</td></tr>`).join('');
+    subsSec = `<div class="detail-section"><h4>Subcontractors on this job (actual spend)</h4>
+      <table class="detail-table"><thead><tr><th>Subcontractor</th><th class="r">Actual cost</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  let opsSec = '';
+  if (job.procoreId && (job.rfis || job.submittals || job.changeEvents || job.sqft)) {
+    opsSec = `<div class="detail-section"><h4>Project detail (Procore)</h4><div class="detail-grid">
+      ${job.rfis ? stat('RFIs', job.rfis) : ''}${job.submittals ? stat('Submittals', job.submittals) : ''}
+      ${job.changeEvents ? stat('Change events', job.changeEvents) : ''}${job.sqft ? stat('Square feet', job.sqft.toLocaleString()) : ''}
+    </div></div>`;
+  }
+
+  return `<div class="detail-head">
+      <button class="detail-close" onclick="closeDetail()">×</button>
+      <div class="dh-name">${esc(job.name)}</div>
+      <div class="dh-client">${esc(job.client)} · ${typeName(job.clientType)} · <span class="badge badge-completed">Completed</span></div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-section"><h4>Outcome</h4>${outcome}<div class="card-sources" style="justify-content:flex-start;margin-top:14px">${sources}</div></div>
+      ${buyoutSec}${subsSec}${opsSec}
+    </div>`;
+}
+
+// Active-job popout — the full operating picture for one live job. The card face stays lean; this
+// carries Foundation cost/billing/retainage, contracted margin, billing position (earned value),
+// gain/fade vs bid, change-order breakdown, cost-to-date by category, and schedule. Formulas mirror
+// the Gain/Fade and WIP tabs exactly so a single job reads identically wherever it appears.
+function openActiveDetail(projectNumber) {
+  const job = (activeData?.jobs || []).find(j => (j.projectNumber || '') === projectNumber);
+  if (!job) return;
+  document.getElementById('detail-panel').innerHTML = renderActiveDetail(job);
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-panel').scrollTop = 0;
+}
+
+function renderActiveDetail(job) {
+  const f = job.foundation, b = job.budget || {};
+  const sl = getStoplight(job, job);
+  const contractVal = job.contractValue || b.revised || b.original || 0;
+  const pctComp = job.pctComplete;
+  const cMargin = contractedMargin(job), mtd = marginToDate(job);
+  const stat = (k, v) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const mc = m => m == null ? '—' : `<span class="${marginColorClass(m)}">${pct(m)}</span>`;
+
+  // --- Financials (best-source merge, same authority as the card) ---
+  const contractFlag = (job.flags || []).some(fl => fl.type === 'contract')
+    ? ` <span class="note">(Procore ${fmtCompact(job.procoreContractValue)})</span>` : '';
+  let reconNote = '';
+  if (b.direct != null && f && f.totalCosts != null) {
+    const d = f.totalCosts - b.direct;
+    reconNote = (Math.abs(d) <= Math.max(50000, (contractVal || 0) * 0.02))
+      ? ' <span class="recon-ok">✓ reconciled</span>'
+      : ` <span class="recon-warn">Δ vs Procore ${fmtCompact(d)}</span>`;
+  }
+  const bidCost = (f && f.originalCost != null) ? f.originalCost : b.original;
+  const financials = `<div class="detail-section"><h4>Financials</h4><div class="detail-grid">
+    ${stat('Contract', fmtCompact(contractVal) + contractFlag)}
+    ${stat('% complete', pctComp != null ? pct(pctComp) : '—')}
+    ${stat('Original budget (bid cost)', fmtCompact(bidCost))}
+    ${stat('Cost to date', fmtCompact(job.costToDate) + reconNote)}
+    ${stat('Contracted margin', mc(cMargin))}
+    ${stat('Margin to date', mc(mtd))}
+    ${f ? stat('Billed to date', fmtCompact(f.totalInvoiced)) : ''}
+    ${f ? stat('Retainage held', fmtCompact(f.retainage)) : ''}
+  </div></div>`;
+
+  // --- Billing position (earned value) — needs Foundation actuals; mirrors the WIP tab ---
+  let wipSec = '';
+  if (f) {
+    const contract = (f.currentContract > 0) ? f.currentContract : job.contractValue;
+    const eac = (b.revised > 0) ? b.revised : (b.original > 0 ? b.original : f.originalCost);
+    const ctd = f.totalCosts, billed = f.totalInvoiced;
+    if (contract > 0 && eac != null && ctd != null) {
+      const pctCost = eac > 0 ? ctd / eac * 100 : null;
+      const earned = pctCost != null ? Math.min(pctCost, 100) / 100 * contract : null;
+      const ou = (earned != null && billed != null) ? billed - earned : null;
+      const ouTxt = ou == null ? '—'
+        : ou < 0 ? `<span class="under">(${fmtCompact(-ou)}) underbilled</span>`
+        : `<span class="over">+${fmtCompact(ou)} overbilled</span>`;
+      wipSec = `<div class="detail-section"><h4>Billing position (earned value)</h4><div class="detail-grid">
+        ${stat('Cost % complete', pctCost != null ? pctCost.toFixed(0) + '%' : '—')}
+        ${stat('Earned revenue', fmtCompact(earned))}
+        ${stat('Billed', fmtCompact(billed))}
+        ${stat('Over / (under) billed', ouTxt)}
+      </div><div class="note" style="margin-top:6px">Cost-based % × contract = earned; billed − earned = over/(under)billed. Underbilled = work done not yet invoiced.</div></div>`;
+    }
+  }
+
+  // --- Gain / fade vs bid — mirrors the Gain/Fade tab ---
+  let gfSec = '';
+  {
+    const pC = job.procoreContractValue != null ? job.procoreContractValue : job.contractValue;
+    const curContract = (f && f.currentContract > 0) ? f.currentContract : pC;
+    const asbidContract = (f && f.originalContract > 0) ? f.originalContract : pC;
+    const asbidCost = (f && f.originalCost != null) ? f.originalCost : b.original;
+    if (curContract > 0 && asbidCost != null) {
+      const costGrowth = (b.revised > 0 && b.original > 0) ? (b.revised - b.original) : 0;
+      const coIncome = (f && f.originalContract > 0) ? (curContract - asbidContract) : null;
+      const projCost = asbidCost + costGrowth;
+      const asbid = (asbidContract - asbidCost) / asbidContract * 100;
+      const curMargin = (curContract - projCost) / curContract * 100;
+      const gfPts = curMargin - asbid;
+      const gfDollars = (coIncome != null ? coIncome : 0) - costGrowth;
+      gfSec = `<div class="detail-section"><h4>Gain / fade vs bid</h4><div class="detail-grid">
+        ${stat('As-bid margin', asbid.toFixed(1) + '%')}
+        ${stat('Current margin', curMargin.toFixed(1) + '%')}
+        ${stat('CO income (Foundation)', coIncome != null ? gfMoneyCell(coIncome, 'gain') : '—')}
+        ${stat('Cost growth (Procore)', gfMoneyCell(costGrowth, 'cost'))}
+        ${stat('Gain / fade', gfPtsCell(gfPts, gfDollars))}
+      </div></div>`;
+    }
+  }
+
+  // --- Change orders (event-type breakdown) ---
+  let coSec = '';
+  const co = job.changeOrders;
+  if (co && co.count > 0) {
+    const rows = (co.byType && Object.keys(co.byType).length)
+      ? Object.entries(co.byType).sort((a, b2) => b2[1] - a[1])
+          .map(([t, n]) => `<tr><td>${esc(t)}</td><td class="r">${n}</td></tr>`).join('') : '';
+    coSec = `<div class="detail-section"><h4>Change orders</h4><div class="detail-grid">
+        ${stat('Count', co.count)}${stat('Net value', (co.netValue >= 0 ? '+' : '') + fmtCompact(co.netValue))}
+      </div>${rows ? `<table class="detail-table" style="margin-top:10px"><thead><tr><th>Type</th><th class="r">Count</th></tr></thead><tbody>${rows}</tbody></table>` : ''}</div>`;
+  }
+
+  // --- Cost to date by category (Foundation) ---
+  let cbSec = '';
+  if (f && f.costBreakdown && Object.keys(f.costBreakdown).length) {
+    const rows = Object.entries(f.costBreakdown).sort((a, b2) => b2[1] - a[1])
+      .map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r">${fmtCompact(v)}</td></tr>`).join('');
+    cbSec = `<div class="detail-section"><h4>Cost to date by category (Foundation)</h4>
+      <table class="detail-table"><thead><tr><th>Category</th><th class="r">Cost</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  // --- Schedule ---
+  const startDate = job.start, finishDate = job.projectedFinish || job.completionDate;
+  let schedTxt = '—';
+  if (finishDate) {
+    const diff = Math.round((new Date(finishDate) - new Date()) / (1000 * 60 * 60 * 24));
+    schedTxt = diff < 0 ? `<span class="flag-red">${Math.abs(diff)} days overdue</span>` : `${diff} days remaining`;
+  }
+  const schedSec = `<div class="detail-section"><h4>Schedule</h4><div class="detail-grid">
+    ${stat('Start', fmtShort(startDate))}
+    ${stat('Projected finish', fmtShort(finishDate))}
+    ${stat('Stage', esc(job.stage || '—'))}
+    ${stat('Status', schedTxt)}
+  </div></div>`;
+
+  // --- Operational (Procore) ---
+  let opsSec = '';
+  if (job.rfis || job.submittals) {
+    const rfi = job.rfis, sub = job.submittals;
+    opsSec = `<div class="detail-section"><h4>Operational (Procore)</h4><div class="detail-grid">
+      ${rfi ? stat('RFIs', `${rfi.open ?? 0} open / ${rfi.total ?? 0}`) : ''}
+      ${sub ? stat('Submittals', `${sub.open ?? 0} open / ${sub.total ?? 0}`) : ''}
+    </div></div>`;
+  }
+
+  const slSec = sl.reasons?.length
+    ? `<div class="detail-section"><h4>Status flags</h4><div class="sl-reason sl-reason-${sl.color}">${sl.reasons.map(r => r.text).join(' · ')}</div></div>` : '';
+
+  const srcTile = (label, on, cls) => `<span class="badge ${cls}${on ? '' : ' badge-off'}">${label}</span>`;
+  const sources = `<div class="detail-section"><div class="card-sources" style="justify-content:flex-start">${srcTile('Foundation', !!f, 'badge-foundation')}${srcTile('Procore', !!job.procoreId, 'badge-procore')}</div></div>`;
+
+  return `<div class="detail-head">
+      <button class="detail-close" onclick="closeDetail()">×</button>
+      <div class="dh-name"><span class="stoplight stoplight-${sl.color}"></span> ${esc(job.name)}</div>
+      <div class="dh-client">${esc(job.client)} · ${typeName(job.clientType)}${job.stage ? ' · ' + esc(job.stage) : ''} · <span class="badge badge-stage">Active</span></div>
+      ${pmName(job) ? `<div class="dh-client">PM <strong>${esc(pmName(job))}</strong></div>` : ''}
+    </div>
+    <div class="detail-body">
+      ${slSec}${financials}${wipSec}${gfSec}${coSec}${cbSec}${schedSec}${opsSec}${sources}
+    </div>`;
+}
+
+function openSubDetail(vendorNo) {
+  const s = (subsData?.subs || []).find(x => x.vendorNo === vendorNo);
+  if (!s) return;
+  const stat = (k, v) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const jobRows = (s.jobs || []).map(j => {
+    const v = (j.committed > 0 && j.actual > 0) ? j.committed - j.actual : null;
+    return `<tr><td><span class="jno">${esc(j.jobNo)}</span> ${esc(j.jobName || '')}</td><td class="r">${j.committed ? fmtCompact(j.committed) : '—'}</td><td class="r">${fmtCompact(j.actual)}</td><td class="r ${v != null && v < 0 ? 'under' : ''}">${v == null ? '—' : (v >= 0 ? '+' : '') + fmtCompact(v)}</td></tr>`;
+  }).join('');
+  document.getElementById('detail-panel').innerHTML = `<div class="detail-head">
+      <button class="detail-close" onclick="closeDetail()">×</button>
+      <div class="dh-name">${esc(s.name)}</div>
+      <div class="dh-client">Subcontractor · ${s.actualJobs || (s.jobs || []).length} jobs (2023+)</div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-section"><h4>Total across RYC (2023+)</h4><div class="detail-grid">
+        ${stat('Actual spend', fmtCompact(s.actualCost))}
+        ${stat('Committed (subcontracts)', s.committed ? fmtCompact(s.committed) : '—')}
+        ${stat('Jobs', s.actualJobs || (s.jobs || []).length)}
+        ${stat('Δ committed − actual', s.variance == null ? '—' : (s.variance >= 0 ? '+' : '') + fmtCompact(s.variance))}
+      </div></div>
+      <div class="detail-section"><h4>Jobs (top ${(s.jobs || []).length} by spend)</h4>
+        <table class="detail-table"><thead><tr><th>Job</th><th class="r">Committed</th><th class="r">Actual</th><th class="r">Δ</th></tr></thead><tbody>${jobRows || '<tr><td colspan="4">No job detail.</td></tr>'}</tbody></table>
+        <div class="note" style="margin-top:6px">Δ = committed − actual: positive = under/in-progress, negative = actual over the subcontract (change orders or T&amp;M).</div></div>
+    </div>`;
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-panel').scrollTop = 0;
+}
+
+// === Subcontractors — Foundation actual-by-vendor + PO_Sub commitments (2023+ jobs) ===
+let subsShowAll = false;
+function toggleSubsAll() { subsShowAll = !subsShowAll; renderSubs(); }
+function renderSubs() {
+  const el = document.getElementById('subs-section');
+  if (!subsData || !subsData.subs) { el.innerHTML = '<div class="billing-empty">Subcontractor data unavailable.</div>'; return; }
+  const subs = subsData.subs;
+  const stamp = subsData.generated ? `<div class="billing-stamp">Foundation · ${fmtDate(subsData.generated)} · 2023+ jobs</div>` : '';
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  const band = `<div class="kpi-band">
+    ${card('Sub spend (actual)', fmtCompact(subsData.totalActual), '')}
+    ${card('Committed (subcontracts)', fmtCompact(subsData.totalCommitted), '')}
+    ${card('Subcontractors', subsData.subCount, '')}
+    ${card('Top sub', esc((subs[0]?.name || '—').split(/\s+/).slice(0, 2).join(' ')), '')}
+  </div>`;
+  const shown = subsShowAll ? subs : subs.slice(0, 40);
+  let body = '<table class="billing-table"><thead><tr><th>#</th><th>Subcontractor</th><th class="r">Jobs</th><th class="r">Committed</th><th class="r">Actual spend</th><th class="r">Δ vs committed</th></tr></thead><tbody>';
+  shown.forEach((s, i) => {
+    const d = s.variance;
+    const dCell = d == null ? '<span class="muted-cell">—</span>' : `<span class="${d < 0 ? 'under' : 'over'}">${d >= 0 ? '+' : ''}${fmtCompact(d)}</span>`;
+    body += `<tr class="sub-row-click" onclick="openSubDetail('${esc(s.vendorNo)}')" title="Click for this sub's job history"><td>${i + 1}</td><td>${esc(s.name)}</td><td class="r">${s.actualJobs || s.committedJobs || 0}</td>`
+      + `<td class="r">${s.committed ? fmtCompact(s.committed) : '<span class="muted-cell">—</span>'}</td>`
+      + `<td class="r">${fmtCompact(s.actualCost)}</td><td class="r">${dCell}</td></tr>`;
+  });
+  body += '</tbody></table>';
+  const toggle = `<button class="billing-toggle" onclick="toggleSubsAll()">${subsShowAll ? 'Show top 40' : 'Show all ' + subs.length}</button>`;
+  el.innerHTML = stamp + band + `<div class="billing-block">
+    <h3 class="section-header">Top subcontractors <span class="cnt">${subs.length} subs · ranked by spend</span> ${toggle}</h3>
+    <div class="billing-sub"><strong>Actual</strong> = subcontractor cost booked in Foundation by vendor across 2023+ jobs. <strong>Committed</strong> = signed subcontract amount (PO_Sub). Δ = committed − actual (positive = under/in-progress, negative = actual over the subcontract via change orders or T&amp;M). Committed-vs-actual mixes in-progress jobs and T&amp;M (PO-less) subs — read <strong>Actual</strong> as the spend ranking. The buyout spread vs the original <em>bid</em> carry needs the estimate (ProEst/SharePoint) — a later phase.</div>
+    ${body}</div>`;
+}
+
+// === Cost Intelligence — RYC's own completed-job actuals as estimating benchmarks (2023+) ===
+// Phase 1 of the CivicScope GC estimating-intelligence product (RYC = tenant #1). Pure client-side
+// aggregation of portfolioData.jobs (Foundation-authoritative completed record). No new data pull.
+// All HTML built with template literals so apostrophes can't terminate a string (the Gain/Fade lesson).
+let costiqWT = 'all';
+function setCostIQWT(v) { costiqWT = v; renderCostIQ(); }
+
+function ciAgg(jobs) {
+  let n = jobs.length, contract = 0, finalCost = 0, bidContract = 0, bidCost = 0, buyTotal = 0, buySub = 0, coTotal = 0;
+  for (const j of jobs) {
+    contract += j.contractFinal || 0; finalCost += j.directCost || 0;
+    bidContract += j.contractOriginal || 0; bidCost += j.originalCost || 0;
+    if (j.buyout) { buyTotal += j.buyout.total || 0; buySub += j.buyout.sub || 0; }
+    coTotal += j.changeOrders || 0;
+  }
+  const bidMargin = bidContract > 0 ? (bidContract - bidCost) / bidContract * 100 : null;
+  const actMargin = contract > 0 ? (contract - finalCost) / contract * 100 : null;
+  return {
+    n, contract, bidMargin, actMargin,
+    gainFade: (bidMargin != null && actMargin != null) ? actMargin - bidMargin : null,
+    buyTotal, buySubPct: buyTotal > 0 ? buySub / buyTotal * 100 : null,
+    coPct: bidContract > 0 ? coTotal / bidContract * 100 : null
+  };
+}
+
+function ciGfCell(v) {
+  if (v == null) return '<span class="muted-cell">—</span>';
+  const c = v >= 0 ? '#16a34a' : '#dc2626';
+  return `<span style="color:${c};font-weight:600">${v >= 0 ? '+' : ''}${v.toFixed(1)} pts</span>`;
+}
+
+const CIQ_CT = { school: 'School', municipal: 'Municipal', commercial: 'Commercial', industrial: 'Industrial', private: 'Private / Institutional', mixed_use: 'Mixed Use', residential: 'Residential' };
+const CIQ_WT = { new_construction: 'New Construction', renovation: 'Renovation', addition: 'Addition', repair: 'Repair' };
+const CIQ_CLASS = { SUB: 'Subcontract', MAT: 'Material', LAB: 'Labor (self-perform)', BUR: 'Labor burden', EQU: 'Equipment', OTH: 'Other', REQ: 'Other / requisition' };
+const ciCT = (k) => CIQ_CT[k] || (k || '—');
+const ciWT = (k) => CIQ_WT[k] || (k || '—');
+const ciClass = (k) => CIQ_CLASS[k] || (k || '—');
+
+function ciBenchRows(jobs, keyField, labelFn) {
+  const groups = {};
+  for (const j of jobs) { const k = j[keyField] || '—'; (groups[k] ||= []).push(j); }
+  const rows = Object.entries(groups).map(([k, js]) => ({ label: labelFn(k), a: ciAgg(js) }))
+    .sort((x, y) => y.a.contract - x.a.contract);
+  let body = '';
+  for (const r of rows) {
+    const a = r.a;
+    const buy = a.buyTotal !== 0
+      ? `${fmtCompact(a.buyTotal)}${a.buySubPct != null ? ` <span class="note">${Math.round(a.buySubPct)}% sub</span>` : ''}`
+      : '<span class="muted-cell">—</span>';
+    body += `<tr><td>${esc(r.label)}</td><td class="r">${a.n}</td><td class="r">${fmtCompact(a.contract)}</td>`
+      + `<td class="r">${pct(a.bidMargin)}</td><td class="r">${pct(a.actMargin)}</td><td class="r">${ciGfCell(a.gainFade)}</td>`
+      + `<td class="r">${buy}</td><td class="r">${pct(a.coPct)}</td></tr>`;
+  }
+  return `<table class="billing-table"><thead><tr><th>Profile</th><th class="r">Jobs</th><th class="r">Contract</th>`
+    + `<th class="r">As-bid margin</th><th class="r">Actual margin</th><th class="r">Gain/Fade</th><th class="r">Buyout</th><th class="r">CO %</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function ciClassRows(jobs) {
+  const m = {};
+  for (const j of jobs) for (const c of (j.buyout?.byClass || [])) {
+    if (!c || (c.act || 0) <= 0) continue;
+    const k = c.cls || '(unclassified)'; m[k] = (m[k] || 0) + (c.act || 0);
+  }
+  const total = Object.values(m).reduce((a, b) => a + b, 0);
+  const rows = Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  if (!rows.length || total <= 0) return '<div class="billing-empty">No cost-class detail for this filter.</div>';
+  let body = '';
+  for (const [k, v] of rows) {
+    const p = v / total * 100;
+    body += `<tr><td>${esc(ciClass(k))}</td><td class="r">${fmtCompact(v)}</td><td class="r">${p.toFixed(1)}%</td>`
+      + `<td style="width:30%"><div style="background:#e5e7eb;border-radius:3px;height:8px"><div style="background:#2563eb;height:8px;border-radius:3px;width:${Math.min(100, p).toFixed(1)}%"></div></div></td></tr>`;
+  }
+  return `<table class="billing-table"><thead><tr><th>Cost class</th><th class="r">Actual cost</th><th class="r">% of cost</th><th>&nbsp;</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function renderCostIQ() {
+  const el = document.getElementById('costiq-section');
+  const all = (portfolioData?.jobs || []).filter(j => j.contractFinal);
+  if (!all.length) { el.innerHTML = '<div class="billing-empty">No completed-job data available.</div>'; return; }
+  const top = ciAgg(all);
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  const band = `<div class="kpi-band">
+    ${card('Completed jobs', all.length, '')}
+    ${card('Contract value', fmtCompact(top.contract), '')}
+    ${card('Avg as-bid margin', pct(top.bidMargin), '')}
+    ${card('Avg actual margin', pct(top.actMargin), '')}
+  </div>`;
+  const wts = [...new Set(all.map(j => j.workType).filter(Boolean))].sort();
+  const opts = ['all', ...wts].map(w => `<option value="${w}"${w === costiqWT ? ' selected' : ''}>${w === 'all' ? 'All work types' : ciWT(w)}</option>`).join('');
+  const classJobs = costiqWT === 'all' ? all : all.filter(j => j.workType === costiqWT);
+  const stamp = portfolioData?.generated ? `<div class="billing-stamp">Foundation · ${fmtDate(portfolioData.generated)} · completed 2023+</div>` : '';
+  el.innerHTML = stamp + band
+    + `<div class="billing-block"><div class="billing-sub">RYC's own completed-job actuals, turned into estimating benchmarks. <strong>As-bid margin</strong> = (orig contract − orig cost) ÷ orig contract. <strong>Actual margin</strong> = (final contract − actual cost) ÷ final contract. <strong>Gain/Fade</strong> = actual − as-bid (did jobs like this beat the bid). <strong>Buyout</strong> = estimate − actual by cost class (how far under the bid cost we landed; % sub = subcontract share). Margins are contract-weighted. Phase 1 of the CivicScope estimating-intelligence build — these benchmarks become the ground truth the estimating tool reasons from.</div></div>`
+    + `<div class="billing-block"><h3 class="section-header">Benchmarks by client type</h3>${ciBenchRows(all, 'clientType', ciCT)}</div>`
+    + `<div class="billing-block"><h3 class="section-header">Benchmarks by work type</h3>${ciBenchRows(all, 'workType', ciWT)}</div>`
+    + `<div class="billing-block"><h3 class="section-header">Cost composition by cost class <span class="cnt">where the money goes</span>`
+    + `<select onchange="setCostIQWT(this.value)" style="margin-left:auto;padding:4px 8px;border-radius:6px;border:1px solid #d1d5db">${opts}</select></h3>`
+    + `<div class="billing-sub">Actual cost split across Foundation cost classes (subcontract / material / self-perform labor / burden) as a share of total cost${costiqWT === 'all' ? ' across all completed jobs' : ' for ' + ciWT(costiqWT).toLowerCase() + ' jobs'}. The estimating starting point: for a project like this, here is how cost historically splits between bought-out and self-performed work.</div>`
+    + `${ciClassRows(classJobs)}</div>`;
+}
+
+// === Estimating Assist — Phase 2 of the CivicScope GC estimating-intelligence product =========
+// Numbers are GROUNDED in RYC's own completed-job actuals (deterministic, from portfolioData);
+// Claude only adds the judgment layer (narrative + risk flags + posture). It is told NOT to invent
+// cost numbers. This is the "more than AI" distinction: the moat is the data, the AI reasons over it.
+let estimateBuilt = false;
+
+function estAnalogs(ct, wt) {
+  const jobs = (portfolioData?.jobs || []).filter(j => j.contractFinal);
+  let set = jobs.filter(j => j.clientType === ct && j.workType === wt), basis = 'client type + work type';
+  if (set.length < 3) { const s = jobs.filter(j => j.clientType === ct); if (s.length > set.length) { set = s; basis = 'client type (work-type sample too small)'; } }
+  if (set.length < 3) { const s = jobs.filter(j => j.workType === wt); if (s.length > set.length) { set = s; basis = 'work type (client-type sample too small)'; } }
+  if (set.length === 0) { set = jobs; basis = 'full portfolio (no close analogs)'; }
+  return { set, basis };
+}
+
+function ciComp(jobs) {
+  const m = {}; let total = 0;
+  for (const j of jobs) for (const c of (j.buyout?.byClass || [])) { if ((c.act || 0) > 0) { m[c.cls] = (m[c.cls] || 0) + c.act; total += c.act; } }
+  const out = {}; for (const k in m) out[k] = total > 0 ? m[k] / total * 100 : 0;
+  return out;
+}
+
+function renderEstimate() {
+  const el = document.getElementById('estimate-section');
+  if (estimateBuilt) return;  // keep form state across tab switches
+  estimateBuilt = true;
+  const ctOpts = [['school', 'School'], ['municipal', 'Municipal'], ['commercial', 'Commercial'], ['industrial', 'Industrial'], ['private', 'Private / Institutional'], ['mixed_use', 'Mixed Use']]
+    .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const wtOpts = [['new_construction', 'New Construction'], ['renovation', 'Renovation'], ['addition', 'Addition'], ['repair', 'Repair']]
+    .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const inp = 'padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;width:100%';
+  el.innerHTML = `<div class="billing-block" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin-bottom:14px">
+      <strong>📐 Estimating from plans &amp; specs?</strong> This Quick Check is a fast <em>conceptual</em> read (no drawings — early budgeting, go/no-go, or sanity-checking a finished bid). For a full plan-set takeoff grounded in RYC history, use the <a href="/ryc/estimate" style="color:#ea580c;font-weight:600">Estimating Assist tool →</a>
+    </div>
+    <div class="billing-block">
+    <h3 class="section-header">Quick conceptual check <span class="cnt">no plans — grounded in RYC's completed-job history</span></h3>
+    <div class="billing-sub">Spec a project; the tool pulls the closest historical analogs from RYC's completed jobs and returns a <strong>data-grounded</strong> margin/cost read plus an AI advisory layer. The numbers come from RYC's actuals — the AI reasons over them, it does not invent them. For a real estimate from drawings, use the <a href="/ryc/estimate" style="color:#ea580c;font-weight:600">Estimating Assist tool</a>.</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:760px;margin:14px 0">
+      <label>Client type<br><select id="est-ct" style="${inp}">${ctOpts}</select></label>
+      <label>Work type<br><select id="est-wt" style="${inp}">${wtOpts}</select></label>
+      <label>Size (SF) <span class="note">optional</span><br><input id="est-sf" type="number" placeholder="e.g. 25000" style="${inp}"></label>
+      <label>Target contract $ <span class="note">optional</span><br><input id="est-target" type="number" placeholder="e.g. 4000000" style="${inp}"></label>
+      <label style="grid-column:1/3">Scope notes <span class="note">drives the AI risk read</span><br><textarea id="est-scope" rows="3" placeholder="e.g. HVAC + roof replacement on a 1990s elementary, occupied during construction, tight summer window" style="${inp}"></textarea></label>
+    </div>
+    <button onclick="runEstimate()" style="background:#ea580c;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Generate grounded estimate</button>
+    <div id="estimate-results" style="margin-top:18px"></div>
+  </div>`;
+}
+
+async function runEstimate() {
+  const ct = document.getElementById('est-ct').value;
+  const wt = document.getElementById('est-wt').value;
+  const sf = Number(document.getElementById('est-sf').value) || null;
+  const target = Number(document.getElementById('est-target').value) || null;
+  const scope = (document.getElementById('est-scope').value || '').trim();
+  const out = document.getElementById('estimate-results');
+
+  const { set, basis } = estAnalogs(ct, wt);
+  const a = ciAgg(set);
+  const comp = ciComp(set);
+  // $/SF from analogs that carry sqft (thin coverage — labeled)
+  const withSf = set.filter(j => j.sqft > 0 && j.contractFinal > 0);
+  const psfArr = withSf.map(j => j.contractFinal / j.sqft).sort((x, y) => x - y);
+  const psfMed = psfArr.length ? psfArr[Math.floor(psfArr.length / 2)] : null;
+
+  const card = (label, val, cls) => `<div class="kpi-card"><div class="kpi-val ${cls || ''}">${val}</div><div class="kpi-label">${label}</div></div>`;
+  const compStr = Object.entries(comp).sort((x, y) => y[1] - x[1]).filter(([, v]) => v >= 1)
+    .map(([k, v]) => `${ciClass(k)} ${Math.round(v)}%`).join(' · ') || '—';
+
+  // Deterministic grounded panel — render immediately
+  let targetLine = '';
+  if (target && a.actMargin != null) {
+    const expCost = target * (1 - a.actMargin / 100);
+    const expMargin = target - expCost;
+    targetLine = `<div class="billing-sub" style="margin-top:8px">At a <strong>${fmtCompact(target)}</strong> contract, this segment's historical <strong>${a.actMargin.toFixed(1)}%</strong> actual margin implies ~<strong>${fmtCompact(expCost)}</strong> cost / ~<strong>${fmtCompact(expMargin)}</strong> gross margin. As-bid for the segment runs ${a.bidMargin != null ? a.bidMargin.toFixed(1) + '%' : '—'}${a.gainFade != null ? ` (typically ${a.gainFade >= 0 ? 'gains' : 'fades'} ${Math.abs(a.gainFade).toFixed(1)} pts bid→actual)` : ''}.</div>`;
+  }
+  const psfLine = psfMed ? `<div class="billing-sub" style="margin-top:8px">Historical <strong>$${Math.round(psfMed).toLocaleString()}/SF</strong> (median of ${withSf.length} analog${withSf.length === 1 ? '' : 's'} with SF on file)${sf ? ` → at ${sf.toLocaleString()} SF ≈ <strong>${fmtCompact(psfMed * sf)}</strong>` : ''}. <span class="note">SF coverage is thin — directional.</span></div>` : '';
+
+  const analogList = set.slice(0, 8).map(j => `${esc(j.name)} (${j.bidMarginPct != null ? j.bidMarginPct.toFixed(0) + '%→' : ''}${j.projectedMarginPct != null ? j.projectedMarginPct.toFixed(0) + '%' : '—'})`).join(' · ');
+
+  out.innerHTML = `<div class="billing-block">
+      <h3 class="section-header">Grounded benchmarks <span class="cnt">${set.length} analog jobs · matched on ${esc(basis)}</span></h3>
+      <div class="kpi-band">
+        ${card('As-bid margin', pct(a.bidMargin), '')}
+        ${card('Actual margin', pct(a.actMargin), '')}
+        ${card('Gain/Fade', a.gainFade == null ? '—' : (a.gainFade >= 0 ? '+' : '') + a.gainFade.toFixed(1) + ' pts', '')}
+        ${card('Buyout (%sub)', a.buyTotal ? fmtCompact(a.buyTotal) + (a.buySubPct != null ? ' / ' + Math.round(a.buySubPct) + '%' : '') : '—', '')}
+      </div>
+      <div class="billing-sub" style="margin-top:8px"><strong>Expected cost composition:</strong> ${compStr}</div>
+      ${targetLine}${psfLine}
+      <div class="billing-sub" style="margin-top:8px"><strong>Analogs:</strong> ${analogList}</div>
+    </div>
+    <div class="billing-block" id="estimate-ai"><h3 class="section-header">AI advisory read</h3><div class="billing-sub">Analyzing against RYC history…</div></div>`;
+
+  // AI judgment layer
+  const benchmarks = {
+    segment: { clientType: ct, workType: wt, sizeSF: sf, targetContract: target },
+    matchBasis: basis, analogJobCount: set.length,
+    asBidMarginPct: a.bidMargin == null ? null : +a.bidMargin.toFixed(1),
+    actualMarginPct: a.actMargin == null ? null : +a.actMargin.toFixed(1),
+    gainFadePts: a.gainFade == null ? null : +a.gainFade.toFixed(1),
+    buyoutTotal: a.buyTotal, buyoutSubPct: a.buySubPct == null ? null : Math.round(a.buySubPct),
+    costComposition: Object.fromEntries(Object.entries(comp).map(([k, v]) => [ciClass(k), Math.round(v)])),
+    medianDollarPerSF: psfMed ? Math.round(psfMed) : null,
+    analogJobs: set.slice(0, 10).map(j => ({ name: j.name, asBid: j.bidMarginPct, actual: j.projectedMarginPct })),
+  };
+  const sys = `You are a senior preconstruction/estimating advisor for R. Yoder Construction (RYC), a general contractor in northern Indiana. You are given RYC's OWN historical performance benchmarks for projects similar to a new one, plus the new project's scope. RYC is overwhelmingly a buyout shop (most cost is subcontracted), so margin is made or lost on the buyout spread. DO NOT invent or restate dollar cost figures — the numbers are already computed and shown to the user; your job is judgment, not arithmetic. Be direct and construction-literate. Respond ONLY with minified JSON: {"read": "2-4 sentence interpretation of how jobs like this have actually performed and what it means for bidding this one", "risks": ["3-5 specific risk flags tailored to THIS project type, the gain/fade pattern, and the scope notes"], "recommendation": "1-2 sentence margin/contingency/buyout posture"}.`;
+  const userMsg = `New project scope notes: ${scope || '(none provided)'}\n\nRYC historical benchmarks for this segment (JSON):\n${JSON.stringify(benchmarks)}`;
+
+  try {
+    const resp = await fetch('/api/claude', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1100, temperature: 0.4, system: sys, messages: [{ role: 'user', content: userMsg }] }),
+    });
+    const d = await resp.json();
+    const text = d?.content?.[0]?.text || '';
+    let p = null;
+    try { p = JSON.parse(text); } catch { const m = text.match(/\{[\s\S]*\}/); if (m) { try { p = JSON.parse(m[0]); } catch {} } }
+    const aiEl = document.getElementById('estimate-ai');
+    if (p && (p.read || p.risks)) {
+      const risks = (p.risks || []).map(r => `<li>${esc(r)}</li>`).join('');
+      aiEl.innerHTML = `<h3 class="section-header">AI advisory read <span class="cnt">Claude · grounded in the benchmarks above</span></h3>
+        ${p.read ? `<div class="billing-sub" style="margin-bottom:10px">${esc(p.read)}</div>` : ''}
+        ${risks ? `<strong style="font-size:13px">Risk flags</strong><ul style="margin:6px 0 10px 18px;font-size:13px;line-height:1.5">${risks}</ul>` : ''}
+        ${p.recommendation ? `<div class="billing-sub"><strong>Recommended posture:</strong> ${esc(p.recommendation)}</div>` : ''}`;
+    } else if (text) {
+      aiEl.innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-sub" style="white-space:pre-wrap">${esc(text)}</div>`;
+    } else {
+      aiEl.innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-empty">No response — the benchmarks above stand on their own.</div>`;
+    }
+  } catch (e) {
+    document.getElementById('estimate-ai').innerHTML = `<h3 class="section-header">AI advisory read</h3><div class="billing-empty">AI layer unavailable (${esc(e.message || 'error')}). The grounded benchmarks above are unaffected.</div>`;
+  }
+}
+
+// --- Stoplight filter state ---
+let activeSLFilter = 'all';
+function setSLFilter(val) {
+  activeSLFilter = val;
+  document.querySelectorAll('#sl-filter button').forEach(b => b.classList.toggle('active', b.dataset.sl === val));
+  renderJobs();
+}
+
+// --- PM dropdown population ---
+function populatePMFilter() {
+  const sel = document.getElementById('filter-pm');
+  if (!sel) return;
+  const cur = sel.value;
+  const pms = new Set();
+  for (const j of (activeData?.jobs || [])) { const n = pmName(j); if (n) pms.add(n); }
+  // sort the dropdown by first name ("First Last")
+  sel.innerHTML = '<option value="">All PMs</option>' + [...pms].sort((a, b) => a.localeCompare(b)).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if ([...pms].includes(cur)) sel.value = cur;
+}
+
+// --- Search, Filter & Sort ---
+function getStoplightOrder(job) {
+  const sl = getStoplight(job, job);
+  return sl.color === 'red' ? 0 : sl.color === 'amber' ? 1 : sl.color === 'green' ? 2 : 3;
+}
+
+function filterAndSortJobs(jobs) {
+  const query = (document.getElementById('job-search')?.value || '').toLowerCase().trim();
+  const sortBy = document.getElementById('job-sort')?.value || 'stoplight';
+  const stageFilter = document.getElementById('filter-stage')?.value || '';
+  const clientFilter = document.getElementById('filter-client')?.value || '';
+  const pmFilter = document.getElementById('filter-pm')?.value || '';
+
+  let filtered = jobs;
+
+  // Text search
+  if (query) {
+    filtered = filtered.filter(j => {
+      const haystack = [j.name, j.client, pmName(j)].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
+  }
+
+  // Stoplight filter
+  if (activeSLFilter !== 'all') {
+    filtered = filtered.filter(j => {
+      const c = getStoplight(j, j).color;
+      if (activeSLFilter === 'atrisk') return c === 'red' || c === 'amber';
+      return c === activeSLFilter;
+    });
+  }
+
+  // Stage filter
+  if (stageFilter) {
+    if (stageFilter === 'closeout') {
+      filtered = filtered.filter(j => CLOSEOUT_STAGES.has(j.stage));
+    } else {
+      filtered = filtered.filter(j => {
+        const s = j.stage || ((!j.budget && (j.pctComplete == null || j.pctComplete === 0)) ? 'Pre-Construction' : null);
+        return s === stageFilter;
+      });
+    }
+  }
+
+  // Client type filter
+  if (clientFilter) {
+    filtered = filtered.filter(j => j.clientType === clientFilter);
+  }
+
+  // PM filter
+  if (pmFilter) {
+    filtered = filtered.filter(j => pmName(j) === pmFilter);
+  }
+
+  // Sort
+  filtered.sort((a, b) => {
+    if (sortBy === 'stoplight') {
+      const sa = getStoplightOrder(a), sb = getStoplightOrder(b);
+      if (sa !== sb) return sa - sb;
+      return (b.contractValue || 0) - (a.contractValue || 0);
+    }
+    if (sortBy === 'contract') return (b.contractValue || 0) - (a.contractValue || 0);
+    if (sortBy === 'finish') {
+      const fa = a.projectedFinish || a.completionDate || '9999', fb = b.projectedFinish || b.completionDate || '9999';
+      return fa < fb ? -1 : fa > fb ? 1 : 0;
+    }
+    if (sortBy === 'pct') return (b.pctComplete || 0) - (a.pctComplete || 0);
+    if (sortBy === 'pm') {
+      const pa = pmName(a), pb = pmName(b);
+      if (!pa && !pb) return 0;
+      if (!pa) return 1; if (!pb) return -1;   // unassigned sorts to the bottom
+      return pa.localeCompare(pb);             // "First Last" → alphabetical by first name
+    }
+    return 0;
+  });
+
+  return filtered;
+}
+
+// --- Jobs ---
+function renderJobs() {
+  const grid = document.getElementById('job-grid');
+  let cards = [];
+  if (currentView === 'active') {
+    for (const job of filterAndSortJobs(getActiveJobs())) {
+      cards.push(renderActiveCard(job, job));
+    }
+  } else if (currentView === 'closeout') {
+    for (const job of filterAndSortJobs(getCloseoutJobs())) {
+      cards.push(renderActiveCard(job, job));
+    }
+  } else if (currentView === 'completed') {
+    for (const job of (portfolioData?.jobs || [])) {
+      cards.push(renderCompletedCard(job));
+    }
+  }
+  grid.innerHTML = cards.length ? cards.join('') : '<div style="color:var(--muted);padding:20px">No jobs to display</div>';
+}
+
+function renderActiveCard(job, live) {
+  const contractVal = job.contractValue || live?.contractValue || (live?.budget?.revised || live?.budget?.original || 0);
+  const pctComp = live?.pctComplete;
+  const costOverrun = live?.costOverrun;
+  const stage = live?.stage || null;
+  const startDate = live?.start;
+  const finishDate = live?.projectedFinish || live?.completionDate;
+  const sl = getStoplight(job, live);
+
+  // Schedule text — days remaining or overdue
+  let schedText = '', schedClass = '';
+  if (finishDate) {
+    const diff = Math.round((new Date(finishDate) - new Date()) / (1000 * 60 * 60 * 24));
+    if (diff < 0 && live?.verifyStatus) { schedText = 'Verify status in Procore'; schedClass = 'flag-amber'; }
+    else if (diff < 0) { schedText = Math.abs(diff) + ' days overdue'; schedClass = 'flag-red'; }
+    else { schedText = diff + ' days remaining'; schedClass = diff < 30 ? 'flag-amber' : ''; }
+  }
+
+  // Contracted margin
+  const cMargin = contractedMargin(job);
+  const mtd = marginToDate(job);
+  let cMarginHtml = '', mtdHtml = '';
+  if (cMargin != null) {
+    cMarginHtml = `<span class="v ${cMargin === 0 ? 'margin-missing' : marginColorClass(cMargin)}">${pct(cMargin)}</span><br><span class="note">${cMargin === 0 ? 'Verify budget in Procore' : 'At signing'}</span>`;
+    if (pctComp != null && pctComp >= 10 && mtd != null) {
+      const arrow = mtd >= cMargin ? '<span style="color:var(--green)"> ↑</span>' : '<span style="color:var(--red)"> ↓</span>';
+      mtdHtml = `<span class="v ${marginColorClass(mtd)}">${pct(mtd)}${arrow}</span><br><span class="note">vs ${pct(cMargin)} contracted</span>`;
+    } else {
+      mtdHtml = `<span class="v margin-missing">\u2014</span><br><span class="note">Available at 10% complete</span>`;
+    }
+  } else {
+    cMarginHtml = `<span class="v margin-missing">\u2014</span><br><span class="note">No budget in Procore</span>`;
+    mtdHtml = `<span class="v margin-missing">\u2014</span>`;
+  }
+
+  // % Complete display
+  let pctDisp = '\u2014', pctNote = '';
+  if (pctComp != null) {
+    pctDisp = pct(pctComp);
+    if (pctComp > 100) pctDisp = `<span class="flag-red">${pct(pctComp)}</span><br><span class="note">Over contract</span>`;
+  } else {
+    pctNote = '<br><span class="note">Not set in Procore</span>';
+  }
+
+  // Change orders
+  const co = live?.changeOrders;
+  const coVal = co?.netValue || 0;
+  const coExceedsThreshold = contractVal > 0 && Math.abs(coVal) > contractVal * 0.05;
+
+  // Pre-construction pending state
+  const isPreconPending = !job.budget && (pctComp == null || pctComp === 0);
+  const stageDisplay = stage || (isPreconPending ? 'Pre-Construction' : null);
+
+  // Card face is intentionally lean (Balanced density) — the 3 numbers leadership scans + schedule +
+  // stoplight reason. Contracted margin, change-order detail, the Foundation line, billing position,
+  // gain/fade, and cost breakdown all live in the click-through popout (renderActiveDetail).
+  const cs = renderCustomerSuccess(job);
+  return `
+    <div class="job-card clickable sl-${sl.color}" onclick="openActiveDetail('${esc(job.projectNumber)}')" title="Click for project detail">
+      <div class="job-header">
+        <div>
+          <div class="job-name"><span class="stoplight stoplight-${sl.color}"></span>${esc(job.name)}</div>
+          <div class="job-client">${esc(job.client)}</div>
+          ${renderPeopleLine(job)}
+        </div>
+        <div class="badges">
+          ${stageDisplay ? `<span class="badge badge-stage">${esc(stageDisplay)}</span>${stageDisplay === 'Pre-Construction' && pctComp > 20 ? '<span class="stage-warn" style="color:var(--amber)">⚠<span class="tooltip">Stage may need updating in Procore</span></span>' : ''}` : '<span class="badge badge-stage-null">Stage not set</span>'}
+          <span class="badge badge-${job.clientType}">${typeName(job.clientType)}</span>
+        </div>
+      </div>
+      <div class="job-stats${isPreconPending ? ' precon-pending' : ''}">
+        <div class="job-stat"><span class="k">Contract</span><span class="v">${fmtCompact(contractVal)}</span>${(job.flags || []).some(f => f.type === 'contract') ? `<br><span class="contract-flag">⚑ Procore ${fmtCompact(job.procoreContractValue)}</span>` : ''}</div>
+        <div class="job-stat"><span class="k">% complete</span><span class="v">${pctDisp}${pctNote}</span></div>
+        <div class="job-stat"><span class="k">Margin to date</span>${mtdHtml}</div>
+        <div class="job-stat"><span class="v">${fmtShort(startDate)} → ${fmtShort(finishDate)}</span><br><span class="${schedClass}">${schedText}</span></div>
+        ${isPreconPending ? '<div class="precon-note">Financial data will appear once contract is entered in Procore.</div>' : ''}
+      </div>
+      ${sl.reasons?.length ? `<div class="sl-reason sl-reason-${sl.color}">${sl.reasons.map(r => r.text).join(' · ')}</div>` : ''}
+      ${cs ? `<div onclick="event.stopPropagation()">${cs}</div>` : ''}
+    </div>`;
+}
+
+// Customer Success block — Jake's owner visits (kickoff / quarterly progress / closeout),
+// open issues, and opportunities, sourced live from Buildr via /api/ryc-buildr and keyed by
+// project number. Collapsed by default; click to expand the visit log. Buildr is the system
+// of record (entry happens there); this is the read-only leadership view.
+function renderCustomerSuccess(job) {
+  if (!buildrData || !buildrData.jobs) return '';
+  const rec = buildrData.jobs[job.projectNumber];
+  // No record: nudge adoption on active jobs only; stay silent on closeout/other.
+  if (!rec || (!rec.meetings.length && !rec.openTasks.length && !rec.opportunities.length)) {
+    return `<div class="cs-block cs-empty"><span class="cs-tag">🤝 Client Relations</span> <span class="cs-none">No owner visits logged in Buildr yet</span></div>`;
+  }
+  const chip = (label, on, n) =>
+    `<span class="cs-chip ${on ? 'cs-on' : 'cs-off'}">${label}${n != null && n > 0 ? ' ×' + n : (on ? ' ✓' : ' –')}</span>`;
+  const c = rec.counts || {};
+  const last = rec.daysSinceLastMeeting;
+  const lastTxt = last == null ? 'no visits' : last === 0 ? 'today' : last + 'd ago';
+  const issues = rec.openTasks.length, opps = rec.opportunities.length;
+  const attn = rec.needsAttention ? ' cs-attn' : '';
+
+  const mtgRows = rec.meetings.map(m => `
+    <div class="cs-row">
+      <span class="cs-mtype cs-${m.type}">${m.type}</span>
+      <span class="cs-date">${fmtShort(m.at)}</span>
+      <div class="cs-body"><div class="cs-title">${esc(m.title || '')}</div>${m.notes ? `<div class="cs-notes">${esc(m.notes).slice(0, 600)}</div>` : ''}</div>
+    </div>`).join('');
+  const issueRows = issues ? `<div class="cs-sub">Open issues / follow-ups</div>` + rec.openTasks.map(t =>
+    `<div class="cs-row cs-issue"><span class="cs-flag">${t.issue ? '⚑' : '•'}</span><div class="cs-body"><div class="cs-title">${esc(t.title || '')}</div><div class="cs-meta">${esc(t.assignedTo || 'unassigned')}${t.deadline ? ' · due ' + esc(t.deadline) : ''}</div></div></div>`).join('') : '';
+  const oppRows = opps ? `<div class="cs-sub">Opportunities identified</div>` + rec.opportunities.map(o =>
+    `<div class="cs-row cs-opp"><span class="cs-flag">★</span><div class="cs-body"><div class="cs-title">${esc(o.title || '')}</div>${o.notes ? `<div class="cs-notes">${esc(o.notes).slice(0, 400)}</div>` : ''}</div></div>`).join('') : '';
+
+  return `
+    <details class="cs-block${attn}">
+      <summary>
+        <span class="cs-tag">🤝 Client Relations</span>
+        ${chip('Kickoff', c.kickoff > 0)}
+        ${chip('Progress', c.progress > 0, c.progress)}
+        ${chip('Closeout', c.closeout > 0)}
+        <span class="cs-summary-meta">last visit ${lastTxt}${issues ? ` · <span class="cs-i">${issues} open</span>` : ''}${opps ? ` · <span class="cs-o">${opps} opp${opps > 1 ? 's' : ''}</span>` : ''}</span>
+      </summary>
+      <div class="cs-detail">${mtgRows || '<div class="cs-none">No visits logged yet</div>'}${issueRows}${oppRows}</div>
+    </details>`;
+}
+
+// Completed cards tell the PROJECT STORY (outcome), not live operations: how the contract grew,
+// whether we beat or missed the as-bid margin, and how long it took. Financials = Foundation; the
+// operational detail (RFIs/submittals/COs) is demoted to a muted footer where Procore has it.
+function renderCompletedCard(job) {
+  const actual = getBestMargin(job);            // achieved margin
+  const bid = job.bidMarginPct;                 // as-bid margin
+  const delta = (actual != null && bid != null) ? actual - bid : null;
+  const arrow = delta == null ? '' : delta >= 0.5 ? ' <span class="flag-green">\u25b2</span>'
+              : delta <= -0.5 ? ' <span class="flag-red">\u25bc</span>' : '';
+  const ovr = job.scheduleOverrunMonths, dur = job.durationMonths;
+  // Data-source tiles (bottom-right): every card shows the full source set; sources not queried for
+  // this card are kept but struck through in red.
+  const srcTile = (label, on, cls) => `<span class="badge ${cls}${on ? '' : ' badge-off'}">${label}</span>`;
+  // SharePoint is used for backend verification only — not a card-facing data source, so not tiled.
+  const sourceTiles = `<div class="card-sources">`
+    + srcTile('Foundation', job.source === 'foundation', 'badge-foundation')
+    + srcTile('Procore', !!job.procoreId, 'badge-procore')
+    + `</div>`;
+
+  const coNote = (job.coPct != null && job.changeOrders)
+    ? `<div class="note">${job.changeOrders >= 0 ? '+' : ''}${fmtCompact(job.changeOrders)} COs (${pct(job.coPct)})</div>` : '';
+  // Only show "vs plan" when the planned duration is internally consistent (start→planned ≥ 1 mo, same
+  // source as duration). Procore's projected-finish dates are often stale and otherwise produce nonsense
+  // like "9 mo duration · +11 mo vs plan" (implying a negative planned duration).
+  const planned = job.plannedMonths;
+  const showOvr = ovr != null && planned != null && planned >= 1;
+  const ovrNote = !showOvr ? '' : ovr <= 0 ? '<div class="note flag-green">on time</div>'
+    : `<div class="note ${ovr > 6 ? 'flag-red' : ovr > 2 ? 'flag-amber' : ''}">+${ovr} mo vs plan (${planned}→${dur} mo)</div>`;
+
+  const bits = [`Final cost ${fmtCompact(job.directCost)}`];
+  if (job.procoreId) {
+    const ops = [];
+    if (job.rfis) ops.push(`${job.rfis} RFIs`);
+    if (job.submittals) ops.push(`${job.submittals} submittals`);
+    if (job.changeEvents) ops.push(`${job.changeEvents} change events`);
+    if (job.sqft) ops.push(`${job.sqft.toLocaleString()} sqft`);
+    if (ops.length) bits.push('Procore: ' + ops.join(' \u00b7 '));
+  }
+  const footer = `<div class="note" style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">${bits.join(' &nbsp;\u00b7&nbsp; ')}</div>`;
+
+  return `
+    <div class="job-card clickable" onclick="openDetail('${job.id}')" title="Click for project detail">
+      <div class="job-header">
+        <div><div class="job-name">${esc(job.name)}</div><div class="job-client">${esc(job.client)}</div></div>
+        <div class="badges">
+          <span class="badge badge-completed">Completed</span>
+          <span class="badge badge-${job.clientType}">${typeName(job.clientType)}</span>
+        </div>
+      </div>
+      ${job.pmName ? `<div class="job-people">PM <strong>${esc(job.pmName)}</strong></div>` : ''}
+      <div class="job-stats">
+        <div class="job-stat"><span class="k">Contract (orig \u2192 final)</span><span class="v">${fmtCompact(job.contractOriginal)} \u2192 ${fmtCompact(job.contractFinal)}</span>${coNote}</div>
+        <div class="job-stat"><span class="k">Margin (bid \u2192 actual)</span><span class="v">${bid != null ? pct(bid) : '\u2014'} \u2192 <span class="${marginClass(actual)} ${dqClass(job.dataQuality?.margin)}">${actual != null ? pct(actual) : '\u2014'}</span>${arrow}</span></div>
+        <div class="job-stat"><span class="k">Duration</span><span class="v">${dur != null ? dur + ' mo' : '\u2014'}</span>${ovrNote}</div>
+        <div class="job-stat"><span class="k">Completed</span><span class="v">${fmtShort(job.actualCompletion)}</span></div>
+      </div>
+      ${job.buyout && job.buyout.total > 25000 ? `<div class="buyout-line">Buyout <strong>${fmtCompact(job.buyout.total)}</strong>${job.buyout.subPct > 0 ? ` · ${job.buyout.subPct}% subcontract` : ''} <span class="note">(estimate − actual by cost class)</span></div>` : ''}
+      ${footer}
+      ${sourceTiles}
+    </div>`;
+}
+</script>
+<script src="/ryc-data/data-sources.js"></script>
+</body>
+</html>

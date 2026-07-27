@@ -11,15 +11,15 @@ function bust(u){ return u+(u.indexOf("?")>-1?"&":"?")+"t="+Date.now(); }
 function getJSON(u){ return fetch(bust(u)).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); }).catch(function(){ return null; }); }
 function loadData(){
   return Promise.all([
-    getJSON("/ryc-dashboard/procore-cache.json"),
+    getJSON("/ryc-data/procore-cache.json"),
     getJSON(CRM+"/api/ryc-foundation"),
     getJSON(CRM+"/api/ryc-ar"),
     getJSON(CRM+"/api/ryc-buildr"),
-    getJSON("/ryc-dashboard/ryc-portfolio.json"),
-    getJSON("/ryc-dashboard/ryc-subcontractors.json"),
+    getJSON("/ryc-data/ryc-portfolio.json"),
+    getJSON("/ryc-data/ryc-subcontractors.json"),
     getJSON(CRM+"/api/ryc-buildr-forecast"),
-    getJSON("/ryc-dashboard/bc-bidboard.json"),
-    getJSON("/ryc-dashboard/pm-history.json")
+    getJSON("/ryc-data/bc-bidboard.json"),
+    getJSON("/ryc-data/pm-history.json")
   ]).then(function(r){
     activeData=r[0]; foundationData=r[1]; arData=r[2]; buildrData=r[3]; portfolioData=r[4]; subsData=r[5]; forecastData=r[6]; bcData=r[7]; pmHistData=r[8]; loadedAt=new Date();
     mergeFoundation();
