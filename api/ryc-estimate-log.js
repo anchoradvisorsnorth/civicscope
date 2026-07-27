@@ -2,7 +2,8 @@
 // Gate password verified SERVER-side; service key never ships to the browser.
 // Actions: save (insert one run), list (recent runs, light columns), get (full row).
 
-const LIST_COLS = 'id,created_at,estimator,project_name,location,client_type,work_type,cost_low,cost_high,cost_mid,confidence,version,files,bc_project_id,bc_url';
+const LIST_COLS_BASE = 'id,created_at,estimator,project_name,location,client_type,work_type,cost_low,cost_high,cost_mid,confidence,version,files,bc_project_id,bc_url';
+const LIST_COLS = LIST_COLS_BASE + ',workflow'; // workflow may not exist yet — list falls back to BASE if the column is absent
 
 const SAVE_FIELDS = [
   'estimator', 'project_name', 'location', 'client_type', 'work_type', 'size_sf',
@@ -55,8 +56,13 @@ export default async function handler(req, res) {
 
     if (action === 'list') {
       const limit = Math.min(Number(req.body.limit) || 200, 500);
-      const r = await sb(`ryc_estimates?tenant=eq.ryc&select=${LIST_COLS}&order=created_at.desc&limit=${limit}`);
-      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+      let r = await sb(`ryc_estimates?tenant=eq.ryc&select=${LIST_COLS}&order=created_at.desc&limit=${limit}`);
+      if (!r.ok) {
+        // workflow column not migrated yet → retry without it so the board still loads
+        const txt = await r.text();
+        if (/workflow/.test(txt)) r = await sb(`ryc_estimates?tenant=eq.ryc&select=${LIST_COLS_BASE}&order=created_at.desc&limit=${limit}`);
+        if (!r.ok) return res.status(r.status).json({ error: r.ok ? '' : txt });
+      }
       return res.status(200).json({ ok: true, runs: await r.json() });
     }
 
@@ -68,6 +74,27 @@ export default async function handler(req, res) {
       const rows = await r.json();
       if (!rows.length) return res.status(404).json({ error: 'Not found' });
       return res.status(200).json({ ok: true, run: rows[0] });
+    }
+
+    // Persist pursuit workflow state (stage + typed checklist) onto an estimate row.
+    // Isolated from `save` so the core estimate log never depends on the workflow column:
+    // returns a soft 200 {ok:false, needs_migration:true} if the column isn't there yet.
+    if (action === 'set_workflow') {
+      const id = String(req.body.id || '');
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
+      const wf = req.body.workflow;
+      if (wf === undefined || wf === null || typeof wf !== 'object') return res.status(400).json({ error: 'workflow object required' });
+      const r = await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc`, {
+        method: 'PATCH', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify({ workflow: wf }),
+      });
+      if (!r.ok) {
+        const txt = await r.text();
+        if (/workflow/.test(txt) && /column|schema|does not exist|PGRST204/i.test(txt)) {
+          return res.status(200).json({ ok: false, needs_migration: true, detail: 'workflow column not present — run the Phase C migration' });
+        }
+        return res.status(r.status).json({ error: txt });
+      }
+      return res.status(200).json({ ok: true });
     }
 
     // Stamp a BC draft-project linkage onto an existing estimate row so the tool

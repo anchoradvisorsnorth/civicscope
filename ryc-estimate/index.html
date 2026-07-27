@@ -85,6 +85,24 @@
   .section-header { font-size:15px; margin:0 0 6px; display:flex; align-items:center; }
   .cnt { font-size:12px; color:var(--muted); font-weight:400; margin-left:8px; }
   .muted-cell { color:var(--muted); }
+  /* pursuit workflow */
+  .stagebar { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0 14px; }
+  .stage-step { padding:5px 12px; border:1px solid var(--line); background:#fff; border-radius:20px; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; font-family:inherit; }
+  .stage-step.done { background:#e0e7ff; border-color:#c7d2fe; color:#3730a3; }
+  .stage-step.current { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .stage-step.lost.current { background:#dc2626; border-color:#dc2626; }
+  .ck-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .ck-row:last-child { border-bottom:none; }
+  .ck-name { font-weight:600; font-size:13px; min-width:130px; }
+  .ck-pill { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+  .ck-na { background:#f3f4f6; color:#6b7280; } .ck-needed { background:#fef9c3; color:#854d0e; }
+  .ck-requested { background:#ffedd5; color:#9a3412; } .ck-received { background:#dcfce7; color:#166534; }
+  .ck-done { background:#dcfce7; color:#166534; } .ck-open { background:#f3f4f6; color:#6b7280; }
+  .ck-actions { display:flex; gap:6px; align-items:center; margin-left:auto; flex-wrap:wrap; }
+  .btn-sm { padding:5px 11px; font-size:12px; border-radius:7px; background:var(--accent); color:#fff; border:none; cursor:pointer; font-weight:600; font-family:inherit; }
+  .btn-sm.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .ck-date { padding:4px 7px; border:1px solid var(--line); border-radius:6px; font-size:12px; font-family:inherit; }
+  .chip { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin:1px 2px; }
 </style>
 </head>
 <body>
@@ -103,7 +121,7 @@
 <div id="app">
   <header>
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.8.2 · plan takeoff · spec-book scope constraints · autofill · market sub-pricing · BC draft loader (dup-guard) · run history</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.9.0 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow (status · bonding/builders-risk · pre-bid meeting)</div></div>
   </header>
 
   <div class="estnav">
@@ -170,6 +188,11 @@
         <div><div style="font-size:20px;font-weight:700" id="costMid">—</div><div class="mid">midpoint</div></div>
         <div id="confTag" class="tag"></div>
       </div>
+    </div>
+
+    <div class="card" id="pursuitCard" style="display:none">
+      <h3 style="margin-top:0">Pursuit status <span class="note">— tracks this estimate through the pre-bid workflow</span></h3>
+      <div id="pursuitBody"></div>
     </div>
 
     <div class="card">
@@ -498,6 +521,7 @@ async function runEstimate() {
   const bm = segBenchmarks(inp.ct, inp.wt, inp.name);
   setLoading(true);
   window._bcLoaded = null; // fresh estimate — no BC draft linked yet
+  window._workflow = defaultWF(); window._wfNeedsMigration = false;
   const runStart = Date.now();
   let runBatches = uploadedFiles.length ? splitIntoBatches(uploadedFiles).length : 0;
   try {
@@ -816,9 +840,222 @@ async function bcCreate(btn) {
   }
 }
 
+/* ===== Pursuit workflow — operating state per estimate (Phase C, 2026-07-27) =====
+   Each saved estimate carries a `workflow` = { stage, checklist{...}, updated_at }.
+   Stage = the spine; checklist items are TYPED: status (bonding, builders_risk),
+   derived (bc, quotes — computed, not stored), event (prebid_meeting — dated → calendar).
+   Persisted via api/ryc-estimate-log action 'set_workflow' (isolated; degrades to a
+   migration notice until the workflow column exists). */
+const WF_STAGES = [
+  { key: 'takeoff', label: 'Takeoff' }, { key: 'out_to_bid', label: 'Out to bid' },
+  { key: 'pricing', label: 'Pricing' }, { key: 'submitted', label: 'Submitted' },
+  { key: 'won', label: 'Won' }, { key: 'lost', label: 'Lost' },
+];
+function defaultWF() { return { stage: 'takeoff', checklist: {} }; }
+function curWF() { if (!window._workflow) window._workflow = defaultWF(); return window._workflow; }
+
+async function persistWF() {
+  const wf = curWF(); wf.updated_at = new Date().toISOString();
+  if (Array.isArray(historyCache)) { const row = historyCache.find(r => r.id === window._runId); if (row) row.workflow = wf; }
+  if (!window._runId) return;
+  try {
+    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw: 'ryc2026', action: 'set_workflow', id: window._runId, workflow: wf }) });
+    const d = await r.json().catch(() => null);
+    window._wfNeedsMigration = !!(d && d.needs_migration);
+    if (window._wfNeedsMigration) renderPursuit();
+  } catch {}
+}
+function setStage(k) { curWF().stage = k; persistWF(); renderPursuit(); }
+function setCk(item, status) { const c = curWF().checklist; c[item] = Object.assign({}, c[item], { status }); persistWF(); renderPursuit(); }
+function setMeeting() {
+  const d = document.getElementById('mtg-date'), l = document.getElementById('mtg-loc');
+  curWF().checklist.prebid_meeting = { date: d ? d.value : '', location: l ? l.value : '' };
+  persistWF(); renderPursuit();
+}
+
+// Derived checklist state (not stored): BC load + quote coverage
+function bcState() { return (window._bcLoaded && (window._bcLoaded.url || window._bcLoaded.id)) ? 'loaded' : 'none'; }
+function quoteState() { const m = (window._lastDivisions || []).length; const n = Object.keys(quotes || {}).filter(k => /^\d+$/.test(k)).length; return { n, m }; }
+
+function ckPill(s) { const L = { na: 'N/A', needed: 'Needed', requested: 'Requested', received: 'Received' }; return `<span class="ck-pill ck-${s || 'na'}">${L[s || 'na']}</span>`; }
+function statusRow(item, label, genLabel, genFn) {
+  const st = (curWF().checklist[item] || {}).status || 'na';
+  const sel = `<select class="ck-date" onchange="setCk('${item}',this.value)">` +
+    ['na', 'needed', 'requested', 'received'].map(v => `<option value="${v}"${v === st ? ' selected' : ''}>${{ na: 'N/A', needed: 'Needed', requested: 'Requested', received: 'Received' }[v]}</option>`).join('') + `</select>`;
+  return `<div class="ck-row"><span class="ck-name">${label}</span>${ckPill(st)}
+    <div class="ck-actions"><button class="btn-sm" onclick="${genFn}">📄 ${genLabel}</button>${sel}</div></div>`;
+}
+
+function renderPursuit() {
+  const el = document.getElementById('pursuitBody'); if (!el) return;
+  document.getElementById('pursuitCard').style.display = 'block';
+  const wf = curWF();
+  const curIdx = WF_STAGES.findIndex(s => s.key === wf.stage);
+  const spineIdx = ['won', 'lost'].includes(wf.stage) ? 3 : curIdx; // won/lost sit past 'submitted'
+  const stageBar = WF_STAGES.map((s, i) => {
+    let cls = 'stage-step';
+    if (s.key === wf.stage) cls += ' current' + (s.key === 'lost' ? ' lost' : '');
+    else if (i <= spineIdx && !['won', 'lost'].includes(s.key)) cls += ' done';
+    return `<button class="${cls}" onclick="setStage('${s.key}')">${s.label}</button>`;
+  }).join('');
+
+  const q = quoteState();
+  const bc = bcState();
+  const bcChip = bc === 'loaded' ? '<span class="chip ck-done">BC: loaded ✓</span>' : '<span class="chip ck-open">BC: not loaded</span>';
+  const qChip = q.m ? `<span class="chip ${q.n >= q.m && q.m ? 'ck-done' : 'ck-open'}">Quotes: ${q.n} of ${q.m} priced</span>` : '';
+
+  const mtg = wf.checklist.prebid_meeting || {};
+  const hasMtg = !!mtg.date;
+  const mtgRow = `<div class="ck-row"><span class="ck-name">Pre-bid meeting</span>
+    ${hasMtg ? `<span class="ck-pill ck-received">📅 ${esc(new Date(mtg.date).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</span>` : '<span class="ck-pill ck-na">none set</span>'}
+    <div class="ck-actions">
+      <input type="datetime-local" id="mtg-date" class="ck-date" value="${esc(mtg.date || '')}">
+      <input type="text" id="mtg-loc" class="ck-date" placeholder="location" value="${esc(mtg.location || '')}" style="width:130px">
+      <button class="btn-sm ghost" onclick="setMeeting()">Set</button>
+      ${hasMtg ? `<button class="btn-sm" onclick="dlICS()">📅 .ics</button><button class="btn-sm ghost" onclick="calLink('google')">Google</button><button class="btn-sm ghost" onclick="calLink('outlook')">Outlook</button>` : ''}
+    </div></div>`;
+
+  const migrateNote = window._wfNeedsMigration ? `<div class="flag" style="margin-bottom:10px">Workflow changes aren't saving yet — the one-time DB migration hasn't been run. Documents still generate; status won't persist across reopen until then.</div>` : '';
+  const idNote = !window._runId ? `<div class="note" style="margin-bottom:8px">Generate an estimate (auto-saved) to persist status across sessions.</div>` : '';
+
+  el.innerHTML = migrateNote + idNote +
+    `<div class="note" style="margin-bottom:4px">Stage</div><div class="stagebar">${stageBar}</div>
+     <div class="note" style="margin:10px 0 2px">Pre-bid checklist</div>
+     ${statusRow('bonding', 'Bonding', 'Bond request', 'genBond()')}
+     ${statusRow('builders_risk', 'Builders Risk', 'BR submission', 'genBuildersRisk()')}
+     <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-actions note">managed in the BuildingConnected card below</div></div>
+     <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-actions note">enter live quotes on the bid packages below</div></div>
+     ${mtgRow}`;
+}
+
+// Status cell for the estimating-desk board (reads a run's stored workflow + derived BC)
+function boardStatusCell(run) {
+  const wf = run.workflow || {}; const stage = wf.stage || 'takeoff';
+  const stageLabel = (WF_STAGES.find(s => s.key === stage) || {}).label || stage;
+  const stageChip = stage === 'lost' ? `<span class="chip" style="background:#fee2e2;color:#991b1b">${stageLabel}</span>`
+    : `<span class="chip ${stage === 'won' ? 'ck-received' : stage === 'submitted' ? 'ck-requested' : 'ck-open'}">${stageLabel}</span>`;
+  const ck = wf.checklist || {};
+  const item = (v, lbl) => { if (!v || !v.status || v.status === 'na') return ''; const c = { needed: 'ck-needed', requested: 'ck-requested', received: 'ck-received' }[v.status] || 'ck-open'; const t = { needed: 'needed', requested: 'req', received: '✓' }[v.status] || ''; return `<span class="chip ${c}">${lbl} ${t}</span>`; };
+  let chips = stageChip + item(ck.bonding, 'Bond') + item(ck.builders_risk, 'BR');
+  if (ck.prebid_meeting && ck.prebid_meeting.date) chips += `<span class="chip ck-received">📅 ${esc(new Date(ck.prebid_meeting.date).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span>`;
+  if (run.bc_url) chips += '<span class="chip ck-done" title="Loaded to BuildingConnected">↗BC</span>';
+  return chips;
+}
+
+// ---- Pre-bid meeting calendar (auth-agnostic: .ics download + add-to-calendar links) ----
+function icsStamp(local, addHours) { // local = 'YYYY-MM-DDTHH:MM' (floating local time)
+  const d = new Date(local); if (addHours) d.setHours(d.getHours() + addHours);
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`;
+}
+function mtgInfo() {
+  const wf = curWF(); const m = wf.checklist.prebid_meeting || {};
+  const name = (window._lastInp && window._lastInp.name) || 'Project';
+  return { name, date: m.date, loc: m.location || '', title: `Pre-bid meeting — ${name}` };
+}
+function dlICS() {
+  const m = mtgInfo(); if (!m.date) return;
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RYC Estimating//Pre-bid//EN', 'BEGIN:VEVENT',
+    `DTSTART:${icsStamp(m.date, 0)}`, `DTEND:${icsStamp(m.date, 1)}`, `SUMMARY:${m.title}`,
+    m.loc ? `LOCATION:${m.loc}` : '', 'DESCRIPTION:Pre-bid meeting (RYC Estimating).', 'END:VEVENT', 'END:VCALENDAR']
+    .filter(Boolean).join('\r\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+  a.download = 'prebid-meeting.ics'; a.click();
+}
+function calLink(which) {
+  const m = mtgInfo(); if (!m.date) return;
+  const s = icsStamp(m.date, 0), e = icsStamp(m.date, 1);
+  let url;
+  if (which === 'google') url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(m.title)}&dates=${s}/${e}&location=${encodeURIComponent(m.loc)}&details=${encodeURIComponent('Pre-bid meeting (RYC Estimating).')}`;
+  else url = `https://outlook.office.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(m.title)}&startdt=${m.date}:00&enddt=${new Date(new Date(m.date).getTime() + 36e5).toISOString().slice(0, 16)}:00&location=${encodeURIComponent(m.loc)}&body=${encodeURIComponent('Pre-bid meeting (RYC Estimating).')}`;
+  window.open(url, '_blank', 'noopener');
+}
+
+// ---- Option-B submission sheets: field-mapped from the finished estimate ----
+const RYC_CONTRACTOR = { name: 'R. Yoder Construction, Inc.', addr: '27453 Co Rd 150, P.O. Box 69, Nappanee, IN 46550' };
+function inferConstruction(divs) {
+  const hay = (divs || []).map(d => ((d.name || '') + ' ' + (d.div || '')).toLowerCase());
+  const has = re => hay.some(n => re.test(n));
+  const steel = has(/pemb|pre-engineered|metal building|structural steel|(^|\D)05(\D|$)|(^|\D)13(\D|$)/);
+  const conc = has(/concrete|masonry|(^|\D)03(\D|$)|(^|\D)04(\D|$)/);
+  const wood = has(/wood|framing|(^|\D)06(\D|$)/);
+  if (steel) return conc ? 'Non-Combustible (steel/metal frame + masonry/concrete)' : 'Non-Combustible (pre-engineered metal / steel frame)';
+  if (conc) return 'Masonry / Non-Combustible';
+  if (wood) return 'Frame';
+  return null;
+}
+function pursuitData() {
+  const inp = window._lastInp || {}, p = window._lastP || {}, pm = window._planMeta || {}, sc = window._scopeC || {};
+  const divs = window._lastDivisions || [];
+  let assembled = 0, any = false;
+  divs.forEach((d, i) => { if (quotes[i]) { assembled += quotes[i]; any = true; } else assembled += (d.amount || 0); });
+  const total = any ? assembled : (p.mid || window._pkgConceptualTotal || null);
+  return {
+    projectName: inp.name || '', location: inp.loc || '', owner: pm.owner || '', architect: pm.architect || '',
+    workType: inp.wt || '', isReno: /reno|addition|remodel|replace/i.test(inp.wt || ''), sf: inp.sf || null,
+    clientType: inp.ct || '', scope: sc.scopeSummary || divs.slice(0, 6).map(d => d.name).join('; ') || inp.scope || '',
+    total, low: p.low, high: p.high, mid: p.mid, softCosts: total ? Math.round(total * 0.04) : null,
+    constructionType: inferConstruction(divs), estimator: (document.getElementById('f-est') || {}).value || '',
+  };
+}
+function TBC(v) { return (v === null || v === undefined || v === '') ? '<span class="tbc">[estimator to confirm]</span>' : esc(String(v)); }
+function money(v) { return v != null ? '$' + Math.round(v).toLocaleString() : '<span class="tbc">[estimator to confirm]</span>'; }
+function openSheet(kind, title, sectionsHtml, footNote) {
+  const w = window.open('', '_blank');
+  if (!w) { alert('Popup blocked — allow popups for this site to open the submission sheet.'); return false; }
+  const shield = location.origin + '/ryc-estimate/RYC_Shield_Orange.png';
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+    *{box-sizing:border-box;margin:0} body{font-family:Arial,Helvetica,sans-serif;color:#1c1917;font-size:12.5px;line-height:1.45;padding:26px 30px;max-width:820px;margin:0 auto}
+    .hd{display:flex;align-items:center;gap:12px;border-bottom:3px solid #ea580c;padding-bottom:10px;margin-bottom:4px}
+    .hd img{height:38px} .hd h1{font-size:18px;color:#c2410c} .hd .sub{font-size:11px;color:#6b7280}
+    h2{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;padding:5px 9px;border-radius:5px;margin:16px 0 4px}
+    table{width:100%;border-collapse:collapse} td{padding:5px 7px;border-bottom:1px solid #eee;vertical-align:top}
+    td.l{width:38%;color:#57534e;font-weight:600} .tbc{color:#b91c1c;font-style:italic}
+    .note{font-size:11px;color:#6b7280;margin-top:14px;border-top:1px solid #eee;padding-top:8px}
+    .pr{margin:16px 0}.pr button{background:#ea580c;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+    @media print{.pr{display:none}}
+  </style></head><body>
+    <div class="hd"><img src="${shield}" alt="RYC"><div><h1>${esc(title)}</h1><div class="sub">R. Yoder Construction · pre-filled from RYC Estimating · ${new Date().toLocaleDateString()}</div></div></div>
+    <div class="pr"><button onclick="window.print()">🖨 Print / Save as PDF</button></div>
+    ${sectionsHtml}
+    <div class="note">${footNote} Fields marked <span class="tbc">[estimator to confirm]</span> aren't derivable from the estimate — fill before submitting. Values are pre-quote and for underwriting review only.</div>
+  </body></html>`);
+  w.document.close(); return true;
+}
+function rows(pairs) { return '<table>' + pairs.map(([l, v]) => `<tr><td class="l">${l}</td><td>${v}</td></tr>`).join('') + '</table>'; }
+
+function genBond() {
+  const d = pursuitData();
+  const sections =
+    '<h2>Contractor</h2>' + rows([['Contractor', esc(RYC_CONTRACTOR.name)], ['Address', esc(RYC_CONTRACTOR.addr)], ['Prepared by', TBC(d.estimator)]]) +
+    '<h2>Project & Obligee</h2>' + rows([['Obligee / Owner', TBC(d.owner)], ['Owner address', TBC(null)], ['Legal project name', TBC(d.projectName)], ['Job location / address', TBC(d.location)], ['Scope of work', TBC(d.scope)], ['Architect', TBC(d.architect)], ['Estimated start date', TBC(null)], ['Completion date', TBC(null)], ['Work on hand as of', TBC(null) + ' <span class="tbc">(pull from Command)</span>']]) +
+    '<h2>Performance & Payment Bond</h2>' + rows([['Contract amount (est.)', money(d.total)], ['Estimated bid', money(d.mid)], ['Performance bond %', TBC(null)], ['Payment bond %', TBC(null)], ['Retainage %', TBC(null)], ['Maintenance bond / period', TBC(null)], ['Number of executed sets', TBC(null)]]) +
+    '<h2>Bid Bond / Results (if bidding)</h2>' + rows([['Bid date & time', TBC(null)], ['Bid bond amount', TBC(null)], ['Low / 2nd / 3rd bidder', TBC(null)], ['Expect award?', TBC(null)]]);
+  if (openSheet('bond', 'Contract Bond Request', sections, 'Maps to the EPIC Contract Bond Request. Attach the bid specs or contract when submitting.')) {
+    const st = (curWF().checklist.bonding || {}).status || 'na';
+    if (st === 'na' || st === 'needed') setCk('bonding', 'requested'); // generating = requested
+  }
+}
+function genBuildersRisk() {
+  const d = pursuitData();
+  const sections =
+    '<h2>Named Insured</h2>' + rows([['Named insured / GC', esc(RYC_CONTRACTOR.name) + ' <span class="tbc">(or owner — confirm)</span>'], ['Mailing address', esc(RYC_CONTRACTOR.addr)], ['Prepared by', TBC(d.estimator)]]) +
+    '<h2>Project</h2>' + rows([['Project name', TBC(d.projectName)], ['New construction or renovation', TBC(d.isReno ? 'Renovation / addition' : (d.workType || 'New construction'))], ['Job site address', TBC(d.location)], ['Owner', TBC(d.owner)], ['Architect', TBC(d.architect)], ['Project start date', TBC(null)], ['Completion date', TBC(null)], ['Square footage', TBC(d.sf ? d.sf.toLocaleString() + ' SF' : null)], ['Number of stories', TBC(null)]]) +
+    '<h2>Values</h2>' + rows([['Completed value (TIV)', money(d.total)], ['Soft costs (est.)', money(d.softCosts) + ' <span class="tbc">(≈4% design/eng allowance — confirm)</span>'], ['Deductible', TBC(null)]]) +
+    '<h2>Construction & Occupancy</h2>' + rows([['Construction type', TBC(d.constructionType)], ['Intended occupancy', TBC(d.clientType)], ['To be sprinklered?', TBC(null)], ['Roof type', TBC(null)]]) +
+    '<h2>Site & Protection (estimator)</h2>' + rows([['Distance to hydrant / fire station', TBC(null)], ['Site security (fence / lighting / watchman / cameras)', TBC(null)], ['Hot-work / smoking / water-mitigation plan', TBC(null)], ['Flood zone / coastal exposure', TBC(null)]]);
+  if (openSheet('br', "Builder's Risk Submission", sections, "Maps to the Selective Builder's Risk Worksheet + RYC's intake. Attach the bid/project cost summary and construction schedule.")) {
+    const st = (curWF().checklist.builders_risk || {}).status || 'na';
+    if (st === 'na' || st === 'needed') setCk('builders_risk', 'requested');
+  }
+}
+
 function renderResults(p, inp, bm) {
   setLoading(false);
   window._lastInp = inp;
+  window._lastP = p;
   document.getElementById('bcCard').style.display = 'block';
   if (window._bcLoaded && (window._bcLoaded.url || window._bcLoaded.id)) bcLoadedCard(); else bcResetCard();
   document.getElementById('costMid').textContent = fmt$(p.mid);
@@ -918,6 +1155,8 @@ function renderResults(p, inp, bm) {
     + (bm.contractMin && bm.contractMax ? `<div class="note" style="margin-bottom:4px"><strong>RYC comparable contracts:</strong> ${money(bm.contractMin)}–${money(bm.contractMax)} (median ${money(bm.contractMed)})${bm.medianPSF ? ` · ~$${Math.round(bm.medianPSF).toLocaleString()}/SF` : ''}</div>` : '')
     + `<div class="note"><strong>RYC cost composition for this work:</strong> ${comp}</div>`
     + flags;
+
+  renderPursuit();
 
   document.getElementById('inputPanel').style.display = 'none';
   document.getElementById('resultsPanel').style.display = 'block';
@@ -1071,7 +1310,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.8.2';
+const TOOL_VERSION = 'v1.9.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -1131,7 +1370,7 @@ async function renderHistory(force) {
       const latest = g[0];
       const mids = g.map(x => x.cost_mid).filter(Boolean);
       const spread = mids.length > 1 ? Math.min(...mids).toLocaleString() + ' – ' + Math.max(...mids).toLocaleString() : null;
-      html += `<tr style="background:#f9fafb"><td colspan="6" style="padding-top:14px"><strong>${esc(latest.project_name)}</strong> <span class="note">· ${g.length} run${g.length === 1 ? '' : 's'}${spread ? ` · midpoint spread $${spread}` : ''}${latest.location ? ' · ' + esc(latest.location) : ''}</span></td></tr>`;
+      html += `<tr style="background:#f9fafb"><td colspan="7" style="padding-top:14px"><strong>${esc(latest.project_name)}</strong> <span class="note">· ${g.length} run${g.length === 1 ? '' : 's'}${spread ? ` · midpoint spread $${spread}` : ''}${latest.location ? ' · ' + esc(latest.location) : ''}</span></td></tr>`;
       for (const run of g) {
         const files = (run.files || []).reduce((s, f) => s + (f.pages || 0), 0);
         html += `<tr class="hrow" style="cursor:pointer" onclick="openRun('${run.id}')">`
@@ -1139,14 +1378,15 @@ async function renderHistory(force) {
           + `<td class="r"><strong>${run.cost_mid ? '$' + run.cost_mid.toLocaleString() : '—'}</strong></td>`
           + `<td class="r note">${run.cost_low && run.cost_high ? '$' + run.cost_low.toLocaleString() + ' – $' + run.cost_high.toLocaleString() : '—'}</td>`
           + `<td>${esc(run.confidence || '—')}</td>`
-          + `<td>${files ? files + ' pp' : 'scope-only'}${run.estimator ? ' · ' + esc(run.estimator) : ''}${run.bc_url ? ' · <span style="color:#ea580c;font-weight:600" title="Already loaded to BuildingConnected">↗BC</span>' : ''}</td>`
+          + `<td>${boardStatusCell(run)}</td>`
+          + `<td>${files ? files + ' pp' : 'scope-only'}${run.estimator ? ' · ' + esc(run.estimator) : ''}</td>`
           + `<td class="note">${esc(run.version || '')}</td></tr>`;
       }
     }
-    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Past estimates <span class="cnt">${runs.length} run${runs.length === 1 ? '' : 's'} · click a row to reopen</span>
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk <span class="cnt">${runs.length} pursuit${runs.length === 1 ? '' : 's'} · click a row to reopen &amp; work it</span>
       <button class="btn btn-ghost" style="margin-left:auto;padding:4px 10px;font-size:12px" onclick="renderHistory(true)">⟳ Refresh</button></h3>
-      <div class="billing-sub">Every generated estimate is saved automatically (inputs, packages, narrative — not the plan images). Reopening restores the full results view including the BC draft loader; re-running against plans needs the files re-uploaded on the Assist tab.</div>
-      <table><thead><tr><th>Date</th><th class="r">Midpoint</th><th class="r">Range</th><th>Conf.</th><th>Plans · by</th><th>Ver</th></tr></thead><tbody>${html}</tbody></table></div>`;
+      <div class="billing-sub">Each estimate is a tracked pursuit — stage + pre-bid checklist (bonding, builders risk, BC, quotes, pre-bid meeting). Reopen a row to advance status, generate bond/builders-risk submissions, or set the pre-bid meeting.</div>
+      <table><thead><tr><th>Date</th><th class="r">Midpoint</th><th class="r">Range</th><th>Conf.</th><th>Status</th><th>Plans · by</th><th>Ver</th></tr></thead><tbody>${html}</tbody></table></div>`;
   } catch (e) {
     el.innerHTML = `<div class="billing-block"><h3 class="section-header">Past estimates</h3><div class="billing-empty">History unavailable: ${esc(e.message)}</div></div>`;
   }
@@ -1169,6 +1409,7 @@ async function openRun(id) {
     window._planMeta = null;
     window._runId = run.id;
     window._bcLoaded = (run.bc_url || run.bc_project_id) ? { url: run.bc_url || null, id: run.bc_project_id || null } : null;
+    window._workflow = run.workflow || defaultWF(); window._wfNeedsMigration = false;
     el.innerHTML = prev;
     setEstView('assist');
     renderResults(p, inp, segBenchmarks(inp.ct, inp.wt, inp.name));
