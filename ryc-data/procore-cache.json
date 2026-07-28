@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-07-27T05:26:01.013Z",
+  "refreshed": "2026-07-28T05:26:02.007Z",
   "jobCount": 53,
   "jobs": [
     {
@@ -27,7 +27,7 @@
       },
       "submittals": {
         "total": 42,
-        "open": 27
+        "open": 0
       },
       "budget": {
         "original": 19281323.549999997,
@@ -381,7 +381,7 @@
       "projectedFinish": "2027-01-01",
       "completionDate": "2027-08-01",
       "sqft": null,
-      "pctComplete": 30.2,
+      "pctComplete": 30.6,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -397,8 +397,8 @@
         "original": 16017608.15,
         "revised": 16017608.150000002,
         "committed": 0,
-        "direct": 5454265.52,
-        "projectedCost": 13509052.46,
+        "direct": 5535679.63,
+        "projectedCost": 13513450.21,
         "projectedBudget": 16221550.53,
         "projCostSuspect": false
       },
@@ -695,10 +695,10 @@
         ]
       },
       "changeOrders": {
-        "count": 33,
+        "count": 34,
         "netValue": 217212.38,
         "byType": {
-          "Allowance": 33
+          "Allowance": 34
         }
       },
       "pm": {
@@ -754,9 +754,9 @@
         "count": 40,
         "subcontracts": 35,
         "purchaseOrders": 5,
-        "committedTotal": 11545283.54,
-        "originalTotal": 11126512.93,
-        "pendingTotal": 756942.68,
+        "committedTotal": 11701175.39,
+        "originalTotal": 11282404.78,
+        "pendingTotal": 601050.83,
         "invoicedTotal": 0,
         "rows": [
           {
@@ -934,7 +934,7 @@
             "kind": "sub",
             "title": "Monreaux - Subcontract - Gypecrete",
             "vendor": "Ultimate Edge LLC",
-            "status": "Out For Signature",
+            "status": "Approved",
             "total": 108747,
             "original": 108747,
             "invoiced": 0
@@ -1024,7 +1024,7 @@
             "kind": "sub",
             "title": "C-Tec - Monreaux - Subcontract",
             "vendor": "C-Tec Inc",
-            "status": "Out For Signature",
+            "status": "Approved",
             "total": 47144.85,
             "original": 47144.85,
             "invoiced": 0
@@ -1626,8 +1626,8 @@
         "original": 12630570.77,
         "revised": 12630570.77,
         "committed": 0,
-        "direct": 8475156.22,
-        "projectedCost": 12014967.69,
+        "direct": 8475374.53,
+        "projectedCost": 12015186,
         "projectedBudget": 11561068.46,
         "projCostSuspect": false
       },
@@ -2071,7 +2071,7 @@
       },
       "submittals": {
         "total": 311,
-        "open": 57
+        "open": 50
       },
       "budget": {
         "original": 10907043.73,
@@ -2446,7 +2446,7 @@
       "projectedFinish": "2027-01-15T22:00:00Z",
       "completionDate": "2027-01-31",
       "sqft": null,
-      "pctComplete": 12.6,
+      "pctComplete": 16.7,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -2462,7 +2462,7 @@
         "original": 7996197.17,
         "revised": 8158300.17,
         "committed": 0,
-        "direct": 1148840.48,
+        "direct": 1521253.48,
         "projectedCost": 7331419.8,
         "projectedBudget": 8122603.42,
         "projCostSuspect": false
@@ -2749,8 +2749,8 @@
         "open": 5
       },
       "submittals": {
-        "total": 505,
-        "open": 464
+        "total": 506,
+        "open": 461
       },
       "budget": {
         "original": 7730460.510000001,
@@ -5135,8 +5135,8 @@
         "original": 2180018.8899999997,
         "revised": 2180548.8899999997,
         "committed": 0,
-        "direct": 1563341.62,
-        "projectedCost": 2003726.21,
+        "direct": 1563680.81,
+        "projectedCost": 2004065.4,
         "projectedBudget": 2162620.33,
         "projCostSuspect": false
       },
@@ -5312,7 +5312,7 @@
       "projectedFinish": "2027-05-18T21:00:00Z",
       "completionDate": "2027-04-06",
       "sqft": null,
-      "pctComplete": 8.2,
+      "pctComplete": 12.8,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -5328,8 +5328,8 @@
         "original": 2071633.13,
         "revised": 2072579.5,
         "committed": 0,
-        "direct": 188008.97000000003,
-        "projectedCost": 1648275.81,
+        "direct": 292604.59,
+        "projectedCost": 1648341.8,
         "projectedBudget": 2076235.46,
         "projCostSuspect": false
       },
@@ -5812,7 +5812,7 @@
       "projectedFinish": "2026-08-19T21:00:00Z",
       "completionDate": "2026-02-24",
       "sqft": 9600,
-      "pctComplete": 48.8,
+      "pctComplete": 55.4,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -5828,8 +5828,8 @@
         "original": 823809.7699999999,
         "revised": 839430.3799999998,
         "committed": 0,
-        "direct": 478065.85,
-        "projectedCost": 607259.42,
+        "direct": 542220.23,
+        "projectedCost": 607300.07,
         "projectedBudget": 829642.79,
         "projCostSuspect": false
       },
