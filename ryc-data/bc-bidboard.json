@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-07-27T09:30:10.454Z",
+ "generatedAt": "2026-07-28T09:30:10.809Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -268,9 +268,9 @@
      "awardedCompany": null
     },
     {
-     "id": "69a0a4fc92686bf148973931",
-     "name": "Fences & Gates",
-     "number": "32-02",
+     "id": "69a0a7ec76c3da91c3bc98ee",
+     "name": "FFE package",
+     "number": "12-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-03-12T16:00:00.000Z",
      "invites": 1,
@@ -282,9 +282,9 @@
      "awardedCompany": null
     },
     {
-     "id": "69a0a7ec76c3da91c3bc98ee",
-     "name": "FFE package",
-     "number": "12-01",
+     "id": "69a0a4fc92686bf148973931",
+     "name": "Fences & Gates",
+     "number": "32-02",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-03-12T16:00:00.000Z",
      "invites": 1,
@@ -722,7 +722,7 @@
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
-      "F.E. Moran, Inc.",
+      "F.E. Moran, Inc. Fire Protection",
       "Ryan Fireprotection Inc."
      ]
     },
@@ -1008,8 +1008,8 @@
      ]
     },
     {
-     "id": "6a022cf0c3591c68c7a3215e",
-     "name": "HVAC",
+     "id": "6a022caf49173aca7fff7637",
+     "name": "Plumbing",
      "number": null,
      "state": "PUBLISHED",
      "bidsDueAt": "2026-05-25T16:00:00.000Z",
@@ -1025,8 +1025,8 @@
      ]
     },
     {
-     "id": "6a022caf49173aca7fff7637",
-     "name": "Plumbing",
+     "id": "6a022cf0c3591c68c7a3215e",
+     "name": "HVAC",
      "number": null,
      "state": "PUBLISHED",
      "bidsDueAt": "2026-05-25T16:00:00.000Z",
@@ -1056,6 +1056,20 @@
      "awardedCompany": null
     },
     {
+     "id": "6a022160e2751b37f7554aa8",
+     "name": "Building Insulation",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
+    },
+    {
      "id": "6a02212e44826dba5a600a30",
      "name": "PEMB Insulation",
      "number": null,
@@ -1071,20 +1085,6 @@
      "biddingSubs": [
       "Silvercote"
      ]
-    },
-    {
-     "id": "6a022160e2751b37f7554aa8",
-     "name": "Building Insulation",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
     },
     {
      "id": "6a022a285e266905149cee3c",
@@ -1302,7 +1302,7 @@
    "atRisk": 14,
    "invites": 1042,
    "bidding": 79,
-   "undecided": 774,
+   "undecided": 773,
    "bidsReceived": 34,
    "pkgs": [
     {
@@ -1733,9 +1733,9 @@
      "bidsDueAt": "2026-07-20T16:00:00.000Z",
      "invites": 15,
      "bidding": 0,
-     "undecided": 13,
-     "notBidding": 2,
-     "viewed": 5,
+     "undecided": 12,
+     "notBidding": 3,
+     "viewed": 6,
      "bidsReceived": 1,
      "awardedCompany": null
     },
@@ -2403,7 +2403,7 @@
      "biddingSubs": [
       "Advanced American Electric",
       "Schwartz Electric, Inc.",
-      "Communication CO. of South BEND",
+      "Communication Company of South Bend",
       "Pemberton-Davis Electric, Inc.",
       "Gaylor Electric, Inc"
      ]
@@ -2512,21 +2512,6 @@
    "bidsReceived": 3,
    "pkgs": [
     {
-     "id": "6a5e403fb5a4a5378831970c",
-     "name": "Electrical",
-     "number": "26-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 0,
-     "notBidding": 1,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": []
-    },
-    {
      "id": "6a5e40b1c1e6346dabec73ca",
      "name": "Plumbing & HVAC",
      "number": "22/23-01",
@@ -2542,6 +2527,21 @@
      "undecidedSubs": [
       "MW Chupp Inc"
      ]
+    },
+    {
+     "id": "6a5e403fb5a4a5378831970c",
+     "name": "Electrical",
+     "number": "26-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 0,
+     "notBidding": 1,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": []
     },
     {
      "id": "6a5e4021a21b1ed85d711132",
@@ -2609,6 +2609,20 @@
      "awardedCompany": null
     },
     {
+     "id": "6a5e3fbce7db48c074646fb3",
+     "name": "Flooring",
+     "number": "09-03",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
+    },
+    {
      "id": "6a5e3f9733ead85aaea5c060",
      "name": "Epoxy Flooring",
      "number": "09-02",
@@ -2624,20 +2638,6 @@
      "biddingSubs": [
       "Ideal Coatings"
      ]
-    },
-    {
-     "id": "6a5e3fbce7db48c074646fb3",
-     "name": "Flooring",
-     "number": "09-03",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
     },
     {
      "id": "6a5e3f2ac54217a6efb66ce9",
