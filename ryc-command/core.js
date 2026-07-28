@@ -12,6 +12,7 @@ var NAV = [
   { key:"woh",      label:"Work on Hand",   ic:"&#128202;" },
   { key:"margin",   label:"Margin & Risk",  ic:"&#128201;" },
   { key:"subs",     label:"Subcontractors", ic:"&#128296;" },
+  { key:"completed",label:"Completed",      ic:"&#127942;" },
   { key:"pmload",   label:"PM Load",        ic:"&#128119;" },
   { key:"forecast", label:"Forecast",       ic:"&#128200;" },
   { key:"estimating",label:"Estimating",    ic:"&#128208;" },

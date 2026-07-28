@@ -101,11 +101,12 @@ function viewCtx(){
   if(currentView==="ai") return "Foundation via live ODBC · queries run at ask time (not the nightly snapshot)";
   if(currentView==="pmload") return "Foundation billing/cost history (full job record, 2021&rarr;) · pull "+((pmHistData&&ageTxt(pmHistData.generatedAt))||"&hellip;");
   if(currentView==="subs") return "Foundation actual-by-vendor + PO_Sub subcontracts (2023&rarr; jobs) · nightly VM rollup · this pull "+((subsData&&ageTxt(subsData.generated))||"&hellip;");
+  if(currentView==="completed") return "Foundation completed record (2023&rarr;, pegged at completion) + Procore enrichment · rebuilt nightly · this pull "+((portfolioData&&ageTxt(portfolioData.generated))||"&hellip;");
   if(currentView==="trust") return "All sources · loaded "+loaded;
   return "Procore (revised contract) + Foundation · loaded "+loaded;
 }
 function renderView(){
-  var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
+  var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
   document.getElementById("view-title").textContent=titles[currentView]||"Command Center";
   document.getElementById("view-ctx").innerHTML=viewCtx();
   document.getElementById("fdn-refresh-top").style.display=FDN_FED[currentView]?"":"none";
@@ -121,6 +122,7 @@ function renderView(){
   if(currentView==="woh"){ renderWOH(); return; }
   if(currentView==="margin"){ renderMargin(); return; }
   if(currentView==="subs"){ renderSubs(); return; }
+  if(currentView==="completed"){ renderCompleted(); return; }
   if(currentView==="pmload"){ renderPMLoad(); return; }
   if(currentView==="forecast"){ renderForecast(); return; }
   if(currentView==="estimating"){ renderEstimating(); return; }

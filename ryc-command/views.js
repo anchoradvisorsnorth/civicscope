@@ -472,7 +472,7 @@ function renderTrust(){
     +srow("Sub rollup","Actual-by-vendor + PO_Sub subcontracts, 2023+ (Subcontractors view, drawer sub lists)","Nightly (VM, ryc-dashboard-refresh)",subsData&&subsData.generated,(subsData&&subsData.subs?subsData.subs.length+" subs":"—"),!!subsData)
     +srow("Buildr","Client-relations visits + follow-up tasks","Live API on page load",buildrData&&buildrData.refreshed,(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",!!buildrData)
     +srow("BC bid board","Projects out to bid, trade-package invite coverage, bids received (Estimating view)","Daily 09:30 UTC (VM, bc-bidboard)",bcData&&bcData.generatedAt,(bcData&&bcData.published?bcData.published.length+" out to bid":"—"),!!bcData)
-    +srow("Portfolio archive","Completed jobs (pegged at archive time)","On job completion",null,((portfolioData&&portfolioData.jobs)||portfolioData||[]).length?(((portfolioData&&portfolioData.jobs)||portfolioData||[]).length+" jobs"):"—",!!portfolioData)
+    +srow("Portfolio archive","Completed-job record, pegged at completion (Completed view + sector insights)","Nightly (VM, ryc-dashboard-refresh)",portfolioData&&portfolioData.generated,((portfolioData&&portfolioData.jobs)||[]).length?(((portfolioData&&portfolioData.jobs)||[]).length+" jobs"):"—",!!portfolioData)
     +"</tbody></table></div>"
     +"<div class=\"vsub\" style=\"margin-top:8px\">Stale = no fresh data in 30h (a scheduled run was missed — check the Automation Health card on the CRM dashboard). Foundation is read-only by design; nothing here can write.</div>";
 
@@ -1310,6 +1310,155 @@ function openSubDrawer(vno,trigger){
     +"<div class=\"dw-note\">Δ = committed − actual: positive = under / in-progress; negative = actual over the subcontract (change orders or T&amp;M).</div></div>";
   var wrap=document.createElement("div"); wrap.id="dwrap";
   wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Subcontractor detail: "+attrEsc(s.name)+"\">"+head+"<div class=\"dw-body\">"+stats+jobsSec+"</div></aside>";
+  document.body.appendChild(wrap);
+  document.addEventListener("keydown",dwEsc);
+  var cb=wrap.querySelector(".dw-close"); if(cb) cb.focus();
+}
+
+/* ===== Completed (v2.24.0) — the as-built record + sector insights. Restores the legacy
+   dashboard's Completed archive + Portfolio Analysis in one view (Keith, 2026-07-28):
+   Foundation completed-job record 2023→ (/ryc-data/ryc-portfolio.json, pegged at completion,
+   rebuilt nightly w/ Procore enrichment) — performance by sector + work type from ACTUALS,
+   plus a browsable job table w/ per-job outcome drawer (buyout by class, subs, field stats).
+   Estimating-grade benchmarks (size bands, cost/SF) live on /ryc/estimate Cost Intelligence. ===== */
+var CPL_CT={school:"School",municipal:"Municipal",commercial:"Commercial",industrial:"Industrial",private:"Private / Institutional",mixed_use:"Mixed Use",municipal_water_wastewater:"Water / WW",residential:"Residential"};
+var CPL_WT={new_construction:"New Construction",renovation:"Renovation",addition:"Addition",repair:"Repair"};
+function cplCT(k){ return CPL_CT[k]||(k||"—"); }
+function cplWT(k){ if(k==="expansion") k="addition"; return CPL_WT[k]||(k||"—"); }
+var cplFilter="all";
+function cplSetFilter(v){ cplFilter=v; renderCompleted(); }
+function cplJobs(){ return ((portfolioData&&portfolioData.jobs)||[]).filter(function(j){ return (j.contractFinal||0)>0; }); }
+function cplAgg(js){
+  var rev=0,cost=0,bidC=0,bidCost=0,buy=0,buySub=0,co=0;
+  js.forEach(function(j){
+    rev+=j.contractFinal||0; cost+=j.directCost||0;
+    bidC+=j.contractOriginal||0; bidCost+=j.originalCost||0;
+    if(j.buyout){ buy+=j.buyout.total||0; buySub+=j.buyout.sub||0; }
+    co+=j.changeOrders||0;
+  });
+  var bidM=bidC>0?(bidC-bidCost)/bidC*100:null;
+  var actM=rev>0?(rev-cost)/rev*100:null;
+  return { n:js.length, rev:rev, bidM:bidM, actM:actM, gf:(bidM!=null&&actM!=null)?actM-bidM:null,
+    buy:buy, buySubPct:buy>0?buySub/buy*100:null, coPct:bidC>0?co/bidC*100:null };
+}
+function cplGfCell(v){ if(v==null) return "<span class=\"m-m\">—</span>"; return "<span class=\""+(v<=-GF_MOVE_PTS?"m-r":v>=GF_MOVE_PTS?"m-g":"m-m")+"\">"+(v>=0?"+":"")+v.toFixed(1)+" pts</span>"; }
+function cplSegTable(js,key,labelFn,head){
+  var groups={};
+  js.forEach(function(j){ var k=(key==="workType"&&j[key]==="expansion")?"addition":(j[key]||"—"); (groups[k]=groups[k]||[]).push(j); });
+  var totalRev=js.reduce(function(s,j){ return s+(j.contractFinal||0); },0);
+  var rows=Object.keys(groups).map(function(k){ return {label:labelFn(k),a:cplAgg(groups[k])}; })
+    .sort(function(x,y){ return y.a.rev-x.a.rev; });
+  var body=rows.map(function(r){
+    var a=r.a, share=totalRev>0?(a.rev/totalRev*100):0;
+    var buyCell=a.buy!==0?(fmtCompact(a.buy)+(a.buySubPct!=null?" <span class=\"cell-sub\">"+Math.round(a.buySubPct)+"% sub</span>":"")):"<span class=\"m-m\">—</span>";
+    return "<tr class=\"static\"><td><div class=\"jname\">"+esc(r.label)+"</div>"
+      +"<div style=\"background:#edf1f7;border-radius:3px;height:6px;margin-top:5px;max-width:140px\"><div style=\"background:var(--accent);height:6px;border-radius:3px;width:"+Math.min(100,share).toFixed(1)+"%\"></div></div></td>"
+      +"<td class=\"r\">"+a.n+"</td><td class=\"r\">"+fmtCompact(a.rev)+"</td><td class=\"r\">"+share.toFixed(0)+"%</td>"
+      +"<td class=\"r\">"+pct(a.bidM)+"</td><td class=\"r\">"+pct(a.actM)+"</td><td class=\"r\">"+cplGfCell(a.gf)+"</td>"
+      +"<td class=\"r\">"+buyCell+"</td><td class=\"r\">"+pct(a.coPct)+"</td></tr>";
+  }).join("");
+  return "<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>"+head+"</th><th class=\"r\">Jobs</th><th class=\"r\">Revenue</th><th class=\"r\">Share</th><th class=\"r\">As-bid margin</th><th class=\"r\">Actual margin</th><th class=\"r\">Gain/fade</th><th class=\"r\">Buyout</th><th class=\"r\">CO %</th></tr></thead><tbody>"+body+"</tbody></table></div>";
+}
+function renderCompleted(){
+  var view=document.getElementById("view");
+  var all=cplJobs();
+  if(!all.length){
+    view.innerHTML="<div class=\"warn-banner\">&#9888;&#65039; Completed-job archive unavailable (/ryc-data/ryc-portfolio.json) — sector insights cannot be computed. Figures show Unavailable, not $0.</div>";
+    return;
+  }
+  var top=cplAgg(all);
+  var fading=all.filter(function(j){ return j.bidMarginPct!=null&&j.projectedMarginPct!=null&&(j.projectedMarginPct-j.bidMarginPct)<=-GF_MOVE_PTS; });
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var strip="<div class=\"kpi-strip k4\">"
+    +kpi("Completed jobs",String(top.n),"2023&rarr; as-built record","")
+    +kpi("Revenue delivered",fmtCompact(top.rev),"final contract value","")
+    +kpi("Margin — bid &rarr; actual",(top.bidM!=null?top.bidM.toFixed(1):"—")+"% &rarr; "+(top.actM!=null?top.actM.toFixed(1):"—")+"%","value-weighted"+(top.gf!=null?(" · net "+(top.gf>=0?"+":"")+top.gf.toFixed(1)+" pts"):""),(top.gf!=null&&top.gf<=-GF_MOVE_PTS)?"warn":"")
+    +kpi("Jobs that faded",String(fading.length),fading.length?"finished ≥1 pt under their bid margin":"none finished under bid","")
+    +"</div>";
+
+  var seg="<div class=\"vhead\">Sector performance — completed actuals</div>"
+    +"<div class=\"vsub\">Where the margin actually came from. Value-weighted from the pegged completion record: as-bid = original contract vs bid cost; actual = final contract vs final cost. Buyout = estimate minus actual by cost class (positive = bought under the bid carry).</div>"
+    +cplSegTable(all,"clientType",cplCT,"Sector")
+    +"<div class=\"vhead\">Work type performance</div>"
+    +cplSegTable(all,"workType",cplWT,"Work type");
+
+  var types=[["all","All"]].concat(Object.keys(all.reduce(function(m,j){ m[j.clientType||"—"]=1; return m; },{})).sort().map(function(k){ return [k,cplCT(k)]; }));
+  var pills="<div class=\"pbar\">"+types.map(function(p){ return "<button class=\"pfill"+(cplFilter===p[0]?" on\" style=\"border-color:var(--accent);color:var(--accent)":"")+"\" onclick=\"cplSetFilter('"+p[0]+"')\">"+p[1]+"</button>"; }).join("")+"<span class=\"pcount\"></span></div>";
+  var shown=(cplFilter==="all"?all:all.filter(function(j){ return (j.clientType||"—")===cplFilter; }))
+    .slice().sort(function(a,b){ return (b.year||0)-(a.year||0)||((b.contractFinal||0)-(a.contractFinal||0)); });
+  var rows=shown.map(function(j){
+    var gfp=(j.bidMarginPct!=null&&j.projectedMarginPct!=null)?(j.projectedMarginPct-j.bidMarginPct):null;
+    return "<tr data-cid=\""+attrEsc(j.id)+"\" tabindex=\"0\" role=\"button\" title=\"Job outcome\"><td><div class=\"jname\">"+esc(j.name)+"</div><div class=\"jno\">"+esc(j.id)+(j.pmName?" · "+esc(j.pmName):"")+"</div></td>"
+      +"<td>"+esc(j.client||"—")+"</td><td>"+cplCT(j.clientType)+"</td><td>"+cplWT(j.workType)+"</td>"
+      +"<td class=\"r\">"+(j.year||"—")+"</td>"
+      +"<td class=\"r\">"+fmtCompact(j.contractFinal)+"</td><td class=\"r\">"+fmtCompact(j.directCost)+"</td>"
+      +"<td class=\"r\">"+(j.bidMarginPct!=null?j.bidMarginPct.toFixed(1)+"%":"—")+"</td>"
+      +"<td class=\"r\">"+(j.projectedMarginPct!=null?("<span class=\""+(j.projectedMarginPct<0?"m-r":"")+"\">"+j.projectedMarginPct.toFixed(1)+"%</span>"):"—")+"</td>"
+      +"<td class=\"r\">"+cplGfCell(gfp)+"</td></tr>";
+  }).join("");
+  var tbl="<div class=\"vhead\">Completed jobs</div><div class=\"vsub\">Newest first. Click a job for the full outcome — buyout by cost class, subcontractors, field stats.</div>"
+    +pills
+    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th>Client</th><th>Sector</th><th>Work</th><th class=\"r\">Year</th><th class=\"r\">Contract (final)</th><th class=\"r\">Final cost</th><th class=\"r\">As-bid</th><th class=\"r\">Actual</th><th class=\"r\">&Delta; pts</th></tr></thead><tbody>"+rows+"</tbody></table></div>"
+    +"<div class=\"vsub\" style=\"margin-top:8px\">"+shown.length+" of "+all.length+" completed jobs shown. Estimating-grade benchmarks (size bands, repeat-profile pricing) live on <a href=\"/ryc/estimate\" style=\"color:var(--accent);font-weight:600\">/ryc/estimate &rarr; Cost Intelligence</a>.</div>";
+
+  view.innerHTML=strip+seg+tbl;
+  hookCplRows();
+}
+function hookCplRows(){
+  Array.prototype.forEach.call(document.querySelectorAll(".view tbody"),function(tb){
+    tb.addEventListener("click",function(e){ var tr=e.target.closest("tr[data-cid]"); if(tr) openCplDrawer(tr.getAttribute("data-cid"),tr); });
+    tb.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ var tr=e.target.closest("tr[data-cid]"); if(tr){ e.preventDefault(); openCplDrawer(tr.getAttribute("data-cid"),tr); } } });
+  });
+}
+function openCplDrawer(cid,trigger){
+  var j=cplJobs().filter(function(x){ return x.id===cid; })[0];
+  if(!j) return;
+  closeDrawer(true);
+  _dwTrigger=trigger||null;
+  function stat(l,v,su){ return "<div class=\"dw-stat\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div>"+(su?"<div class=\"s\">"+su+"</div>":"")+"</div>"; }
+  var gfp=(j.bidMarginPct!=null&&j.projectedMarginPct!=null)?(j.projectedMarginPct-j.bidMarginPct):null;
+  var head="<div class=\"dw-head\"><div><h3>"+esc(j.name)+"</h3>"
+    +"<div class=\"dw-sub\">"+esc(j.id)+" · "+esc(j.client||"—")+" · "+cplCT(j.clientType)+" · "+cplWT(j.workType)+(j.pmName?" · PM "+esc(j.pmName):"")+"</div>"
+    +"<div style=\"margin-top:8px\"><span class=\"pill g\">Completed"+(j.year?" "+j.year:"")+"</span></div></div>"
+    +"<button class=\"dw-close\" onclick=\"closeDrawer()\" aria-label=\"Close\">&times;</button></div>";
+  var coFinal=(j.contractFinal||0)-(j.contractOriginal||0);
+  var outcome="<div class=\"dw-sec\"><h4>Outcome</h4><div class=\"dw-stats\">"
+    +stat("Final contract",fmtCompact(j.contractFinal),coFinal!==0?("bid "+fmtCompact(j.contractOriginal)+" "+(coFinal>0?"+":"")+fmtCompact(coFinal)+" COs"):"no contract growth")
+    +stat("Final cost",fmtCompact(j.directCost),j.originalCost?("bid cost "+fmtCompact(j.originalCost)):"")
+    +stat("Actual margin",j.projectedMarginPct!=null?j.projectedMarginPct.toFixed(1)+"%":"—",j.bidMarginPct!=null?("bid "+j.bidMarginPct.toFixed(1)+"%"):"")
+    +stat("Gain / fade",gfp!=null?((gfp>=0?"+":"")+gfp.toFixed(1)+" pts"):"—",gfp!=null?(gfp<=-GF_MOVE_PTS?"finished under bid margin":gfp>=GF_MOVE_PTS?"beat the bid margin":"held the bid margin"):"")
+    +stat("Duration",j.durationMonths?j.durationMonths+" mo":"—",j.actualCompletion?("done "+fmtDate(j.actualCompletion)):"")
+    +stat("Change orders",j.coPct!=null?j.coPct.toFixed(1)+"%":"—",j.changeOrders?("net "+fmtCompact(j.changeOrders)):"none posted")
+    +"</div></div>";
+  var buySec="";
+  var bo=j.buyout;
+  if(bo&&bo.byClass&&bo.byClass.length){
+    var bRows=bo.byClass.slice().sort(function(a,c){ return (c.act||0)-(a.act||0); }).map(function(c){
+      var d=(c.est||0)-(c.act||0);
+      return "<tr><td>"+esc(c.cls)+"</td><td class=\"r\">"+fmtCompact(c.est)+"</td><td class=\"r\">"+fmtCompact(c.act)+"</td>"
+        +"<td class=\"r\"><span class=\""+(d>=0?"m-g":"m-r")+"\">"+(d>=0?"+":"")+fmtCompact(d)+"</span></td></tr>";
+    }).join("");
+    buySec="<div class=\"dw-sec\"><h4>Buyout — estimate vs actual by cost class</h4>"
+      +"<table class=\"dwt\"><tr><th>Class</th><th class=\"r\">Estimate</th><th class=\"r\">Actual</th><th class=\"r\">Buyout</th></tr>"+bRows
+      +"<tr><td><b>Total</b>"+(bo.subPct>0?" <span class=\"cell-sub\">"+Math.round(bo.subPct)+"% from subcontract</span>":"")+"</td><td class=\"r\"></td><td class=\"r\"></td><td class=\"r\"><span class=\""+((bo.total||0)>=0?"m-g":"m-r")+"\"><b>"+((bo.total||0)>=0?"+":"")+fmtCompact(bo.total)+"</b></span></td></tr></table>"
+      +"<div class=\"dw-note\">Estimate = Foundation job budget by cost class; actual = costs booked. Positive = came in under the bid carry (buyout / savings).</div></div>";
+  }
+  var subSec="";
+  if(j.subs&&j.subs.length){
+    var sRows=j.subs.map(function(s){ return "<tr><td>"+esc(s.name)+"</td><td class=\"r\">"+fmtCompact(s.cost)+"</td></tr>"; }).join("");
+    subSec="<div class=\"dw-sec\"><h4>Subcontractors on this job (actual spend)</h4><table class=\"dwt\"><tr><th>Subcontractor</th><th class=\"r\">Actual cost</th></tr>"+sRows+"</table></div>";
+  }
+  var opsSec="";
+  if(j.procoreId&&(j.rfis||j.submittals||j.changeEvents||j.sqft)){
+    opsSec="<div class=\"dw-sec\"><h4>Field record (Procore)</h4><div class=\"dw-stats\">"
+      +(j.rfis?stat("RFIs",String(j.rfis),""):"")
+      +(j.submittals?stat("Submittals",String(j.submittals),""):"")
+      +(j.changeEvents?stat("Change events",String(j.changeEvents),""):"")
+      +(j.sqft?stat("Square feet",j.sqft.toLocaleString("en-US"),""):"")
+      +"</div></div>";
+  }
+  var wrap=document.createElement("div"); wrap.id="dwrap";
+  wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Completed job: "+attrEsc(j.name)+"\">"+head+"<div class=\"dw-body\">"+outcome+buySec+subSec+opsSec+"</div></aside>";
   document.body.appendChild(wrap);
   document.addEventListener("keydown",dwEsc);
   var cb=wrap.querySelector(".dw-close"); if(cb) cb.focus();
