@@ -51,6 +51,36 @@ function refreshFoundation(btn){
     .catch(function(){ restore("Unreachable"); });
 }
 
+/* On-demand Procore refresh — ported from the legacy dashboard at cutover (plan §7
+   "preserve: Refresh Procore behavior"; the retired legacy page was its only nav path).
+   POST /api/ryc-active → VM procore-refresh.js → git push of procore-cache.json →
+   Vercel redeploy (~75s) — hence the poll + deploy wait before reloading feeds. */
+function refreshProcore(btn){
+  if(!btn||btn.disabled) return;
+  var orig=btn.textContent;
+  btn.disabled=true; btn.textContent="⟳ Starting…";
+  function done(msg){ btn.textContent=msg; setTimeout(function(){ btn.disabled=false; btn.textContent=orig; },6000); }
+  fetch("/api/ryc-active",{method:"POST"})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.status==="started"||d.status==="already_running"){
+        btn.textContent="⟳ Running (~2-3 min)…";
+        var poll=setInterval(function(){
+          fetch("/api/ryc-active?check=status").then(function(r){ return r.json(); }).then(function(sd){
+            if(sd.last_result==="completed"){
+              clearInterval(poll);
+              btn.textContent="⟳ Waiting for deploy…";
+              setTimeout(function(){ loadData().then(function(){ renderView(); btn.disabled=false; btn.textContent=orig; }); },75000);
+            } else if(sd.last_result&&!sd.running){
+              clearInterval(poll); done("Finished: "+sd.last_result);
+            }
+          }).catch(function(){});
+        },10000);
+      } else { done("Refresh "+(d.status||"failed")); }
+    })
+    .catch(function(){ done("Unreachable"); });
+}
+
 function renderNav(){
   var el=document.getElementById("nav");
   el.innerHTML=NAV.map(function(n){ var on=n.key===currentView; return "<button type=\"button\" data-key=\""+n.key+"\" class=\""+(on?"active":"")+"\""+(on?" aria-current=\"page\"":"")+"><span class=\"ic\">"+n.ic+"</span>"+n.label+"</button>"; }).join("");
@@ -70,14 +100,16 @@ function viewCtx(){
   if(currentView==="estimating") return "BuildingConnected (read-only, daily pull) · this pull "+((bcData&&ageTxt(bcData.generatedAt))||"…");
   if(currentView==="ai") return "Foundation via live ODBC · queries run at ask time (not the nightly snapshot)";
   if(currentView==="pmload") return "Foundation billing/cost history (full job record, 2021&rarr;) · pull "+((pmHistData&&ageTxt(pmHistData.generatedAt))||"&hellip;");
+  if(currentView==="subs") return "Foundation actual-by-vendor + PO_Sub subcontracts (2023&rarr; jobs) · nightly VM rollup · this pull "+((subsData&&ageTxt(subsData.generated))||"&hellip;");
   if(currentView==="trust") return "All sources · loaded "+loaded;
   return "Procore (revised contract) + Foundation · loaded "+loaded;
 }
 function renderView(){
-  var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
+  var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
   document.getElementById("view-title").textContent=titles[currentView]||"Command Center";
   document.getElementById("view-ctx").innerHTML=viewCtx();
   document.getElementById("fdn-refresh-top").style.display=FDN_FED[currentView]?"":"none";
+  document.getElementById("pc-refresh-top").style.display=FDN_FED[currentView]?"":"none";
   var view=document.getElementById("view");
   // dark showcase for the Command Center; light operator theme for work views (FundView tiering)
   document.querySelector(".content").classList.toggle("light",currentView!=="command");
@@ -88,6 +120,7 @@ function renderView(){
   if(currentView==="billing"){ renderBilling(); return; }
   if(currentView==="woh"){ renderWOH(); return; }
   if(currentView==="margin"){ renderMargin(); return; }
+  if(currentView==="subs"){ renderSubs(); return; }
   if(currentView==="pmload"){ renderPMLoad(); return; }
   if(currentView==="forecast"){ renderForecast(); return; }
   if(currentView==="estimating"){ renderEstimating(); return; }

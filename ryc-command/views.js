@@ -469,6 +469,7 @@ function renderTrust(){
     +srow("Procore cache","Schedule, %, RFIs, submittals, CO types, revised contracts, budgets, commitments/buyout","Daily 04:00 UTC (11pm ET) + on-demand",activeData&&activeData.refreshed,((activeData&&activeData.jobs)||[]).length+" jobs",!!activeData)
     +srow("Foundation snapshot","Cost to date, billings, retainage, PM names, CO postings, markups","Nightly 09:00 UTC (4am ET)",foundationData&&foundationData.refreshed,(foundationData&&foundationData.jobs?Object.keys(foundationData.jobs).length:0)+" jobs",!!foundationData)
     +srow("Foundation AR","Open / overdue invoices with aging","Nightly 09:00 UTC (same run)",arData&&arData.refreshed,(((arData&&arData.invoices)||[]).length)+" invoices",!!arData)
+    +srow("Sub rollup","Actual-by-vendor + PO_Sub subcontracts, 2023+ (Subcontractors view, drawer sub lists)","Nightly (VM, ryc-dashboard-refresh)",subsData&&subsData.generated,(subsData&&subsData.subs?subsData.subs.length+" subs":"—"),!!subsData)
     +srow("Buildr","Client-relations visits + follow-up tasks","Live API on page load",buildrData&&buildrData.refreshed,(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",!!buildrData)
     +srow("BC bid board","Projects out to bid, trade-package invite coverage, bids received (Estimating view)","Daily 09:30 UTC (VM, bc-bidboard)",bcData&&bcData.generatedAt,(bcData&&bcData.published?bcData.published.length+" out to bid":"—"),!!bcData)
     +srow("Portfolio archive","Completed jobs (pegged at archive time)","On job completion",null,((portfolioData&&portfolioData.jobs)||portfolioData||[]).length?(((portfolioData&&portfolioData.jobs)||portfolioData||[]).length+" jobs"):"—",!!portfolioData)
@@ -1154,6 +1155,24 @@ function drawerHtml(j){
     buyout="<div class=\"dw-sec\"><h4>Commitments &amp; buyout (Procore)</h4><div class=\"dw-note\">No commitment data for this job yet — buyout pull runs with the nightly Procore refresh (unlocked 2026-07-07).</div></div>";
   }
 
+  /* subs on this job (inverted from the nightly Foundation actual-by-vendor rollup) */
+  var jobSubsSec="";
+  var jn=String(j.projectNumber||"");
+  var jobSubs=jn?((subsData&&subsData.subs)||[]).map(function(sv){
+    var hit=(sv.jobs||[]).filter(function(x){ return String(x.jobNo)===jn; })[0];
+    return hit?{name:sv.name,actual:hit.actual||0,committed:hit.committed||0}:null;
+  }).filter(function(x){ return x&&(x.actual>0||x.committed>0); })
+    .sort(function(a,c){ return c.actual-a.actual; }):[];
+  if(jobSubs.length){
+    var jsRows=jobSubs.slice(0,12).map(function(sv){
+      var v=(sv.committed>0&&sv.actual>0)?(sv.committed-sv.actual):null;
+      return "<tr><td>"+esc(sv.name)+"</td><td class=\"r\">"+(sv.committed?fmtCompact(sv.committed):"—")+"</td><td class=\"r\">"+fmtCompact(sv.actual)+"</td><td class=\"r\">"+(v==null?"—":((v>=0?"+":"")+fmtCompact(v)))+"</td></tr>";
+    }).join("");
+    jobSubsSec="<div class=\"dw-sec\"><h4>Subcontractors on this job (Foundation actual)</h4>"
+      +"<table class=\"dwt\"><tr><th>Subcontractor</th><th class=\"r\">Committed</th><th class=\"r\">Actual</th><th class=\"r\">Δ</th></tr>"+jsRows+"</table>"
+      +"<div class=\"dw-note\">"+(jobSubs.length>12?("Top 12 of "+jobSubs.length+" shown. "):"")+"Posted vendor cost from the nightly rollup (each vendor's top jobs — small line items may be missing). Full ledger: Subcontractors view.</div></div>";
+  }
+
   /* cost breakdown (Foundation, by class) */
   var costSec="";
   if(f&&f.costBreakdown){
@@ -1198,7 +1217,7 @@ function drawerHtml(j){
     +"<tr><td>Commitments / buyout</td><td>Procore sub + PO contracts (daily cache)</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
     +"</table><div class=\"dw-note\">Full field-by-field provenance: 📖 Data Sources on the legacy dashboard, or RYC_Dashboard_Data_Dictionary.md.</div></div>";
 
-  return head+"<div class=\"dw-body\">"+snap+recon+billing+buyout+costSec+coSec+field+trail+"</div>";
+  return head+"<div class=\"dw-body\">"+snap+recon+billing+buyout+jobSubsSec+costSec+coSec+field+trail+"</div>";
 }
 function openDrawer(jno,trigger){
   var j=jobByNo(jno); if(!j) return;
@@ -1220,6 +1239,81 @@ function closeDrawer(silent){
   _dwTrigger=null;
 }
 
+
+/* ===== Subcontractors (v2.23.0) — Foundation actual-by-vendor + PO_Sub subcontracts,
+   2023+ jobs (/ryc-data/ryc-subcontractors.json, nightly VM rollup). Ported from the legacy
+   dashboard's Subcontractors view — the one cutover gap (caught 2026-07-27): spend-ranked
+   vendor ledger + per-sub job-history drawer. ===== */
+var subsShowAll=false;
+function toggleSubsAll(){ subsShowAll=!subsShowAll; renderSubs(); }
+function subDeltaCell(d){ return d==null?"<span class=\"m-m\">—</span>":"<span class=\""+(d<0?"m-r":"m-g")+"\">"+(d>=0?"+":"")+fmtCompact(d)+"</span>"; }
+function renderSubs(){
+  var view=document.getElementById("view");
+  if(!subsData||!subsData.subs||!subsData.subs.length){
+    view.innerHTML="<div class=\"warn-banner\">&#9888;&#65039; Subcontractor rollup unavailable (/ryc-data/ryc-subcontractors.json) — the nightly Foundation vendor pull hasn't landed. Figures show Unavailable, not $0.</div>";
+    return;
+  }
+  var subs=subsData.subs;
+  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  var strip="<div class=\"kpi-strip k4\">"
+    +kpi("Sub spend (actual)",fmtCompact(subsData.totalActual),"booked in Foundation · 2023+ jobs","")
+    +kpi("Committed (subcontracts)",fmtCompact(subsData.totalCommitted),"signed PO_Sub value","")
+    +kpi("Subcontractors",String(subsData.subCount||subs.length),"with booked cost","")
+    +kpi("Top sub",esc(((subs[0]&&subs[0].name)||"—").split(/\s+/).slice(0,2).join(" ")),subs[0]?fmtCompact(subs[0].actualCost)+" actual":"","")
+    +"</div>";
+  var shown=subsShowAll?subs:subs.slice(0,40);
+  var rows=shown.map(function(s,i){
+    return "<tr data-vno=\""+attrEsc(s.vendorNo)+"\" tabindex=\"0\" role=\"button\" title=\"Job history\"><td class=\"r\" style=\"color:#8b95ab\">"+(i+1)+"</td>"
+      +"<td><div class=\"jname\">"+esc(s.name)+"</div></td>"
+      +"<td class=\"r\">"+(s.actualJobs||s.committedJobs||0)+"</td>"
+      +"<td class=\"r\">"+(s.committed?fmtCompact(s.committed):"<span class=\"m-m\">—</span>")+"</td>"
+      +"<td class=\"r\"><b>"+fmtCompact(s.actualCost)+"</b></td>"
+      +"<td class=\"r\">"+subDeltaCell(s.variance)+"</td></tr>";
+  }).join("");
+  var toggle="<button class=\"pfill\" onclick=\"toggleSubsAll()\">"+(subsShowAll?"Show top 40":"Show all "+subs.length)+"</button>";
+  view.innerHTML=strip
+    +"<div class=\"vhead\" style=\"display:flex;align-items:center;gap:10px\">Top subcontractors — ranked by actual spend "+toggle+"</div>"
+    +"<div class=\"vsub\"><b>Actual</b> = subcontractor cost booked in Foundation by vendor across 2023+ jobs. <b>Committed</b> = signed subcontract amount (PO_Sub). Δ = committed − actual: positive = under / in-progress; negative = actual over the subcontract (change orders or T&amp;M). Committed-vs-actual mixes in-progress jobs and T&amp;M (PO-less) subs — read <b>Actual</b> as the spend ranking. The buyout spread vs the original <i>bid</i> carry needs the estimate — a later phase. Click a sub for its job history.</div>"
+    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th class=\"r\">#</th><th>Subcontractor</th><th class=\"r\">Jobs</th><th class=\"r\">Committed</th><th class=\"r\">Actual spend</th><th class=\"r\">Δ vs committed</th></tr></thead><tbody>"+rows+"</tbody></table></div>"
+    +(subsShowAll?"":"<div class=\"vsub\" style=\"margin-top:8px\">Top 40 of "+subs.length+" shown.</div>");
+  hookSubRows();
+}
+function hookSubRows(){
+  Array.prototype.forEach.call(document.querySelectorAll(".view tbody"),function(tb){
+    tb.addEventListener("click",function(e){ var tr=e.target.closest("tr[data-vno]"); if(tr) openSubDrawer(tr.getAttribute("data-vno"),tr); });
+    tb.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ var tr=e.target.closest("tr[data-vno]"); if(tr){ e.preventDefault(); openSubDrawer(tr.getAttribute("data-vno"),tr); } } });
+  });
+}
+function openSubDrawer(vno,trigger){
+  var s=((subsData&&subsData.subs)||[]).filter(function(x){ return x.vendorNo===vno; })[0];
+  if(!s) return;
+  closeDrawer(true);
+  _dwTrigger=trigger||null;
+  function stat(l,v,su){ return "<div class=\"dw-stat\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div>"+(su?"<div class=\"s\">"+su+"</div>":"")+"</div>"; }
+  var head="<div class=\"dw-head\"><div><h3>"+esc(s.name)+"</h3>"
+    +"<div class=\"dw-sub\">Subcontractor · vendor "+esc(s.vendorNo)+" · "+(s.actualJobs||(s.jobs||[]).length)+" jobs with booked cost (2023+)</div></div>"
+    +"<button class=\"dw-close\" onclick=\"closeDrawer()\" aria-label=\"Close\">&times;</button></div>";
+  var stats="<div class=\"dw-sec\"><h4>Total across RYC (2023+)</h4><div class=\"dw-stats\">"
+    +stat("Actual spend",fmtCompact(s.actualCost),"Foundation posted cost")
+    +stat("Committed",s.committed?fmtCompact(s.committed):"—","signed subcontracts (PO_Sub)")
+    +stat("Δ committed − actual",s.variance==null?"—":((s.variance>=0?"+":"")+fmtCompact(s.variance)),"")
+    +"</div></div>";
+  var jobRows=(s.jobs||[]).map(function(jj){
+    var v=(jj.committed>0&&jj.actual>0)?(jj.committed-jj.actual):null;
+    return "<tr><td><span class=\"cell-sub\">"+esc(jj.jobNo)+"</span> "+esc(jj.jobName||"")+"</td>"
+      +"<td class=\"r\">"+(jj.committed?fmtCompact(jj.committed):"—")+"</td>"
+      +"<td class=\"r\">"+fmtCompact(jj.actual)+"</td>"
+      +"<td class=\"r\">"+(v==null?"—":((v>=0?"+":"")+fmtCompact(v)))+"</td></tr>";
+  }).join("");
+  var jobsSec="<div class=\"dw-sec\"><h4>Jobs (top "+(s.jobs||[]).length+" by spend)</h4>"
+    +"<table class=\"dwt\"><tr><th>Job</th><th class=\"r\">Committed</th><th class=\"r\">Actual</th><th class=\"r\">Δ</th></tr>"+jobRows+"</table>"
+    +"<div class=\"dw-note\">Δ = committed − actual: positive = under / in-progress; negative = actual over the subcontract (change orders or T&amp;M).</div></div>";
+  var wrap=document.createElement("div"); wrap.id="dwrap";
+  wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Subcontractor detail: "+attrEsc(s.name)+"\">"+head+"<div class=\"dw-body\">"+stats+jobsSec+"</div></aside>";
+  document.body.appendChild(wrap);
+  document.addEventListener("keydown",dwEsc);
+  var cb=wrap.querySelector(".dw-close"); if(cb) cb.focus();
+}
 
 /* ===== PM Load (v2.21.0) — per-PM workload history + forward hiring signal.
    Source: /ryc-data/pm-history.json (Foundation ODBC weekly pull — the only system

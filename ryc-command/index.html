@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RYC Command Center</title>
 <link rel="icon" href="/ryc-data/RYC_Shield_Orange.png">
-<link rel="stylesheet" href="/ryc-command/command.css?v2.22.0">
+<link rel="stylesheet" href="/ryc-command/command.css?v2.23.0">
 </head>
 <body>
 
@@ -30,12 +30,13 @@
       <nav class="nav" id="nav"></nav>
       <div class="side-foot">
         <a href="/ryc/estimate">&#128208; Estimating Tools &rarr;</a>
-        <div class="ver">v2.22.0-command &middot; legacy dashboard retired &rarr; this is now the RYC board</div>
+        <div class="ver">v2.23.0-command &middot; legacy dashboard retired &rarr; this is now the RYC board</div>
       </div>
     </aside>
     <main class="content">
       <div class="topbar">
         <div><h2 id="view-title">Command Center</h2><div class="ctx" id="view-ctx">Loading&hellip;</div></div>
+        <button class="pfill" id="pc-refresh-top" onclick="refreshProcore(this)" title="Re-run the Procore pull now (~2-3 min + deploy wait) &mdash; schedule, %, RFIs, contracts, commitments">&#10227; Refresh Procore</button>
         <button class="pfill" id="fdn-refresh-top" onclick="refreshFoundation(this)" title="Re-pull Foundation (accounting) now &mdash; catches posting batches since the ~5am snapshot">&#10227; Refresh Foundation</button>
       </div>
       <div class="view" id="view"></div>
@@ -44,8 +45,8 @@
 </div>
 
 <script src="/ryc-data/data-sources.js"></script>
-<script src="/ryc-command/core.js?v2.22.0"></script>
-<script src="/ryc-command/views.js?v2.22.0"></script>
-<script src="/ryc-command/app.js?v2.22.0"></script>
+<script src="/ryc-command/core.js?v2.23.0"></script>
+<script src="/ryc-command/views.js?v2.23.0"></script>
+<script src="/ryc-command/app.js?v2.23.0"></script>
 </body>
 </html>
