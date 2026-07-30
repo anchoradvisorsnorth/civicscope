@@ -1,7 +1,7 @@
 {
- "generated": "2026-07-29T09:30:38.935Z",
+ "generated": "2026-07-30T09:30:45.375Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 128105504,
+ "totalActual": 128106665,
  "totalCommitted": 137228372,
  "subCount": 634,
  "subs": [
@@ -10214,6 +10214,137 @@
    ]
   },
   {
+   "vendorNo": "1343",
+   "name": "Chase Card Services*",
+   "actualCost": 86082,
+   "actualJobs": 78,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2515CO01",
+     "jobName": "Huntertown Wastewater Treatmen",
+     "actual": 11770,
+     "committed": 0
+    },
+    {
+     "jobNo": "2315GO01",
+     "jobName": "Culver ES & MSHS Renovations",
+     "actual": 10628,
+     "committed": 0
+    },
+    {
+     "jobNo": "2413GO02",
+     "jobName": "PHM Fieldhouse",
+     "actual": 8673,
+     "committed": 0
+    },
+    {
+     "jobNo": "2402GP09",
+     "jobName": "Wakarusa WTP",
+     "actual": 6329,
+     "committed": 0
+    },
+    {
+     "jobNo": "2407GO07",
+     "jobName": "St Joe Cnty Salt Storage Bldg",
+     "actual": 5102,
+     "committed": 0
+    },
+    {
+     "jobNo": "2313GO09",
+     "jobName": "SB Airport Carwash",
+     "actual": 4598,
+     "committed": 0
+    },
+    {
+     "jobNo": "2307GO09",
+     "jobName": "St. Joe County Garages - Combo",
+     "actual": 3892,
+     "committed": 0
+    },
+    {
+     "jobNo": "2504CO05",
+     "jobName": "Jomar-2025 Build",
+     "actual": 3700,
+     "committed": 0
+    },
+    {
+     "jobNo": "2315GO03",
+     "jobName": "Warsaw Maint & Concession Bldg",
+     "actual": 1676,
+     "committed": 0
+    },
+    {
+     "jobNo": "2404CO13",
+     "jobName": "Warrior Youth Baseball Bldg",
+     "actual": 1312,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X005",
+     "jobName": "CTB 2026 Addition",
+     "actual": 1254,
+     "committed": 0
+    },
+    {
+     "jobNo": "2415GO04",
+     "jobName": "Culver Design Build",
+     "actual": 1185,
+     "committed": 0
+    },
+    {
+     "jobNo": "2415GO03",
+     "jobName": "INDOT Roselawn Unit & Salt Bld",
+     "actual": 1053,
+     "committed": 0
+    },
+    {
+     "jobNo": "2510GP04",
+     "jobName": "Shipshewana WWTP - Project A",
+     "actual": 992,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X018",
+     "jobName": "Greencroft South 6517 Chestnut",
+     "actual": 941,
+     "committed": 0
+    },
+    {
+     "jobNo": "2419CO02",
+     "jobName": "Beardsley Disc. Ctr. Mddl. Grd",
+     "actual": 917,
+     "committed": 0
+    },
+    {
+     "jobNo": "2303CO12",
+     "jobName": "Scooters Coffee Kiosk",
+     "actual": 902,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X012",
+     "jobName": "Town of Bristol - Street Build",
+     "actual": 816,
+     "committed": 0
+    },
+    {
+     "jobNo": "2504CO01",
+     "jobName": "Aluminum Insights North Add'n",
+     "actual": 804,
+     "committed": 0
+    },
+    {
+     "jobNo": "2507GP03",
+     "jobName": "Milford Water Utility Imp. Div",
+     "actual": 687,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "3252",
    "name": "Plymouth Glass Company LLC",
    "actualCost": 85224,
@@ -10340,137 +10471,6 @@
      "jobNo": "2304RO21",
      "jobName": "Greencroft 2070 WPC",
      "actual": 561,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "1343",
-   "name": "Chase Card Services*",
-   "actualCost": 85211,
-   "actualJobs": 76,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2515CO01",
-     "jobName": "Huntertown Wastewater Treatmen",
-     "actual": 11770,
-     "committed": 0
-    },
-    {
-     "jobNo": "2315GO01",
-     "jobName": "Culver ES & MSHS Renovations",
-     "actual": 10628,
-     "committed": 0
-    },
-    {
-     "jobNo": "2413GO02",
-     "jobName": "PHM Fieldhouse",
-     "actual": 8673,
-     "committed": 0
-    },
-    {
-     "jobNo": "2402GP09",
-     "jobName": "Wakarusa WTP",
-     "actual": 6329,
-     "committed": 0
-    },
-    {
-     "jobNo": "2407GO07",
-     "jobName": "St Joe Cnty Salt Storage Bldg",
-     "actual": 5102,
-     "committed": 0
-    },
-    {
-     "jobNo": "2313GO09",
-     "jobName": "SB Airport Carwash",
-     "actual": 4598,
-     "committed": 0
-    },
-    {
-     "jobNo": "2307GO09",
-     "jobName": "St. Joe County Garages - Combo",
-     "actual": 3892,
-     "committed": 0
-    },
-    {
-     "jobNo": "2504CO05",
-     "jobName": "Jomar-2025 Build",
-     "actual": 3700,
-     "committed": 0
-    },
-    {
-     "jobNo": "2315GO03",
-     "jobName": "Warsaw Maint & Concession Bldg",
-     "actual": 1676,
-     "committed": 0
-    },
-    {
-     "jobNo": "2404CO13",
-     "jobName": "Warrior Youth Baseball Bldg",
-     "actual": 1312,
-     "committed": 0
-    },
-    {
-     "jobNo": "2415GO04",
-     "jobName": "Culver Design Build",
-     "actual": 1185,
-     "committed": 0
-    },
-    {
-     "jobNo": "2415GO03",
-     "jobName": "INDOT Roselawn Unit & Salt Bld",
-     "actual": 1053,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X005",
-     "jobName": "CTB 2026 Addition",
-     "actual": 995,
-     "committed": 0
-    },
-    {
-     "jobNo": "2510GP04",
-     "jobName": "Shipshewana WWTP - Project A",
-     "actual": 992,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X018",
-     "jobName": "Greencroft South 6517 Chestnut",
-     "actual": 941,
-     "committed": 0
-    },
-    {
-     "jobNo": "2419CO02",
-     "jobName": "Beardsley Disc. Ctr. Mddl. Grd",
-     "actual": 917,
-     "committed": 0
-    },
-    {
-     "jobNo": "2303CO12",
-     "jobName": "Scooters Coffee Kiosk",
-     "actual": 902,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X012",
-     "jobName": "Town of Bristol - Street Build",
-     "actual": 816,
-     "committed": 0
-    },
-    {
-     "jobNo": "2504CO01",
-     "jobName": "Aluminum Insights North Add'n",
-     "actual": 804,
-     "committed": 0
-    },
-    {
-     "jobNo": "2507GP03",
-     "jobName": "Milford Water Utility Imp. Div",
-     "actual": 687,
      "committed": 0
     }
    ]
@@ -19239,6 +19239,137 @@
    ]
   },
   {
+   "vendorNo": "2208",
+   "name": "Menards  Inc",
+   "actualCost": 2659,
+   "actualJobs": 21,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2518RO13",
+     "jobName": "Greencroft 2042 WPC",
+     "actual": 404,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO18",
+     "jobName": "Greencroft Midd 529 Pkwy Lot51",
+     "actual": 310,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO07",
+     "jobName": "Greencroft 2026 WPC",
+     "actual": 271,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO10",
+     "jobName": "Greencroft 2028 WPC",
+     "actual": 271,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO15",
+     "jobName": "Greencroft 2044 WPC",
+     "actual": 212,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO01",
+     "jobName": "Greencroft 2033 WPC",
+     "actual": 211,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO11",
+     "jobName": "Greencroft 2027 WPC",
+     "actual": 210,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO12",
+     "jobName": "Greencroft 2029 WPC",
+     "actual": 210,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO21",
+     "jobName": "Greencroft South 6570 Chestnut",
+     "actual": 95,
+     "committed": 0
+    },
+    {
+     "jobNo": "2415GO01",
+     "jobName": "Wakarusa Elem CMc",
+     "actual": 73,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X010",
+     "jobName": "Greencroft South 6582 Chestnut",
+     "actual": 70,
+     "committed": 0
+    },
+    {
+     "jobNo": "2501CO01",
+     "jobName": "R. Yoder 2025 2nd Floor Addtn",
+     "actual": 52,
+     "committed": 0
+    },
+    {
+     "jobNo": "2618RO01",
+     "jobName": "Greencroft 2020 WPC",
+     "actual": 48,
+     "committed": 0
+    },
+    {
+     "jobNo": "2618RO02",
+     "jobName": "Greencroft 2022 WPC",
+     "actual": 48,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO14",
+     "jobName": "Greencroft 2048 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO16",
+     "jobName": "Greencroft 2050 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO24",
+     "jobName": "Greencroft 2045 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO25",
+     "jobName": "Greencroft 2047 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X002",
+     "jobName": "Greencroft 2021 WPC",
+     "actual": 26,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X003",
+     "jobName": "Greencroft 2023 WPC",
+     "actual": 26,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "1607",
    "name": "Elkhart County Treasurer",
    "actualCost": 2610,
@@ -19406,131 +19537,6 @@
      "jobNo": "2304CO24",
      "jobName": "Century Chem Septic Updates",
      "actual": 2400,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "2208",
-   "name": "Menards  Inc",
-   "actualCost": 2369,
-   "actualJobs": 19,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2518RO18",
-     "jobName": "Greencroft Midd 529 Pkwy Lot51",
-     "actual": 310,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO07",
-     "jobName": "Greencroft 2026 WPC",
-     "actual": 271,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO10",
-     "jobName": "Greencroft 2028 WPC",
-     "actual": 271,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO15",
-     "jobName": "Greencroft 2044 WPC",
-     "actual": 212,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO01",
-     "jobName": "Greencroft 2033 WPC",
-     "actual": 211,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO11",
-     "jobName": "Greencroft 2027 WPC",
-     "actual": 210,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO12",
-     "jobName": "Greencroft 2029 WPC",
-     "actual": 210,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO13",
-     "jobName": "Greencroft 2042 WPC",
-     "actual": 210,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO21",
-     "jobName": "Greencroft South 6570 Chestnut",
-     "actual": 95,
-     "committed": 0
-    },
-    {
-     "jobNo": "2415GO01",
-     "jobName": "Wakarusa Elem CMc",
-     "actual": 73,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X010",
-     "jobName": "Greencroft South 6582 Chestnut",
-     "actual": 70,
-     "committed": 0
-    },
-    {
-     "jobNo": "2501CO01",
-     "jobName": "R. Yoder 2025 2nd Floor Addtn",
-     "actual": 52,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO14",
-     "jobName": "Greencroft 2048 WPC",
-     "actual": 26,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO16",
-     "jobName": "Greencroft 2050 WPC",
-     "actual": 26,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO24",
-     "jobName": "Greencroft 2045 WPC",
-     "actual": 26,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO25",
-     "jobName": "Greencroft 2047 WPC",
-     "actual": 26,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X002",
-     "jobName": "Greencroft 2021 WPC",
-     "actual": 26,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X003",
-     "jobName": "Greencroft 2023 WPC",
-     "actual": 26,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO05",
-     "jobName": "Greencroft 2066 WPC",
-     "actual": 15,
      "committed": 0
     }
    ]
@@ -21242,7 +21248,7 @@
   },
   {
    "vendorNo": "3840",
-   "name": "Salsbury Industries, Inc.",
+   "name": "Salsbury Industries Inc",
    "actualCost": 0,
    "actualJobs": 0,
    "committed": 41090,
