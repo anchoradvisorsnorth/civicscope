@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-07-29T09:30:06.125Z",
+ "generatedAt": "2026-07-30T09:30:06.511Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -911,6 +911,23 @@
    "bidsReceived": 3,
    "pkgs": [
     {
+     "id": "6a5e4021a21b1ed85d711132",
+     "name": "Cabinets",
+     "number": "12-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "LUE Manufacturing"
+     ]
+    },
+    {
      "id": "6a5e403fb5a4a5378831970c",
      "name": "Electrical",
      "number": "26-01",
@@ -957,23 +974,6 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "Matteson Acoustics"
-     ]
-    },
-    {
-     "id": "6a5e4021a21b1ed85d711132",
-     "name": "Cabinets",
-     "number": "12-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "LUE Manufacturing"
      ]
     },
     {
@@ -1073,6 +1073,121 @@
    ]
   },
   {
+   "id": "6a691464decf41970916ef58",
+   "name": "Peru Hangar Building",
+   "number": null,
+   "state": "PUBLISHED",
+   "bidsDueAt": "2026-08-04T16:00:00.000Z",
+   "rfisDueAt": null,
+   "jobWalkAt": null,
+   "startsAt": null,
+   "publishedAt": "2026-07-29T18:14:16.333Z",
+   "city": "Peru",
+   "st": "IN",
+   "architect": null,
+   "value": null,
+   "isPublic": false,
+   "packages": 4,
+   "covered": 1,
+   "atRisk": 3,
+   "invites": 29,
+   "bidding": 2,
+   "undecided": 25,
+   "bidsReceived": 0,
+   "pkgs": [
+    {
+     "id": "6a691509fd78d7e84ff32f8a",
+     "name": "Earthwork & Utilities",
+     "number": "31-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-04T16:00:00.000Z",
+     "invites": 14,
+     "bidding": 0,
+     "undecided": 13,
+     "notBidding": 1,
+     "viewed": 5,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "TriCity Excavation ",
+      "Earth Surface Solutions",
+      "Coomler Contracting Inc",
+      "Superior Site Solutions LLC",
+      "Deichman Excavating CO., Inc.",
+      "Kellam Inc.",
+      "KMA Dirtworks Excavating & Drainage LLC",
+      "Bowyer Excavating",
+      "Accudig Services",
+      "Crosby Excavating, Inc.",
+      "Brainard Excavating",
+      "T-E Incorporated",
+      "F & K Construction, Inc."
+     ]
+    },
+    {
+     "id": "6a6918f6f9301e246dde4265",
+     "name": "Pavement and Markings",
+     "number": "32-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-04T16:00:00.000Z",
+     "invites": 9,
+     "bidding": 0,
+     "undecided": 8,
+     "notBidding": 1,
+     "viewed": 3,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Central Paving Inc.",
+      "Traffic Control Specialists, Inc.",
+      "Airmarking Co., Inc.",
+      "Gaunt",
+      "Rieth-Riley Construction Co., Inc.",
+      "Wayne Asphalt and Construction Company",
+      "Milestone Contractors, L.P.",
+      "E & B Paving, LLC"
+     ]
+    },
+    {
+     "id": "6a69198e01e49f73cf948fd6",
+     "name": "Soil Preperation and Seeding",
+     "number": "32-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-04T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 0,
+     "undecided": 3,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Bojrab Landscape Management",
+      "Harlow Enterprises, Inc.",
+      "Slusser's Green Thumb Inc."
+     ]
+    },
+    {
+     "id": "6a691a8d3f6419bee01bf143",
+     "name": "Pre-Engineered Hangar Building",
+     "number": "13-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-04T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 2,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Kirk Airport Solutions Inc",
+      "Erect-A-Tube"
+     ]
+    }
+   ]
+  },
+  {
    "id": "6a6906d049b5d2042972c446",
    "name": "Syracuse WTP - Filter Rehabilitation",
    "number": null,
@@ -1092,7 +1207,7 @@
    "atRisk": 1,
    "invites": 6,
    "bidding": 2,
-   "undecided": 3,
+   "undecided": 2,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -1103,14 +1218,12 @@
      "bidsDueAt": "2026-08-05T14:00:00.000Z",
      "invites": 1,
      "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
+     "undecided": 0,
+     "notBidding": 1,
      "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
-     "undecidedSubs": [
-      "Maddox Industrial LLC"
-     ]
+     "undecidedSubs": []
     },
     {
      "id": "6a690954a08f0d2829e808ed",
@@ -1149,9 +1262,8 @@
    ]
   }
  ],
- "draftCount": 2,
+ "draftCount": 1,
  "draftNames": [
-  "Peru Hangar Building",
   "TEST 2026 Wastewater Treatment Plant Improvements TEST Keith"
  ],
  "recentClosed": [
