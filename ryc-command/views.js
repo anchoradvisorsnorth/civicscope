@@ -139,7 +139,7 @@ function buildPfRows(){
       closeoutStage:!!CLOSEOUT_STAGES[j.stage],
       contract:j.contractValue||0, conflict:(j.flags||[]).some(function(f){return f.type==="contract";}),
       ctd:(j.costToDate!=null?j.costToDate:null), pct:j.pctComplete,
-      mtd:marginToDate(j), cm:contractedMargin(j),
+      mtd:projectedMargin(j), mtdSuspect:projMarginSuspect(j), cm:contractedMargin(j),
       needsInv:b?b.under:0, overdue:b?b.overdue:0,
       status:isCloseoutOnly(j)?"closeout":sl.color,
       reasons:sl.reasons.map(function(r){return r.text;}).join(" · "),
@@ -168,7 +168,10 @@ function updatePTable(){
     va=(va==null?-Infinity:va); vb=(vb==null?-Infinity:vb); return (va-vb)*d; });
   var tb="";
   rows.forEach(function(r){
-    var mcls=r.mtd==null?"m-m":r.mtd>=10?"m-g":r.mtd>=5?"m-a":"m-r";
+    // Colour now grades PROJECTED margin at completion, so being early in a job no longer
+    // reads as green. Negative projected margin is unambiguously red — unless the projected
+    // cost is flagged suspect, in which case it is shown ungraded rather than alarmed.
+    var mcls=(r.mtd==null||r.mtdSuspect)?"m-m":r.mtd>=10?"m-g":r.mtd>=5?"m-a":"m-r";
     var bill="";
     if(r.needsInv>1000) bill="<span class=\"m-a\">inv "+fmtCompact(r.needsInv)+"</span>";
     if(r.overdue>0) bill+=(bill?" · ":"")+"<span class=\"m-r\">od "+fmtCompact(r.overdue)+"</span>";
@@ -179,7 +182,7 @@ function updatePTable(){
       +"<td class=\"r\">"+fmtCompact(r.contract)+(r.conflict?" <span title=\"Procore and Foundation contracts diverge — see Data conflicts on the Command Center\" style=\"color:#c07f1a\">⚑</span>":"")+"</td>"
       +"<td class=\"r\">"+(r.ctd!=null?fmtCompact(r.ctd):"—")+"</td>"
       +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
-      +"<td class=\"r\"><span class=\""+mcls+"\">"+(r.mtd!=null?r.mtd.toFixed(1)+"%":"—")+"</span>"+(r.cm!=null?"<div class=\"cell-sub\">bid "+r.cm.toFixed(1)+"%</div>":"")+"</td>"
+      +"<td class=\"r\"><span class=\""+mcls+"\""+(r.mtdSuspect?" title=\"Projected cost flagged for verification — shown ungraded\"":"")+">"+(r.mtd!=null?(r.mtdSuspect?"⚑ ":"")+r.mtd.toFixed(1)+"%":"—")+"</span>"+(r.cm!=null?"<div class=\"cell-sub\">bid "+r.cm.toFixed(1)+"%</div>":"")+"</td>"
       +"<td>"+bill+"</td>"
       +"<td>"+statusPill(r.status,r.reasons)+"</td>"
       +"<td><span class=\"conf "+r.conf.cls+"\">"+r.conf.txt+"</span></td>"
@@ -201,7 +204,7 @@ function renderPortfolio(){
     +"<input id=\"psearch\" type=\"text\" placeholder=\"Search job, PM, client, stage…\" oninput=\"pfSearchInput(this.value)\" value=\""+attrEsc(pfSearch)+"\">"
     +pills.map(function(p){ return "<button class=\"pfill\" data-f=\""+p[0]+"\" onclick=\"pfSetFilter('"+p[0]+"')\">"+p[1]+"</button>"; }).join("")
     +"<span class=\"pcount\" id=\"pcount\"></span></div>";
-  var cols=[["name","Job"],["pm","PM"],["stage","Stage"],["contract","Contract"],["ctd","Cost to date"],["pct","%"],["mtd","Margin"],["needsInv","Billing"],["status","Status"],["confRank","Conf"]];
+  var cols=[["name","Job"],["pm","PM"],["stage","Stage"],["contract","Contract"],["ctd","Cost to date"],["pct","%"],["mtd","Proj. margin"],["needsInv","Billing"],["status","Status"],["confRank","Conf"]];
   var head="<tr>"+cols.map(function(cd){ var right=["contract","ctd","pct","mtd"].indexOf(cd[0])>-1?" class=\"r\"":""; return "<th"+right+" data-col=\""+cd[0]+"\" data-lbl=\""+cd[1]+"\" onclick=\"pfSetSort('"+cd[0]+"')\">"+cd[1]+"</th>"; }).join("")+"</tr>";
   /* Greencroft leftovers band (2026-07-21): since the program's promotion to the board,
      greencroftJobs() = only units active in Foundation but NOT active in Procore. The
@@ -1068,7 +1071,7 @@ function drawerHtml(j){
   var reasons=sl.reasons.map(function(r){return r.text;}).join(" · ");
   var bill=billingByJob()[String(j.projectNumber)]||null;
   var gf=gainFadeFor(j);
-  var mtd=marginToDate(j), cm=contractedMargin(j);
+  var mtd=projectedMargin(j), cm=contractedMargin(j), burn=contractLessCostToDatePct(j);
   var dpf=daysPastFinish(j);
   var pAge=ageTxt(activeData&&activeData.refreshed), fAge=ageTxt(foundationData&&foundationData.refreshed), aAge=ageTxt(arData&&arData.refreshed);
 
@@ -1086,13 +1089,13 @@ function drawerHtml(j){
 
   /* financial snapshot */
   function stat(l,v,s){ return "<div class=\"dw-stat\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div>"+(s?"<div class=\"s\">"+s+"</div>":"")+"</div>"; }
-  var atCompletion=(j.contractValue>0&&b.projectedCost>0)?((j.contractValue-b.projectedCost)/j.contractValue*100):null;
   var snap="<div class=\"dw-sec\"><h4>Financial snapshot</h4><div class=\"dw-stats\">"
     +stat("Contract",fmtCompact(j.contractValue),j.revisedContract>0?"Procore revised":"Foundation")
-    +stat("Cost to date",j.costToDate!=null?fmtCompact(j.costToDate):"—",f?"Foundation actuals":"Procore direct")
+    // burn belongs here, beside the dollars it describes — not masquerading as margin
+    +stat("Cost to date",j.costToDate!=null?fmtCompact(j.costToDate):"—",(f?"Foundation actuals":"Procore direct")+(burn!=null?" · "+(100-burn).toFixed(0)+"% of contract spent":""))
     +stat("Complete",j.pctComplete!=null?Math.round(j.pctComplete)+"%":"—",dpf>0?dpf+"d past finish":"")
-    +stat("Margin to date",mtd!=null?mtd.toFixed(1)+"%":"—",cm!=null?"bid "+cm.toFixed(1)+"%":"")
-    +stat("Proj. cost (ERP)",b.projectedCost>0?fmtCompact(b.projectedCost):"—",(b.projCostSuspect?"⚑ verify · ":"")+(atCompletion!=null?"margin at compl. "+atCompletion.toFixed(1)+"%":""))
+    +stat("Proj. margin",mtd!=null?mtd.toFixed(1)+"%":"—",(cm!=null?"bid "+cm.toFixed(1)+"%":"")+(mtd!=null&&cm!=null?" · "+((mtd-cm)>=0?"+":"")+(mtd-cm).toFixed(1)+" pts":""))
+    +stat("Proj. cost (ERP)",b.projectedCost>0?fmtCompact(b.projectedCost):"—",b.projCostSuspect?"⚑ verify":"")
     +stat("Gain / fade",gf?(gf.gfPts>=0?"+":"")+gf.gfPts.toFixed(1)+" pts":"—",gf?fmtCompact(gf.gfDollars)+(gf.burnRisk?" · cost-burn risk":""):"insufficient data")
     +"</div></div>";
 

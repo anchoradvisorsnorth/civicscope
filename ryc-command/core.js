@@ -35,7 +35,23 @@ function ageTxt(ts){ if(!ts) return null; var h=(Date.now()-new Date(ts))/360000
 function esc(s){ if(!s) return ""; var d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 function pmName(job){ return (job.foundation && job.foundation.pmName) || (job.pm && job.pm.name) || null; }
 function contractedMargin(job){ var cv=job.contractValue, bo=job.budget && job.budget.original; if(!(cv>0 && bo>0)) return null; return bo>=cv?0:((cv-bo)/cv*100); }
-function marginToDate(job){ var cv=job.contractValue, dc=(job.costToDate!=null?job.costToDate:(job.budget&&job.budget.direct)); return (cv>0 && dc>0)?((cv-dc)/cv*100):null; }
+/* NOT a margin. (contract - cost to date)/contract is the share of contract value not yet
+   consumed by recorded cost: it starts near 100% on a new job and decays toward the true
+   margin only as the job finishes. Kept solely as a spend/burn measure and for the
+   "cost has exceeded the contract" check — never label or colour it as margin. */
+function contractLessCostToDatePct(job){ var cv=job.contractValue, dc=(job.costToDate!=null?job.costToDate:(job.budget&&job.budget.direct)); return (cv>0 && dc>0)?((cv-dc)/cv*100):null; }
+
+/* The real margin measure during a live job: contract vs PROJECTED cost at completion.
+   Same formula the job drawer already used for "margin at compl.", so a Portfolio row and the
+   drawer opened from it can no longer disagree. Populated on 49 of 53 active jobs. */
+function projectedMargin(job){ var cv=job.contractValue, pc=job.budget&&job.budget.projectedCost; return (cv>0 && pc>0)?((cv-pc)/cv*100):null; }
+/* ERP Projected Cost is not uniformly trustworthy — the Procore "Projected Costs" double-count
+   inflates it on some jobs (live: St. Joe Garages projects $7.3M against a $4.1M revised budget
+   and $3.9M spent). Those rows already carry projCostSuspect. Where it is set the projected
+   margin is shown but NOT graded and NOT allowed to raise a margin alarm: an unreliable input
+   must not become an alarming number, the same discipline that stops an unavailable feed
+   becoming a reassuring zero. The job still surfaces — as a data-verification item. */
+function projMarginSuspect(job){ return !!(job.budget && job.budget.projCostSuspect); }
 
 /* ---- Foundation merge (Procore-revised contract priority; ported from legacy v1.29.0) ---- */
 function mergeFoundation(){
@@ -115,7 +131,8 @@ function buildrIdFor(jno){ var r=buildrData&&buildrData.jobs&&buildrData.jobs[St
 function getStoplight(job, live){
   var stage=live?live.stage:null, pctComp=live?live.pctComplete:null, costOverrun=live?live.costOverrun:null;
   var finishDate=live?(live.projectedFinish||live.completionDate):null, verifyStatus=live?live.verifyStatus:null;
-  var cMargin=contractedMargin(job), mtd=marginToDate(job);
+  var cMargin=contractedMargin(job), burn=contractLessCostToDatePct(job);
+  var pSuspect=projMarginSuspect(job), pMargin=pSuspect?null:projectedMargin(job);
   var co=live?live.changeOrders:null;
   var coExposure=(co&&co.netValue&&job.contractValue)?Math.abs(co.netValue)/job.contractValue:0;
   // effective stage: a stale "Pre-Construction" no longer exempts a job with real cost
@@ -125,12 +142,21 @@ function getStoplight(job, live){
   var daysOverdue=finishDate?Math.floor((Date.now()-new Date(finishDate))/86400000):0;
   var reasons=[];
   if(costOverrun) reasons.push({level:"red",text:"Cost overrun"});
-  if(mtd!=null && mtd<0) reasons.push({level:"red",text:"Margin to date "+mtd.toFixed(1)+"%"});
+  // Cost recorded to date has passed the contract value — a real overrun, but it is not a
+  // "margin to date"; the old label made a spend measure read as profitability.
+  if(burn!=null && burn<0) reasons.push({level:"red",text:"Cost to date exceeds contract by "+Math.abs(burn).toFixed(1)+"%"});
+  if(pMargin!=null && pMargin<0) reasons.push({level:"red",text:"Projected margin "+pMargin.toFixed(1)+"% at completion"});
   if(daysOverdue>30 && !verifyStatus) reasons.push({level:"red",text:Math.abs(daysOverdue)+" days past projected finish"});
   var red=reasons.some(function(r){return r.level==="red";});
   if(!red){
     if(cMargin!=null && cMargin>0 && cMargin<5) reasons.push({level:"amber",text:"Contracted margin "+cMargin.toFixed(1)+"% (below 5%)"});
-    if(pctComp!=null && pctComp>=10 && mtd!=null && cMargin!=null && mtd<cMargin) reasons.push({level:"amber",text:"Margin declining "+mtd.toFixed(1)+"% vs "+cMargin.toFixed(1)+"% contracted"});
+    // Margin erosion, measured the only way that can catch it early: PROJECTED margin at
+    // completion vs the margin the job was bid at. The old test compared contract-less-cost-to-
+    // date against bid margin — a figure that starts near 100% and only dips below the bid
+    // margin as the job finishes, so genuine mid-job fade produced no warning at all.
+    if(pctComp!=null && pctComp>=10 && pMargin!=null && cMargin!=null && (cMargin-pMargin)>=GF_MOVE_PTS)
+      reasons.push({level:"amber",text:"Margin fading "+pMargin.toFixed(1)+"% projected vs "+cMargin.toFixed(1)+"% bid"});
+    if(pSuspect) reasons.push({level:"amber",text:"Projected cost needs verification — margin not graded"});
     if(daysOverdue>=1 && daysOverdue<=30) reasons.push({level:"amber",text:daysOverdue+" days past projected finish"});
     if(coExposure>0.07) reasons.push({level:"amber",text:"CO exposure "+(coExposure*100).toFixed(1)+"% of contract"});
     if(finishDate && !verifyStatus && daysOverdue<=0 && Math.abs(daysOverdue)<=30) reasons.push({level:"amber",text:"Finishing in "+Math.abs(daysOverdue)+" days"});
