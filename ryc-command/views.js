@@ -137,16 +137,16 @@ function renderCommand(){
    Foundation snapshot trail (ryc_foundation_history via ?asof=) — billed, cost recorded,
    contract changes, new/closed jobs. Nothing here is manually maintained; there is no action
    register to keep current. Fails silent: no history → no panel, never an error surface. */
-var _deltaCache=null;   // {key, html} — keyed on BOTH snapshots so an in-session refresh invalidates (R5 #6)
-function loadCommandDeltas(){
-  var el=document.getElementById("delta-panel"); if(!el) return;
-  if(!(foundationData&&foundationData.jobs)){ el.innerHTML=""; return; }
+/* Typed delta computation (R5 #3 + #6): ONE cached DATA object keyed on both snapshots —
+   Overview and the Executive Brief both render from it; HTML is never cached. */
+var _deltaData=null;   // {key, data|null}
+function computeDeltas(cb){
+  if(!(foundationData&&foundationData.jobs)){ cb(null); return; }
   var asof=new Date(Date.now()-7*86400000).toISOString().slice(0,10);
   var cacheKey=String(foundationData.refreshed||"")+"|"+asof;
-  if(_deltaCache&&_deltaCache.key===cacheKey){ el.innerHTML=_deltaCache.html; return; }
-  el.innerHTML="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computing from nightly snapshots…</div></div>";
+  if(_deltaData&&_deltaData.key===cacheKey){ cb(_deltaData.data); return; }
   fetch(CRM+"/api/ryc-foundation?asof="+asof).then(function(r){ return r.json(); }).then(function(old){
-    if(!old||!old.jobs||!Object.keys(old.jobs).length){ el.innerHTML=""; return; }
+    if(!old||!old.jobs||!Object.keys(old.jobs).length){ _deltaData={key:cacheKey,data:null}; cb(null); return; }
     var cur=foundationData.jobs;
     // Comparability gate (R5 #3): the baseline is ONE coherent run (the API guarantees it and
     // echoes snapshotRun); absence still only means "job appeared/closed" when both sides look
@@ -154,10 +154,11 @@ function loadCommandDeltas(){
     // jobs still render, but new/closed classification is REFUSED and says so.
     var curN=Object.keys(cur).length, oldN=old.jobCount||Object.keys(old.jobs).length;
     var comparable=!!old.snapshotRun && oldN>=curN*0.85 && curN>=oldN*0.85;
-    var billed=0,cost=0,contractChanges=[],movers=[],newJobs=[],closed=[];
+    var billed=0,cost=0,shared=0,contractChanges=[],movers=[],newJobs=[],closed=[];
     Object.keys(cur).forEach(function(k){
       var c=cur[k],o=old.jobs[k];
       if(!o){ if(comparable&&c.jobStatus==="A"&&((c.currentContract||0)>0||(c.originalContract||0)>0)) newJobs.push(c); return; }
+      shared++;
       var db=(c.totalInvoiced||0)-(o.totalInvoiced||0); if(isFinite(db)) billed+=db;
       var dc=(c.totalCosts||0)-(o.totalCosts||0); if(isFinite(dc)){ cost+=dc; if(dc>1000) movers.push({j:c,d:dc}); }
       var dk=(c.currentContract||0)-(o.currentContract||0);
@@ -166,20 +167,31 @@ function loadCommandDeltas(){
     if(comparable) Object.keys(old.jobs).forEach(function(k){ var o=old.jobs[k]; if(o.jobStatus==="A"&&(!cur[k]||cur[k].jobStatus==="C")) closed.push(o); });
     movers.sort(function(a,b){ return b.d-a.d; });
     contractChanges.sort(function(a,b){ return Math.abs(b.d)-Math.abs(a.d); });
+    var data={ asof:asof, snapshotRun:old.snapshotRun||null, oldN:oldN, curN:curN, shared:shared, comparable:comparable,
+      billed:billed, cost:cost, contractChanges:contractChanges, movers:movers, newJobs:newJobs, closed:closed,
+      baseLabel: old.snapshotRun?new Date(old.snapshotRun).toLocaleDateString("en-US",{month:"short",day:"numeric"}):asof };
+    _deltaData={key:cacheKey,data:data}; cb(data);
+  }).catch(function(){ cb(null); });
+}
+function loadCommandDeltas(){
+  var el=document.getElementById("delta-panel"); if(!el) return;
+  el.innerHTML="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computing from nightly snapshots…</div></div>";
+  computeDeltas(function(d){
+    if(!d){ var e2=document.getElementById("delta-panel"); if(e2) e2.innerHTML=""; return; }
+    var el2=document.getElementById("delta-panel"); if(!el2) return;
     function li(name,jno,txt,val){ return "<div class=\"q-row info\"><div class=\"q-job\">"+esc(name)+"<span class=\"q-jno\">"+esc(jno||"")+"</span></div><div class=\"q-detail\">"+txt+"</div><div class=\"q-val\">"+val+"</div></div>"; }
-    var base=old.snapshotRun?new Date(old.snapshotRun).toLocaleDateString("en-US",{month:"short",day:"numeric"}):asof;
-    var html="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computed from the nightly Foundation snapshot trail (baseline run "+base+", "+oldN+" jobs → now, "+curN+"). Derived, never hand-maintained.</div>"
-      +"<div class=\"q-row info\"><div class=\"q-job\">Week totals</div><div class=\"q-detail\"><b>"+fmtCompact(billed)+"</b> billed · <b>"+fmtCompact(cost)+"</b> cost recorded"
-      +(newJobs.length?(" · <b>"+newJobs.length+"</b> new job"+(newJobs.length===1?"":"s")):"")
-      +(closed.length?(" · <b>"+closed.length+"</b> closed"):"")+"</div></div>"
-      +(comparable?"":"<div class=\"q-row info\"><div class=\"q-job\">Coverage</div><div class=\"q-detail\">Baseline and current snapshots differ too much in coverage ("+oldN+" vs "+curN+" jobs) — probable partial ingestion, so jobs are NOT classified as new/closed. $ deltas above cover the "+Object.keys(cur).filter(function(k){return old.jobs[k];}).length+" jobs present in both.</div></div>");
-    contractChanges.slice(0,5).forEach(function(x){ html+=li(x.j.description||"",x.j.jobNo,"contract "+(x.d>0?"+":"")+fmtCompact(x.d)+" this week",fmtCompact(x.j.currentContract)); });
-    newJobs.slice(0,5).forEach(function(c){ html+=li(c.description||"",c.jobNo,"NEW in Foundation this week"+(c.pmName?(" · "+esc(c.pmName)):""),fmtCompact(c.currentContract||c.originalContract)); });
-    closed.slice(0,5).forEach(function(o){ html+=li(o.description||"",o.jobNo,"closed in Foundation this week","—"); });
-    movers.slice(0,3).forEach(function(x){ html+=li(x.j.description||"",x.j.jobNo,"cost recorded "+fmtCompact(x.d)+" this week",""); });
+    var html="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computed from the nightly Foundation snapshot trail (baseline run "+d.baseLabel+", "+d.oldN+" jobs → now, "+d.curN+"). Derived, never hand-maintained.</div>"
+      +"<div class=\"q-row info\"><div class=\"q-job\">Week totals</div><div class=\"q-detail\"><b>"+fmtCompact(d.billed)+"</b> billed · <b>"+fmtCompact(d.cost)+"</b> cost recorded"
+      +(d.newJobs.length?(" · <b>"+d.newJobs.length+"</b> new job"+(d.newJobs.length===1?"":"s")):"")
+      +(d.closed.length?(" · <b>"+d.closed.length+"</b> closed"):"")+"</div></div>"
+      +(d.comparable?"":"<div class=\"q-row info\"><div class=\"q-job\">Coverage</div><div class=\"q-detail\">Baseline and current snapshots differ too much in coverage ("+d.oldN+" vs "+d.curN+" jobs) — probable partial ingestion, so jobs are NOT classified as new/closed. $ deltas above cover the "+d.shared+" jobs present in both.</div></div>");
+    d.contractChanges.slice(0,5).forEach(function(x){ html+=li(x.j.description||"",x.j.jobNo,"contract "+(x.d>0?"+":"")+fmtCompact(x.d)+" this week",fmtCompact(x.j.currentContract)); });
+    d.newJobs.slice(0,5).forEach(function(c){ html+=li(c.description||"",c.jobNo,"NEW in Foundation this week"+(c.pmName?(" · "+esc(c.pmName)):""),fmtCompact(c.currentContract||c.originalContract)); });
+    d.closed.slice(0,5).forEach(function(o){ html+=li(o.description||"",o.jobNo,"closed in Foundation this week","—"); });
+    d.movers.slice(0,3).forEach(function(x){ html+=li(x.j.description||"",x.j.jobNo,"cost recorded "+fmtCompact(x.d)+" this week",""); });
     html+="</div>";
-    _deltaCache={key:cacheKey,html:html}; el.innerHTML=html;
-  }).catch(function(){ el.innerHTML=""; });
+    el2.innerHTML=html;
+  });
 }
 
 /* ===== Portfolio (Phase 2 — light operator table) ============================ */
@@ -1118,17 +1130,72 @@ function renderBrief(){
   /* exceptions + provenance */
   var conflicts=jobs.filter(function(j){return (j.flags||[]).some(function(f){return f.type==="contract";});}).length;
 
+  /* Margin movement (section 4): headline + net trusted fade */
+  var fadeDollars=fades.reduce(function(s,r){return s+r.gfDollars;},0);
+  var marginSec="<div class=\"ssub\">Projected gross margin <b>"+(gm?gm.pct.toFixed(1)+"%":"—")+"</b> ("+gmSub(gm)+")."
+    +(fades.length?(" <b>"+fades.length+"</b> job"+(fades.length===1?"":"s")+" fading vs as-bid, net <b>"+fmtCompact(fadeDollars)+"</b> — worst: "+esc(fades[0].name)+" ("+fades[0].gfPts.toFixed(1)+" pts)."):" No trusted-projection fades this week.")
+    +"</div>";
+
+  /* Capacity (section 5, sync half): core jobs per PM */
+  var pmCount={};
+  jobs.forEach(function(j){ var n=pmName(j)||"(no PM)"; pmCount[n]=(pmCount[n]||0)+1; });
+  var pmTop=Object.keys(pmCount).map(function(k){return {pm:k,n:pmCount[k]};}).sort(function(a,b){return b.n-a.n;});
+  var capSub=pmTop.length?("<b>"+pmTop.length+"</b> PMs across <b>"+jobs.length+"</b> active jobs — heaviest: "+pmTop.slice(0,3).map(function(x){return esc(x.pm)+" ("+x.n+")";}).join(", ")+". Full picture on PM Load."):"—";
+
   view.innerHTML=warn+"<div class=\"brief\">"
     +"<div class=\"bh\"><div><h1>Executive Brief</h1><div class=\"bsub\">R. Yoder Construction — active work · as of "+dateStr+" · Procore data "+(pAge||"—")+", Foundation "+(fAge||"—")+"</div></div>"
     +"<div class=\"brief-actions\"><button class=\"pfill\" onclick=\"briefPresent()\">🖥 Present</button><button class=\"pfill\" onclick=\"window.print()\">🖨 Print</button></div></div>"
     +"<div class=\"brief-sec\">"+band+"</div>"
-    +"<div class=\"brief-sec\"><h2>What needs attention</h2><div class=\"ssub\">Real risk, aging closeouts, and the biggest margin fades — the week&#8217;s conversation list.</div>"+riskHtml+"</div>"
+    /* R5 #10 ordering: the brief LEADS with what changed, then what needs a decision. */
+    +"<div class=\"brief-sec\"><h2>What changed — last 7 days</h2><div id=\"brief-deltas\"><div class=\"ssub\">Computing from nightly snapshots…</div></div></div>"
+    +"<div class=\"brief-sec\"><h2>Decisions &amp; attention</h2><div class=\"ssub\">Real risk, aging closeouts, and the biggest trusted margin fades — the week&#8217;s conversation list.</div>"+riskHtml+"</div>"
     +"<div class=\"brief-sec\"><h2>Billing &amp; cash</h2><div class=\"ssub\">"+cashSub+"</div>"+watchHtml+"</div>"
+    +"<div class=\"brief-sec\"><h2>Margin movement</h2>"+marginSec+"</div>"
+    +"<div class=\"brief-sec\"><h2>Capacity &amp; pipeline</h2><div class=\"ssub\">"+capSub+"</div><div id=\"brief-pipeline\"><div class=\"ssub\">Reading the Estimating Desk…</div></div></div>"
     +"<div class=\"brief-foot\">"+(conflicts?("<b>"+conflicts+"</b> contract conflict(s) between Procore and Foundation are open — see Margin &amp; Risk → Data exceptions before quoting those jobs. "):"Procore and Foundation contracts agree on every active job. ")
     +"The Work-on-Hand Analysis table lives on the <b>Work on Hand</b> view (sortable, as-of date gate, CSV). "
     +"Decision-layer figures (margins, stoplights, gain/fade) are forecasts; source-of-record figures (cost, billings, AR, Work-on-Hand) mirror Foundation. Full provenance: RYC_Dashboard_Data_Dictionary.md.</div>"
     +"</div>";
   hookDrawerRows();
+  fillBriefDeltas();
+  fillBriefPipeline();
+}
+
+/* Brief section 1 — the same typed delta data the Overview renders (one computation, R5 #6). */
+function fillBriefDeltas(){
+  computeDeltas(function(d){
+    var el=document.getElementById("brief-deltas"); if(!el) return;
+    if(!d){ el.innerHTML="<div class=\"ssub\">No snapshot history available for a 7-day comparison.</div>"; return; }
+    var lines=[];
+    lines.push("<b>"+fmtCompact(d.billed)+"</b> billed · <b>"+fmtCompact(d.cost)+"</b> cost recorded (baseline run "+d.baseLabel+")");
+    if(d.newJobs.length) lines.push("<b>New:</b> "+d.newJobs.slice(0,4).map(function(c){return esc(c.description||c.jobNo)+" ("+fmtCompact(c.currentContract||c.originalContract)+")";}).join(" · "));
+    if(d.closed.length) lines.push("<b>Closed:</b> "+d.closed.slice(0,4).map(function(o){return esc(o.description||o.jobNo);}).join(" · "));
+    if(d.contractChanges.length) lines.push("<b>Contract changes:</b> "+d.contractChanges.slice(0,4).map(function(x){return esc(x.j.description||x.j.jobNo)+" "+(x.d>0?"+":"")+fmtCompact(x.d);}).join(" · "));
+    if(!d.comparable) lines.push("<b>Coverage caveat:</b> baseline and current snapshots differ in coverage ("+d.oldN+" vs "+d.curN+" jobs) — new/closed not classified; $ figures cover the "+d.shared+" jobs in both.");
+    el.innerHTML=lines.map(function(l){return "<div class=\"ssub\">"+l+"</div>";}).join("");
+  });
+}
+/* Brief section 5b — the Desk's open pipeline (cross-workspace read; leadership-safe summary). */
+function fillBriefPipeline(){
+  fetch("/api/ryc-estimate-log",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({pw:"ryc2026",action:"list"})})
+    .then(function(r){ return r.json(); }).then(function(d){
+      var el=document.getElementById("brief-pipeline"); if(!el) return;
+      if(!d||!d.ok){ el.innerHTML=""; return; }
+      var pursuits=d.pursuits||[], runs=d.runs||[];
+      var latestByP={};
+      runs.forEach(function(r){ var k=r.pursuit_id; if(k&&(!latestByP[k]||(r.created_at||"")>(latestByP[k].created_at||""))) latestByP[k]=r; });
+      var open=pursuits.filter(function(p){ var st=(p.workflow||{}).stage||"takeoff"; return st!=="won"&&st!=="lost"; });
+      var dueSoon=open.filter(function(p){ var dd=(p.workflow||{}).due_date; if(!dd) return false; var days=(new Date(dd+"T23:59:59")-Date.now())/86400000; return days<=7; });
+      var val=open.reduce(function(s,p){ var lr=latestByP[p.id]; return s+((lr&&lr.cost_mid)||0); },0);
+      var decided=pursuits.filter(function(p){ var st=(p.workflow||{}).stage; return st==="won"||st==="lost"; });
+      var won=decided.filter(function(p){ return (p.workflow||{}).stage==="won"; }).length;
+      el.innerHTML="<div class=\"ssub\"><b>Estimating Desk:</b> "+open.length+" open pursuit"+(open.length===1?"":"s")
+        +(val?(" (~"+fmtCompact(val)+" conceptual)"):"")
+        +(dueSoon.length?(" · <b>"+dueSoon.length+"</b> due within 7 days"):"")
+        +(decided.length?(" · record to date "+won+"W–"+(decided.length-won)+"L"):" · no decided bids yet")
+        +".</div>";
+    }).catch(function(){ var el=document.getElementById("brief-pipeline"); if(el) el.innerHTML=""; });
 }
 
 /* ===== Job detail drawer (Phase 3a — existing data only; commitments arrive in 3b) ===== */
