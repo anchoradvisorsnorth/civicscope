@@ -184,6 +184,10 @@ export default async function handler(req, res) {
       // seam: stage/checklist/due date stay last-write-wins across clients — single-estimator
       // reality; versioned typed patches come with the shell/identity work.
       delete wf.award; delete wf.award_events; delete wf.submission; delete wf.outcome; delete wf.fact_events;
+      // Slice 2a: due date + pre-bid meeting are typed facts (ryc_set_due_date /
+      // ryc_set_prebid_meeting) — generic saves can neither set nor clear them.
+      delete wf.due; delete wf.due_date; delete wf.prebid;
+      if (wf.checklist && typeof wf.checklist === 'object') delete wf.checklist.prebid_meeting;
       try {
         const r0 = onPursuit
           ? await sb(`ryc_pursuits?id=eq.${pid}&tenant=eq.ryc&select=workflow&limit=1`)
@@ -197,6 +201,13 @@ export default async function handler(req, res) {
             if (cur.submission) wf.submission = cur.submission;
             if (cur.outcome) wf.outcome = cur.outcome;
             if (cur.fact_events) wf.fact_events = cur.fact_events;
+            if (cur.due) wf.due = cur.due;
+            if (cur.due_date) wf.due_date = cur.due_date;
+            if (cur.prebid) wf.prebid = cur.prebid;
+            if (cur.checklist && cur.checklist.prebid_meeting) {
+              wf.checklist = wf.checklist && typeof wf.checklist === 'object' ? wf.checklist : {};
+              wf.checklist.prebid_meeting = cur.checklist.prebid_meeting;
+            }
             const keyedMaps = q => q && typeof q === 'object' && !Object.values(q).every(x => typeof x === 'number');
             if (keyedMaps(cur.quotes) && keyedMaps(wf.quotes)) wf.quotes = Object.assign({}, cur.quotes, wf.quotes);
             else if (keyedMaps(cur.quotes) && !wf.quotes) wf.quotes = cur.quotes;
@@ -332,8 +343,28 @@ export default async function handler(req, res) {
             if (taken.length) return res.status(409).json({ error: `Job ${jobNo} is already linked to pursuit "${taken[0].name}" — unlink it there first.` });
           }
         } catch { /* uniqueness check is best-effort if the query itself fails */ }
+        // Slice 2a (contract D5): resolve the IMMUTABLE job identity — find-or-create the
+        // ryc_jobs row (+ self-alias) and stamp its uuid alongside the display job_no.
+        // Best-effort: a failed resolution never blocks the award link (job_id backfills).
+        let jobId = null;
+        try {
+          const jr = await sb(`ryc_jobs?company_id=eq.ryc&job_no=eq.${encodeURIComponent(jobNo)}&select=id&limit=1`);
+          if (jr.ok) { const jrows = await jr.json(); if (jrows.length) jobId = jrows[0].id; }
+          if (!jobId) {
+            const jc = await sb('ryc_jobs', { method: 'POST', headers: { 'Prefer': 'return=representation' },
+              body: JSON.stringify({ company_id: 'ryc', job_no: jobNo.slice(0, 40), description: String(req.body.description || '').slice(0, 200) || null, customer: String(req.body.customer || '').slice(0, 200) || null }) });
+            if (jc.ok) jobId = ((await jc.json())[0] || {}).id;
+            else { // concurrent create — reread
+              const jr2 = await sb(`ryc_jobs?company_id=eq.ryc&job_no=eq.${encodeURIComponent(jobNo)}&select=id&limit=1`);
+              if (jr2.ok) { const j2 = await jr2.json(); if (j2.length) jobId = j2[0].id; }
+            }
+            if (jobId) await sb('ryc_job_aliases', { method: 'POST', headers: { 'Prefer': 'return=minimal,resolution=ignore-duplicates' },
+              body: JSON.stringify({ company_id: 'ryc', job_id: jobId, alias: jobNo.slice(0, 40) }) }).catch(() => {});
+          }
+        } catch { /* stamping is additive; the alias table is reconcilable */ }
         wf.award = {
           job_no: jobNo.slice(0, 40),
+          job_id: jobId,
           description: String(req.body.description || '').slice(0, 200) || null,
           customer: String(req.body.customer || '').slice(0, 200) || null,
           source: 'foundation',
@@ -646,6 +677,21 @@ export default async function handler(req, res) {
       }
       const fn = { adopt_opportunity: 'ryc_adopt_opportunity', dispose_opportunity: 'ryc_dispose_opportunity', reopen_opportunity: 'ryc_reopen_opportunity' }[action];
       const out = await rpc(fn, args);
+      return res.status(out.status).json(out.body);
+    }
+
+    /* ===== SLICE 2a — TYPED PURSUIT FACTS (canary: due date · pre-bid meeting) =========
+       Timezone-aware event facts written by single-transaction Postgres functions with
+       version preconditions + fact events (contract §3 write law). The generic set_workflow
+       overlay above treats these as SERVER-OWNED from this deploy on. */
+    if (action === 'set_due_date' || action === 'set_prebid_meeting') {
+      const pid = String(req.body.pursuit_id || '');
+      if (!UUID.test(pid)) return res.status(400).json({ error: 'Bad id' });
+      const ver = Number.isInteger(req.body.expected_version) ? req.body.expected_version : null;
+      const base = { p_pursuit_id: pid, p_timezone: req.body.timezone ? String(req.body.timezone).slice(0, 60) : null, p_expected_version: ver, p_request_id: reqId(), p_actor: gateActor };
+      const out = action === 'set_due_date'
+        ? await rpc('ryc_set_due_date', Object.assign({ p_due_date: req.body.due_date ? String(req.body.due_date).slice(0, 10) : null }, base))
+        : await rpc('ryc_set_prebid_meeting', Object.assign({ p_start: req.body.start ? String(req.body.start).slice(0, 16) : null, p_location: req.body.location ? String(req.body.location).slice(0, 200) : null, p_cancel: !!req.body.cancel }, base));
       return res.status(out.status).json(out.body);
     }
 

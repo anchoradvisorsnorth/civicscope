@@ -124,7 +124,7 @@
 <div id="app">
   <header style="display:flex;align-items:center;gap:14px">
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.15.1 · R5 fixes: typed submission/outcome, BC-ID identity, visible dup warnings · outcomes & calibration · BC opportunity intake · stable pursuit routes · submission capture · durable pursuit entity · plan takeoff · market sub-pricing · BC loader · award link → Foundation</div></div>
+    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.16.0 · slice 2a: typed due-date + pre-bid facts (tz-aware, versioned) · job identity (ryc_jobs) · durable opportunity lifecycle · R5 fixes: typed submission/outcome, BC-ID identity, visible dup warnings · outcomes & calibration · stable pursuit routes · plan takeoff · market sub-pricing</div></div>
     <a href="/ryc/command" style="white-space:nowrap;font-size:13px;color:#c2410c;text-decoration:none;font-weight:600">Command →</a>
   </header>
 
@@ -1092,10 +1092,12 @@ function curWF() { if (!window._workflow) window._workflow = defaultWF(); return
 /* Two fields the Estimating Desk needs that the estimate row never carried: the BID DUE DATE
    (what actually orders an estimator's day) and QUOTE COVERAGE (packages priced of total).
    Both live inside the existing free-form `workflow` jsonb, so the desk needed no DDL. */
+// Due date is a TYPED SERVER FACT (slice 2a canary): atomic op with version precondition,
+// audit event, and tz-aware storage (workflow.due) — never written through the generic save.
 function setDueDate() {
   const el = document.getElementById('due-date');
-  curWF().due_date = el ? el.value : '';
-  persistWF(); renderPursuit(); historyCache = null;
+  recordFact('set_due_date', { due_date: (el && el.value) || null, expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null })
+    .then(ok => { if (ok) historyCache = null; });
 }
 // Coverage is derived in the open pursuit but must be READABLE on the board, where the run's
 // divisions/quotes aren't loaded — so it is snapshotted onto the workflow whenever it changes.
@@ -1301,8 +1303,16 @@ async function recordFact(action, payload) {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.assign({ pw: 'ryc2026', action, pursuit_id: window._pursuitId }, payload)) });
     const d = await r.json();
+    // Version conflict (slice 2a typed ops): another session changed this pursuit — reload
+    // its current state instead of overwriting; the user re-applies on fresh data.
+    if (r.status === 409 && /version conflict/i.test((d && d.error) || '')) {
+      alert('This pursuit changed in another session — reloading its current state. Re-apply your change if still needed.');
+      historyCache = null; openPursuitById(window._pursuitId);
+      return false;
+    }
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
     window._workflow = d.workflow;   // server is authoritative (it also advanced the stage)
+    if (Number.isInteger(d.version)) window._pursuitVersion = d.version;
     historyCache = null; renderPursuit();
     return true;
   } catch (e) { alert('Could not record: ' + e.message); return false; }
@@ -1319,10 +1329,16 @@ function setOutcome() {
   recordFact('record_outcome', { winner: w, winning_amount: a });
 }
 function setCk(item, status) { const c = curWF().checklist; c[item] = Object.assign({}, c[item], { status }); persistWF(); renderPursuit(); }
+// Pre-bid meeting is a TYPED SERVER FACT (slice 2a): tz-aware (workflow.prebid), with the
+// legacy checklist mirror maintained server-side for the ICS/calendar builders.
 function setMeeting() {
   const d = document.getElementById('mtg-date'), l = document.getElementById('mtg-loc');
-  curWF().checklist.prebid_meeting = { date: d ? d.value : '', location: l ? l.value : '' };
-  persistWF(); renderPursuit();
+  const start = d && d.value ? d.value.slice(0, 16) : null;
+  const ver = Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null;
+  recordFact('set_prebid_meeting', start
+    ? { start, location: (l && l.value) || '', expected_version: ver }
+    : { cancel: true, expected_version: ver })
+    .then(ok => { if (ok) historyCache = null; });
 }
 
 // Derived checklist state (not stored): BC load + quote coverage
@@ -1565,6 +1581,7 @@ function openBlankPursuit(pid) {
   if (!p) return;
   newPursuit();
   window._pursuitId = pid;
+  window._pursuitVersion = Number.isInteger(p.version) ? p.version : null;
   window._workflow = (p.workflow && p.workflow.stage) ? p.workflow : defaultWF();
   // An adopted opportunity already EXISTS in BC — the loader must offer "open", never a duplicate create.
   window._bcLoaded = (p.bc_url || p.bc_project_id) ? { url: p.bc_url || null, id: p.bc_project_id || null } : null;
@@ -1579,7 +1596,7 @@ function openBlankPursuit(pid) {
 
 // Start a fresh pursuit from the desk: clear prior pursuit state so nothing bleeds across.
 function newPursuit() {
-  window._runId = null; window._pursuitId = null; window._workflow = defaultWF(); window._bcLoaded = null;
+  window._runId = null; window._pursuitId = null; window._pursuitVersion = null; window._workflow = defaultWF(); window._bcLoaded = null;
   window._recon = null; window._gate = null; window._lastDivisions = null; window._pkgConceptualTotal = null;
   // Document-derived caches MUST clear too. extractScopeConstraints() keys its cache on the
   // concatenated upload filenames, so two projects that both ship "Plans.pdf" / "Project
@@ -2167,7 +2184,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.15.1';
+const TOOL_VERSION = 'v1.16.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -2383,6 +2400,7 @@ async function openRun(id) {
     window._planMeta = null;
     window._runId = run.id;
     window._pursuitId = run.pursuit_id || null;
+    window._pursuitVersion = (pursuit && Number.isInteger(pursuit.version)) ? pursuit.version : null;
     // BC linkage is a pursuit fact (whichever revision created the draft, the pursuit is loaded)
     const bcUrl = (pursuit && pursuit.bc_url) || run.bc_url || null;
     const bcId = (pursuit && pursuit.bc_project_id) || run.bc_project_id || null;
