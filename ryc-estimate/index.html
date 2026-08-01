@@ -124,7 +124,7 @@
 <div id="app">
   <header style="display:flex;align-items:center;gap:14px">
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.16.0 · slice 2a: typed due-date + pre-bid facts (tz-aware, versioned) · job identity (ryc_jobs) · durable opportunity lifecycle · R5 fixes: typed submission/outcome, BC-ID identity, visible dup warnings · outcomes & calibration · stable pursuit routes · plan takeoff · market sub-pricing</div></div>
+    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.17.0 · slice 2b: stage/submission/outcome + readiness are atomic typed facts (terminal stages ride their fact op) · slice 2a: tz-aware due-date + pre-bid facts · job identity (ryc_jobs) · durable opportunity lifecycle · R5 fixes: typed submission/outcome, BC-ID identity, visible dup warnings · outcomes & calibration · stable pursuit routes · plan takeoff · market sub-pricing</div></div>
     <a href="/ryc/command" style="white-space:nowrap;font-size:13px;color:#c2410c;text-decoration:none;font-weight:600">Command →</a>
   </header>
 
@@ -1224,6 +1224,7 @@ async function linkAward(jobNo) {
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
     window._workflow = d.workflow;           // server is authoritative (it also stamped stage=won)
+    if (Number.isInteger(d.version)) window._pursuitVersion = d.version;
     historyCache = null;
     const el = document.getElementById('awardPicker'); if (el) el.style.display = 'none';
     renderPursuit();
@@ -1236,7 +1237,9 @@ async function unlinkAward() {
       body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', pursuit_id: window._pursuitId || null, id: window._runId, unlink: true }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
-    window._workflow = d.workflow; historyCache = null; renderPursuit();
+    window._workflow = d.workflow;
+    if (Number.isInteger(d.version)) window._pursuitVersion = d.version;
+    historyCache = null; renderPursuit();
     // A link made before prev-stage tracking has nothing to restore — don't guess; ask.
     if (d.workflow && d.workflow.stage_unresolved) alert('Award unlinked, but this link predates stage tracking, so the prior stage is unknown — it still reads Won. Set the correct stage (Submitted / Lost / …) on the stage bar.');
   } catch (e) { alert('Could not unlink: ' + e.message); }
@@ -1280,13 +1283,25 @@ function persistWF() {
     });
   }, 400);
 }
+// Stage is a typed server fact (slice 2b). The three terminal stages are NOT reachable by
+// moving the stage — they are recorded by capturing their fact (submitted bid / award link /
+// outcome), which advances the stage atomically. The server enforces this; here the buttons
+// simply become the affordance for the fact they stand for.
 function setStage(k) {
-  const wf = curWF(); wf.stage = k; delete wf.stage_unresolved;
-  // Submission capture (calibration loop): advancing to Submitted prefills the bid-amount
-  // input with the live assembled total — captured once, at the decision point, never
-  // silently written as fact (the estimator confirms the actual number).
-  if (k === 'submitted' && !(wf.submission && wf.submission.amount)) window._prefillSub = assembledTotal();
-  persistWF(); renderPursuit();
+  const wf = curWF();
+  if (k === wf.stage) return;
+  if (k === 'submitted') {
+    if (!(wf.submission && wf.submission.amount)) window._prefillSub = assembledTotal();
+    window._factPrompt = 'submitted'; renderPursuit(); focusFact('sub-amt'); return;
+  }
+  if (k === 'lost') { window._factPrompt = 'lost'; renderPursuit(); focusFact('oc-winner'); return; }
+  if (k === 'won') { window._factPrompt = 'won'; renderPursuit(); openAwardPicker(); return; }
+  delete window._factPrompt;
+  recordFact('set_stage', { stage: k, expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null })
+    .then(ok => { if (ok) historyCache = null; });
+}
+function focusFact(id) {
+  setTimeout(() => { const el = document.getElementById(id); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus(); } }, 60);
 }
 // Assembled total = live quotes where entered, conceptual placeholders elsewhere.
 function assembledTotal() {
@@ -1317,18 +1332,36 @@ async function recordFact(action, payload) {
     return true;
   } catch (e) { alert('Could not record: ' + e.message); return false; }
 }
+const _ver = () => Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null;
 async function setSubmission() {
   const el = document.getElementById('sub-amt');
   const amt = el ? Math.round(Number(el.value)) : 0;
   if (!(amt > 0)) { alert('Enter the final submitted bid amount.'); return; }
-  if (await recordFact('record_submission', { amount: amt, conceptual: curRecon().total || window._pkgConceptualTotal || null })) delete window._prefillSub;
+  if (await recordFact('record_submission', { amount: amt, conceptual: curRecon().total || window._pkgConceptualTotal || null, expected_version: _ver() })) {
+    delete window._prefillSub; delete window._factPrompt;
+  }
 }
 function setOutcome() {
   const w = (document.getElementById('oc-winner') || {}).value || '';
   const a = Math.round(Number((document.getElementById('oc-amt') || {}).value)) || null;
-  recordFact('record_outcome', { winner: w, winning_amount: a });
+  recordFact('record_outcome', { winner: w, winning_amount: a, expected_version: _ver() })
+    .then(ok => { if (ok) delete window._factPrompt; });
 }
-function setCk(item, status) { const c = curWF().checklist; c[item] = Object.assign({}, c[item], { status }); persistWF(); renderPursuit(); }
+// Corrections: clearing a recorded fact is itself an audited fact, and it releases the stage
+// the fact was holding (the server decides what the pursuit falls back to).
+function clearSubmission() {
+  if (!confirm('Clear the recorded submitted bid? This is audited, and the pursuit leaves Submitted.')) return;
+  recordFact('record_submission', { clear: true, expected_version: _ver() });
+}
+function clearOutcome() {
+  if (!confirm('Clear the recorded outcome? This is audited, and the pursuit leaves Lost.')) return;
+  recordFact('record_outcome', { clear: true, expected_version: _ver() });
+}
+// Readiness facts (bonding · builders risk) are typed server facts — they drive whether the
+// pursuit is ready to bid, so they never ride a generic document save.
+function setCk(item, status) {
+  recordFact('set_checklist_item', { item, status, expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null });
+}
 // Pre-bid meeting is a TYPED SERVER FACT (slice 2a): tz-aware (workflow.prebid), with the
 // legacy checklist mirror maintained server-side for the ICS/calendar builders.
 function setMeeting() {
@@ -1424,20 +1457,30 @@ function renderPursuit() {
     : '<span class="ck-pill ck-na">not set</span>';
   const subRow = `<div class="ck-row"><span class="ck-name">Submitted bid</span>${subPill}
     <div class="ck-actions"><input type="number" id="sub-amt" class="ck-date" placeholder="final bid $" value="${sub.amount || window._prefillSub || ''}" style="width:130px;text-align:right">
-    <button class="btn-sm ghost" onclick="setSubmission()">Set</button></div></div>`
+    <button class="btn-sm ghost" onclick="setSubmission()">Set</button>${sub.amount ? '<button class="btn-sm ghost" onclick="clearSubmission()">Clear</button>' : ''}</div></div>`
     + (!sub.amount && window._prefillSub ? `<div class="note" style="margin:-4px 0 8px">Prefilled with the assembled total ($${Math.round(window._prefillSub).toLocaleString()}) — confirm the ACTUAL submitted number before setting.</div>` : '');
 
   // Loss outcome — the most valuable calibration data a pursuit can produce.
   const oc = wf.outcome || {};
-  const outcomeRow = (wf.stage === 'lost' || oc.result)
+  const outcomeRow = (wf.stage === 'lost' || oc.result || window._factPrompt === 'lost')
     ? `<div class="ck-row"><span class="ck-name">Outcome</span>
        ${oc.result ? `<span class="ck-pill ck-needed">lost${oc.winner ? ' to ' + esc(oc.winner) : ''}</span>${oc.winning_amount ? `<span class="note">winning bid $${oc.winning_amount.toLocaleString()}${sub.amount ? ` · RYC was ${((sub.amount - oc.winning_amount) / oc.winning_amount * 100).toFixed(1)}% ${sub.amount > oc.winning_amount ? 'above' : 'below'}` : ''}</span>` : ''}` : '<span class="ck-pill ck-na">record it</span>'}
        <div class="ck-actions"><input type="text" id="oc-winner" class="ck-date" placeholder="won by (optional)" value="${esc(oc.winner || '')}" style="width:130px">
        <input type="number" id="oc-amt" class="ck-date" placeholder="winning $" value="${oc.winning_amount || ''}" style="width:110px;text-align:right">
-       <button class="btn-sm ghost" onclick="setOutcome()">Set</button></div></div>`
+       <button class="btn-sm ghost" onclick="setOutcome()">Set</button>${oc.result ? '<button class="btn-sm ghost" onclick="clearOutcome()">Clear</button>' : ''}</div></div>`
     : '';
 
-  el.innerHTML = migrateNote + idNote +
+  // A terminal stage is reached by RECORDING ITS FACT, never by moving the stage — clicking
+  // one of those buttons points at the capture it stands for.
+  const FACT_PROMPT = {
+    submitted: 'Submitted is recorded by capturing the bid you actually sent — enter the amount below and Set.',
+    lost: 'Lost is recorded by capturing the outcome — who won, and for how much if you know it.',
+    won: 'Won is recorded by linking the Foundation job accounting opened — that link IS the award.',
+  };
+  const factNote = window._factPrompt && wf.stage !== window._factPrompt
+    ? `<div class="flag" style="margin-bottom:10px">${FACT_PROMPT[window._factPrompt]}</div>` : '';
+
+  el.innerHTML = migrateNote + idNote + factNote +
     `<div class="note" style="margin-bottom:4px">Stage</div><div class="stagebar">${stageBar}</div>
      <div class="note" style="margin:10px 0 2px">Pre-bid checklist</div>
      ${dueRow}
@@ -1813,7 +1856,11 @@ function rfiDoc() {
   openSheet('rfi', 'Pre-Bid RFI Log', `<h2>${esc(d.projectName || 'Project')}${d.location ? ' · ' + esc(d.location) : ''}</h2><table>${rowsHtml}</table>`,
     "Each RYC assumption is the interpretation carried in the bid pending the design team's response — proposed, not authoritative. Submit to the architect/engineer of record.");
 }
-function setRfiStatus(v) { if (curWF().checklist.rfis) { curWF().checklist.rfis.status = v; persistWF(); renderPursuit(); } }
+// RFI STATUS is a typed fact; the drafted RFI items remain generated draft content.
+function setRfiStatus(v) {
+  if (!curWF().checklist.rfis) return;
+  recordFact('set_rfi_status', { status: v, expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null });
+}
 
 function renderResults(p, inp, bm) {
   setLoading(false);
@@ -2184,7 +2231,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.16.0';
+const TOOL_VERSION = 'v1.17.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};

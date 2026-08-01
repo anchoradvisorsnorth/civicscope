@@ -64,6 +64,28 @@ export default async function handler(req, res) {
   //    pursuit then attaches by id only.
   //  · Creation is insert-first against the UNIQUE (tenant, norm_name) index with a conflict
   //    reread, so concurrent first saves converge on one pursuit.
+  /* ===== TYPED-COMMAND KERNEL (phase A, 2026-08-01) ================================
+     Every durable business fact is written by a Postgres function that performs the version
+     precondition, the mutation and the ryc_fact_events append in ONE transaction; these
+     actions are thin gated wrappers over them. Error contract: RY404 not-found · RY409
+     version conflict · RY40A name collision ("review") · RY40B already adopted · RY40C not
+     passed · RY40D stage needs its fact op · RY40E clear the fact first · RY400 bad input.
+     Actor is shared_gate until identity lands (contract §2 DEFERRED banner). */
+  const RPC_STATUS = { RY404: 404, RY409: 409, RY40A: 409, RY40B: 409, RY40C: 409, RY40D: 409, RY40E: 409, RY400: 400 };
+  const rpc = async (fn, args) => {
+    const r = await sb(`rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) });
+    const txt = await r.text();
+    let body; try { body = JSON.parse(txt); } catch { body = { message: txt }; }
+    if (!r.ok) {
+      const code = body && body.code;
+      return { status: RPC_STATUS[code] || r.status, body: { error: (body && body.message) || txt.slice(0, 300) } };
+    }
+    return { status: 200, body };
+  };
+  const gateActor = { type: 'shared_gate', display: 'gate', channel: 'desk' };
+  const reqId = () => String(req.body.request_id || '').slice(0, 80) ||
+    (globalThis.crypto && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
+
   const httpErr = (status, msg) => { const e = new Error(msg); e.status = status; return e; };
   const resolvePursuit = async (rec, pursuitId) => {
     const nn = normName(rec.project_name);
@@ -184,10 +206,16 @@ export default async function handler(req, res) {
       // seam: stage/checklist/due date stay last-write-wins across clients — single-estimator
       // reality; versioned typed patches come with the shell/identity work.
       delete wf.award; delete wf.award_events; delete wf.submission; delete wf.outcome; delete wf.fact_events;
-      // Slice 2a: due date + pre-bid meeting are typed facts (ryc_set_due_date /
-      // ryc_set_prebid_meeting) — generic saves can neither set nor clear them.
-      delete wf.due; delete wf.due_date; delete wf.prebid;
-      if (wf.checklist && typeof wf.checklist === 'object') delete wf.checklist.prebid_meeting;
+      // Slice 2a/2b: due date, pre-bid meeting, STAGE, and the readiness facts (bonding,
+      // builders risk, RFI status) are typed facts — generic saves can neither set nor clear
+      // them. Drafted RFI *items* stay generic draft content; only their status is a fact.
+      delete wf.due; delete wf.due_date; delete wf.prebid; delete wf.stage;
+      // NB rfis: drafting the RFI set legitimately CREATES it with its initial 'drafted'
+      // status, so the status is not stripped here — the overlay below re-imposes the stored
+      // one whenever one exists, which is what makes an existing status unclobberable.
+      if (wf.checklist && typeof wf.checklist === 'object') {
+        delete wf.checklist.prebid_meeting; delete wf.checklist.bonding; delete wf.checklist.builders_risk;
+      }
       try {
         const r0 = onPursuit
           ? await sb(`ryc_pursuits?id=eq.${pid}&tenant=eq.ryc&select=workflow&limit=1`)
@@ -204,9 +232,16 @@ export default async function handler(req, res) {
             if (cur.due) wf.due = cur.due;
             if (cur.due_date) wf.due_date = cur.due_date;
             if (cur.prebid) wf.prebid = cur.prebid;
-            if (cur.checklist && cur.checklist.prebid_meeting) {
+            wf.stage = cur.stage || 'takeoff';
+            if (cur.checklist && typeof cur.checklist === 'object') {
               wf.checklist = wf.checklist && typeof wf.checklist === 'object' ? wf.checklist : {};
-              wf.checklist.prebid_meeting = cur.checklist.prebid_meeting;
+              for (const k of ['prebid_meeting', 'bonding', 'builders_risk']) {
+                if (cur.checklist[k]) wf.checklist[k] = cur.checklist[k];
+              }
+              // rfis: incoming drafted items are kept, stored status wins
+              if (cur.checklist.rfis && cur.checklist.rfis.status) {
+                wf.checklist.rfis = Object.assign({}, wf.checklist.rfis, { status: cur.checklist.rfis.status });
+              }
             }
             const keyedMaps = q => q && typeof q === 'object' && !Object.values(q).every(x => typeof x === 'number');
             if (keyedMaps(cur.quotes) && keyedMaps(wf.quotes)) wf.quotes = Object.assign({}, cur.quotes, wf.quotes);
@@ -214,6 +249,9 @@ export default async function handler(req, res) {
           }
         }
       } catch { /* merge is best-effort — a failed read falls back to plain replace */ }
+      // stage was stripped as server-owned; if there was nothing stored to overlay from
+      // (new pursuit, or the read failed) it must still land valid, never undefined.
+      if (!wf.stage) wf.stage = 'takeoff';
       const r = onPursuit
         ? await patchPursuit(pid, { workflow: wf })
         : await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc`, {
@@ -378,14 +416,18 @@ export default async function handler(req, res) {
         if (wf.stage !== 'won') wf.stage = 'won';
       }
       wf.updated_at = new Date().toISOString();
-      const r = await patchPursuit(pid, { workflow: wf });
+      // The award link still writes the workflow directly (its own migration to a typed op is
+      // the next group), but it MUST advance the entity version — otherwise every client that
+      // just linked an award holds a stale version and its next typed write 409s spuriously.
+      const nextVer = (Number.isInteger(p0.version) ? p0.version : 1) + 1;
+      const r = await patchPursuit(pid, { workflow: wf, version: nextVer });
       if (!r.ok) {
         const txt = await r.text();
         // 23505 = the DB's unique award index caught a concurrent duplicate the check missed
         if (/23505|duplicate key/i.test(txt)) return res.status(409).json({ error: 'That Foundation job is already linked to another pursuit.' });
         return res.status(r.status).json({ error: txt });
       }
-      return res.status(200).json({ ok: true, pursuit_id: pid, workflow: wf });
+      return res.status(200).json({ ok: true, pursuit_id: pid, workflow: wf, version: nextVer });
     }
 
     /* Reverse lookup for Command: given a Foundation job number, return the pursuit that was
@@ -485,42 +527,50 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, dry_run: dry, orphan_runs: orphans.length, pursuits: report.length, report });
     }
 
-    /* Typed calibration-fact writes (Codex R5 #2): submission and outcome are durable business
-       facts — they get their own atomic operations with audit events, exactly like awards.
-       Stage transition + fact capture happen in ONE server write; corrections overwrite with
-       a new audit event, never silently. */
+    /* Typed calibration-fact writes (Codex R5 #2 · slice 2b): submission and outcome are
+       durable business facts with their own atomic operations. As of slice 2b the mutation
+       lives in Postgres (ryc_record_submission / ryc_record_outcome) so the stage transition,
+       the fact, the entity version bump and the ryc_fact_events append are ONE transaction —
+       the JS read-modify-write this replaces could interleave with a concurrent write.
+       Clears omit the optional params entirely (PostgREST cannot type-resolve a bigint
+       arriving as JSON null). */
     if (action === 'record_submission' || action === 'record_outcome') {
       const pid = String(req.body.pursuit_id || '');
       if (!UUID.test(pid)) return res.status(400).json({ error: 'Bad id' });
-      const p0 = await getPursuit(pid);
-      if (!p0) return res.status(404).json({ error: 'Not found' });
-      const wf = p0.workflow && typeof p0.workflow === 'object' ? p0.workflow : { stage: 'takeoff', checklist: {} };
-      wf.fact_events = (Array.isArray(wf.fact_events) ? wf.fact_events : []);
-      if (action === 'record_submission') {
-        if (req.body.clear) { wf.fact_events.push({ action: 'submission_cleared', at: new Date().toISOString() }); delete wf.submission; }
-        else {
+      const ver = Number.isInteger(req.body.expected_version) ? req.body.expected_version : null;
+      const clear = !!req.body.clear;
+      const args = { p_pursuit_id: pid, p_clear: clear, p_expected_version: ver, p_request_id: reqId(), p_actor: gateActor };
+      if (!clear) {
+        if (action === 'record_submission') {
           const amt = Math.round(Number(req.body.amount));
           if (!(amt > 0)) return res.status(400).json({ error: 'amount must be a positive number' });
-          wf.submission = { amount: amt, at: new Date().toISOString(), conceptual: Number(req.body.conceptual) > 0 ? Math.round(Number(req.body.conceptual)) : null };
-          wf.fact_events.push({ action: 'submission', amount: amt, at: wf.submission.at });
-          // capturing the submitted bid IS the submit event — stage advances atomically
-          if (!['submitted', 'won', 'lost'].includes(wf.stage)) wf.stage = 'submitted';
-        }
-      } else {
-        if (req.body.clear) { wf.fact_events.push({ action: 'outcome_cleared', at: new Date().toISOString() }); delete wf.outcome; }
-        else {
-          const winner = String(req.body.winner || '').trim().slice(0, 120) || null;
-          const wa = Math.round(Number(req.body.winning_amount)) || null;
-          wf.outcome = { result: 'lost', winner, winning_amount: wa > 0 ? wa : null, at: new Date().toISOString() };
-          wf.fact_events.push({ action: 'outcome_lost', winner, winning_amount: wf.outcome.winning_amount, at: wf.outcome.at });
-          if (wf.stage !== 'lost') wf.stage = 'lost';
+          args.p_amount = amt;
+          const c = Math.round(Number(req.body.conceptual));
+          if (c > 0) args.p_conceptual = c;
+        } else {
+          const w = String(req.body.winner || '').trim().slice(0, 120);
+          if (w) args.p_winner = w;
+          const wa = Math.round(Number(req.body.winning_amount));
+          if (wa > 0) args.p_winning_amount = wa;
         }
       }
-      wf.fact_events = wf.fact_events.slice(-30);
-      wf.updated_at = new Date().toISOString();
-      const r = await patchPursuit(pid, { workflow: wf });
-      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
-      return res.status(200).json({ ok: true, workflow: wf });
+      const out = await rpc(action === 'record_submission' ? 'ryc_record_submission' : 'ryc_record_outcome', args);
+      return res.status(out.status).json(out.body);
+    }
+
+    /* Slice 2b — stage + readiness facts. `set_stage` CANNOT enter submitted/won/lost (those
+       ride their fact ops) and cannot leave one while its fact stands; the server is the
+       enforcement point, not the UI. */
+    if (action === 'set_stage' || action === 'set_checklist_item' || action === 'set_rfi_status') {
+      const pid = String(req.body.pursuit_id || '');
+      if (!UUID.test(pid)) return res.status(400).json({ error: 'Bad id' });
+      const ver = Number.isInteger(req.body.expected_version) ? req.body.expected_version : null;
+      const base = { p_pursuit_id: pid, p_expected_version: ver, p_request_id: reqId(), p_actor: gateActor };
+      let out;
+      if (action === 'set_stage') out = await rpc('ryc_set_stage', Object.assign({ p_stage: String(req.body.stage || '') }, base));
+      else if (action === 'set_checklist_item') out = await rpc('ryc_set_checklist_item', Object.assign({ p_item: String(req.body.item || ''), p_status: String(req.body.status || '') }, base));
+      else out = await rpc('ryc_set_rfi_status', Object.assign({ p_status: String(req.body.status || '') }, base));
+      return res.status(out.status).json(out.body);
     }
 
     /* Opportunity intake (Codex Step 4): pursuit CREATION from source ingestion — a published
@@ -598,28 +648,6 @@ export default async function handler(req, res) {
       if (!r.ok) return res.status(r.status).json({ error: await r.text() });
       return res.status(200).json({ ok: true });
     }
-
-    /* ===== SLICE 1 — OPPORTUNITY LIFECYCLE (contract v1.1 phase A, 2026-08-01) ==========
-       Durable opportunities with TWO orthogonal lifecycles (source_status × review_state) and
-       typed, audited, idempotent commands. All mutation logic lives in Postgres functions
-       (one transaction: version check + mutation + ryc_fact_events append); these actions are
-       thin gated wrappers. Error contract: RY404 not-found · RY409 version conflict ·
-       RY40A name collision ("review") · RY40B already adopted · RY40C not passed · RY400 bad
-       input. Actor is shared_gate until identity (contract §2 banner). */
-    const RPC_STATUS = { RY404: 404, RY409: 409, RY40A: 409, RY40B: 409, RY40C: 409, RY400: 400 };
-    const rpc = async (fn, args) => {
-      const r = await sb(`rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) });
-      const txt = await r.text();
-      let body; try { body = JSON.parse(txt); } catch { body = { message: txt }; }
-      if (!r.ok) {
-        const code = body && body.code;
-        return { status: RPC_STATUS[code] || r.status, body: { error: (body && body.message) || txt.slice(0, 300) } };
-      }
-      return { status: 200, body };
-    };
-    const gateActor = { type: 'shared_gate', display: 'gate', channel: 'desk' };
-    const reqId = () => String(req.body.request_id || '').slice(0, 80) ||
-      (globalThis.crypto && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
 
     // Ingest the BC bid board into ryc_opportunities. Published rows ingest fully; recentClosed
     // rows only UPDATE opportunities we already track (flipping source_status) — backfilling
