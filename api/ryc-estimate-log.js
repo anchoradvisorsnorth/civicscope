@@ -175,16 +175,15 @@ export default async function handler(req, res) {
       if (!onPursuit && !UUID.test(id)) return res.status(400).json({ error: 'Bad id' });
       const wf = req.body.workflow;
       if (wf === undefined || wf === null || typeof wf !== 'object') return res.status(400).json({ error: 'workflow object required' });
-      // Server-owned facts (R4 #3): award and award_events are written ONLY by link_award.
-      // Generic workflow writes can neither set nor clear them — incoming copies are STRIPPED
+      // Server-owned facts (R4 #3, extended R5 #2): award/award_events are written ONLY by
+      // link_award; submission/outcome ONLY by record_submission/record_outcome. Generic
+      // workflow writes can neither set nor clear ANY of them — incoming copies are STRIPPED
       // unconditionally and the stored values overlaid, so a stale client object can no longer
-      // resurrect an unlinked award or roll back the audit trail (the round-3 fix only guarded
-      // the omitted-key case; a stale object normally still carries its old keys).
-      // Quotes are merged per run-key (union, incoming wins per key) so one revision's write
-      // can't erase another revision's persisted quotes. Remaining known seam: stage/checklist/
-      // due date stay last-write-wins across clients — single-estimator reality; typed patches
-      // + versioning come with the one-shell work.
-      delete wf.award; delete wf.award_events;
+      // resurrect an unlinked award, roll back the audit trail, or erase a captured submission
+      // or loss outcome (the calibration facts). Quotes merge per run-key. Remaining known
+      // seam: stage/checklist/due date stay last-write-wins across clients — single-estimator
+      // reality; versioned typed patches come with the shell/identity work.
+      delete wf.award; delete wf.award_events; delete wf.submission; delete wf.outcome; delete wf.fact_events;
       try {
         const r0 = onPursuit
           ? await sb(`ryc_pursuits?id=eq.${pid}&tenant=eq.ryc&select=workflow&limit=1`)
@@ -195,6 +194,9 @@ export default async function handler(req, res) {
           if (cur) {
             if (cur.award) { wf.award = cur.award; if (cur.stage === 'won') wf.stage = 'won'; }
             if (cur.award_events) wf.award_events = cur.award_events;
+            if (cur.submission) wf.submission = cur.submission;
+            if (cur.outcome) wf.outcome = cur.outcome;
+            if (cur.fact_events) wf.fact_events = cur.fact_events;
             const keyedMaps = q => q && typeof q === 'object' && !Object.values(q).every(x => typeof x === 'number');
             if (keyedMaps(cur.quotes) && keyedMaps(wf.quotes)) wf.quotes = Object.assign({}, cur.quotes, wf.quotes);
             else if (keyedMaps(cur.quotes) && !wf.quotes) wf.quotes = cur.quotes;
@@ -452,6 +454,44 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, dry_run: dry, orphan_runs: orphans.length, pursuits: report.length, report });
     }
 
+    /* Typed calibration-fact writes (Codex R5 #2): submission and outcome are durable business
+       facts — they get their own atomic operations with audit events, exactly like awards.
+       Stage transition + fact capture happen in ONE server write; corrections overwrite with
+       a new audit event, never silently. */
+    if (action === 'record_submission' || action === 'record_outcome') {
+      const pid = String(req.body.pursuit_id || '');
+      if (!UUID.test(pid)) return res.status(400).json({ error: 'Bad id' });
+      const p0 = await getPursuit(pid);
+      if (!p0) return res.status(404).json({ error: 'Not found' });
+      const wf = p0.workflow && typeof p0.workflow === 'object' ? p0.workflow : { stage: 'takeoff', checklist: {} };
+      wf.fact_events = (Array.isArray(wf.fact_events) ? wf.fact_events : []);
+      if (action === 'record_submission') {
+        if (req.body.clear) { wf.fact_events.push({ action: 'submission_cleared', at: new Date().toISOString() }); delete wf.submission; }
+        else {
+          const amt = Math.round(Number(req.body.amount));
+          if (!(amt > 0)) return res.status(400).json({ error: 'amount must be a positive number' });
+          wf.submission = { amount: amt, at: new Date().toISOString(), conceptual: Number(req.body.conceptual) > 0 ? Math.round(Number(req.body.conceptual)) : null };
+          wf.fact_events.push({ action: 'submission', amount: amt, at: wf.submission.at });
+          // capturing the submitted bid IS the submit event — stage advances atomically
+          if (!['submitted', 'won', 'lost'].includes(wf.stage)) wf.stage = 'submitted';
+        }
+      } else {
+        if (req.body.clear) { wf.fact_events.push({ action: 'outcome_cleared', at: new Date().toISOString() }); delete wf.outcome; }
+        else {
+          const winner = String(req.body.winner || '').trim().slice(0, 120) || null;
+          const wa = Math.round(Number(req.body.winning_amount)) || null;
+          wf.outcome = { result: 'lost', winner, winning_amount: wa > 0 ? wa : null, at: new Date().toISOString() };
+          wf.fact_events.push({ action: 'outcome_lost', winner, winning_amount: wf.outcome.winning_amount, at: wf.outcome.at });
+          if (wf.stage !== 'lost') wf.stage = 'lost';
+        }
+      }
+      wf.fact_events = wf.fact_events.slice(-30);
+      wf.updated_at = new Date().toISOString();
+      const r = await patchPursuit(pid, { workflow: wf });
+      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+      return res.status(200).json({ ok: true, workflow: wf });
+    }
+
     /* Opportunity intake (Codex Step 4): pursuit CREATION from source ingestion — a published
        BuildingConnected bid-board project (or any future source) becomes a pursuit with ONE
        click, no rekeying. The pursuit exists before any estimate run; the first generation
@@ -459,6 +499,14 @@ export default async function handler(req, res) {
     if (action === 'create_pursuit') {
       const name = String(req.body.name || '').trim().slice(0, 250);
       if (!name) return res.status(400).json({ error: 'name required' });
+      const bcId = req.body.bc_project_id ? String(req.body.bc_project_id).slice(0, 120) : null;
+      // SOURCE ID is the identity (Codex R5 #4): adoption is idempotent on bc_project_id — a
+      // stale bid board or a renamed pursuit can never duplicate a BC project, because the
+      // lookup key is the source id, not the mutable display name (unique index backstops).
+      if (bcId) {
+        const rb = await sb(`ryc_pursuits?tenant=eq.ryc&bc_project_id=eq.${encodeURIComponent(bcId)}&limit=1`);
+        if (rb.ok) { const rows = await rb.json(); if (rows.length) return res.status(200).json({ ok: true, pursuit: rows[0], existed: true }); }
+      }
       const wf = { stage: 'takeoff', checklist: {} };
       if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.due_date || ''))) wf.due_date = req.body.due_date;
       if (req.body.source) wf.source = String(req.body.source).slice(0, 40);
@@ -466,7 +514,7 @@ export default async function handler(req, res) {
         tenant: 'ryc', name, norm_name: normName(name),
         location: req.body.location ? String(req.body.location).slice(0, 200) : null,
         workflow: wf,
-        bc_project_id: req.body.bc_project_id ? String(req.body.bc_project_id).slice(0, 120) : null,
+        bc_project_id: bcId,
         bc_url: req.body.bc_url ? String(req.body.bc_url).slice(0, 500) : null,
       };
       const rc = await sb('ryc_pursuits', {
@@ -475,8 +523,20 @@ export default async function handler(req, res) {
       if (rc.ok) { const created = await rc.json(); return res.status(200).json({ ok: true, pursuit: created[0] }); }
       const txt = await rc.text();
       if (/23505|duplicate key/i.test(txt)) {
-        const rf = await sb(`ryc_pursuits?tenant=eq.ryc&norm_name=eq.${encodeURIComponent(normName(name))}&limit=1`);
-        if (rf.ok) { const rows = await rf.json(); if (rows.length) return res.status(200).json({ ok: true, pursuit: rows[0], existed: true }); }
+        // bc-id race: another request adopted the same source project — return it (idempotent)
+        if (bcId && /bc_id_uidx/.test(txt)) {
+          const rb2 = await sb(`ryc_pursuits?tenant=eq.ryc&bc_project_id=eq.${encodeURIComponent(bcId)}&limit=1`);
+          if (rb2.ok) { const rows = await rb2.json(); if (rows.length) return res.status(200).json({ ok: true, pursuit: rows[0], existed: true }); }
+        }
+        // name collision: with a DIFFERENT source project (or unknown source), attaching would
+        // silently merge two opportunities — surface for review instead (Codex R5 #4).
+        const rf = await sb(`ryc_pursuits?tenant=eq.ryc&norm_name=eq.${encodeURIComponent(normName(name))}&select=id,name,bc_project_id&limit=1`);
+        const existing = rf.ok ? (await rf.json())[0] : null;
+        if (bcId && existing) {
+          return res.status(409).json({ error: `A different pursuit already carries the name "${existing.name}"${existing.bc_project_id ? ' (different BC project)' : ''} — review before adopting; a name collision must not merge two opportunities.` });
+        }
+        // manual (no source id) creation keeps find-or-reuse semantics
+        if (existing) return res.status(200).json({ ok: true, pursuit: existing, existed: true });
       }
       return res.status(rc.status).json({ error: txt });
     }

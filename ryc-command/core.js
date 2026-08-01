@@ -5,20 +5,24 @@
 var CRM = "https://crm.jbkdevelopment.com";
 var activeData=null, foundationData=null, arData=null, buildrData=null, portfolioData=null, subsData=null, forecastData=null, bcData=null, pmHistData=null, loadedAt=null, foundationOnly=[];
 
+/* Grouped rail (Codex R5 #8): thirteen flat equal-weight destinations → a hierarchy.
+   `grp` renders as a section header; `href` entries are cross-workspace links (the ONE
+   unambiguous Estimating Desk entry — the duplicate footer link is gone). */
 var NAV = [
-  { key:"command",  label:"Overview",       ic:"&#129517;" },
-  { key:"portfolio",label:"Portfolio",      ic:"&#128203;" },
-  { key:"billing",  label:"Billing & Cash", ic:"&#128181;" },
-  { key:"woh",      label:"Work on Hand",   ic:"&#128202;" },
-  { key:"margin",   label:"Margin & Risk",  ic:"&#128201;" },
-  { key:"subs",     label:"Subcontractors", ic:"&#128296;" },
-  { key:"completed",label:"Completed",      ic:"&#127942;" },
-  { key:"pmload",   label:"PM Load",        ic:"&#128119;" },
-  { key:"forecast", label:"Forecast",       ic:"&#128200;" },
-  { key:"estimating",label:"Estimating",    ic:"&#128208;" },
-  { key:"brief",    label:"Executive Brief",ic:"&#128196;" },
-  { key:"trust",    label:"Data Trust",     ic:"&#128270;" },
-  { key:"ai",       label:"AI Assistant",   ic:"&#128172;" }
+  { key:"command",  label:"Overview",       ic:"&#129517;", grp:"" },
+  { key:"portfolio",label:"Portfolio",      ic:"&#128203;", grp:"Jobs" },
+  { key:"billing",  label:"Billing & Cash", ic:"&#128181;", grp:"Jobs" },
+  { key:"woh",      label:"Work on Hand",   ic:"&#128202;", grp:"Jobs" },
+  { key:"margin",   label:"Margin & Risk",  ic:"&#128201;", grp:"Jobs" },
+  { key:"subs",     label:"Subcontractors", ic:"&#128296;", grp:"Jobs" },
+  { key:"completed",label:"Completed",      ic:"&#127942;", grp:"Jobs" },
+  { key:"forecast", label:"Forecast",       ic:"&#128200;", grp:"Plan & People" },
+  { key:"pmload",   label:"PM Load",        ic:"&#128119;", grp:"Plan & People" },
+  { key:"estimating",label:"Bid Board (BC)",ic:"&#128203;", grp:"Preconstruction" },
+  { key:"deskLink", label:"Estimating Desk",ic:"&#128208;", grp:"Preconstruction", href:"/ryc/estimate" },
+  { key:"brief",    label:"Executive Brief",ic:"&#128196;", grp:"Leadership" },
+  { key:"trust",    label:"Data Trust",     ic:"&#128270;", grp:"Admin" },
+  { key:"ai",       label:"AI Assistant",   ic:"&#128172;", grp:"Admin" }
 ];
 var currentView = "command";
 

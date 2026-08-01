@@ -35,6 +35,10 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit
 .nav button:hover{background:var(--panel-2);color:var(--text)}
 .nav button:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
 .nav button.active{background:var(--accent-soft);color:var(--text);border-left-color:var(--accent)}
+.nav .nav-h{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:12px 12px 3px;user-select:none}
+.nav a.nav-ext{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--r-sm);color:var(--muted);font-size:13.5px;font-weight:500;border-left:2px solid transparent;text-decoration:none}
+.nav a.nav-ext .ic{width:18px;text-align:center;font-size:14px;opacity:.9}
+.nav a.nav-ext:hover{background:var(--panel-2);color:var(--text)}
 .side-foot{padding:12px 14px;border-top:1px solid var(--border-soft);font-size:12px}
 .side-foot a{color:var(--muted);text-decoration:none;display:block;padding:5px 0}
 .side-foot a:hover{color:var(--accent)}

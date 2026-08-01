@@ -137,39 +137,48 @@ function renderCommand(){
    Foundation snapshot trail (ryc_foundation_history via ?asof=) — billed, cost recorded,
    contract changes, new/closed jobs. Nothing here is manually maintained; there is no action
    register to keep current. Fails silent: no history → no panel, never an error surface. */
-var _deltaCache=null;
+var _deltaCache=null;   // {key, html} — keyed on BOTH snapshots so an in-session refresh invalidates (R5 #6)
 function loadCommandDeltas(){
   var el=document.getElementById("delta-panel"); if(!el) return;
-  if(_deltaCache){ el.innerHTML=_deltaCache; return; }
   if(!(foundationData&&foundationData.jobs)){ el.innerHTML=""; return; }
   var asof=new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+  var cacheKey=String(foundationData.refreshed||"")+"|"+asof;
+  if(_deltaCache&&_deltaCache.key===cacheKey){ el.innerHTML=_deltaCache.html; return; }
   el.innerHTML="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computing from nightly snapshots…</div></div>";
   fetch(CRM+"/api/ryc-foundation?asof="+asof).then(function(r){ return r.json(); }).then(function(old){
     if(!old||!old.jobs||!Object.keys(old.jobs).length){ el.innerHTML=""; return; }
     var cur=foundationData.jobs;
+    // Comparability gate (R5 #3): the baseline is ONE coherent run (the API guarantees it and
+    // echoes snapshotRun); absence still only means "job appeared/closed" when both sides look
+    // complete. A materially smaller side = probable partial ingestion → $ deltas over shared
+    // jobs still render, but new/closed classification is REFUSED and says so.
+    var curN=Object.keys(cur).length, oldN=old.jobCount||Object.keys(old.jobs).length;
+    var comparable=!!old.snapshotRun && oldN>=curN*0.85 && curN>=oldN*0.85;
     var billed=0,cost=0,contractChanges=[],movers=[],newJobs=[],closed=[];
     Object.keys(cur).forEach(function(k){
       var c=cur[k],o=old.jobs[k];
-      if(!o){ if(c.jobStatus==="A"&&((c.currentContract||0)>0||(c.originalContract||0)>0)) newJobs.push(c); return; }
+      if(!o){ if(comparable&&c.jobStatus==="A"&&((c.currentContract||0)>0||(c.originalContract||0)>0)) newJobs.push(c); return; }
       var db=(c.totalInvoiced||0)-(o.totalInvoiced||0); if(isFinite(db)) billed+=db;
       var dc=(c.totalCosts||0)-(o.totalCosts||0); if(isFinite(dc)){ cost+=dc; if(dc>1000) movers.push({j:c,d:dc}); }
       var dk=(c.currentContract||0)-(o.currentContract||0);
       if(Math.abs(dk)>25000) contractChanges.push({j:c,d:dk});
     });
-    Object.keys(old.jobs).forEach(function(k){ var o=old.jobs[k]; if(o.jobStatus==="A"&&(!cur[k]||cur[k].jobStatus==="C")) closed.push(o); });
+    if(comparable) Object.keys(old.jobs).forEach(function(k){ var o=old.jobs[k]; if(o.jobStatus==="A"&&(!cur[k]||cur[k].jobStatus==="C")) closed.push(o); });
     movers.sort(function(a,b){ return b.d-a.d; });
     contractChanges.sort(function(a,b){ return Math.abs(b.d)-Math.abs(a.d); });
     function li(name,jno,txt,val){ return "<div class=\"q-row info\"><div class=\"q-job\">"+esc(name)+"<span class=\"q-jno\">"+esc(jno||"")+"</span></div><div class=\"q-detail\">"+txt+"</div><div class=\"q-val\">"+val+"</div></div>"; }
-    var html="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computed from the nightly Foundation snapshot trail ("+asof+" → now). Derived, never hand-maintained.</div>"
+    var base=old.snapshotRun?new Date(old.snapshotRun).toLocaleDateString("en-US",{month:"short",day:"numeric"}):asof;
+    var html="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computed from the nightly Foundation snapshot trail (baseline run "+base+", "+oldN+" jobs → now, "+curN+"). Derived, never hand-maintained.</div>"
       +"<div class=\"q-row info\"><div class=\"q-job\">Week totals</div><div class=\"q-detail\"><b>"+fmtCompact(billed)+"</b> billed · <b>"+fmtCompact(cost)+"</b> cost recorded"
       +(newJobs.length?(" · <b>"+newJobs.length+"</b> new job"+(newJobs.length===1?"":"s")):"")
-      +(closed.length?(" · <b>"+closed.length+"</b> closed"):"")+"</div></div>";
+      +(closed.length?(" · <b>"+closed.length+"</b> closed"):"")+"</div></div>"
+      +(comparable?"":"<div class=\"q-row info\"><div class=\"q-job\">Coverage</div><div class=\"q-detail\">Baseline and current snapshots differ too much in coverage ("+oldN+" vs "+curN+" jobs) — probable partial ingestion, so jobs are NOT classified as new/closed. $ deltas above cover the "+Object.keys(cur).filter(function(k){return old.jobs[k];}).length+" jobs present in both.</div></div>");
     contractChanges.slice(0,5).forEach(function(x){ html+=li(x.j.description||"",x.j.jobNo,"contract "+(x.d>0?"+":"")+fmtCompact(x.d)+" this week",fmtCompact(x.j.currentContract)); });
     newJobs.slice(0,5).forEach(function(c){ html+=li(c.description||"",c.jobNo,"NEW in Foundation this week"+(c.pmName?(" · "+esc(c.pmName)):""),fmtCompact(c.currentContract||c.originalContract)); });
     closed.slice(0,5).forEach(function(o){ html+=li(o.description||"",o.jobNo,"closed in Foundation this week","—"); });
     movers.slice(0,3).forEach(function(x){ html+=li(x.j.description||"",x.j.jobNo,"cost recorded "+fmtCompact(x.d)+" this week",""); });
     html+="</div>";
-    _deltaCache=html; el.innerHTML=html;
+    _deltaCache={key:cacheKey,html:html}; el.innerHTML=html;
   }).catch(function(){ el.innerHTML=""; });
 }
 
@@ -1323,16 +1332,26 @@ function loadBidRecord(jno){
       var p=d&&d.ok&&d.pursuits&&d.pursuits[0];
       if(!p||!p.latest){ _bidRecCache[jno]=""; el.innerHTML=""; return; }
       var wf=p.workflow||{}, sub=wf.submission||{}, aw=wf.award||{};
-      var j=jobByNo(jno);
+      var j=jobByNo(jno), f=j&&j.foundation;
       var conceptual=p.latest.cost_mid||null;
+      // THREE separate stories, never collapsed (R5 #5): estimating drift (conceptual→submitted),
+      // award variance (submitted→ORIGINAL contract), contract growth (original→current, COs).
+      var origContract=(f&&f.originalContract>0)?f.originalContract:((j&&j.procoreContractValue>0)?j.procoreContractValue:null);
+      var basis=sub.amount||null;
+      var awardVar=(basis&&origContract)?((origContract-basis)/basis*100):null;
+      // Implausible link quarantine: a legitimate award lands near the bid; a wild ratio means
+      // the pursuit is probably linked to the WRONG job — flag it and grade nothing.
+      var suspectLink=awardVar!=null&&Math.abs(awardVar)>25;
       var rows="";
       function br(l,v,s){ return "<tr><td>"+l+"</td><td class=\"r\">"+v+"</td><td class=\"r\" style=\"color:var(--faint)\">"+(s||"")+"</td></tr>"; }
+      function pctTxt(x){ return (x>=0?"+":"")+x.toFixed(1)+"%"; }
       if(conceptual) rows+=br("Conceptual estimate",fmt(conceptual),(p.revisions&&p.revisions.length>1)?(p.revisions.length+" revisions"):"");
-      if(sub.amount) rows+=br("Submitted bid",fmt(sub.amount),(sub.at||"").slice(0,10)+(conceptual?(" · "+(((sub.amount-conceptual)/conceptual*100)>=0?"+":"")+((sub.amount-conceptual)/conceptual*100).toFixed(1)+"% vs conceptual"):""));
-      var basis=sub.amount||conceptual;
-      if(basis&&j&&j.contractValue>0) rows+=br("Current contract",fmt(j.contractValue),(((j.contractValue-basis)/basis*100)>=0?"+":"")+((j.contractValue-basis)/basis*100).toFixed(1)+"% vs "+(sub.amount?"bid":"conceptual"));
+      if(sub.amount) rows+=br("Submitted bid",fmt(sub.amount),(sub.at||"").slice(0,10)+(conceptual?(" · estimating drift "+pctTxt((sub.amount-conceptual)/conceptual*100)):""));
+      if(origContract) rows+=br("Original contract",fmt(origContract),suspectLink?"":(basis?("award variance "+pctTxt(awardVar)+" vs bid"):"no submitted bid recorded — not compared"));
+      if(j&&j.contractValue>0&&origContract) rows+=br("Current contract",fmt(j.contractValue),"contract growth "+pctTxt((j.contractValue-origContract)/origContract*100)+" since award (COs)");
+      var warn=suspectLink?"<div class=\"dw-note\" style=\"color:var(--amber)\"><b>⚠ Possible wrong job link</b> — the original contract is "+pctTxt(awardVar)+" vs the submitted bid, far outside a plausible award. Excluded from calibration reads; verify the award link on the pursuit (legitimate scope changes can be confirmed there).</div>":"";
       _bidRecCache[jno]="<div class=\"dw-sec\"><h4>Bid record — from the Estimating Desk</h4>"
-        +"<table class=\"dwt\"><tr><th></th><th class=\"r\">Amount</th><th class=\"r\"></th></tr>"+rows+"</table>"
+        +"<table class=\"dwt\"><tr><th></th><th class=\"r\">Amount</th><th class=\"r\"></th></tr>"+rows+"</table>"+warn
         +"<div class=\"dw-note\">Linked "+((aw.linked_at||"").slice(0,10)||"—")+(p.latest.estimator?(" · estimated by "+esc(p.latest.estimator)):"")
         +" · <a class=\"srclink\" href=\"/ryc/estimate#pursuit/"+p.id+"\" target=\"_blank\" rel=\"noopener\">Open pursuit &#8599;</a></div></div>";
       el.innerHTML=_bidRecCache[jno];

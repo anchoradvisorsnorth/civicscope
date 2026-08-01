@@ -124,7 +124,7 @@
 <div id="app">
   <header style="display:flex;align-items:center;gap:14px">
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.15.0 · step 5: outcomes & calibration readout · BC opportunity intake · stable pursuit routes · submission capture · durable pursuit entity · plan takeoff · market sub-pricing · BC loader · award link → Foundation</div></div>
+    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.15.1 · R5 fixes: typed submission/outcome, BC-ID identity, visible dup warnings · outcomes & calibration · BC opportunity intake · stable pursuit routes · submission capture · durable pursuit entity · plan takeoff · market sub-pricing · BC loader · award link → Foundation</div></div>
     <a href="/ryc/command" style="white-space:nowrap;font-size:13px;color:#c2410c;text-decoration:none;font-weight:600">Command →</a>
   </header>
 
@@ -1292,21 +1292,31 @@ function assembledTotal() {
   divs.forEach((d, i) => { t += quotes[i] ? quotes[i] : (d.amount || 0); });
   return t || (curRecon().total || null);
 }
-function setSubmission() {
+// Submission and outcome are SERVER-OWNED typed facts (Codex R5 #2) — written through their
+// own atomic operations (stage transition + fact + audit event in one server write), never
+// through the generic workflow save, so a stale tab can't erase them.
+async function recordFact(action, payload) {
+  if (!window._pursuitId) { alert('Generate/save the estimate first so the pursuit exists.'); return false; }
+  try {
+    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ pw: 'ryc2026', action, pursuit_id: window._pursuitId }, payload)) });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    window._workflow = d.workflow;   // server is authoritative (it also advanced the stage)
+    historyCache = null; renderPursuit();
+    return true;
+  } catch (e) { alert('Could not record: ' + e.message); return false; }
+}
+async function setSubmission() {
   const el = document.getElementById('sub-amt');
   const amt = el ? Math.round(Number(el.value)) : 0;
   if (!(amt > 0)) { alert('Enter the final submitted bid amount.'); return; }
-  const wf = curWF();
-  wf.submission = { amount: amt, at: new Date().toISOString(), conceptual: curRecon().total || window._pkgConceptualTotal || null };
-  delete window._prefillSub;
-  persistWF(); renderPursuit(); historyCache = null;
+  if (await recordFact('record_submission', { amount: amt, conceptual: curRecon().total || window._pkgConceptualTotal || null })) delete window._prefillSub;
 }
 function setOutcome() {
   const w = (document.getElementById('oc-winner') || {}).value || '';
   const a = Math.round(Number((document.getElementById('oc-amt') || {}).value)) || null;
-  const wf = curWF();
-  wf.outcome = { result: 'lost', winner: w.trim().slice(0, 120) || null, winning_amount: a > 0 ? a : null, at: new Date().toISOString() };
-  persistWF(); renderPursuit(); historyCache = null;
+  recordFact('record_outcome', { winner: w, winning_amount: a });
 }
 function setCk(item, status) { const c = curWF().checklist; c[item] = Object.assign({}, c[item], { status }); persistWF(); renderPursuit(); }
 function setMeeting() {
@@ -1518,17 +1528,20 @@ async function loadBcBoard() {
   bcBoardCache = await r.json();
   return bcBoardCache;
 }
-// A published BC project counts as tracked when a pursuit carries its BC id (Desk-created
-// drafts and adopted opportunities both do) or a pursuit name substantially overlaps it.
+// Tracked = the pursuit carries the BC project's STABLE ID — never a name match (Codex R5 #1:
+// "DeMotte WWTP Improvements" vs "Wanatah WWTP Improvements" = 0.67 Jaccard, and a fuzzy
+// suppression is invisible — the opportunity just vanishes). Name similarity is now only a
+// VISIBLE "possible duplicate" warning on the still-listed opportunity; adopt is idempotent
+// on BC id, so listing too much is safe and hiding too much is not.
 function bcOpportunities(board, pursuitRows, runs) {
   const linked = new Set(pursuitRows.map(p => p.bc_project_id).filter(Boolean));
   (runs || []).forEach(r => { if (r.bc_project_id) linked.add(r.bc_project_id); });
   const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
-  const pNames = pursuitRows.map(p => new Set(norm(p.name)));
-  return (board.published || []).filter(bp => {
-    if (linked.has(bp.id)) return false;
+  const pN = pursuitRows.map(p => ({ name: p.name, toks: new Set(norm(p.name)) }));
+  return (board.published || []).filter(bp => !linked.has(bp.id)).map(bp => {
     const B = new Set(norm(bp.name));
-    return !pNames.some(A => { let i = 0; for (const x of A) if (B.has(x)) i++; const u = new Set([...A, ...B]).size; return u > 0 && i / u >= 0.5; });
+    const dup = pN.find(x => { let i = 0; for (const t of x.toks) if (B.has(t)) i++; const u = new Set([...x.toks, ...B]).size; return u > 0 && i / u >= 0.5; });
+    return Object.assign({}, bp, { possibleDup: dup ? dup.name : null });
   });
 }
 async function adoptOpp(i) {
@@ -1992,19 +2005,24 @@ window.addEventListener('hashchange', () => {
   if (_settingHash) { _settingHash = false; return; }
   routeFromHash();
 });
+// Navigation token (Codex R5 router assessment): each route change bumps the token; an async
+// pursuit open only applies if its token is still current, so a stale fetch can never paint
+// over a newer navigation. Boolean flags guard only the sync hash-write loop.
+let _navToken = 0;
 function routeFromHash() {
   const h = (location.hash || '').replace(/^#/, '');
+  const tok = ++_navToken;
   const m = h.match(/^pursuit\/([0-9a-f-]{36})$/i);
   if (m) {
     // already showing this pursuit → nothing to do
     if (window._pursuitId === m[1] && document.getElementById('resultsPanel').style.display === 'block') return;
-    openPursuitById(m[1]);
+    openPursuitById(m[1], tok);
     return;
   }
   const v = HASH_VIEW[h] || 'history';
   _routing = true; try { setEstView(v); } finally { _routing = false; }
 }
-async function openPursuitById(pid) {
+async function openPursuitById(pid, tok) {
   try {
     if (!historyCache) {
       const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2012,11 +2030,14 @@ async function openPursuitById(pid) {
       const d = await r.json().catch(() => null);
       if (d && d.ok) historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
     }
+    if (tok !== undefined && tok !== _navToken) return;   // user navigated on — drop this route
     const runs = ((historyCache && historyCache.runs) || []).filter(r => r.pursuit_id === pid)
       .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
     if (runs.length) { openRun(runs[0].id); return; }
     // run-less pursuit (adopted opportunity) — deep link opens the prefilled generator
     if (((historyCache && historyCache.pursuits) || []).some(x => x.id === pid)) { openBlankPursuit(pid); return; }
+    // unknown/deleted pursuit: say so with a safe way back — never a silent blank form
+    alert('That pursuit link points to a pursuit that no longer exists (deleted, or the link is stale). Returning to the desk.');
   } catch {}
   _routing = true; try { setEstView('history'); } finally { _routing = false; }
 }
@@ -2146,7 +2167,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.15.0';
+const TOOL_VERSION = 'v1.15.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -2289,7 +2310,8 @@ async function renderHistory(force) {
       window._bcOpps = opps;
       if (opps.length) {
         const oppRows = opps.map((bp, i) =>
-          `<tr><td><strong>${esc(bp.name)}</strong><div class="note">${[bp.city, bp.st].filter(Boolean).join(', ')}${bp.packages ? ` · ${bp.packages} packages` : ''}${bp.invites ? ` · ${bp.invites} invites` : ''}</div></td>`
+          `<tr><td><strong>${esc(bp.name)}</strong><div class="note">${[bp.city, bp.st].filter(Boolean).join(', ')}${bp.packages ? ` · ${bp.packages} packages` : ''}${bp.invites ? ` · ${bp.invites} invites` : ''}</div>`
+          + `${bp.possibleDup ? `<div class="note" style="color:#b45309">⚠ similar name to pursuit "${esc(bp.possibleDup)}" — possible duplicate; adopting is safe (idempotent on the BC project), but check before working both</div>` : ''}</td>`
           + `<td>${bp.bidsDueAt ? esc(new Date(bp.bidsDueAt).toLocaleDateString([], { month: 'short', day: 'numeric' })) : '—'}</td>`
           + `<td class="r">${bp.value ? fmtCompact(bp.value) : '—'}</td>`
           + `<td class="r"><button class="btn-sm" onclick="adoptOpp(${i})">＋ Adopt as pursuit</button></td></tr>`).join('');

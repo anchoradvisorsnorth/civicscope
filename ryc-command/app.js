@@ -83,7 +83,15 @@ function refreshProcore(btn){
 
 function renderNav(){
   var el=document.getElementById("nav");
-  el.innerHTML=NAV.map(function(n){ var on=n.key===currentView; return "<button type=\"button\" data-key=\""+n.key+"\" class=\""+(on?"active":"")+"\""+(on?" aria-current=\"page\"":"")+"><span class=\"ic\">"+n.ic+"</span>"+n.label+"</button>"; }).join("");
+  var html="", lastGrp=null;
+  NAV.forEach(function(n){
+    if(n.grp && n.grp!==lastGrp) html+="<div class=\"nav-h\">"+n.grp+"</div>";
+    lastGrp=n.grp;
+    if(n.href){ html+="<a class=\"nav-ext\" href=\""+n.href+"\"><span class=\"ic\">"+n.ic+"</span>"+n.label+" &#8599;</a>"; return; }
+    var on=n.key===currentView;
+    html+="<button type=\"button\" data-key=\""+n.key+"\" class=\""+(on?"active":"")+"\""+(on?" aria-current=\"page\"":"")+"><span class=\"ic\">"+n.ic+"</span>"+n.label+"</button>";
+  });
+  el.innerHTML=html;
   Array.prototype.forEach.call(el.querySelectorAll("button"),function(a){ a.addEventListener("click",function(){ setView(a.getAttribute("data-key")); }); });
 }
 function setView(k){ closeDrawer(true); currentView=k; renderNav(); renderView();
@@ -91,7 +99,7 @@ function setView(k){ closeDrawer(true); currentView=k; renderNav(); renderView()
   var btn=document.querySelector("#nav button.active"); if(btn) btn.focus(); // restore focus after re-render (a11y)
 }
 function hashKey(){ return location.hash.replace(/^#\/?/,""); }
-window.addEventListener("hashchange",function(){ var k=hashKey(); if(k!==currentView && NAV.some(function(n){ return n.key===k; })) setView(k); });
+window.addEventListener("hashchange",function(){ var k=hashKey(); if(k!==currentView && NAV.some(function(n){ return n.key===k && !n.href; })) setView(k); });
 /* per-view provenance — the topbar must not claim Foundation on views that never read it */
 var FDN_FED={command:1,portfolio:1,billing:1,woh:1,margin:1,brief:1,trust:1};
 function viewCtx(){
