@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.3.0-sms-optin';
+const VER = '1.4.0-sms-optional';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -127,17 +127,25 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { action } = req.body || {};
 
-      // ---- public SMS opt-in (the /pool/sms web form — the verifiable A2P call-to-action) ----
+      // ---- public member registration + optional SMS opt-in (the /pool/sms web form — the verifiable A2P call-to-action) ----
+      // SMS consent is voluntary: smsChoice 'no' registers the member with no phone and no consent (A2P 30923 fix).
       if (action === 'sms_optin') {
         if (req.body.hp) return res.status(200).json({ ok: true }); // honeypot: swallow bots silently
         const name = String(req.body.name || '').trim().slice(0, 60);
-        const digits = String(req.body.phone || '').replace(/\D/g, '');
-        if (!name || digits.length < 10 || digits.length > 11) return res.status(400).json({ error: 'name and valid US mobile required' });
-        const phone = digits.length === 11 ? '+' + digits : '+1' + digits;
+        if (!name) return res.status(400).json({ error: 'name required' });
+        const optIn = req.body.smsChoice === 'yes';
+        let phone = null;
+        if (optIn) {
+          const digits = String(req.body.phone || '').replace(/\D/g, '');
+          if (digits.length < 10 || digits.length > 11) return res.status(400).json({ error: 'valid US mobile required for text alerts' });
+          phone = digits.length === 11 ? '+' + digits : '+1' + digits;
+        }
         const row = await getRow('sms-optins');
         const list = (row?.data?.optins) || [];
         if (list.length >= 100) return res.status(429).json({ error: 'list full' }); // private pool — hard cap kills abuse
-        list.push({ name, phone, consentAt: new Date().toISOString(), consentText: String(req.body.consentText || '').slice(0, 600), optedOut: false });
+        list.push(optIn
+          ? { name, phone, smsConsent: true, consentAt: new Date().toISOString(), consentText: String(req.body.consentText || '').slice(0, 600), optedOut: false }
+          : { name, phone: null, smsConsent: false, declinedAt: new Date().toISOString() });
         await putRow('sms-optins', { optins: list });
         return res.status(200).json({ ok: true });
       }
