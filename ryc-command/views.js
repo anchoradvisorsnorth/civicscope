@@ -2,15 +2,33 @@
 /* ryc-command/views.js — all view renderers + job-detail drawer
    Split from index.html (Phase 7). Classic scripts, load order: core → views → app. */
 /* ===== Command Center ======================================================== */
+/* The leadership headline is the contract-weighted aggregate of the SAME trusted row-level
+   projection the Portfolio grades — not a separate revised-budget calculation (Codex #4: the
+   old 9.3% headline used a different cost basis than the job rows beneath it). Jobs with no
+   trusted ERP projection are EXCLUDED, and the coverage is disclosed alongside the number.
+   Returns {pct, jobs, of, covered, total} or null. */
 function projectedGrossMargin(){
-  var jobs=getActiveJobs(), tC=0, tPC=0;
-  jobs.forEach(function(j){ var b=j.budget||{}; var pc=b.revised>0?b.revised:(b.original>0?b.original:0);
-    // Greencroft board jobs carry no Procore budget — their projected cost is Foundation as-bid + CO cost adj
-    if(!(pc>0) && j.program==="greencroft" && j.foundation) pc=gcProjCost(j.foundation)||0;
-    if(j.contractValue>0&&pc>0){ tC+=j.contractValue; tPC+=pc; } });
+  var tC=0, tPC=0, n=0, m=0, totC=0;
+  getActiveJobs().forEach(function(j){
+    var c=j.contractValue||0; if(c>0){ totC+=c; m++; }
+    var pc=null;
+    if(!projMarginSuspect(j) && j.budget && j.budget.projectedCost>0) pc=j.budget.projectedCost;
+    // Greencroft board jobs carry no Procore ERP budget — Foundation as-bid + CO cost adj IS
+    // their row-level projection everywhere else, so it counts as covered here too.
+    if(pc==null && j.program==="greencroft" && j.foundation) pc=gcProjCost(j.foundation);
+    if(c>0&&pc>0){ tC+=c; tPC+=pc; n++; }
+  });
   // Greencroft leftovers (active in Foundation, not on the Procore board)
-  greencroftJobs().forEach(function(f){ var c=(f.currentContract>0)?f.currentContract:(f.originalContract||0); var pc=gcProjCost(f); if(c>0&&pc>0){ tC+=c; tPC+=pc; } });
-  return tC>0?((tC-tPC)/tC*100):null;
+  greencroftJobs().forEach(function(f){
+    var c=(f.currentContract>0)?f.currentContract:(f.originalContract||0); if(c>0){ totC+=c; m++; }
+    var pc=gcProjCost(f); if(c>0&&pc>0){ tC+=c; tPC+=pc; n++; }
+  });
+  return tC>0?{pct:(tC-tPC)/tC*100, jobs:n, of:m, covered:tC, total:totC}:null;
+}
+function gmSub(gm){
+  if(!gm) return "no trusted projections";
+  var covPct=gm.total>0?Math.round(gm.covered/gm.total*100):0;
+  return "row-level projections · "+gm.jobs+" of "+gm.of+" jobs ("+covPct+"% of contract)";
 }
 
 function renderCommand(){
@@ -40,7 +58,7 @@ function renderCommand(){
   function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
   var strip="<div class=\"kpi-strip\">"
     +kpi("Active contract value",fmt(totalContract),(jobs.length+gc.length)+" active jobs — incl. "+(greencroftBoardJobs().length+gc.length)+" Greencroft"+(gc.length?" ("+gc.length+" off-board)":""),"accent")
-    +kpi("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast · Procore budget",(gm!=null&&gm<8)?"warn":"")
+    +kpi("Projected gross margin",gm?gm.pct.toFixed(1)+"%":"—",gmSub(gm),(gm&&gm.pct<8)?"warn":"")
     +kpi("Overdue AR (active)",haveAr?fmtCompact(overdue):"Unavailable",haveAr?"needs collection":"AR feed down",haveAr?(overdue>0?"bad":""):"warn")
     +kpi("Needs invoicing",haveFnd?fmtCompact(needsInv):"Unavailable",haveFnd?"earned, not billed":"Foundation feed down",haveFnd?(needsInv>0?"warn":""):"warn")
     +kpi("Jobs flagged",String(flagged),reds.length+" red · "+ambers.length+" amber · "+closeouts.length+" closeout",flagged>0?"warn":"")
@@ -139,7 +157,7 @@ function buildPfRows(){
       closeoutStage:!!CLOSEOUT_STAGES[j.stage],
       contract:j.contractValue||0, conflict:(j.flags||[]).some(function(f){return f.type==="contract";}),
       ctd:(j.costToDate!=null?j.costToDate:null), pct:j.pctComplete,
-      mtd:projectedMargin(j), mtdSuspect:projMarginSuspect(j), cm:contractedMargin(j),
+      mtd:projectedMargin(j), mtdSuspect:projMarginSuspect(j), cm:asBidMargin(j),
       needsInv:b?b.under:0, overdue:b?b.overdue:0,
       status:isCloseoutOnly(j)?"closeout":sl.color,
       reasons:sl.reasons.map(function(r){return r.text;}).join(" · "),
@@ -182,7 +200,7 @@ function updatePTable(){
       +"<td class=\"r\">"+fmtCompact(r.contract)+(r.conflict?" <span title=\"Procore and Foundation contracts diverge — see Data conflicts on the Command Center\" style=\"color:#c07f1a\">⚑</span>":"")+"</td>"
       +"<td class=\"r\">"+(r.ctd!=null?fmtCompact(r.ctd):"—")+"</td>"
       +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
-      +"<td class=\"r\"><span class=\""+mcls+"\""+(r.mtdSuspect?" title=\"Projected cost flagged for verification — shown ungraded\"":"")+">"+(r.mtd!=null?(r.mtdSuspect?"⚑ ":"")+r.mtd.toFixed(1)+"%":"—")+"</span>"+(r.cm!=null?"<div class=\"cell-sub\">bid "+r.cm.toFixed(1)+"%</div>":"")+"</td>"
+      +"<td class=\"r\"><span class=\""+mcls+"\""+(r.mtdSuspect?" title=\"Projected cost flagged for verification — shown ungraded\"":"")+">"+(r.mtd!=null?(r.mtdSuspect?"⚑ ":"")+r.mtd.toFixed(1)+"%":"—")+"</span>"+(r.cm!=null?"<div class=\"cell-sub\">as-bid "+r.cm.toFixed(1)+"%</div>":"")+"</td>"
       +"<td>"+bill+"</td>"
       +"<td>"+statusPill(r.status,r.reasons)+"</td>"
       +"<td><span class=\"conf "+r.conf.cls+"\">"+r.conf.txt+"</span></td>"
@@ -396,7 +414,7 @@ function renderMargin(){
   var gm=projectedGrossMargin();
   function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
   var strip="<div class=\"kpi-strip k4\">"
-    +kpi("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast · Procore budget",(gm!=null&&gm<8)?"warn":"")
+    +kpi("Projected gross margin",gm?gm.pct.toFixed(1)+"%":"—",gmSub(gm),(gm&&gm.pct<8)?"warn":"")
     +kpi("Margin fades",String(fading.length),fading.length?("net "+fmtCompact(fadeDollars)+" vs as-bid"):"no jobs fading",fading.length?"bad":"")
     +kpi("Buyout coverage",boCov!=null?boCov.toFixed(0)+"%":"—",fmtCompact(boCommitted)+" committed of "+fmtCompact(boBudget),"")
     +kpi("Data exceptions",String(exc.length),exc.length?"need reconciliation":"all clean",exc.length?"warn":"")
@@ -1001,7 +1019,7 @@ function renderBrief(){
   var band="<div class=\"stat-band\">"
     +sb("Active work",String(woh.length)+" jobs",fmtCompact(totalContract)+" under contract — incl. "+(woh.filter(function(r){return r.gc||r.pgm==="greencroft";}).length)+" Greencroft"+(gcN?" ("+gcN+" off-board)":""))
     +sb("Cost to complete",fmtCompact(ctcSum),"remaining on "+ctcRows.length+" costed jobs")
-    +sb("Projected gross margin",gm!=null?gm.toFixed(1)+"%":"—","forecast, Procore budgets")
+    +sb("Projected gross margin",gm?gm.pct.toFixed(1)+"%":"—",gmSub(gm))
     +sb("Billed to date",haveFnd?fmtCompact(woh.reduce(function(s,r){return s+(r.billed||0);},0)):"Unavailable","Foundation, active jobs")
     +"</div>";
 
@@ -1071,7 +1089,7 @@ function drawerHtml(j){
   var reasons=sl.reasons.map(function(r){return r.text;}).join(" · ");
   var bill=billingByJob()[String(j.projectNumber)]||null;
   var gf=gainFadeFor(j);
-  var mtd=projectedMargin(j), cm=contractedMargin(j), burn=contractLessCostToDatePct(j);
+  var mtd=projectedMargin(j), cm=asBidMargin(j), burn=contractLessCostToDatePct(j);
   var dpf=daysPastFinish(j);
   var pAge=ageTxt(activeData&&activeData.refreshed), fAge=ageTxt(foundationData&&foundationData.refreshed), aAge=ageTxt(arData&&arData.refreshed);
 
@@ -1094,7 +1112,7 @@ function drawerHtml(j){
     // burn belongs here, beside the dollars it describes — not masquerading as margin
     +stat("Cost to date",j.costToDate!=null?fmtCompact(j.costToDate):"—",(f?"Foundation actuals":"Procore direct")+(burn!=null?" · "+(100-burn).toFixed(0)+"% of contract spent":""))
     +stat("Complete",j.pctComplete!=null?Math.round(j.pctComplete)+"%":"—",dpf>0?dpf+"d past finish":"")
-    +stat("Proj. margin",mtd!=null?mtd.toFixed(1)+"%":"—",(cm!=null?"bid "+cm.toFixed(1)+"%":"")+(mtd!=null&&cm!=null?" · "+((mtd-cm)>=0?"+":"")+(mtd-cm).toFixed(1)+" pts":""))
+    +stat("Proj. margin",mtd!=null?mtd.toFixed(1)+"%":"—",(cm!=null?"as-bid "+cm.toFixed(1)+"%":"")+(mtd!=null&&cm!=null?" · "+((mtd-cm)>=0?"+":"")+(mtd-cm).toFixed(1)+" pts":""))
     +stat("Proj. cost (ERP)",b.projectedCost>0?fmtCompact(b.projectedCost):"—",b.projCostSuspect?"⚑ verify":"")
     +stat("Gain / fade",gf?(gf.gfPts>=0?"+":"")+gf.gfPts.toFixed(1)+" pts":"—",gf?fmtCompact(gf.gfDollars)+(gf.burnRisk?" · cost-burn risk":""):"insufficient data")
     +"</div></div>";

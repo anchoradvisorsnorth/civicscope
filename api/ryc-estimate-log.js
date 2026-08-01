@@ -84,6 +84,21 @@ export default async function handler(req, res) {
       if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
       const wf = req.body.workflow;
       if (wf === undefined || wf === null || typeof wf !== 'object') return res.status(400).json({ error: 'workflow object required' });
+      // Read-merge-write (Codex #8): the award link and its audit trail are server-owned facts
+      // written only by link_award. A stale client object (quote typing racing a link) must not
+      // erase them — if the stored row carries an award the incoming object lacks, keep the
+      // stored award (and the won stage it implies, since the stale object also predates it).
+      try {
+        const r0 = await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc&select=workflow&limit=1`);
+        if (r0.ok) {
+          const rows0 = await r0.json();
+          const cur = rows0.length && rows0[0].workflow && typeof rows0[0].workflow === 'object' ? rows0[0].workflow : null;
+          if (cur) {
+            if (cur.award && !wf.award) { wf.award = cur.award; if (cur.stage === 'won') wf.stage = 'won'; }
+            if (cur.award_events && !wf.award_events) wf.award_events = cur.award_events;
+          }
+        }
+      } catch { /* merge is best-effort — a failed read falls back to plain replace */ }
       const r = await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc`, {
         method: 'PATCH', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify({ workflow: wf }),
       });
@@ -170,18 +185,43 @@ export default async function handler(req, res) {
       if (!rows0.length) return res.status(404).json({ error: 'Not found' });
       const wf = rows0[0].workflow && typeof rows0[0].workflow === 'object' ? rows0[0].workflow : { stage: 'takeoff', checklist: {} };
 
+      const audit = (action2, jobNo2) => {
+        wf.award_events = (Array.isArray(wf.award_events) ? wf.award_events : [])
+          .concat([{ action: action2, job_no: jobNo2 || null, at: new Date().toISOString() }]).slice(-20);
+      };
       if (req.body.unlink) {
+        const prev = wf.award || {};
+        audit('unlink', prev.job_no);
         delete wf.award;
+        // Restore the stage the pursuit held before the link (Codex #7) — a mistaken link
+        // corrected here must not leave a phantom win. Links made before prev_stage tracking
+        // have nothing recorded; don't guess between Submitted/Lost — tell the client to ask.
+        if (wf.stage === 'won') {
+          if (prev.prev_stage) { wf.stage = prev.prev_stage; delete wf.stage_unresolved; }
+          else wf.stage_unresolved = true;
+        }
       } else {
         const jobNo = String(req.body.job_no || '').trim();
         if (!jobNo) return res.status(400).json({ error: 'job_no required' });
+        // One Foundation job belongs to one pursuit — enforced here, not just in the picker UI.
+        try {
+          const rq = await sb(`ryc_estimates?tenant=eq.ryc&select=id,project_name&workflow->award->>job_no=eq.${encodeURIComponent(jobNo)}&limit=5`);
+          if (rq.ok) {
+            const taken = (await rq.json()).filter(x => x.id !== id);
+            if (taken.length) return res.status(409).json({ error: `Job ${jobNo} is already linked to pursuit "${taken[0].project_name}" — unlink it there first.` });
+          }
+        } catch { /* uniqueness check is best-effort if the query itself fails */ }
         wf.award = {
           job_no: jobNo.slice(0, 40),
           description: String(req.body.description || '').slice(0, 200) || null,
           customer: String(req.body.customer || '').slice(0, 200) || null,
           source: 'foundation',
           linked_at: new Date().toISOString(),
+          // remember what the pursuit was before the win so unlink can restore it
+          prev_stage: wf.stage !== 'won' ? (wf.stage || 'takeoff') : ((wf.award && wf.award.prev_stage) || null),
         };
+        audit('link', jobNo);
+        delete wf.stage_unresolved;
         // Linking a pursuit to a real Foundation job IS the win capture — don't ask twice.
         if (wf.stage !== 'won') wf.stage = 'won';
       }

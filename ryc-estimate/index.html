@@ -121,7 +121,7 @@
 <div id="app">
   <header>
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.11.0 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow · award link → Foundation</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.11.1 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow · award link → Foundation</div></div>
   </header>
 
   <div class="estnav">
@@ -711,22 +711,31 @@ function parseMoney(raw) {
   if (typeof raw === 'number') return { value: isFinite(raw) ? Math.round(raw) : null, flag: null };
   const s = String(raw).trim();
   if (!s) return { value: null, flag: 'empty' };
-  const RE = /\$?\s*(\d[\d,]*(?:\.\d+)?)\s*(mm|m|k|million|thousand)?\b/gi;
-  const hits = []; let m;
-  while ((m = RE.exec(s))) {
-    let v = parseFloat(m[1].replace(/,/g, ''));
-    if (!isFinite(v)) continue;
-    const suf = (m[2] || '').toLowerCase();
+  // Parse one money token. `moneyish` = it reads as a dollar figure on its own ($-prefixed,
+  // suffixed, comma-grouped, or >=1000) — the discriminator that keeps a stray digit in the
+  // scope text (e.g. "— 2-story") from being mistaken for the far side of a range.
+  const one = t => {
+    const m = /(\$)?\s*(\d[\d,]*(?:\.\d+)?)\s*(mm|m|k|million|thousand)?\b/i.exec(t);
+    if (!m) return null;
+    let v = parseFloat(m[2].replace(/,/g, ''));
+    if (!isFinite(v)) return null;
+    const suf = (m[3] || '').toLowerCase();
     if (suf === 'k' || suf === 'thousand') v *= 1e3;
     else if (suf === 'm' || suf === 'mm' || suf === 'million') v *= 1e6;
-    hits.push({ value: Math.round(v), hadSuffix: !!suf });
+    return { value: Math.round(v), hadSuffix: !!suf, moneyish: !!m[1] || !!suf || /,\d{3}/.test(m[2]) || v >= 1000 };
+  };
+  // "$180,000–$220,000" and shorthand ranges "$180k–$220k" / "$1.2M–$1.4M" are genuinely
+  // ambiguous — carry the midpoint, flag as a range. BOTH sides must read as money; the old
+  // digit-before-dash test missed shorthand ranges (their low endpoint silently became the
+  // whole carry) and could pair an amount with a stray digit in the scope text.
+  const rm = /(\$?\s*\d[\d,]*(?:\.\d+)?\s*(?:mm|m|k|million|thousand)?)\s*[–—-]\s*(\$?\s*\d[\d,]*(?:\.\d+)?\s*(?:mm|m|k|million|thousand)?)/i.exec(s);
+  if (rm) {
+    const a = one(rm[1]), b = one(rm[2]);
+    if (a && b && a.moneyish && b.moneyish) return { value: Math.round((a.value + b.value) / 2), flag: 'range' };
   }
-  if (!hits.length) return { value: null, flag: 'unparsed' };
-  // "$180,000–$220,000" is genuinely ambiguous — carry the midpoint but flag it as a range.
-  if (hits.length >= 2 && /\d\s*[\u2013\u2014-]\s*\$?\s*\d/.test(s)) {
-    return { value: Math.round((hits[0].value + hits[1].value) / 2), flag: 'range' };
-  }
-  return { value: hits[0].value, flag: hits[0].hadSuffix ? 'shorthand' : null };
+  const h = one(s);
+  if (!h) return { value: null, flag: 'unparsed' };
+  return { value: h.value, flag: h.hadSuffix ? 'shorthand' : null };
 }
 
 // Split one DIVISIONS line into { div, name, amount, scope }. The leading 2-digit CSI number
@@ -745,7 +754,7 @@ function splitDivisionRow(line) {
   const money = parseMoney(body.slice(hit.index));
   let scope = body.slice(hit.index + hit[0].length);
   // a range consumed a second figure — don't leave it dangling at the head of the scope text
-  if (money.flag === 'range') scope = scope.replace(/^\s*[\u2013\u2014-]\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*(?:mm|m|k)?\b/i, '');
+  if (money.flag === 'range') scope = scope.replace(/^\s*[\u2013\u2014-]\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*(?:mm|m|k|million|thousand)?\b/i, '');
   return { div, name: clean(body.slice(0, hit.index)), amount: money.value, flag: money.flag, scope: clean(scope) };
 }
 
@@ -759,7 +768,10 @@ function parseResponse(raw) {
   const merged = [];
   for (let i = 0; i < rawDiv.length; i++) {
     const cur = rawDiv[i], nxt = rawDiv[i + 1], c = splitDivisionRow(cur);
-    if (c.amount == null && c.div && nxt && /^\$?\s*\d/.test(nxt.trim())) { merged.push(cur.replace(/[\s:]+$/, '') + ': ' + nxt.trim()); i++; }
+    // Only rejoin when the next line is a bare wrapped VALUE — never when it is itself a
+    // numbered CSI row (an unpriced row followed by the next division used to merge into one
+    // mangled line, hiding the unpriced row from the fail-closed gate).
+    if (c.amount == null && c.div && nxt && /^\$?\s*\d/.test(nxt.trim()) && !splitDivisionRow(nxt.trim()).div) { merged.push(cur.replace(/[\s:]+$/, '') + ': ' + nxt.trim()); i++; }
     else merged.push(cur);
   }
 
@@ -768,11 +780,16 @@ function parseResponse(raw) {
   // Numbered CSI rows are always real; only unnumbered ones need this discriminator, and it is
   // deliberately narrow so a genuine package like "Total Station Survey" survives.
   const COMMENTARY = /\bsums?\s+to\b|\bsub-?total\b|\bgrand total\b|^total\s*[:=]|^total$|\bsanity check\b|\brounding\b|^check\b|^note\b/i;
-  const divisions = [], parseIssues = [];
+  // A numbered row saying N/A / by others / excluded is a SEMANTIC EXCLUSION, not a parse
+  // failure — the model is stating contract scope, and blocking the whole estimate on it
+  // punished a correct answer (Codex #9). OFCI is NOT here: install-only still needs a carry.
+  const EXCLUSION = /\bn\/?a\b|\bnot applicable\b|\bby others\b|\bexcluded\b|\bnot in contract\b|\bnic\b|\bno work\b/i;
+  const divisions = [], parseIssues = [], exclusions = [];
   for (const line of merged) {
     const r = splitDivisionRow(line);
     if (r.amount > 0 && !r.div && COMMENTARY.test(r.name)) continue;   // model math commentary
     if (!(r.amount > 0)) {
+      if (r.div && EXCLUSION.test(line)) { exclusions.push({ line, name: (r.div ? r.div + ' ' : '') + r.name }); continue; }
       // A numbered CSI row we cannot price is a PARSE FAILURE, never a $0 package — emitting
       // it as $0 is what let a real package silently vanish from the canonical rollup.
       if (r.div) parseIssues.push({ line, reason: 'no_amount' });
@@ -789,7 +806,7 @@ function parseResponse(raw) {
   return {
     low: get('COST_LOW'), high: get('COST_HIGH'), mid: get('COST_MIDPOINT'),
     confidence: get('CONFIDENCE'), narrative: get('NARRATIVE'),
-    divisions, assumptions: lines(block('ASSUMPTIONS', 'GAP_QUESTIONS')), gaps, parseIssues,
+    divisions, assumptions: lines(block('ASSUMPTIONS', 'GAP_QUESTIONS')), gaps, parseIssues, exclusions,
   };
 }
 const num = s => parseMoney(s).value;
@@ -842,13 +859,23 @@ function estimateGate(p, recon) {
 }
 function curGate() { return window._gate || { blocking: [], drift: false, ranges: [], gated: false }; }
 // Single choke point every outward-facing generator calls before producing a document.
-function assertUngated(what) {
+// confirmRanges: artifact-specific rule (Codex #9) — a completed-value document (bond,
+// builders risk) must not silently carry a range midpoint; the estimator confirms the carry.
+// Internal display only warns; BuildingConnected receives no amounts at all.
+function assertUngated(what, confirmRanges) {
   const g = curGate();
-  if (!g.gated) return true;
-  alert(`Can't generate the ${what} yet.\n\nThe conceptual total isn't verified: `
-    + (g.blocking.length ? `${g.blocking.length} package line(s) could not be priced by the parser.` : `the model's stated midpoint differs from the package rollup by more than ${DRIFT_LIMIT_PCT}%.`)
-    + `\n\nFix the flagged packages (or re-run the estimate) before putting this number on a form.`);
-  return false;
+  if (g.gated) {
+    alert(`Can't generate the ${what} yet.\n\nThe conceptual total isn't verified: `
+      + (g.blocking.length ? `${g.blocking.length} package line(s) could not be priced by the parser.` : `the model's stated midpoint differs from the package rollup by more than ${DRIFT_LIMIT_PCT}%.`)
+      + `\n\nFix the flagged packages (or re-run the estimate) before putting this number on a form.`);
+    return false;
+  }
+  if (confirmRanges && g.ranges.length) {
+    return confirm(`${g.ranges.length} package${g.ranges.length === 1 ? ' is' : 's are'} priced as a RANGE midpoint:\n`
+      + g.ranges.map(d => '• ' + d.name).join('\n')
+      + `\n\nThe ${what} will carry the midpoint value${g.ranges.length === 1 ? '' : 's'} on an outward form. Confirm the carry?`);
+  }
+  return true;
 }
 
 function subPricingPanel() {
@@ -940,10 +967,12 @@ function setQuote(i, val, conceptual) {
    bidder-list template from recent similar work, preferred-subs top picks) with per-package
    checkboxes. create: builds the DRAFT project in BC. Publishing stays a human step in BC —
    that's what makes BC send the ITB emails, so a draft can never email a sub. */
+// NO AMOUNTS leave for BuildingConnected — RYC deliberately leaves BC's Estimate field blank
+// (confirmed by Keith, Codex #3). Conceptual carries and quote values are Desk-internal;
+// BC receives package/outreach setup only: name, trade scope, bidder list, due date.
 function bcDivisions() {
-  return (window._lastDivisions || []).map((d, i) => ({
+  return (window._lastDivisions || []).map(d => ({
     div: d.div || null, name: d.name, scope: d.scope || null,
-    amount: (typeof quotes === 'object' && quotes[i]) ? quotes[i] : (d.amount || null),
   }));
 }
 function bcResetCard() {
@@ -975,15 +1004,15 @@ async function bcPreview(btn) {
       const sug = p.suggested.length ? `<div class="note" style="margin-top:2px">Preferred: ${p.suggested.slice(0, 3).map(s => esc(s.company)).join(' · ')}</div>` : '';
       return `<tr><td style="width:26px"><input type="checkbox" id="bcpk-${i}" checked></td>`
         + `<td>${esc(p.division)}<div class="note">${esc(p.trade)}</div>${sug}</td>`
-        + `<td>${tpl}</td>`
-        + `<td class="r">${p.estimatedCost ? '$' + p.estimatedCost.toLocaleString() : '—'}</td></tr>`;
+        + `<td>${tpl}</td></tr>`;
     }).join('');
     document.getElementById('bcBody').innerHTML =
       `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
         <label style="flex:1;min-width:260px">Project name<br><input id="bcName" value="${esc(d.projectName)}" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px"></label>
         <label>Bids due (optional)<br><input id="bcDue" type="date" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px"></label>
       </div>
-      <table><thead><tr><th></th><th>Package</th><th>Bidder list</th><th class="r">Est. cost (private)</th></tr></thead><tbody>${rows}</tbody></table>
+      <table><thead><tr><th></th><th>Package</th><th>Bidder list</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="note" style="margin-top:4px">No dollar amounts are sent to BuildingConnected — RYC leaves BC's estimate field blank; conceptual carries and quotes stay in the Desk.</div>
       <div style="margin-top:12px">
         <button class="btn" onclick="bcCreate(this)">Create DRAFT in BuildingConnected</button>
         <button class="btn btn-ghost" onclick="bcResetCard()">Cancel</button>
@@ -1087,19 +1116,43 @@ async function loadFoundationJobs() {
   foundationJobs = Object.keys(jobs).map(k => Object.assign({ jobNo: k }, jobs[k]));
   return foundationJobs;
 }
-// Rank Foundation jobs against the pursuit name by normalised token overlap — same shape as
-// the leave-one-out matcher used for benchmark exclusion, so "similar job" means one thing here.
+/* Award matching is a one-click WIN decision, so it is eligibility-first (Codex #6):
+   only active Foundation jobs, minus obvious non-candidates and jobs already linked to
+   another pursuit; then ranked on weighted evidence — name, customer/location, contract-
+   value proximity — with weak suggestions suppressed entirely (a wall of 17% "closest
+   matches" with Link buttons is how win/loss history gets corrupted). */
+const AWARD_JUNK = /\btest\b|\btraining\b|\bwarranty\b|\btemplate\b|\bdo not use\b/i;
+function linkedJobNos() {
+  const s = new Set();
+  (historyCache || []).forEach(r => {
+    const a = r.workflow && r.workflow.award;
+    if (a && a.job_no && r.id !== window._runId) s.add(String(a.job_no));
+  });
+  return s;
+}
+function awardCandidates(jobs) {
+  const linked = linkedJobNos();
+  return jobs.filter(j => (j.jobStatus ? j.jobStatus === 'A' : true)
+    && !AWARD_JUNK.test((j.description || '') + ' ' + (j.jobNo || ''))
+    && !linked.has(String(j.jobNo)));
+}
 function rankFoundationMatches(name, jobs) {
   const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
-    .filter(w => w.length > 2 && !['the', 'and', 'for', 'new', 'project', 'improvements', 'inc', 'llc'].includes(w));
+    .filter(w => w.length > 2 && !['the', 'and', 'for', 'new', 'project', 'improvements', 'inc', 'llc', 'town', 'city', 'county'].includes(w));
+  const jac = (X, B) => { if (!X.size || !B.size) return 0; let i = 0; for (const x of X) if (B.has(x)) i++; return i / new Set([...X, ...B]).size; };
   const A = new Set(norm(name));
-  if (!A.size) return [];
+  const L = new Set(norm((window._lastInp && window._lastInp.loc) || ''));
+  const val = curRecon().total || null;
   return jobs.map(j => {
-    const B = new Set(norm(j.description));
-    let inter = 0; for (const x of A) if (B.has(x)) inter++;
-    const union = new Set([...A, ...B]).size;
-    return { job: j, score: union ? inter / union : 0, shared: inter };
-  }).filter(x => x.shared > 0).sort((a, b) => b.score - a.score).slice(0, 8);
+    const D = new Set(norm(j.description)), C = new Set(norm(j.customerName));
+    const nameScore = jac(A, D);
+    // the pursuit name/location usually carries the town — Foundation's customer usually IS the town
+    const custScore = Math.max(jac(A, C), jac(L, C), jac(L, D));
+    const contract = j.currentContract > 0 ? j.currentContract : (j.originalContract || 0);
+    const valScore = (val && contract > 0) ? Math.max(0, 1 - Math.abs(Math.log(contract / val))) : 0;
+    return { job: j, nameScore, custScore, valScore, score: nameScore * 0.5 + custScore * 0.3 + valScore * 0.2 };
+  }).filter(x => x.score >= 0.22 && (x.nameScore > 0 || x.custScore > 0))
+    .sort((a, b) => b.score - a.score).slice(0, 6);
 }
 async function openAwardPicker() {
   const el = document.getElementById('awardPicker');
@@ -1107,18 +1160,20 @@ async function openAwardPicker() {
   el.style.display = 'block';
   el.innerHTML = '<div class="note">Loading Foundation jobs…</div>';
   try {
-    const jobs = await loadFoundationJobs();
+    const all = await loadFoundationJobs();
+    const jobs = awardCandidates(all);
     const name = (window._lastInp && window._lastInp.name) || '';
     const ranked = rankFoundationMatches(name, jobs);
     const opt = j => `<option value="${esc(j.jobNo)}">${esc(j.jobNo)} — ${esc((j.description || '').slice(0, 60))}${j.customerName ? ' · ' + esc(j.customerName.slice(0, 30)) : ''}</option>`;
+    const evd = x => [`name ${Math.round(x.nameScore * 100)}%`, x.custScore ? `customer ${Math.round(x.custScore * 100)}%` : null, x.valScore ? `value ${Math.round(x.valScore * 100)}%` : null].filter(Boolean).join(' · ');
     const suggested = ranked.length
-      ? `<div class="note" style="margin-bottom:4px">Closest matches to <strong>${esc(name)}</strong>:</div>`
-        + ranked.map(x => `<div class="ck-row" style="padding:5px 0"><span>${esc(x.job.jobNo)} — ${esc((x.job.description || '').slice(0, 50))}<span class="note"> · ${Math.round(x.score * 100)}% name match${x.job.pmName ? ' · PM ' + esc(x.job.pmName) : ''}</span></span><div class="ck-actions"><button class="btn-sm" onclick="linkAward('${esc(x.job.jobNo)}')">Link</button></div></div>`).join('')
-      : `<div class="note">No close name match in Foundation's ${jobs.length} active jobs — pick manually.</div>`;
+      ? `<div class="note" style="margin-bottom:4px">Confident matches for <strong>${esc(name)}</strong> (weak candidates suppressed):</div>`
+        + ranked.map(x => `<div class="ck-row" style="padding:5px 0"><span>${esc(x.job.jobNo)} — ${esc((x.job.description || '').slice(0, 50))}<span class="note"> · ${Math.round(x.score * 100)}% (${evd(x)})${x.job.pmName ? ' · PM ' + esc(x.job.pmName) : ''}</span></span><div class="ck-actions"><button class="btn-sm" onclick="linkAward('${esc(x.job.jobNo)}')">Link…</button></div></div>`).join('')
+      : `<div class="note">No confident match among Foundation's ${jobs.length} eligible active jobs — the job may not be opened yet, or pick from the full list (you'll confirm the details before anything is recorded).</div>`;
     el.innerHTML = suggested
-      + `<div class="ck-row" style="border-top:1px solid var(--line);margin-top:6px"><span class="ck-name">All jobs</span>
+      + `<div class="ck-row" style="border-top:1px solid var(--line);margin-top:6px"><span class="ck-name">All eligible</span>
          <div class="ck-actions"><select id="award-sel" class="ck-date" style="max-width:340px">${jobs.slice().sort((a, b) => String(a.jobNo).localeCompare(String(b.jobNo))).map(opt).join('')}</select>
-         <button class="btn-sm ghost" onclick="linkAward(document.getElementById('award-sel').value)">Link selected</button>
+         <button class="btn-sm ghost" onclick="linkAward(document.getElementById('award-sel').value)">Link selected…</button>
          <button class="btn-sm ghost" onclick="document.getElementById('awardPicker').style.display='none'">Cancel</button></div></div>`;
   } catch (e) {
     el.innerHTML = `<div class="flag">Couldn't load Foundation jobs: ${esc(e.message)}</div>`;
@@ -1127,6 +1182,15 @@ async function openAwardPicker() {
 async function linkAward(jobNo) {
   if (!window._runId) { alert('Save this estimate first (generate it) so the award can attach to a pursuit.'); return; }
   const j = (foundationJobs || []).find(x => String(x.jobNo) === String(jobNo));
+  // Explicit confirmation showing both sides + the effect (Codex #6): linking records a WIN.
+  const val = curRecon().total;
+  const contract = j && (j.currentContract > 0 ? j.currentContract : j.originalContract);
+  const msg = `Link this pursuit to Foundation job ${jobNo}?\n\n`
+    + `PURSUIT: ${(window._lastInp && window._lastInp.name) || '—'}${val ? ` · conceptual $${val.toLocaleString()}` : ''}\n`
+    + `FOUNDATION JOB: ${jobNo} — ${(j && j.description) || '—'}\n`
+    + `Customer: ${(j && j.customerName) || '—'}${contract ? `\nContract: $${Math.round(contract).toLocaleString()}` : ''}\n\n`
+    + `This records the pursuit as WON and connects it to this job's actuals. Unlinking later restores the prior stage.`;
+  if (!confirm(msg)) return;
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', id: window._runId, job_no: jobNo,
@@ -1140,13 +1204,15 @@ async function linkAward(jobNo) {
   } catch (e) { alert('Could not link the award: ' + e.message); }
 }
 async function unlinkAward() {
-  if (!window._runId || !confirm('Unlink this pursuit from its Foundation job?')) return;
+  if (!window._runId || !confirm('Unlink this pursuit from its Foundation job?\n\nThe stage it held before the link will be restored — a corrected mistake must not stay recorded as a win.')) return;
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', id: window._runId, unlink: true }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
     window._workflow = d.workflow; historyCache = null; renderPursuit();
+    // A link made before prev-stage tracking has nothing to restore — don't guess; ask.
+    if (d.workflow && d.workflow.stage_unresolved) alert('Award unlinked, but this link predates stage tracking, so the prior stage is unknown — it still reads Won. Set the correct stage (Submitted / Lost / …) on the stage bar.');
   } catch (e) { alert('Could not unlink: ' + e.message); }
 }
 
@@ -1158,19 +1224,32 @@ function daysToDue(wf) {
   return Math.ceil((due - now) / 86400000);
 }
 
-async function persistWF() {
+/* Debounced + serialized persistence (Codex #8): quote entry fires per keystroke, and several
+   overlapping in-flight writes to the same jsonb column are exactly the last-write-wins race
+   that could erase a just-linked award. One pending write, 400ms after the last change, and
+   writes are chained so two can never be in flight at once. The server additionally merges
+   award/award_events from the stored row so a stale client object can't erase them. */
+let _wfTimer = null, _wfChain = Promise.resolve();
+function persistWF() {
   const wf = curWF(); wf.updated_at = new Date().toISOString();
   if (Array.isArray(historyCache)) { const row = historyCache.find(r => r.id === window._runId); if (row) row.workflow = wf; }
   if (!window._runId) return;
-  try {
-    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'set_workflow', id: window._runId, workflow: wf }) });
-    const d = await r.json().catch(() => null);
-    window._wfNeedsMigration = !!(d && d.needs_migration);
-    if (window._wfNeedsMigration) renderPursuit();
-  } catch {}
+  const rid = window._runId;
+  clearTimeout(_wfTimer);
+  _wfTimer = setTimeout(() => {
+    if (window._runId !== rid) return;   // pursuit changed while the write was pending
+    const body = JSON.stringify({ pw: 'ryc2026', action: 'set_workflow', id: rid, workflow: curWF() });
+    _wfChain = _wfChain.then(async () => {
+      try {
+        const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+        const d = await r.json().catch(() => null);
+        window._wfNeedsMigration = !!(d && d.needs_migration);
+        if (window._wfNeedsMigration) renderPursuit();
+      } catch {}
+    });
+  }, 400);
 }
-function setStage(k) { curWF().stage = k; persistWF(); renderPursuit(); }
+function setStage(k) { const wf = curWF(); wf.stage = k; delete wf.stage_unresolved; persistWF(); renderPursuit(); }
 function setCk(item, status) { const c = curWF().checklist; c[item] = Object.assign({}, c[item], { status }); persistWF(); renderPursuit(); }
 function setMeeting() {
   const d = document.getElementById('mtg-date'), l = document.getElementById('mtg-loc');
@@ -1311,6 +1390,9 @@ function deskRow(p) {
   if (latest.bc_url) pre += '<span class="chip ck-done" title="Loaded to BuildingConnected">↗BC</span>';
   // Awarded → carries its Foundation job number, the key Command knows it by.
   if (wf.award && wf.award.job_no) pre += `<span class="chip ck-received" title="Awarded — Foundation job ${esc(wf.award.job_no)}${wf.award.description ? ': ' + esc(wf.award.description) : ''}">🏗 ${esc(wf.award.job_no)}</span>`;
+  // A pursuit whose latest revision failed validation is visibly unverified on the board —
+  // its total is incomplete and its outward documents are blocked (Codex #1).
+  if (wf.validation && wf.validation.gated) pre = '<span class="chip ck-needed" title="Conceptual total not verified — parser could not price every package; bond / BR / BC documents are blocked. Re-run the estimate.">⚠ unverified</span>' + pre;
   if (!pre) pre = '<span class="note">—</span>';
 
   const mids = runs.map(r => r.cost_mid).filter(Boolean);
@@ -1428,7 +1510,7 @@ function openSheet(kind, title, sectionsHtml, footNote) {
 function rows(pairs) { return '<table>' + pairs.map(([l, v]) => `<tr><td class="l">${l}</td><td>${v}</td></tr>`).join('') + '</table>'; }
 
 function genBond() {
-  if (!assertUngated('bond request')) return;
+  if (!assertUngated('bond request', true)) return;
   const d = pursuitData();
   const sections =
     '<h2>Contractor</h2>' + rows([['Contractor', esc(RYC_CONTRACTOR.name)], ['Address', esc(RYC_CONTRACTOR.addr)], ['Prepared by', TBC(d.estimator)]]) +
@@ -1441,7 +1523,7 @@ function genBond() {
   }
 }
 function genBuildersRisk() {
-  if (!assertUngated('builders-risk worksheet')) return;
+  if (!assertUngated('builders-risk worksheet', true)) return;
   const d = pursuitData();
   const sections =
     '<h2>Named Insured</h2>' + rows([['Named insured / GC', esc(RYC_CONTRACTOR.name) + ' <span class="tbc">(or owner — confirm)</span>'], ['Mailing address', esc(RYC_CONTRACTOR.addr)], ['Prepared by', TBC(d.estimator)]]) +
@@ -1644,6 +1726,7 @@ function renderResults(p, inp, bm) {
     dw.innerHTML = `<table><thead><tr><th>Package / scope <span class="note">(share vs RYC history · market sub band)</span></th><th class="r">Conceptual</th><th class="r">Your quote</th><th class="r">Var</th></tr></thead><tbody>`
       + rowHtml
       + `<tr><td><strong>Conceptual rollup — not a bid</strong></td><td class="r"><strong>${tot ? '$' + tot.toLocaleString() : '—'}</strong></td><td class="r" id="qassembled"><span class="note">enter quotes →</span></td><td class="r" id="qassembledvar"></td></tr></tbody></table>`
+      + ((p.exclusions && p.exclusions.length) ? `<div class="note" style="margin-top:6px"><strong>Excluded by contract scope:</strong> ${p.exclusions.map(x => esc(x.name || x.line)).join(' · ')} — carried as exclusions, not $0 packages.</div>` : '')
       + `<div class="note" style="margin-top:6px">Enter a live sub quote on any package to see its variance vs the conceptual placeholder; the <strong>assembled total</strong> updates as quotes replace placeholders — that's your real number forming.</div>`
       + (benchmarks ? `<div class="note" style="margin-top:4px">⚑ = this package's share of cost is outside RYC's historical p25–p75 range for comparable work (${benchmarks.jobs ? benchmarks.jobs.length : ''} jobs) — re-check scope/quantities or verify the quote.${flagged ? ` <strong>${flagged} flagged.</strong>` : ' None flagged.'}</div>` : '');
   } else dw.innerHTML = '';
@@ -1852,7 +1935,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.11.0';
+const TOOL_VERSION = 'v1.11.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -1878,12 +1961,30 @@ async function saveRun(inp, p, batches, durationMs) {
     divisions: p.divisions, assumptions: p.assumptions, gaps: p.gaps,
     version: TOOL_VERSION, batches, duration_ms: durationMs,
   };
+  // Validation is DURABLE (Codex #1): the gate's inputs — parse issues, the model's original
+  // stated totals, exclusions — persist in workflow.validation so openRun() can reconstruct the
+  // exact gate. Before this, a fail-closed estimate came back UNGATED on reopen (saved cost_mid
+  // is already the rollup → drift reads zero; parseIssues weren't saved at all) and the blocked
+  // bond/BR/BC documents would generate from the incomplete total.
+  const gate = curGate();
+  curWF().validation = {
+    gated: !!gate.gated,
+    issues: (p.parseIssues || []).slice(0, 20),
+    exclusions: (p.exclusions || []).slice(0, 20),
+    ranges: (gate.ranges || []).length,
+    stated: { low: num(p.low), mid: num(p.mid), high: num(p.high) },
+    validator: TOOL_VERSION,
+  };
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pw: 'ryc2026', action: 'save', record }) });
     const d = await r.json().catch(() => null);
     const meta = document.getElementById('resMeta');
-    if (r.ok && d && d.ok) { window._runId = d.id; if (meta) meta.textContent += ' · saved to history ✓'; }
+    if (r.ok && d && d.ok) {
+      window._runId = d.id;
+      persistWF();   // write workflow (incl. validation) onto the fresh row
+      if (meta) meta.textContent += ' · saved to history ✓';
+    }
     else if (meta) meta.textContent += ' · history save failed';
   } catch { const meta = document.getElementById('resMeta'); if (meta) meta.textContent += ' · history save failed'; }
 }
@@ -1963,8 +2064,15 @@ async function openRun(id) {
     const run = d.run;
     const inp = { name: run.project_name, loc: run.location || '', ct: run.client_type, wt: run.work_type,
       sf: run.size_sf, target: run.target_budget, scope: run.scope_notes || '' };
+    // Reconstruct the gate from persisted validation (Codex #1): parseIssues come back, and the
+    // model's ORIGINAL stated totals replace the saved (already-reconciled) figures so
+    // reconcileTotals/estimateGate recompute exactly the drift the estimator saw at generation.
+    // Legacy rows with no validation open as before (they predate the gate entirely).
+    const v = (run.workflow && run.workflow.validation) || null;
     const p = { low: run.cost_low, high: run.cost_high, mid: run.cost_mid, confidence: run.confidence,
-      narrative: run.narrative, divisions: run.divisions || [], assumptions: run.assumptions || [], gaps: run.gaps || [] };
+      narrative: run.narrative, divisions: run.divisions || [], assumptions: run.assumptions || [], gaps: run.gaps || [],
+      parseIssues: (v && v.issues) || [], exclusions: (v && v.exclusions) || [] };
+    if (v && v.stated && v.stated.mid) { p.low = v.stated.low; p.mid = v.stated.mid; p.high = v.stated.high; }
     window._scopeC = run.scope_constraints || null;
     window._planMeta = null;
     window._runId = run.id;

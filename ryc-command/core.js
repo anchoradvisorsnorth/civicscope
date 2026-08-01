@@ -34,7 +34,20 @@ function ageTxt(ts){ if(!ts) return null; var h=(Date.now()-new Date(ts))/360000
   if(h<1.5) return Math.max(1,Math.round(h*60))+"m ago"; if(h<48) return (h<10?h.toFixed(1):Math.round(h))+"h ago"; return Math.round(h/24)+"d ago"; }
 function esc(s){ if(!s) return ""; var d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 function pmName(job){ return (job.foundation && job.foundation.pmName) || (job.pm && job.pm.name) || null; }
-function contractedMargin(job){ var cv=job.contractValue, bo=job.budget && job.budget.original; if(!(cv>0 && bo>0)) return null; return bo>=cv?0:((cv-bo)/cv*100); }
+/* AS-BID margin — the margin the job was originally bid at: ORIGINAL contract vs ORIGINAL
+   estimated cost, Foundation originals first, Procore originals as fallback. The old
+   contractedMargin() compared CURRENT contract (incl. approved COs) against original budget —
+   a CO raising both revenue and cost read as margin gained and manufactured false fades
+   (Codex #4: $100 orig / $80 cost / $110 current → 27.3% "bid" vs the true 20%) — and it
+   clamped negatives to 0. Returns the real signed value. */
+function asBidMargin(job){
+  var f=job.foundation||null, b=job.budget||{};
+  var c=(f&&f.originalContract>0)?f.originalContract
+       :((job.procoreContractValue!=null&&job.procoreContractValue>0)?job.procoreContractValue:job.contractValue);
+  var cost=(f&&f.originalCost!=null&&f.originalCost>0)?f.originalCost:(b.original>0?b.original:null);
+  if(!(c>0)||cost==null) return null;
+  return (c-cost)/c*100;
+}
 /* NOT a margin. (contract - cost to date)/contract is the share of contract value not yet
    consumed by recorded cost: it starts near 100% on a new job and decays toward the true
    margin only as the job finishes. Kept solely as a spend/burn measure and for the
@@ -51,7 +64,14 @@ function projectedMargin(job){ var cv=job.contractValue, pc=job.budget&&job.budg
    margin is shown but NOT graded and NOT allowed to raise a margin alarm: an unreliable input
    must not become an alarming number, the same discipline that stops an unavailable feed
    becoming a reassuring zero. The job still surfaces — as a data-verification item. */
-function projMarginSuspect(job){ return !!(job.budget && job.budget.projCostSuspect); }
+function projMarginSuspect(job){
+  var b=job.budget||{};
+  if(b.projCostSuspect) return true;
+  // Structural floor (Codex #5): a projection below cost ALREADY RECORDED is invalid on its
+  // face — the producer's single >130%-of-budget threshold misses this class entirely.
+  var ctd=(job.costToDate!=null)?job.costToDate:b.direct;
+  return !!(b.projectedCost>0 && ctd>0 && b.projectedCost<ctd*0.98);
+}
 
 /* ---- Foundation merge (Procore-revised contract priority; ported from legacy v1.29.0) ---- */
 function mergeFoundation(){
@@ -131,7 +151,7 @@ function buildrIdFor(jno){ var r=buildrData&&buildrData.jobs&&buildrData.jobs[St
 function getStoplight(job, live){
   var stage=live?live.stage:null, pctComp=live?live.pctComplete:null, costOverrun=live?live.costOverrun:null;
   var finishDate=live?(live.projectedFinish||live.completionDate):null, verifyStatus=live?live.verifyStatus:null;
-  var cMargin=contractedMargin(job), burn=contractLessCostToDatePct(job);
+  var abMargin=asBidMargin(job), burn=contractLessCostToDatePct(job);
   var pSuspect=projMarginSuspect(job), pMargin=pSuspect?null:projectedMargin(job);
   var co=live?live.changeOrders:null;
   var coExposure=(co&&co.netValue&&job.contractValue)?Math.abs(co.netValue)/job.contractValue:0;
@@ -149,14 +169,21 @@ function getStoplight(job, live){
   if(daysOverdue>30 && !verifyStatus) reasons.push({level:"red",text:Math.abs(daysOverdue)+" days past projected finish"});
   var red=reasons.some(function(r){return r.level==="red";});
   if(!red){
-    if(cMargin!=null && cMargin>0 && cMargin<5) reasons.push({level:"amber",text:"Contracted margin "+cMargin.toFixed(1)+"% (below 5%)"});
+    if(abMargin!=null && abMargin<5) reasons.push({level:"amber",text:"As-bid margin "+abMargin.toFixed(1)+"% (below 5%)"});
     // Margin erosion, measured the only way that can catch it early: PROJECTED margin at
-    // completion vs the margin the job was bid at. The old test compared contract-less-cost-to-
-    // date against bid margin — a figure that starts near 100% and only dips below the bid
-    // margin as the job finishes, so genuine mid-job fade produced no warning at all.
-    if(pctComp!=null && pctComp>=10 && pMargin!=null && cMargin!=null && (cMargin-pMargin)>=GF_MOVE_PTS)
-      reasons.push({level:"amber",text:"Margin fading "+pMargin.toFixed(1)+"% projected vs "+cMargin.toFixed(1)+"% bid"});
-    if(pSuspect) reasons.push({level:"amber",text:"Projected cost needs verification — margin not graded"});
+    // completion vs the AS-BID margin (original contract vs original cost — the corrected
+    // baseline; the old current-contract-vs-original-budget "bid" figure manufactured fades
+    // whenever a CO raised revenue and cost together).
+    if(pctComp!=null && pctComp>=10 && pMargin!=null && abMargin!=null && (abMargin-pMargin)>=GF_MOVE_PTS)
+      reasons.push({level:"amber",text:"Margin fading "+pMargin.toFixed(1)+"% projected vs "+abMargin.toFixed(1)+"% as-bid"});
+    // Uncertainty and severity are separate dimensions (Codex #5): an unverified projection is
+    // never graded, but a LARGE NEGATIVE unverified forecast must not soften into routine
+    // "needs verification" — it reads as high potential risk until someone verifies it.
+    if(pSuspect){
+      var rawPM=projectedMargin(job);
+      if(rawPM!=null && rawPM<0) reasons.push({level:"amber",text:"High potential margin risk — raw projection "+rawPM.toFixed(1)+"% at completion, projected cost UNVERIFIED"});
+      else reasons.push({level:"amber",text:"Projected cost needs verification — margin not graded"});
+    }
     if(daysOverdue>=1 && daysOverdue<=30) reasons.push({level:"amber",text:daysOverdue+" days past projected finish"});
     if(coExposure>0.07) reasons.push({level:"amber",text:"CO exposure "+(coExposure*100).toFixed(1)+"% of contract"});
     if(finishDate && !verifyStatus && daysOverdue<=0 && Math.abs(daysOverdue)<=30) reasons.push({level:"amber",text:"Finishing in "+Math.abs(daysOverdue)+" days"});
@@ -169,17 +196,24 @@ function getStoplight(job, live){
 function gainFadeFor(j){
   var f=j.foundation, b=j.budget||{}, pctc=j.pctComplete;
   var pC=j.procoreContractValue!=null?j.procoreContractValue:j.contractValue;
-  var curContract=(f&&f.currentContract>0)?f.currentContract:pC;
+  // Current contract = the canonical merged contractValue (Procore revised > Foundation
+  // current > Procore original) — the same figure every other Command surface uses.
+  var curContract=(j.contractValue>0)?j.contractValue:((f&&f.currentContract>0)?f.currentContract:pC);
   var asbidContract=(f&&f.originalContract>0)?f.originalContract:pC;
   var asbidCost=(f&&f.originalCost!=null)?f.originalCost:b.original;
   if(!(curContract>0)||asbidCost==null) return null;
-  var costGrowth=(b.revised>0&&b.original>0)?(b.revised-b.original):0;
-  var coIncome=(f&&f.originalContract>0)?(curContract-asbidContract):null;
-  var projCost=asbidCost+costGrowth;
+  // Projected cost at completion: the row-level ERP projection when present and trusted — the
+  // SAME figure the Portfolio row grades (Codex #4: gain/fade previously reconstructed its own
+  // projection from budget growth, so the fade table and the row disagreed). Budget-growth
+  // reconstruction remains the fallback where no trusted ERP projection exists.
+  var projCost=(!projMarginSuspect(j)&&b.projectedCost>0)?b.projectedCost
+    :asbidCost+((b.revised>0&&b.original>0)?(b.revised-b.original):0);
   var asbid=(asbidContract-asbidCost)/asbidContract*100;
   var curMargin=(curContract-projCost)/curContract*100;
   var gfPts=curMargin-asbid;
-  var gfDollars=(coIncome!=null?coIncome:0)-costGrowth;
+  // Margin-dollar move: (current margin $) − (as-bid margin $). With the budget-growth fallback
+  // this reduces to the old CO-income-minus-cost-growth figure; with ERP it stays consistent.
+  var gfDollars=(curContract-projCost)-(asbidContract-asbidCost);
   var costToDate=f?f.totalCosts:null;
   var burnPct=(costToDate!=null&&projCost>0)?costToDate/projCost*100:null;
   var burnRisk=burnPct!=null&&pctc!=null&&pctc>=GF_BURN_MINPCT&&(burnPct-pctc)>=GF_BURN_PTS;

@@ -29,7 +29,14 @@ export default async function handler(req, res) {
         mode: b.mode, projectName: String(b.projectName).trim().slice(0, 250),
         description: b.description ? String(b.description).slice(0, 1500) : null,
         bidsDueAt: b.bidsDueAt || null,
-        divisions: b.divisions.slice(0, 60),
+        // Enforced server-side: NO amounts reach BuildingConnected. RYC leaves BC's Estimate
+        // field blank by process — internal conceptual carries / quote values must never be
+        // exposed in the sub-facing system (Codex review 2026-08-01, finding #3).
+        divisions: b.divisions.slice(0, 60).map(d => ({
+          div: (d && d.div) || null,
+          name: String((d && d.name) || '').slice(0, 250),
+          scope: (d && d.scope) ? String(d.scope).slice(0, 500) : null,
+        })),
       }),
     });
     const data = await r.json().catch(() => null);
