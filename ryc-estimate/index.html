@@ -121,7 +121,7 @@
 <div id="app">
   <header>
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.9.1 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow (status · bonding/builders-risk · RFI builder · pre-bid meeting)</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.10.0 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow (status · bonding/builders-risk · RFI builder · pre-bid meeting)</div></div>
   </header>
 
   <div class="estnav">
@@ -185,9 +185,10 @@
       </div>
       <div class="hero" style="align-items:center">
         <div><div style="font-size:20px;font-weight:700" id="costRange">—</div><div class="mid">conceptual range (low–high)</div></div>
-        <div><div style="font-size:20px;font-weight:700" id="costMid">—</div><div class="mid">midpoint</div></div>
+        <div><div style="font-size:20px;font-weight:700" id="costMid">—</div><div class="mid">midpoint = package rollup</div></div>
         <div id="confTag" class="tag"></div>
       </div>
+      <div class="note" id="reconNote" style="display:none;margin-top:8px;padding:8px 10px;background:#fefce8;border:1px solid #fde68a;border-radius:6px;color:#854d0e"></div>
     </div>
 
     <div class="card" id="pursuitCard" style="display:none">
@@ -277,13 +278,48 @@ function ciSameJob(a, b) {
   const A = new Set(ciNorm(a)), B = new Set(ciNorm(b)); let inter = 0; for (const x of A) if (B.has(x)) inter++;
   const union = new Set([...A, ...B]).size; return union > 0 && inter / union >= 0.5;
 }
-function segBenchmarks(ct, wt, excludeName) {
+// Project class of a COMPLETED portfolio job — same classifier the sub-pricing bands use, so
+// "what class is this pursuit" and "what class was that finished job" are answered one way.
+function jobProjectClass(j) { return classifyProjectText(j.name) || classForCt(j.clientType); }
+const PCLASS_LABEL = { water_wastewater: 'water / wastewater', education: 'education', building: 'building' };
+// 'building' is the residual bucket (commercial/industrial/municipal/mixed_use/private all land
+// there), so it discriminates nothing — only these classes are treated as a hard filter.
+const DISTINCT_CLASSES = ['water_wastewater', 'education'];
+
+/* Completed-job grounding. Previously matched on clientType + workType only, which is how a
+   wastewater process rehab came to be benchmarked against a jail kitchen floor and a park
+   restroom renovation: they share the labels "municipal" and "renovation" and nothing else.
+   Facility class is now a first-class dimension. When a pursuit is in a distinctive class the
+   analog pool is restricted to that class; when the class has too few completed jobs to ground
+   anything, that is stated outright instead of quietly falling back under the word "comparable". */
+function segBenchmarks(inp) {
+  const ct = inp.ct, wt = inp.wt, excludeName = inp.name;
   let excluded = 0;
   const jobs = (portfolio?.jobs || []).filter(j => { if (!j.contractFinal) return false; if (excludeName && ciSameJob(excludeName, j.name)) { excluded++; return false; } return true; });
-  let set = jobs.filter(j => j.clientType === ct && j.workType === wt), basis = 'client type + work type';
-  if (set.length < 3) { const s = jobs.filter(j => j.clientType === ct); if (s.length > set.length) { set = s; basis = 'client type'; } }
-  if (set.length < 3) { const s = jobs.filter(j => j.workType === wt); if (s.length > set.length) { set = s; basis = 'work type'; } }
-  if (!set.length) { set = jobs; basis = 'full portfolio'; }
+
+  const cls = subClassFor(inp);
+  const clsLabel = PCLASS_LABEL[cls] || cls;
+  const inClass = jobs.filter(j => jobProjectClass(j) === cls);
+  const distinct = DISTINCT_CLASSES.includes(cls);
+  const MIN_CLASS_N = 3;
+  // A distinctive class with too thin a completed-job pool has no defensible analogs at all.
+  // (Live today: RYC has 0 COMPLETED water/wastewater jobs — Shipshewana, Huntertown, Wakarusa
+  // and Ashley are all still active, so they are not in the completed portfolio yet.)
+  const weakClass = distinct && inClass.length < MIN_CLASS_N;
+
+  let set, basis;
+  if (distinct && !weakClass) {
+    // Class is the hard filter; refine within it by work type when the sample supports it.
+    const byWt = inClass.filter(j => j.workType === wt);
+    if (byWt.length >= MIN_CLASS_N) { set = byWt; basis = `${clsLabel} + work type`; }
+    else { set = inClass; basis = clsLabel; }
+  } else {
+    set = jobs.filter(j => j.clientType === ct && j.workType === wt); basis = 'client type + work type';
+    if (set.length < MIN_CLASS_N) { const s = jobs.filter(j => j.clientType === ct); if (s.length > set.length) { set = s; basis = 'client type'; } }
+    if (set.length < MIN_CLASS_N) { const s = jobs.filter(j => j.workType === wt); if (s.length > set.length) { set = s; basis = 'work type'; } }
+    if (!set.length) { set = jobs; basis = 'full portfolio'; }
+    if (weakClass) basis += ' — outside this project class';
+  }
   let contract = 0, cost = 0, bidC = 0, bidCost = 0, buy = 0, buySub = 0;
   const comp = {}; let compTot = 0; const psf = [];
   for (const j of set) {
@@ -300,6 +336,7 @@ function segBenchmarks(ct, wt, excludeName) {
   const contracts = set.map(j => j.contractFinal).filter(Boolean).sort((a, b) => a - b);
   return {
     n: set.length, basis, excluded, bidMargin, actMargin,
+    cls, clsLabel, clsN: inClass.length, weakClass,
     gainFade: (bidMargin != null && actMargin != null) ? actMargin - bidMargin : null,
     buy, buySubPct: buy > 0 ? buySub / buy * 100 : null,
     comp: compPct, medianPSF: psf.length ? psf[Math.floor(psf.length / 2)] : null,
@@ -523,7 +560,7 @@ async function runEstimate() {
   if (!inp.name) return showErr('Project name is required.');
   if (uploadedFiles.length === 0 && !inp.scope) return showErr('Upload plans/specs or enter scope notes (ideally both).');
 
-  const bm = segBenchmarks(inp.ct, inp.wt, inp.name);
+  const bm = segBenchmarks(inp);
   setLoading(true);
   window._bcLoaded = null; // fresh estimate — no BC draft linked yet
   window._workflow = defaultWF(); window._wfNeedsMigration = false;
@@ -582,6 +619,14 @@ function rycGroundingText(inp, bm) {
 ${scopeConstraintText()}
 Determine the TOTAL purely BOTTOM-UP from the plan takeoff: measure the real quantities and scope in the drawings, price each division from those quantities at RYC's northern-Indiana subcontract market, then sum. Do NOT reverse-engineer the total from RYC's average job size or from other projects — price THIS building at THIS scale from what the drawings actually show. RYC builds economical municipal / PEMB / light-commercial work: a pre-engineered metal building or bare shell commonly runs far below national institutional $/SF, and generic $400–500/SF benchmarks almost always OVERSTATE this work. Anchor magnitude to the drawings' real square footage and quantities, apply RYC's realistic achieved margin above, and reflect the subcontract-heavy split — nothing else sets the total.
 PRICE ONLY THE CONTRACT, NOT THE DRAWINGS: on renovation/replacement work the drawing set typically shows the ENTIRE existing building for context — the contract covers only the new/renovated work. Price the work being ADDED or REPLACED; do not price restoration of everything visible. If equipment is noted as owner-furnished (OFCI) or pre-purchased, price installation only. If the contract boundary is ambiguous from the documents, keep the estimate narrow and raise the ambiguity in GAP_QUESTIONS instead of pricing whole-building scope.`;
+  }
+  // Anchoring to out-of-class jobs is worse than not anchoring: it pulls a wastewater or other
+  // specialty scope toward the magnitude of unrelated building work. When the pursuit's class has
+  // no completed history, withhold the anchors and tell the model to price from scope alone.
+  if (bm.weakClass) {
+    return `${ratios}
+
+No plans were uploaded, and RYC has NO completed ${bm.clsLabel} jobs to anchor magnitude against — the portfolio ratios above are the company's general operating pattern, not comparable work. Do NOT anchor this total to RYC's other project types; they are a different scope class and would mislead. Price bottom-up from the scope notes and normal ${bm.clsLabel} construction cost structure, keep the range WIDE to reflect the missing history, report CONFIDENCE: Low, and put the biggest unknowns in GAP_QUESTIONS. Apply RYC's realistic achieved margin above and the subcontract-heavy split.`;
   }
   const anchorLines = (bm.analogs || []).filter(a => a.contract).map(a => `  • ${a.name}: ${money(a.contract)}${a.psf ? ` (${a.sqft.toLocaleString()} SF, $${a.psf}/SF)` : ''}`).join('\n');
   return `${ratios}${bm.medianPSF ? `\n- Historical $/SF on this work: ~$${Math.round(bm.medianPSF).toLocaleString()}/SF (thin sample — directional).` : ''}
@@ -663,6 +708,37 @@ function parseResponse(raw) {
 }
 const num = s => { const n = parseInt(String(s).replace(/[^0-9]/g, ''), 10); return isNaN(n) ? null : n; };
 const fmt$ = s => { const n = num(s); return n == null ? (s || '—') : '$' + n.toLocaleString('en-US'); };
+
+/* ===== Conceptual total reconciliation (v1.10.0) =====================================
+   The model emits COST_LOW/MIDPOINT/HIGH and the DIVISIONS breakdown as two independent
+   assertions and never reconciles them. Observed live on the DeMotte WWTP run: divisions
+   rolled up to $2,585,000 while the stated midpoint was $2,485,000 — the stated range was
+   internally consistent (low+high averaged exactly to mid) but was built separately from
+   the division takeoff.
+
+   Every division is a subcontract placeholder, so their SUM is the bottom-up number and is
+   therefore canonical — that is the whole point of the v1.5.0 bottom-up-first posture. The
+   stated low/high are rescaled around the rollup so the band keeps its relative width, and
+   the divergence is surfaced to the estimator rather than silently absorbed.
+
+   One number now flows everywhere: header, $/SF and contract-envelope sanity checks, the
+   saved history record, and the bonding / builders-risk completed value. */
+function reconcileTotals(p) {
+  const divTot = (p.divisions || []).reduce((s, d) => s + (d.amount || 0), 0);
+  const stated = num(p.mid), lo = num(p.low), hi = num(p.high);
+  const flat = { total: stated, low: lo, high: hi, stated, drift: 0, driftPct: 0, rescaled: false };
+  if (!divTot || !stated) return divTot ? Object.assign({}, flat, { total: divTot }) : flat;
+  const k = divTot / stated, drift = divTot - stated;
+  return {
+    total: divTot,
+    low: lo != null ? Math.round(lo * k) : null,
+    high: hi != null ? Math.round(hi * k) : null,
+    stated, drift, driftPct: drift / stated * 100,
+    // Only call it a rescale when it would actually move a displayed figure.
+    rescaled: Math.abs(k - 1) > 0.005,
+  };
+}
+function curRecon() { return window._recon || { total: null, low: null, high: null, rescaled: false }; }
 
 function subPricingPanel() {
   if (!subPricing || !subPricing.trades || !subPricing.trades.length) return '';
@@ -1005,12 +1081,15 @@ function pursuitData() {
   const divs = window._lastDivisions || [];
   let assembled = 0, any = false;
   divs.forEach((d, i) => { if (quotes[i]) { assembled += quotes[i]; any = true; } else assembled += (d.amount || 0); });
-  const total = any ? assembled : (p.mid || window._pkgConceptualTotal || null);
+  // Completed value for the bond / builders-risk submissions: live assembled total once any
+  // quote is in, otherwise the CANONICAL package rollup. Never the model's stated midpoint —
+  // these figures leave the building on a surety/insurer form and must match the package math.
+  const total = any ? assembled : (curRecon().total || window._pkgConceptualTotal || null);
   return {
     projectName: inp.name || '', location: inp.loc || '', owner: pm.owner || '', architect: pm.architect || '',
     workType: inp.wt || '', isReno: /reno|addition|remodel|replace/i.test(inp.wt || ''), sf: inp.sf || null,
     clientType: inp.ct || '', scope: sc.scopeSummary || divs.slice(0, 6).map(d => d.name).join('; ') || inp.scope || '',
-    total, low: p.low, high: p.high, mid: p.mid, softCosts: total ? Math.round(total * 0.04) : null,
+    total, low: curRecon().low, high: curRecon().high, mid: curRecon().total, softCosts: total ? Math.round(total * 0.04) : null,
     constructionType: inferConstruction(divs), estimator: (document.getElementById('f-est') || {}).value || '',
   };
 }
@@ -1164,8 +1243,20 @@ function renderResults(p, inp, bm) {
   window._lastP = p;
   document.getElementById('bcCard').style.display = 'block';
   if (window._bcLoaded && (window._bcLoaded.url || window._bcLoaded.id)) bcLoadedCard(); else bcResetCard();
-  document.getElementById('costMid').textContent = fmt$(p.mid);
-  document.getElementById('costRange').textContent = fmt$(p.low) + ' – ' + fmt$(p.high);
+  // Canonical conceptual total = the package rollup (see reconcileTotals). The model's own
+  // stated midpoint is not authoritative; it is reported only when it materially disagrees.
+  const recon = reconcileTotals(p);
+  window._recon = recon;
+  document.getElementById('costMid').textContent = recon.total != null ? '$' + recon.total.toLocaleString('en-US') : '—';
+  document.getElementById('costRange').textContent = (recon.low != null ? '$' + recon.low.toLocaleString('en-US') : '—')
+    + ' – ' + (recon.high != null ? '$' + recon.high.toLocaleString('en-US') : '—');
+  const rn = document.getElementById('reconNote');
+  if (rn) {
+    rn.innerHTML = recon.rescaled
+      ? `Midpoint is the <strong>sum of the bid packages below</strong> ($${recon.total.toLocaleString('en-US')}). The model separately stated $${recon.stated.toLocaleString('en-US')} — a ${recon.drift >= 0 ? '+' : ''}${Math.round(recon.driftPct)}% difference it did not reconcile against its own division breakdown. The package rollup governs; the range is rescaled around it.`
+      : '';
+    rn.style.display = recon.rescaled ? 'block' : 'none';
+  }
   const tag = document.getElementById('confTag');
   tag.textContent = (p.confidence || 'Medium') + ' Confidence';
   tag.className = 'tag ' + (p.confidence === 'High' ? 'tag-high' : p.confidence === 'Low' ? 'tag-low' : 'tag-medium');
@@ -1240,9 +1331,10 @@ function renderResults(p, inp, bm) {
   // margin reality check
   if (bm.gainFade != null && bm.gainFade < -1) flags += `<div class="flag">RYC historically <strong>fades ${Math.abs(bm.gainFade).toFixed(1)} pts</strong> bid→actual on ${inp.ct}/${inp.wt} work (bids ${pct(bm.bidMargin)}, achieves ${pct(bm.actMargin)}). Carry contingency accordingly — don't bid to the optimistic margin.</div>`;
   else if (bm.gainFade != null && bm.gainFade > 1) flags += `<div class="ok-flag">RYC historically <strong>gains ${bm.gainFade.toFixed(1)} pts</strong> bid→actual on this work (largely subcontract buyout) — upside is real if buyout holds.</div>`;
-  // $/SF sanity check
-  const mid = num(p.mid);
-  if (bm.medianPSF && inp.sf && mid) {
+  // $/SF sanity check — graded against the canonical package rollup, not the model's stated
+  // midpoint, so the "in line with RYC history" verdict refers to the number actually shown.
+  const mid = recon.total;
+  if (bm.medianPSF && inp.sf && mid && !bm.weakClass) {
     const estPSF = mid / inp.sf, dev = (estPSF - bm.medianPSF) / bm.medianPSF * 100;
     if (Math.abs(dev) >= 25) flags += `<div class="flag">This estimate is <strong>$${Math.round(estPSF).toLocaleString()}/SF</strong> — ${Math.abs(Math.round(dev))}% ${dev > 0 ? 'above' : 'below'} RYC's historical ~$${Math.round(bm.medianPSF).toLocaleString()}/SF on this work. Sanity-check scope/quantities. <span class="note">(SF sample thin — directional.)</span></div>`;
     else flags += `<div class="ok-flag">At <strong>$${Math.round(estPSF).toLocaleString()}/SF</strong>, this estimate is in line with RYC's historical ~$${Math.round(bm.medianPSF).toLocaleString()}/SF on this work.</div>`;
@@ -1250,13 +1342,20 @@ function renderResults(p, inp, bm) {
   // contract-magnitude envelope check — a sanity cross-check ONLY, not a verdict. A bottom-up total
   // that lands outside the comparable range can be exactly right when this job's scale/scope differs;
   // the note prompts a scope check, it does not imply the number should be pulled back to the median.
-  if (mid && bm.contractMax) {
+  if (mid && bm.contractMax && !bm.weakClass) {
     if (mid > bm.contractMax * 1.4) flags += `<div class="flag">Sanity check: ${money(mid)} is <strong>${Math.round((mid / bm.contractMax - 1) * 100)}% above RYC's largest comparable job</strong> (${money(bm.contractMax)}; range ${money(bm.contractMin)}–${money(bm.contractMax)}). That's fine if this project is genuinely bigger or heavier — confirm the scope justifies it, don't just trim to the range.</div>`;
     else if (mid < bm.contractMin * 0.6) flags += `<div class="flag">Sanity check: ${money(mid)} is below RYC's smallest comparable job (${money(bm.contractMin)}). Reasonable for a smaller scope — just confirm nothing's missing.</div>`;
     else flags += `<div class="ok-flag">At ${money(mid)}, this estimate sits within RYC's historical range for comparable work (${money(bm.contractMin)}–${money(bm.contractMax)}).</div>`;
   }
-  document.getElementById('groundBody').innerHTML =
-    `<div class="note" style="margin-bottom:6px">Benchmarks from RYC's own completed jobs · matched on ${esc(bm.basis)} · ${bm.n} analog(s)${bm.excluded ? ` · <em>excluded ${bm.excluded} matching job (leave-one-out — never anchors to itself)</em>` : ''}${bm.analogs.length ? ': ' + bm.analogs.map(a => esc(a.name)).join(', ') : ''}</div>`
+  // Be explicit when the pursuit's facility class has no completed-job history to stand on —
+  // margin/buyout/composition still carry RYC's general operating pattern, but calling those
+  // jobs "comparable" would be false. The real grounding for such work is the market sub-pricing
+  // panel (BuildingConnected bids), which does cover water/wastewater trades.
+  const clsWarn = bm.weakClass
+    ? `<div class="flag" style="margin-bottom:8px"><strong>No comparable completed ${esc(bm.clsLabel)} jobs.</strong> RYC has ${bm.clsN === 0 ? 'no' : 'only ' + bm.clsN} finished ${esc(bm.clsLabel)} job${bm.clsN === 1 ? '' : 's'} in the portfolio${bm.cls === 'water_wastewater' ? ' (the WWTP/WTP work is still active, so it has not reached the completed set)' : ''}. The margins, buyout, and cost composition below come from RYC's broader portfolio — treat them as the company's general operating pattern, <strong>not as analogs for this scope</strong>. For this work the defensible grounding is the market sub-pricing panel above (real sub bids by trade).</div>`
+    : '';
+  document.getElementById('groundBody').innerHTML = clsWarn +
+    `<div class="note" style="margin-bottom:6px">Benchmarks from RYC's own completed jobs · project class <strong>${esc(bm.clsLabel)}</strong> · matched on ${esc(bm.basis)} · ${bm.n} ${bm.weakClass ? 'portfolio job(s), not analogs' : 'analog(s)'}${bm.excluded ? ` · <em>excluded ${bm.excluded} matching job (leave-one-out — never anchors to itself)</em>` : ''}${bm.analogs.length ? ': ' + bm.analogs.map(a => esc(a.name)).join(', ') : ''}</div>`
     + `<div class="kpis">${kpi(pct(bm.bidMargin), 'As-bid margin')}${kpi(pct(bm.actMargin), 'Actual margin')}${kpi(bm.gainFade == null ? '—' : (bm.gainFade >= 0 ? '+' : '') + bm.gainFade.toFixed(1) + ' pts', 'Gain/Fade')}${kpi(bm.buy ? money(bm.buy) : '—', 'Buyout')}</div>`
     + (bm.contractMin && bm.contractMax ? `<div class="note" style="margin-bottom:4px"><strong>RYC comparable contracts:</strong> ${money(bm.contractMin)}–${money(bm.contractMax)} (median ${money(bm.contractMed)})${bm.medianPSF ? ` · ~$${Math.round(bm.medianPSF).toLocaleString()}/SF` : ''}</div>` : '')
     + `<div class="note"><strong>RYC cost composition for this work:</strong> ${comp}</div>`
@@ -1417,7 +1516,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.9.1';
+const TOOL_VERSION = 'v1.10.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -1431,11 +1530,14 @@ function fileSummary() {
 async function saveRun(inp, p, batches, durationMs) {
   const est = (document.getElementById('f-est').value || '').trim();
   try { if (est) localStorage.setItem('ryc-est-initials', est); } catch {}
+  const rec = reconcileTotals(p);
   const record = {
     estimator: est || null, project_name: inp.name, location: inp.loc || null,
     client_type: inp.ct, work_type: inp.wt, size_sf: inp.sf, target_budget: inp.target,
     scope_notes: inp.scope || null, files: fileSummary(), scope_constraints: window._scopeC || null,
-    cost_low: num(p.low), cost_high: num(p.high), cost_mid: num(p.mid),
+    // Persist the CANONICAL (package-rollup) figures so the desk board, the repeat-run spread,
+    // and any reopened pursuit all read the same number the estimator saw. See reconcileTotals.
+    cost_low: rec.low, cost_high: rec.high, cost_mid: rec.total,
     confidence: p.confidence || null, narrative: p.narrative || null,
     divisions: p.divisions, assumptions: p.assumptions, gaps: p.gaps,
     version: TOOL_VERSION, batches, duration_ms: durationMs,
@@ -1519,7 +1621,7 @@ async function openRun(id) {
     window._workflow = run.workflow || defaultWF(); window._wfNeedsMigration = false;
     el.innerHTML = prev;
     setEstView('assist');
-    renderResults(p, inp, segBenchmarks(inp.ct, inp.wt, inp.name));
+    renderResults(p, inp, segBenchmarks(inp));
     const pages = (run.files || []).reduce((s, f) => s + (f.pages || 0), 0);
     document.getElementById('resMeta').textContent =
       `${inp.name} · ${inp.ct} / ${inp.wt}${inp.sf ? ' · ' + inp.sf.toLocaleString() + ' SF' : ''} · from history: run of ${(run.created_at || '').slice(0, 10)}${pages ? ` · originally ${pages} plan pages` : ' · scope-only'}${run.estimator ? ' · ' + run.estimator : ''} · ${run.version || ''}`;

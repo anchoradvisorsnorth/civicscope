@@ -113,6 +113,41 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    /* One-time (idempotent) reconciliation of legacy rows saved before v1.10.0.
+       Runs saved earlier stored the MODEL'S stated COST_MIDPOINT, which the model generated
+       independently of its own DIVISIONS breakdown and never reconciled — the live DeMotte row
+       carried a $2,485,000 midpoint over a $2,585,000 package rollup. The rollup is canonical
+       (every division is a subcontract placeholder, so their sum is the bottom-up number), so
+       this rewrites cost_mid to the rollup and rescales cost_low/high around it, preserving the
+       band's relative width. Rows already in agreement are left untouched.
+       Pass {dry_run:true} to preview. */
+    if (action === 'reconcile_totals') {
+      const dry = !!req.body.dry_run;
+      const r = await sb(`ryc_estimates?tenant=eq.ryc&select=id,project_name,cost_low,cost_high,cost_mid,divisions&limit=500`);
+      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+      const rows = await r.json();
+      const changed = [];
+      for (const row of rows) {
+        const divTot = (row.divisions || []).reduce((s, d) => s + (Number(d && d.amount) || 0), 0);
+        const stated = Number(row.cost_mid) || 0;
+        if (!divTot || !stated || divTot === stated) continue;
+        const k = divTot / stated;
+        const patch = {
+          cost_mid: divTot,
+          cost_low: row.cost_low != null ? Math.round(Number(row.cost_low) * k) : null,
+          cost_high: row.cost_high != null ? Math.round(Number(row.cost_high) * k) : null,
+        };
+        changed.push({ id: row.id, project_name: row.project_name, from: stated, to: divTot, drift: divTot - stated });
+        if (!dry) {
+          const pr = await sb(`ryc_estimates?id=eq.${row.id}&tenant=eq.ryc`, {
+            method: 'PATCH', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify(patch),
+          });
+          if (!pr.ok) return res.status(pr.status).json({ error: await pr.text(), partial: changed });
+        }
+      }
+      return res.status(200).json({ ok: true, dry_run: dry, scanned: rows.length, reconciled: changed.length, rows: changed });
+    }
+
     if (action === 'delete') {
       const id = String(req.body.id || '');
       if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
