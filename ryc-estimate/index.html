@@ -20,7 +20,10 @@
   .lock-box input { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:14px; margin-bottom:10px; }
   .lock-box button { width:100%; padding:10px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
   .lock-box .error { color:#dc2626; font-size:13px; margin-top:8px; display:none; }
-  #app { display:none; max-width:980px; margin:0 auto; padding:0 18px 60px; }
+  /* Board/table surfaces use the viewport (Codex Step 3) — the old 980px centered canvas
+     wasted a wide screen on the desk. The input form stays reading-width via its own cap. */
+  #app { display:none; max-width:1360px; margin:0 auto; padding:0 18px 60px; }
+  #inputPanel { max-width:960px; }
   header { display:flex; align-items:center; gap:12px; padding:18px 0; border-bottom:1px solid var(--line); margin-bottom:22px; }
   header img { width:40px; }
   header h1 { font-size:20px; margin:0; }
@@ -119,9 +122,10 @@
 </div>
 
 <div id="app">
-  <header>
+  <header style="display:flex;align-items:center;gap:14px">
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.12.1 · durable pursuit entity (hardened: atomic validation, fail-closed saves, locked BC proxy) (runs = revisions) · plan takeoff · spec-book scope · market sub-pricing · BC loader · award link → Foundation</div></div>
+    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.13.0 · one-shell step 3: stable pursuit routes, submission capture · durable pursuit entity · plan takeoff · market sub-pricing · BC loader · award link → Foundation</div></div>
+    <a href="/ryc/command" style="white-space:nowrap;font-size:13px;color:#c2410c;text-decoration:none;font-weight:600">Command →</a>
   </header>
 
   <div class="estnav">
@@ -253,9 +257,10 @@ function unlock() {
   document.getElementById('lock-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   loadPortfolio();
-  // The desk is the front door: open on "what does estimating need to move today?", not on a
-  // blank new-estimate form. The generator is one click away under Pursuit.
-  setEstView('history');
+  // The desk is the front door — unless the URL carries a deep link (bookmarked pursuit,
+  // shared workspace), which is honored on load.
+  if (location.hash && location.hash !== '#desk') routeFromHash();
+  else setEstView('history');
 }
 // NOTE: the auto-unlock for an already-authed session fires at the END of this script (see
 // bottom). It used to run here, which meant unlock() -> setEstView('history') -> renderHistory()
@@ -1273,7 +1278,36 @@ function persistWF() {
     });
   }, 400);
 }
-function setStage(k) { const wf = curWF(); wf.stage = k; delete wf.stage_unresolved; persistWF(); renderPursuit(); }
+function setStage(k) {
+  const wf = curWF(); wf.stage = k; delete wf.stage_unresolved;
+  // Submission capture (calibration loop): advancing to Submitted prefills the bid-amount
+  // input with the live assembled total — captured once, at the decision point, never
+  // silently written as fact (the estimator confirms the actual number).
+  if (k === 'submitted' && !(wf.submission && wf.submission.amount)) window._prefillSub = assembledTotal();
+  persistWF(); renderPursuit();
+}
+// Assembled total = live quotes where entered, conceptual placeholders elsewhere.
+function assembledTotal() {
+  const divs = window._lastDivisions || []; let t = 0;
+  divs.forEach((d, i) => { t += quotes[i] ? quotes[i] : (d.amount || 0); });
+  return t || (curRecon().total || null);
+}
+function setSubmission() {
+  const el = document.getElementById('sub-amt');
+  const amt = el ? Math.round(Number(el.value)) : 0;
+  if (!(amt > 0)) { alert('Enter the final submitted bid amount.'); return; }
+  const wf = curWF();
+  wf.submission = { amount: amt, at: new Date().toISOString(), conceptual: curRecon().total || window._pkgConceptualTotal || null };
+  delete window._prefillSub;
+  persistWF(); renderPursuit(); historyCache = null;
+}
+function setOutcome() {
+  const w = (document.getElementById('oc-winner') || {}).value || '';
+  const a = Math.round(Number((document.getElementById('oc-amt') || {}).value)) || null;
+  const wf = curWF();
+  wf.outcome = { result: 'lost', winner: w.trim().slice(0, 120) || null, winning_amount: a > 0 ? a : null, at: new Date().toISOString() };
+  persistWF(); renderPursuit(); historyCache = null;
+}
 function setCk(item, status) { const c = curWF().checklist; c[item] = Object.assign({}, c[item], { status }); persistWF(); renderPursuit(); }
 function setMeeting() {
   const d = document.getElementById('mtg-date'), l = document.getElementById('mtg-loc');
@@ -1354,10 +1388,35 @@ function renderPursuit() {
     <div id="awardPicker" style="display:none;padding:8px 0 4px"></div>
     ${aw ? '' : '<div class="note" style="margin:-4px 0 8px">Link when accounting opens the job in Foundation — that\'s the award. Linking records the win and connects this estimate to the job\'s actuals.</div>'}`;
 
+  // Submitted bid — the number that actually left the building; the middle of the
+  // conceptual → assembled → SUBMITTED → actual calibration chain. Captured once at the
+  // decision point; variance vs the conceptual total shown when both exist.
+  const sub = wf.submission || {};
+  const subVar = (sub.amount && sub.conceptual) ? ((sub.amount - sub.conceptual) / sub.conceptual * 100) : null;
+  const subPill = sub.amount
+    ? `<span class="ck-pill ck-received">$${Math.round(sub.amount).toLocaleString()}</span><span class="note">${(sub.at || '').slice(0, 10)}${subVar != null ? ` · ${subVar >= 0 ? '+' : ''}${subVar.toFixed(1)}% vs conceptual` : ''}</span>`
+    : '<span class="ck-pill ck-na">not set</span>';
+  const subRow = `<div class="ck-row"><span class="ck-name">Submitted bid</span>${subPill}
+    <div class="ck-actions"><input type="number" id="sub-amt" class="ck-date" placeholder="final bid $" value="${sub.amount || window._prefillSub || ''}" style="width:130px;text-align:right">
+    <button class="btn-sm ghost" onclick="setSubmission()">Set</button></div></div>`
+    + (!sub.amount && window._prefillSub ? `<div class="note" style="margin:-4px 0 8px">Prefilled with the assembled total ($${Math.round(window._prefillSub).toLocaleString()}) — confirm the ACTUAL submitted number before setting.</div>` : '');
+
+  // Loss outcome — the most valuable calibration data a pursuit can produce.
+  const oc = wf.outcome || {};
+  const outcomeRow = (wf.stage === 'lost' || oc.result)
+    ? `<div class="ck-row"><span class="ck-name">Outcome</span>
+       ${oc.result ? `<span class="ck-pill ck-needed">lost${oc.winner ? ' to ' + esc(oc.winner) : ''}</span>${oc.winning_amount ? `<span class="note">winning bid $${oc.winning_amount.toLocaleString()}${sub.amount ? ` · RYC was ${((sub.amount - oc.winning_amount) / oc.winning_amount * 100).toFixed(1)}% ${sub.amount > oc.winning_amount ? 'above' : 'below'}` : ''}</span>` : ''}` : '<span class="ck-pill ck-na">record it</span>'}
+       <div class="ck-actions"><input type="text" id="oc-winner" class="ck-date" placeholder="won by (optional)" value="${esc(oc.winner || '')}" style="width:130px">
+       <input type="number" id="oc-amt" class="ck-date" placeholder="winning $" value="${oc.winning_amount || ''}" style="width:110px;text-align:right">
+       <button class="btn-sm ghost" onclick="setOutcome()">Set</button></div></div>`
+    : '';
+
   el.innerHTML = migrateNote + idNote +
     `<div class="note" style="margin-bottom:4px">Stage</div><div class="stagebar">${stageBar}</div>
      <div class="note" style="margin:10px 0 2px">Pre-bid checklist</div>
      ${dueRow}
+     ${subRow}
+     ${outcomeRow}
      ${awardRow}
      ${statusRow('bonding', 'Bonding', 'Bond request', 'genBond()')}
      ${statusRow('builders_risk', 'Builders Risk', 'BR submission', 'genBuildersRisk()')}
@@ -1431,7 +1490,8 @@ function deskRow(p) {
     + `<td><strong>${esc(dispName)}</strong>${dispLoc ? ` <span class="note">· ${esc(dispLoc)}</span>` : ''}`
     + `<div class="note">${runs.length > 1 ? runs.length + ' revisions · ' : ''}${pages ? pages + ' plan pp' : 'scope-only'}${latest.estimator ? ' · ' + esc(latest.estimator) : ''}</div></td>`
     + `<td>${dueCell}</td><td>${stageChip}</td><td>${covCell}</td><td>${pre}</td>`
-    + `<td class="r"><strong>${latest.cost_mid ? '$' + latest.cost_mid.toLocaleString() : '—'}</strong>${spread}</td>`
+    + `<td class="r" title="${latest.cost_mid ? '$' + latest.cost_mid.toLocaleString() : ''}"><strong>${latest.cost_mid ? fmtCompact(latest.cost_mid) : '—'}</strong>${spread}`
+    + `${wf.submission && wf.submission.amount ? `<div class="note" title="$${wf.submission.amount.toLocaleString()}">bid ${fmtCompact(wf.submission.amount)}</div>` : ''}</td>`
     + `<td>${esc(latest.confidence || '—')}</td>`
     + `<td class="note">${act}</td></tr>`;
 }
@@ -1827,9 +1887,25 @@ function resetAll() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 // ===== Estimating hub: nav + Cost Intelligence + Quick Check =====
-const fmtCompact = money;
+// One money rule across the shell (Codex Step 3): COMPACT in dense scanning tables (desk
+// board, Cost Intelligence benches), FULL via money() in financial detail, editable decisions,
+// reconciliation, and printed artifacts. Same shape as Command's fmtCompact.
+function fmtCompact(n) {
+  if (n == null) return '—';
+  const a = Math.abs(n), s = n < 0 ? '-' : '';
+  if (a >= 1e6) return s + '$' + (a / 1e6).toFixed(a >= 1e7 ? 1 : 2).replace(/\.?0+$/, '') + 'M';
+  if (a >= 1e3) return s + '$' + Math.round(a / 1e3).toLocaleString('en-US') + 'K';
+  return s + '$' + Math.round(a).toLocaleString('en-US');
+}
 function fmtDate(s) { try { return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return ''; } }
+/* Stable routes (Codex Step 3): the desk, each workspace, and EVERY PURSUIT are bookmarkable —
+   refresh/back/share no longer drop you on the desk. #pursuit/<pursuit_id> is the pursuit's
+   stable URL (the immutable identity, not a run id). */
+const VIEW_HASH = { history: 'desk', assist: 'new', costiq: 'intel', quickcheck: 'quick' };
+const HASH_VIEW = { desk: 'history', new: 'assist', intel: 'costiq', quick: 'quickcheck' };
+let _estView = null, _routing = false, _settingHash = false;
 function setEstView(v) {
+  _estView = v;
   document.querySelectorAll('.estnav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
   document.getElementById('view-assist').style.display = v === 'assist' ? 'block' : 'none';
   document.getElementById('view-costiq').style.display = v === 'costiq' ? 'block' : 'none';
@@ -1838,6 +1914,40 @@ function setEstView(v) {
   if (v === 'costiq') renderCostIQ();
   if (v === 'quickcheck') renderQuickCheck();
   if (v === 'history') renderHistory();
+  if (!_routing) {
+    const h = (v === 'assist' && window._pursuitId) ? '#pursuit/' + window._pursuitId : '#' + VIEW_HASH[v];
+    if (location.hash !== h) { _settingHash = true; location.hash = h; }
+  }
+}
+window.addEventListener('hashchange', () => {
+  if (_settingHash) { _settingHash = false; return; }
+  routeFromHash();
+});
+function routeFromHash() {
+  const h = (location.hash || '').replace(/^#/, '');
+  const m = h.match(/^pursuit\/([0-9a-f-]{36})$/i);
+  if (m) {
+    // already showing this pursuit → nothing to do
+    if (window._pursuitId === m[1] && document.getElementById('resultsPanel').style.display === 'block') return;
+    openPursuitById(m[1]);
+    return;
+  }
+  const v = HASH_VIEW[h] || 'history';
+  _routing = true; try { setEstView(v); } finally { _routing = false; }
+}
+async function openPursuitById(pid) {
+  try {
+    if (!historyCache) {
+      const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pw: 'ryc2026', action: 'list' }) });
+      const d = await r.json().catch(() => null);
+      if (d && d.ok) historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
+    }
+    const runs = ((historyCache && historyCache.runs) || []).filter(r => r.pursuit_id === pid)
+      .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    if (runs.length) { openRun(runs[0].id); return; }
+  } catch {}
+  _routing = true; try { setEstView('history'); } finally { _routing = false; }
 }
 
 // helpers the ported views need (these lived on the dashboard, not previously on this page)
@@ -1965,7 +2075,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.12.1';
+const TOOL_VERSION = 'v1.13.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};

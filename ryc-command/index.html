@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RYC Command Center</title>
+<title>R. Yoder — Command</title>
 <link rel="icon" href="/ryc-data/RYC_Shield_Orange.png">
 <link rel="stylesheet" href="/ryc-command/command.css?v2.24.0">
 </head>
@@ -12,8 +12,8 @@
 <div id="gate">
   <div class="card">
     <img src="/ryc-data/RYC_Shield_Orange.png" alt="RYC">
-    <h1>Command Center</h1>
-    <p>R. Yoder Construction</p>
+    <h1>R. Yoder</h1>
+    <p>Command — operations workspace</p>
     <input id="gate-input" type="password" placeholder="Access code" autocomplete="off">
     <div class="err" id="gate-err"></div>
     <button id="gate-btn">Enter</button>
@@ -25,19 +25,19 @@
     <aside class="sidebar">
       <div class="brand">
         <img src="/ryc-data/RYC_Shield_Orange.png" alt="RYC">
-        <div><div class="bt">R. Yoder</div><div class="bs">Command Center</div></div>
+        <div><div class="bt">R. Yoder</div><div class="bs">Command &middot; Operations</div></div>
       </div>
       <nav class="nav" id="nav"></nav>
       <div class="side-foot">
-        <a href="/ryc/estimate">&#128208; Estimating Tools &rarr;</a>
-        <div class="ver">v2.26.1-command &middot; projection trust unified: suspect = ungraded everywhere; fades graded from trusted ERP only</div>
+        <a href="/ryc/estimate">&#128208; Estimating Desk &rarr;</a>
+        <div class="ver">v2.27.0-command &middot; one-shell step 3: R. Yoder identity, plumbing moved to Data Trust</div>
       </div>
     </aside>
     <main class="content">
       <div class="topbar">
-        <div><h2 id="view-title">Command Center</h2><div class="ctx" id="view-ctx">Loading&hellip;</div></div>
-        <button class="pfill" id="pc-refresh-top" onclick="refreshProcore(this)" title="Re-run the Procore pull now (~2-3 min + deploy wait) &mdash; schedule, %, RFIs, contracts, commitments">&#10227; Refresh Procore</button>
-        <button class="pfill" id="fdn-refresh-top" onclick="refreshFoundation(this)" title="Re-pull Foundation (accounting) now &mdash; catches posting batches since the ~5am snapshot">&#10227; Refresh Foundation</button>
+        <div><h2 id="view-title">Overview</h2><div class="ctx" id="view-ctx">Loading&hellip;</div></div>
+        <!-- Integration machinery (Procore/Foundation refresh) lives in Data Trust, not on
+             ordinary screens — normal users see business actions, not plumbing (Codex Step 3). -->
       </div>
       <div class="view" id="view"></div>
     </main>

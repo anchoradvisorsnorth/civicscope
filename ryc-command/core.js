@@ -6,7 +6,7 @@ var CRM = "https://crm.jbkdevelopment.com";
 var activeData=null, foundationData=null, arData=null, buildrData=null, portfolioData=null, subsData=null, forecastData=null, bcData=null, pmHistData=null, loadedAt=null, foundationOnly=[];
 
 var NAV = [
-  { key:"command",  label:"Command Center", ic:"&#129517;" },
+  { key:"command",  label:"Overview",       ic:"&#129517;" },
   { key:"portfolio",label:"Portfolio",      ic:"&#128203;" },
   { key:"billing",  label:"Billing & Cash", ic:"&#128181;" },
   { key:"woh",      label:"Work on Hand",   ic:"&#128202;" },

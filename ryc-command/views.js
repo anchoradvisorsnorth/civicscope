@@ -116,27 +116,21 @@ function renderCommand(){
     +section("💵 Billing & cash follow-up",(haveFnd?billCount:1),(haveFnd?billRows:"<div class=\"q-empty\">Foundation data unavailable — billing/AR not computed.</div>"),"Nothing needs invoicing or overdue.",billBadge)
     +section("📉 Margin fades",fades.length,fadeRows,"No jobs fading.")
     +section("⚖️ Data conflicts",conflicts.length,conflictRows,"Procore and Foundation contracts agree on every job.")
-    +section("🤝 Client follow-up (Buildr)",bf.items.length,cfuRows,cfuEmpty)
+    // Buildr renders ONLY when it has something credible to say (Codex Step 3: a "0 flagged"
+    // section over a 1-job join is reassurance from an unusable feed). Join stats live in
+    // Data Trust, where plumbing belongs.
+    +(bf.flagged>0?section("🤝 Client follow-up (Buildr)",bf.items.length,cfuRows,cfuEmpty):"")
     +"</div>";
 
-  /* source-health strip — freshness from each feed's own `refreshed` timestamp; >30h = stale
-     (Procore cron daily 04:00 UTC, Foundation/AR nightly 09:00 UTC — 30h means a run was missed) */
-  function chip(ok,label,detail,ts){
-    var a=ageTxt(ts); var stale=ts?((Date.now()-new Date(ts))/3600000>30):false;
-    var icon=!ok?"⚠️":(stale?"⚠️":"✅");
-    return "<div class=\"src-chip\">"+icon+" <b>"+label+"</b> "+detail+(a?(" · "+a+(stale?" <b style=\"color:var(--amber)\">STALE</b>":"")):"")+"</div>";
-  }
-  var fCount=foundationData&&foundationData.jobs?Object.keys(foundationData.jobs).length:0;
-  var health="<div class=\"panel\"><h3>Source health</h3><div class=\"sub\">Every feed the cockpit reads, loaded live from the same endpoints as the legacy dashboard — with the age of each feed's data.</div><div class=\"src-strip\">"
-    +chip(!!activeData,"Procore",((activeData&&activeData.jobs)||[]).length+" active · revised contracts",activeData&&activeData.refreshed)
-    +chip(!!foundationData,"Foundation",fCount+" jobs · cost/billing/AR",foundationData&&foundationData.refreshed)
-    +chip(!!arData,"AR",(((arData&&arData.invoices)||[]).length)+" invoices",arData&&arData.refreshed)
-    +chip(!!buildrData,"Buildr",(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",buildrData&&buildrData.refreshed)
-    +chip(!!bcData,"BC bid board",(bcData&&bcData.published?bcData.published.length:0)+" out to bid",bcData&&bcData.generatedAt)
-    +chip(foundationOnly.length>=0,"Coverage",foundationOnlyNonGC().length+" Foundation-only active jobs not on board · Greencroft: "+greencroftBoardJobs().length+" on board + "+gc.length+" Foundation-only",null)
-    +"</div></div>";
+  /* Healthy is silent (Codex Step 3): the full source-health strip moved to Data Trust.
+     A delayed or missing feed produces ONE exception line here — nothing renders when all
+     feeds are current. (>30h = a scheduled run was missed.) */
+  var staleFeeds=[];
+  [["Procore",!!activeData,activeData&&activeData.refreshed],["Foundation",!!foundationData,foundationData&&foundationData.refreshed],["AR",!!arData,arData&&arData.refreshed],["BC bid board",!!bcData,bcData&&bcData.generatedAt]]
+    .forEach(function(x){ if(!x[1]) staleFeeds.push(x[0]+" down"); else if(x[2]&&(Date.now()-new Date(x[2]))/3600000>30) staleFeeds.push(x[0]+" stale ("+ageTxt(x[2])+")"); });
+  var staleWarn=staleFeeds.length?("<div class=\"warn-banner\">⚠️ Data delayed: "+staleFeeds.join(" · ")+" — details in Data Trust.</div>"):"";
 
-  return warn+strip+queue+health;
+  return warn+staleWarn+strip+queue;
 }
 
 /* ===== Portfolio (Phase 2 — light operator table) ============================ */
@@ -522,7 +516,12 @@ function renderTrust(){
     :"<div class=\"vsub\">No open reconciliation exceptions — Procore and Foundation agree everywhere.</div>";
 
   view.innerHTML="<div class=\"trust\">"
-    +"<div class=\"vhead\">Source health</div><div class=\"vsub\">Every feed this cockpit reads, its cadence, and the age of the data on screen right now.</div>"+srcTable
+    +"<div class=\"vhead\">Source health</div><div class=\"vsub\">Every feed this cockpit reads, its cadence, and the age of the data on screen right now. Healthy feeds are silent on the Overview — only delays surface there.</div>"+srcTable
+    +"<div class=\"vhead\" style=\"margin-top:18px\">Data controls</div><div class=\"vsub\">Manual re-pulls — integration machinery lives here, not on ordinary screens. Coverage: "+foundationOnlyNonGC().length+" Foundation-only active jobs not on the board · Greencroft: "+greencroftBoardJobs().length+" on board + "+greencroftJobs().length+" Foundation-only.</div>"
+    +"<div style=\"display:flex;gap:10px;margin:8px 0 4px\">"
+    +"<button class=\"pfill\" id=\"pc-refresh-top\" onclick=\"refreshProcore(this)\" title=\"Re-run the Procore pull now (~2-3 min + deploy wait) — schedule, %, RFIs, contracts, commitments\">&#10227; Refresh Procore</button>"
+    +"<button class=\"pfill\" id=\"fdn-refresh-top\" onclick=\"refreshFoundation(this)\" title=\"Re-pull Foundation (accounting) now — catches posting batches since the ~5am snapshot\">&#10227; Refresh Foundation</button>"
+    +"</div>"
     +"<div class=\"vhead\">Reconciliation exceptions</div><div class=\"vsub\">Cross-source disagreements currently open — the audit-layer worklist.</div>"+excSummary
     +"<div class=\"vhead\" style=\"display:flex;align-items:center;gap:10px\">Field provenance reference <button class=\"pfill\" onclick=\"printDS()\">🖨 Print</button></div>"
     +"<div class=\"vsub\">The shared Data Sources dictionary — one definition, loaded by this cockpit, the legacy dashboard, and the Foundation query tool. Git-tracked source: RYC_Dashboard_Data_Dictionary.md.</div>"

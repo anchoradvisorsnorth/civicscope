@@ -106,11 +106,9 @@ function viewCtx(){
   return "Procore (revised contract) + Foundation · loaded "+loaded;
 }
 function renderView(){
-  var titles={command:"Command Center",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
-  document.getElementById("view-title").textContent=titles[currentView]||"Command Center";
+  var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
+  document.getElementById("view-title").textContent=titles[currentView]||"Overview";
   document.getElementById("view-ctx").innerHTML=viewCtx();
-  document.getElementById("fdn-refresh-top").style.display=FDN_FED[currentView]?"":"none";
-  document.getElementById("pc-refresh-top").style.display=FDN_FED[currentView]?"":"none";
   var view=document.getElementById("view");
   // dark showcase for the Command Center; light operator theme for work views (FundView tiering)
   document.querySelector(".content").classList.toggle("light",currentView!=="command");
