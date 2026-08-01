@@ -578,11 +578,12 @@ function renderTrust(){
 
   view.innerHTML="<div class=\"trust\">"
     +"<div class=\"vhead\">Source health</div><div class=\"vsub\">Every feed this cockpit reads, its cadence, and the age of the data on screen right now. Healthy feeds are silent on the Overview — only delays surface there.</div>"+srcTable
-    +"<div class=\"vhead\" style=\"margin-top:18px\">Data controls</div><div class=\"vsub\">Manual re-pulls — integration machinery lives here, not on ordinary screens. Coverage: "+foundationOnlyNonGC().length+" Foundation-only active jobs not on the board · Greencroft: "+greencroftBoardJobs().length+" on board + "+greencroftJobs().length+" Foundation-only.</div>"
-    +"<div style=\"display:flex;gap:10px;margin:8px 0 4px\">"
-    +"<button class=\"pfill\" id=\"pc-refresh-top\" onclick=\"refreshProcore(this)\" title=\"Re-run the Procore pull now (~2-3 min + deploy wait) — schedule, %, RFIs, contracts, commitments\">&#10227; Refresh Procore</button>"
-    +"<button class=\"pfill\" id=\"fdn-refresh-top\" onclick=\"refreshFoundation(this)\" title=\"Re-pull Foundation (accounting) now — catches posting batches since the ~5am snapshot\">&#10227; Refresh Foundation</button>"
-    +"</div>"
+    /* The manual re-pull buttons MOVED to Admin → Integrations & Sync (contract §4: one
+       audited home for refresh machinery). They are not duplicated here — two buttons for the
+       same job in two places is how a second implementation starts. Coverage context stays,
+       because it is about the DATA, which is what this page owns. */
+    +"<div class=\"vhead\" style=\"margin-top:18px\">Data controls</div><div class=\"vsub\">Manual re-pulls now live in <b>Admin → Integrations &amp; Sync</b>, alongside each source's run history. Coverage: "+foundationOnlyNonGC().length+" Foundation-only active jobs not on the board · Greencroft: "+greencroftBoardJobs().length+" on board + "+greencroftJobs().length+" Foundation-only.</div>"
+    +"<div style=\"margin:8px 0 4px\"><button class=\"pfill\" onclick=\"setView('integrations')\">&#128260; Open Integrations &amp; Sync</button></div>"
     +"<div class=\"vhead\">Reconciliation exceptions</div><div class=\"vsub\">Cross-source disagreements currently open — the audit-layer worklist.</div>"+excSummary
     +"<div class=\"vhead\" style=\"display:flex;align-items:center;gap:10px\">Field provenance reference <button class=\"pfill\" onclick=\"printDS()\">🖨 Print</button></div>"
     +"<div class=\"vsub\">The shared Data Sources dictionary — one definition, loaded by this cockpit, the legacy dashboard, and the Foundation query tool. Git-tracked source: RYC_Dashboard_Data_Dictionary.md.</div>"
@@ -629,6 +630,37 @@ function syncFreshPill(s){
   if(s.data_freshness==="stale") return '<span class="pill a">stale</span>';
   return '<span class="pill g">fresh</span>';
 }
+/* "Run now" renders ONLY where the registry says manual_control_pre_identity — Procore and
+   Foundation, the two controls that already existed in Data Trust. D8 accepted TODAY's
+   exposure level under the shared gate, not an expansion to every publisher: without that
+   restriction, this page would hand four additional publishers (two of which redeploy
+   production) to every gate-holder. The others become available when identity lands, or if
+   Keith explicitly widens the scope. */
+function syncRunBtn(s){
+  if(!s.manual_control_pre_identity) return "";
+  if(s.last_attempt_state==="running"||s.last_attempt_state==="requested"){
+    // a lease is held — this is a real lock, not a cosmetic disable
+    return '<button class="pfill" disabled title="A run is already in flight">&#10227; running…</button>';
+  }
+  return '<button class="pfill" id="run-'+s.key+'" onclick="syncRunNow(\''+s.key+'\',this)">&#10227; Run now</button>';
+}
+function syncRunNow(key,btn){
+  var svc=(_syncData&&_syncData.services||[]).filter(function(x){return x.key===key;})[0];
+  if(!svc) return;
+  // A run that publishes an artifact also triggers a production redeploy — that deserves a
+  // confirmation stating scope and impact, not a silent click. A ~5s in-place refresh does not.
+  if(svc.publishes){
+    var msg="Re-run "+svc.label+" now?\n\n"
+      +"· Re-pulls: "+(svc.datasets||[]).join(", ")+"\n"
+      +"· Publishes the result and triggers a production redeploy (~2-3 min, then ~75s deploy)\n"
+      +"· Reads from the source system only — it never writes back to Procore or Foundation";
+    if(!confirm(msg)) return;
+  }
+  if(key==="procore") refreshProcore(btn);
+  else if(key==="foundation") refreshFoundation(btn);
+  // after either completes, re-read telemetry so the row reflects the run it just triggered
+  setTimeout(function(){ if(currentView==="integrations") renderIntegrations(); },8000);
+}
 function renderIntegrations(){
   var v=document.getElementById("view");
   v.innerHTML='<div class="panel"><div class="sub">Loading sync telemetry…</div></div>';
@@ -652,7 +684,7 @@ function renderIntegrations(){
         +'<td class="r">'+(s.last_success_at?'<span title="'+esc(s.last_success_at)+'">'+ageTxt(s.last_success_at)+'</span>':'—')+'</td>'
         +'<td class="r">'+(s.count_written!=null?s.count_written:"—")+'</td>'
         +'<td class="sub">'+(s.next_expected_at?fmtDate(s.next_expected_at):"—")+'</td>'
-        +'<td><button class="pfill" onclick="showSyncHistory(\''+s.key+'\')">History</button></td></tr>';
+        +'<td>'+syncRunBtn(s)+'<button class="pfill" onclick="showSyncHistory(\''+s.key+'\')">History</button></td></tr>';
     });
     h+='</tbody></table></div>';
 
@@ -668,8 +700,9 @@ function renderIntegrations(){
       out.forEach(function(s){ h+='<tr><td><b>'+esc(s.label)+'</b></td><td class="sub">user-triggered</td></tr>'; });
       h+='</tbody></table></div>';
     }
-    h+='<div class="panel"><div class="sub">Manual refresh controls remain in <b>Data Trust</b> for now (Procore and Foundation only). '
-      +'This page is read-only until run history has proven itself — and controls stay limited to the two that already exist until identity lands or that scope is explicitly widened.</div></div>';
+    h+='<div class="panel"><div class="sub"><b>Run now</b> appears only for Procore and Foundation — the two manual controls that already existed. '
+      +'The other publishers stay read-only until identity lands or that scope is explicitly widened, because a shared gate cannot tell who is clicking. '
+      +'A run that publishes an artifact confirms first: it redeploys production, and it only ever reads from the source system.</div></div>';
     h+='<div id="syncHist"></div>';
     v.innerHTML=h;
   });
