@@ -7,13 +7,14 @@
 export const config = { maxDuration: 300 };
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  // No CORS headers: the only consumer is the same-origin /ryc/estimate page. This endpoint
+  // fronts a credentialed VM write path (BC draft creation), and it was publicly writable —
+  // wildcard CORS + no auth (Codex round-4 finding #2). Interim control until Entra lands:
+  // the same server-checked gate password the estimate-log API uses.
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-
   const b = req.body || {};
+  const GATE_PW = process.env.RYC_ESTIMATE_PASSWORD || 'ryc2026';
+  if (b.pw !== GATE_PW) return res.status(401).json({ error: 'Unauthorized' });
   if (!['preview', 'create'].includes(b.mode)) return res.status(400).json({ error: 'mode must be preview|create' });
   if (!String(b.projectName || '').trim()) return res.status(400).json({ error: 'projectName required' });
   if (!Array.isArray(b.divisions) || b.divisions.length < 1 || b.divisions.length > 60) {

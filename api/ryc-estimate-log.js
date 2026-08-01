@@ -55,27 +55,42 @@ export default async function handler(req, res) {
     method: 'PATCH', headers: { 'Prefer': 'return=minimal' },
     body: JSON.stringify(Object.assign({ updated_at: new Date().toISOString() }, patch)),
   });
-  // Find-or-create the pursuit an incoming run belongs to. Explicit pursuit_id wins (an open
-  // pursuit being re-run — even under a NEW name, which is a rename, not a new pursuit).
+  // Find-or-create the pursuit an incoming run belongs to (R4 #4 hardened):
+  //  · An explicit pursuit_id that cannot be resolved is a hard 404 — NEVER a name fallback
+  //    (a fallback silently reattaches a revision to whatever shares the name).
+  //  · norm_name follows the CURRENT name (a rename updates it), so a stale creation-time key
+  //    can never merge a new pursuit into a renamed one, and re-saving the current name never
+  //    splits. A rename that collides with another pursuit's name sets norm_name NULL — that
+  //    pursuit then attaches by id only.
+  //  · Creation is insert-first against the UNIQUE (tenant, norm_name) index with a conflict
+  //    reread, so concurrent first saves converge on one pursuit.
+  const httpErr = (status, msg) => { const e = new Error(msg); e.status = status; return e; };
   const resolvePursuit = async (rec, pursuitId) => {
+    const nn = normName(rec.project_name);
     if (pursuitId && UUID.test(pursuitId)) {
       const p = await getPursuit(pursuitId);
-      if (p) {
-        // the latest revision's descriptors become the pursuit's current descriptors
-        await patchPursuit(p.id, { name: rec.project_name, location: rec.location || p.location, client_type: rec.client_type || p.client_type, work_type: rec.work_type || p.work_type });
-        return p.id;
+      if (!p) throw httpErr(404, 'Pursuit not found — it may have been deleted. Start a new pursuit.');
+      // the latest revision's descriptors become the pursuit's current descriptors; the
+      // find-or-create key follows the rename (null on collision with another pursuit)
+      const rn = await patchPursuit(p.id, { name: rec.project_name, norm_name: nn, location: rec.location || p.location, client_type: rec.client_type || p.client_type, work_type: rec.work_type || p.work_type });
+      if (!rn.ok) {
+        const txt = await rn.text();
+        if (/23505|duplicate key/i.test(txt)) await patchPursuit(p.id, { name: rec.project_name, norm_name: null, location: rec.location || p.location });
+        else throw httpErr(rn.status, txt);
       }
+      return p.id;
     }
-    const nn = normName(rec.project_name);
-    const rf = await sb(`ryc_pursuits?tenant=eq.ryc&norm_name=eq.${encodeURIComponent(nn)}&select=id&limit=1`);
-    if (rf.ok) { const rows = await rf.json(); if (rows.length) return rows[0].id; }
     const rc = await sb('ryc_pursuits', {
       method: 'POST', headers: { 'Prefer': 'return=representation' },
       body: JSON.stringify({ tenant: 'ryc', name: rec.project_name, norm_name: nn, location: rec.location || null, client_type: rec.client_type || null, work_type: rec.work_type || null }),
     });
-    if (!rc.ok) return null;
-    const created = await rc.json();
-    return created[0] && created[0].id;
+    if (rc.ok) { const created = await rc.json(); return created[0] && created[0].id; }
+    const txt = await rc.text();
+    if (/23505|duplicate key/i.test(txt)) {
+      const rf = await sb(`ryc_pursuits?tenant=eq.ryc&norm_name=eq.${encodeURIComponent(nn)}&select=id&limit=1`);
+      if (rf.ok) { const rows = await rf.json(); if (rows.length) return rows[0].id; }
+    }
+    throw httpErr(502, 'Pursuit resolution failed: ' + txt.slice(0, 200));
   };
 
   try {
@@ -85,12 +100,27 @@ export default async function handler(req, res) {
       for (const f of SAVE_FIELDS) if (src[f] !== undefined && src[f] !== null) rec[f] = src[f];
       if (!rec.project_name) return res.status(400).json({ error: 'project_name required' });
       if (typeof rec.estimator === 'string') rec.estimator = rec.estimator.slice(0, 40);
-      // Every run belongs to a pursuit: the open one (revision — survives renames), an existing
-      // one with the same normalized name, or a freshly created one. Best-effort: a pursuit
-      // failure never blocks saving the run itself.
-      let pursuitId = null;
-      try { pursuitId = await resolvePursuit(rec, String(req.body.pursuit_id || '')); } catch {}
-      if (pursuitId) rec.pursuit_id = pursuitId;
+      // Every run belongs to a pursuit — FAIL CLOSED (R4 #5): a revision outside the identity
+      // spine cannot inherit workflow, quotes, award, or BC state, so if pursuit resolution
+      // fails the save fails visibly instead of inserting an orphan.
+      let pursuitId;
+      try { pursuitId = await resolvePursuit(rec, String(req.body.pursuit_id || '')); }
+      catch (e) { return res.status(e.status || 502).json({ error: e.message }); }
+      if (!pursuitId) return res.status(502).json({ error: 'Pursuit resolution failed — estimate not saved. Retry the save.' });
+      rec.pursuit_id = pursuitId;
+      // Revision validation is ATOMIC with the run insert (R4 #1) — it rides in the same row
+      // write, so a gated estimate can never exist as a reopenable revision without its gate.
+      const v = req.body.validation;
+      if (v && typeof v === 'object') {
+        rec.workflow = { validation: {
+          gated: !!v.gated,
+          issues: Array.isArray(v.issues) ? v.issues.slice(0, 20) : [],
+          exclusions: Array.isArray(v.exclusions) ? v.exclusions.slice(0, 20) : [],
+          ranges: Number(v.ranges) || 0,
+          stated: v.stated && typeof v.stated === 'object' ? { low: Number(v.stated.low) || null, mid: Number(v.stated.mid) || null, high: Number(v.stated.high) || null } : null,
+          validator: String(v.validator || '').slice(0, 20),
+        } };
+      }
       const r = await sb('ryc_estimates', {
         method: 'POST',
         headers: { 'Prefer': 'return=representation' },
@@ -145,10 +175,16 @@ export default async function handler(req, res) {
       if (!onPursuit && !UUID.test(id)) return res.status(400).json({ error: 'Bad id' });
       const wf = req.body.workflow;
       if (wf === undefined || wf === null || typeof wf !== 'object') return res.status(400).json({ error: 'workflow object required' });
-      // Read-merge-write (Codex #8): the award link and its audit trail are server-owned facts
-      // written only by link_award. A stale client object (quote typing racing a link) must not
-      // erase them — if the stored row carries an award the incoming object lacks, keep the
-      // stored award (and the won stage it implies, since the stale object also predates it).
+      // Server-owned facts (R4 #3): award and award_events are written ONLY by link_award.
+      // Generic workflow writes can neither set nor clear them — incoming copies are STRIPPED
+      // unconditionally and the stored values overlaid, so a stale client object can no longer
+      // resurrect an unlinked award or roll back the audit trail (the round-3 fix only guarded
+      // the omitted-key case; a stale object normally still carries its old keys).
+      // Quotes are merged per run-key (union, incoming wins per key) so one revision's write
+      // can't erase another revision's persisted quotes. Remaining known seam: stage/checklist/
+      // due date stay last-write-wins across clients — single-estimator reality; typed patches
+      // + versioning come with the one-shell work.
+      delete wf.award; delete wf.award_events;
       try {
         const r0 = onPursuit
           ? await sb(`ryc_pursuits?id=eq.${pid}&tenant=eq.ryc&select=workflow&limit=1`)
@@ -157,8 +193,11 @@ export default async function handler(req, res) {
           const rows0 = await r0.json();
           const cur = rows0.length && rows0[0].workflow && typeof rows0[0].workflow === 'object' ? rows0[0].workflow : null;
           if (cur) {
-            if (cur.award && !wf.award) { wf.award = cur.award; if (cur.stage === 'won') wf.stage = 'won'; }
-            if (cur.award_events && !wf.award_events) wf.award_events = cur.award_events;
+            if (cur.award) { wf.award = cur.award; if (cur.stage === 'won') wf.stage = 'won'; }
+            if (cur.award_events) wf.award_events = cur.award_events;
+            const keyedMaps = q => q && typeof q === 'object' && !Object.values(q).every(x => typeof x === 'number');
+            if (keyedMaps(cur.quotes) && keyedMaps(wf.quotes)) wf.quotes = Object.assign({}, cur.quotes, wf.quotes);
+            else if (keyedMaps(cur.quotes) && !wf.quotes) wf.quotes = cur.quotes;
           }
         }
       } catch { /* merge is best-effort — a failed read falls back to plain replace */ }
@@ -350,23 +389,52 @@ export default async function handler(req, res) {
       const orphans = await r.json();
       const groups = {};
       for (const run of orphans) (groups[normName(run.project_name)] = groups[normName(run.project_name)] || []).push(run);
+      // Per-field merge across the group (R4 #7) — the old "newest run donates everything"
+      // rule let a blank re-generation supersede an older revision's real submitted stage,
+      // due date, quotes, or award. Fields now merge deliberately; disagreements are reported.
+      const STAGE_RANK = { takeoff: 0, out_to_bid: 1, pricing: 2, submitted: 3, won: 4, lost: 4 };
+      const buildMergedWf = (runs) => {
+        const wfs = runs.map(r => (r.workflow && typeof r.workflow === 'object') ? r.workflow : {});
+        const merged = { stage: 'takeoff', checklist: {} };
+        const conflicts = [];
+        // stage: the most advanced (newest wins a tie) — a blank takeoff never demotes submitted
+        let best = -1;
+        for (let i = runs.length - 1; i >= 0; i--) { const s = wfs[i].stage; if (s && (STAGE_RANK[s] ?? 0) >= best) { best = STAGE_RANK[s] ?? 0; merged.stage = s; } }
+        // latest non-empty scalar fields
+        for (const f of ['due_date', 'coverage', 'stage_unresolved']) { const w = wfs.find(x => x[f] !== undefined && x[f] !== null && x[f] !== ''); if (w) merged[f] = w[f]; }
+        // checklist: newest non-empty per item
+        for (const w of wfs.slice().reverse()) if (w.checklist && typeof w.checklist === 'object') Object.assign(merged.checklist, w.checklist);
+        // quotes: union of run-keyed maps; legacy flat maps become that run's keyed entry
+        const q = {};
+        runs.forEach((r, i) => { const rq = wfs[i].quotes; if (!rq || typeof rq !== 'object') return;
+          if (Object.values(rq).every(x => typeof x === 'number')) q[r.id] = rq; else Object.assign(q, rq); });
+        if (Object.keys(q).length) merged.quotes = q;
+        // award: unique across the whole group or it's a conflict (never silently choose)
+        const awards = wfs.filter(w => w.award && w.award.job_no).map(w => w.award);
+        const distinct = [...new Set(awards.map(a => String(a.job_no)))];
+        if (distinct.length === 1) merged.award = awards[0];
+        else if (distinct.length > 1) conflicts.push('conflicting awards: ' + distinct.join(', '));
+        const ev = wfs.flatMap(w => Array.isArray(w.award_events) ? w.award_events : []);
+        if (ev.length) merged.award_events = ev.slice(-20);
+        return { merged, conflicts };
+      };
       const report = [];
       for (const nn of Object.keys(groups)) {
         const runs = groups[nn]; // newest first
         const latest = runs[0];
-        const entry = { norm_name: nn, name: latest.project_name, runs: runs.length, dry };
+        const { merged, conflicts } = buildMergedWf(runs);
+        const entry = { norm_name: nn, name: latest.project_name, runs: runs.length, dry, conflicts };
+        if (conflicts.length) { entry.skipped = 'conflict — resolve manually, group not migrated'; report.push(entry); continue; }
         if (!dry) {
           // reuse an existing pursuit with this norm_name if one exists (idempotency)
           let pid = null;
           const rf = await sb(`ryc_pursuits?tenant=eq.ryc&norm_name=eq.${encodeURIComponent(nn)}&select=id&limit=1`);
           if (rf.ok) { const rows = await rf.json(); if (rows.length) pid = rows[0].id; }
           if (!pid) {
-            const wf = latest.workflow && typeof latest.workflow === 'object' ? JSON.parse(JSON.stringify(latest.workflow)) : { stage: 'takeoff', checklist: {} };
-            delete wf.validation;   // revision-scoped — stays on the run row
             const bcRun = runs.find(x => x.bc_url || x.bc_project_id) || {};
             const rc = await sb('ryc_pursuits', {
               method: 'POST', headers: { 'Prefer': 'return=representation' },
-              body: JSON.stringify({ tenant: 'ryc', name: latest.project_name, norm_name: nn, location: latest.location || null, client_type: latest.client_type || null, work_type: latest.work_type || null, workflow: wf, bc_project_id: bcRun.bc_project_id || null, bc_url: bcRun.bc_url || null }),
+              body: JSON.stringify({ tenant: 'ryc', name: latest.project_name, norm_name: nn, location: latest.location || null, client_type: latest.client_type || null, work_type: latest.work_type || null, workflow: merged, bc_project_id: bcRun.bc_project_id || null, bc_url: bcRun.bc_url || null }),
             });
             if (!rc.ok) return res.status(rc.status).json({ error: await rc.text(), partial: report });
             pid = (await rc.json())[0].id;
@@ -392,11 +460,18 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // Deletes an EMPTY pursuit only (no revisions referencing it) — used for cleanup; a
-    // pursuit with history is never deletable through this API.
+    // Deletes an EMPTY pursuit only — and never one that has award history (R4 #9: deleting
+    // the revisions one-by-one and then the pursuit was a two-step bypass of the immutability
+    // guarantee; award_events survive unlink precisely so this check can see them).
     if (action === 'delete_pursuit') {
       const pid = String(req.body.pursuit_id || '');
       if (!UUID.test(pid)) return res.status(400).json({ error: 'Bad id' });
+      const p = await getPursuit(pid);
+      if (!p) return res.status(404).json({ error: 'Not found' });
+      const wfp = p.workflow || {};
+      if (wfp.award || (Array.isArray(wfp.award_events) && wfp.award_events.length)) {
+        return res.status(409).json({ error: 'Pursuit has award history — it is part of the win/loss record and cannot be deleted.' });
+      }
       const rr = await sb(`ryc_estimates?pursuit_id=eq.${pid}&select=id&limit=1`);
       if (rr.ok && (await rr.json()).length) return res.status(409).json({ error: 'Pursuit still has revisions — delete them first.' });
       const r = await sb(`ryc_pursuits?id=eq.${pid}&tenant=eq.ryc`, { method: 'DELETE' });

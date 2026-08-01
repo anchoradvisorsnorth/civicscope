@@ -68,16 +68,18 @@ function projMarginSuspect(job){
   var b=job.budget||{};
   if(b.projCostSuspect) return true;
   if(!(b.projectedCost>0)) return false;
-  // Structural checks (Codex #5) — the producer's single >130%-of-budget threshold only
-  // catches the late-job overstatement tail. Live data probe 2026-08-01:
-  //  · early jobs carried projections at 16–75% of revised budget (commitments not yet let),
-  //    reading as fake 50–94% margins that graded green and inflated the headline to 17.7%;
-  //  · a projection below cost ALREADY RECORDED is invalid on its face.
-  // A projection materially below revised budget means incomplete buyout, not margin — trust
-  // only projections in the [90%, 130%] band of budget and above cost-to-date.
+  // Structural checks (Codex #5, tightened R4) — trust only projections in the [90%, 130%]
+  // band of revised budget AND at/above cost-to-date. Live data probe 2026-08-01: early jobs
+  // carried projections at 16–75% of revised budget (commitments not yet let → fake 50–94%
+  // margins); a projection below cost already recorded is invalid on its face. BOTH bounds
+  // are enforced here in the consumer (R4 judgment-call fix: the upper bound previously rode
+  // only on the producer's projCostSuspect flag, so older payloads without it bypassed).
   var ctd=(job.costToDate!=null)?job.costToDate:b.direct;
+  // Named tolerance: cost-to-date is Foundation's posted job cost while the projection is
+  // Procore's ERP view, pulled on different nightly schedules — a ≤2% dip is cross-system
+  // timing skew on a finishing job, not a structural violation.
   if(ctd>0 && b.projectedCost<ctd*0.98) return true;
-  if(b.revised>0 && b.projectedCost<b.revised*0.9) return true;
+  if(b.revised>0 && (b.projectedCost<b.revised*0.9 || b.projectedCost>b.revised*1.3)) return true;
   return false;
 }
 
@@ -214,7 +216,8 @@ function gainFadeFor(j){
   // SAME figure the Portfolio row grades (Codex #4: gain/fade previously reconstructed its own
   // projection from budget growth, so the fade table and the row disagreed). Budget-growth
   // reconstruction remains the fallback where no trusted ERP projection exists.
-  var projCost=(!projMarginSuspect(j)&&b.projectedCost>0)?b.projectedCost
+  var src=(!projMarginSuspect(j)&&b.projectedCost>0)?"erp":"recon";
+  var projCost=(src==="erp")?b.projectedCost
     :asbidCost+((b.revised>0&&b.original>0)?(b.revised-b.original):0);
   var asbid=(asbidContract-asbidCost)/asbidContract*100;
   var curMargin=(curContract-projCost)/curContract*100;
@@ -225,7 +228,11 @@ function gainFadeFor(j){
   var costToDate=f?f.totalCosts:null;
   var burnPct=(costToDate!=null&&projCost>0)?costToDate/projCost*100:null;
   var burnRisk=burnPct!=null&&pctc!=null&&pctc>=GF_BURN_MINPCT&&(burnPct-pctc)>=GF_BURN_PTS;
-  return {job:j.projectNumber||"",name:j.name||(f&&f.description)||"",pm:pmName(j)||"(no PM)",pct:pctc,gfPts:gfPts,gfDollars:gfDollars,burnRisk:burnRisk,asbidMargin:asbid,curMargin:curMargin};
+  // src: "erp" = trusted row-level projection (gradable); "recon" = budget-growth fallback —
+  // a SCENARIO, not a graded financial signal. Alarm surfaces must include only erp rows
+  // (Codex R4 #6: a suspect projection was swapped for a reconstruction and then presented
+  // as a real fade in the priority queue / Margin & Risk / Executive Brief).
+  return {job:j.projectNumber||"",name:j.name||(f&&f.description)||"",pm:pmName(j)||"(no PM)",pct:pctc,gfPts:gfPts,gfDollars:gfDollars,burnRisk:burnRisk,asbidMargin:asbid,curMargin:curMargin,src:src};
 }
 function gainFadeRows(){
   var rows=[];

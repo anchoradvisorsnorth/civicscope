@@ -100,7 +100,9 @@ function renderCommand(){
   var billRows=billAll.slice(0,10).map(function(r){ var bits=[]; if(r.under>0) bits.push("needs invoicing <b>"+fmtCompact(r.under)+"</b>"+(r.exact?"":" <span style=\"color:var(--faint)\">(bid-est)</span>")); if(r.overdue>0) bits.push("overdue AR <b>"+fmtCompact(r.overdue)+"</b>"); return row("info",r.name||"",r.job,bits.join(" · ")+" · "+esc(r.pm),null,""); }).join("");
   var billBadge=!haveFnd?"n/a":(billCount>10?"top 10 of "+billCount:String(billCount));
   // margin fades
-  var fades=gainFadeRows().filter(function(r){return r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;}).slice(0,8);
+  // Alarm surfaces include ONLY erp-sourced (trusted-projection) rows — a budget-growth
+  // reconstruction is a scenario, not a graded fade (Codex R4 #6).
+  var fades=gainFadeRows().filter(function(r){return r.src==="erp"&&r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;}).slice(0,8);
   var fadeRows=fades.map(function(r){ return row("fade",r.name,r.job,"fading <b>"+r.gfPts.toFixed(1)+" pts</b>"+(r.burnRisk?" · cost-burn risk":"")+" · "+esc(r.pm),fmtCompact(r.gfDollars),r.gfDollars<0?"bad":""); }).join("");
   // client follow-ups (Buildr)
   var bf=buildrFollowUps();
@@ -402,9 +404,11 @@ function renderMargin(){
 
   /* gain/fade */
   var gf=gainFadeRows().sort(function(a,b){return a.gfPts-b.gfPts;});
-  var fading=gf.filter(function(r){return r.gfPts<=-GF_MOVE_PTS;});
+  // Graded fade/gain counts and dollars come from trusted ERP rows only; recon rows render
+  // in the table as ungraded "≈ budget-based" scenarios (Codex R4 #6).
+  var fading=gf.filter(function(r){return r.src==="erp"&&r.gfPts<=-GF_MOVE_PTS;});
   var fadeDollars=fading.reduce(function(s,r){return s+r.gfDollars;},0);
-  var gaining=gf.filter(function(r){return r.gfPts>=GF_MOVE_PTS;});
+  var gaining=gf.filter(function(r){return r.src==="erp"&&r.gfPts>=GF_MOVE_PTS;});
 
   /* buyout rollup (Phase 3b data) */
   var bo=jobs.filter(function(j){return j.commitments&&j.budget&&((j.budget.revised>0)||(j.budget.original>0));})
@@ -431,11 +435,14 @@ function renderMargin(){
   /* gain/fade table */
   function pcls(v){ return v==null?"m-m":v<=-GF_MOVE_PTS?"m-r":v>=GF_MOVE_PTS?"m-g":"m-m"; }
   var gfHtml=gf.map(function(r){
-    return "<tr"+rowAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.job)+" · "+esc(r.pm)+"</div></td>"
+    // recon rows are ungraded scenarios: muted, tagged, never coloured as a real fade/gain
+    var erp=r.src==="erp";
+    var tag=erp?"":" <span class=\"m-m\" title=\"Projected cost unverified — this figure is reconstructed from budget growth, a scenario, not a graded forecast\">≈ budget-based</span>";
+    return "<tr"+rowAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.job)+" · "+esc(r.pm)+tag+"</div></td>"
       +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
-      +"<td class=\"r\">"+r.asbidMargin.toFixed(1)+"%</td><td class=\"r\">"+r.curMargin.toFixed(1)+"%</td>"
-      +"<td class=\"r\"><span class=\""+pcls(r.gfPts)+"\">"+(r.gfPts>=0?"+":"")+r.gfPts.toFixed(1)+"</span></td>"
-      +"<td class=\"r\"><span class=\""+pcls(r.gfDollars>=0?1.1:-1.1)+"\">"+fmtCompact(r.gfDollars)+"</span></td>"
+      +"<td class=\"r\">"+r.asbidMargin.toFixed(1)+"%</td><td class=\"r\">"+(erp?r.curMargin.toFixed(1)+"%":"<span class=\"m-m\">≈"+r.curMargin.toFixed(1)+"%</span>")+"</td>"
+      +"<td class=\"r\"><span class=\""+(erp?pcls(r.gfPts):"m-m")+"\">"+(r.gfPts>=0?"+":"")+r.gfPts.toFixed(1)+"</span></td>"
+      +"<td class=\"r\"><span class=\""+(erp?pcls(r.gfDollars>=0?1.1:-1.1):"m-m")+"\">"+fmtCompact(r.gfDollars)+"</span></td>"
       +"<td>"+(r.burnRisk?"<span class=\"m-r\">⚠ burn</span>":"<span class=\"m-m\">—</span>")+"</td></tr>";
   }).join("");
   var gfTable=gf.length
@@ -1036,7 +1043,7 @@ function renderBrief(){
   var closeouts=lights.filter(function(x){return isCloseoutOnly(x.j);});
   var closeoutSet=new Set(closeouts.map(function(x){return x.j;}));
   var reds=lights.filter(function(x){return x.sl.color==="red"&&!closeoutSet.has(x.j);});
-  var fades=gainFadeRows().filter(function(r){return r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;});
+  var fades=gainFadeRows().filter(function(r){return r.src==="erp"&&r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;});
   var risks=[];
   reds.forEach(function(x){ risks.push({tag:"red",tl:"Risk",name:x.j.name,text:x.sl.reasons.filter(function(r){return r.level==="red";}).map(function(r){return r.text;}).join(" · ")+" — "+(pmName(x.j)||"(no PM)"),val:fmtCompact(x.j.contractValue)}); });
   closeouts.forEach(function(x){ var f=x.j.foundation||{}; risks.push({tag:"co",tl:"Closeout",name:x.j.name,text:daysPastFinish(x.j)+"d past finish, "+fmtCompact(f.retainage||0)+" retainage held — close out to release cash",val:fmtCompact(x.j.contractValue)}); });
@@ -1097,7 +1104,10 @@ function drawerHtml(j){
   var reasons=sl.reasons.map(function(r){return r.text;}).join(" · ");
   var bill=billingByJob()[String(j.projectNumber)]||null;
   var gf=gainFadeFor(j);
-  var mtd=projectedMargin(j), cm=asBidMargin(j), burn=contractLessCostToDatePct(j);
+  // Suspect-aware here too (Codex R4 #6: the drawer showed a raw fake-high "Proj. margin"
+  // while the Portfolio row for the same job was ungraded, and its ⚑ checked only the
+  // producer flag). One trust rule everywhere: projMarginSuspect().
+  var mtdSus=projMarginSuspect(j), mtd=mtdSus?null:projectedMargin(j), cm=asBidMargin(j), burn=contractLessCostToDatePct(j);
   var dpf=daysPastFinish(j);
   var pAge=ageTxt(activeData&&activeData.refreshed), fAge=ageTxt(foundationData&&foundationData.refreshed), aAge=ageTxt(arData&&arData.refreshed);
 
@@ -1120,9 +1130,9 @@ function drawerHtml(j){
     // burn belongs here, beside the dollars it describes — not masquerading as margin
     +stat("Cost to date",j.costToDate!=null?fmtCompact(j.costToDate):"—",(f?"Foundation actuals":"Procore direct")+(burn!=null?" · "+(100-burn).toFixed(0)+"% of contract spent":""))
     +stat("Complete",j.pctComplete!=null?Math.round(j.pctComplete)+"%":"—",dpf>0?dpf+"d past finish":"")
-    +stat("Proj. margin",mtd!=null?mtd.toFixed(1)+"%":"—",(cm!=null?"as-bid "+cm.toFixed(1)+"%":"")+(mtd!=null&&cm!=null?" · "+((mtd-cm)>=0?"+":"")+(mtd-cm).toFixed(1)+" pts":""))
-    +stat("Proj. cost (ERP)",b.projectedCost>0?fmtCompact(b.projectedCost):"—",b.projCostSuspect?"⚑ verify":"")
-    +stat("Gain / fade",gf?(gf.gfPts>=0?"+":"")+gf.gfPts.toFixed(1)+" pts":"—",gf?fmtCompact(gf.gfDollars)+(gf.burnRisk?" · cost-burn risk":""):"insufficient data")
+    +stat("Proj. margin",mtd!=null?mtd.toFixed(1)+"%":(mtdSus?"⚑":"—"),mtdSus?"projection unverified — not graded":((cm!=null?"as-bid "+cm.toFixed(1)+"%":"")+(mtd!=null&&cm!=null?" · "+((mtd-cm)>=0?"+":"")+(mtd-cm).toFixed(1)+" pts":"")))
+    +stat("Proj. cost (ERP)",b.projectedCost>0?fmtCompact(b.projectedCost):"—",mtdSus&&b.projectedCost>0?"⚑ verify — outside trust band or below cost to date":"")
+    +stat("Gain / fade",gf?(gf.gfPts>=0?"+":"")+gf.gfPts.toFixed(1)+" pts":"—",gf?((gf.src==="recon"?"≈ budget-based scenario · ":"")+fmtCompact(gf.gfDollars)+(gf.burnRisk?" · cost-burn risk":"")):"insufficient data")
     +"</div></div>";
 
   /* Procore vs Foundation reconciliation */

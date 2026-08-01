@@ -121,7 +121,7 @@
 <div id="app">
   <header>
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.12.0 · durable pursuit entity (runs = revisions) · plan takeoff · spec-book scope · market sub-pricing · BC loader · award link → Foundation</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.12.1 · durable pursuit entity (hardened: atomic validation, fail-closed saves, locked BC proxy) (runs = revisions) · plan takeoff · spec-book scope · market sub-pricing · BC loader · award link → Foundation</div></div>
   </header>
 
   <div class="estnav">
@@ -1000,7 +1000,7 @@ async function bcPreview(btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Building preview…'; }
   try {
     const r = await fetch('/api/ryc-bc-load', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'preview', projectName: (window._lastInp && window._lastInp.name) || 'Untitled', divisions: bcDivisions() }) });
+      body: JSON.stringify({ pw: 'ryc2026', mode: 'preview', projectName: (window._lastInp && window._lastInp.name) || 'Untitled', divisions: bcDivisions() }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || d.detail || ('HTTP ' + r.status));
     const rows = d.packages.map((p, i) => {
@@ -1043,7 +1043,7 @@ async function bcCreate(btn) {
     (window._lastInp && window._lastInp.loc) ? 'Location: ' + window._lastInp.loc : null].filter(Boolean).join('\n') || null;
   try {
     const r = await fetch('/api/ryc-bc-load', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'create', projectName: name, bidsDueAt: due, description: desc, divisions: chosen }) });
+      body: JSON.stringify({ pw: 'ryc2026', mode: 'create', projectName: name, bidsDueAt: due, description: desc, divisions: chosen }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || d.detail || ('HTTP ' + r.status));
     // Remember the draft so this estimate can't be loaded to BC twice (survives reopen from history).
@@ -1147,6 +1147,12 @@ function awardCandidates(jobs) {
     && !AWARD_JUNK.test((j.description || '') + ' ' + (j.jobNo || ''))
     && !linked.has(String(j.jobNo)));
 }
+// Project-type vocabulary that two UNRELATED jobs routinely share ("wastewater treatment
+// plant" matched DeMotte to Huntertown at 60% name-Jaccard — Codex R4 #8). These still count
+// toward the score, but they can never be the ANCHOR: a suggestion needs at least one piece
+// of real identity evidence — a distinctive name token, customer/location agreement, or a
+// close contract value.
+const GENERIC_TERMS = new Set(['wastewater', 'treatment', 'plant', 'water', 'sewer', 'sanitary', 'storm', 'system', 'facility', 'building', 'station', 'street', 'road', 'park', 'school', 'elementary', 'middle', 'high', 'addition', 'renovation', 'replacement', 'upgrade', 'phase', 'garage', 'fire', 'public', 'works', 'dept', 'department', 'municipal']);
 function rankFoundationMatches(name, jobs) {
   const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
     .filter(w => w.length > 2 && !['the', 'and', 'for', 'new', 'project', 'improvements', 'inc', 'llc', 'town', 'city', 'county'].includes(w));
@@ -1161,8 +1167,10 @@ function rankFoundationMatches(name, jobs) {
     const custScore = Math.max(jac(A, C), jac(L, C), jac(L, D));
     const contract = j.currentContract > 0 ? j.currentContract : (j.originalContract || 0);
     const valScore = (val && contract > 0) ? Math.max(0, 1 - Math.abs(Math.log(contract / val))) : 0;
-    return { job: j, nameScore, custScore, valScore, score: nameScore * 0.5 + custScore * 0.3 + valScore * 0.2 };
-  }).filter(x => x.score >= 0.22 && (x.nameScore > 0 || x.custScore > 0))
+    let distinct = 0; for (const t of A) if (!GENERIC_TERMS.has(t) && D.has(t)) distinct++;
+    const anchored = distinct > 0 || custScore > 0 || valScore >= 0.5;
+    return { job: j, nameScore, custScore, valScore, anchored, score: nameScore * 0.5 + custScore * 0.3 + valScore * 0.2 };
+  }).filter(x => x.anchored && x.score >= 0.22 && (x.nameScore > 0 || x.custScore > 0))
     .sort((a, b) => b.score - a.score).slice(0, 6);
 }
 async function openAwardPicker() {
@@ -1178,7 +1186,7 @@ async function openAwardPicker() {
     const opt = j => `<option value="${esc(j.jobNo)}">${esc(j.jobNo)} — ${esc((j.description || '').slice(0, 60))}${j.customerName ? ' · ' + esc(j.customerName.slice(0, 30)) : ''}</option>`;
     const evd = x => [`name ${Math.round(x.nameScore * 100)}%`, x.custScore ? `customer ${Math.round(x.custScore * 100)}%` : null, x.valScore ? `value ${Math.round(x.valScore * 100)}%` : null].filter(Boolean).join(' · ');
     const suggested = ranked.length
-      ? `<div class="note" style="margin-bottom:4px">Confident matches for <strong>${esc(name)}</strong> (weak candidates suppressed):</div>`
+      ? `<div class="note" style="margin-bottom:4px">Possible matches for <strong>${esc(name)}</strong> (each needs a real identity anchor — verify on the confirm screen):</div>`
         + ranked.map(x => `<div class="ck-row" style="padding:5px 0"><span>${esc(x.job.jobNo)} — ${esc((x.job.description || '').slice(0, 50))}<span class="note"> · ${Math.round(x.score * 100)}% (${evd(x)})${x.job.pmName ? ' · PM ' + esc(x.job.pmName) : ''}</span></span><div class="ck-actions"><button class="btn-sm" onclick="linkAward('${esc(x.job.jobNo)}')">Link…</button></div></div>`).join('')
       : `<div class="note">No confident match among Foundation's ${jobs.length} eligible active jobs — the job may not be opened yet, or pick from the full list (you'll confirm the details before anything is recorded).</div>`;
     el.innerHTML = suggested
@@ -1957,7 +1965,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.12.0';
+const TOOL_VERSION = 'v1.12.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -1997,8 +2005,11 @@ async function saveRun(inp, p, batches, durationMs) {
     validator: TOOL_VERSION,
   };
   try {
+    // Validation travels IN the save request and the server writes it in the same row insert
+    // (Codex R4 #1) — there is no second best-effort write whose silent failure could strand a
+    // gated estimate as a legacy-looking, ungated revision.
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'save', record, pursuit_id: window._pursuitId || null }) });
+      body: JSON.stringify({ pw: 'ryc2026', action: 'save', record, pursuit_id: window._pursuitId || null, validation }) });
     const d = await r.json().catch(() => null);
     const meta = document.getElementById('resMeta');
     if (r.ok && d && d.ok) {
@@ -2011,13 +2022,10 @@ async function saveRun(inp, p, batches, durationMs) {
         window._workflow = d.pursuit_workflow;
         renderPursuit();
       }
-      // revision-scoped validation → run row
-      fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pw: 'ryc2026', action: 'set_workflow', id: d.id, workflow: { validation } }) }).catch(() => {});
       persistWF();   // pursuit-level workflow
       if (meta) meta.textContent += ' · saved to history ✓';
     }
-    else if (meta) meta.textContent += ' · history save failed';
+    else if (meta) meta.textContent += ' · history save failed' + (d && d.error ? ' — ' + String(d.error).slice(0, 80) : '');
   } catch { const meta = document.getElementById('resMeta'); if (meta) meta.textContent += ' · history save failed'; }
 }
 let historyCache = null;
