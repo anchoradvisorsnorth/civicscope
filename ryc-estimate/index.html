@@ -121,7 +121,7 @@
 <div id="app">
   <header>
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.11.1 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow · award link → Foundation</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.12.0 · durable pursuit entity (runs = revisions) · plan takeoff · spec-book scope · market sub-pricing · BC loader · award link → Foundation</div></div>
   </header>
 
   <div class="estnav">
@@ -569,8 +569,14 @@ async function runEstimate() {
 
   const bm = segBenchmarks(inp);
   setLoading(true);
-  window._bcLoaded = null; // fresh estimate — no BC draft linked yet
-  window._workflow = defaultWF(); window._wfNeedsMigration = false;
+  // A generation inside an OPEN pursuit is a REVISION: the pursuit keeps its identity, its
+  // workflow (stage, due date, award), and its BC linkage — even if the name was edited
+  // (that's a rename, not a new pursuit). Only a truly fresh start resets.
+  if (!window._pursuitId) {
+    window._bcLoaded = null;
+    window._workflow = defaultWF();
+  }
+  window._wfNeedsMigration = false;
   const runStart = Date.now();
   let runBatches = uploadedFiles.length ? splitIntoBatches(uploadedFiles).length : 0;
   try {
@@ -1044,9 +1050,9 @@ async function bcCreate(btn) {
     const bcUrl = d.url || null;
     const bcId = bcUrl ? ((bcUrl.match(/projects\/([a-zA-Z0-9]+)/) || [])[1] || null) : null;
     window._bcLoaded = { url: bcUrl, id: bcId };
-    if (window._runId && (bcUrl || bcId)) {
+    if ((window._runId || window._pursuitId) && (bcUrl || bcId)) {
       fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pw: 'ryc2026', action: 'link_bc', id: window._runId, bc_project_id: bcId, bc_url: bcUrl }) })
+        body: JSON.stringify({ pw: 'ryc2026', action: 'link_bc', pursuit_id: window._pursuitId || null, id: window._runId || null, bc_project_id: bcId, bc_url: bcUrl }) })
         .then(res => { if (!res.ok) console.warn('BC linkage not saved'); }).catch(() => {});
       historyCache = null; // force history refresh so the ↗BC badge shows
     }
@@ -1094,12 +1100,17 @@ function syncCoverage() {
   // Persist the quote VALUES alongside the count. Previously only {n,m} was stored while the
   // amounts lived in an in-memory object that renderResults() cleared on reopen — so the desk
   // could claim "5 / 12 priced" while the reopened pursuit showed 12 blank inputs and 0 of 12.
-  // A coverage claim the pursuit can't substantiate is the same class of lie as the $100K drift.
+  // Quotes attach to a REVISION's packages (their indexes are that revision's division list),
+  // so they are keyed by run id inside the pursuit workflow; coverage {n,m} snapshots the
+  // revision being worked. Legacy flat {idx:val} shapes are upgraded on next write.
   const vals = {}; Object.keys(quotes || {}).forEach(k => { if (/^\d+$/.test(k) && quotes[k]) vals[k] = quotes[k]; });
-  const same = prev.n === q.n && prev.m === q.m && JSON.stringify(wf.quotes || {}) === JSON.stringify(vals);
+  const keyed = (wf.quotes && typeof wf.quotes === 'object' && !Object.values(wf.quotes).every(v => typeof v === 'number')) ? wf.quotes : {};
+  const rid = window._runId || '_';
+  const same = prev.n === q.n && prev.m === q.m && JSON.stringify(keyed[rid] || {}) === JSON.stringify(vals);
   if (same) return;
+  keyed[rid] = vals;
   wf.coverage = { n: q.n, m: q.m };
-  wf.quotes = vals;
+  wf.quotes = keyed;
   persistWF();
 }
 /* ===== Award link — the identity spine between the Desk and Command ==================
@@ -1124,9 +1135,9 @@ async function loadFoundationJobs() {
 const AWARD_JUNK = /\btest\b|\btraining\b|\bwarranty\b|\btemplate\b|\bdo not use\b/i;
 function linkedJobNos() {
   const s = new Set();
-  (historyCache || []).forEach(r => {
-    const a = r.workflow && r.workflow.award;
-    if (a && a.job_no && r.id !== window._runId) s.add(String(a.job_no));
+  ((historyCache && historyCache.pursuits) || []).forEach(p => {
+    const a = p.workflow && p.workflow.award;
+    if (a && a.job_no && p.id !== window._pursuitId) s.add(String(a.job_no));
   });
   return s;
 }
@@ -1193,7 +1204,7 @@ async function linkAward(jobNo) {
   if (!confirm(msg)) return;
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', id: window._runId, job_no: jobNo,
+      body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', pursuit_id: window._pursuitId || null, id: window._runId, job_no: jobNo,
         description: j ? j.description : null, customer: j ? j.customerName : null }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
@@ -1207,7 +1218,7 @@ async function unlinkAward() {
   if (!window._runId || !confirm('Unlink this pursuit from its Foundation job?\n\nThe stage it held before the link will be restored — a corrected mistake must not stay recorded as a win.')) return;
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', id: window._runId, unlink: true }) });
+      body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', pursuit_id: window._pursuitId || null, id: window._runId, unlink: true }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
     window._workflow = d.workflow; historyCache = null; renderPursuit();
@@ -1232,13 +1243,18 @@ function daysToDue(wf) {
 let _wfTimer = null, _wfChain = Promise.resolve();
 function persistWF() {
   const wf = curWF(); wf.updated_at = new Date().toISOString();
-  if (Array.isArray(historyCache)) { const row = historyCache.find(r => r.id === window._runId); if (row) row.workflow = wf; }
-  if (!window._runId) return;
-  const rid = window._runId;
+  if (historyCache && Array.isArray(historyCache.pursuits)) {
+    const row = historyCache.pursuits.find(r => r.id === window._pursuitId);
+    if (row) row.workflow = wf;
+  }
+  // Pursuit-level state persists on the PURSUIT (the immutable identity); a run with no
+  // pursuit yet (unsaved estimate) has nothing durable to write to.
+  if (!window._pursuitId) return;
+  const pid = window._pursuitId;
   clearTimeout(_wfTimer);
   _wfTimer = setTimeout(() => {
-    if (window._runId !== rid) return;   // pursuit changed while the write was pending
-    const body = JSON.stringify({ pw: 'ryc2026', action: 'set_workflow', id: rid, workflow: curWF() });
+    if (window._pursuitId !== pid) return;   // pursuit changed while the write was pending
+    const body = JSON.stringify({ pw: 'ryc2026', action: 'set_workflow', pursuit_id: pid, workflow: curWF() });
     _wfChain = _wfChain.then(async () => {
       try {
         const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
@@ -1355,8 +1371,8 @@ const DESK_BUCKETS = [
   { key: 'submitted', label: 'Submitted', chip: 'ck-received', hint: 'awaiting award' },
   { key: 'closed', label: 'Closed', chip: 'ck-done', hint: 'won / lost' },
 ];
-function deskBucket(latest) {
-  const wf = latest.workflow || {};
+function deskBucket(wf) {
+  wf = wf || {};
   const st = wf.stage || 'takeoff';
   if (st === 'won' || st === 'lost') return 'closed';
   if (st === 'submitted') return 'submitted';
@@ -1367,7 +1383,7 @@ function deskBucket(latest) {
   return 'active';
 }
 function deskRow(p) {
-  const { latest, wf, runs, due } = p;
+  const { latest, wf, runs, due, pursuit } = p;
   const stageLabel = (WF_STAGES.find(s => s.key === p.stage) || {}).label || p.stage;
   const stageChip = p.stage === 'lost' ? `<span class="chip" style="background:#fee2e2;color:#991b1b">${stageLabel}</span>`
     : `<span class="chip ${p.stage === 'won' ? 'ck-received' : p.stage === 'submitted' ? 'ck-requested' : 'ck-open'}">${stageLabel}</span>`;
@@ -1387,12 +1403,13 @@ function deskRow(p) {
   let pre = it(ck.bonding, 'Bond') + it(ck.builders_risk, 'BR');
   if (ck.rfis && ck.rfis.items && ck.rfis.items.length) pre += `<span class="chip ${ck.rfis.status === 'answered' ? 'ck-received' : ck.rfis.status === 'sent' ? 'ck-requested' : 'ck-needed'}">${ck.rfis.items.length} RFI</span>`;
   if (ck.prebid_meeting && ck.prebid_meeting.date) pre += `<span class="chip ck-received">📅 ${esc(new Date(ck.prebid_meeting.date).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span>`;
-  if (latest.bc_url) pre += '<span class="chip ck-done" title="Loaded to BuildingConnected">↗BC</span>';
+  if ((pursuit && pursuit.bc_url) || latest.bc_url) pre += '<span class="chip ck-done" title="Loaded to BuildingConnected">↗BC</span>';
   // Awarded → carries its Foundation job number, the key Command knows it by.
   if (wf.award && wf.award.job_no) pre += `<span class="chip ck-received" title="Awarded — Foundation job ${esc(wf.award.job_no)}${wf.award.description ? ': ' + esc(wf.award.description) : ''}">🏗 ${esc(wf.award.job_no)}</span>`;
-  // A pursuit whose latest revision failed validation is visibly unverified on the board —
-  // its total is incomplete and its outward documents are blocked (Codex #1).
-  if (wf.validation && wf.validation.gated) pre = '<span class="chip ck-needed" title="Conceptual total not verified — parser could not price every package; bond / BR / BC documents are blocked. Re-run the estimate.">⚠ unverified</span>' + pre;
+  // Validation is revision-scoped: a pursuit whose LATEST revision failed validation is
+  // visibly unverified on the board — outward documents are blocked (Codex #1).
+  const lv = latest.workflow && latest.workflow.validation;
+  if (lv && lv.gated) pre = '<span class="chip ck-needed" title="Conceptual total not verified — parser could not price every package; bond / BR / BC documents are blocked. Re-run the estimate.">⚠ unverified</span>' + pre;
   if (!pre) pre = '<span class="note">—</span>';
 
   const mids = runs.map(r => r.cost_mid).filter(Boolean);
@@ -1400,8 +1417,10 @@ function deskRow(p) {
   const pages = (latest.files || []).reduce((s, f) => s + (f.pages || 0), 0);
   const act = (wf.updated_at || latest.created_at || '').slice(0, 10);
 
+  const dispName = (pursuit && pursuit.name) || latest.project_name;
+  const dispLoc = (pursuit && pursuit.location) || latest.location;
   return `<tr class="hrow" style="cursor:pointer" onclick="openRun('${latest.id}')">`
-    + `<td><strong>${esc(latest.project_name)}</strong>${latest.location ? ` <span class="note">· ${esc(latest.location)}</span>` : ''}`
+    + `<td><strong>${esc(dispName)}</strong>${dispLoc ? ` <span class="note">· ${esc(dispLoc)}</span>` : ''}`
     + `<div class="note">${runs.length > 1 ? runs.length + ' revisions · ' : ''}${pages ? pages + ' plan pp' : 'scope-only'}${latest.estimator ? ' · ' + esc(latest.estimator) : ''}</div></td>`
     + `<td>${dueCell}</td><td>${stageChip}</td><td>${covCell}</td><td>${pre}</td>`
     + `<td class="r"><strong>${latest.cost_mid ? '$' + latest.cost_mid.toLocaleString() : '—'}</strong>${spread}</td>`
@@ -1410,7 +1429,7 @@ function deskRow(p) {
 }
 // Start a fresh pursuit from the desk: clear prior pursuit state so nothing bleeds across.
 function newPursuit() {
-  window._runId = null; window._workflow = defaultWF(); window._bcLoaded = null;
+  window._runId = null; window._pursuitId = null; window._workflow = defaultWF(); window._bcLoaded = null;
   window._recon = null; window._gate = null; window._lastDivisions = null; window._pkgConceptualTotal = null;
   // Document-derived caches MUST clear too. extractScopeConstraints() keys its cache on the
   // concatenated upload filenames, so two projects that both ship "Plans.pdf" / "Project
@@ -1675,9 +1694,12 @@ function renderResults(p, inp, bm) {
   // bid packages
   const dw = document.getElementById('divisionsWrap');
   // Rehydrate previously-entered quotes so a reopened pursuit can substantiate the coverage
-  // the desk reports for it (see syncCoverage).
+  // the desk reports for it (see syncCoverage). New shape: keyed by run id (quotes belong to
+  // a revision's package list); legacy flat {idx:val} rows still rehydrate.
   quotes = {};
-  const savedQ = (curWF() || {}).quotes || {};
+  const qAll = (curWF() || {}).quotes || {};
+  const flat = Object.values(qAll).every(v => typeof v === 'number');
+  const savedQ = flat ? qAll : (window._runId && qAll[window._runId]) || {};
   Object.keys(savedQ).forEach(k => { const v = Number(savedQ[k]); if (v > 0) quotes[k] = v; });
   if (p.divisions.length) {
     const tot = p.divisions.reduce((s, d) => s + (d.amount || 0), 0);
@@ -1935,7 +1957,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.11.1';
+const TOOL_VERSION = 'v1.12.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -1961,13 +1983,12 @@ async function saveRun(inp, p, batches, durationMs) {
     divisions: p.divisions, assumptions: p.assumptions, gaps: p.gaps,
     version: TOOL_VERSION, batches, duration_ms: durationMs,
   };
-  // Validation is DURABLE (Codex #1): the gate's inputs — parse issues, the model's original
-  // stated totals, exclusions — persist in workflow.validation so openRun() can reconstruct the
-  // exact gate. Before this, a fail-closed estimate came back UNGATED on reopen (saved cost_mid
-  // is already the rollup → drift reads zero; parseIssues weren't saved at all) and the blocked
-  // bond/BR/BC documents would generate from the incomplete total.
+  // Validation is DURABLE (Codex #1) and REVISION-scoped: the gate's inputs — parse issues,
+  // the model's original stated totals, exclusions — persist on the RUN row's workflow so
+  // openRun() reconstructs the exact gate for that revision. Pursuit-level state (stage,
+  // checklist, due date, award, quotes) lives on the pursuit and persists via persistWF().
   const gate = curGate();
-  curWF().validation = {
+  const validation = {
     gated: !!gate.gated,
     issues: (p.parseIssues || []).slice(0, 20),
     exclusions: (p.exclusions || []).slice(0, 20),
@@ -1977,12 +1998,23 @@ async function saveRun(inp, p, batches, durationMs) {
   };
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'save', record }) });
+      body: JSON.stringify({ pw: 'ryc2026', action: 'save', record, pursuit_id: window._pursuitId || null }) });
     const d = await r.json().catch(() => null);
     const meta = document.getElementById('resMeta');
     if (r.ok && d && d.ok) {
       window._runId = d.id;
-      persistWF();   // write workflow (incl. validation) onto the fresh row
+      const hadPursuit = !!window._pursuitId;
+      if (d.pursuit_id) window._pursuitId = d.pursuit_id;
+      // A fresh generation that landed on an EXISTING pursuit (same name) adopts its stored
+      // state — the pursuit card must show the pursuit's real stage/due/award, not a blank.
+      if (!hadPursuit && d.pursuit_workflow && typeof d.pursuit_workflow === 'object' && d.pursuit_workflow.stage) {
+        window._workflow = d.pursuit_workflow;
+        renderPursuit();
+      }
+      // revision-scoped validation → run row
+      fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pw: 'ryc2026', action: 'set_workflow', id: d.id, workflow: { validation } }) }).catch(() => {});
+      persistWF();   // pursuit-level workflow
       if (meta) meta.textContent += ' · saved to history ✓';
     }
     else if (meta) meta.textContent += ' · history save failed';
@@ -1998,26 +2030,31 @@ async function renderHistory(force) {
         body: JSON.stringify({ pw: 'ryc2026', action: 'list' }) });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
-      historyCache = d.runs || [];
+      historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
     }
-    const runs = historyCache;
+    const runs = historyCache.runs;
     if (!runs.length) {
       el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk
         <span style="margin-left:auto"><button class="btn-sm" onclick="newPursuit()">＋ New pursuit</button></span></h3>
         <div class="billing-empty">No pursuits yet — start one and it's tracked here automatically.</div></div>`;
       return;
     }
+    // Group runs by their PURSUIT id — the immutable identity; renames don't split it and two
+    // pursuits that happen to share a name stay distinct. Orphan runs (pre-migration or a
+    // failed pursuit attach) fall back to the legacy name grouping so nothing disappears.
+    const byId = {};
+    (historyCache.pursuits || []).forEach(p => { byId[p.id] = p; });
     const groups = {};
     for (const run of runs) {
-      const k = (run.project_name || '').trim().toLowerCase();
+      const k = run.pursuit_id ? 'p:' + run.pursuit_id : 'n:' + (run.project_name || '').trim().toLowerCase();
       (groups[k] = groups[k] || []).push(run);
     }
-    // One PURSUIT per project; repeat runs are revisions of it, not separate pursuits.
     const pursuits = Object.values(groups).map(g => {
       const runs = g.slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
       const latest = runs[0];
-      const wf = latest.workflow || {};
-      return { runs, latest, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(latest) };
+      const pursuit = latest.pursuit_id ? (byId[latest.pursuit_id] || null) : null;
+      const wf = (pursuit && pursuit.workflow) || latest.workflow || {};
+      return { runs, latest, pursuit, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf) };
     });
 
     // Order inside a bucket: soonest due first (undated last), then most recently touched.
@@ -2073,11 +2110,30 @@ async function openRun(id) {
       narrative: run.narrative, divisions: run.divisions || [], assumptions: run.assumptions || [], gaps: run.gaps || [],
       parseIssues: (v && v.issues) || [], exclusions: (v && v.exclusions) || [] };
     if (v && v.stated && v.stated.mid) { p.low = v.stated.low; p.mid = v.stated.mid; p.high = v.stated.high; }
+    const pursuit = d.pursuit || null;
     window._scopeC = run.scope_constraints || null;
     window._planMeta = null;
     window._runId = run.id;
-    window._bcLoaded = (run.bc_url || run.bc_project_id) ? { url: run.bc_url || null, id: run.bc_project_id || null } : null;
-    window._workflow = run.workflow || defaultWF(); window._wfNeedsMigration = false;
+    window._pursuitId = run.pursuit_id || null;
+    // BC linkage is a pursuit fact (whichever revision created the draft, the pursuit is loaded)
+    const bcUrl = (pursuit && pursuit.bc_url) || run.bc_url || null;
+    const bcId = (pursuit && pursuit.bc_project_id) || run.bc_project_id || null;
+    window._bcLoaded = (bcUrl || bcId) ? { url: bcUrl, id: bcId } : null;
+    // Pursuit workflow is authoritative; legacy un-migrated runs fall back to their own copy.
+    window._workflow = (pursuit && pursuit.workflow) || run.workflow || defaultWF();
+    if (!window._workflow.stage) window._workflow = Object.assign(defaultWF(), window._workflow);
+    window._wfNeedsMigration = false;
+    // Repopulate the input form from the run so "Edit & re-run" generates a REVISION of this
+    // pursuit with the inputs in place — including a rename, which stays the same pursuit.
+    try {
+      document.getElementById('f-name').value = (pursuit && pursuit.name) || run.project_name || '';
+      document.getElementById('f-loc').value = run.location || '';
+      document.getElementById('f-sf').value = run.size_sf || '';
+      document.getElementById('f-target').value = run.target_budget || '';
+      document.getElementById('f-scope').value = run.scope_notes || '';
+      if (run.client_type) document.getElementById('f-ct').value = run.client_type;
+      if (run.work_type) document.getElementById('f-wt').value = run.work_type;
+    } catch {}
     el.innerHTML = prev;
     setEstView('assist');
     renderResults(p, inp, segBenchmarks(inp));
