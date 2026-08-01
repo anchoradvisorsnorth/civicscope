@@ -111,10 +111,11 @@ function viewCtx(){
   if(currentView==="subs") return "Foundation actual-by-vendor + PO_Sub subcontracts (2023&rarr; jobs) · nightly VM rollup · this pull "+((subsData&&ageTxt(subsData.generated))||"&hellip;");
   if(currentView==="completed") return "Foundation completed record (2023&rarr;, pegged at completion) + Procore enrichment · rebuilt nightly · this pull "+((portfolioData&&ageTxt(portfolioData.generated))||"&hellip;");
   if(currentView==="trust") return "All sources · loaded "+loaded;
+  if(currentView==="integrations") return "Sync-run telemetry (server-recorded) · read-only";
   return "Procore (revised contract) + Foundation · loaded "+loaded;
 }
 function renderView(){
-  var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",ai:"AI Assistant"};
+  var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",integrations:"Integrations & Sync",ai:"AI Assistant"};
   document.getElementById("view-title").textContent=titles[currentView]||"Overview";
   document.getElementById("view-ctx").innerHTML=viewCtx();
   var view=document.getElementById("view");
@@ -134,6 +135,7 @@ function renderView(){
   if(currentView==="estimating"){ renderEstimating(); return; }
   if(currentView==="brief"){ renderBrief(); return; }
   if(currentView==="trust"){ renderTrust(); return; }
+  if(currentView==="integrations"){ renderIntegrations(); return; }
   if(currentView==="ai"){ renderAI(); return; }
 }
 function init(){

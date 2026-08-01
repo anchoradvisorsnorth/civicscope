@@ -593,6 +593,117 @@ function renderTrust(){
 }
 
 /* ===== AI Assistant (Phase 6 — the /ryc/foundation NL→SQL, restyled) ========= */
+/* ===== INTEGRATIONS & SYNC — the audited home for refresh machinery (contract §4) ==========
+   READ-ONLY by design at this stage. The build order is observe-before-control: run history
+   has to be proven trustworthy before any button here can be believed. The two refresh
+   controls that already exist keep living in Data Trust until the controls step, so this page
+   adds NO new manual authority (contract D8 accepted today's exposure, not an expansion).
+
+   Three registry concepts render differently, because conflating them is how a live API ends
+   up displaying a fake sync cadence:
+     · scheduled ingestion — cadence, freshness, run history
+     · live connection     — reachability only; never a cadence
+     · outbound action     — audited business action; never a "Run now"
+   State is THREE INDEPENDENT DIMENSIONS (last attempt × data freshness × connection). The
+   single 30-hour constant this replaces called a healthy weekly source "stale" every week. */
+var _syncData=null;
+function loadSync(){
+  return fetch("/api/ryc-sync-log",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({pw:"ryc2026",action:"status"})})
+    .then(function(r){ return r.json(); })
+    .then(function(d){ _syncData=d&&d.ok?d:null; return _syncData; })
+    .catch(function(){ _syncData=null; return null; });
+}
+function syncStatePill(s){
+  // Color is never the only signal — every pill carries its word (contract §3).
+  var st=s.last_attempt_state, map={ok:["ok","g"],failed:["failed","r"],refused:["refused","a"],
+    abandoned:["abandoned","a"],dispatch_failed:["never started","r"],running:["running","b"],
+    requested:["requested","b"],cancelled:["cancelled","n"]};
+  if(!st) return '<span class="pill n">no runs yet</span>';
+  var m=map[st]||[st,"n"];
+  return '<span class="pill '+m[1]+'">'+m[0]+'</span>'+(s.late_completion?' <span class="pill a">completed late</span>':'');
+}
+function syncFreshPill(s){
+  if(s.kind!=="scheduled") return '<span class="pill n">n/a</span>';
+  if(s.data_freshness==="never") return '<span class="pill n">no data yet</span>';
+  if(s.data_freshness==="stale") return '<span class="pill a">stale</span>';
+  return '<span class="pill g">fresh</span>';
+}
+function renderIntegrations(){
+  var v=document.getElementById("view");
+  v.innerHTML='<div class="panel"><div class="sub">Loading sync telemetry…</div></div>';
+  loadSync().then(function(){
+    if(!_syncData){ v.innerHTML='<div class="panel"><div class="h">Integrations &amp; Sync</div>'
+      +'<div class="warn-banner">Sync telemetry is unavailable — this page reports on the machinery, so an outage here does NOT mean the feeds are down. Check Data Trust for source health.</div></div>'; return; }
+    var rows=_syncData.services||[];
+    var sched=rows.filter(function(s){return s.kind==="scheduled";});
+    var live=rows.filter(function(s){return s.kind==="live";});
+    var out=rows.filter(function(s){return s.kind==="outbound";});
+
+    var h='<div class="panel"><div class="h">Scheduled ingestion</div>'
+      +'<div class="sub">Each service is graded against <b>its own</b> cadence. Last attempt, data freshness and connection are separate facts: an attempt can fail while the data it would have replaced is still current.</div>'
+      +'<table class="tbl"><thead><tr><th>Service</th><th>Last attempt</th><th>Data</th><th>Cadence</th>'
+      +'<th class="r">Last success</th><th class="r">Records</th><th>Next expected</th><th></th></tr></thead><tbody>';
+    sched.forEach(function(s){
+      h+='<tr><td><b>'+esc(s.label)+'</b><div class="sub">'+esc((s.datasets||[]).join(" · "))+'</div></td>'
+        +'<td>'+syncStatePill(s)+(s.last_error_code?'<div class="sub">'+esc(s.last_error_code)+'</div>':'')+'</td>'
+        +'<td>'+syncFreshPill(s)+'</td>'
+        +'<td class="sub">'+esc(s.cadence||"—")+'</td>'
+        +'<td class="r">'+(s.last_success_at?'<span title="'+esc(s.last_success_at)+'">'+ageTxt(s.last_success_at)+'</span>':'—')+'</td>'
+        +'<td class="r">'+(s.count_written!=null?s.count_written:"—")+'</td>'
+        +'<td class="sub">'+(s.next_expected_at?fmtDate(s.next_expected_at):"—")+'</td>'
+        +'<td><button class="pfill" onclick="showSyncHistory(\''+s.key+'\')">History</button></td></tr>';
+    });
+    h+='</tbody></table></div>';
+
+    if(live.length){
+      h+='<div class="panel"><div class="h">Live connections</div>'
+        +'<div class="sub">Queried at page load — there is no sync cadence to be behind, and none is shown.</div><table class="tbl"><tbody>';
+      live.forEach(function(s){ h+='<tr><td><b>'+esc(s.label)+'</b></td><td class="sub">live API · no scheduled run</td></tr>'; });
+      h+='</tbody></table></div>';
+    }
+    if(out.length){
+      h+='<div class="panel"><div class="h">Outbound actions</div>'
+        +'<div class="sub">Writes to a source system, on demand. Audited as an action — never a generic refresh.</div><table class="tbl"><tbody>';
+      out.forEach(function(s){ h+='<tr><td><b>'+esc(s.label)+'</b></td><td class="sub">user-triggered</td></tr>'; });
+      h+='</tbody></table></div>';
+    }
+    h+='<div class="panel"><div class="sub">Manual refresh controls remain in <b>Data Trust</b> for now (Procore and Foundation only). '
+      +'This page is read-only until run history has proven itself — and controls stay limited to the two that already exist until identity lands or that scope is explicitly widened.</div></div>';
+    h+='<div id="syncHist"></div>';
+    v.innerHTML=h;
+  });
+}
+function showSyncHistory(key){
+  var el=document.getElementById("syncHist");
+  el.innerHTML='<div class="panel"><div class="sub">Loading run history…</div></div>';
+  fetch("/api/ryc-sync-log",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({pw:"ryc2026",action:"history",service:key,limit:20})})
+    .then(function(r){return r.json();}).then(function(d){
+      if(!d||!d.ok){ el.innerHTML='<div class="panel"><div class="sub">History unavailable.</div></div>'; return; }
+      var runs=d.runs||[];
+      if(!runs.length){ el.innerHTML='<div class="panel"><div class="h">'+esc(key)+' — run history</div><div class="sub">No runs recorded yet. Telemetry starts at the next scheduled run.</div></div>'; return; }
+      var h='<div class="panel"><div class="h">'+esc(key)+' — run history</div>'
+        +'<table class="tbl"><thead><tr><th>Started</th><th>State</th><th>Trigger</th><th>By</th>'
+        +'<th class="r">Read</th><th class="r">Written</th><th>Watermark</th><th>Artifact</th><th>Detail</th></tr></thead><tbody>';
+      runs.forEach(function(r){
+        var dur=(r.started_at&&r.finished_at)?Math.round((new Date(r.finished_at)-new Date(r.started_at))/1000)+"s":"—";
+        h+='<tr><td><span title="'+esc(r.created_at)+'">'+ageTxt(r.created_at)+'</span><div class="sub">'+dur+'</div></td>'
+          +'<td>'+syncStatePill({last_attempt_state:r.state,late_completion:r.late_completion})+'</td>'
+          +'<td class="sub">'+esc(r.trigger)+'</td>'
+          +'<td class="sub">'+esc(r.executed_by_service_id||r.requested_by_display||"—")+'</td>'
+          +'<td class="r">'+(r.count_read!=null?r.count_read:"—")+'</td>'
+          +'<td class="r">'+(r.count_written!=null?r.count_written:"—")+'</td>'
+          +'<td class="sub">'+(r.watermark_after?esc(String(r.watermark_after).slice(0,19)):"—")+'</td>'
+          +'<td class="sub" title="'+esc(r.artifact_location||"")+'">'+(r.artifact_hash?esc(r.artifact_hash.slice(0,10)):"—")+'</td>'
+          +'<td class="sub">'+esc(r.error_code||"")+(r.error_detail?' — '+esc(String(r.error_detail).slice(0,90)):"")+'</td></tr>';
+      });
+      h+='</tbody></table><div class="sub" style="margin-top:8px">Run rows are lifecycle-managed; every transition is kept in an append-only event log, so a late completion after an abandonment shows both facts rather than overwriting one with the other.</div></div>';
+      el.innerHTML=h;
+      el.scrollIntoView({behavior:"smooth",block:"nearest"});
+    });
+}
+
 /* Same API (/api/ryc-foundation-query), same sessionStorage key (fdn_pw) and recents
    (fdn_recent) as /ryc/foundation — a login or question history carries across both tools.
    The tool password is FOUNDATION_TOOL_PASSWORD (server-side check), separate from the gate. */

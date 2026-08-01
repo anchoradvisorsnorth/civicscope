@@ -57,6 +57,7 @@ body{font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit
 .kpi .ks{color:var(--faint);font-size:11px;margin-top:2px}
 .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px}
 .pill.g{background:rgba(47,191,113,.14);color:var(--green)} .pill.a{background:rgba(242,163,60,.15);color:var(--amber)} .pill.r{background:rgba(239,83,80,.15);color:var(--red)}
+.pill.n{background:rgba(148,163,184,.16);color:var(--muted)} .pill.b{background:rgba(96,165,250,.16);color:#60a5fa}
 .pill.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:18px}
 .panel h3{font-family:var(--font-serif);font-weight:600;font-size:16px;margin:0 0 3px}

@@ -21,8 +21,13 @@ var NAV = [
   { key:"estimating",label:"Bid Board (BC)",ic:"&#128203;", grp:"Preconstruction" },
   { key:"deskLink", label:"Estimating Desk",ic:"&#128208;", grp:"Preconstruction", href:"/ryc/estimate" },
   { key:"brief",    label:"Executive Brief",ic:"&#128196;", grp:"Leadership" },
+  /* Admin owns the MACHINERY (Integrations & Sync) and the DATA's provenance (Data Trust).
+     AI Assistant moved OUT of Admin (Codex, sync-lane review): the capability matrix never
+     defined asking questions of the data as administration — it sat here because the group
+     had room. It is a utility until its audience is defined. */
+  { key:"integrations", label:"Integrations & Sync", ic:"&#128260;", grp:"Admin" },
   { key:"trust",    label:"Data Trust",     ic:"&#128270;", grp:"Admin" },
-  { key:"ai",       label:"AI Assistant",   ic:"&#128172;", grp:"Admin" }
+  { key:"ai",       label:"AI Assistant",   ic:"&#128172;", grp:"" }
 ];
 var currentView = "command";
 
