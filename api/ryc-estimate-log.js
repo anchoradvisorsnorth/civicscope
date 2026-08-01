@@ -195,63 +195,69 @@ export default async function handler(req, res) {
       const id = String(req.body.id || '');
       const onPursuit = UUID.test(pid);
       if (!onPursuit && !UUID.test(id)) return res.status(400).json({ error: 'Bad id' });
-      const wf = req.body.workflow;
-      if (wf === undefined || wf === null || typeof wf !== 'object') return res.status(400).json({ error: 'workflow object required' });
-      // Server-owned facts (R4 #3, extended R5 #2): award/award_events are written ONLY by
-      // link_award; submission/outcome ONLY by record_submission/record_outcome. Generic
-      // workflow writes can neither set nor clear ANY of them — incoming copies are STRIPPED
-      // unconditionally and the stored values overlaid, so a stale client object can no longer
-      // resurrect an unlinked award, roll back the audit trail, or erase a captured submission
-      // or loss outcome (the calibration facts). Quotes merge per run-key. Remaining known
-      // seam: stage/checklist/due date stay last-write-wins across clients — single-estimator
-      // reality; versioned typed patches come with the shell/identity work.
-      delete wf.award; delete wf.award_events; delete wf.submission; delete wf.outcome; delete wf.fact_events;
-      // Slice 2a/2b: due date, pre-bid meeting, STAGE, and the readiness facts (bonding,
-      // builders risk, RFI status) are typed facts — generic saves can neither set nor clear
-      // them. Drafted RFI *items* stay generic draft content; only their status is a fact.
-      delete wf.due; delete wf.due_date; delete wf.prebid; delete wf.stage;
-      // NB rfis: drafting the RFI set legitimately CREATES it with its initial 'drafted'
-      // status, so the status is not stripped here — the overlay below re-imposes the stored
-      // one whenever one exists, which is what makes an existing status unclobberable.
-      if (wf.checklist && typeof wf.checklist === 'object') {
-        delete wf.checklist.prebid_meeting; delete wf.checklist.bonding; delete wf.checklist.builders_risk;
+      const incoming = req.body.workflow;
+      if (incoming === undefined || incoming === null || typeof incoming !== 'object') return res.status(400).json({ error: 'workflow object required' });
+
+      /* ===== THE WRITE-LAW ALLOWLIST (phase A close-out, 2026-08-01) ==================
+         Whole-document replacement is no longer the persistence model. This endpoint accepts
+         ONLY low-risk draft/presentation keys and MERGES them onto the stored workflow; every
+         durable business fact has a typed operation and is rejected here by name. Previously
+         this was a strip-and-overlay list, which protected the data but still let the write
+         path grow: any new fact was writable until someone remembered to add it to the strip.
+         Now the default is deny. */
+      const DOMAIN_KEYS = {
+        stage: 'set_stage', due: 'set_due_date', due_date: 'set_due_date',
+        prebid: 'set_prebid_meeting', award: 'link_award', award_events: 'link_award',
+        submission: 'record_submission', outcome: 'record_outcome',
+        quotes: 'record_quotes', coverage: 'record_quotes',
+        fact_events: 'the audit log (ryc_fact_events)',
+      };
+      const DOMAIN_CHECKLIST = {
+        bonding: 'set_checklist_item', builders_risk: 'set_checklist_item',
+        prebid_meeting: 'set_prebid_meeting',
+      };
+      const ALLOWED = ['checklist', 'validation', 'source'];   // draft + presentation only
+      const ALLOWED_CHECKLIST = ['rfis'];                      // drafted RFI content
+
+      const offending = Object.keys(incoming).filter(k => DOMAIN_KEYS[k])
+        .map(k => `${k} → ${DOMAIN_KEYS[k]}`)
+        .concat(incoming.checklist && typeof incoming.checklist === 'object'
+          ? Object.keys(incoming.checklist).filter(k => DOMAIN_CHECKLIST[k]).map(k => `checklist.${k} → ${DOMAIN_CHECKLIST[k]}`)
+          : []);
+      if (offending.length) {
+        return res.status(409).json({ error: 'These are durable facts and cannot be written by a generic save — use their typed operation: ' + offending.join(' · ') });
       }
+
+      // Build the draft-only patch, then MERGE onto stored (never replace the document).
+      const draft = {};
+      for (const k of ALLOWED) if (incoming[k] !== undefined) draft[k] = incoming[k];
+      if (draft.checklist && typeof draft.checklist === 'object') {
+        const ck = {};
+        for (const k of ALLOWED_CHECKLIST) if (draft.checklist[k] !== undefined) ck[k] = draft.checklist[k];
+        draft.checklist = ck;
+      }
+
+      let wf;
       try {
         const r0 = onPursuit
           ? await sb(`ryc_pursuits?id=eq.${pid}&tenant=eq.ryc&select=workflow&limit=1`)
           : await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc&select=workflow&limit=1`);
-        if (r0.ok) {
-          const rows0 = await r0.json();
-          const cur = rows0.length && rows0[0].workflow && typeof rows0[0].workflow === 'object' ? rows0[0].workflow : null;
-          if (cur) {
-            if (cur.award) { wf.award = cur.award; if (cur.stage === 'won') wf.stage = 'won'; }
-            if (cur.award_events) wf.award_events = cur.award_events;
-            if (cur.submission) wf.submission = cur.submission;
-            if (cur.outcome) wf.outcome = cur.outcome;
-            if (cur.fact_events) wf.fact_events = cur.fact_events;
-            if (cur.due) wf.due = cur.due;
-            if (cur.due_date) wf.due_date = cur.due_date;
-            if (cur.prebid) wf.prebid = cur.prebid;
-            wf.stage = cur.stage || 'takeoff';
-            if (cur.checklist && typeof cur.checklist === 'object') {
-              wf.checklist = wf.checklist && typeof wf.checklist === 'object' ? wf.checklist : {};
-              for (const k of ['prebid_meeting', 'bonding', 'builders_risk']) {
-                if (cur.checklist[k]) wf.checklist[k] = cur.checklist[k];
-              }
-              // rfis: incoming drafted items are kept, stored status wins
-              if (cur.checklist.rfis && cur.checklist.rfis.status) {
-                wf.checklist.rfis = Object.assign({}, wf.checklist.rfis, { status: cur.checklist.rfis.status });
-              }
-            }
-            const keyedMaps = q => q && typeof q === 'object' && !Object.values(q).every(x => typeof x === 'number');
-            if (keyedMaps(cur.quotes) && keyedMaps(wf.quotes)) wf.quotes = Object.assign({}, cur.quotes, wf.quotes);
-            else if (keyedMaps(cur.quotes) && !wf.quotes) wf.quotes = cur.quotes;
-          }
+        if (!r0.ok) return res.status(r0.status).json({ error: await r0.text() });
+        const rows0 = await r0.json();
+        if (!rows0.length) return res.status(404).json({ error: 'Not found' });
+        const cur = rows0[0].workflow && typeof rows0[0].workflow === 'object' ? rows0[0].workflow : {};
+        wf = Object.assign({}, cur, draft);
+        // checklist merges per-key so a draft RFI write cannot drop the readiness facts
+        wf.checklist = Object.assign({}, cur.checklist || {}, draft.checklist || {});
+        // an existing RFI status is a fact: drafting may create it, never overwrite it
+        if (cur.checklist && cur.checklist.rfis && cur.checklist.rfis.status && wf.checklist.rfis) {
+          wf.checklist.rfis = Object.assign({}, wf.checklist.rfis, { status: cur.checklist.rfis.status });
         }
-      } catch { /* merge is best-effort — a failed read falls back to plain replace */ }
-      // stage was stripped as server-owned; if there was nothing stored to overlay from
-      // (new pursuit, or the read failed) it must still land valid, never undefined.
-      if (!wf.stage) wf.stage = 'takeoff';
+        if (!wf.stage) wf.stage = 'takeoff';
+        wf.updated_at = new Date().toISOString();
+      } catch (e) {
+        return res.status(502).json({ error: 'Could not read current workflow: ' + e.message });
+      }
       const r = onPursuit
         ? await patchPursuit(pid, { workflow: wf })
         : await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc`, {
@@ -277,16 +283,25 @@ export default async function handler(req, res) {
       if (req.body.bc_url !== undefined) patch.bc_url = req.body.bc_url ? String(req.body.bc_url).slice(0, 500) : null;
       if (req.body.bc_project_id !== undefined) patch.bc_project_id = req.body.bc_project_id ? String(req.body.bc_project_id).slice(0, 120) : null;
       if (!Object.keys(patch).length) return res.status(400).json({ error: 'nothing to patch' });
-      // BC linkage is a PURSUIT fact (the draft belongs to the pursuit, whichever revision
-      // triggered it); the run row is also stamped for the history badge when an id is given.
-      if (UUID.test(pid)) { const rp = await patchPursuit(pid, patch); if (!rp.ok) return res.status(rp.status).json({ error: await rp.text() }); }
+      // BC linkage is a PURSUIT fact (slice 2c: typed + audited, and a BC project cannot be
+      // claimed by two pursuits); the run row is also stamped for the history badge.
+      let outVer = null;
+      if (UUID.test(pid)) {
+        const out = await rpc('ryc_link_bc', {
+          p_pursuit_id: pid, p_bc_project_id: patch.bc_project_id || null, p_bc_url: patch.bc_url || null,
+          p_expected_version: Number.isInteger(req.body.expected_version) ? req.body.expected_version : null,
+          p_request_id: reqId(), p_actor: gateActor,
+        });
+        if (out.status !== 200) return res.status(out.status).json(out.body);
+        outVer = out.body.version;
+      }
       if (UUID.test(id)) {
         const r = await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc`, {
           method: 'PATCH', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify(patch),
         });
         if (!r.ok && !UUID.test(pid)) return res.status(r.status).json({ error: await r.text() });
       }
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({ ok: true, version: outVer });
     }
 
     /* One-time (idempotent) reconciliation of legacy rows saved before v1.10.0.
@@ -350,84 +365,22 @@ export default async function handler(req, res) {
         if (!rrows.length || !rrows[0].pursuit_id) return res.status(404).json({ error: 'No pursuit for this run — run the pursuit migration first' });
         pid = rrows[0].pursuit_id;
       }
-      const p0 = await getPursuit(pid);
-      if (!p0) return res.status(404).json({ error: 'Not found' });
-      const wf = p0.workflow && typeof p0.workflow === 'object' ? p0.workflow : { stage: 'takeoff', checklist: {} };
-
-      const audit = (action2, jobNo2) => {
-        wf.award_events = (Array.isArray(wf.award_events) ? wf.award_events : [])
-          .concat([{ action: action2, job_no: jobNo2 || null, at: new Date().toISOString() }]).slice(-20);
-      };
-      if (req.body.unlink) {
-        const prev = wf.award || {};
-        audit('unlink', prev.job_no);
-        delete wf.award;
-        // Restore the stage the pursuit held before the link (Codex #7) — a mistaken link
-        // corrected here must not leave a phantom win. Links made before prev_stage tracking
-        // have nothing recorded; don't guess between Submitted/Lost — tell the client to ask.
-        if (wf.stage === 'won') {
-          if (prev.prev_stage) { wf.stage = prev.prev_stage; delete wf.stage_unresolved; }
-          else wf.stage_unresolved = true;
-        }
-      } else {
-        const jobNo = String(req.body.job_no || '').trim();
-        if (!jobNo) return res.status(400).json({ error: 'job_no required' });
-        // One Foundation job belongs to one pursuit — checked here for a friendly error, and
-        // enforced by the DB (unique partial index on workflow->award->>job_no) as backstop.
-        try {
-          const rq = await sb(`ryc_pursuits?tenant=eq.ryc&select=id,name&workflow->award->>job_no=eq.${encodeURIComponent(jobNo)}&limit=5`);
-          if (rq.ok) {
-            const taken = (await rq.json()).filter(x => x.id !== pid);
-            if (taken.length) return res.status(409).json({ error: `Job ${jobNo} is already linked to pursuit "${taken[0].name}" — unlink it there first.` });
-          }
-        } catch { /* uniqueness check is best-effort if the query itself fails */ }
-        // Slice 2a (contract D5): resolve the IMMUTABLE job identity — find-or-create the
-        // ryc_jobs row (+ self-alias) and stamp its uuid alongside the display job_no.
-        // Best-effort: a failed resolution never blocks the award link (job_id backfills).
-        let jobId = null;
-        try {
-          const jr = await sb(`ryc_jobs?company_id=eq.ryc&job_no=eq.${encodeURIComponent(jobNo)}&select=id&limit=1`);
-          if (jr.ok) { const jrows = await jr.json(); if (jrows.length) jobId = jrows[0].id; }
-          if (!jobId) {
-            const jc = await sb('ryc_jobs', { method: 'POST', headers: { 'Prefer': 'return=representation' },
-              body: JSON.stringify({ company_id: 'ryc', job_no: jobNo.slice(0, 40), description: String(req.body.description || '').slice(0, 200) || null, customer: String(req.body.customer || '').slice(0, 200) || null }) });
-            if (jc.ok) jobId = ((await jc.json())[0] || {}).id;
-            else { // concurrent create — reread
-              const jr2 = await sb(`ryc_jobs?company_id=eq.ryc&job_no=eq.${encodeURIComponent(jobNo)}&select=id&limit=1`);
-              if (jr2.ok) { const j2 = await jr2.json(); if (j2.length) jobId = j2[0].id; }
-            }
-            if (jobId) await sb('ryc_job_aliases', { method: 'POST', headers: { 'Prefer': 'return=minimal,resolution=ignore-duplicates' },
-              body: JSON.stringify({ company_id: 'ryc', job_id: jobId, alias: jobNo.slice(0, 40) }) }).catch(() => {});
-          }
-        } catch { /* stamping is additive; the alias table is reconcilable */ }
-        wf.award = {
-          job_no: jobNo.slice(0, 40),
-          job_id: jobId,
-          description: String(req.body.description || '').slice(0, 200) || null,
-          customer: String(req.body.customer || '').slice(0, 200) || null,
-          source: 'foundation',
-          linked_at: new Date().toISOString(),
-          // remember what the pursuit was before the win so unlink can restore it
-          prev_stage: wf.stage !== 'won' ? (wf.stage || 'takeoff') : ((wf.award && wf.award.prev_stage) || null),
-        };
-        audit('link', jobNo);
-        delete wf.stage_unresolved;
-        // Linking a pursuit to a real Foundation job IS the win capture — don't ask twice.
-        if (wf.stage !== 'won') wf.stage = 'won';
-      }
-      wf.updated_at = new Date().toISOString();
-      // The award link still writes the workflow directly (its own migration to a typed op is
-      // the next group), but it MUST advance the entity version — otherwise every client that
-      // just linked an award holds a stale version and its next typed write 409s spuriously.
-      const nextVer = (Number.isInteger(p0.version) ? p0.version : 1) + 1;
-      const r = await patchPursuit(pid, { workflow: wf, version: nextVer });
-      if (!r.ok) {
-        const txt = await r.text();
-        // 23505 = the DB's unique award index caught a concurrent duplicate the check missed
-        if (/23505|duplicate key/i.test(txt)) return res.status(409).json({ error: 'That Foundation job is already linked to another pursuit.' });
-        return res.status(r.status).json({ error: txt });
-      }
-      return res.status(200).json({ ok: true, pursuit_id: pid, workflow: wf, version: nextVer });
+      // Slice 2c: the whole link is now ONE Postgres transaction — job identity resolution
+      // (find-or-create ryc_jobs + alias), the one-job-one-pursuit check, the prev_stage
+      // capture/restore, the stage transition, the version bump and the audit event. The JS
+      // read-modify-write this replaces resolved job identity on a best-effort basis outside
+      // the write, so a crash between them could leave an award with no job_id.
+      const out = await rpc('ryc_link_award', {
+        p_pursuit_id: pid,
+        p_job_no: req.body.unlink ? null : String(req.body.job_no || '').trim(),
+        p_description: req.body.description ? String(req.body.description).slice(0, 200) : null,
+        p_customer: req.body.customer ? String(req.body.customer).slice(0, 200) : null,
+        p_unlink: !!req.body.unlink,
+        p_expected_version: Number.isInteger(req.body.expected_version) ? req.body.expected_version : null,
+        p_request_id: reqId(), p_actor: gateActor,
+      });
+      if (out.status !== 200) return res.status(out.status).json(out.body);
+      return res.status(200).json(Object.assign({ pursuit_id: pid }, out.body));
     }
 
     /* Reverse lookup for Command: given a Foundation job number, return the pursuit that was
@@ -561,6 +514,23 @@ export default async function handler(req, res) {
     /* Slice 2b — stage + readiness facts. `set_stage` CANNOT enter submitted/won/lost (those
        ride their fact ops) and cannot leave one while its fact stands; the server is the
        enforcement point, not the UI. */
+    /* Slice 2c — the last domain facts: award link, quotes/carries, archive, BC source link.
+       All four are atomic Postgres ops; job identity is resolved inside the award transaction. */
+    if (action === 'record_quotes' || action === 'set_archived') {
+      const pid = String(req.body.pursuit_id || '');
+      if (!UUID.test(pid)) return res.status(400).json({ error: 'Bad id' });
+      const ver = Number.isInteger(req.body.expected_version) ? req.body.expected_version : null;
+      const base = { p_pursuit_id: pid, p_expected_version: ver, p_request_id: reqId(), p_actor: gateActor };
+      const out = action === 'record_quotes'
+        ? await rpc('ryc_record_quotes', Object.assign({
+            p_run_id: String(req.body.run_id || ''),
+            p_quotes: (req.body.quotes && typeof req.body.quotes === 'object') ? req.body.quotes : {},
+            p_package_count: Number.isInteger(req.body.package_count) ? req.body.package_count : null,
+          }, base))
+        : await rpc('ryc_set_archived', Object.assign({ p_archived: req.body.archived !== false }, base));
+      return res.status(out.status).json(out.body);
+    }
+
     if (action === 'set_stage' || action === 'set_checklist_item' || action === 'set_rfi_status') {
       const pid = String(req.body.pursuit_id || '');
       if (!UUID.test(pid)) return res.status(400).json({ error: 'Bad id' });

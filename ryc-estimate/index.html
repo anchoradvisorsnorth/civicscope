@@ -124,7 +124,7 @@
 <div id="app">
   <header style="display:flex;align-items:center;gap:14px">
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.17.0 · slice 2b: stage/submission/outcome + readiness are atomic typed facts (terminal stages ride their fact op) · slice 2a: tz-aware due-date + pre-bid facts · job identity (ryc_jobs) · durable opportunity lifecycle · R5 fixes: typed submission/outcome, BC-ID identity, visible dup warnings · outcomes & calibration · stable pursuit routes · plan takeoff · market sub-pricing</div></div>
+    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.18.0 · PHASE A COMPLETE: every durable fact is a typed atomic audited operation and the generic save accepts draft state only (allowlist) · award/quotes/archive/BC-link typed · stage/submission/outcome + readiness typed · tz-aware due-date + pre-bid · job identity (ryc_jobs) · durable opportunity lifecycle · R5 fixes: typed submission/outcome, BC-ID identity, visible dup warnings · outcomes & calibration · stable pursuit routes · plan takeoff · market sub-pricing</div></div>
     <a href="/ryc/command" style="white-space:nowrap;font-size:13px;color:#c2410c;text-decoration:none;font-weight:600">Command →</a>
   </header>
 
@@ -1058,7 +1058,11 @@ async function bcCreate(btn) {
     if ((window._runId || window._pursuitId) && (bcUrl || bcId)) {
       fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pw: 'ryc2026', action: 'link_bc', pursuit_id: window._pursuitId || null, id: window._runId || null, bc_project_id: bcId, bc_url: bcUrl }) })
-        .then(res => { if (!res.ok) console.warn('BC linkage not saved'); }).catch(() => {});
+        .then(async res => {
+          if (!res.ok) { console.warn('BC linkage not saved'); return; }
+          const d = await res.json().catch(() => null);
+          if (d && Number.isInteger(d.version)) window._pursuitVersion = d.version;
+        }).catch(() => {});
       historyCache = null; // force history refresh so the ↗BC badge shows
     }
     const rows = d.packages.map(p =>
@@ -1101,24 +1105,45 @@ function setDueDate() {
 }
 // Coverage is derived in the open pursuit but must be READABLE on the board, where the run's
 // divisions/quotes aren't loaded — so it is snapshotted onto the workflow whenever it changes.
+// Quotes are a TYPED SERVER FACT (slice 2c). They attach to a REVISION (the indexes are that
+// revision's division list), so they are keyed by run id; coverage is recomputed server-side
+// from what is actually stored, so the desk can never claim coverage the pursuit lacks. An
+// emptied input is a WITHDRAWAL, recorded as such — not a silent absence.
+// Debounced + serialized: quote entry fires per keystroke, and each commit is a versioned
+// write, so only the settled value is sent.
+let _qTimer = null, _qChain = Promise.resolve();
 function syncCoverage() {
   const q = quoteState();
   const wf = curWF(), prev = wf.coverage || {};
-  // Persist the quote VALUES alongside the count. Previously only {n,m} was stored while the
-  // amounts lived in an in-memory object that renderResults() cleared on reopen — so the desk
-  // could claim "5 / 12 priced" while the reopened pursuit showed 12 blank inputs and 0 of 12.
-  // Quotes attach to a REVISION's packages (their indexes are that revision's division list),
-  // so they are keyed by run id inside the pursuit workflow; coverage {n,m} snapshots the
-  // revision being worked. Legacy flat {idx:val} shapes are upgraded on next write.
   const vals = {}; Object.keys(quotes || {}).forEach(k => { if (/^\d+$/.test(k) && quotes[k]) vals[k] = quotes[k]; });
   const keyed = (wf.quotes && typeof wf.quotes === 'object' && !Object.values(wf.quotes).every(v => typeof v === 'number')) ? wf.quotes : {};
   const rid = window._runId || '_';
-  const same = prev.n === q.n && prev.m === q.m && JSON.stringify(keyed[rid] || {}) === JSON.stringify(vals);
-  if (same) return;
-  keyed[rid] = vals;
-  wf.coverage = { n: q.n, m: q.m };
-  wf.quotes = keyed;
-  persistWF();
+  if (prev.n === q.n && prev.m === q.m && JSON.stringify(keyed[rid] || {}) === JSON.stringify(vals)) return;
+  // optimistic local copy so the board/coverage render immediately
+  keyed[rid] = vals; wf.quotes = keyed; wf.coverage = { n: q.n, m: q.m };
+  if (!window._pursuitId) return;
+  const pid = window._pursuitId;
+  clearTimeout(_qTimer);
+  _qTimer = setTimeout(() => {
+    if (window._pursuitId !== pid) return;
+    _qChain = _qChain.then(async () => {
+      try {
+        const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pw: 'ryc2026', action: 'record_quotes', pursuit_id: pid,
+            run_id: rid, quotes: vals, package_count: q.m,
+            expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null }) });
+        const d = await r.json().catch(() => null);
+        if (r.ok && d && d.ok) {
+          if (Number.isInteger(d.version)) window._pursuitVersion = d.version;
+          if (d.workflow) window._workflow = d.workflow;
+          historyCache = null;
+        } else if (r.status === 409) {
+          // another session moved this pursuit — take the server's state rather than fight it
+          historyCache = null; openPursuitById(pid);
+        }
+      } catch {}
+    });
+  }, 500);
 }
 /* ===== Award link — the identity spine between the Desk and Command ==================
    A pursuit keeps its own immutable id for life; at award it GAINS a link to the Foundation
@@ -1220,7 +1245,8 @@ async function linkAward(jobNo) {
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', pursuit_id: window._pursuitId || null, id: window._runId, job_no: jobNo,
-        description: j ? j.description : null, customer: j ? j.customerName : null }) });
+        description: j ? j.description : null, customer: j ? j.customerName : null,
+        expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
     window._workflow = d.workflow;           // server is authoritative (it also stamped stage=won)
@@ -1234,7 +1260,8 @@ async function unlinkAward() {
   if (!window._runId || !confirm('Unlink this pursuit from its Foundation job?\n\nThe stage it held before the link will be restored — a corrected mistake must not stay recorded as a win.')) return;
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', pursuit_id: window._pursuitId || null, id: window._runId, unlink: true }) });
+      body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', pursuit_id: window._pursuitId || null, id: window._runId, unlink: true,
+        expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
     window._workflow = d.workflow;
@@ -1272,7 +1299,15 @@ function persistWF() {
   clearTimeout(_wfTimer);
   _wfTimer = setTimeout(() => {
     if (window._pursuitId !== pid) return;   // pursuit changed while the write was pending
-    const body = JSON.stringify({ pw: 'ryc2026', action: 'set_workflow', pursuit_id: pid, workflow: curWF() });
+    // THE WRITE LAW (phase A): a generic save carries ONLY draft/presentation state. Every
+    // durable fact has a typed operation, and the server rejects this payload by name if it
+    // contains one — so the client must not send the whole workflow document.
+    const w = curWF();
+    const draft = { checklist: {} };
+    if (w.checklist && w.checklist.rfis) draft.checklist.rfis = w.checklist.rfis;
+    if (w.validation) draft.validation = w.validation;
+    if (w.source) draft.source = w.source;
+    const body = JSON.stringify({ pw: 'ryc2026', action: 'set_workflow', pursuit_id: pid, workflow: draft });
     _wfChain = _wfChain.then(async () => {
       try {
         const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
@@ -2231,7 +2266,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.17.0';
+const TOOL_VERSION = 'v1.18.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
