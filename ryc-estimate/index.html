@@ -125,13 +125,13 @@
   </header>
 
   <div class="estnav">
-    <button class="estnav-btn active" data-view="assist" onclick="setEstView('assist')">Estimating Assist</button>
+    <button class="estnav-btn active" data-view="history" onclick="setEstView('history')">🗂 Estimating Desk</button>
+    <button class="estnav-btn" data-view="assist" onclick="setEstView('assist')">Pursuit</button>
     <button class="estnav-btn" data-view="costiq" onclick="setEstView('costiq')">Cost Intelligence</button>
     <button class="estnav-btn" data-view="quickcheck" onclick="setEstView('quickcheck')">Quick Check</button>
-    <button class="estnav-btn" data-view="history" onclick="setEstView('history')">Past Estimates</button>
   </div>
 
-  <div id="view-assist">
+  <div id="view-assist" style="display:none">
   <!-- INPUT -->
   <div id="inputPanel">
     <div class="card">
@@ -235,7 +235,7 @@
 
   <div id="view-costiq" style="display:none"><div id="costiq-body"></div></div>
   <div id="view-quickcheck" style="display:none"><div id="quickcheck-body"></div></div>
-  <div id="view-history" style="display:none"><div id="history-body"></div></div>
+  <div id="view-history"><div id="history-body"></div></div>
 </div>
 
 <footer>R. Yoder Construction — internal estimating aid. Not a formal bid. &nbsp;|&nbsp; Powered by CivicScope</footer>
@@ -252,6 +252,9 @@ function unlock() {
   document.getElementById('lock-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   loadPortfolio();
+  // The desk is the front door: open on "what does estimating need to move today?", not on a
+  // blank new-estimate form. The generator is one click away under Pursuit.
+  setEstView('history');
 }
 if (sessionStorage.getItem('ryc-auth') === '1') unlock();
 
@@ -820,6 +823,8 @@ function setQuote(i, val, conceptual) {
   if (ae) ae.innerHTML = anyQuote ? `<strong>$${Math.round(assembled).toLocaleString()}</strong>` : '<span class="note">enter quotes →</span>';
   const ve = document.getElementById('qassembledvar');
   if (ve) { if (anyQuote && window._pkgConceptualTotal) { const dv = (assembled - window._pkgConceptualTotal) / window._pkgConceptualTotal * 100; const c = dv > 3 ? '#dc2626' : dv < -3 ? '#16a34a' : '#6b7280'; ve.innerHTML = `<span style="color:${c};font-weight:600" title="assembled vs conceptual">${dv >= 0 ? '+' : ''}${dv.toFixed(0)}%</span>`; } else ve.innerHTML = ''; }
+  syncCoverage();   // keep the desk's quote-coverage column truthful
+  renderPursuit();
 }
 
 /* ===== BuildingConnected draft loader (Estimating Agent Phase 1, 2026-07-22) =====
@@ -935,6 +940,31 @@ const WF_STAGES = [
 function defaultWF() { return { stage: 'takeoff', checklist: {} }; }
 function curWF() { if (!window._workflow) window._workflow = defaultWF(); return window._workflow; }
 
+/* Two fields the Estimating Desk needs that the estimate row never carried: the BID DUE DATE
+   (what actually orders an estimator's day) and QUOTE COVERAGE (packages priced of total).
+   Both live inside the existing free-form `workflow` jsonb, so the desk needed no DDL. */
+function setDueDate() {
+  const el = document.getElementById('due-date');
+  curWF().due_date = el ? el.value : '';
+  persistWF(); renderPursuit(); historyCache = null;
+}
+// Coverage is derived in the open pursuit but must be READABLE on the board, where the run's
+// divisions/quotes aren't loaded — so it is snapshotted onto the workflow whenever it changes.
+function syncCoverage() {
+  const q = quoteState();
+  const wf = curWF(), prev = wf.coverage || {};
+  if (prev.n === q.n && prev.m === q.m) return;
+  wf.coverage = { n: q.n, m: q.m };
+  persistWF();
+}
+// Days until the bid is due — negative = overdue, null = no date set.
+function daysToDue(wf) {
+  const d = wf && wf.due_date; if (!d) return null;
+  const due = new Date(d + 'T23:59:59'); if (isNaN(due)) return null;
+  const now = new Date();
+  return Math.ceil((due - now) / 86400000);
+}
+
 async function persistWF() {
   const wf = curWF(); wf.updated_at = new Date().toISOString();
   if (Array.isArray(historyCache)) { const row = historyCache.find(r => r.id === window._runId); if (row) row.workflow = wf; }
@@ -1008,9 +1038,19 @@ function renderPursuit() {
   const migrateNote = window._wfNeedsMigration ? `<div class="flag" style="margin-bottom:10px">Workflow changes aren't saving yet — the one-time DB migration hasn't been run. Documents still generate; status won't persist across reopen until then.</div>` : '';
   const idNote = !window._runId ? `<div class="note" style="margin-bottom:8px">Generate an estimate (auto-saved) to persist status across sessions.</div>` : '';
 
+  // Bid due date — the field the desk sorts the day by.
+  const dd = wf.due_date || '';
+  const dtd = daysToDue(wf);
+  const duePill = !dd ? '<span class="ck-pill ck-na">not set</span>'
+    : `<span class="ck-pill ${dtd < 0 ? 'ck-needed' : dtd <= 3 ? 'ck-requested' : 'ck-received'}">${esc(new Date(dd + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }))}${dtd < 0 ? ` · ${Math.abs(dtd)}d overdue` : dtd === 0 ? ' · today' : ` · ${dtd}d`}</span>`;
+  const dueRow = `<div class="ck-row"><span class="ck-name">Bid due</span>${duePill}
+    <div class="ck-actions"><input type="date" id="due-date" class="ck-date" value="${esc(dd)}">
+    <button class="btn-sm ghost" onclick="setDueDate()">Set</button></div></div>`;
+
   el.innerHTML = migrateNote + idNote +
     `<div class="note" style="margin-bottom:4px">Stage</div><div class="stagebar">${stageBar}</div>
      <div class="note" style="margin:10px 0 2px">Pre-bid checklist</div>
+     ${dueRow}
      ${statusRow('bonding', 'Bonding', 'Bond request', 'genBond()')}
      ${statusRow('builders_risk', 'Builders Risk', 'BR submission', 'genBuildersRisk()')}
      <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-actions note">managed in the BuildingConnected card below</div></div>
@@ -1019,18 +1059,73 @@ function renderPursuit() {
      ${mtgRow}`;
 }
 
-// Status cell for the estimating-desk board (reads a run's stored workflow + derived BC)
-function boardStatusCell(run) {
-  const wf = run.workflow || {}; const stage = wf.stage || 'takeoff';
-  const stageLabel = (WF_STAGES.find(s => s.key === stage) || {}).label || stage;
-  const stageChip = stage === 'lost' ? `<span class="chip" style="background:#fee2e2;color:#991b1b">${stageLabel}</span>`
-    : `<span class="chip ${stage === 'won' ? 'ck-received' : stage === 'submitted' ? 'ck-requested' : 'ck-open'}">${stageLabel}</span>`;
+/* ===== Estimating Desk board (v1.10.0) ==============================================
+   The desk is the default view: the first screen answers "what does estimating need to move
+   today?" instead of asking for a new estimate. Pursuits are bucketed by what is blocking them,
+   soonest-due first. Every column below is backed by real stored state — nothing is shown that
+   the tool cannot actually populate. */
+const DESK_BUCKETS = [
+  { key: 'due', label: 'Due now', chip: 'ck-needed', hint: 'bid due within 3 days, or overdue' },
+  { key: 'quotes', label: 'Awaiting quotes', chip: 'ck-requested', hint: 'out to bid / pricing with packages still unpriced' },
+  { key: 'active', label: 'In progress', chip: 'ck-open', hint: 'takeoff and scope work' },
+  { key: 'submitted', label: 'Submitted', chip: 'ck-received', hint: 'awaiting award' },
+  { key: 'closed', label: 'Closed', chip: 'ck-done', hint: 'won / lost' },
+];
+function deskBucket(latest) {
+  const wf = latest.workflow || {};
+  const st = wf.stage || 'takeoff';
+  if (st === 'won' || st === 'lost') return 'closed';
+  if (st === 'submitted') return 'submitted';
+  const d = daysToDue(wf);
+  if (d != null && d <= 3) return 'due';           // urgency outranks everything still open
+  const cov = wf.coverage;
+  if ((st === 'out_to_bid' || st === 'pricing') && (!cov || !cov.m || cov.n < cov.m)) return 'quotes';
+  return 'active';
+}
+function deskRow(p) {
+  const { latest, wf, runs, due } = p;
+  const stageLabel = (WF_STAGES.find(s => s.key === p.stage) || {}).label || p.stage;
+  const stageChip = p.stage === 'lost' ? `<span class="chip" style="background:#fee2e2;color:#991b1b">${stageLabel}</span>`
+    : `<span class="chip ${p.stage === 'won' ? 'ck-received' : p.stage === 'submitted' ? 'ck-requested' : 'ck-open'}">${stageLabel}</span>`;
+
+  const dueCell = due == null ? '<span class="note">—</span>'
+    : `<span class="chip ${due < 0 ? 'ck-needed' : due <= 3 ? 'ck-requested' : 'ck-received'}">${esc(new Date(wf.due_date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span>`
+      + `<div class="note">${due < 0 ? Math.abs(due) + 'd overdue' : due === 0 ? 'today' : due + 'd'}</div>`;
+
+  const cov = wf.coverage;
+  const covCell = cov && cov.m
+    ? `<span class="chip ${cov.n >= cov.m ? 'ck-done' : cov.n ? 'ck-requested' : 'ck-open'}">${cov.n} / ${cov.m}</span>`
+    : '<span class="note">—</span>';
+
+  // Pre-bid readiness at a glance: bonding, builders risk, RFIs, BC, meeting.
   const ck = wf.checklist || {};
-  const item = (v, lbl) => { if (!v || !v.status || v.status === 'na') return ''; const c = { needed: 'ck-needed', requested: 'ck-requested', received: 'ck-received' }[v.status] || 'ck-open'; const t = { needed: 'needed', requested: 'req', received: '✓' }[v.status] || ''; return `<span class="chip ${c}">${lbl} ${t}</span>`; };
-  let chips = stageChip + item(ck.bonding, 'Bond') + item(ck.builders_risk, 'BR');
-  if (ck.prebid_meeting && ck.prebid_meeting.date) chips += `<span class="chip ck-received">📅 ${esc(new Date(ck.prebid_meeting.date).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span>`;
-  if (run.bc_url) chips += '<span class="chip ck-done" title="Loaded to BuildingConnected">↗BC</span>';
-  return chips;
+  const it = (v, lbl) => { if (!v || !v.status || v.status === 'na') return ''; const c = { needed: 'ck-needed', requested: 'ck-requested', received: 'ck-received' }[v.status] || 'ck-open'; const t = { needed: '!', requested: 'req', received: '✓' }[v.status] || ''; return `<span class="chip ${c}">${lbl} ${t}</span>`; };
+  let pre = it(ck.bonding, 'Bond') + it(ck.builders_risk, 'BR');
+  if (ck.rfis && ck.rfis.items && ck.rfis.items.length) pre += `<span class="chip ${ck.rfis.status === 'answered' ? 'ck-received' : ck.rfis.status === 'sent' ? 'ck-requested' : 'ck-needed'}">${ck.rfis.items.length} RFI</span>`;
+  if (ck.prebid_meeting && ck.prebid_meeting.date) pre += `<span class="chip ck-received">📅 ${esc(new Date(ck.prebid_meeting.date).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span>`;
+  if (latest.bc_url) pre += '<span class="chip ck-done" title="Loaded to BuildingConnected">↗BC</span>';
+  if (!pre) pre = '<span class="note">—</span>';
+
+  const mids = runs.map(r => r.cost_mid).filter(Boolean);
+  const spread = mids.length > 1 ? ` <span class="note" title="spread across ${mids.length} revisions">±${Math.round((Math.max(...mids) - Math.min(...mids)) / Math.min(...mids) * 100)}%</span>` : '';
+  const pages = (latest.files || []).reduce((s, f) => s + (f.pages || 0), 0);
+  const act = (wf.updated_at || latest.created_at || '').slice(0, 10);
+
+  return `<tr class="hrow" style="cursor:pointer" onclick="openRun('${latest.id}')">`
+    + `<td><strong>${esc(latest.project_name)}</strong>${latest.location ? ` <span class="note">· ${esc(latest.location)}</span>` : ''}`
+    + `<div class="note">${runs.length > 1 ? runs.length + ' revisions · ' : ''}${pages ? pages + ' plan pp' : 'scope-only'}${latest.estimator ? ' · ' + esc(latest.estimator) : ''}</div></td>`
+    + `<td>${dueCell}</td><td>${stageChip}</td><td>${covCell}</td><td>${pre}</td>`
+    + `<td class="r"><strong>${latest.cost_mid ? '$' + latest.cost_mid.toLocaleString() : '—'}</strong>${spread}</td>`
+    + `<td>${esc(latest.confidence || '—')}</td>`
+    + `<td class="note">${act}</td></tr>`;
+}
+// Start a fresh pursuit from the desk: clear prior pursuit state so nothing bleeds across.
+function newPursuit() {
+  window._runId = null; window._workflow = defaultWF(); window._bcLoaded = null;
+  window._recon = null; window._lastDivisions = null; window._pkgConceptualTotal = null;
+  quotes = {};
+  setEstView('assist');
+  resetAll();
 }
 
 // ---- Pre-bid meeting calendar (auth-agnostic: .ics download + add-to-calendar links) ----
@@ -1554,7 +1649,7 @@ async function saveRun(inp, p, batches, durationMs) {
 let historyCache = null;
 async function renderHistory(force) {
   const el = document.getElementById('history-body');
-  el.innerHTML = '<div class="billing-empty">Loading run history…</div>';
+  el.innerHTML = '<div class="billing-empty">Loading the desk…</div>';
   try {
     if (!historyCache || force) {
       const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1565,7 +1660,9 @@ async function renderHistory(force) {
     }
     const runs = historyCache;
     if (!runs.length) {
-      el.innerHTML = `<div class="billing-block"><h3 class="section-header">Past estimates</h3><div class="billing-empty">No runs logged yet — every estimate generated from here on is saved automatically.</div></div>`;
+      el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk
+        <span style="margin-left:auto"><button class="btn-sm" onclick="newPursuit()">＋ New pursuit</button></span></h3>
+        <div class="billing-empty">No pursuits yet — start one and it's tracked here automatically.</div></div>`;
       return;
     }
     const groups = {};
@@ -1573,31 +1670,41 @@ async function renderHistory(force) {
       const k = (run.project_name || '').trim().toLowerCase();
       (groups[k] = groups[k] || []).push(run);
     }
-    const ordered = Object.values(groups).sort((a, b) => (b[0].created_at || '').localeCompare(a[0].created_at || ''));
+    // One PURSUIT per project; repeat runs are revisions of it, not separate pursuits.
+    const pursuits = Object.values(groups).map(g => {
+      const runs = g.slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+      const latest = runs[0];
+      const wf = latest.workflow || {};
+      return { runs, latest, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(latest) };
+    });
+
+    // Order inside a bucket: soonest due first (undated last), then most recently touched.
+    const touched = p => (p.wf.updated_at || p.latest.created_at || '');
+    pursuits.sort((a, b) => {
+      const ad = a.due == null ? 1e9 : a.due, bd = b.due == null ? 1e9 : b.due;
+      return ad !== bd ? ad - bd : touched(b).localeCompare(touched(a));
+    });
+
+    const totalOpen = pursuits.filter(p => !['closed'].includes(p.bucket)).length;
     let html = '';
-    for (const g of ordered) {
-      const latest = g[0];
-      const mids = g.map(x => x.cost_mid).filter(Boolean);
-      const spread = mids.length > 1 ? Math.min(...mids).toLocaleString() + ' – ' + Math.max(...mids).toLocaleString() : null;
-      html += `<tr style="background:#f9fafb"><td colspan="7" style="padding-top:14px"><strong>${esc(latest.project_name)}</strong> <span class="note">· ${g.length} run${g.length === 1 ? '' : 's'}${spread ? ` · midpoint spread $${spread}` : ''}${latest.location ? ' · ' + esc(latest.location) : ''}</span></td></tr>`;
-      for (const run of g) {
-        const files = (run.files || []).reduce((s, f) => s + (f.pages || 0), 0);
-        html += `<tr class="hrow" style="cursor:pointer" onclick="openRun('${run.id}')">`
-          + `<td>${(run.created_at || '').slice(0, 10)}</td>`
-          + `<td class="r"><strong>${run.cost_mid ? '$' + run.cost_mid.toLocaleString() : '—'}</strong></td>`
-          + `<td class="r note">${run.cost_low && run.cost_high ? '$' + run.cost_low.toLocaleString() + ' – $' + run.cost_high.toLocaleString() : '—'}</td>`
-          + `<td>${esc(run.confidence || '—')}</td>`
-          + `<td>${boardStatusCell(run)}</td>`
-          + `<td>${files ? files + ' pp' : 'scope-only'}${run.estimator ? ' · ' + esc(run.estimator) : ''}</td>`
-          + `<td class="note">${esc(run.version || '')}</td></tr>`;
-      }
+    for (const bk of DESK_BUCKETS) {
+      const inBucket = pursuits.filter(p => p.bucket === bk.key);
+      if (!inBucket.length) continue;
+      html += `<tr><td colspan="8" style="padding:16px 0 4px"><span class="chip ${bk.chip}">${bk.label}</span> <span class="note">${inBucket.length} · ${bk.hint}</span></td></tr>`;
+      for (const p of inBucket) html += deskRow(p);
     }
-    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk <span class="cnt">${runs.length} pursuit${runs.length === 1 ? '' : 's'} · click a row to reopen &amp; work it</span>
-      <button class="btn btn-ghost" style="margin-left:auto;padding:4px 10px;font-size:12px" onclick="renderHistory(true)">⟳ Refresh</button></h3>
-      <div class="billing-sub">Each estimate is a tracked pursuit — stage + pre-bid checklist (bonding, builders risk, BC, quotes, pre-bid meeting). Reopen a row to advance status, generate bond/builders-risk submissions, or set the pre-bid meeting.</div>
-      <table><thead><tr><th>Date</th><th class="r">Midpoint</th><th class="r">Range</th><th>Conf.</th><th>Status</th><th>Plans · by</th><th>Ver</th></tr></thead><tbody>${html}</tbody></table></div>`;
+
+    const attention = pursuits.filter(p => p.bucket === 'due').length;
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk <span class="cnt">${totalOpen} open pursuit${totalOpen === 1 ? '' : 's'}${attention ? ` · <strong style="color:#dc2626">${attention} need attention</strong>` : ''}</span>
+      <span style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn-sm" onclick="newPursuit()">＋ New pursuit</button>
+        <button class="btn-sm ghost" onclick="setEstView('quickcheck')">Quick check</button>
+        <button class="btn-sm ghost" onclick="renderHistory(true)">⟳</button>
+      </span></h3>
+      <div class="billing-sub">What estimating needs to move today. Each project is one pursuit — repeat runs are its revisions. Click a row to open the pursuit and work it: advance stage, set the bid due date, generate bond / builders-risk submissions, draft RFIs, enter quotes.</div>
+      <table><thead><tr><th>Pursuit</th><th>Due</th><th>Stage</th><th>Quotes</th><th>Pre-bid</th><th class="r">Conceptual value</th><th>Conf.</th><th>Last activity</th></tr></thead><tbody>${html}</tbody></table></div>`;
   } catch (e) {
-    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Past estimates</h3><div class="billing-empty">History unavailable: ${esc(e.message)}</div></div>`;
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk</h3><div class="billing-empty">Desk unavailable: ${esc(e.message)}</div></div>`;
   }
 }
 async function openRun(id) {
