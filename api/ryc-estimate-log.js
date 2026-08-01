@@ -568,6 +568,87 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    /* ===== SLICE 1 — OPPORTUNITY LIFECYCLE (contract v1.1 phase A, 2026-08-01) ==========
+       Durable opportunities with TWO orthogonal lifecycles (source_status × review_state) and
+       typed, audited, idempotent commands. All mutation logic lives in Postgres functions
+       (one transaction: version check + mutation + ryc_fact_events append); these actions are
+       thin gated wrappers. Error contract: RY404 not-found · RY409 version conflict ·
+       RY40A name collision ("review") · RY40B already adopted · RY40C not passed · RY400 bad
+       input. Actor is shared_gate until identity (contract §2 banner). */
+    const RPC_STATUS = { RY404: 404, RY409: 409, RY40A: 409, RY40B: 409, RY40C: 409, RY400: 400 };
+    const rpc = async (fn, args) => {
+      const r = await sb(`rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) });
+      const txt = await r.text();
+      let body; try { body = JSON.parse(txt); } catch { body = { message: txt }; }
+      if (!r.ok) {
+        const code = body && body.code;
+        return { status: RPC_STATUS[code] || r.status, body: { error: (body && body.message) || txt.slice(0, 300) } };
+      }
+      return { status: 200, body };
+    };
+    const gateActor = { type: 'shared_gate', display: 'gate', channel: 'desk' };
+    const reqId = () => String(req.body.request_id || '').slice(0, 80) ||
+      (globalThis.crypto && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
+
+    // Ingest the BC bid board into ryc_opportunities. Published rows ingest fully; recentClosed
+    // rows only UPDATE opportunities we already track (flipping source_status) — backfilling
+    // months of historic closed bids as "new" would flood the review queue.
+    if (action === 'sync_opportunities') {
+      const br = await fetch('https://app.civicscope.io/ryc-data/bc-bidboard.json?t=' + Date.now());
+      if (!br.ok) return res.status(502).json({ error: 'bid board unavailable: HTTP ' + br.status });
+      const board = await br.json();
+      const trim = (bp) => { const { pkgs, ...rest } = bp || {}; return rest; };
+      const mapRow = (bp, status) => ({
+        source_opportunity_id: String(bp.id),
+        name: String(bp.name || '').slice(0, 250),
+        client: bp.architect ? String(bp.architect).slice(0, 200) : null,
+        location: [bp.city, bp.st].filter(Boolean).join(', ') || null,
+        bid_due_at: bp.bidsDueAt || null,
+        bc_url: 'https://app.buildingconnected.com/projects/' + bp.id,
+        source_status: status,
+        payload: trim(bp),
+      });
+      const rows = (board.published || []).map(bp => mapRow(bp, 'open'));
+      const closed = board.recentClosed || [];
+      if (closed.length) {
+        const ids = closed.map(bp => String(bp.id));
+        const kr = await sb(`ryc_opportunities?source=eq.bc_bidboard&source_opportunity_id=in.(${ids.map(encodeURIComponent).join(',')})&select=source_opportunity_id`);
+        if (kr.ok) {
+          const known = new Set((await kr.json()).map(x => x.source_opportunity_id));
+          closed.filter(bp => known.has(String(bp.id))).forEach(bp => rows.push(mapRow(bp, 'expired')));
+        }
+      }
+      const out = await rpc('ryc_ingest_opportunities', {
+        p_source: 'bc_bidboard', p_rows: rows,
+        p_request_id: 'sync-' + (board.generatedAt || reqId()),
+        p_actor: gateActor,
+      });
+      return res.status(out.status).json(out.status === 200 ? Object.assign({ board_generated_at: board.generatedAt }, out.body) : out.body);
+    }
+
+    if (action === 'list_opportunities') {
+      const limit = Math.min(Number(req.body.limit) || 200, 500);
+      const state = ['new', 'reviewing', 'passed', 'adopted'].includes(req.body.review_state) ? `&review_state=eq.${req.body.review_state}` : '';
+      const r = await sb(`ryc_opportunities_v?company_id=eq.ryc${state}&order=bid_due_at.asc.nullslast&limit=${limit}`);
+      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+      const rows = await r.json();
+      return res.status(200).json({ ok: true, opportunities: rows, needs_review_count: rows.filter(x => x.needs_review).length });
+    }
+
+    if (action === 'adopt_opportunity' || action === 'dispose_opportunity' || action === 'reopen_opportunity') {
+      const oid = String(req.body.opportunity_id || '');
+      if (!UUID.test(oid)) return res.status(400).json({ error: 'Bad opportunity_id' });
+      const ver = Number.isInteger(req.body.expected_version) ? req.body.expected_version : null;
+      const args = { p_id: oid, p_expected_version: ver, p_request_id: reqId(), p_actor: gateActor };
+      if (action === 'dispose_opportunity') {
+        args.p_reason = String(req.body.reason || '');
+        args.p_note = req.body.note ? String(req.body.note).slice(0, 500) : null;
+      }
+      const fn = { adopt_opportunity: 'ryc_adopt_opportunity', dispose_opportunity: 'ryc_dispose_opportunity', reopen_opportunity: 'ryc_reopen_opportunity' }[action];
+      const out = await rpc(fn, args);
+      return res.status(out.status).json(out.body);
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     return res.status(500).json({ error: err.message });
