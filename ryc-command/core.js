@@ -67,10 +67,18 @@ function projectedMargin(job){ var cv=job.contractValue, pc=job.budget&&job.budg
 function projMarginSuspect(job){
   var b=job.budget||{};
   if(b.projCostSuspect) return true;
-  // Structural floor (Codex #5): a projection below cost ALREADY RECORDED is invalid on its
-  // face — the producer's single >130%-of-budget threshold misses this class entirely.
+  if(!(b.projectedCost>0)) return false;
+  // Structural checks (Codex #5) — the producer's single >130%-of-budget threshold only
+  // catches the late-job overstatement tail. Live data probe 2026-08-01:
+  //  · early jobs carried projections at 16–75% of revised budget (commitments not yet let),
+  //    reading as fake 50–94% margins that graded green and inflated the headline to 17.7%;
+  //  · a projection below cost ALREADY RECORDED is invalid on its face.
+  // A projection materially below revised budget means incomplete buyout, not margin — trust
+  // only projections in the [90%, 130%] band of budget and above cost-to-date.
   var ctd=(job.costToDate!=null)?job.costToDate:b.direct;
-  return !!(b.projectedCost>0 && ctd>0 && b.projectedCost<ctd*0.98);
+  if(ctd>0 && b.projectedCost<ctd*0.98) return true;
+  if(b.revised>0 && b.projectedCost<b.revised*0.9) return true;
+  return false;
 }
 
 /* ---- Foundation merge (Procore-revised contract priority; ported from legacy v1.29.0) ---- */
@@ -176,13 +184,13 @@ function getStoplight(job, live){
     // whenever a CO raised revenue and cost together).
     if(pctComp!=null && pctComp>=10 && pMargin!=null && abMargin!=null && (abMargin-pMargin)>=GF_MOVE_PTS)
       reasons.push({level:"amber",text:"Margin fading "+pMargin.toFixed(1)+"% projected vs "+abMargin.toFixed(1)+"% as-bid"});
-    // Uncertainty and severity are separate dimensions (Codex #5): an unverified projection is
-    // never graded, but a LARGE NEGATIVE unverified forecast must not soften into routine
-    // "needs verification" — it reads as high potential risk until someone verifies it.
+    // Uncertainty and severity are separate dimensions (Codex #5): an unverified projection
+    // with NO risk signal is simply ungraded (⚑ on the row + a Data Trust exception — not an
+    // alarm), but a NEGATIVE unverified forecast must not soften into silence — it reads as
+    // high potential risk until someone verifies the projection.
     if(pSuspect){
       var rawPM=projectedMargin(job);
       if(rawPM!=null && rawPM<0) reasons.push({level:"amber",text:"High potential margin risk — raw projection "+rawPM.toFixed(1)+"% at completion, projected cost UNVERIFIED"});
-      else reasons.push({level:"amber",text:"Projected cost needs verification — margin not graded"});
     }
     if(daysOverdue>=1 && daysOverdue<=30) reasons.push({level:"amber",text:daysOverdue+" days past projected finish"});
     if(coExposure>0.07) reasons.push({level:"amber",text:"CO exposure "+(coExposure*100).toFixed(1)+"% of contract"});

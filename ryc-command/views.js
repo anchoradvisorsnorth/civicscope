@@ -378,7 +378,15 @@ function buildExceptions(jobs){
       if(f.type==="closed") exc.push({jno:j.projectNumber,name:j.name,issue:"Lifecycle mismatch",detail:"Foundation shows this job CLOSED; still active on the Procore board"+pl});
     });
     if(stageConflict(j)) exc.push({jno:j.projectNumber,name:j.name,issue:"Stale stage in Procore",detail:"Stage says Pre-Construction but the job is "+Math.round(j.pctComplete)+"% cost-complete"+(j.costToDate!=null?" ("+fmtCompact(j.costToDate)+" spent)":"")+" — update the stage in Procore"+pl});
-    if(j.budget&&j.budget.projCostSuspect) exc.push({jno:j.projectNumber,name:j.name,issue:"Projected cost ⚑ verify",detail:"ERP projected cost "+fmtCompact(j.budget.projectedCost)+" exceeds revised budget "+fmtCompact(j.budget.revised)+" by >30% — sub costs may be double-booked in Direct"+pl});
+    if(projMarginSuspect(j)&&j.budget&&j.budget.projectedCost>0){
+      var pb=j.budget, pdet;
+      if(pb.projCostSuspect) pdet="ERP projected cost "+fmtCompact(pb.projectedCost)+" exceeds revised budget "+fmtCompact(pb.revised)+" by >30% — sub costs may be double-booked in Direct";
+      else { var pctd=(j.costToDate!=null)?j.costToDate:pb.direct;
+        pdet=(pctd>0&&pb.projectedCost<pctd*0.98)
+          ?("ERP projected cost "+fmtCompact(pb.projectedCost)+" is BELOW cost already recorded ("+fmtCompact(pctd)+") — projection invalid on its face")
+          :("ERP projected cost "+fmtCompact(pb.projectedCost)+" is "+(pb.revised>0?Math.round(pb.projectedCost/pb.revised*100)+"% of":"below")+" revised budget "+fmtCompact(pb.revised)+" — likely incomplete buyout commitments, not real margin"); }
+      exc.push({jno:j.projectNumber,name:j.name,issue:"Projected cost ⚑ verify",detail:pdet+" — margin shown ungraded until verified"+pl});
+    }
     if(j.budget&&j.budget.projectedCost==null&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"Missing projected cost",detail:"No ERP-view Projected Costs on an in-flight job"+pl});
     if(!j.foundation&&j.stage!=="Pre-Construction") exc.push({jno:j.projectNumber,name:j.name,issue:"No Foundation match",detail:"Financials are Procore-only — unverified by accounting"});
   });
