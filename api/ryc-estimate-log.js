@@ -452,6 +452,35 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, dry_run: dry, orphan_runs: orphans.length, pursuits: report.length, report });
     }
 
+    /* Opportunity intake (Codex Step 4): pursuit CREATION from source ingestion — a published
+       BuildingConnected bid-board project (or any future source) becomes a pursuit with ONE
+       click, no rekeying. The pursuit exists before any estimate run; the first generation
+       inside it attaches as revision #1. Idempotent via the unique norm_name index. */
+    if (action === 'create_pursuit') {
+      const name = String(req.body.name || '').trim().slice(0, 250);
+      if (!name) return res.status(400).json({ error: 'name required' });
+      const wf = { stage: 'takeoff', checklist: {} };
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.due_date || ''))) wf.due_date = req.body.due_date;
+      if (req.body.source) wf.source = String(req.body.source).slice(0, 40);
+      const body = {
+        tenant: 'ryc', name, norm_name: normName(name),
+        location: req.body.location ? String(req.body.location).slice(0, 200) : null,
+        workflow: wf,
+        bc_project_id: req.body.bc_project_id ? String(req.body.bc_project_id).slice(0, 120) : null,
+        bc_url: req.body.bc_url ? String(req.body.bc_url).slice(0, 500) : null,
+      };
+      const rc = await sb('ryc_pursuits', {
+        method: 'POST', headers: { 'Prefer': 'return=representation' }, body: JSON.stringify(body),
+      });
+      if (rc.ok) { const created = await rc.json(); return res.status(200).json({ ok: true, pursuit: created[0] }); }
+      const txt = await rc.text();
+      if (/23505|duplicate key/i.test(txt)) {
+        const rf = await sb(`ryc_pursuits?tenant=eq.ryc&norm_name=eq.${encodeURIComponent(normName(name))}&limit=1`);
+        if (rf.ok) { const rows = await rf.json(); if (rows.length) return res.status(200).json({ ok: true, pursuit: rows[0], existed: true }); }
+      }
+      return res.status(rc.status).json({ error: txt });
+    }
+
     if (action === 'delete') {
       const id = String(req.body.id || '');
       if (!UUID.test(id)) return res.status(400).json({ error: 'Bad id' });

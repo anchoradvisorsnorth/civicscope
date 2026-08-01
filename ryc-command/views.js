@@ -130,7 +130,47 @@ function renderCommand(){
     .forEach(function(x){ if(!x[1]) staleFeeds.push(x[0]+" down"); else if(x[2]&&(Date.now()-new Date(x[2]))/3600000>30) staleFeeds.push(x[0]+" stale ("+ageTxt(x[2])+")"); });
   var staleWarn=staleFeeds.length?("<div class=\"warn-banner\">⚠️ Data delayed: "+staleFeeds.join(" · ")+" — details in Data Trust.</div>"):"";
 
-  return warn+staleWarn+strip+queue;
+  return warn+staleWarn+strip+queue+"<div id=\"delta-panel\"></div>";
+}
+
+/* Computed change layer (Codex Step 4): week-over-week movement derived from the nightly
+   Foundation snapshot trail (ryc_foundation_history via ?asof=) — billed, cost recorded,
+   contract changes, new/closed jobs. Nothing here is manually maintained; there is no action
+   register to keep current. Fails silent: no history → no panel, never an error surface. */
+var _deltaCache=null;
+function loadCommandDeltas(){
+  var el=document.getElementById("delta-panel"); if(!el) return;
+  if(_deltaCache){ el.innerHTML=_deltaCache; return; }
+  if(!(foundationData&&foundationData.jobs)){ el.innerHTML=""; return; }
+  var asof=new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+  el.innerHTML="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computing from nightly snapshots…</div></div>";
+  fetch(CRM+"/api/ryc-foundation?asof="+asof).then(function(r){ return r.json(); }).then(function(old){
+    if(!old||!old.jobs||!Object.keys(old.jobs).length){ el.innerHTML=""; return; }
+    var cur=foundationData.jobs;
+    var billed=0,cost=0,contractChanges=[],movers=[],newJobs=[],closed=[];
+    Object.keys(cur).forEach(function(k){
+      var c=cur[k],o=old.jobs[k];
+      if(!o){ if(c.jobStatus==="A"&&((c.currentContract||0)>0||(c.originalContract||0)>0)) newJobs.push(c); return; }
+      var db=(c.totalInvoiced||0)-(o.totalInvoiced||0); if(isFinite(db)) billed+=db;
+      var dc=(c.totalCosts||0)-(o.totalCosts||0); if(isFinite(dc)){ cost+=dc; if(dc>1000) movers.push({j:c,d:dc}); }
+      var dk=(c.currentContract||0)-(o.currentContract||0);
+      if(Math.abs(dk)>25000) contractChanges.push({j:c,d:dk});
+    });
+    Object.keys(old.jobs).forEach(function(k){ var o=old.jobs[k]; if(o.jobStatus==="A"&&(!cur[k]||cur[k].jobStatus==="C")) closed.push(o); });
+    movers.sort(function(a,b){ return b.d-a.d; });
+    contractChanges.sort(function(a,b){ return Math.abs(b.d)-Math.abs(a.d); });
+    function li(name,jno,txt,val){ return "<div class=\"q-row info\"><div class=\"q-job\">"+esc(name)+"<span class=\"q-jno\">"+esc(jno||"")+"</span></div><div class=\"q-detail\">"+txt+"</div><div class=\"q-val\">"+val+"</div></div>"; }
+    var html="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computed from the nightly Foundation snapshot trail ("+asof+" → now). Derived, never hand-maintained.</div>"
+      +"<div class=\"q-row info\"><div class=\"q-job\">Week totals</div><div class=\"q-detail\"><b>"+fmtCompact(billed)+"</b> billed · <b>"+fmtCompact(cost)+"</b> cost recorded"
+      +(newJobs.length?(" · <b>"+newJobs.length+"</b> new job"+(newJobs.length===1?"":"s")):"")
+      +(closed.length?(" · <b>"+closed.length+"</b> closed"):"")+"</div></div>";
+    contractChanges.slice(0,5).forEach(function(x){ html+=li(x.j.description||"",x.j.jobNo,"contract "+(x.d>0?"+":"")+fmtCompact(x.d)+" this week",fmtCompact(x.j.currentContract)); });
+    newJobs.slice(0,5).forEach(function(c){ html+=li(c.description||"",c.jobNo,"NEW in Foundation this week"+(c.pmName?(" · "+esc(c.pmName)):""),fmtCompact(c.currentContract||c.originalContract)); });
+    closed.slice(0,5).forEach(function(o){ html+=li(o.description||"",o.jobNo,"closed in Foundation this week","—"); });
+    movers.slice(0,3).forEach(function(x){ html+=li(x.j.description||"",x.j.jobNo,"cost recorded "+fmtCompact(x.d)+" this week",""); });
+    html+="</div>";
+    _deltaCache=html; el.innerHTML=html;
+  }).catch(function(){ el.innerHTML=""; });
 }
 
 /* ===== Portfolio (Phase 2 — light operator table) ============================ */

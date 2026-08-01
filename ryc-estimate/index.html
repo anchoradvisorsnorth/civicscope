@@ -124,7 +124,7 @@
 <div id="app">
   <header style="display:flex;align-items:center;gap:14px">
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.13.0 · one-shell step 3: stable pursuit routes, submission capture · durable pursuit entity · plan takeoff · market sub-pricing · BC loader · award link → Foundation</div></div>
+    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.14.0 · step 4: BC opportunity intake (adopt, no rekeying) · stable pursuit routes · submission capture · durable pursuit entity · plan takeoff · market sub-pricing · BC loader · award link → Foundation</div></div>
     <a href="/ryc/command" style="white-space:nowrap;font-size:13px;color:#c2410c;text-decoration:none;font-weight:600">Command →</a>
   </header>
 
@@ -1451,6 +1451,21 @@ function deskBucket(wf) {
 }
 function deskRow(p) {
   const { latest, wf, runs, due, pursuit } = p;
+  // A pursuit can exist BEFORE any estimate (source-ingested opportunity, Codex Step 4) —
+  // it renders with its workflow state and opens into the generator, prefilled.
+  if (!latest) {
+    const act0 = (wf.updated_at || (pursuit && pursuit.created_at) || '').slice(0, 10);
+    const stageLabel0 = (WF_STAGES.find(s => s.key === p.stage) || {}).label || p.stage;
+    const dueCell0 = due == null ? '<span class="note">—</span>'
+      : `<span class="chip ${due < 0 ? 'ck-needed' : due <= 3 ? 'ck-requested' : 'ck-received'}">${esc(new Date(wf.due_date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span>`
+        + `<div class="note">${due < 0 ? Math.abs(due) + 'd overdue' : due === 0 ? 'today' : due + 'd'}</div>`;
+    return `<tr class="hrow" style="cursor:pointer" onclick="openBlankPursuit('${pursuit.id}')">`
+      + `<td><strong>${esc(pursuit.name)}</strong>${pursuit.location ? ` <span class="note">· ${esc(pursuit.location)}</span>` : ''}`
+      + `<div class="note">${wf.source === 'bc_bidboard' ? 'from BuildingConnected · ' : ''}no estimate yet — open to generate</div></td>`
+      + `<td>${dueCell0}</td><td><span class="chip ck-open">${esc(stageLabel0)}</span></td><td><span class="note">—</span></td>`
+      + `<td>${(pursuit.bc_url || pursuit.bc_project_id) ? '<span class="chip ck-done" title="Exists in BuildingConnected">↗BC</span>' : '<span class="note">—</span>'}</td>`
+      + `<td class="r"><span class="note">—</span></td><td>—</td><td class="note">${act0}</td></tr>`;
+  }
   const stageLabel = (WF_STAGES.find(s => s.key === p.stage) || {}).label || p.stage;
   const stageChip = p.stage === 'lost' ? `<span class="chip" style="background:#fee2e2;color:#991b1b">${stageLabel}</span>`
     : `<span class="chip ${p.stage === 'won' ? 'ck-received' : p.stage === 'submitted' ? 'ck-requested' : 'ck-open'}">${stageLabel}</span>`;
@@ -1495,6 +1510,60 @@ function deskRow(p) {
     + `<td>${esc(latest.confidence || '—')}</td>`
     + `<td class="note">${act}</td></tr>`;
 }
+/* ===== Opportunity intake (Codex Step 4) ============================================ */
+let bcBoardCache = null;
+async function loadBcBoard() {
+  if (bcBoardCache) return bcBoardCache;
+  const r = await fetch('/ryc-data/bc-bidboard.json?t=' + Date.now());
+  bcBoardCache = await r.json();
+  return bcBoardCache;
+}
+// A published BC project counts as tracked when a pursuit carries its BC id (Desk-created
+// drafts and adopted opportunities both do) or a pursuit name substantially overlaps it.
+function bcOpportunities(board, pursuitRows, runs) {
+  const linked = new Set(pursuitRows.map(p => p.bc_project_id).filter(Boolean));
+  (runs || []).forEach(r => { if (r.bc_project_id) linked.add(r.bc_project_id); });
+  const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+  const pNames = pursuitRows.map(p => new Set(norm(p.name)));
+  return (board.published || []).filter(bp => {
+    if (linked.has(bp.id)) return false;
+    const B = new Set(norm(bp.name));
+    return !pNames.some(A => { let i = 0; for (const x of A) if (B.has(x)) i++; const u = new Set([...A, ...B]).size; return u > 0 && i / u >= 0.5; });
+  });
+}
+async function adoptOpp(i) {
+  const bp = (window._bcOpps || [])[i]; if (!bp) return;
+  try {
+    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw: 'ryc2026', action: 'create_pursuit',
+        name: bp.name, location: [bp.city, bp.st].filter(Boolean).join(', ') || null,
+        due_date: bp.bidsDueAt ? bp.bidsDueAt.slice(0, 10) : null, source: 'bc_bidboard',
+        bc_project_id: bp.id, bc_url: 'https://app.buildingconnected.com/projects/' + bp.id }) });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    historyCache = null;
+    renderHistory(true);
+  } catch (e) { alert('Could not adopt: ' + e.message); }
+}
+// Open a run-less pursuit: the generator, prefilled from the pursuit, with identity attached —
+// the first estimate generated here lands as revision #1 of THIS pursuit.
+function openBlankPursuit(pid) {
+  const p = ((historyCache && historyCache.pursuits) || []).find(x => x.id === pid);
+  if (!p) return;
+  newPursuit();
+  window._pursuitId = pid;
+  window._workflow = (p.workflow && p.workflow.stage) ? p.workflow : defaultWF();
+  // An adopted opportunity already EXISTS in BC — the loader must offer "open", never a duplicate create.
+  window._bcLoaded = (p.bc_url || p.bc_project_id) ? { url: p.bc_url || null, id: p.bc_project_id || null } : null;
+  try {
+    document.getElementById('f-name').value = p.name || '';
+    document.getElementById('f-loc').value = p.location || '';
+    if (p.client_type) document.getElementById('f-ct').value = p.client_type;
+    if (p.work_type) document.getElementById('f-wt').value = p.work_type;
+  } catch {}
+  setEstView('assist');
+}
+
 // Start a fresh pursuit from the desk: clear prior pursuit state so nothing bleeds across.
 function newPursuit() {
   window._runId = null; window._pursuitId = null; window._workflow = defaultWF(); window._bcLoaded = null;
@@ -1946,6 +2015,8 @@ async function openPursuitById(pid) {
     const runs = ((historyCache && historyCache.runs) || []).filter(r => r.pursuit_id === pid)
       .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
     if (runs.length) { openRun(runs[0].id); return; }
+    // run-less pursuit (adopted opportunity) — deep link opens the prefilled generator
+    if (((historyCache && historyCache.pursuits) || []).some(x => x.id === pid)) { openBlankPursuit(pid); return; }
   } catch {}
   _routing = true; try { setEstView('history'); } finally { _routing = false; }
 }
@@ -2075,7 +2146,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.13.0';
+const TOOL_VERSION = 'v1.14.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -2151,12 +2222,6 @@ async function renderHistory(force) {
       historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
     }
     const runs = historyCache.runs;
-    if (!runs.length) {
-      el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk
-        <span style="margin-left:auto"><button class="btn-sm" onclick="newPursuit()">＋ New pursuit</button></span></h3>
-        <div class="billing-empty">No pursuits yet — start one and it's tracked here automatically.</div></div>`;
-      return;
-    }
     // Group runs by their PURSUIT id — the immutable identity; renames don't split it and two
     // pursuits that happen to share a name stay distinct. Orphan runs (pre-migration or a
     // failed pursuit attach) fall back to the legacy name grouping so nothing disappears.
@@ -2174,9 +2239,23 @@ async function renderHistory(force) {
       const wf = (pursuit && pursuit.workflow) || latest.workflow || {};
       return { runs, latest, pursuit, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf) };
     });
+    // Run-less pursuits (source-ingested opportunities, adopted but not yet estimated) are
+    // pursuits too — the entity exists from opportunity, not from first estimate.
+    const runPids = new Set(runs.filter(r => r.pursuit_id).map(r => r.pursuit_id));
+    (historyCache.pursuits || []).forEach(pr => {
+      if (runPids.has(pr.id)) return;
+      const wf = pr.workflow || {};
+      pursuits.push({ runs: [], latest: null, pursuit: pr, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf) });
+    });
+    if (!pursuits.length) {
+      el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk
+        <span style="margin-left:auto"><button class="btn-sm" onclick="newPursuit()">＋ New pursuit</button></span></h3>
+        <div class="billing-empty">No pursuits yet — start one and it's tracked here automatically.</div></div>`;
+      return;
+    }
 
     // Order inside a bucket: soonest due first (undated last), then most recently touched.
-    const touched = p => (p.wf.updated_at || p.latest.created_at || '');
+    const touched = p => (p.wf.updated_at || (p.latest && p.latest.created_at) || (p.pursuit && p.pursuit.created_at) || '');
     pursuits.sort((a, b) => {
       const ad = a.due == null ? 1e9 : a.due, bd = b.due == null ? 1e9 : b.due;
       return ad !== bd ? ad - bd : touched(b).localeCompare(touched(a));
@@ -2200,6 +2279,25 @@ async function renderHistory(force) {
       </span></h3>
       <div class="billing-sub">What estimating needs to move today. Each project is one pursuit — repeat runs are its revisions. Click a row to open the pursuit and work it: advance stage, set the bid due date, generate bond / builders-risk submissions, draft RFIs, enter quotes.</div>
       <table><thead><tr><th>Pursuit</th><th>Due</th><th>Stage</th><th>Quotes</th><th>Pre-bid</th><th class="r">Conceptual value</th><th>Conf.</th><th>Last activity</th></tr></thead><tbody>${html}</tbody></table></div>`;
+
+    // Opportunity intake (Codex Step 4): projects RYC has out to bid in BuildingConnected
+    // that no Desk pursuit tracks. Adoption is ONE CLICK — name, location, bid due date, and
+    // the BC linkage come from the source; nothing is rekeyed.
+    try {
+      const board = await loadBcBoard();
+      const opps = bcOpportunities(board, historyCache.pursuits || [], runs);
+      window._bcOpps = opps;
+      if (opps.length) {
+        const oppRows = opps.map((bp, i) =>
+          `<tr><td><strong>${esc(bp.name)}</strong><div class="note">${[bp.city, bp.st].filter(Boolean).join(', ')}${bp.packages ? ` · ${bp.packages} packages` : ''}${bp.invites ? ` · ${bp.invites} invites` : ''}</div></td>`
+          + `<td>${bp.bidsDueAt ? esc(new Date(bp.bidsDueAt).toLocaleDateString([], { month: 'short', day: 'numeric' })) : '—'}</td>`
+          + `<td class="r">${bp.value ? fmtCompact(bp.value) : '—'}</td>`
+          + `<td class="r"><button class="btn-sm" onclick="adoptOpp(${i})">＋ Adopt as pursuit</button></td></tr>`).join('');
+        el.innerHTML += `<div class="billing-block"><h3 class="section-header">📥 Untracked opportunities <span class="cnt">out to bid in BuildingConnected, not on the desk</span></h3>
+          <div class="billing-sub">Live from RYC's BC bid board (${board.generatedAt ? 'pulled ' + fmtDate(board.generatedAt) : 'daily pull'}). Adopting creates the pursuit from the source data — one click, no re-typing.</div>
+          <table><thead><tr><th>Project</th><th>Bids due</th><th class="r">Value</th><th></th></tr></thead><tbody>${oppRows}</tbody></table></div>`;
+      }
+    } catch { /* the intake section is additive — a bid-board failure never breaks the desk */ }
   } catch (e) {
     // Surface the real cause: this catch previously turned a code-level bug into a message that
     // read like a transient network problem, which hid it from the E2E gate.

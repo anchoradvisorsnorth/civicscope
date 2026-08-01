@@ -114,7 +114,7 @@ function renderView(){
   document.querySelector(".content").classList.toggle("light",currentView!=="command");
   // the brief carries its own editorial header (title + date + freshness) — drop the redundant topbar
   document.querySelector(".topbar").style.display=(currentView==="brief")?"none":"";
-  if(currentView==="command"){ view.innerHTML=renderCommand(); return; }
+  if(currentView==="command"){ view.innerHTML=renderCommand(); loadCommandDeltas(); return; }
   if(currentView==="portfolio"){ renderPortfolio(); return; }
   if(currentView==="billing"){ renderBilling(); return; }
   if(currentView==="woh"){ renderWOH(); return; }
