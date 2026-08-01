@@ -121,7 +121,7 @@
 <div id="app">
   <header>
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.10.1 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow (status · bonding/builders-risk · RFI builder · pre-bid meeting)</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.11.0 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow · award link → Foundation</div></div>
   </header>
 
   <div class="estnav">
@@ -1073,6 +1073,83 @@ function syncCoverage() {
   wf.quotes = vals;
   persistWF();
 }
+/* ===== Award link — the identity spine between the Desk and Command ==================
+   A pursuit keeps its own immutable id for life; at award it GAINS a link to the Foundation
+   job number (which Foundation then one-time-pushes to Procore, so it is the single
+   authoritative operational key). The link is confirmed once, at the moment the job is known,
+   rather than maintained anywhere — and confirming it IS the win capture. */
+let foundationJobs = null;
+async function loadFoundationJobs() {
+  if (foundationJobs) return foundationJobs;
+  const r = await fetch('https://crm.jbkdevelopment.com/api/ryc-foundation');
+  const d = await r.json();
+  const jobs = d.jobs || {};
+  foundationJobs = Object.keys(jobs).map(k => Object.assign({ jobNo: k }, jobs[k]));
+  return foundationJobs;
+}
+// Rank Foundation jobs against the pursuit name by normalised token overlap — same shape as
+// the leave-one-out matcher used for benchmark exclusion, so "similar job" means one thing here.
+function rankFoundationMatches(name, jobs) {
+  const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
+    .filter(w => w.length > 2 && !['the', 'and', 'for', 'new', 'project', 'improvements', 'inc', 'llc'].includes(w));
+  const A = new Set(norm(name));
+  if (!A.size) return [];
+  return jobs.map(j => {
+    const B = new Set(norm(j.description));
+    let inter = 0; for (const x of A) if (B.has(x)) inter++;
+    const union = new Set([...A, ...B]).size;
+    return { job: j, score: union ? inter / union : 0, shared: inter };
+  }).filter(x => x.shared > 0).sort((a, b) => b.score - a.score).slice(0, 8);
+}
+async function openAwardPicker() {
+  const el = document.getElementById('awardPicker');
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = '<div class="note">Loading Foundation jobs…</div>';
+  try {
+    const jobs = await loadFoundationJobs();
+    const name = (window._lastInp && window._lastInp.name) || '';
+    const ranked = rankFoundationMatches(name, jobs);
+    const opt = j => `<option value="${esc(j.jobNo)}">${esc(j.jobNo)} — ${esc((j.description || '').slice(0, 60))}${j.customerName ? ' · ' + esc(j.customerName.slice(0, 30)) : ''}</option>`;
+    const suggested = ranked.length
+      ? `<div class="note" style="margin-bottom:4px">Closest matches to <strong>${esc(name)}</strong>:</div>`
+        + ranked.map(x => `<div class="ck-row" style="padding:5px 0"><span>${esc(x.job.jobNo)} — ${esc((x.job.description || '').slice(0, 50))}<span class="note"> · ${Math.round(x.score * 100)}% name match${x.job.pmName ? ' · PM ' + esc(x.job.pmName) : ''}</span></span><div class="ck-actions"><button class="btn-sm" onclick="linkAward('${esc(x.job.jobNo)}')">Link</button></div></div>`).join('')
+      : `<div class="note">No close name match in Foundation's ${jobs.length} active jobs — pick manually.</div>`;
+    el.innerHTML = suggested
+      + `<div class="ck-row" style="border-top:1px solid var(--line);margin-top:6px"><span class="ck-name">All jobs</span>
+         <div class="ck-actions"><select id="award-sel" class="ck-date" style="max-width:340px">${jobs.slice().sort((a, b) => String(a.jobNo).localeCompare(String(b.jobNo))).map(opt).join('')}</select>
+         <button class="btn-sm ghost" onclick="linkAward(document.getElementById('award-sel').value)">Link selected</button>
+         <button class="btn-sm ghost" onclick="document.getElementById('awardPicker').style.display='none'">Cancel</button></div></div>`;
+  } catch (e) {
+    el.innerHTML = `<div class="flag">Couldn't load Foundation jobs: ${esc(e.message)}</div>`;
+  }
+}
+async function linkAward(jobNo) {
+  if (!window._runId) { alert('Save this estimate first (generate it) so the award can attach to a pursuit.'); return; }
+  const j = (foundationJobs || []).find(x => String(x.jobNo) === String(jobNo));
+  try {
+    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', id: window._runId, job_no: jobNo,
+        description: j ? j.description : null, customer: j ? j.customerName : null }) });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    window._workflow = d.workflow;           // server is authoritative (it also stamped stage=won)
+    historyCache = null;
+    const el = document.getElementById('awardPicker'); if (el) el.style.display = 'none';
+    renderPursuit();
+  } catch (e) { alert('Could not link the award: ' + e.message); }
+}
+async function unlinkAward() {
+  if (!window._runId || !confirm('Unlink this pursuit from its Foundation job?')) return;
+  try {
+    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', id: window._runId, unlink: true }) });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    window._workflow = d.workflow; historyCache = null; renderPursuit();
+  } catch (e) { alert('Could not unlink: ' + e.message); }
+}
+
 // Days until the bid is due — negative = overdue, null = no date set.
 function daysToDue(wf) {
   const d = wf && wf.due_date; if (!d) return null;
@@ -1163,10 +1240,22 @@ function renderPursuit() {
     <div class="ck-actions"><input type="date" id="due-date" class="ck-date" value="${esc(dd)}">
     <button class="btn-sm ghost" onclick="setDueDate()">Set</button></div></div>`;
 
+  // Award link — the handoff into Command. Shown once the pursuit is realistically live.
+  const aw = wf.award;
+  const awardRow = `<div class="ck-row"><span class="ck-name">Awarded job</span>
+    ${aw ? `<span class="ck-pill ck-received">${esc(aw.job_no)}</span><span class="note">${esc((aw.description || '').slice(0, 44))}${aw.customer ? ' · ' + esc(aw.customer.slice(0, 28)) : ''}</span>`
+         : '<span class="ck-pill ck-na">not linked</span>'}
+    <div class="ck-actions">${aw
+      ? `<button class="btn-sm ghost" onclick="unlinkAward()">Unlink</button>`
+      : `<button class="btn-sm" onclick="openAwardPicker()">🔗 Link Foundation job</button>`}</div></div>
+    <div id="awardPicker" style="display:none;padding:8px 0 4px"></div>
+    ${aw ? '' : '<div class="note" style="margin:-4px 0 8px">Link when accounting opens the job in Foundation — that\'s the award. Linking records the win and connects this estimate to the job\'s actuals.</div>'}`;
+
   el.innerHTML = migrateNote + idNote +
     `<div class="note" style="margin-bottom:4px">Stage</div><div class="stagebar">${stageBar}</div>
      <div class="note" style="margin:10px 0 2px">Pre-bid checklist</div>
      ${dueRow}
+     ${awardRow}
      ${statusRow('bonding', 'Bonding', 'Bond request', 'genBond()')}
      ${statusRow('builders_risk', 'Builders Risk', 'BR submission', 'genBuildersRisk()')}
      <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-actions note">managed in the BuildingConnected card below</div></div>
@@ -1220,6 +1309,8 @@ function deskRow(p) {
   if (ck.rfis && ck.rfis.items && ck.rfis.items.length) pre += `<span class="chip ${ck.rfis.status === 'answered' ? 'ck-received' : ck.rfis.status === 'sent' ? 'ck-requested' : 'ck-needed'}">${ck.rfis.items.length} RFI</span>`;
   if (ck.prebid_meeting && ck.prebid_meeting.date) pre += `<span class="chip ck-received">📅 ${esc(new Date(ck.prebid_meeting.date).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span>`;
   if (latest.bc_url) pre += '<span class="chip ck-done" title="Loaded to BuildingConnected">↗BC</span>';
+  // Awarded → carries its Foundation job number, the key Command knows it by.
+  if (wf.award && wf.award.job_no) pre += `<span class="chip ck-received" title="Awarded — Foundation job ${esc(wf.award.job_no)}${wf.award.description ? ': ' + esc(wf.award.description) : ''}">🏗 ${esc(wf.award.job_no)}</span>`;
   if (!pre) pre = '<span class="note">—</span>';
 
   const mids = runs.map(r => r.cost_mid).filter(Boolean);
@@ -1761,7 +1852,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.10.1';
+const TOOL_VERSION = 'v1.11.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};

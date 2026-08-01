@@ -148,6 +148,71 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, dry_run: dry, scanned: rows.length, reconciled: changed.length, rows: changed });
     }
 
+    /* ===== IDENTITY SPINE: award link (2026-08-01) ==================================
+       The Desk and Command are one system split at contract award. A pursuit is born in the
+       Desk with its own immutable id and may never become a job (a lost pursuit still has to
+       exist — losses are the most valuable calibration data). At award it GAINS a link to the
+       operational job number; the job number never becomes the pursuit's primary identity.
+
+       Per Keith: the award event is **the job being opened in Foundation**, which then does a
+       one-time push to Procore. So Foundation originates `job_no` and Procore's projectNumber
+       is a copy — there is exactly one authoritative key post-award, and the link is captured
+       as a side effect of work accounting already performs rather than as admin entry.
+
+       Storage is workflow.award (jsonb, no DDL); this API is the stable contract, so the
+       backing store can be promoted to a real column later without breaking callers. */
+    if (action === 'link_award') {
+      const id = String(req.body.id || '');
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
+      const r0 = await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc&select=id,workflow&limit=1`);
+      if (!r0.ok) return res.status(r0.status).json({ error: await r0.text() });
+      const rows0 = await r0.json();
+      if (!rows0.length) return res.status(404).json({ error: 'Not found' });
+      const wf = rows0[0].workflow && typeof rows0[0].workflow === 'object' ? rows0[0].workflow : { stage: 'takeoff', checklist: {} };
+
+      if (req.body.unlink) {
+        delete wf.award;
+      } else {
+        const jobNo = String(req.body.job_no || '').trim();
+        if (!jobNo) return res.status(400).json({ error: 'job_no required' });
+        wf.award = {
+          job_no: jobNo.slice(0, 40),
+          description: String(req.body.description || '').slice(0, 200) || null,
+          customer: String(req.body.customer || '').slice(0, 200) || null,
+          source: 'foundation',
+          linked_at: new Date().toISOString(),
+        };
+        // Linking a pursuit to a real Foundation job IS the win capture — don't ask twice.
+        if (wf.stage !== 'won') wf.stage = 'won';
+      }
+      wf.updated_at = new Date().toISOString();
+      const r = await sb(`ryc_estimates?id=eq.${id}&tenant=eq.ryc`, {
+        method: 'PATCH', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify({ workflow: wf }),
+      });
+      if (!r.ok) {
+        const txt = await r.text();
+        if (/workflow/.test(txt) && /column|schema|does not exist|PGRST204/i.test(txt)) {
+          return res.status(200).json({ ok: false, needs_migration: true });
+        }
+        return res.status(r.status).json({ error: txt });
+      }
+      return res.status(200).json({ ok: true, workflow: wf });
+    }
+
+    /* Reverse lookup for Command: given a Foundation job number, return the pursuit that was
+       estimated for it. This is what lets an awarded job show what RYC bid it at, and is the
+       first half of the conceptual→actual calibration loop. */
+    if (action === 'by_job') {
+      const jobNo = String(req.body.job_no || '').trim();
+      if (!jobNo) return res.status(400).json({ error: 'job_no required' });
+      const sel = 'id,created_at,estimator,project_name,location,client_type,work_type,cost_low,cost_high,cost_mid,confidence,version,workflow,bc_url';
+      const r = await sb(`ryc_estimates?tenant=eq.ryc&select=${sel}&order=created_at.desc&limit=500`);
+      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+      const rows = await r.json();
+      const hit = rows.filter(x => x.workflow && x.workflow.award && String(x.workflow.award.job_no) === jobNo);
+      return res.status(200).json({ ok: true, job_no: jobNo, pursuits: hit });
+    }
+
     if (action === 'delete') {
       const id = String(req.body.id || '');
       if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
