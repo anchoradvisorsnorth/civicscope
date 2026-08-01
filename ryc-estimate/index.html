@@ -121,7 +121,7 @@
 <div id="app">
   <header>
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div><h1>RYC Estimating</h1><div class="meta">v1.10.0 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow (status · bonding/builders-risk · RFI builder · pre-bid meeting)</div></div>
+    <div><h1>RYC Estimating</h1><div class="meta">v1.10.1 · plan takeoff · spec-book scope · autofill · market sub-pricing · BC loader · pursuit workflow (status · bonding/builders-risk · RFI builder · pre-bid meeting)</div></div>
   </header>
 
   <div class="estnav">
@@ -189,6 +189,7 @@
         <div id="confTag" class="tag"></div>
       </div>
       <div class="note" id="reconNote" style="display:none;margin-top:8px;padding:8px 10px;background:#fefce8;border:1px solid #fde68a;border-radius:6px;color:#854d0e"></div>
+      <div id="gateBanner" style="display:none;margin-top:8px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-left:3px solid #dc2626;border-radius:6px;color:#991b1b;font-size:13px;line-height:1.5"></div>
     </div>
 
     <div class="card" id="pursuitCard" style="display:none">
@@ -693,26 +694,105 @@ Produce ONE consolidated estimate incorporating ALL findings, still grounded in 
 ${OUT_FORMAT}`;
 }
 
+/* ===== Currency + division parsing (hardened v1.10.1) ===============================
+   The model's amounts are free text, not a typed interface. Until v1.10.0 a mis-parse was
+   cosmetic — the headline came from the model's own stated midpoint. Now that the package
+   rollup is canonical, a missed row moves the headline, the saved record, and the completed
+   value on a surety/insurer form. So parsing must be explicit and must FAIL LOUDLY.
+
+   Confirmed failures of the old one-regex approach (all silently produced $0 or dropped):
+     "03 Concrete: $1.2M — foundations"            "03 Concrete — $180,000 — foundations"
+     "03 Concrete: $180000.50 — foundations"       "Concrete — $180,000"  (unnumbered)
+     "03 Concrete: $180,000–$220,000 — range"      "03 Concrete: $ 180,000 — foundations"
+   and the old num() mangled values outright: '$2.5 million'→25, '$1.2M'→12, and
+   '$2,485,000.50'→248,500,050 — a 100x OVERSTATEMENT. */
+function parseMoney(raw) {
+  if (raw == null) return { value: null, flag: 'empty' };
+  if (typeof raw === 'number') return { value: isFinite(raw) ? Math.round(raw) : null, flag: null };
+  const s = String(raw).trim();
+  if (!s) return { value: null, flag: 'empty' };
+  const RE = /\$?\s*(\d[\d,]*(?:\.\d+)?)\s*(mm|m|k|million|thousand)?\b/gi;
+  const hits = []; let m;
+  while ((m = RE.exec(s))) {
+    let v = parseFloat(m[1].replace(/,/g, ''));
+    if (!isFinite(v)) continue;
+    const suf = (m[2] || '').toLowerCase();
+    if (suf === 'k' || suf === 'thousand') v *= 1e3;
+    else if (suf === 'm' || suf === 'mm' || suf === 'million') v *= 1e6;
+    hits.push({ value: Math.round(v), hadSuffix: !!suf });
+  }
+  if (!hits.length) return { value: null, flag: 'unparsed' };
+  // "$180,000–$220,000" is genuinely ambiguous — carry the midpoint but flag it as a range.
+  if (hits.length >= 2 && /\d\s*[\u2013\u2014-]\s*\$?\s*\d/.test(s)) {
+    return { value: Math.round((hits[0].value + hits[1].value) / 2), flag: 'range' };
+  }
+  return { value: hits[0].value, flag: hits[0].hadSuffix ? 'shorthand' : null };
+}
+
+// Split one DIVISIONS line into { div, name, amount, scope }. The leading 2-digit CSI number
+// is stripped first so it can never be mistaken for the amount, and a bare number only counts
+// as money when it is substantial (comma-grouped, shorthand, or >=4 digits) so a dimension
+// like "40x60" inside a package name can't be read as a price.
+function splitDivisionRow(line) {
+  const dm = line.match(/^\s*(\d{2})\b[\s.:)-]*/);
+  const div = dm ? dm[1] : null;
+  const body = dm ? line.slice(dm[0].length) : line;
+  const RE_CUR = /\$\s*\d[\d,]*(?:\.\d+)?\s*(?:mm|m|k|million|thousand)?\b/i;
+  const RE_BARE = /\b\d[\d,]*(?:\.\d+)?\s*(?:mm|m|k|million|thousand)\b|\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b|\b\d{4,}(?:\.\d+)?\b/i;
+  const hit = body.match(RE_CUR) || body.match(RE_BARE);
+  const clean = t => t.replace(/^[\s:\u2014\u2013-]+/, '').replace(/[\s:\u2014\u2013-]+$/, '').trim();
+  if (!hit) return { div, name: clean(body), amount: null, flag: 'unparsed', scope: '' };
+  const money = parseMoney(body.slice(hit.index));
+  let scope = body.slice(hit.index + hit[0].length);
+  // a range consumed a second figure — don't leave it dangling at the head of the scope text
+  if (money.flag === 'range') scope = scope.replace(/^\s*[\u2013\u2014-]\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*(?:mm|m|k)?\b/i, '');
+  return { div, name: clean(body.slice(0, hit.index)), amount: money.value, flag: money.flag, scope: clean(scope) };
+}
+
 function parseResponse(raw) {
   const get = k => { const m = raw.match(new RegExp(`${k}:\\s*(.+)`)); return m ? m[1].trim() : ''; };
   const block = (k, next) => { const m = raw.match(new RegExp(`${k}:\\s*([\\s\\S]*?)(?:\\n(?:${next}):|$)`)); return m ? m[1].trim() : ''; };
   const lines = s => s.split('\n').map(l => l.replace(/^[-•]\s*/, '').trim()).filter(Boolean);
-  const divisions = lines(block('DIVISIONS', 'ASSUMPTIONS')).map(line => {
-    const m = line.match(/^(.*?):\s*\$?([\d,]+)\s*(?:[—-]\s*(.*))?$/);
-    const o = m ? { name: m[1].trim(), amount: parseInt(m[2].replace(/,/g, ''), 10) || 0, scope: (m[3] || '').trim() } : { name: line, amount: 0, scope: '' };
-    const dm = o.name.match(/\b(\d{2})\b/); o.div = dm ? dm[1] : null;
-    return o;
-  }).filter(o => o.amount > 0 || /^\d{2}\b/.test(o.name.trim())); // drop model math-commentary lines (subtotal checks, margin musings) that aren't real division rows
+
+  // Rejoin a wrapped row: "03 Concrete:" on one line, its value on the next.
+  const rawDiv = lines(block('DIVISIONS', 'ASSUMPTIONS'));
+  const merged = [];
+  for (let i = 0; i < rawDiv.length; i++) {
+    const cur = rawDiv[i], nxt = rawDiv[i + 1], c = splitDivisionRow(cur);
+    if (c.amount == null && c.div && nxt && /^\$?\s*\d/.test(nxt.trim())) { merged.push(cur.replace(/[\s:]+$/, '') + ': ' + nxt.trim()); i++; }
+    else merged.push(cur);
+  }
+
+  // Unnumbered rows that carry money are usually real packages ("Concrete — $180,000"), but the
+  // model also emits arithmetic commentary that carries money ("Subtotal check: sums to $X").
+  // Numbered CSI rows are always real; only unnumbered ones need this discriminator, and it is
+  // deliberately narrow so a genuine package like "Total Station Survey" survives.
+  const COMMENTARY = /\bsums?\s+to\b|\bsub-?total\b|\bgrand total\b|^total\s*[:=]|^total$|\bsanity check\b|\brounding\b|^check\b|^note\b/i;
+  const divisions = [], parseIssues = [];
+  for (const line of merged) {
+    const r = splitDivisionRow(line);
+    if (r.amount > 0 && !r.div && COMMENTARY.test(r.name)) continue;   // model math commentary
+    if (!(r.amount > 0)) {
+      // A numbered CSI row we cannot price is a PARSE FAILURE, never a $0 package — emitting
+      // it as $0 is what let a real package silently vanish from the canonical rollup.
+      if (r.div) parseIssues.push({ line, reason: 'no_amount' });
+      else if (/\$/.test(line)) parseIssues.push({ line, reason: 'dropped' });
+      // an unnumbered line with no money is model commentary (subtotal checks, margin
+      // musings) — the v1.7.1 behaviour, still correct.
+      continue;
+    }
+    divisions.push({ name: (r.div ? r.div + ' ' : '') + r.name, amount: r.amount, scope: r.scope, div: r.div, flag: r.flag || null });
+  }
   const gRaw = block('GAP_QUESTIONS', '[A-Z_]+');
   let gaps = [];
   if (gRaw && gRaw.toLowerCase() !== 'none') gaps = lines(gRaw).map(l => { const m = l.match(/^(.*?)\s*\((.*?)\)\s*$/); return m ? { q: m[1].trim(), impact: m[2].trim() } : { q: l, impact: '' }; });
   return {
     low: get('COST_LOW'), high: get('COST_HIGH'), mid: get('COST_MIDPOINT'),
     confidence: get('CONFIDENCE'), narrative: get('NARRATIVE'),
-    divisions, assumptions: lines(block('ASSUMPTIONS', 'GAP_QUESTIONS')), gaps,
+    divisions, assumptions: lines(block('ASSUMPTIONS', 'GAP_QUESTIONS')), gaps, parseIssues,
   };
 }
-const num = s => { const n = parseInt(String(s).replace(/[^0-9]/g, ''), 10); return isNaN(n) ? null : n; };
+const num = s => parseMoney(s).value;
 const fmt$ = s => { const n = num(s); return n == null ? (s || '—') : '$' + n.toLocaleString('en-US'); };
 
 /* ===== Conceptual total reconciliation (v1.10.0) =====================================
@@ -745,6 +825,31 @@ function reconcileTotals(p) {
   };
 }
 function curRecon() { return window._recon || { total: null, low: null, high: null, rescaled: false }; }
+
+/* Fail-closed gate on the canonical total. A validated rollup may govern; an unvalidated one
+   may not. Blocks when the parser could not price a numbered CSI row, when a $-bearing line
+   was dropped, or when the model's own stated midpoint disagrees with its division sum by more
+   than DRIFT_LIMIT (a small drift is the model's arithmetic; a large one means a package is
+   probably missing). While gated, the outward-facing artifacts — bond request, builders-risk
+   worksheet, BuildingConnected draft — refuse to generate off an unverified number. */
+const DRIFT_LIMIT_PCT = 10;
+function estimateGate(p, recon) {
+  const issues = (p && p.parseIssues) || [];
+  const blocking = issues.filter(i => i.reason === 'no_amount' || i.reason === 'dropped');
+  const drift = recon && recon.stated && Math.abs(recon.driftPct) > DRIFT_LIMIT_PCT;
+  const ranges = (p && p.divisions || []).filter(d => d.flag === 'range');
+  return { blocking, drift: !!drift, ranges, gated: blocking.length > 0 || !!drift };
+}
+function curGate() { return window._gate || { blocking: [], drift: false, ranges: [], gated: false }; }
+// Single choke point every outward-facing generator calls before producing a document.
+function assertUngated(what) {
+  const g = curGate();
+  if (!g.gated) return true;
+  alert(`Can't generate the ${what} yet.\n\nThe conceptual total isn't verified: `
+    + (g.blocking.length ? `${g.blocking.length} package line(s) could not be priced by the parser.` : `the model's stated midpoint differs from the package rollup by more than ${DRIFT_LIMIT_PCT}%.`)
+    + `\n\nFix the flagged packages (or re-run the estimate) before putting this number on a form.`);
+  return false;
+}
 
 function subPricingPanel() {
   if (!subPricing || !subPricing.trades || !subPricing.trades.length) return '';
@@ -890,6 +995,7 @@ async function bcPreview(btn) {
   }
 }
 async function bcCreate(btn) {
+  if (!assertUngated('BuildingConnected draft')) return;
   const all = bcDivisions();
   const chosen = all.filter((d, i) => { const cb = document.getElementById('bcpk-' + i); return cb && cb.checked; });
   if (!chosen.length) { alert('Select at least one package.'); return; }
@@ -956,8 +1062,15 @@ function setDueDate() {
 function syncCoverage() {
   const q = quoteState();
   const wf = curWF(), prev = wf.coverage || {};
-  if (prev.n === q.n && prev.m === q.m) return;
+  // Persist the quote VALUES alongside the count. Previously only {n,m} was stored while the
+  // amounts lived in an in-memory object that renderResults() cleared on reopen — so the desk
+  // could claim "5 / 12 priced" while the reopened pursuit showed 12 blank inputs and 0 of 12.
+  // A coverage claim the pursuit can't substantiate is the same class of lie as the $100K drift.
+  const vals = {}; Object.keys(quotes || {}).forEach(k => { if (/^\d+$/.test(k) && quotes[k]) vals[k] = quotes[k]; });
+  const same = prev.n === q.n && prev.m === q.m && JSON.stringify(wf.quotes || {}) === JSON.stringify(vals);
+  if (same) return;
   wf.coverage = { n: q.n, m: q.m };
+  wf.quotes = vals;
   persistWF();
 }
 // Days until the bid is due — negative = overdue, null = no date set.
@@ -1125,7 +1238,13 @@ function deskRow(p) {
 // Start a fresh pursuit from the desk: clear prior pursuit state so nothing bleeds across.
 function newPursuit() {
   window._runId = null; window._workflow = defaultWF(); window._bcLoaded = null;
-  window._recon = null; window._lastDivisions = null; window._pkgConceptualTotal = null;
+  window._recon = null; window._gate = null; window._lastDivisions = null; window._pkgConceptualTotal = null;
+  // Document-derived caches MUST clear too. extractScopeConstraints() keys its cache on the
+  // concatenated upload filenames, so two projects that both ship "Plans.pdf" / "Project
+  // Manual.pdf" would otherwise let project B inherit project A's hard scope boundaries —
+  // and stale plan metadata would bleed into generated submission artifacts.
+  window._scopeC = null; window._scopeCKey = null; window._planMeta = null;
+  window._lastInp = null; window._lastP = null;
   quotes = {};
   setEstView('assist');
   resetAll();
@@ -1218,6 +1337,7 @@ function openSheet(kind, title, sectionsHtml, footNote) {
 function rows(pairs) { return '<table>' + pairs.map(([l, v]) => `<tr><td class="l">${l}</td><td>${v}</td></tr>`).join('') + '</table>'; }
 
 function genBond() {
+  if (!assertUngated('bond request')) return;
   const d = pursuitData();
   const sections =
     '<h2>Contractor</h2>' + rows([['Contractor', esc(RYC_CONTRACTOR.name)], ['Address', esc(RYC_CONTRACTOR.addr)], ['Prepared by', TBC(d.estimator)]]) +
@@ -1230,6 +1350,7 @@ function genBond() {
   }
 }
 function genBuildersRisk() {
+  if (!assertUngated('builders-risk worksheet')) return;
   const d = pursuitData();
   const sections =
     '<h2>Named Insured</h2>' + rows([['Named insured / GC', esc(RYC_CONTRACTOR.name) + ' <span class="tbc">(or owner — confirm)</span>'], ['Mailing address', esc(RYC_CONTRACTOR.addr)], ['Prepared by', TBC(d.estimator)]]) +
@@ -1345,6 +1466,23 @@ function renderResults(p, inp, bm) {
   // stated midpoint is not authoritative; it is reported only when it materially disagrees.
   const recon = reconcileTotals(p);
   window._recon = recon;
+  // Validate BEFORE the number is presented or used — a rollup only governs once it's proven.
+  const gate = estimateGate(p, recon);
+  window._gate = gate;
+  const gb = document.getElementById('gateBanner');
+  if (gb) {
+    if (gate.gated) {
+      const lineList = gate.blocking.map(i => `<li><code>${esc(i.line)}</code> <span class="note">— ${i.reason === 'no_amount' ? 'CSI row with no readable amount' : 'line carried a $ figure but could not be read as a package'}</span></li>`).join('');
+      gb.innerHTML = `<strong>⚠ Conceptual total not verified — documents are blocked.</strong>`
+        + (gate.blocking.length ? `<div style="margin-top:6px">The estimate parser could not price ${gate.blocking.length} line${gate.blocking.length === 1 ? '' : 's'}, so ${gate.blocking.length === 1 ? 'that package is' : 'those packages are'} missing from the rollup below:</div><ul style="margin:6px 0 0 18px">${lineList}</ul>` : '')
+        + (gate.drift ? `<div style="margin-top:6px">The model's stated midpoint (${recon.stated ? '$' + recon.stated.toLocaleString('en-US') : '—'}) differs from its own package rollup by ${Math.round(recon.driftPct)}% — larger than the ${DRIFT_LIMIT_PCT}% tolerance, which usually means a package is missing or double-counted.</div>` : '')
+        + `<div style="margin-top:6px">Re-run the estimate, or treat the rollup as incomplete. Bond request, builders-risk worksheet and the BuildingConnected draft will not generate from an unverified number.</div>`;
+      gb.style.display = 'block';
+    } else if (gate.ranges.length) {
+      gb.innerHTML = `<strong>Note:</strong> ${gate.ranges.length} package${gate.ranges.length === 1 ? '' : 's'} priced as a range — the midpoint is carried. Confirm before relying on the total.`;
+      gb.style.display = 'block';
+    } else { gb.innerHTML = ''; gb.style.display = 'none'; }
+  }
   document.getElementById('costMid').textContent = recon.total != null ? '$' + recon.total.toLocaleString('en-US') : '—';
   document.getElementById('costRange').textContent = (recon.low != null ? '$' + recon.low.toLocaleString('en-US') : '—')
     + ' – ' + (recon.high != null ? '$' + recon.high.toLocaleString('en-US') : '—');
@@ -1363,7 +1501,11 @@ function renderResults(p, inp, bm) {
 
   // bid packages
   const dw = document.getElementById('divisionsWrap');
+  // Rehydrate previously-entered quotes so a reopened pursuit can substantiate the coverage
+  // the desk reports for it (see syncCoverage).
   quotes = {};
+  const savedQ = (curWF() || {}).quotes || {};
+  Object.keys(savedQ).forEach(k => { const v = Number(savedQ[k]); if (v > 0) quotes[k] = v; });
   if (p.divisions.length) {
     const tot = p.divisions.reduce((s, d) => s + (d.amount || 0), 0);
     window._lastDivisions = p.divisions; window._pkgConceptualTotal = tot;
@@ -1405,7 +1547,7 @@ function renderResults(p, inp, bm) {
       }
       return `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}${mix}${subMix}</td>`
         + `<td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td>`
-        + `<td class="r"><input class="qin" type="number" min="0" placeholder="quote $" oninput="setQuote(${i}, this.value, ${d.amount || 0})" style="width:92px;padding:3px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;text-align:right"></td>`
+        + `<td class="r"><input class="qin" type="number" min="0" placeholder="quote $" value="${quotes[i] || ''}" oninput="setQuote(${i}, this.value, ${d.amount || 0})" style="width:92px;padding:3px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;text-align:right"></td>`
         + `<td class="r" id="qvar-${i}"><span class="note">—</span></td></tr>`;
     }).join('');
     dw.innerHTML = `<table><thead><tr><th>Package / scope <span class="note">(share vs RYC history · market sub band)</span></th><th class="r">Conceptual</th><th class="r">Your quote</th><th class="r">Var</th></tr></thead><tbody>`
@@ -1415,6 +1557,11 @@ function renderResults(p, inp, bm) {
       + (benchmarks ? `<div class="note" style="margin-top:4px">⚑ = this package's share of cost is outside RYC's historical p25–p75 range for comparable work (${benchmarks.jobs ? benchmarks.jobs.length : ''} jobs) — re-check scope/quantities or verify the quote.${flagged ? ` <strong>${flagged} flagged.</strong>` : ' None flagged.'}</div>` : '');
   } else dw.innerHTML = '';
   if (subPricing) dw.innerHTML += subPricingPanel();
+  // Recompute the assembled total + per-row variance from any rehydrated quotes so a reopened
+  // pursuit immediately shows the same assembled number it was left with.
+  if (Object.keys(quotes).length && p.divisions.length) {
+    Object.keys(quotes).forEach(k => { const i = Number(k), d = p.divisions[i]; if (d) setQuote(i, quotes[k], d.amount || 0); });
+  }
 
   // assumptions / gaps
   document.getElementById('assumptions').innerHTML = p.assumptions.map(a => `<li>${esc(a)}</li>`).join('') || '<li class="note">—</li>';
@@ -1614,7 +1761,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.10.0';
+const TOOL_VERSION = 'v1.10.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
