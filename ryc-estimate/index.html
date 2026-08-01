@@ -124,7 +124,7 @@
 <div id="app">
   <header style="display:flex;align-items:center;gap:14px">
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.14.0 · step 4: BC opportunity intake (adopt, no rekeying) · stable pursuit routes · submission capture · durable pursuit entity · plan takeoff · market sub-pricing · BC loader · award link → Foundation</div></div>
+    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.15.0 · step 5: outcomes & calibration readout · BC opportunity intake · stable pursuit routes · submission capture · durable pursuit entity · plan takeoff · market sub-pricing · BC loader · award link → Foundation</div></div>
     <a href="/ryc/command" style="white-space:nowrap;font-size:13px;color:#c2410c;text-decoration:none;font-weight:600">Command →</a>
   </header>
 
@@ -2146,7 +2146,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.14.0';
+const TOOL_VERSION = 'v1.15.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -2298,6 +2298,36 @@ async function renderHistory(force) {
           <table><thead><tr><th>Project</th><th>Bids due</th><th class="r">Value</th><th></th></tr></thead><tbody>${oppRows}</tbody></table></div>`;
       }
     } catch { /* the intake section is additive — a bid-board failure never breaks the desk */ }
+
+    // Step 5 — calibration readout. Every decided pursuit carries its full chain
+    // (conceptual → submitted → outcome/award), so this is a pure READ: win rate,
+    // bid-vs-conceptual drift, and lost-to-winner deltas, accruing as bids decide.
+    // Won-job ACTUALS read in Command's job drawer (the by_job seam), not here.
+    try {
+      const decided = pursuits.filter(p => p.stage === 'won' || p.stage === 'lost');
+      const won = decided.filter(p => p.stage === 'won'), lost = decided.filter(p => p.stage === 'lost');
+      const chain = p => {
+        const wf = p.wf, sub = (wf.submission || {}), oc = (wf.outcome || {}), aw = (wf.award || {});
+        const conceptual = p.latest && p.latest.cost_mid;
+        const bits = [];
+        if (conceptual) bits.push(`conceptual ${fmtCompact(conceptual)}`);
+        if (sub.amount) bits.push(`bid ${fmtCompact(sub.amount)}${conceptual ? ` (${((sub.amount - conceptual) / conceptual * 100) >= 0 ? '+' : ''}${((sub.amount - conceptual) / conceptual * 100).toFixed(1)}%)` : ''}`);
+        if (p.stage === 'won' && aw.job_no) bits.push(`🏗 ${esc(aw.job_no)} — actuals in Command`);
+        if (p.stage === 'lost' && oc.winning_amount) bits.push(`winner ${fmtCompact(oc.winning_amount)}${oc.winner ? ' (' + esc(oc.winner) + ')' : ''}${sub.amount ? ` · RYC ${((sub.amount - oc.winning_amount) / oc.winning_amount * 100).toFixed(1)}% ${sub.amount > oc.winning_amount ? 'above' : 'below'}` : ''}`);
+        return bits.join(' → ') || '<span class="note">no chain data recorded</span>';
+      };
+      const drifts = decided.map(p => { const s = (p.wf.submission || {}).amount, c = p.latest && p.latest.cost_mid; return (s && c) ? (s - c) / c * 100 : null; }).filter(x => x != null).sort((a, b) => a - b);
+      const medDrift = drifts.length ? drifts[Math.floor(drifts.length / 2)] : null;
+      const calRows = decided.map(p =>
+        `<tr><td><strong>${esc((p.pursuit && p.pursuit.name) || (p.latest && p.latest.project_name) || '')}</strong>
+         <span class="chip ${p.stage === 'won' ? 'ck-received' : ''}" ${p.stage === 'lost' ? 'style="background:#fee2e2;color:#991b1b"' : ''}>${p.stage}</span></td>
+         <td class="note">${chain(p)}</td></tr>`).join('');
+      el.innerHTML += `<div class="billing-block"><h3 class="section-header">🎯 Outcomes &amp; calibration <span class="cnt">${decided.length ? `${won.length}W–${lost.length}L${decided.length >= 2 ? ` · ${Math.round(won.length / decided.length * 100)}% win rate` : ''}${medDrift != null ? ` · median bid ${medDrift >= 0 ? '+' : ''}${medDrift.toFixed(1)}% vs conceptual` : ''}` : 'accrues as bids decide'}</span></h3>
+        ${decided.length
+          ? `<table><thead><tr><th>Pursuit</th><th>Conceptual → submitted → outcome</th></tr></thead><tbody>${calRows}</tbody></table>
+             <div class="note" style="margin-top:6px">The estimator's feedback loop: how conceptual numbers move to real bids, and where bids land against the market. Won-job actuals (bid → final cost) read in Command's job drawer.</div>`
+          : `<div class="billing-empty">No decided pursuits yet. As bids are marked Won (award link) or Lost (outcome), the conceptual → submitted → outcome chain accrues here — the calibration data this desk exists to produce.</div>`}</div>`;
+    } catch { /* calibration is additive too */ }
   } catch (e) {
     // Surface the real cause: this catch previously turned a code-level bug into a message that
     // read like a transient network problem, which hid it from the E2E gate.

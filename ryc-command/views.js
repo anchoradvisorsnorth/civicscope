@@ -1172,7 +1172,8 @@ function drawerHtml(j){
     +stat("Proj. margin",mtd!=null?mtd.toFixed(1)+"%":(mtdSus?"⚑":"—"),mtdSus?"projection unverified — not graded":((cm!=null?"as-bid "+cm.toFixed(1)+"%":"")+(mtd!=null&&cm!=null?" · "+((mtd-cm)>=0?"+":"")+(mtd-cm).toFixed(1)+" pts":"")))
     +stat("Proj. cost (ERP)",b.projectedCost>0?fmtCompact(b.projectedCost):"—",mtdSus&&b.projectedCost>0?"⚑ verify — outside trust band or below cost to date":"")
     +stat("Gain / fade",gf?(gf.gfPts>=0?"+":"")+gf.gfPts.toFixed(1)+" pts":"—",gf?((gf.src==="recon"?"≈ budget-based scenario · ":"")+fmtCompact(gf.gfDollars)+(gf.burnRisk?" · cost-burn risk":"")):"insufficient data")
-    +"</div></div>";
+    +"</div></div>"
+    +"<div id=\"bid-record\"></div>";
 
   /* Procore vs Foundation reconciliation */
   var recon;
@@ -1305,7 +1306,37 @@ function openDrawer(jno,trigger){
   wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Job detail: "+attrEsc(j.name||jno)+"\">"+drawerHtml(j)+"</aside>";
   document.body.appendChild(wrap);
   document.addEventListener("keydown",dwEsc);
+  loadBidRecord(jno);
   var cb=wrap.querySelector(".dw-close"); if(cb) cb.focus();
+}
+
+/* Step 5 — the award seam read back the other way: an awarded job shows WHAT RYC BID IT AT.
+   First consumer of the Desk's by_job lookup (Codex round-3 noted it had none). Silent when
+   the job has no linked pursuit — most jobs predate the Desk. */
+var _bidRecCache={};
+function loadBidRecord(jno){
+  var el=document.getElementById("bid-record"); if(!el) return;
+  if(_bidRecCache[jno]!==undefined){ el.innerHTML=_bidRecCache[jno]; return; }
+  fetch("/api/ryc-estimate-log",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({pw:"ryc2026",action:"by_job",job_no:String(jno)})})
+    .then(function(r){ return r.json(); }).then(function(d){
+      var p=d&&d.ok&&d.pursuits&&d.pursuits[0];
+      if(!p||!p.latest){ _bidRecCache[jno]=""; el.innerHTML=""; return; }
+      var wf=p.workflow||{}, sub=wf.submission||{}, aw=wf.award||{};
+      var j=jobByNo(jno);
+      var conceptual=p.latest.cost_mid||null;
+      var rows="";
+      function br(l,v,s){ return "<tr><td>"+l+"</td><td class=\"r\">"+v+"</td><td class=\"r\" style=\"color:var(--faint)\">"+(s||"")+"</td></tr>"; }
+      if(conceptual) rows+=br("Conceptual estimate",fmt(conceptual),(p.revisions&&p.revisions.length>1)?(p.revisions.length+" revisions"):"");
+      if(sub.amount) rows+=br("Submitted bid",fmt(sub.amount),(sub.at||"").slice(0,10)+(conceptual?(" · "+(((sub.amount-conceptual)/conceptual*100)>=0?"+":"")+((sub.amount-conceptual)/conceptual*100).toFixed(1)+"% vs conceptual"):""));
+      var basis=sub.amount||conceptual;
+      if(basis&&j&&j.contractValue>0) rows+=br("Current contract",fmt(j.contractValue),(((j.contractValue-basis)/basis*100)>=0?"+":"")+((j.contractValue-basis)/basis*100).toFixed(1)+"% vs "+(sub.amount?"bid":"conceptual"));
+      _bidRecCache[jno]="<div class=\"dw-sec\"><h4>Bid record — from the Estimating Desk</h4>"
+        +"<table class=\"dwt\"><tr><th></th><th class=\"r\">Amount</th><th class=\"r\"></th></tr>"+rows+"</table>"
+        +"<div class=\"dw-note\">Linked "+((aw.linked_at||"").slice(0,10)||"—")+(p.latest.estimator?(" · estimated by "+esc(p.latest.estimator)):"")
+        +" · <a class=\"srclink\" href=\"/ryc/estimate#pursuit/"+p.id+"\" target=\"_blank\" rel=\"noopener\">Open pursuit &#8599;</a></div></div>";
+      el.innerHTML=_bidRecCache[jno];
+    }).catch(function(){ el.innerHTML=""; });
 }
 function dwEsc(e){ if(e.key==="Escape") closeDrawer(); }
 function closeDrawer(silent){
