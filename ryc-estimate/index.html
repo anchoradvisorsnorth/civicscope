@@ -256,7 +256,10 @@ function unlock() {
   // blank new-estimate form. The generator is one click away under Pursuit.
   setEstView('history');
 }
-if (sessionStorage.getItem('ryc-auth') === '1') unlock();
+// NOTE: the auto-unlock for an already-authed session fires at the END of this script (see
+// bottom). It used to run here, which meant unlock() -> setEstView('history') -> renderHistory()
+// touched `const DESK_BUCKETS` before its declaration had initialized — a temporal-dead-zone
+// ReferenceError that the desk's try/catch swallowed into a generic "unavailable" message.
 
 // ---------- RYC benchmarks (Cost Intelligence layer) ----------
 let portfolio = null;
@@ -1704,6 +1707,9 @@ async function renderHistory(force) {
       <div class="billing-sub">What estimating needs to move today. Each project is one pursuit — repeat runs are its revisions. Click a row to open the pursuit and work it: advance stage, set the bid due date, generate bond / builders-risk submissions, draft RFIs, enter quotes.</div>
       <table><thead><tr><th>Pursuit</th><th>Due</th><th>Stage</th><th>Quotes</th><th>Pre-bid</th><th class="r">Conceptual value</th><th>Conf.</th><th>Last activity</th></tr></thead><tbody>${html}</tbody></table></div>`;
   } catch (e) {
+    // Surface the real cause: this catch previously turned a code-level bug into a message that
+    // read like a transient network problem, which hid it from the E2E gate.
+    console.error('[desk] render failed:', e);
     el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk</h3><div class="billing-empty">Desk unavailable: ${esc(e.message)}</div></div>`;
   }
 }
@@ -1738,6 +1744,11 @@ async function openRun(id) {
   }
 }
 try { const ini = localStorage.getItem('ryc-est-initials'); if (ini) document.getElementById('f-est').value = ini; } catch {}
+
+// Auto-unlock an already-authenticated session. Deliberately the LAST statement in the script:
+// unlock() opens the Estimating Desk, and the desk's helpers include `const` declarations that
+// are not hoisted, so this must run only after the whole script has evaluated.
+if (sessionStorage.getItem('ryc-auth') === '1') unlock();
 </script>
 </body>
 </html>
