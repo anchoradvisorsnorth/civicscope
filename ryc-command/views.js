@@ -409,86 +409,225 @@ function hookDrawerRows(){
     RYCTable.wire(tb,"data-jno",function(jno,tr){ openDrawer(jno,tr); });
   });
 }
+/* ===== Pay-app rule (usability program 4.1, tuned in 0.4) ===========================
+   THE RULE WAS INVERTED BY EVIDENCE. This page used to lead with `deficit < 0` — under-billed
+   jobs. Backtested against 17 weeks of Jason's actual weekly highlighting (1,277 job-weeks,
+   430 highlighted rows) that rule recovers only 44%, and 98% of what it MISSES sits on the
+   wrong side of zero: jobs carrying a median $36k SURPLUS that he flagged anyway. No
+   materiality floor reaches those.
+
+   What separates his rows is TIME. Highlighted jobs sit at a median 29 days since last
+   invoice; un-highlighted at 15. RYC bills monthly, so a job not invoiced in about a month is
+   due for a pay app whether or not it is currently over-billed.
+
+   The upper bound matters as much as the lower: only 3% of his highlighted rows exceed 60 days
+   (against 10% of un-highlighted), and validating an open-ended rule against live data flagged
+   jobs 367 and 738 days stale. A job dormant for months is a different problem, so it gets its
+   own list rather than padding this one.
+
+       last invoice 21-60 days ago  AND  cost to date >= $1,000
+       recall 91% · precision 80% · 5.8 false positives/week   (was 44% / 44% / 13.2)
+
+   Full working: RYC/foundations/prototype/{BACKTEST_FINDINGS.md,tune_payapp.py}. */
+var PAYAPP = { minAge: 21, maxAge: 60, minCost: 1000, recall: 91, precision: 80 };
+
+/* Last invoice date per job, from the AR feed — which retains PAID invoices (670 of 906 rows
+   are zero-balance, back to 2021), so this is genuinely "when did we last bill this job" and
+   not "when did we last bill it and not get paid". Using open invoices only would make every
+   promptly-paying job look stale. */
+function lastInvoiceByJob(){
+  var m={};
+  ((arData&&arData.invoices)||[]).forEach(function(v){
+    var k=String(v.jobNo||"").trim(); if(!k||!v.invoiceDate) return;
+    if(!m[k]||v.invoiceDate>m[k]) m[k]=v.invoiceDate;
+  });
+  return m;
+}
+function daysSince(d){
+  if(!d) return null;
+  var t=RYCFormat.parse(d); if(isNaN(t.getTime())) return null;
+  return Math.floor((Date.now()-t)/86400000);
+}
+/* Every active Foundation job, classified into exactly one billing state. One pass, one place,
+   so the three lists below cannot disagree about which bucket a job is in. */
+function billingStates(){
+  var li=lastInvoiceByJob();
+  var out={due:[],stale:[],never:[],recent:[]};
+  activeAccountRows().forEach(function(r){
+    var last=li[String(r.job)]||null;
+    var age=daysSince(last);
+    var row=Object.assign({},r,{lastInvoice:last,age:age,
+      gc:/greencroft/i.test((r.name||"")+" "+((foundationData&&foundationData.jobs&&foundationData.jobs[r.job]||{}).customerName||""))});
+    if(r.cost<PAYAPP.minCost){ out.recent.push(row); return; }
+    if(age==null){ out.never.push(row); return; }
+    if(age>PAYAPP.maxAge){ out.stale.push(row); return; }
+    if(age>=PAYAPP.minAge){ out.due.push(row); return; }
+    out.recent.push(row);
+  });
+  return out;
+}
+function payappWhy(r){
+  var bits=[r.age+" days since last invoice"];
+  if(r.under>1000) bits.push("earned-not-billed "+fmtCompact(r.under));
+  else if(r.over>1000) bits.push("billed ahead "+fmtCompact(r.over));
+  return bits.join(" · ");
+}
+
 function renderBilling(){
   var view=document.getElementById("view");
   var haveFnd=!!(foundationData&&foundationData.jobs), haveAr=!!(arData&&arData.invoices);
   if(!haveFnd&&!haveAr){ view.innerHTML="<div class=\"warn-banner\">⚠️ Foundation + AR feeds unavailable — billing cannot be computed. Figures show Unavailable, not $0.</div>"; return; }
   var warn=(!haveFnd||!haveAr)?("<div class=\"warn-banner\">⚠️ "+(!haveFnd?"Foundation":"AR")+" feed unavailable — affected figures show <b>Unavailable</b>, not $0.</div>"):"";
-  var accts=haveFnd?activeAccountRows():[];
-  var needsInv=accts.reduce(function(s,r){return s+r.under;},0);
-  var needsInvN=accts.filter(function(r){return r.under>1000;}).length;
-  var retainage=accts.reduce(function(s,r){return s+(r.retainage||0);},0);
 
-  /* aging — Jason split: current (<=90d, the list leadership chases) vs aged tail (>90d + retainage-era items) */
+  var st=haveFnd?billingStates():{due:[],stale:[],never:[],recent:[]};
+  var accts=haveFnd?activeAccountRows():[];
+
+  /* ---------- 1. PAY APPLICATIONS TO PROCESS, grouped by PM ---------- */
+  /* The Greencroft program is 17 of the 26 jobs that qualify today, all under one PM. Listed
+     flat it buries the other eight, so it rolls up the same way it does on Portfolio (3.1):
+     presentation only, every job still listed and still routable underneath. */
+  function payappGroup(rows){
+    var byPm={};
+    rows.forEach(function(r){ (byPm[r.pm||"(no PM)"]=byPm[r.pm||"(no PM)"]||[]).push(r); });
+    return Object.keys(byPm).sort(function(a,b){ return byPm[b].length-byPm[a].length; })
+      .map(function(pm){ return {pm:pm,rows:byPm[pm].sort(function(a,b){ return b.age-a.age; })}; });
+  }
+  function payappRow(r,child){
+    return "<tr"+openAttr(r.job)+(child?" class=\"gc-child\"":"")+">"
+      +"<td><div class=\"jname\">"+(child?"<span class=\"gc-tick\">└</span> ":"")+esc(r.name)+"</div>"
+      +"<div class=\"jno\">"+esc(String(r.job))+"</div></td>"
+      +"<td class=\"r\">"+(r.lastInvoice?RYCFormat.date(r.lastInvoice):"<span class=\"m-m\">—</span>")+"</td>"
+      +"<td class=\"r\"><b>"+r.age+"d</b></td>"
+      +"<td class=\"r\">"+(r.under>0?("<span class=\"m-a\">"+fmtCompact(r.under)+"</span>"):(r.over>0?("<span class=\"m-g\">+"+fmtCompact(r.over)+"</span>"):"<span class=\"m-m\">—</span>"))+(r.exact?"":"<div class=\"cell-sub\">bid-est</div>")+"</td>"
+      +"<td class=\"r\">"+fmtCompact(r.contract)+"</td>"
+      +"<td style=\"white-space:normal\">"+esc(payappWhy(r))+"</td></tr>";
+  }
+  var groups=payappGroup(st.due);
+  var dueHtml="";
+  groups.forEach(function(g){
+    var gc=g.rows.filter(function(r){return r.gc;}), rest=g.rows.filter(function(r){return !r.gc;});
+    dueHtml+="<tr><td colspan=\"6\" style=\"padding:14px 0 4px\"><b>"+esc(g.pm)+"</b> "
+      +"<span class=\"m-m\">· "+g.rows.length+" job"+(g.rows.length===1?"":"s")+"</span></td></tr>";
+    rest.forEach(function(r){ dueHtml+=payappRow(r,false); });
+    if(gc.length>1){
+      var c=gc.reduce(function(s2,r){return s2+(r.contract||0);},0);
+      var u=gc.reduce(function(s2,r){return s2+(r.under||0);},0);
+      dueHtml+="<tr class=\"gc-roll\" tabindex=\"0\" role=\"button\" aria-expanded=\""+(gcOpen?"true":"false")
+        +"\" onclick=\"toggleGcRollup()\" onkeydown=\"if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGcRollup();}\">"
+        +"<td><div class=\"jname\">"+(gcOpen?"▾":"▸")+" Greencroft program</div><div class=\"jno\">"+gc.length+" unit jobs due</div></td>"
+        +"<td class=\"r\"><span class=\"m-m\">—</span></td>"
+        +"<td class=\"r\"><b>"+Math.round(gc.reduce(function(s2,r){return s2+r.age;},0)/gc.length)+"d</b><div class=\"cell-sub\">avg</div></td>"
+        +"<td class=\"r\">"+(u>0?("<span class=\"m-a\">"+fmtCompact(u)+"</span>"):"<span class=\"m-m\">—</span>")+"</td>"
+        +"<td class=\"r\">"+fmtCompact(c)+"</td>"
+        +"<td style=\"white-space:normal\">All within the "+PAYAPP.minAge+"–"+PAYAPP.maxAge+" day billing window</td></tr>";
+      if(gcOpen) gc.forEach(function(r){ dueHtml+=payappRow(r,true); });
+    } else { gc.forEach(function(r){ dueHtml+=payappRow(r,false); }); }
+  });
+  var dueTable=st.due.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">Last invoice</th><th class=\"r\">Age</th><th class=\"r\">Earned − billed</th><th class=\"r\">Contract</th><th>Why it appears</th></tr></thead><tbody>"+dueHtml+"</tbody></table></div>")
+    :"<div class=\"vsub\">Nothing is inside the billing window right now.</div>";
+
+  /* ---------- 2. OVERDUE CUSTOMER PAYMENTS, grouped by responsible PM ---------- */
+  var fj=(foundationData&&foundationData.jobs)||{};
   var over=haveAr?arRows("overdue","active"):[];
+  var byPm={};
+  over.forEach(function(v){
+    var j=fj[String(v.jobNo||"")]||{};
+    var pm=j.pmName||"(no PM)";
+    (byPm[pm]=byPm[pm]||[]).push(Object.assign({},v,{jobName:v.jobName||j.description||""}));
+  });
+  var pmOrder=Object.keys(byPm).sort(function(a,b){
+    var sa=byPm[a].reduce(function(s2,v){return s2+(v.openBalance||0);},0);
+    var sb=byPm[b].reduce(function(s2,v){return s2+(v.openBalance||0);},0);
+    return sb-sa;
+  });
+  var arHtml="";
+  pmOrder.forEach(function(pm){
+    var vs=byPm[pm].sort(function(a,b){ return (b.daysOverdue||0)-(a.daysOverdue||0); });
+    var tot=vs.reduce(function(s2,v){return s2+(v.openBalance||0);},0);
+    arHtml+="<tr><td colspan=\"5\" style=\"padding:14px 0 4px\"><b>"+esc(pm)+"</b> <span class=\"m-m\">· "
+      +vs.length+" invoice"+(vs.length===1?"":"s")+" · <b>"+fmtCompact(tot)+"</b> exposure</span></td></tr>";
+    vs.forEach(function(v){
+      arHtml+="<tr"+openAttr(String(v.jobNo||""))+">"
+        +"<td><div class=\"jname\">"+esc(v.jobName)+"</div><div class=\"jno\">"+esc(String(v.jobNo||""))+(v.customer?" · "+esc(v.customer):"")+"</div></td>"
+        +"<td>"+esc(v.payApp?("Pay app "+v.payApp):("Inv "+(v.invoiceNo||"")))+"</td>"
+        +"<td class=\"r\">"+RYCFormat.date(v.dueDate)+"</td>"
+        +"<td class=\"r\"><span class=\""+((v.daysOverdue||0)>90?"m-r":"m-a")+"\">"+(v.daysOverdue||0)+"d</span></td>"
+        +"<td class=\"r\"><b>"+fmtCompact(v.openBalance)+"</b></td></tr>";
+    });
+  });
+  var arTable=over.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th>Invoice</th><th class=\"r\">Due</th><th class=\"r\">Overdue</th><th class=\"r\">Open balance</th></tr></thead><tbody>"+arHtml+"</tbody></table></div>")
+    :"<div class=\"vsub\">No overdue AR on active jobs.</div>";
+
+  /* ---------- exceptions: two states that are NOT pay apps ---------- */
+  function miniTable(rows,ageLabel){
+    return "<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th>PM</th><th class=\"r\">"+ageLabel+"</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th></tr></thead><tbody>"
+      +rows.sort(function(a,b){ return (b.cost||0)-(a.cost||0); }).map(function(r){
+        return "<tr"+openAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(String(r.job))+"</div></td>"
+          +"<td>"+esc(r.pm)+"</td>"
+          +"<td class=\"r\">"+(r.age!=null?r.age+"d":"<span class=\"m-m\">never</span>")+"</td>"
+          +"<td class=\"r\">"+fmtCompact(r.cost)+"</td><td class=\"r\">"+fmtCompact(r.invoiced)+"</td></tr>";
+      }).join("")+"</tbody></table></div>";
+  }
+  var excSec="";
+  if(st.stale.length) excSec+="<details class=\"lgcy\"><summary>Not billed in over "+PAYAPP.maxAge+" days — "+st.stale.length+" job"+(st.stale.length===1?"":"s")+" (a stalled job, not a pay app)</summary>"
+    +"<div class=\"vsub\" style=\"margin-top:6px\">Outside the billing window entirely. Jason's weekly list almost never includes these (3% of his flagged rows), so they are a separate question: is the job stalled, retainage-only, or ready to close?</div>"
+    +miniTable(st.stale,"Since last invoice")+"</details>";
+  if(st.never.length) excSec+="<details class=\"lgcy\"><summary>Cost booked but never invoiced — "+st.never.length+" job"+(st.never.length===1?"":"s")+"</summary>"
+    +"<div class=\"vsub\" style=\"margin-top:6px\">A distinct state, not a stale one — there is no last-invoice date to age from, so an age rule would either miss them or misreport them.</div>"
+    +miniTable(st.never,"Since last invoice")+"</details>";
+
+  /* ---------- 3. TOTALS AND AGING — after the actionable lists, per the brief ---------- */
+  var needsInv=accts.reduce(function(s2,r){return s2+r.under;},0);
+  var retainage=accts.reduce(function(s2,r){return s2+(r.retainage||0);},0);
   var buckets=[0,0,0,0];
   over.forEach(function(v){ buckets[agingBucket(v.daysOverdue||0)]+=(v.openBalance||0); });
   var current=buckets[0]+buckets[1], aged=buckets[2]+buckets[3];
-
-  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  function kpi(l,v,s2,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s2||"")+"</div></div>"; }
   var strip="<div class=\"kpi-strip k4\">"
-    +kpi("Needs invoicing",haveFnd?fmtCompact(needsInv):"Unavailable",haveFnd?(needsInvN+" active jobs"):"Foundation feed down",needsInv>0?"warn":"")
-    +kpi("Current overdue (≤90d)",haveAr?fmtCompact(current):"Unavailable",haveAr?"the actionable list":"AR feed down",current>0?"bad":"")
-    +kpi("Aged overdue (>90d)",haveAr?fmtCompact(aged):"Unavailable",haveAr?(fmtCompact(buckets[3])+" of it 180d+"):"AR feed down",aged>0?"warn":"")
+    +kpi("Pay apps to process",String(st.due.length),"in the "+PAYAPP.minAge+"–"+PAYAPP.maxAge+" day window",st.due.length?"warn":"")
+    +kpi("Overdue AR (active)",haveAr?fmtCompact(current+aged):"Unavailable",haveAr?(fmtCompact(current)+" under 90d · "+fmtCompact(aged)+" aged"):"AR feed down",(current+aged)>0?"bad":"")
+    +kpi("Earned, not billed",haveFnd?fmtCompact(needsInv):"Unavailable","across all active jobs","")
     +kpi("Retainage held",haveFnd?fmtCompact(retainage):"Unavailable","active jobs","")
     +"</div>";
-
-  /* overdue AR by job, bucketed */
-  var byJob={};
-  over.forEach(function(v){
-    var k=String(v.jobNo||"");
-    if(!byJob[k]) byJob[k]={jno:k,name:v.jobName||"",b:[0,0,0,0],total:0,oldest:0};
-    var r=byJob[k]; r.b[agingBucket(v.daysOverdue||0)]+=(v.openBalance||0); r.total+=(v.openBalance||0);
-    if((v.daysOverdue||0)>r.oldest) r.oldest=v.daysOverdue||0;
-  });
-  var arJobs=Object.values(byJob).sort(function(a,b){return b.total-a.total;});
-  var fj=(foundationData&&foundationData.jobs)||{};
-  var arRowsHtml=arJobs.map(function(r){
-    var pm=fj[r.jno]?fj[r.jno].pmName:null;
-    function cell(v){ return "<td class=\"r\">"+(v>0?fmtCompact(v):"<span class=\"m-m\">—</span>")+"</td>"; }
-    return "<tr"+openAttr(r.jno)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(pm?" · "+esc(pm):"")+"</div></td>"
-      +cell(r.b[0])+cell(r.b[1])+cell(r.b[2])+cell(r.b[3])
-      +"<td class=\"r\"><b>"+fmtCompact(r.total)+"</b></td><td class=\"r\">"+r.oldest+"d</td></tr>";
+  var agingRows=["1–30d","31–90d","91–180d","180d+"].map(function(l,i){
+    return "<tr class=\"static\"><td>"+l+"</td><td class=\"r\">"+fmtCompact(buckets[i])+"</td></tr>";
   }).join("");
-  var arTotalRow="<tr><td>"+arJobs.length+" jobs</td>"+buckets.map(function(v){return "<td class=\"r\">"+fmtCompact(v)+"</td>";}).join("")+"<td class=\"r\">"+fmtCompact(current+aged)+"</td><td></td></tr>";
-  var arTable=arJobs.length
-    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">1–30d</th><th class=\"r\">31–90d</th><th class=\"r\">91–180d</th><th class=\"r\">180d+</th><th class=\"r\">Total</th><th class=\"r\">Oldest</th></tr></thead><tbody>"+arRowsHtml+"</tbody><tfoot>"+arTotalRow+"</tfoot></table></div>")
-    :"<div class=\"vsub\">No overdue AR on active jobs.</div>";
+  var agingTable="<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Age</th><th class=\"r\">Open balance</th></tr></thead><tbody>"+agingRows
+    +"</tbody><tfoot><tr><td>Total</td><td class=\"r\">"+fmtCompact(current+aged)+"</td></tr></tfoot></table></div>";
 
-  /* billing position worklist */
-  var flagged=accts.filter(function(r){return r.under>1000||r.overdue>0;});
-  var posRows=(blShowAll?accts:flagged).slice().sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);});
-  var posHtml=posRows.map(function(r){
-    var ni=r.under>0?("<span class=\"m-a\">"+fmtCompact(r.under)+"</span>"+(r.exact?"":" <span class=\"cell-sub\">bid-est</span>")):(r.over>0?("<span class=\"m-g\">+"+fmtCompact(r.over)+"</span>"):"<span class=\"m-m\">—</span>");
-    return "<tr"+openAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(String(r.job))+" · "+esc(r.pm)+"</div></td>"
-      +"<td class=\"r\">"+fmtCompact(r.contract)+"</td><td class=\"r\">"+fmtCompact(r.cost)+"</td><td class=\"r\">"+fmtCompact(r.invoiced)+"</td>"
-      +"<td class=\"r\">"+ni+"</td><td class=\"r\">"+(r.retainage>0?fmtCompact(r.retainage):"<span class=\"m-m\">—</span>")+"</td>"
-      +"<td class=\"r\">"+(r.overdue>0?("<span class=\"m-r\">"+fmtCompact(r.overdue)+"</span>"):"<span class=\"m-m\">—</span>")+"</td></tr>";
-  }).join("");
-  var posTable=haveFnd
-    ?("<div class=\"pbar\"><button class=\"pfill"+(blShowAll?"":" on")+"\" onclick=\"blShowAll=false;renderBilling()\">Flagged ("+flagged.length+")</button>"
-      +"<button class=\"pfill"+(blShowAll?" on":"")+"\" onclick=\"blShowAll=true;renderBilling()\">All active ("+accts.length+")</button></div>"
-      +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th><th class=\"r\">Needs invoiced</th><th class=\"r\">Retainage</th><th class=\"r\">Overdue AR</th></tr></thead><tbody>"+posHtml+"</tbody></table></div>"
-      +"<div class=\"vsub\" style=\"margin-top:8px\">Needs invoiced = cost × OH × Profit markups − billed (Holly's exact markups; \"bid-est\" = bid-ratio fallback). Positive green = billed ahead of cost (cash-positive, not behind).</div>")
-    :"<div class=\"vsub\">Foundation feed unavailable.</div>";
-
-  /* legacy / closed-job overdue */
   var legacy=haveAr?arRows("overdue","legacy"):[];
-  var legacyTotal=legacy.reduce(function(s,v){return s+(v.openBalance||0);},0);
+  var legacyTotal=legacy.reduce(function(s2,v){return s2+(v.openBalance||0);},0);
   var lgByJob={};
   legacy.forEach(function(v){ var k=String(v.jobNo||""); if(!lgByJob[k]) lgByJob[k]={jno:k,name:v.jobName||"",total:0,oldest:0}; lgByJob[k].total+=(v.openBalance||0); if((v.daysOverdue||0)>lgByJob[k].oldest) lgByJob[k].oldest=v.daysOverdue||0; });
-  var lgRows=Object.values(lgByJob).sort(function(a,b){return b.total-a.total;}).slice(0,15).map(function(r){
-    return "<tr class=\"static\"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+"</div></td><td class=\"r\">"+fmtCompact(r.total)+"</td><td class=\"r\">"+r.oldest+"d</td></tr>";
-  }).join("");
   var legacySec=legacy.length
     ?("<details class=\"lgcy\"><summary>Legacy / closed-job overdue AR — "+fmtCompact(legacyTotal)+" across "+legacy.length+" invoices (kept off the active view)</summary>"
-      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">Overdue</th><th class=\"r\">Oldest</th></tr></thead><tbody>"+lgRows+"</tbody></table></div></details>")
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">Overdue</th><th class=\"r\">Oldest</th></tr></thead><tbody>"
+      +Object.values(lgByJob).sort(function(a,b){return b.total-a.total;}).slice(0,15).map(function(r){
+        return "<tr class=\"static\"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+"</div></td><td class=\"r\">"+fmtCompact(r.total)+"</td><td class=\"r\">"+r.oldest+"d</td></tr>";
+      }).join("")+"</tbody></table></div></details>")
     :"";
 
-  view.innerHTML=warn+strip
-    +"<div class=\"vhead\">Overdue AR by job — active work</div><div class=\"vsub\">Aged 90d+ is the tail leadership is not actively chasing (old finals, retainage-era items) — split out so the current number is the actionable one.</div>"+arTable
-    +"<div class=\"vhead\">Billing position — active jobs</div><div class=\"vsub\">Earned vs billed per job from Foundation. Click a row for the job drawer (jobs on the Procore board).</div>"+posTable
-    +legacySec;
+  /* The rule is PROVISIONAL and says so on the page. Decision #13: it runs beside Jason's email
+     until RYC agrees with it; presenting a 91%-recall heuristic as authoritative is the exact
+     failure the brief warns about. */
+  var provisional="<div class=\"warn-banner\" style=\"background:#fdf6ea;border-color:#e8d3ad;color:#7a5a1e\">"
+    +"<b>Provisional rule — running alongside Jason's Thursday email, not replacing it.</b> "
+    +"A job appears when its last invoice was "+PAYAPP.minAge+"–"+PAYAPP.maxAge+" days ago and it has cost booked. "
+    +"Backtested against 17 weeks of his actual highlighting: <b>"+PAYAPP.recall+"% recall, "+PAYAPP.precision+"% precision</b>, "
+    +"~6 false positives a week. It will miss some and add some — every row says why it is here.</div>";
+
+  view.innerHTML=warn+provisional
+    +"<div class=\"vhead\">Pay applications to process</div>"
+    +"<div class=\"vsub\">Grouped by PM, oldest first. RYC bills monthly, so the question is when a job was last invoiced — not whether it is currently under-billed. <b>Earned − billed</b> is shown for context and is not what puts a job on this list.</div>"
+    +dueTable+excSec
+    +"<div class=\"vhead\">Overdue customer payments</div>"
+    +"<div class=\"vsub\">Grouped by the PM responsible for the job, largest exposure first, oldest invoice first within each.</div>"
+    +arTable
+    +"<div class=\"vhead\">Totals</div>"
+    +"<div class=\"vsub\">Summary follows the work, rather than leading with a number nobody can act on.</div>"
+    +strip+agingTable+legacySec;
   hookDrawerRows();
 }
 
