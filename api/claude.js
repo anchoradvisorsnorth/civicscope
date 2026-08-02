@@ -29,7 +29,24 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // ABUSE CEILING (Codex closure review, 2026-08-02). This endpoint is deliberately open — the
+  // public estimators call it from unauthenticated pages, and four automation callers (the VM
+  // health monitor, the smoke and e2e checks, the RYC calibration backtests) call it with no
+  // browser Origin at all, so an origin allowlist would silently break them. What is capped here
+  // instead is the COST of an arbitrary caller: request size and output length. It bounds the
+  // bill without changing behaviour for any real caller — the largest genuine prompt is a
+  // renovation scenario at ~25KB in / ~1,300 tokens out.
+  //
+  // NOT the confidentiality fix. RYC's confidential traffic no longer uses this endpoint at all;
+  // it goes through the gated single-processor /api/ryc-ask. An identity-bearing allowlist for
+  // this proxy is tracked separately because it has to land with the automation callers.
   const body = req.body;
+  const size = (() => { try { return JSON.stringify(body || '').length; } catch { return 0; } })();
+  if (size > 200 * 1024) {
+    return res.status(413).json({ error: { message: 'Request too large' } });
+  }
+  if (body && Number(body.max_tokens) > 4000) body.max_tokens = 4000;
+
   let last = { status: 502, data: { error: { message: 'No upstream response' } } };
 
   // 1) Anthropic, with bounded retry on transient failures.
