@@ -37,6 +37,30 @@ const ALLOWED_TOP = new Set(['asOf', 'coverage', 'jobs', 'billing', 'overdueAr',
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
+  // ===================================================================================
+  // PENDING RYC AUTHORIZATION — Keith, 2026-08-02. OFF BY DEFAULT.
+  //
+  // Contract v1.3 clause A3 names Anthropic as the sole processor authorized to receive RYC
+  // internal/confidential data. That clause is WRITTEN AND UNSIGNED: Keith is seeking RYC's
+  // permission before any confidential data leaves for a third party under it. Until that
+  // permission exists, this endpoint processes nothing.
+  //
+  // The refusal is HERE, before the body is read, and not only in the UI, because the UI is
+  // cached in browsers that are already open. A client-side switch is a request; this is the
+  // boundary. Nothing is parsed, forwarded or logged while it is closed.
+  //
+  // TO ENABLE, once permission is granted: set RYC_ASK_APPROVED=1 in Vercel (Production) and
+  // flip ASK_APPROVED to true in ryc-command/views.js. Two switches on purpose — the server one
+  // is authoritative, the client one is what stops the page offering a feature that will 403.
+  // ===================================================================================
+  if (process.env.RYC_ASK_APPROVED !== '1') {
+    return res.status(403).json({
+      error: 'Ask R. Yoder is awaiting RYC authorization to send company data to a third-party '
+        + 'processor. It is switched off at the server and nothing is transmitted.',
+      pendingApproval: true,
+    });
+  }
+
   const GATE = process.env.RYC_ESTIMATE_PASSWORD || 'ryc2026';
   const body = req.body || {};
   if (body.pw !== GATE) return res.status(401).json({ error: 'Unauthorized' });

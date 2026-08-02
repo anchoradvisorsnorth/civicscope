@@ -1428,6 +1428,7 @@ var ASK_EXAMPLES=[
 ];
 var _askBusy=false;
 function askRYC(){
+  if(!ASK_APPROVED) return;            // belt to the server's braces; see renderAI()
   var q=(document.getElementById("ask-q").value||"").trim();
   if(!q||_askBusy) return;
   _askBusy=true;
@@ -1455,8 +1456,13 @@ function askRYC(){
   RYCAuth.post("ask",{question:q,evidence:ev,system:sys},{url:"/api/ryc-ask"})
     .then(function(r){
       if(!r.ok){
-        out.innerHTML="<div class=\"panel\"><div class=\"sub\">Could not reach the answering service: "
-          +esc(r.error||"unavailable")+"</div></div>"; return;
+        /* 403 is not an outage. A browser left open from before the switch was thrown would
+           otherwise report "service unavailable" for a deliberate, correct refusal. */
+        var pending=(r.status===403)||(r.data&&r.data.pendingApproval);
+        out.innerHTML=pending
+          ? "<div class=\"panel\"><div class=\"warn-banner\"><b>Awaiting RYC authorization — switched off at the server.</b> Nothing was sent. Reload the page for the current state.</div></div>"
+          : "<div class=\"panel\"><div class=\"sub\">Could not reach the answering service: "+esc(r.error||"unavailable")+"</div></div>";
+        return;
       }
       var d=r.data;
       var text=(d&&d.content&&d.content[0]&&d.content[0].text)||"";
@@ -1508,16 +1514,37 @@ function askRYC(){
 }
 function askExample(i){ document.getElementById("ask-q").value=ASK_EXAMPLES[i]; askRYC(); }
 
+/* PENDING RYC AUTHORIZATION — Keith, 2026-08-02.
+   Contract v1.3 A3 (Anthropic as the sole authorized processor for RYC confidential data) is
+   written and UNSIGNED; Keith is seeking RYC's permission first. Until then this destination
+   explains itself and asks nothing. The authoritative refusal is server-side in api/ryc-ask.js —
+   this flag only stops the page offering something that would 403.
+   TO ENABLE: flip to true AND set RYC_ASK_APPROVED=1 in Vercel. Both, or it does not work. */
+var ASK_APPROVED=false;
 function renderAI(){
   var view=document.getElementById("view");
   var ready=!!(activeData&&foundationData);
   view.innerHTML="<div class=\"ai\">"
     +"<div class=\"panel\"><h3>Ask R. Yoder</h3>"
-    +"<div class=\"sub\">Ask a question about the business. The answer is built from the same reconciled sources every other page reads — the Procore cache, the Foundation snapshot and AR, subcontractor spend, completed-job history and the BuildingConnected bid board. <b>Only the sources your question needs are read</b>, and each answer lists exactly what was sent. Every figure is checked before you see it: one without a source drawn from what was sent, or without an as-of date, is withheld rather than shown, and the table says which figures were quoted from the data and which the model computed. Estimating Desk pursuits are a Desk surface and are not readable from here — ask on the Desk. Read-only: nothing here writes anywhere.</div>"
-    +(ready?"":"<div class=\"warn-banner\" style=\"margin-top:10px\">⚠️ Feeds are still loading or unavailable — answers would be incomplete.</div>")
-    +"<textarea id=\"ask-q\" rows=\"2\" placeholder=\"e.g. Which PMs need to process pay applications this week?\"></textarea>"
-    +"<div style=\"display:flex;justify-content:flex-end;margin-top:10px\"><button class=\"ask-btn\" id=\"ask-btn\" onclick=\"askRYC()\">Ask</button></div>"
-    +"<div class=\"ai-cards\">"+ASK_EXAMPLES.map(function(t,i){ return "<div class=\"ai-card\" onclick=\"askExample("+i+")\">"+esc(t)+"</div>"; }).join("")+"</div>"
+    +(ASK_APPROVED?(
+      "<div class=\"sub\">Ask a question about the business. The answer is built from the same reconciled sources every other page reads — the Procore cache, the Foundation snapshot and AR, subcontractor spend, completed-job history and the BuildingConnected bid board. <b>Only the sources your question needs are read</b>, and each answer lists exactly what was sent. Every figure is checked before you see it: one without a source drawn from what was sent, or without an as-of date, is withheld rather than shown, and the table says which figures were quoted from the data and which the model computed. Estimating Desk pursuits are a Desk surface and are not readable from here — ask on the Desk. Read-only: nothing here writes anywhere.</div>"
+      +(ready?"":"<div class=\"warn-banner\" style=\"margin-top:10px\">⚠️ Feeds are still loading or unavailable — answers would be incomplete.</div>")
+      +"<textarea id=\"ask-q\" rows=\"2\" placeholder=\"e.g. Which PMs need to process pay applications this week?\"></textarea>"
+      +"<div style=\"display:flex;justify-content:flex-end;margin-top:10px\"><button class=\"ask-btn\" id=\"ask-btn\" onclick=\"askRYC()\">Ask</button></div>"
+      +"<div class=\"ai-cards\">"+ASK_EXAMPLES.map(function(t,i){ return "<div class=\"ai-card\" onclick=\"askExample("+i+")\">"+esc(t)+"</div>"; }).join("")+"</div>"
+    ):(
+      "<div class=\"warn-banner\" style=\"margin-top:4px\"><b>Awaiting RYC authorization — switched off.</b> "
+      +"This feature would send RYC company data to Anthropic, an outside processor, to answer a question. "
+      +"It is off at the server until RYC approves that, so nothing is being transmitted. Every other page in Command reads RYC data only inside RYC's own systems.</div>"
+      +"<div class=\"sub\" style=\"margin-top:12px\"><b>What it would send, if approved.</b> Only the sources a given question needs — never the whole database. "
+      +"A cash question carries active jobs and overdue AR and <i>no</i> subcontractor spend, <i>no</i> completed-job history and <i>no</i> client or PM names. "
+      +"A history question carries cohort averages, not the individual completed jobs. Names of clients, PMs, AR customers and vendors travel only when the question is about those parties. "
+      +"Each answer lists exactly what went and what was deliberately withheld.</div>"
+      +"<div class=\"sub\" style=\"margin-top:8px\"><b>What it would never do.</b> Write anything, anywhere. Send to any processor other than Anthropic — there is no fallback to a second provider. "
+      +"Show a figure whose source and as-of date were not in what was sent; those are withheld, and the answer says so.</div>"
+      +"<div class=\"sub\" style=\"margin-top:12px\">Questions it is built to answer:</div>"
+      +"<div class=\"ai-cards\">"+ASK_EXAMPLES.map(function(t){ return "<div class=\"ai-card\" style=\"cursor:default;opacity:.72\">"+esc(t)+"</div>"; }).join("")+"</div>"
+    ))
     +"</div><div id=\"ask-out\"></div>"
     /* The live-SQL tool stays, unchanged and separately gated (decision #11). It answers a
        different question — "what does the raw ledger say right now" — and folding its
