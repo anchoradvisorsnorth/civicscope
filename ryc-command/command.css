@@ -268,3 +268,12 @@ table.dwt{width:100%;border-collapse:collapse;font-size:12px}
 .pm-cs{font-weight:400;color:#8b95ab;font-size:11px}
 .pm-note{color:#8b95ab;font-size:11.5px;line-height:1.5;margin-top:10px}
 @media (max-width:700px){ .pm-pair{grid-template-columns:1fr} }
+
+/* Greencroft rollup (usability program 3.1) — presentation grouping only. The row is a
+   disclosure control, so it reads as one: it is not a job and must not look like one. */
+.ptable tbody tr.gc-roll{background:#f3f6fb;cursor:pointer}
+.ptable tbody tr.gc-roll:hover{background:#eaf0f8}
+.ptable tbody tr.gc-roll:focus-visible{outline:2px solid var(--accent-line);outline-offset:-2px}
+.ptable tbody tr.gc-roll .jname{font-weight:700}
+.ptable tbody tr.gc-child > td:first-child{padding-left:20px}
+.gc-tick{color:#9aa4b2;font-size:11px;margin-right:2px}

@@ -211,6 +211,8 @@ function buildPfRows(){
     var conf=confOf(j);
     return { name:j.name||"", jno:j.projectNumber||"", pm:pmName(j)||"", client:j.client||"", stage:j.stage||"",
       stageConflict:stageConflict(j), procoreUrl:procoreUrl(j),
+      // program + the RAW inputs a valid aggregate needs (a mean of percentages is not one)
+      pgm:j.program||null, projCost:(j.budget&&j.budget.projectedCost>0)?j.budget.projectedCost:null,
       closeoutStage:!!CLOSEOUT_STAGES[j.stage],
       contract:j.contractValue||0, conflict:(j.flags||[]).some(function(f){return f.type==="contract";}),
       ctd:(j.costToDate!=null?j.costToDate:null), pct:j.pctComplete,
@@ -220,6 +222,65 @@ function buildPfRows(){
       reasons:sl.reasons.map(function(r){return r.text;}).join(" · "),
       conf:conf, confRank:conf.rank };
   });
+}
+/* ===== Greencroft rollup (usability program 3.1) =====================================
+   Greencroft is one program carrying 30+ small unit jobs. Rendered as individual rows they
+   dominate any leadership scan of the board purely by count, which is the complaint the
+   brief raises. This is a PRESENTATION grouping and nothing else: every job keeps its
+   identity, its numbers, its status and its route, and lives one disclosure click away.
+
+   Aggregates are computed from RAW INPUTS, never by averaging percentages — a mean of
+   per-job margins is not the program's margin. Projected margin is
+   (sum contract - sum projected cost) / sum contract over the jobs that HAVE a projected
+   cost, and the row says how many that is, because an aggregate over partial coverage that
+   does not disclose its coverage is exactly the kind of confident-but-wrong number this
+   program exists to remove.
+
+   Mixed statuses are shown as a DISTRIBUTION ("2 red · 9 green"), never collapsed into one
+   status that would be true of almost none of the constituent jobs. */
+var gcOpen = false;
+function toggleGcRollup(){ gcOpen = !gcOpen; updatePTable(); }
+function gcAggregate(rows){
+  var contract=0, ctd=0, needsInv=0, overdue=0, costed=0, projCost=0, contractOfCosted=0;
+  var status={red:0,amber:0,green:0,gray:0,closeout:0};
+  rows.forEach(function(r){
+    contract+=r.contract||0; ctd+=r.ctd||0; needsInv+=r.needsInv||0; overdue+=r.overdue||0;
+    if(r.projCost!=null && r.contract>0){ costed++; projCost+=r.projCost; contractOfCosted+=r.contract; }
+    if(status[r.status]!=null) status[r.status]++;
+  });
+  return { n:rows.length, contract:contract, ctd:ctd, needsInv:needsInv, overdue:overdue,
+    costed:costed, margin:(contractOfCosted>0)?((contractOfCosted-projCost)/contractOfCosted*100):null,
+    pct:(contract>0)?(ctd/contract*100):null, status:status };
+}
+function gcStatusSummary(st){
+  var order=[["red","red","m-r"],["amber","amber","m-a"],["closeout","closeout","m-m"],["green","on track","m-g"],["gray","pre-con","m-m"]];
+  var bits=order.filter(function(x){ return st[x[0]]>0; })
+    .map(function(x){ return "<span class=\""+x[2]+"\">"+st[x[0]]+" "+x[1]+"</span>"; });
+  return bits.length?bits.join(" · "):"<span class=\"m-m\">—</span>";
+}
+function gcRollupRow(rows){
+  var a=gcAggregate(rows);
+  var bill="";
+  if(a.needsInv>1000) bill="<span class=\"m-a\">inv "+fmtCompact(a.needsInv)+"</span>";
+  if(a.overdue>0) bill+=(bill?" · ":"")+"<span class=\"m-r\">od "+fmtCompact(a.overdue)+"</span>";
+  if(!bill) bill="<span class=\"m-m\">—</span>";
+  var mCell=(a.margin!=null)
+    ? ("<span class=\""+(a.margin>=10?"m-g":a.margin>=5?"m-a":"m-r")+"\">"+a.margin.toFixed(1)+"%</span>"
+       + "<div class=\"cell-sub\">"+a.costed+" of "+a.n+" costed</div>")
+    : "<span class=\"m-m\">—</span><div class=\"cell-sub\">no projected costs</div>";
+  return "<tr class=\"gc-roll\" tabindex=\"0\" role=\"button\" aria-expanded=\""+(gcOpen?"true":"false")
+    +"\" aria-label=\"Greencroft program, "+a.n+" jobs — expand\" onclick=\"toggleGcRollup()\""
+    +" onkeydown=\"if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGcRollup();}\">"
+    +"<td><div class=\"jname\">"+(gcOpen?"▾":"▸")+" Greencroft program</div>"
+    +"<div class=\"jno\">"+a.n+" unit jobs · presentation grouping only</div></td>"
+    +"<td>"+esc(rows[0]&&rows[0].pm||"—")+"</td><td>—</td>"
+    +"<td class=\"r\">"+fmtCompact(a.contract)+"</td>"
+    +"<td class=\"r\">"+fmtCompact(a.ctd)+"</td>"
+    +"<td class=\"r\">"+(a.pct!=null?Math.round(a.pct)+"%":"—")+"</td>"
+    +"<td class=\"r\">"+mCell+"</td>"
+    +"<td>"+bill+"</td>"
+    +"<td>"+gcStatusSummary(a.status)+"</td>"
+    +"<td><span class=\"conf mid\">rollup</span></td></tr>";
 }
 function pfSetSort(col){ if(pfSort.col===col) pfSort.dir=-pfSort.dir; else pfSort={col:col,dir:(col==="name"||col==="pm"||col==="stage"||col==="status")?1:-1}; updatePTable(); }
 function pfSetFilter(k){ pfFilter=k; updatePTable(); }
@@ -232,17 +293,11 @@ function statusPill(s,reasons){
   var m=map[s]||["g",s];
   return "<span class=\"pill "+m[0]+" dot\" title=\""+t+"\">"+m[1]+"</span>";
 }
-function updatePTable(){
-  var rows=_pfRows.slice();
-  if(pfFilter==="active") rows=rows.filter(function(r){return !r.closeoutStage;});
-  else if(pfFilter!=="all") rows=rows.filter(function(r){return r.status===pfFilter;});
-  if(pfSearch) rows=rows.filter(function(r){ return (r.name+" "+r.jno+" "+r.pm+" "+r.client+" "+r.stage).toLowerCase().indexOf(pfSearch)>-1; });
-  var c=pfSort.col, d=pfSort.dir;
-  rows.sort(function(a,b){ var va=a[c], vb=b[c];
-    if(typeof va==="string"||typeof vb==="string"){ va=(va==null?"":String(va)).toLowerCase(); vb=(vb==null?"":String(vb)).toLowerCase(); return va<vb?-d:va>vb?d:0; }
-    va=(va==null?-Infinity:va); vb=(vb==null?-Infinity:vb); return (va-vb)*d; });
+/* ONE row renderer, used by top-level rows AND by a rollup's expanded children, so a
+   grouped job is never rendered by a second, subtly different code path (3.1). `child`
+   only indents the name; every number, flag, status and route is identical. */
+function pfRowHtml(r, child){
   var tb="";
-  rows.forEach(function(r){
     // Colour now grades PROJECTED margin at completion, so being early in a job no longer
     // reads as green. Negative projected margin is unambiguously red — unless the projected
     // cost is flagged suspect, in which case it is shown ungraded rather than alarmed.
@@ -251,8 +306,8 @@ function updatePTable(){
     if(r.needsInv>1000) bill="<span class=\"m-a\">inv "+fmtCompact(r.needsInv)+"</span>";
     if(r.overdue>0) bill+=(bill?" · ":"")+"<span class=\"m-r\">od "+fmtCompact(r.overdue)+"</span>";
     if(!bill) bill="<span class=\"m-m\">—</span>";
-    tb+="<tr class=\"ryc-row\" tabindex=\"0\" role=\"button\" data-jno=\""+attrEsc(r.jno)+"\" aria-label=\"Open job detail: "+attrEsc(r.name)+"\">"
-      +"<td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(r.client?" · "+esc(r.client):"")+srcLink(r.procoreUrl,"Procore")+"</div></td>"
+    tb+="<tr class=\"ryc-row"+(child?" gc-child":"")+"\" tabindex=\"0\" role=\"button\" data-jno=\""+attrEsc(r.jno)+"\" aria-label=\"Open job detail: "+attrEsc(r.name)+"\">"
+      +"<td><div class=\"jname\">"+(child?"<span class=\"gc-tick\">└</span> ":"")+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(r.client?" · "+esc(r.client):"")+srcLink(r.procoreUrl,"Procore")+"</div></td>"
       +"<td>"+esc(r.pm||"—")+"</td><td>"+esc(r.stage||"—")+(r.stageConflict?" <span title=\"Procore stage says Pre-Construction but the job shows real cost activity — stage is stale; update it in Procore (see Data exceptions)\" style=\"color:#c07f1a;cursor:help\">⚑</span>":"")+"</td>"
       +"<td class=\"r\">"+fmtCompact(r.contract)+(r.conflict?" <span title=\"Procore and Foundation contracts diverge — see Data conflicts on the Command Center\" style=\"color:#c07f1a\">⚑</span>":"")+"</td>"
       +"<td class=\"r\">"+(r.ctd!=null?fmtCompact(r.ctd):"—")+"</td>"
@@ -262,7 +317,29 @@ function updatePTable(){
       +"<td>"+statusPill(r.status,r.reasons)+"</td>"
       +"<td><span class=\"conf "+r.conf.cls+"\">"+r.conf.txt+"</span></td>"
       +"</tr>";
-  });
+  return tb;
+}
+function updatePTable(){
+  var rows=_pfRows.slice();
+  if(pfFilter==="active") rows=rows.filter(function(r){return !r.closeoutStage;});
+  else if(pfFilter!=="all") rows=rows.filter(function(r){return r.status===pfFilter;});
+  if(pfSearch) rows=rows.filter(function(r){ return (r.name+" "+r.jno+" "+r.pm+" "+r.client+" "+r.stage).toLowerCase().indexOf(pfSearch)>-1; });
+  var c=pfSort.col, d=pfSort.dir;
+  rows.sort(function(a,b){ var va=a[c], vb=b[c];
+    if(typeof va==="string"||typeof vb==="string"){ va=(va==null?"":String(va)).toLowerCase(); vb=(vb==null?"":String(vb)).toLowerCase(); return va<vb?-d:va>vb?d:0; }
+    va=(va==null?-Infinity:va); vb=(vb==null?-Infinity:vb); return (va-vb)*d; });
+  /* Greencroft's unit jobs leave the flat list and become one expandable row (3.1). The
+     grouping is by the program flag procore-refresh.js already stamps — never by name
+     similarity, which the brief explicitly rules out as a way to invent groups. */
+  var gcRows=rows.filter(function(r){ return r.pgm==="greencroft"; });
+  var useRoll=gcRows.length>1 && pfFilter!=="all";
+  if(useRoll) rows=rows.filter(function(r){ return r.pgm!=="greencroft"; });
+  var tb="";
+  if(useRoll){
+    tb+=gcRollupRow(gcRows);
+    if(gcOpen) gcRows.forEach(function(r){ tb+=pfRowHtml(r,true); });
+  }
+  rows.forEach(function(r){ tb+=pfRowHtml(r,false); });
   var tC=rows.reduce(function(s,r){return s+r.contract;},0), tD=rows.reduce(function(s,r){return s+(r.ctd||0);},0);
   var el=document.getElementById("ptbody"); if(el) el.innerHTML=tb;
   var ft=document.getElementById("ptfoot"); if(ft) ft.innerHTML="<tr><td>"+rows.length+" jobs</td><td></td><td></td><td class=\"r\">"+fmtCompact(tC)+"</td><td class=\"r\">"+fmtCompact(tD)+"</td><td></td><td></td><td></td><td></td><td></td></tr>";
