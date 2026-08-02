@@ -1,0 +1,66 @@
+/* ryc-shell/shell.css — THE shared R. Yoder shell (contract v1.1 §3, phase C).
+   One header, one workspace switcher, one grouped rail — loaded by BOTH workspaces so the
+   grammar cannot drift. Each workspace keeps its own mood BELOW the shell (Command dark,
+   Desk light); the shell itself is neutral and identical in both. */
+
+.ryc-shell { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh; }
+.ryc-side {
+  background: #14181d; color: #cbd5e1; border-right: 1px solid #232a33;
+  display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+}
+.ryc-brand { display: flex; align-items: center; gap: 9px; padding: 15px 14px 12px; border-bottom: 1px solid #232a33; }
+.ryc-brand img { width: 26px; height: 26px; object-fit: contain; }
+.ryc-brand-txt { font-size: 13px; font-weight: 700; color: #f1f5f9; letter-spacing: .2px; line-height: 1.15; }
+.ryc-brand-sub { font-size: 10.5px; color: #7b8794; font-weight: 500; }
+
+/* Workspace switcher — ONE control, both directions. The current workspace is shown, not
+   hidden: you should always be able to see which side of the award line you are on. */
+.ryc-switch { padding: 10px 12px; border-bottom: 1px solid #232a33; }
+.ryc-switch-lbl { font-size: 9.5px; text-transform: uppercase; letter-spacing: .8px; color: #6b7280; margin-bottom: 5px; }
+.ryc-switch-row { display: flex; background: #0e1216; border: 1px solid #232a33; border-radius: 7px; overflow: hidden; }
+.ryc-switch-row a, .ryc-switch-row span {
+  flex: 1; text-align: center; padding: 6px 4px; font-size: 11.5px; font-weight: 600;
+  text-decoration: none; color: #8b96a3; cursor: pointer;
+}
+.ryc-switch-row .on { background: #c2410c; color: #fff; cursor: default; }
+.ryc-switch-row a:hover:not(.on) { background: #1b2128; color: #e2e8f0; }
+
+.ryc-nav { padding: 8px 10px; display: flex; flex-direction: column; gap: 1px; flex: 1; overflow-y: auto; }
+.ryc-nav-h {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: .8px; color: #6b7280;
+  padding: 12px 10px 5px; font-weight: 700;
+}
+.ryc-nav button, .ryc-nav a.ryc-ext {
+  display: flex; align-items: center; gap: 9px; padding: 8px 11px; border-radius: 6px;
+  color: #b6c0cc; font-size: 13px; font-weight: 500; border: none; border-left: 2px solid transparent;
+  cursor: pointer; background: none; width: 100%; text-align: left; font-family: inherit; text-decoration: none;
+}
+.ryc-nav button:hover, .ryc-nav a.ryc-ext:hover { background: #1b2128; color: #f1f5f9; }
+.ryc-nav button.on { background: #1f2630; color: #fff; border-left-color: #c2410c; font-weight: 600; }
+.ryc-nav .ryc-badge {
+  margin-left: auto; background: #b91c1c; color: #fff; font-size: 10.5px; font-weight: 700;
+  border-radius: 10px; padding: 1px 7px; min-width: 18px; text-align: center;
+}
+.ryc-nav .ryc-ico { width: 17px; text-align: center; flex: none; }
+
+/* Pre-identity user area (contract §3): it must NOT fabricate a name or role. It says what is
+   actually true — this is shared access behind a gate — and offers the only real action. */
+.ryc-user { padding: 10px 12px; border-top: 1px solid #232a33; font-size: 11.5px; color: #7b8794; }
+.ryc-user strong { color: #cbd5e1; font-weight: 600; display: block; font-size: 12px; }
+.ryc-user button {
+  margin-top: 7px; background: none; border: 1px solid #2c343e; color: #8b96a3;
+  border-radius: 5px; padding: 4px 9px; font-size: 11px; cursor: pointer; font-family: inherit;
+}
+.ryc-user button:hover { border-color: #c2410c; color: #f1f5f9; }
+.ryc-ver { color: #4b5563; font-size: 10px; margin-top: 8px; line-height: 1.35; }
+
+.ryc-main { min-width: 0; display: flex; flex-direction: column; }
+
+@media (max-width: 900px) {
+  /* Contract §8: phones get a read/triage posture, not a desktop layout squeezed down. */
+  .ryc-shell { grid-template-columns: 1fr; }
+  .ryc-side { position: static; height: auto; flex-direction: column; }
+  .ryc-nav { flex-direction: row; flex-wrap: wrap; overflow-x: auto; }
+  .ryc-nav button, .ryc-nav a.ryc-ext { width: auto; }
+  .ryc-nav-h { display: none; }
+}

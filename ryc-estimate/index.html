@@ -7,6 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css">
+<script src="/ryc-shell/shell.js"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -22,7 +24,11 @@
   .lock-box .error { color:#dc2626; font-size:13px; margin-top:8px; display:none; }
   /* Board/table surfaces use the viewport (Codex Step 3) — the old 980px centered canvas
      wasted a wide screen on the desk. The input form stays reading-width via its own cap. */
-  #app { display:none; max-width:1360px; margin:0 auto; padding:0 18px 60px; }
+  /* The shell owns the page frame now; the work area is the shell's main column. */
+  #app { display:none; }
+  #app.ryc-shell { display:none; }              /* stays hidden until the gate opens */
+  #app.ryc-shell.unlocked { display:grid; }
+  .ryc-main { padding:0 22px 60px; max-width:1400px; }
   #inputPanel { max-width:960px; }
   header { display:flex; align-items:center; gap:12px; padding:18px 0; border-bottom:1px solid var(--line); margin-bottom:22px; }
   header img { width:40px; }
@@ -71,9 +77,7 @@
   @keyframes spin { to { transform:rotate(360deg); } }
   footer { text-align:center; color:var(--muted); font-size:12px; padding:20px; }
   /* hub nav + ported dashboard-view classes */
-  .estnav { display:flex; gap:6px; margin:0 0 18px; flex-wrap:wrap; }
-  .estnav-btn { padding:8px 14px; border:1px solid var(--line); background:#fff; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; }
-  .estnav-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  /* (the top pill strip is gone — navigation is the shared shell rail, phase C) */
   .billing-block { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
   .billing-sub { font-size:13px; color:var(--muted); line-height:1.5; }
   .billing-empty { padding:20px; text-align:center; color:var(--muted); font-size:14px; }
@@ -121,26 +125,15 @@
   </div>
 </div>
 
-<div id="app">
-  <header style="display:flex;align-items:center;gap:14px">
-    <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.19.0 · PHASE B — content IA: Pursuits · Inbox (durable opportunity review: pass with a reason, and it comes back only if the source materially changes) · Outcomes (with stated denominators) · Cost Intelligence. PHASE A: every durable fact is a typed atomic audited operation; the generic save takes draft state only</div></div>
-    <a href="/ryc/command" style="white-space:nowrap;font-size:13px;color:#c2410c;text-decoration:none;font-weight:600">Command →</a>
-  </header>
-
-  <!-- Phase B content IA: the single-scroll desk becomes four named places. Intake, active
-       work and outcomes are DIFFERENT decisions with different row semantics; stacking them in
-       one scroll meant the thing you needed was wherever you happened to have scrolled. The
-       pursuit page is an ENTITY, reached by opening one — it appears here contextually rather
-       than as a permanent destination. Quick Check folded into Cost Intelligence: it is a
-       utility, not an information domain. (Calendar arrives with the shared shell in phase C.) -->
-  <div class="estnav">
-    <button class="estnav-btn active" data-view="history" onclick="setEstView('history')">🗂 Pursuits</button>
-    <button class="estnav-btn" data-view="inbox" onclick="setEstView('inbox')">📥 Inbox<span id="inboxBadge"></span></button>
-    <button class="estnav-btn" data-view="outcomes" onclick="setEstView('outcomes')">🎯 Outcomes</button>
-    <button class="estnav-btn" data-view="costiq" onclick="setEstView('costiq')">📊 Cost Intelligence</button>
-    <button class="estnav-btn" data-view="assist" id="nav-pursuit" style="display:none" onclick="setEstView('assist')">📋 Pursuit</button>
-  </div>
+<!-- Phase C: the shell is no longer this app's own furniture — the rail, the workspace
+     switcher and the identity area come from the SHARED component (/ryc-shell/), so the
+     navigation grammar cannot drift between the two workspaces. The Desk keeps its light
+     mood BELOW the shell; it does not get a shell of its own.
+     Phase B's content split stands: Pursuits · Inbox · Outcomes · Cost Intelligence, with
+     the pursuit page as a contextual entity rather than a permanent destination. -->
+<div id="app" class="ryc-shell">
+  <aside class="ryc-side" id="ryc-side"></aside>
+  <div class="ryc-main">
 
   <div id="view-assist" style="display:none">
   <!-- INPUT -->
@@ -250,9 +243,9 @@
   <div id="view-inbox" style="display:none"><div id="inbox-body"></div></div>
   <div id="view-outcomes" style="display:none"><div id="outcomes-body"></div></div>
   <div id="view-history"><div id="history-body"></div></div>
+  <footer>R. Yoder Construction — internal estimating aid. Not a formal bid. &nbsp;|&nbsp; Powered by CivicScope</footer>
+  </div><!-- /ryc-main -->
 </div>
-
-<footer>R. Yoder Construction — internal estimating aid. Not a formal bid. &nbsp;|&nbsp; Powered by CivicScope</footer>
 
 <script>
 // ---------- gate ----------
@@ -262,9 +255,38 @@ function tryLogin() {
   } else { document.getElementById('pw-error').style.display = 'block'; }
 }
 document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+/* The shared shell (contract §3) — mounted once, at unlock. Groups follow the destination IA:
+   Pipeline is the work moving through the desk, Intelligence is what the desk knows. The
+   pursuit entry is contextual (an entity you have open), and Calendar arrives when pursuit
+   volume justifies a destination rather than because the contract named it. */
+function mountShell() {
+  if (!global_RYCShell()) return;
+  RYCShell.mount({
+    workspace: 'desk',
+    version: TOOL_VERSION + ' · phase C shell',
+    active: 'history',
+    onLock: () => { sessionStorage.removeItem('ryc-auth'); location.reload(); },
+    groups: [
+      { label: 'Pipeline', items: [
+        { key: 'history', label: 'Pursuits', icon: '🗂' },
+        { key: 'inbox', label: 'Inbox', icon: '📥' },
+      ] },
+      { label: 'Intelligence', items: [
+        { key: 'costiq', label: 'Cost Intelligence', icon: '📊' },
+        { key: 'outcomes', label: 'Outcomes', icon: '🎯' },
+      ] },
+      { label: 'Open', items: [
+        { key: 'assist', label: 'Pursuit', icon: '📋', hidden: true },
+      ] },
+    ],
+    onSelect: (k) => setEstView(k),
+  });
+}
+function global_RYCShell() { return typeof RYCShell !== 'undefined' && RYCShell; }
 function unlock() {
   document.getElementById('lock-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
+  document.getElementById('app').classList.add('unlocked');
+  mountShell();
   loadPortfolio();
   // The desk is the front door — unless the URL carries a deep link (bookmarked pursuit,
   // shared workspace), which is honored on load.
@@ -2098,17 +2120,16 @@ const HASH_VIEW = {
 let _estView = null, _routing = false, _settingHash = 0;
 function setEstView(v) {
   _estView = v;
-  document.querySelectorAll('.estnav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  if (global_RYCShell()) RYCShell.setActive(v);
   document.getElementById('view-assist').style.display = v === 'assist' ? 'block' : 'none';
   document.getElementById('view-costiq').style.display = v === 'costiq' ? 'block' : 'none';
   document.getElementById('view-quickcheck').style.display = v === 'quickcheck' ? 'block' : 'none';
   document.getElementById('view-inbox').style.display = v === 'inbox' ? 'block' : 'none';
   document.getElementById('view-outcomes').style.display = v === 'outcomes' ? 'block' : 'none';
   document.getElementById('view-history').style.display = v === 'history' ? 'block' : 'none';
-  // The pursuit page is an entity, not a permanent destination: its nav entry appears only
+  // The pursuit page is an entity, not a permanent destination: its rail entry appears only
   // when one is open (and stays visible so you can get back to it from another view).
-  const np = document.getElementById('nav-pursuit');
-  if (np) np.style.display = (v === 'assist' || window._pursuitId) ? '' : 'none';
+  if (global_RYCShell()) RYCShell.setItemVisible('assist', !!(v === 'assist' || window._pursuitId));
   if (v === 'costiq') renderCostIQ();
   if (v === 'quickcheck') renderQuickCheck();
   if (v === 'inbox') renderInbox();
@@ -2285,7 +2306,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.19.0';
+const TOOL_VERSION = 'v1.20.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -2479,8 +2500,7 @@ async function refreshInboxSignal() {
   try {
     const d = await loadOpportunities();
     const n = d.needs_review_count || 0;
-    const badge = document.getElementById('inboxBadge');
-    if (badge) badge.innerHTML = n ? ` <span class="chip ck-needed" style="margin-left:5px">${n}</span>` : '';
+    if (global_RYCShell()) RYCShell.setBadge('inbox', n);
     const sig = document.getElementById('inboxSignal');
     if (sig) {
       const soonest = (d.opportunities || []).filter(o => o.needs_review && o.bid_due_at)
