@@ -483,7 +483,12 @@ function hookDrawerRows(){
        recall 91% · precision 80% · 5.8 false positives/week   (was 44% / 44% / 13.2)
 
    Full working: RYC/foundations/prototype/{BACKTEST_FINDINGS.md,tune_payapp.py}. */
-var PAYAPP = { minAge: 21, maxAge: 60, minCost: 1000, recall: 91, precision: 80 };
+/* IN-SAMPLE, and the page must say so (Codex closure adjudication). tune_payapp.py selected
+   AND scored this operating point on the same 17 weeks, so 91/80 is a match rate against the
+   data the thresholds were fitted to — not forward validation. Jason's Thursday list remains
+   the prospective check; until it has run alongside for a few weeks, "backtested" would read
+   as proven policy to anyone who did not read the working. */
+var PAYAPP = { minAge: 21, maxAge: 60, minCost: 1000, recall: 91, precision: 80, inSample: true };
 
 /* Last invoice date per job, from the AR feed — which retains PAID invoices (670 of 906 rows
    are zero-balance, back to 2021), so this is genuinely "when did we last bill this job" and
@@ -497,11 +502,10 @@ function lastInvoiceByJob(){
   });
   return m;
 }
-function daysSince(d){
-  if(!d) return null;
-  var t=RYCFormat.parse(d); if(isNaN(t.getTime())) return null;
-  return Math.floor((Date.now()-t)/86400000);
-}
+/* Calendar days, not elapsed milliseconds. Codex closure finding: this floored
+   (now - localNoon), so before noon a 21-day-old invoice measured 20 and dropped out of the
+   pay-app window until midday — the queue changed depending on when it was opened. */
+function daysSince(d){ return RYCFormat.daysSince(d); }
 /* Every active Foundation job, classified into exactly one billing state. One pass, one place,
    so the three lists below cannot disagree about which bucket a job is in. */
 function billingStates(){
@@ -669,8 +673,10 @@ function renderBilling(){
   var provisional="<div class=\"warn-banner\" style=\"background:#fdf6ea;border-color:#e8d3ad;color:#7a5a1e\">"
     +"<b>Provisional rule — running alongside Jason's Thursday email, not replacing it.</b> "
     +"A job appears when its last invoice was "+PAYAPP.minAge+"–"+PAYAPP.maxAge+" days ago and it has cost booked. "
-    +"Backtested against 17 weeks of his actual highlighting: <b>"+PAYAPP.recall+"% recall, "+PAYAPP.precision+"% precision</b>, "
-    +"~6 false positives a week. It will miss some and add some — every row says why it is here.</div>";
+    +"Fitted to 17 weeks of his actual highlighting and scored on those same weeks: <b>"+PAYAPP.recall+"% in-sample match</b> "
+    +"("+PAYAPP.precision+"% precision, ~6 false positives a week). <b>That is a fit, not a forward test</b> — the thresholds were "
+    +"chosen on the data they are measured against. His Thursday list stays the real check until this has run beside it for a few weeks. "
+    +"It will miss some and add some; every row says why it is here.</div>";
 
   view.innerHTML=warn+provisional
     +"<div class=\"vhead\">Pay applications to process</div>"
@@ -1196,9 +1202,11 @@ function showSyncHistory(key){
 
    Ask R. Yoder answers a BUSINESS question from the sources Command already holds and already
    trusts: the Procore cache, the Foundation snapshot and AR, the subcontractor rollup, the
-   completed-job record, the BC bid board, Buildr's forecast, and the Desk's pursuits. Every
-   material number comes back with its source and its as-of, because a figure without those is
-   the thing this product spent a whole program removing.
+   completed-job record and the BC bid board. (NOT the Desk's pursuits — those live behind the
+   Desk's own load and Command has never held them. The page used to name them anyway; it now
+   says where to ask instead.) Every material number comes back with its source and its as-of,
+   because a figure without those is the thing this product spent a whole program removing —
+   and unlike the first cut, that is now CHECKED rather than requested. See askValidate().
 
    WHY NOT LIVE SQL AS THE DEFAULT. Two reasons, both deliberate:
      1. Those sources are already normalised and reconciled here. Asking Foundation raw
@@ -1207,61 +1215,210 @@ function showSyncHistory(key){
         the shared gate would widen who can run arbitrary queries against accounting, which is
         not a usability improvement. It remains available below, unchanged, as a power tool.
 
-   THE EVIDENCE PACK is assembled deterministically on the client from data already loaded —
-   aggregates and the rows relevant to the question, never the whole database. What is sent is
-   stated on the page rather than left to be assumed. */
-function askEvidence(){
-  var ev={ asOf:{}, coverage:null, jobs:[], pursuits:null };
+   THE EVIDENCE PACK is assembled deterministically on the client from data already loaded and
+   is SCOPED TO THE QUESTION — see askScope(). What is sent is stated on the page, computed from
+   the pack that was actually sent rather than described from memory.
+
+   REBUILT 2026-08-02 after Codex's closure review, which found two things this comment used to
+   claim and the code did not do:
+     - "aggregates and the rows relevant to the question" was false. Every question sent every
+       active job with client and PM names, 40 named AR customers, 20 named subcontractors and
+       the ENTIRE completed-job population — before the question was even looked at — through
+       the generic unauthenticated /api/claude proxy. Now: askScope() decides which sections and
+       which FIELD TIERS the question needs, completed history goes as cohort aggregates unless
+       the question names a cohort, party names (client, PM, customer, vendor) are included only
+       when the question is about parties, and the whole thing goes through /api/ryc-ask behind
+       the shared gate to a single named processor.
+     - "every material number comes back with its source and its as-of" was a PROMPT RULE with
+       nothing enforcing it: any object carrying an `answer` rendered, so
+       {"answer":"Revenue is $999M","figures":[]} displayed as a usable answer. Now the reply is
+       validated against a typed contract (askValidate): a figure without a source drawn from
+       the enumerated list of sources ACTUALLY SENT, or without an as-of, is dropped and the
+       drop is shown; and every figure's number is checked against the numbers in the pack, so
+       the table says which figures are quoted as supplied and which the model derived.
+
+   Provenance is therefore checked against the evidence, not accepted as model-authored text. */
+
+/* Which sections and which field tiers does this question actually need?
+   Under-scoping is a SAFE failure — the answer says the evidence does not support it, and the
+   page tells the user to name the source. Over-scoping is the finding. So each test has to earn
+   its section. */
+function askScope(q){
+  var s=" "+String(q||"").toLowerCase()+" ";
+  function has(re){ return re.test(s); }
+  /* "as-bid margin" is a HISTORY phrase, not a bid-board one, and "overdue" contains "due".
+     Both fired the bid board on questions that had nothing to do with it, so the bid-board test
+     reads a string with the as-bid phrase removed and uses word-bounded tokens. */
+  var sb=s.replace(/as.?bid/g," ");
+  var sc={
+    billing:  has(/bill|invoic|pay ?app|retain|cash|collect|receivab|\bar\b|aging|overdue|past due|stale|owe/),
+    ar:       has(/cash|collect|receivab|\bar\b|aging|overdue|past due|owe|unpaid/),
+    subs:     has(/\bsubs?\b|subcontract|vendor|trade|buyout|commit|supplier/),
+    history:  has(/complet|histor|past|actual|as.?bid|estimat|track record|prior|previous|finish|deliver|20(1|2)\d/),
+    margin:   has(/margin|profit|gain|fade|risk|slip|overrun|erosion|contingenc/),
+    people:   has(/\bpms?\b|project manager|superintend|\bwho\b|assign|capacity|workload/),
+    parties:  has(/client|owner|customer|school|corp|\bcity\b|town|county|district|univers|hospital|who owes|for whom/),
+    bidboard: /\bbids?\b|\bbidding\b|precon|pursu|proposal|\bpackages?\b|\binvites?\b|win rate|hit rate/.test(sb)
+  };
+  sc.sources=["Procore active jobs","Company coverage partition"];
+  if(sc.billing) sc.sources.push("Foundation billing");
+  if(sc.ar) sc.sources.push("Foundation AR");
+  if(sc.subs) sc.sources.push("Subcontractor rollup");
+  if(sc.history) sc.sources.push("Completed-job record");
+  if(sc.bidboard) sc.sources.push("BuildingConnected bid board");
+  return sc;
+}
+function askMedian(a){
+  var v=a.filter(function(x){return typeof x==="number"&&isFinite(x);}).sort(function(x,y){return x-y;});
+  if(!v.length) return null;
+  var m=v.length%2?v[(v.length-1)/2]:(v[v.length/2-1]+v[v.length/2])/2;
+  return +m.toFixed(1);
+}
+function askEvidence(q){
+  var sc=askScope(q), lq=String(q||"").toLowerCase();
+  var ev={ asOf:{}, coverage:null, jobs:[], scope:null };
   ev.asOf.procore=(activeData&&activeData.refreshed)||null;
   ev.asOf.foundation=(foundationData&&foundationData.refreshed)||null;
-  ev.asOf.ar=(arData&&arData.refreshed)||null;
-  ev.asOf.bidboard=(bcData&&bcData.generatedAt)||null;
+  if(sc.ar) ev.asOf.ar=(arData&&arData.refreshed)||null;
+  if(sc.bidboard) ev.asOf.bidboard=(bcData&&bcData.generatedAt)||null;
   if(foundationData&&foundationData.jobs&&activeData&&activeData.jobs) ev.coverage=companyRollup();
 
   var bill=(foundationData&&foundationData.jobs)?billingStates():null;
-  var payDue={}; if(bill) bill.due.forEach(function(r){ payDue[String(r.job)]=r.age; });
-  var gf={}; gainFadeRows().forEach(function(r){ gf[String(r.job)]=r; });
+  var payDue={}; if(bill&&sc.billing) bill.due.forEach(function(r){ payDue[String(r.job)]=r.age; });
+  var gf={}; if(sc.margin) gainFadeRows().forEach(function(r){ gf[String(r.job)]=r; });
 
+  /* Active jobs are the spine of nearly every question, so the ROWS are always all of them.
+     The FIELDS are tiered: identity and financial position always, party names and the two
+     specialist blocks only when asked for. */
   getActiveJobs().forEach(function(j){
     var f=j.foundation||{}, no=String(j.projectNumber||"");
-    var g=gf[no], sl=getStoplight(j,j);
-    ev.jobs.push({
-      job:no, name:j.name||"", pm:pmName(j)||null, client:j.client||null, stage:j.stage||null,
+    var row={
+      job:no, name:j.name||"", stage:j.stage||null,
       sector:RYCTaxonomy.sectorLabel(RYCTaxonomy.classify(j).sector),
       workType:RYCTaxonomy.workLabel(RYCTaxonomy.classify(j).workType),
       contract:j.contractValue||null, costToDate:j.costToDate!=null?j.costToDate:null,
       pctComplete:j.pctComplete!=null?Math.round(j.pctComplete):null,
-      billed:f.totalInvoiced!=null?f.totalInvoiced:null, retainage:f.retainage||null,
+      billed:f.totalInvoiced!=null?f.totalInvoiced:null,
       projectedMarginPct:projMarginSuspect(j)?null:projectedMargin(j),
       projectedMarginUnverified:projMarginSuspect(j)||undefined,
       asBidMarginPct:asBidMargin(j),
-      marginMovePts:g?+g.gfPts.toFixed(1):null, marginMoveDollars:g?Math.round(g.gfDollars):null,
-      marginMoveGraded:g?(g.src==="erp"):null,
-      status:isCloseoutOnly(j)?"closeout":sl.color,
-      flags:sl.reasons.map(function(r){return r.text;}),
-      daysSinceLastInvoice:payDue[no]!=null?payDue[no]:null,
-      needsPayApp:payDue[no]!=null
-    });
+      status:isCloseoutOnly(j)?"closeout":getStoplight(j,j).color,
+      flags:getStoplight(j,j).reasons.map(function(r){return r.text;})
+    };
+    if(sc.people) row.pm=pmName(j)||null;
+    if(sc.parties) row.client=j.client||null;
+    if(sc.billing){ row.retainage=f.retainage||null;
+      row.daysSinceLastInvoice=payDue[no]!=null?payDue[no]:null; row.needsPayApp=payDue[no]!=null; }
+    if(sc.margin){ var g=gf[no];
+      row.marginMovePts=g?+g.gfPts.toFixed(1):null; row.marginMoveDollars=g?Math.round(g.gfDollars):null;
+      row.marginMoveGraded=g?(g.src==="erp"):null; }
+    ev.jobs.push(row);
   });
-  if(bill){
+
+  if(bill&&sc.billing){
     ev.billing={ payAppsDue:bill.due.length, notBilled60Plus:bill.stale.length, neverInvoiced:bill.never.length,
       rule:"last invoice "+PAYAPP.minAge+"-"+PAYAPP.maxAge+" days ago AND cost >= $"+PAYAPP.minCost
-        +" (backtested against 17 weeks of the weekly report: "+PAYAPP.recall+"% recall, "+PAYAPP.precision+"% precision) — PROVISIONAL" };
+        +" (fitted to 17 weeks of the weekly report and scored on those same weeks: "+PAYAPP.recall
+        +"% in-sample match, "+PAYAPP.precision+"% precision — IN-SAMPLE, PROVISIONAL, not a forward test)" };
   }
-  var over=(arData&&arData.invoices)?arRows("overdue","active"):[];
-  ev.overdueAr={ total:Math.round(over.reduce(function(s2,v){return s2+(v.openBalance||0);},0)), invoices:over.length,
-    byJob:over.slice(0,40).map(function(v){ return {job:String(v.jobNo||""),customer:v.customer||null,open:Math.round(v.openBalance||0),daysOverdue:v.daysOverdue||0}; }) };
-  if(subsData&&subsData.subs) ev.topSubs=subsData.subs.slice(0,20).map(function(x){
+  /* AR: the totals are cheap and answer most cash questions. The per-customer breakdown is the
+     confidential part, so it only travels when the question is actually about cash. */
+  if(arData&&arData.invoices){
+    var over=arRows("overdue","active");
+    ev.overdueAr={ total:Math.round(over.reduce(function(s2,v){return s2+(v.openBalance||0);},0)), invoices:over.length };
+    if(sc.ar) ev.overdueAr.byJob=over.slice(0,25).map(function(v){
+      var r={job:String(v.jobNo||""),open:Math.round(v.openBalance||0),daysOverdue:v.daysOverdue||0};
+      if(sc.parties) r.customer=v.customer||null;
+      return r; });
+  }
+  if(sc.subs&&subsData&&subsData.subs) ev.topSubs=subsData.subs.slice(0,20).map(function(x){
     return {name:x.name,actual:Math.round(x.actualCost||0),committed:Math.round(x.committed||0),
       currentJobs:subJobSplit(x).cur.map(function(j2){return String(j2.jobNo);})};
   });
-  if(portfolioData&&portfolioData.jobs) ev.completed=portfolioData.jobs.filter(function(j){return (j.contractFinal||0)>0;})
-    .map(function(j){ var d=RYCTaxonomy.classify(j);
-      return {job:j.id,name:j.name,year:j.year||null,sector:RYCTaxonomy.sectorLabel(d.sector),
-        workType:RYCTaxonomy.workLabel(d.workType),finalContract:Math.round(j.contractFinal||0),
-        finalCost:Math.round(j.directCost||0),asBidMarginPct:j.bidMarginPct,actualMarginPct:j.projectedMarginPct}; });
+  /* Completed history went in whole — hundreds of jobs with final contract, final cost and
+     margins — on every question. It goes as COHORT AGGREGATES now, which is what "how have
+     municipal renovations performed" actually needs; individual rows travel only for the
+     cohorts the question names, capped. */
+  if(sc.history&&portfolioData&&portfolioData.jobs){
+    var done=portfolioData.jobs.filter(function(j){return (j.contractFinal||0)>0;});
+    var byCohort={};
+    done.forEach(function(j){ var d=RYCTaxonomy.classify(j);
+      var k=RYCTaxonomy.sectorLabel(d.sector)+" · "+RYCTaxonomy.workLabel(d.workType);
+      (byCohort[k]=byCohort[k]||[]).push(j); });
+    ev.completed={ population:done.length, cohorts:Object.keys(byCohort).map(function(k){
+      var g=byCohort[k];
+      return { cohort:k, jobs:g.length,
+        finalContractTotal:Math.round(g.reduce(function(s2,j){return s2+(j.contractFinal||0);},0)),
+        medianAsBidMarginPct:askMedian(g.map(function(j){return j.bidMarginPct;})),
+        medianActualMarginPct:askMedian(g.map(function(j){return j.projectedMarginPct;})) };
+    }) };
+    var named=Object.keys(byCohort).filter(function(k){
+      return k.toLowerCase().split(/[^a-z]+/).filter(function(w){return w.length>3;})
+        .some(function(w){ return lq.indexOf(w)>=0; }); });
+    if(named.length){
+      ev.completed.rows=[]; ev.completed.rowsAreFrom=named;
+      named.forEach(function(k){ byCohort[k].slice(0,15).forEach(function(j){
+        ev.completed.rows.push({job:j.id,name:j.name,year:j.year||null,cohort:k,
+          finalContract:Math.round(j.contractFinal||0),finalCost:Math.round(j.directCost||0),
+          asBidMarginPct:j.bidMarginPct,actualMarginPct:j.projectedMarginPct}); }); });
+      ev.completed.rows=ev.completed.rows.slice(0,40);
+    }
+  }
+  /* The page named the bid board as a source and sent nothing but a timestamp (Codex HIGH #2).
+     It is real data Command already holds, so it is populated rather than un-promised. */
+  if(sc.bidboard&&bcData&&Array.isArray(bcData.published)){
+    var closedBc=bcData.recentClosed||[];
+    ev.bidboard={
+      outToBid:bcData.published.map(function(p){ return {name:p.name,packages:p.packages,
+        atRisk:p.atRisk,bidsDueAt:p.bidsDueAt||null}; }),
+      draftCount:bcData.draftCount||0,
+      recentClosed180d:{ won:closedBc.filter(function(c){return c.awarded==="WON";}).length,
+        lost:closedBc.filter(function(c){return c.awarded==="LOST";}).length }
+    };
+  }
+  ev.scope={ sources:sc.sources,
+    /* Stated, not silently absent: pursuits live in the Estimating Desk behind its own load and
+       are NOT in Command's memory, so this cannot answer on them and says so instead of the
+       page continuing to claim it can. */
+    notIncluded:["Estimating Desk pursuits (a Desk surface — ask there)"]
+      .concat(sc.subs?[]:["subcontractor spend"]).concat(sc.history?[]:["completed-job history"])
+      .concat(sc.ar?[]:["per-customer AR detail"]).concat(sc.bidboard?[]:["the BC bid board"])
+      .concat(sc.parties?["client and customer names"]:[]).concat(sc.people?[]:["PM names"]) };
   return ev;
 }
+
+/* Every number that appears anywhere in the pack, as a bare integer string. A figure whose value
+   matches one of these was QUOTED; anything else the model computed. Both are legitimate — the
+   point is that the page can tell them apart instead of presenting them identically. */
+function askNumberIndex(ev){
+  var set={};
+  (function walk(v){
+    if(v==null) return;
+    if(typeof v==="number"&&isFinite(v)){ set[String(Math.round(Math.abs(v)))]=1; return; }
+    if(Array.isArray(v)){ v.forEach(walk); return; }
+    if(typeof v==="object"){ Object.keys(v).forEach(function(k){ walk(v[k]); }); }
+  })(ev);
+  return set;
+}
+/* THE ANSWER CONTRACT, enforced. Returns cleaned figures plus what was rejected and why. */
+function askValidate(p,ev){
+  var okSrc={}; (ev.scope&&ev.scope.sources||[]).forEach(function(s){ okSrc[s.toLowerCase()]=1; });
+  var nums=askNumberIndex(ev), kept=[], dropped=[];
+  (Array.isArray(p.figures)?p.figures:[]).forEach(function(f){
+    if(!f||typeof f!=="object") return;
+    var label=String(f.label||"").trim(), value=(f.value==null?"":String(f.value)).trim();
+    var src=String(f.source||"").trim(), asOf=String(f.asOf||"").trim();
+    if(!label||!value){ dropped.push({label:label||"(unlabelled)",why:"no label or no value"}); return; }
+    if(!src||!okSrc[src.toLowerCase()]){
+      dropped.push({label:label,why:src?("cites “"+src+"”, which was not sent"):"no source"}); return; }
+    if(!asOf){ dropped.push({label:label,why:"no as-of date"}); return; }
+    var toks=value.replace(/[,$]/g,"").match(/\d+(?:\.\d+)?/g)||[];
+    var traced=toks.length?toks.some(function(t){ return nums[String(Math.round(Math.abs(parseFloat(t))))]===1; }):null;
+    kept.push({label:label,value:value,source:src,asOf:asOf,traced:traced});
+  });
+  return {figures:kept,dropped:dropped};
+}
+
 var ASK_EXAMPLES=[
   "Which jobs lost more than two margin points, and what changed?",
   "Which PMs need to process pay applications this week?",
@@ -1277,48 +1434,76 @@ function askRYC(){
   var out=document.getElementById("ask-out");
   document.getElementById("ask-btn").disabled=true;
   out.innerHTML="<div class=\"panel\"><div class=\"sub\">Reading the sources…</div></div>";
-  var ev=askEvidence();
+  var ev=askEvidence(q);
   var sys="You are answering questions about R. Yoder Construction from evidence supplied to you. "
     +"You have NO other knowledge of this company — if the evidence does not support an answer, say so plainly.\n\n"
     +"RULES:\n"
     +"1. Answer in business language, directly, first. No preamble.\n"
     +"2. EVERY material number you state must appear in `figures` with its source and as-of date.\n"
-    +"3. If the question crosses datasets with different coverage, say so in `caveat`.\n"
-    +"4. If you cannot verify something, put it in `unverified` — never estimate or infer a number.\n"
-    +"5. Margin figures marked projectedMarginUnverified are NOT graded — never quote them as fact.\n"
-    +"6. marginMoveGraded=false means the movement is reconstructed from budget growth, a scenario, not a forecast.\n"
-    +"7. The pay-app rule is PROVISIONAL; say so if you use it.\n"
+    +"3. `source` MUST be copied EXACTLY from this list — anything else is discarded before the user sees it:\n"
+    +"   "+ev.scope.sources.map(function(s){return "\""+s+"\"";}).join(", ")+"\n"
+    +"4. These are NOT in the evidence and cannot be answered on: "+ev.scope.notIncluded.join("; ")
+    +". If the question needs one of them, say so in `unverified` and do not guess.\n"
+    +"5. If the question crosses datasets with different coverage, say so in `caveat`.\n"
+    +"6. Margin figures marked projectedMarginUnverified are NOT graded — never quote them as fact.\n"
+    +"7. marginMoveGraded=false means the movement is reconstructed from budget growth, a scenario, not a forecast.\n"
+    +"8. The pay-app rule is PROVISIONAL and in-sample; say so if you use it.\n"
     +"Respond ONLY with minified JSON: {\"answer\":\"...\",\"figures\":[{\"label\":\"...\",\"value\":\"...\",\"source\":\"...\",\"asOf\":\"...\"}],"
     +"\"jobs\":[\"job numbers referenced\"],\"caveat\":\"... or empty\",\"unverified\":\"... or empty\"}";
-  fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1600,temperature:0.2,system:sys,
-      messages:[{role:"user",content:"QUESTION: "+q+"\n\nEVIDENCE (JSON):\n"+JSON.stringify(ev)}]})})
-    .then(function(r){ return r.json(); })
-    .then(function(d){
+  /* Through RYCAuth (the one credential seam, contract D8) to /api/ryc-ask — the authorized,
+     single-processor boundary — NOT the open /api/claude proxy the public estimators share. */
+  RYCAuth.post("ask",{question:q,evidence:ev,system:sys},{url:"/api/ryc-ask"})
+    .then(function(r){
+      if(!r.ok){
+        out.innerHTML="<div class=\"panel\"><div class=\"sub\">Could not reach the answering service: "
+          +esc(r.error||"unavailable")+"</div></div>"; return;
+      }
+      var d=r.data;
       var text=(d&&d.content&&d.content[0]&&d.content[0].text)||"";
       var p2=null;
       try{ p2=JSON.parse(text); }catch(e){ var m=text.match(/\{[\s\S]*\}/); if(m){ try{ p2=JSON.parse(m[0]); }catch(e2){} } }
-      if(!p2||!p2.answer){ out.innerHTML="<div class=\"panel\"><div class=\"sub\">No usable answer came back."+(text?" Raw reply: "+esc(text.slice(0,400)):"")+"</div></div>"; return; }
-      var figs=(p2.figures||[]).map(function(f){
-        return "<tr class=\"static\"><td>"+esc(f.label||"")+"</td><td class=\"r\"><b>"+esc(String(f.value==null?"—":f.value))+"</b></td>"
-          +"<td>"+esc(f.source||"—")+"</td><td class=\"r\">"+esc(f.asOf||"—")+"</td></tr>";
+      if(!p2||typeof p2.answer!=="string"||!p2.answer.trim()){
+        out.innerHTML="<div class=\"panel\"><div class=\"sub\">No usable answer came back."+(text?" Raw reply: "+esc(text.slice(0,400)):"")+"</div></div>"; return; }
+      var v=askValidate(p2,ev);
+      var figs=v.figures.map(function(f){
+        return "<tr class=\"static\"><td>"+esc(f.label)+"</td><td class=\"r\"><b>"+esc(f.value)+"</b></td>"
+          +"<td>"+esc(f.source)+"</td><td class=\"r\">"+esc(f.asOf)+"</td>"
+          +"<td class=\"r\">"+(f.traced===true?"as supplied":(f.traced===false?"<span style=\"color:#8a6d1e\">derived</span>":"—"))+"</td></tr>";
       }).join("");
+      /* An answer full of numbers whose provenance all failed is the failure mode this exists
+         to catch, so it is a warning at the top, not a footnote. */
+      var hasNums=/\d/.test(p2.answer);
+      var unsupported=(!v.figures.length&&hasNums)
+        ? "<div class=\"warn-banner\" style=\"margin-top:12px\"><b>Nothing below is verified.</b> The answer states figures but returned none with a source and as-of drawn from what was sent. Treat it as a lead, not a number.</div>" : "";
+      var droppedTxt=v.dropped.length
+        ? "<div class=\"warn-banner\" style=\"margin-top:10px;background:#fdf6ea;border-color:#e8d3ad;color:#7a5a1e\"><b>"
+          +v.dropped.length+" figure"+(v.dropped.length===1?"":"s")+" withheld</b> for failing the source/as-of rule: "
+          +esc(v.dropped.map(function(x){return x.label+" ("+x.why+")";}).join("; "))+"</div>" : "";
       var links=(p2.jobs||[]).filter(function(n){ return jobByNo(n); }).slice(0,10).map(function(n){
         return "<button class=\"pfill\" onclick=\"goJobPage('"+attrEsc(String(n))+"')\">"+esc(String(n))+" &rarr;</button>";
       }).join(" ");
+      var sent=[ev.jobs.length+" active jobs"];
+      if(ev.completed) sent.push(ev.completed.cohorts.length+" completed-job cohort aggregates"
+        +(ev.completed.rows?" plus "+ev.completed.rows.length+" rows from the cohorts you named":" (no individual rows)"));
+      if(ev.topSubs) sent.push(ev.topSubs.length+" subcontractors");
+      if(ev.overdueAr) sent.push(ev.overdueAr.byJob?ev.overdueAr.byJob.length+" overdue-AR rows":"AR totals only");
+      if(ev.bidboard) sent.push(ev.bidboard.outToBid.length+" projects out to bid");
       out.innerHTML="<div class=\"panel\"><div style=\"font-size:15px;line-height:1.6\">"+esc(p2.answer)+"</div>"
-        +(figs?("<div class=\"sub\" style=\"margin-top:12px\">Every figure, with where it came from and when:</div>"
-          +"<table class=\"tbl\"><thead><tr><th>Figure</th><th class=\"r\">Value</th><th>Source</th><th class=\"r\">As of</th></tr></thead><tbody>"+figs+"</tbody></table>"):"")
-        +(p2.caveat?("<div class=\"warn-banner\" style=\"margin-top:12px;background:#fdf6ea;border-color:#e8d3ad;color:#7a5a1e\"><b>Coverage:</b> "+esc(p2.caveat)+"</div>"):"")
-        +(p2.unverified?("<div class=\"warn-banner\" style=\"margin-top:10px\"><b>Could not verify:</b> "+esc(p2.unverified)+"</div>"):"")
+        +unsupported
+        +(figs?("<div class=\"sub\" style=\"margin-top:12px\">Every figure, with where it came from, when, and whether it was quoted or computed:</div>"
+          +"<table class=\"tbl\"><thead><tr><th>Figure</th><th class=\"r\">Value</th><th>Source</th><th class=\"r\">As of</th><th class=\"r\">Check</th></tr></thead><tbody>"+figs+"</tbody></table>"):"")
+        +droppedTxt
+        +(p2.caveat?("<div class=\"warn-banner\" style=\"margin-top:12px;background:#fdf6ea;border-color:#e8d3ad;color:#7a5a1e\"><b>Coverage:</b> "+esc(String(p2.caveat))+"</div>"):"")
+        +(p2.unverified?("<div class=\"warn-banner\" style=\"margin-top:10px\"><b>Could not verify:</b> "+esc(String(p2.unverified))+"</div>"):"")
         +(links?("<div class=\"sub\" style=\"margin-top:12px\">Jobs referenced</div><div style=\"margin-top:4px\">"+links+"</div>"):"")
         +"<details style=\"margin-top:12px\"><summary class=\"sub\" style=\"cursor:pointer\">What was sent to answer this</summary>"
-        +"<div class=\"sub\" style=\"margin-top:6px\">"+ev.jobs.length+" active jobs (identity, contract, cost, billing, margin, status), "
-        +(ev.completed?ev.completed.length+" completed jobs, ":"")+(ev.topSubs?ev.topSubs.length+" subcontractors, ":"")
-        +"AR aging and the company coverage partition — aggregates and the fields above, never raw ledgers. Read-only: nothing here writes anywhere.</div></details>"
+        +"<div class=\"sub\" style=\"margin-top:6px\"><b>Sent:</b> "+esc(sent.join(" · "))+".</div>"
+        +"<div class=\"sub\" style=\"margin-top:4px\"><b>Deliberately not sent for this question:</b> "+esc(ev.scope.notIncluded.join(" · "))+". "
+        +"The pack is built from the question, so a different question sends a different — and no larger — set.</div>"
+        +"<div class=\"sub\" style=\"margin-top:4px\">Sent to Anthropic over the gated /api/ryc-ask endpoint. Read-only: nothing here writes anywhere.</div></details>"
         +"</div>";
     })
-    .catch(function(e){ out.innerHTML="<div class=\"panel\"><div class=\"sub\">Could not reach the answering service: "+esc(e.message||"error")+"</div></div>"; })
+    .catch(function(e){ out.innerHTML="<div class=\"panel\"><div class=\"sub\">Could not render the answer: "+esc((e&&e.message)||"error")+"</div></div>"; })
     .then(function(){ _askBusy=false; var b=document.getElementById("ask-btn"); if(b) b.disabled=false; });
 }
 function askExample(i){ document.getElementById("ask-q").value=ASK_EXAMPLES[i]; askRYC(); }
@@ -1328,7 +1513,7 @@ function renderAI(){
   var ready=!!(activeData&&foundationData);
   view.innerHTML="<div class=\"ai\">"
     +"<div class=\"panel\"><h3>Ask R. Yoder</h3>"
-    +"<div class=\"sub\">Ask a question about the business. The answer is built from the same reconciled sources every other page reads — the Procore cache, the Foundation snapshot and AR, subcontractor spend, completed-job history, the bid board and the Desk's pursuits — and every material number comes back with its source and its as-of date. Read-only: nothing here writes anywhere.</div>"
+    +"<div class=\"sub\">Ask a question about the business. The answer is built from the same reconciled sources every other page reads — the Procore cache, the Foundation snapshot and AR, subcontractor spend, completed-job history and the BuildingConnected bid board. <b>Only the sources your question needs are read</b>, and each answer lists exactly what was sent. Every figure is checked before you see it: one without a source drawn from what was sent, or without an as-of date, is withheld rather than shown, and the table says which figures were quoted from the data and which the model computed. Estimating Desk pursuits are a Desk surface and are not readable from here — ask on the Desk. Read-only: nothing here writes anywhere.</div>"
     +(ready?"":"<div class=\"warn-banner\" style=\"margin-top:10px\">⚠️ Feeds are still loading or unavailable — answers would be incomplete.</div>")
     +"<textarea id=\"ask-q\" rows=\"2\" placeholder=\"e.g. Which PMs need to process pay applications this week?\"></textarea>"
     +"<div style=\"display:flex;justify-content:flex-end;margin-top:10px\"><button class=\"ask-btn\" id=\"ask-btn\" onclick=\"askRYC()\">Ask</button></div>"

@@ -307,6 +307,31 @@
     var d = toDate(s);
     return isNaN(d.getTime()) ? DASH : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
+  /* CALENDAR-DAY ARITHMETIC — both operands normalised, not one.
+     Program 0.3/1.3 fixed date-only PARSING; three callers then still computed elapsed days as
+     `(Date.now() - parsedDate) / 86400000`, which mixes a wall-clock instant with a normalised
+     date and drifts through the day:
+       · an invoice dated 2026-07-12 is 21 calendar days old on 2026-08-02, but that expression
+         returns 20 until local noon — so a job entered and left the 21-day pay-app queue
+         depending on the time of day it was looked at;
+       · a job whose projected finish is today read as one day overdue after 8pm Eastern.
+     Normalising BOTH sides to local midnight makes the answer a property of the calendar rather
+     than of when the page was opened. Math.round, not floor, because DST days are 23 or 25
+     hours long and flooring a 23-hour day loses one. */
+  /* The falsy guard is load-bearing: `new Date(null)` is the EPOCH, not an invalid date, so
+     without it a missing date silently measured ~20,668 days instead of returning "unknown" —
+     and every caller here treats a number as a real answer. */
+  function startOfDay(v) {
+    if (!v) return null;                 // null · undefined · '' · 0 (epoch) are all 'no date'
+    var d = toDate(v);
+    if (!d || isNaN(d.getTime())) return null;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function daysSince(v) {
+    var a = startOfDay(v); if (!a) return null;
+    var n = new Date(), b = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    return Math.round((b - a) / 86400000);
+  }
   /* Returns null (not a dash) when there is nothing to age: callers compose it into a
      sentence and supply their own fallback. */
   function age(ts) {
@@ -325,7 +350,7 @@
        date-only string hits the same UTC-midnight trap, and a shared display rule that
        leaves the arithmetic wrong is not one date rule. Consumers: daysPastFinish() and
        the Forecast month spread (program 1.3). */
-    parse: toDate,
+    parse: toDate, startOfDay: startOfDay, daysSince: daysSince,
   };
 
   /* ===================================================================================

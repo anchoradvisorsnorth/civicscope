@@ -182,7 +182,10 @@ function getStoplight(job, live){
   // activity from every risk check (the old check silently grayed a job at 65% complete)
   var isPrecon=(stage==="Pre-Construction"&&!hasCostActivity(live))||(!(live&&live.budget)&&(pctComp==null||pctComp===0));
   if(isPrecon) return {color:"gray",reasons:[]};
-  var daysOverdue=finishDate?Math.floor((Date.now()-new Date(finishDate))/86400000):0;
+  // Raw new Date() on a date-only projected finish parses as UTC, so in Eastern time a job
+  // whose finish IS today read as one day overdue after 8pm. Calendar days, both sides
+  // normalised (Codex closure finding).
+  var daysOverdue=finishDate?(RYCFormat.daysSince(finishDate)||0):0;
   var reasons=[];
   if(costOverrun) reasons.push({level:"red",text:"Cost overrun"});
   // Cost recorded to date has passed the contract value — a real overrun, but it is not a
@@ -305,7 +308,9 @@ function buildrFollowUps(){
    this count over its day boundary early, and it feeds isCloseoutAging() -> the Overview
    "Closeout aging" list. A job could join that list four hours before it was actually 30
    days past finish (program 1.3). `projectedFinish` carries a time and is unaffected. */
-function daysPastFinish(j){ var fin=j.projectedFinish||j.completionDate; return fin?Math.floor((Date.now()-RYCFormat.parse(fin))/86400000):0; }
+/* Same normalisation as getStoplight — this shared the identical drift: parsing was fixed in
+   0.3/1.3 but the SUBTRACTION still mixed a wall-clock instant with a normalised date. */
+function daysPastFinish(j){ var fin=j.projectedFinish||j.completionDate; return fin?(RYCFormat.daysSince(fin)||0):0; }
 function isCloseoutAging(j){ return daysPastFinish(j)>30 && j.pctComplete!=null && j.pctComplete>=98 && !!j.foundation; }
 function isCloseoutOnly(j){ var sl=getStoplight(j,j);
   return sl.color==="red" && isCloseoutAging(j) &&
