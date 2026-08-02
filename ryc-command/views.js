@@ -72,10 +72,24 @@ function renderCommand(){
   function section(title,n,rowsHtml,empty,badge){
     return "<div class=\"qsec\"><div class=\"qh\">"+title+" <span class=\"qn\">"+(badge!=null?badge:n)+"</span></div>"+(n?rowsHtml:"<div class=\"q-empty\">"+empty+"</div>")+"</div>";
   }
+  /* Greencroft rolls up here too (3.1, the third approved surface). A leadership briefing that
+     opens with nine near-identical unit jobs has buried whatever else is on the list, and the
+     program is one conversation, not nine. Presentation only — the constituent jobs keep every
+     number and remain individually reachable from Portfolio and Margin & Risk. */
+  function queueRollup(items,cls,label,detailFn){
+    var gc=items.filter(function(x){return x.j.program==="greencroft";});
+    var rest=items.filter(function(x){return x.j.program!=="greencroft";});
+    var html=rest.map(detailFn).join("");
+    if(gc.length>1){
+      var v=gc.reduce(function(s2,x){return s2+(x.j.contractValue||0);},0);
+      html+=row(cls,"Greencroft program","",gc.length+" unit jobs "+label+" — one program, listed individually on Portfolio and Margin &amp; Risk",fmtCompact(v),"");
+    } else { html+=gc.map(detailFn).join(""); }
+    return html;
+  }
   // red
-  var redRows=reds.map(function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="red";}).map(function(z){return z.text;}).join(" · "); return row("red",x.j.name||"",x.j.projectNumber,"<b>"+esc(r)+"</b>",fmtCompact(x.j.contractValue),""); }).join("");
+  var redRows=queueRollup(reds,"red","flagged",function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="red";}).map(function(z){return z.text;}).join(" · "); return row("red",x.j.name||"",x.j.projectNumber,"<b>"+esc(r)+"</b>",fmtCompact(x.j.contractValue),""); });
   // amber
-  var amberRows=ambers.map(function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="amber";}).map(function(z){return z.text;}).join(" · "); return row("amber",x.j.name||"",x.j.projectNumber,esc(r),fmtCompact(x.j.contractValue),""); }).join("");
+  var amberRows=queueRollup(ambers,"amber","to watch",function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="amber";}).map(function(z){return z.text;}).join(" · "); return row("amber",x.j.name||"",x.j.projectNumber,esc(r),fmtCompact(x.j.contractValue),""); });
   // closeout aging — Foundation-side closeout test: retainage still held, billing gap, job still open
   var closeoutRows=closeouts.map(function(x){
     var j=x.j, f=j.foundation||{};
@@ -312,7 +326,7 @@ function pfRowHtml(r, child){
       +"<td class=\"r\">"+fmtCompact(r.contract)+(r.conflict?" <span title=\"Procore and Foundation contracts diverge — see Data conflicts on the Command Center\" style=\"color:#c07f1a\">⚑</span>":"")+"</td>"
       +"<td class=\"r\">"+(r.ctd!=null?fmtCompact(r.ctd):"—")+"</td>"
       +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
-      +"<td class=\"r\"><span class=\""+mcls+"\""+(r.mtdSuspect?" title=\"Projected cost flagged for verification — shown ungraded\"":"")+">"+(r.mtd!=null?(r.mtdSuspect?"⚑ ":"")+r.mtd.toFixed(1)+"%":"—")+"</span>"+(r.cm!=null?"<div class=\"cell-sub\">as-bid "+r.cm.toFixed(1)+"%</div>":"")+"</td>"
+      +"<td class=\"r\">"+marginCell(r.mtd,r.mtdSuspect,r.cm)+"</td>"
       +"<td>"+bill+"</td>"
       +"<td>"+statusPill(r.status,r.reasons)+"</td>"
       +"<td><span class=\"conf "+r.conf.cls+"\">"+r.conf.txt+"</span></td>"
@@ -674,61 +688,149 @@ function buildExceptions(jobs){
   return exc;
 }
 
+/* ===== Margin grading — ONE cell, and never colour alone (program 1.3) ==================
+   Contract §3: "Color is always accompanied by text or iconography — no color-only semantics."
+   The projected-margin cell was the one place left where the GRADE was carried purely by
+   colour: 3.2% rendered red and 12% green, identical to a colourblind reader or anyone
+   printing in greyscale.
+
+   The fix uses the sub-line the cell already has rather than inventing a glyph vocabulary —
+   "as-bid 10.1% · below target" is unambiguous, reads aloud correctly, and costs no space.
+   Healthy stays SILENT, per the same section: only the states that want attention say so.
+
+   Severity and confidence remain separate axes. An unverified projection is never graded at
+   all — it shows ⚑ and says why, rather than being coloured as though it were known. */
+function marginGrade(pct,suspect){
+  if(suspect) return {cls:"m-m",word:"projection unverified"};
+  if(pct==null) return {cls:"m-m",word:null};
+  if(pct<5)  return {cls:"m-r",word:"below target"};
+  if(pct<10) return {cls:"m-a",word:"watch"};
+  return {cls:"m-g",word:null};                       // healthy is silent
+}
+function marginCell(pct,suspect,asBid){
+  var g=marginGrade(pct,suspect);
+  var sub=[];
+  if(asBid!=null) sub.push("as-bid "+asBid.toFixed(1)+"%");
+  if(g.word) sub.push(g.word);
+  var val=suspect?"⚑":(pct!=null?pct.toFixed(1)+"%":"—");
+  return "<span class=\""+g.cls+"\""+(g.word?(" title=\""+attrEsc(g.word)+"\""):"")+">"+val+"</span>"
+    +(sub.length?"<div class=\"cell-sub\">"+esc(sub.join(" · "))+"</div>":"");
+}
+
 /* ===== Margin & Risk (Phase 4 — light operator view) ========================= */
+var mgSort="pts";
+function mgSetSort(k){ mgSort=k; renderView(); }
+
 function renderMargin(){
   var view=document.getElementById("view");
   var jobs=getActiveJobs();
   var haveFnd=!!(foundationData&&foundationData.jobs);
   var warn=(!activeData||!activeData.jobs)?"<div class=\"warn-banner\">⚠️ Procore feed unavailable.</div>":(!haveFnd?"<div class=\"warn-banner\">⚠️ Foundation feed unavailable — gain/fade falls back to Procore-only figures.</div>":"");
 
-  /* gain/fade */
-  var gf=gainFadeRows().sort(function(a,b){return a.gfPts-b.gfPts;});
-  // Graded fade/gain counts and dollars come from trusted ERP rows only; recon rows render
-  // in the table as ungraded "≈ budget-based" scenarios (Codex R4 #6).
-  var fading=gf.filter(function(r){return r.src==="erp"&&r.gfPts<=-GF_MOVE_PTS;});
-  var fadeDollars=fading.reduce(function(s,r){return s+r.gfDollars;},0);
-  var gaining=gf.filter(function(r){return r.src==="erp"&&r.gfPts>=GF_MOVE_PTS;});
+  /* TWO POPULATIONS, NEVER MIXED (3.3: "distinguish forecast risk from data-quality
+     uncertainty"). A graded row has a trusted ERP projected cost. A recon row is reconstructed
+     from budget growth — a SCENARIO, not a forecast. They used to sit in one table separated
+     only by a muted tag, which reads as one ranked list where a third of the rows are guesses. */
+  var all=gainFadeRows();
+  var graded=all.filter(function(r){return r.src==="erp";});
+  var ungraded=all.filter(function(r){return r.src!=="erp";});
+  var fading=graded.filter(function(r){return r.gfPts<=-GF_MOVE_PTS;});
+  var gaining=graded.filter(function(r){return r.gfPts>=GF_MOVE_PTS;});
+  var fadeDollars=fading.reduce(function(s2,r){return s2+r.gfDollars;},0);
 
-  /* buyout rollup (Phase 3b data) */
+  /* Portfolio margin now leads with the COMPARISON the page is about. Both sides are computed
+     over the SAME cohort — the graded rows — rather than pairing a projected figure from one
+     population with an as-bid figure from another, which would make the delta meaningless. */
+  var wC=0,wProj=0,wBid=0;
+  graded.forEach(function(r){
+    var j=jobByNo(r.job); var c=(j&&j.contractValue)||0; if(!(c>0)) return;
+    wC+=c; wProj+=c*r.curMargin; wBid+=c*r.asbidMargin;
+  });
+  var projPct=wC>0?wProj/wC:null, bidPct=wC>0?wBid/wC:null;
+  var deltaPts=(projPct!=null&&bidPct!=null)?(projPct-bidPct):null;
+
+  /* buyout rollup */
   var bo=jobs.filter(function(j){return j.commitments&&j.budget&&((j.budget.revised>0)||(j.budget.original>0));})
     .map(function(j){ var cb=j.budget.revised>0?j.budget.revised:j.budget.original;
       return {j:j,jno:j.projectNumber||"",name:j.name||"",pm:pmName(j)||"(no PM)",pct:j.pctComplete,budget:cb,
         committed:j.commitments.committedTotal,pending:j.commitments.pendingTotal||0,
         uncommitted:cb-j.commitments.committedTotal,cov:cb>0?(j.commitments.committedTotal/cb*100):null}; });
-  var boBudget=bo.reduce(function(s,r){return s+r.budget;},0);
-  var boCommitted=bo.reduce(function(s,r){return s+r.committed;},0);
+  var boBudget=bo.reduce(function(s2,r){return s2+r.budget;},0);
+  var boCommitted=bo.reduce(function(s2,r){return s2+r.committed;},0);
   var boCov=boBudget>0?(boCommitted/boBudget*100):null;
 
-  /* exceptions (shared with Data Trust) */
   var exc=buildExceptions(jobs);
 
-  var gm=projectedGrossMargin();
-  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
+  function kpi(l,v,s2,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s2||"")+"</div></div>"; }
   var strip="<div class=\"kpi-strip k4\">"
-    +kpi("Projected gross margin",gm?gm.pct.toFixed(1)+"%":"—",gmSub(gm),(gm&&gm.pct<8)?"warn":"")
-    +kpi("Margin fades",String(fading.length),fading.length?("net "+fmtCompact(fadeDollars)+" vs as-bid"):"no jobs fading",fading.length?"bad":"")
-    +kpi("Buyout coverage",boCov!=null?boCov.toFixed(0)+"%":"—",fmtCompact(boCommitted)+" committed of "+fmtCompact(boBudget),"")
-    +kpi("Data exceptions",String(exc.length),exc.length?"need reconciliation":"all clean",exc.length?"warn":"")
+    +kpi("Projected margin",projPct!=null?projPct.toFixed(1)+"%":"—",
+         bidPct!=null?("as-bid "+bidPct.toFixed(1)+"% · "+(deltaPts>=0?"+":"")+deltaPts.toFixed(1)+" pts"):"no graded jobs",
+         (deltaPts!=null&&deltaPts<=-GF_MOVE_PTS)?"bad":((projPct!=null&&projPct<8)?"warn":""))
+    +kpi("Net movement vs as-bid",fmtCompact(fadeDollars+gaining.reduce(function(s2,r){return s2+r.gfDollars;},0)),
+         fading.length+" fading · "+gaining.length+" gaining",fadeDollars<0?"bad":"")
+    +kpi("Worst fade",fading.length?fmtCompact(fading.slice().sort(function(a,b){return a.gfDollars-b.gfDollars;})[0].gfDollars):"—",
+         fading.length?esc(fading.slice().sort(function(a,b){return a.gfPts-b.gfPts;})[0].name.slice(0,28)):"nothing fading",fading.length?"bad":"")
+    +kpi("Buyout coverage",boCov!=null?boCov.toFixed(0)+"%":"—",fmtCompact(boBudget-boCommitted)+" still to buy","")
     +"</div>";
 
-  /* gain/fade table */
-  function pcls(v){ return v==null?"m-m":v<=-GF_MOVE_PTS?"m-r":v>=GF_MOVE_PTS?"m-g":"m-m"; }
-  var gfHtml=gf.map(function(r){
-    // recon rows are ungraded scenarios: muted, tagged, never coloured as a real fade/gain
-    var erp=r.src==="erp";
-    var tag=erp?"":" <span class=\"m-m\" title=\"Projected cost unverified — this figure is reconstructed from budget growth, a scenario, not a graded forecast\">≈ budget-based</span>";
-    return "<tr"+openAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.job)+" · "+esc(r.pm)+tag+"</div></td>"
+  /* RANK BY DOLLARS *AND* POINTS (3.3). A 0.8-point slide on an $18M job and a 9-point slide
+     on a $200k job are both real and neither dominates the other, so the ranking is a choice
+     the reader makes rather than one the page makes for them. */
+  function sortRows(rows){
+    return rows.slice().sort(function(a,b){
+      return mgSort==="dollars" ? (a.gfDollars-b.gfDollars) : (a.gfPts-b.gfPts);
+    });
+  }
+  function gfRow(r,child){
+    return "<tr"+openAttr(r.job)+(child?" class=\"gc-child\"":"")+">"
+      +"<td><div class=\"jname\">"+(child?"<span class=\"gc-tick\">└</span> ":"")+esc(r.name)+"</div><div class=\"jno\">"+esc(r.job)+" · "+esc(r.pm)+"</div></td>"
       +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
-      +"<td class=\"r\">"+r.asbidMargin.toFixed(1)+"%</td><td class=\"r\">"+(erp?r.curMargin.toFixed(1)+"%":"<span class=\"m-m\">≈"+r.curMargin.toFixed(1)+"%</span>")+"</td>"
-      +"<td class=\"r\"><span class=\""+(erp?pcls(r.gfPts):"m-m")+"\">"+(r.gfPts>=0?"+":"")+r.gfPts.toFixed(1)+"</span></td>"
-      +"<td class=\"r\"><span class=\""+(erp?pcls(r.gfDollars>=0?1.1:-1.1):"m-m")+"\">"+fmtCompact(r.gfDollars)+"</span></td>"
-      +"<td>"+(r.burnRisk?"<span class=\"m-r\">⚠ burn</span>":"<span class=\"m-m\">—</span>")+"</td></tr>";
-  }).join("");
-  var gfTable=gf.length
-    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">%</th><th class=\"r\">As-bid</th><th class=\"r\">Current</th><th class=\"r\">Δ pts</th><th class=\"r\">Δ $</th><th>Cost burn</th></tr></thead><tbody>"+gfHtml+"</tbody></table></div>")
-    :"<div class=\"vsub\">No jobs with enough data for gain/fade.</div>";
+      +"<td class=\"r\">"+r.asbidMargin.toFixed(1)+"%</td>"
+      +"<td class=\"r\">"+marginCell(r.curMargin,false,null)+"</td>"
+      +"<td class=\"r\"><span class=\""+(r.gfPts<=-GF_MOVE_PTS?"m-r":r.gfPts>=GF_MOVE_PTS?"m-g":"m-m")+"\">"+(r.gfPts>=0?"+":"")+r.gfPts.toFixed(1)+"</span></td>"
+      +"<td class=\"r\"><span class=\""+(r.gfDollars<0?"m-r":r.gfDollars>0?"m-g":"m-m")+"\">"+fmtCompact(r.gfDollars)+"</span></td>"
+      +"<td>"+(r.burnRisk?"<span class=\"m-r\">⚠ cost burn</span>":"<span class=\"m-m\">—</span>")+"</td></tr>";
+  }
+  /* Greencroft rolls up here too (3.1 across all three approved surfaces). */
+  var gcSet={}; greencroftBoardJobs().forEach(function(j){ gcSet[String(j.projectNumber)]=1; });
+  var gcRows=graded.filter(function(r){return gcSet[String(r.job)];});
+  var mainRows=sortRows(graded.filter(function(r){return !gcSet[String(r.job)];}));
+  var gfHtml=mainRows.map(function(r){return gfRow(r,false);}).join("");
+  if(gcRows.length>1){
+    var gd=gcRows.reduce(function(s2,r){return s2+r.gfDollars;},0);
+    var gp=gcRows.reduce(function(s2,r){return s2+r.gfPts;},0)/gcRows.length;
+    gfHtml+="<tr class=\"gc-roll\" tabindex=\"0\" role=\"button\" aria-expanded=\""+(gcOpen?"true":"false")
+      +"\" onclick=\"toggleGcRollup()\" onkeydown=\"if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGcRollup();}\">"
+      +"<td><div class=\"jname\">"+(gcOpen?"▾":"▸")+" Greencroft program</div><div class=\"jno\">"+gcRows.length+" unit jobs</div></td>"
+      +"<td class=\"r\"><span class=\"m-m\">—</span></td><td class=\"r\"><span class=\"m-m\">—</span></td><td class=\"r\"><span class=\"m-m\">—</span></td>"
+      +"<td class=\"r\"><span class=\"m-m\">"+(gp>=0?"+":"")+gp.toFixed(1)+"</span><div class=\"cell-sub\">mean</div></td>"
+      +"<td class=\"r\"><span class=\""+(gd<0?"m-r":"m-g")+"\">"+fmtCompact(gd)+"</span><div class=\"cell-sub\">summed</div></td>"
+      +"<td><span class=\"m-m\">—</span></td></tr>";
+    if(gcOpen) sortRows(gcRows).forEach(function(r){ gfHtml+=gfRow(r,true); });
+  } else { gcRows.forEach(function(r){ gfHtml+=gfRow(r,false); }); }
 
-  /* buyout table */
+  var sortBtn=function(k,l){ return "<button class=\"pfill"+(mgSort===k?" on":"")+"\" onclick=\"mgSetSort('"+k+"')\">"+l+"</button>"; };
+  var gfTable=graded.length
+    ?("<div class=\"pbar\"><span class=\"note\" style=\"margin-right:6px\">Rank by</span>"+sortBtn("pts","Margin points")+sortBtn("dollars","Dollars")+"</div>"
+      +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">%</th><th class=\"r\">As-bid</th><th class=\"r\">Current</th><th class=\"r\">Δ pts</th><th class=\"r\">Δ $</th><th>Cost burn</th></tr></thead><tbody>"+gfHtml+"</tbody></table></div>")
+    :"<div class=\"vsub\">No jobs have a trusted projected cost yet, so nothing can be graded.</div>";
+
+  /* The ungraded population, kept OUT of the ranked list and labelled as what it is. */
+  var unHtml=sortRows(ungraded).map(function(r){
+    return "<tr"+openAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.job)+" · "+esc(r.pm)+"</div></td>"
+      +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
+      +"<td class=\"r\">"+r.asbidMargin.toFixed(1)+"%</td>"
+      +"<td class=\"r\"><span class=\"m-m\">≈"+r.curMargin.toFixed(1)+"%</span></td>"
+      +"<td class=\"r\"><span class=\"m-m\">"+(r.gfPts>=0?"+":"")+r.gfPts.toFixed(1)+"</span></td>"
+      +"<td class=\"r\"><span class=\"m-m\">"+fmtCompact(r.gfDollars)+"</span></td></tr>";
+  }).join("");
+  var unSec=ungraded.length
+    ?("<details class=\"lgcy\"><summary>"+ungraded.length+" job"+(ungraded.length===1?"":"s")+" cannot be graded — reconstructed from budget growth</summary>"
+      +"<div class=\"vsub\" style=\"margin-top:6px\">These have no trusted ERP projected cost, so the movement below is a <b>scenario</b>, not a forecast. It is kept out of the ranked list and out of every total on this page — an uncertain number that sits in a ranking gets read as a certain one. Fixing the projected cost in Procore promotes a job into the graded list.</div>"
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">%</th><th class=\"r\">As-bid</th><th class=\"r\">≈ Current</th><th class=\"r\">≈ Δ pts</th><th class=\"r\">≈ Δ $</th></tr></thead><tbody>"+unHtml+"</tbody></table></div></details>")
+    :"";
+
+  /* buyout table (unchanged in substance) */
   var boHtml=bo.slice().sort(function(a,b){return b.uncommitted-a.uncommitted;}).map(function(r){
     return "<tr"+openAttr(r.jno)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+" · "+esc(r.pm)+"</div></td>"
       +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
@@ -742,26 +844,37 @@ function renderMargin(){
     ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th class=\"r\">%</th><th class=\"r\">Cost budget</th><th class=\"r\">Committed</th><th class=\"r\">In flight</th><th class=\"r\">Uncommitted</th><th class=\"r\">Coverage</th></tr></thead><tbody>"+boHtml+"</tbody><tfoot>"+boFoot+"</tfoot></table></div>")
     :"<div class=\"vsub\">No commitment data yet — populates with the nightly Procore refresh.</div>";
 
-  /* exceptions table */
-  var excHtml=exc.map(function(r){
-    return "<tr"+openAttr(r.jno||"")+"><td><div class=\"jname\">"+esc(r.name||"")+"</div><div class=\"jno\">"+esc(r.jno||"")+"</div></td><td>"+esc(r.issue)+"</td><td style=\"white-space:normal\">"+r.detail+"</td></tr>";
-  }).join("");
-  var excTable=exc.length
-    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th>Issue</th><th>Detail</th></tr></thead><tbody>"+excHtml+"</tbody></table></div>")
+  /* EXCEPTIONS: a short actionable list, not a wall (3.3). Grouped by what is wrong, with the
+     jobs behind a disclosure and the per-field detail on the job page where it belongs. */
+  var byIssue={};
+  exc.forEach(function(e){ (byIssue[e.issue]=byIssue[e.issue]||[]).push(e); });
+  var issues=Object.keys(byIssue).sort(function(a,b){ return byIssue[b].length-byIssue[a].length; });
+  var excSec=exc.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Issue</th><th class=\"r\">Jobs</th><th>Which</th></tr></thead><tbody>"
+      +issues.map(function(k){
+        var list=byIssue[k];
+        return "<tr class=\"static\"><td><b>"+esc(k)+"</b></td><td class=\"r\">"+list.length+"</td>"
+          +"<td style=\"white-space:normal\">"+list.slice(0,6).map(function(e){
+              return "<a href=\"#\" onclick=\"goJobPage('"+attrEsc(String(e.jno||""))+"');return false\" style=\"color:var(--accent)\">"+esc(e.name||e.jno||"")+"</a>";
+            }).join(" · ")+(list.length>6?(" <span class=\"m-m\">+"+(list.length-6)+" more</span>"):"")+"</td></tr>";
+      }).join("")+"</tbody></table></div>"
+      +"<div class=\"vsub\" style=\"margin-top:8px\">Each job's field-by-field reconciliation lives on its own page — this is the list of what needs fixing, not the fixing itself.</div>")
     :"<div class=\"vsub\">No data exceptions — Procore and Foundation agree everywhere.</div>";
 
   var fOnly=foundationOnlyNonGC().slice().sort(function(a,b){return (b.currentContract||0)-(a.currentContract||0);});
   var fOnlySec=fOnly.length
-    ?("<details class=\"lgcy\"><summary>"+fOnly.length+" active Foundation jobs not on the Procore board (excl. Greencroft — surfaced on Work on Hand) — "+fmtCompact(fOnly.reduce(function(s,f){return s+(f.currentContract||0);},0))+" of contract value with no field/PM tracking</summary>"
+    ?("<details class=\"lgcy\"><summary>"+fOnly.length+" active Foundation jobs not on the Procore board — "+fmtCompact(fOnly.reduce(function(s2,f){return s2+(f.currentContract||0);},0))+" of contract value with no field/PM tracking</summary>"
       +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th>PM</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th></tr></thead><tbody>"
       +fOnly.slice(0,15).map(function(f){ return "<tr class=\"static\"><td><div class=\"jname\">"+esc(f.description||"")+"</div><div class=\"jno\">"+esc(f.jobNo||"")+"</div></td><td>"+esc(f.pmName||"—")+"</td><td class=\"r\">"+fmtCompact(f.currentContract||0)+"</td><td class=\"r\">"+fmtCompact(f.totalCosts||0)+"</td><td class=\"r\">"+fmtCompact(f.totalInvoiced||0)+"</td></tr>"; }).join("")
       +"</tbody></table></div>"+(fOnly.length>15?"<div class=\"vsub\" style=\"margin-top:6px\">Top 15 by contract shown.</div>":"")+"</details>")
     :"";
 
   view.innerHTML=warn+strip
-    +"<div class=\"vhead\">Gain / fade — margin movement vs as-bid</div><div class=\"vsub\">Current projected margin vs the margin the job was bid at (Foundation as-bid + Procore cost growth). Worst first. ⚠ burn = cost burn running ≥12 pts ahead of % complete.</div>"+gfTable
-    +"<div class=\"vhead\">Buyout exposure — committed vs cost budget</div><div class=\"vsub\">Procore sub + PO contracts vs revised cost budget. Uncommitted = still to buy (includes RYC-carried general conditions). Sorted by open exposure.</div>"+boTable
-    +"<div class=\"vhead\">Data exceptions</div><div class=\"vsub\">Cross-source disagreements to reconcile before quoting numbers — the audit-layer worklist.</div>"+excTable
+    +"<div class=\"vhead\">Where margin is moving</div>"
+    +"<div class=\"vsub\">Current projected margin against the margin each job was bid at. Only jobs with a trusted ERP projected cost are ranked here; ⚠ cost burn = cost running ≥"+GF_BURN_PTS+" points ahead of progress.</div>"
+    +gfTable+unSec
+    +"<div class=\"vhead\">Buyout exposure — committed vs cost budget</div><div class=\"vsub\">Procore sub + PO contracts vs revised cost budget. Uncommitted = still to buy (includes RYC-carried general conditions).</div>"+boTable
+    +"<div class=\"vhead\">Data exceptions</div><div class=\"vsub\">Cross-source disagreements to reconcile before quoting these numbers.</div>"+excSec
     +fOnlySec;
   hookDrawerRows();
 }
@@ -1616,7 +1729,10 @@ function jobSections(j){
     // burn belongs here, beside the dollars it describes — not masquerading as margin
     +stat("Cost to date",j.costToDate!=null?fmtCompact(j.costToDate):"—",(f?"Foundation actuals":"Procore direct")+(burn!=null?" · "+(100-burn).toFixed(0)+"% of contract spent":""))
     +stat("Complete",j.pctComplete!=null?Math.round(j.pctComplete)+"%":"—",dpf>0?dpf+"d past finish":"")
-    +stat("Proj. margin",mtd!=null?mtd.toFixed(1)+"%":(mtdSus?"⚑":"—"),mtdSus?"projection unverified — not graded":((cm!=null?"as-bid "+cm.toFixed(1)+"%":"")+(mtd!=null&&cm!=null?" · "+((mtd-cm)>=0?"+":"")+(mtd-cm).toFixed(1)+" pts":"")))
+    +stat("Proj. margin",(function(){var g=marginGrade(mtd,mtdSus);return "<span class=\""+g.cls+"\">"+(mtdSus?"⚑":(mtd!=null?mtd.toFixed(1)+"%":"—"))+"</span>";})(),
+      (mtdSus?"projection unverified — not graded":[(cm!=null?"as-bid "+cm.toFixed(1)+"%":null),
+        (mtd!=null&&cm!=null?((mtd-cm)>=0?"+":"")+(mtd-cm).toFixed(1)+" pts":null),
+        marginGrade(mtd,mtdSus).word].filter(Boolean).join(" · ")))
     +stat("Proj. cost (ERP)",b.projectedCost>0?fmtCompact(b.projectedCost):"—",mtdSus&&b.projectedCost>0?"⚑ verify — outside trust band or below cost to date":"")
     +stat("Gain / fade",gf?(gf.gfPts>=0?"+":"")+gf.gfPts.toFixed(1)+" pts":"—",gf?((gf.src==="recon"?"≈ budget-based scenario · ":"")+fmtCompact(gf.gfDollars)+(gf.burnRisk?" · cost-burn risk":"")):"insufficient data")
     +"</div></div>"
