@@ -81,22 +81,34 @@ function refreshProcore(btn){
     .catch(function(){ done("Unreachable"); });
 }
 
+/* Phase C: the rail is the SHARED shell component, mounted once. NAV's flat list (with its
+   `grp` labels) is folded into the shell's group shape here — Command's destinations are
+   unchanged, but the grammar rendering them is now the same one the Estimating Desk uses, so
+   the two workspaces cannot drift into two different navigations.
+   The Estimating Desk cross-link is gone from the rail: the workspace switcher IS that link,
+   and having both was the duplicate entry Codex flagged. */
 function renderNav(){
-  var el=document.getElementById("nav");
-  var html="", lastGrp=null;
+  if(typeof RYCShell==="undefined") return;
+  var groups=[], byGrp={};
   NAV.forEach(function(n){
-    if(n.grp && n.grp!==lastGrp) html+="<div class=\"nav-h\">"+n.grp+"</div>";
-    lastGrp=n.grp;
-    if(n.href){ html+="<a class=\"nav-ext\" href=\""+n.href+"\"><span class=\"ic\">"+n.ic+"</span>"+n.label+" &#8599;</a>"; return; }
-    var on=n.key===currentView;
-    html+="<button type=\"button\" data-key=\""+n.key+"\" class=\""+(on?"active":"")+"\""+(on?" aria-current=\"page\"":"")+"><span class=\"ic\">"+n.ic+"</span>"+n.label+"</button>";
+    if(n.key==="deskLink") return;               // the switcher covers this
+    var g=n.grp||"";
+    if(!byGrp[g]){ byGrp[g]={label:g,items:[]}; groups.push(byGrp[g]); }
+    byGrp[g].items.push({key:n.key,label:n.label,icon:n.ic});
   });
-  el.innerHTML=html;
-  Array.prototype.forEach.call(el.querySelectorAll("button"),function(a){ a.addEventListener("click",function(){ setView(a.getAttribute("data-key")); }); });
+  RYCShell.mount({
+    workspace:"command",
+    version:"v2.34.0-command · phase C shell",
+    active:currentView,
+    groups:groups,
+    onSelect:function(k){ setView(k); },
+    onLock:function(){ sessionStorage.removeItem("ryc_cmd_auth"); location.reload(); }
+  });
 }
-function setView(k){ closeDrawer(true); currentView=k; renderNav(); renderView();
+function setView(k){ closeDrawer(true); currentView=k;
+  if(typeof RYCShell!=="undefined") RYCShell.setActive(k);
+  renderView();
   if(location.hash.replace(/^#\/?/,"")!==k) location.hash=k; // deep-linkable views; no-op when driven by hashchange
-  var btn=document.querySelector("#nav button.active"); if(btn) btn.focus(); // restore focus after re-render (a11y)
 }
 function hashKey(){ return location.hash.replace(/^#\/?/,""); }
 window.addEventListener("hashchange",function(){ var k=hashKey(); if(k!==currentView && NAV.some(function(n){ return n.key===k && !n.href; })) setView(k); });

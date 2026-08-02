@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>R. Yoder — Command</title>
 <link rel="icon" href="/ryc-data/RYC_Shield_Orange.png">
+<link rel="stylesheet" href="/ryc-shell/shell.css">
 <link rel="stylesheet" href="/ryc-command/command.css?v2.24.0">
+<script src="/ryc-shell/shell.js"></script>
 </head>
 <body>
 
@@ -21,18 +23,12 @@
 </div>
 
 <div id="app" hidden>
-  <div class="shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <img src="/ryc-data/RYC_Shield_Orange.png" alt="RYC">
-        <div><div class="bt">R. Yoder</div><div class="bs">Command &middot; Operations</div></div>
-      </div>
-      <nav class="nav" id="nav"></nav>
-      <div class="side-foot">
-        <div class="ver">v2.33.0-command &middot; Admin: Integrations &amp; Sync is the one home for refresh machinery — run telemetry + lease-aware Run now (Procore/Foundation only)</div>
-      </div>
-    </aside>
-    <main class="content">
+  <!-- Phase C: the rail, workspace switcher and identity area come from the SHARED shell
+       (/ryc-shell) — the same component the Estimating Desk mounts. Command keeps its dark
+       operations mood BELOW the shell; the navigation grammar is no longer its own. -->
+  <div class="ryc-shell">
+    <aside class="ryc-side" id="ryc-side"></aside>
+    <main class="content ryc-main">
       <div class="topbar">
         <div><h2 id="view-title">Overview</h2><div class="ctx" id="view-ctx">Loading&hellip;</div></div>
         <!-- Integration machinery (Procore/Foundation refresh) lives in Data Trust, not on
@@ -42,6 +38,7 @@
     </main>
   </div>
 </div>
+
 
 <script src="/ryc-data/data-sources.js"></script>
 <script src="/ryc-command/core.js?v2.24.0"></script>
