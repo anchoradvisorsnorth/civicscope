@@ -312,3 +312,70 @@ function isCloseoutOnly(j){ var sl=getStoplight(j,j);
     sl.reasons.filter(function(r){return r.level==="red";}).every(function(r){return r.text.indexOf("past projected finish")>-1;});
 }
 
+
+/* ===== Company cohorts — every total says what it counts (program 0.2 / 0.2a / 5.1) =======
+   THE RULE (Keith, 2026-08-02): a job is CONSTRUCTION SERVICES when its contract value is
+   under $150,000. Size, not source.
+
+   That distinction is the whole point. The plan's first draft treated "active in Foundation
+   but absent from the Procore board" as the segment, and Codex was right that this is a
+   COVERAGE DIFFERENCE, not a business one — that population can just as easily contain a $2M
+   project nobody onboarded. Reading it as a segment would have relabelled an integration gap
+   as revenue. A size test cuts cleanly across coverage instead of colliding with it:
+
+     under $150k, on the board or not      -> Construction Services
+     >= $150k and NOT on the board         -> a coverage exception; a real project the board
+                                              does not carry, reported as coverage, never as
+                                              segment revenue
+     >= $150k and on the board             -> ordinary Procore-managed construction
+
+   The threshold reads CURRENT contract (original + change orders), matching every other
+   active-work figure in Command. A job awarded at $120k that grows past $150k therefore
+   MIGRATES out of the segment; that is visible rather than silent, and the alternative
+   (pinning at award) would show a now-$400k job inside a segment labelled "under $150k".
+
+   A job with no contract value at all is UNCLASSIFIED — never folded into the segment, and
+   counted so it cannot disappear. "Unavailable is never zero" applies to cohorts too. */
+var CS_THRESHOLD=150000;
+function jobContractValue(f){
+  if(!f) return null;
+  return (f.currentContract>0)?f.currentContract:((f.originalContract>0)?f.originalContract:null);
+}
+function segmentOf(f){
+  var c=jobContractValue(f);
+  if(c==null) return "unclassified";
+  return c<CS_THRESHOLD?"construction_services":"construction";
+}
+/* One pass over the active Foundation record, so every surface quoting a company total quotes
+   the same partition. Every dollar lands in exactly one bucket or in excluded-with-reason —
+   the reconciliation the brief asks for, rather than figures that happen not to add up. */
+function companyRollup(){
+  var fj=(foundationData&&foundationData.jobs)||{};
+  var board=new Set(((activeData&&activeData.jobs)||[]).map(function(j){return String(j.projectNumber||"").trim();}));
+  var out={ services:{n:0,contract:0,cost:0,billed:0},
+            onBoard:{n:0,contract:0,cost:0,billed:0},
+            coverageGap:{n:0,contract:0,cost:0,billed:0},
+            unclassified:{n:0,cost:0,billed:0},
+            greencroft:{n:0,contract:0} };
+  Object.values(fj).forEach(function(f){
+    if(f.jobStatus!=="A") return;
+    var seg=segmentOf(f), c=jobContractValue(f)||0, on=board.has(String(f.jobNo||"").trim());
+    if(isGreencroft(f)){ out.greencroft.n++; out.greencroft.contract+=c; }
+    if(seg==="unclassified"){ out.unclassified.n++; out.unclassified.cost+=(f.totalCosts||0); out.unclassified.billed+=(f.totalInvoiced||0); return; }
+    var b=(seg==="construction_services")?out.services:(on?out.onBoard:out.coverageGap);
+    b.n++; b.contract+=c; b.cost+=(f.totalCosts||0); b.billed+=(f.totalInvoiced||0);
+  });
+  out.total={ n:out.services.n+out.onBoard.n+out.coverageGap.n,
+              contract:out.services.contract+out.onBoard.contract+out.coverageGap.contract };
+  return out;
+}
+/* The one-line inclusion statement. A company-wide figure that does not say what it counts is
+   the failure the brief calls out, so this is cheap enough that no surface has an excuse. */
+function cohortNote(r){
+  var bits=["<b>"+fmt(r.total.contract)+"</b> across "+r.total.n+" active jobs"];
+  bits.push(r.onBoard.n+" Procore-managed ("+fmtCompact(r.onBoard.contract)+")");
+  bits.push(r.services.n+" Construction Services, under "+fmtCompact(CS_THRESHOLD)+" ("+fmtCompact(r.services.contract)+")");
+  if(r.coverageGap.n) bits.push("<span class=\"m-a\">"+r.coverageGap.n+" not on the board ("+fmtCompact(r.coverageGap.contract)+") — a coverage gap, not a segment</span>");
+  if(r.unclassified.n) bits.push("<span class=\"m-m\">"+r.unclassified.n+" with no contract value — unclassified, excluded from the totals above</span>");
+  return bits.join(" · ");
+}

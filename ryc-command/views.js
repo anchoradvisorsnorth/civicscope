@@ -395,8 +395,33 @@ function renderPortfolio(){
       +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th>Customer</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th><th class=\"r\">Billed − cost</th></tr></thead><tbody>"+gcRows+"</tbody>"
       +"<tfoot><tr><td>"+gc.length+" jobs</td><td></td><td class=\"r\">"+fmtCompact(gcC)+"</td><td class=\"r\">"+fmtCompact(gcCtd)+"</td><td class=\"r\">"+fmtCompact(gcInv)+"</td><td class=\"r\">"+fmtCompact(gcInv-gcCtd)+"</td></tr></tfoot></table></div></details></div>";
   }
+  /* WHAT THIS BOARD IS, AND IS NOT (program 0.2/5.1). The table below is the Procore-managed
+     board. Construction Services (under $150k) and jobs the board does not carry are real
+     company revenue and are stated here rather than left to be inferred from an absence. */
+  var roll=companyRollup();
+  var csJobs=[];
+  Object.values((foundationData&&foundationData.jobs)||{}).forEach(function(f){
+    if(f.jobStatus==="A" && segmentOf(f)==="construction_services") csJobs.push(f);
+  });
+  csJobs.sort(function(a2,b2){ return (jobContractValue(b2)||0)-(jobContractValue(a2)||0); });
+  var csSec=csJobs.length
+    ?("<details class=\"lgcy\" style=\"margin-top:14px\"><summary>Construction Services — "+csJobs.length
+      +" active jobs under "+fmtCompact(CS_THRESHOLD)+" · "+fmtCompact(roll.services.contract)+" contract</summary>"
+      +"<div class=\"vsub\" style=\"margin-top:6px\">Real company revenue that mostly never enters Procore, so it carries an honest, narrower metric set rather than manufactured zeros: contract, cost and billings from Foundation, and no stage, stoplight or projected margin — those come from field tracking these jobs do not have.</div>"
+      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Job</th><th>PM</th><th class=\"r\">Contract</th><th class=\"r\">Cost to date</th><th class=\"r\">Billed</th></tr></thead><tbody>"
+      +csJobs.slice(0,25).map(function(f){
+        return "<tr class=\"static\"><td><div class=\"jname\">"+esc(f.description||"")+"</div><div class=\"jno\">"+esc(f.jobNo||"")+"</div></td>"
+          +"<td>"+esc(f.pmName||"—")+"</td><td class=\"r\">"+fmtCompact(jobContractValue(f)||0)+"</td>"
+          +"<td class=\"r\">"+fmtCompact(f.totalCosts||0)+"</td><td class=\"r\">"+fmtCompact(f.totalInvoiced||0)+"</td></tr>";
+      }).join("")+"</tbody></table></div>"
+      +(csJobs.length>25?"<div class=\"vsub\" style=\"margin-top:6px\">Top 25 by contract shown.</div>":"")+"</details>")
+    :"";
+  var coverage="<div class=\"vsub\" style=\"margin-top:12px\"><b>Company coverage.</b> "+cohortNote(roll)
+    +"<br>The table above is the Procore-managed board only. Construction Services and any job the board does not carry are broken out below — they are not missing, and they are not part of this table's totals.</div>";
+
   document.getElementById("view").innerHTML=bar
     +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead>"+head+"</thead><tbody id=\"ptbody\"></tbody><tfoot id=\"ptfoot\"></tfoot></table></div>"
+    +coverage+csSec
     +"<div style=\"margin-top:10px;font-size:11.5px;color:#67718a\">Contract = Procore Revised Contract Amount (⚑ = diverges from Foundation) · Cost to date = Foundation actuals · Margin = margin to date on cost basis, \"bid\" = contracted margin · Billing = needs invoicing / overdue AR (Foundation) · Click a row (or press Enter) for the job detail drawer.</div>"
     +gcSec;
   var tbody=document.getElementById("ptbody");
@@ -1207,6 +1232,24 @@ function fcSpread(projects){
   });
   return {buckets:buckets,undated:undated,nowIdx:nowIdx,horizon:horizon};
 }
+/* Horizon lanes (program 5.4). The page answers "what work may start, when, at what value and
+   with what confidence", so it is grouped by WHEN — not by a month-by-month spread, which is
+   the arithmetic behind the answer rather than the answer itself. That spread is still here,
+   one disclosure down, because it is the shape Steve knows from Buildr's own report. */
+var FC_LANES=[
+  {key:"now",   label:"Next 90 days",  hint:"starting inside the quarter", lo:0,  hi:3},
+  {key:"mid",   label:"3–6 months",    hint:"next planning window",        lo:3,  hi:6},
+  {key:"late",  label:"6–12 months",   hint:"this year",                   lo:6,  hi:12},
+  {key:"beyond",label:"Beyond 12 months",hint:"long lead",                 lo:12, hi:1e9},
+];
+function fcLaneOf(p2,nowIdx){
+  if(!p2.startDate) return "undated";
+  var s2=fcMonthIdx(RYCFormat.parse(p2.startDate));
+  var d=s2-nowIdx;
+  if(d<0) d=0;                              // already underway counts as immediate
+  for(var i=0;i<FC_LANES.length;i++) if(d>=FC_LANES[i].lo && d<FC_LANES[i].hi) return FC_LANES[i].key;
+  return "beyond";
+}
 function renderForecast(){
   var view=document.getElementById("view");
   if(!forecastData||!forecastData.projects){
@@ -1214,99 +1257,110 @@ function renderForecast(){
     return;
   }
   var projects=forecastData.projects;
-  var booked=projects.filter(function(p){return p.status!=="pursuit";});
-  var pursuit=projects.filter(function(p){return p.status==="pursuit";});
+  var nowIdx=fcMonthIdx(new Date());
   var sp=fcSpread(projects);
   var months=Object.keys(sp.buckets).map(Number).sort(function(a,b){return a-b;});
-  var CAP=18, capIdx=sp.nowIdx+CAP-1;
-  var bookedFwd=0, potentialFwd=0, next12b=0, next12p=0;
-  months.forEach(function(m){
-    var b=sp.buckets[m];
-    bookedFwd+=b.booked; potentialFwd+=b.potential;
-    if(m<sp.nowIdx+12){ next12b+=b.booked; next12p+=b.potential; }
+
+  /* ---- lanes ---- */
+  var lanes={undated:[]};
+  FC_LANES.forEach(function(l){ lanes[l.key]=[]; });
+  projects.forEach(function(p2){ if(p2.amount>0) lanes[fcLaneOf(p2,nowIdx)].push(p2); });
+  function laneTotals(list){
+    var b=0,pt=0;
+    list.forEach(function(p2){ if(p2.status==="pursuit") pt+=p2.amount||0; else b+=p2.amount||0; });
+    return {booked:b,potential:pt,total:b+pt,n:list.length};
+  }
+  var laneCards=FC_LANES.map(function(l){
+    var t=laneTotals(lanes[l.key]);
+    return "<div class=\"kpi\"><div class=\"kl\">"+l.label+"</div>"
+      +"<div class=\"kv\">"+fmtCompact(t.total)+"</div>"
+      +"<div class=\"ks\">"+t.n+" project"+(t.n===1?"":"s")+" · "+fmtCompact(t.booked)+" booked · "+fmtCompact(t.potential)+" potential</div></div>";
+  }).join("");
+  var uT=laneTotals(lanes.undated);
+  var strip="<div class=\"kpi-strip k4\">"+laneCards+"</div>";
+
+  /* ---- the pipeline itself ---- */
+  function projRow(p2){
+    var dated=p2.startDate&&p2.endDate;
+    var conf=(p2.status==="pursuit")
+      ? "<span class=\"pill a dot\">Pursuit</span>"
+      : "<span class=\"pill g dot\">"+esc(p2.status||"booked")+"</span>";
+    return "<tr"+openAttr(p2.projectNumber||"")+">"
+      +"<td><div class=\"jname\">"+esc(p2.name)+"</div>"
+      +"<div class=\"jno\">"+esc(p2.company||"")+srcLink(buildrUrl(p2.id),"Buildr")+"</div></td>"
+      +"<td>"+conf+(p2.stage?"<div class=\"cell-sub\">"+esc(p2.stage)+"</div>":"")+"</td>"
+      +"<td>"+(dated?RYCFormat.date(p2.startDate):"<span class=\"m-a\">no start date</span>")+"</td>"
+      +"<td>"+(dated?RYCFormat.date(p2.endDate):"<span class=\"m-m\">—</span>")+"</td>"
+      +"<td class=\"r\"><b>"+fmtCompact(p2.amount)+"</b></td>"
+      +"<td>"+esc(p2.assignedTo||"<span class=\"m-m\">unassigned</span>")+"</td></tr>";
+  }
+  var pipeHtml="";
+  FC_LANES.forEach(function(l){
+    var list=lanes[l.key].slice().sort(function(a,b){return (b.amount||0)-(a.amount||0);});
+    if(!list.length) return;
+    var t=laneTotals(list);
+    pipeHtml+="<tr><td colspan=\"6\" style=\"padding:16px 0 4px\"><b>"+l.label+"</b> "
+      +"<span class=\"m-m\">· "+l.hint+" · "+t.n+" project"+(t.n===1?"":"s")+" · <b>"+fmtCompact(t.total)+"</b></span></td></tr>";
+    list.forEach(function(p2){ pipeHtml+=projRow(p2); });
   });
-  var undatedAmt=sp.undated.reduce(function(s,p){return s+p.amount;},0);
+  var pipeline=pipeHtml
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Project</th><th>Confidence</th><th>Expected start</th><th>Expected finish</th><th class=\"r\">Value</th><th>Owner</th></tr></thead><tbody>"+pipeHtml+"</tbody></table></div>")
+    :"<div class=\"vsub\">Nothing dated in the pipeline.</div>";
 
-  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
-  var strip="<div class=\"kpi-strip k4\">"
-    +kpi("Booked forward revenue",fmtCompact(bookedFwd),booked.length+" active + awarded jobs","accent")
-    +kpi("Pipeline (pursuit)",fmtCompact(pursuit.reduce(function(s,p){return s+p.amount;},0)),pursuit.length+" pursuits · "+fmtCompact(potentialFwd)+" dated/spread","")
-    +kpi("Next 12 months",fmtCompact(next12b+next12p),fmtCompact(next12b)+" booked · "+fmtCompact(next12p)+" potential","")
-    +kpi("Undated (not in spread)",fmtCompact(undatedAmt),sp.undated.length+" projects missing start/end dates",sp.undated.length?"warn":"")
-    +"</div>";
+  /* ---- undated: the actionable data-fix queue, and the reason a lane can be wrong ---- */
+  var undatedSec="";
+  if(lanes.undated.length){
+    var uRows=lanes.undated.slice().sort(function(a,b){return (b.amount||0)-(a.amount||0);}).map(function(p2){
+      return "<tr class=\"static\"><td><div class=\"jname\">"+esc(p2.name)+srcLink(buildrUrl(p2.id),"Buildr — add dates")+"</div>"
+        +"<div class=\"jno\">"+esc(p2.company||"")+(p2.assignedTo?" · "+esc(p2.assignedTo):"")+"</div></td>"
+        +"<td>"+esc(p2.status==="pursuit"?(p2.stage||"pursuit"):p2.status)+"</td>"
+        +"<td class=\"r\">"+fmtCompact(p2.amount)+"</td></tr>";
+    }).join("");
+    undatedSec="<div class=\"vhead\">Undated — not in any lane</div>"
+      +"<div class=\"vsub\"><b>"+lanes.undated.length+" projects · "+fmtCompact(uT.total)+"</b> carry no start date in Buildr, so they cannot be placed on a horizon and Buildr's own Forecast drops them silently too. Every row links straight to its Buildr card; entering a date pulls it into a lane above.</div>"
+      +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Project</th><th>Status / stage</th><th class=\"r\">Value</th></tr></thead><tbody>"+uRows+"</tbody></table></div>";
+  }
 
-  /* period table — month rows + quarter subtotals + grand total (Steve's Buildr display) */
+  /* ---- the month spread, kept as the arithmetic behind the lanes ---- */
   var rows="", qB=0,qP=0, tB=0,tP=0, beyondB=0,beyondP=0, lastQ=null;
+  var CAP=18, capIdx=sp.nowIdx+CAP-1;
   function qKey(m){ var y=Math.floor(m/12), q=Math.floor((m%12)/3)+1; return "Q"+q+" "+y; }
-  function qRow(label,b,p){ return "<tr style=\"background:#f7f9fc;font-weight:700\"><td>"+label+"</td><td class=\"r\">"+fmtCompact(b)+"</td><td class=\"r\">"+fmtCompact(p)+"</td><td class=\"r\">"+fmtCompact(b+p)+"</td></tr>"; }
+  function qRow(label,b,p2){ return "<tr style=\"background:#f7f9fc;font-weight:700\"><td>"+label+"</td><td class=\"r\">"+fmtCompact(b)+"</td><td class=\"r\">"+fmtCompact(p2)+"</td><td class=\"r\">"+fmtCompact(b+p2)+"</td></tr>"; }
   var lastIdx=Math.min(sp.horizon,capIdx);
   for(var m=sp.nowIdx;m<=lastIdx;m++){
-    var b=sp.buckets[m]||{booked:0,potential:0};
+    var b2=sp.buckets[m]||{booked:0,potential:0};
     var q=qKey(m);
     if(lastQ!==null&&q!==lastQ){ rows+=qRow(lastQ+" subtotal",qB,qP); qB=0;qP=0; }
     lastQ=q;
-    qB+=b.booked; qP+=b.potential; tB+=b.booked; tP+=b.potential;
-    rows+="<tr class=\"static\"><td>"+fcMonthLabel(m)+"</td><td class=\"r\">"+(b.booked>0?fmtCompact(b.booked):"<span class=\"m-m\">—</span>")+"</td><td class=\"r\">"+(b.potential>0?fmtCompact(b.potential):"<span class=\"m-m\">—</span>")+"</td><td class=\"r\"><b>"+fmtCompact(b.booked+b.potential)+"</b></td></tr>";
+    qB+=b2.booked; qP+=b2.potential; tB+=b2.booked; tP+=b2.potential;
+    rows+="<tr class=\"static\"><td>"+fcMonthLabel(m)+"</td><td class=\"r\">"+(b2.booked>0?fmtCompact(b2.booked):"<span class=\"m-m\">—</span>")+"</td><td class=\"r\">"+(b2.potential>0?fmtCompact(b2.potential):"<span class=\"m-m\">—</span>")+"</td><td class=\"r\"><b>"+fmtCompact(b2.booked+b2.potential)+"</b></td></tr>";
   }
   if(lastQ!==null) rows+=qRow(lastQ+" subtotal",qB,qP);
-  months.forEach(function(m){ if(m>capIdx){ beyondB+=sp.buckets[m].booked; beyondP+=sp.buckets[m].potential; } });
+  months.forEach(function(m2){ if(m2>capIdx){ beyondB+=sp.buckets[m2].booked; beyondP+=sp.buckets[m2].potential; } });
   if(beyondB+beyondP>0){ tB+=beyondB; tP+=beyondP; rows+="<tr class=\"static\"><td>Beyond "+fcMonthLabel(capIdx)+"</td><td class=\"r\">"+fmtCompact(beyondB)+"</td><td class=\"r\">"+fmtCompact(beyondP)+"</td><td class=\"r\"><b>"+fmtCompact(beyondB+beyondP)+"</b></td></tr>"; }
-  var periodTable="<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Period</th><th class=\"r\">Booked</th><th class=\"r\">Potential</th><th class=\"r\">Total</th></tr></thead><tbody>"+rows
-    +"</tbody><tfoot><tr><td>Total forward</td><td class=\"r\">"+fmtCompact(tB)+"</td><td class=\"r\">"+fmtCompact(tP)+"</td><td class=\"r\">"+fmtCompact(tB+tP)+"</td></tr></tfoot></table></div>";
+  var periodSec="<details class=\"lgcy\"><summary>Month-by-month spread — the arithmetic behind the lanes</summary>"
+    +"<div class=\"vsub\" style=\"margin-top:6px\">Each project's value spread evenly across its start → end months, the same math as Buildr's own Forecast report. Undated projects are excluded from the spread, which is why they are listed separately above.</div>"
+    +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Period</th><th class=\"r\">Booked</th><th class=\"r\">Potential</th><th class=\"r\">Total</th></tr></thead><tbody>"+rows
+    +"</tbody><tfoot><tr><td>Total forward</td><td class=\"r\">"+fmtCompact(tB)+"</td><td class=\"r\">"+fmtCompact(tP)+"</td><td class=\"r\">"+fmtCompact(tB+tP)+"</td></tr></tfoot></table></div></details>";
 
-  /* project detail tables */
-  function projRows(list){
-    return list.slice().sort(function(a,b){return (b.amount||0)-(a.amount||0);}).map(function(p){
-      var dated=p.startDate&&p.endDate;
-      return "<tr"+openAttr(p.projectNumber||"")+"><td><div class=\"jname\">"+esc(p.name)+"</div><div class=\"jno\">"+esc(p.company||"")+(p.assignedTo?" · "+esc(p.assignedTo):"")+srcLink(buildrUrl(p.id),"Buildr")+"</div></td>"
-        +"<td>"+esc(p.status==="pursuit"?(p.stage||"pursuit"):p.status)+"</td>"
-        +"<td>"+(dated?(fmtDate(p.startDate)+" → "+fmtDate(p.endDate)):"<span class=\"m-a\">no dates</span>"+srcLink(buildrUrl(p.id),"fix"))+"</td>"
-        +"<td class=\"r\">"+fmtCompact(p.amount)+"</td>"
-        +"<td class=\"r\">"+(p.profit>0?fmtCompact(p.profit):"<span class=\"m-m\">—</span>")+"</td></tr>";
-    }).join("");
-  }
-  function projTable(title,list){
-    var total=list.reduce(function(s,p){return s+(p.amount||0);},0);
-    return "<details class=\"lgcy\"><summary>"+title+" — "+list.length+" projects · "+fmtCompact(total)+"</summary>"
-      +"<div class=\"ptable-wrap\" style=\"margin-top:8px\"><table class=\"ptable\"><thead><tr><th>Project</th><th>Status / stage</th><th>Schedule</th><th class=\"r\">Amount</th><th class=\"r\">Buildr profit</th></tr></thead><tbody>"+projRows(list)+"</tbody></table></div></details>";
-  }
-
-  /* reconciliation vs Procore/Foundation left-to-bill */
+  /* ---- cross-check vs the board ---- */
   var recon="";
   if(activeData&&activeData.jobs&&foundationData&&foundationData.jobs){
-    var woh=wohRows().filter(function(r){return !r.gc;}); /* board scope — the Buildr cross-check predates Greencroft rows */
-    var leftToBill=woh.reduce(function(s,r){return s+((r.contract||0)-(r.billed||0));},0);
+    var woh=wohRows().filter(function(r){return !r.gc;});
+    var leftToBill=woh.reduce(function(s2,r){return s2+((r.contract||0)-(r.billed||0));},0);
     var buildrActiveFwd=0;
-    var spA=fcSpread(projects.filter(function(p){return p.status==="active";}));
-    Object.values(spA.buckets).forEach(function(b){ buildrActiveFwd+=b.booked; });
-    var d=buildrActiveFwd-leftToBill;
+    var spA=fcSpread(projects.filter(function(p2){return p2.status==="active";}));
+    Object.values(spA.buckets).forEach(function(b3){ buildrActiveFwd+=b3.booked; });
+    var d2=buildrActiveFwd-leftToBill;
     recon="<div class=\"vhead\">Cross-check — Buildr vs the board</div>"
-      +"<div class=\"vsub\">Buildr <b>active</b> forward revenue (linear spread) = <b>"+fmtCompact(buildrActiveFwd)+"</b> vs Procore/Foundation left-to-bill on the "+woh.length+" board jobs (Contract − Billings) = <b>"+fmtCompact(leftToBill)+"</b> · Δ "+fmtCompact(Math.abs(d))+". "
-      +"They measure the same work differently: Buildr covers ALL "+projects.filter(function(p){return p.status==="active";}).length+" active Buildr projects (incl. jobs not on the Procore board) and spreads linearly from original schedules; left-to-bill is actuals-based. A large gap = stale Buildr schedules/amounts or board coverage — worth a look, not an alarm.</div>";
-  }
-
-  /* undated worklist — the actionable data-fix queue, visible by default (not buried in the
-     collapsed tables): each row deep-links to its Buildr card so entering dates is one click away */
-  var undatedSec="";
-  if(sp.undated.length){
-    var uRows=sp.undated.slice().sort(function(a,b){return (b.amount||0)-(a.amount||0);}).map(function(p){
-      return "<tr class=\"static\"><td><div class=\"jname\">"+esc(p.name)+srcLink(buildrUrl(p.id),"Buildr — add dates")+"</div><div class=\"jno\">"+esc(p.company||"")+(p.assignedTo?" · "+esc(p.assignedTo):"")+"</div></td>"
-        +"<td>"+esc(p.status==="pursuit"?(p.stage||"pursuit"):p.status)+"</td>"
-        +"<td class=\"r\">"+fmtCompact(p.amount)+"</td></tr>";
-    }).join("");
-    undatedSec="<div class=\"vhead\">Undated projects — not in the spread</div>"
-      +"<div class=\"vsub\">"+sp.undated.length+" projects · "+fmtCompact(undatedAmt)+" carry no start/end dates in Buildr, so Buildr&#8217;s own Forecast silently drops them. Click through and enter dates to pull them into the projection.</div>"
-      +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Project</th><th>Status / stage</th><th class=\"r\">Amount</th></tr></thead><tbody>"+uRows+"</tbody></table></div>";
+      +"<div class=\"vsub\">Buildr <b>active</b> forward revenue = <b>"+fmtCompact(buildrActiveFwd)+"</b> vs Procore/Foundation left-to-bill on the "+woh.length+" board jobs = <b>"+fmtCompact(leftToBill)+"</b> · Δ "+fmtCompact(Math.abs(d2))+". "
+      +"They measure the same work differently: Buildr covers every active Buildr project including jobs off the board, and spreads linearly from original schedules; left-to-bill is actuals-based. A large gap points at stale Buildr schedules or board coverage — worth a look, not an alarm.</div>";
   }
 
   view.innerHTML=strip
-    +"<div class=\"vhead\">Revenue by period</div><div class=\"vsub\">Each project&#8217;s amount spread evenly across its start → end months, from this month forward — the same math as Buildr&#8217;s Forecast report (Steve&#8217;s revenue projections). Booked = active + awarded/upcoming · Potential = pursuits (unweighted). Undated projects are excluded from the spread and totaled in the KPI above.</div>"
-    +periodTable
-    +undatedSec
-    +"<div class=\"vhead\">Projects behind the numbers</div><div class=\"vsub\">Straight from Buildr — BD&#8217;s system of record (Brad/Jake maintain it). Every row links to its Buildr card. Source freshness: "+(ageTxt(forecastData.refreshed)||"live")+".</div>"
-    +projTable("Booked — active + awarded",booked)
-    +projTable("Pipeline — pursuits",pursuit)
-    +recon;
+    +"<div class=\"vhead\">Pipeline by horizon</div>"
+    +"<div class=\"vsub\">What may start, when, at what value and with what confidence — straight from Buildr, which BD maintains. Every row links to its Buildr card; rows for jobs already on the board open the job.</div>"
+    +pipeline+undatedSec+periodSec+recon;
   hookDrawerRows();
 }
 
@@ -2130,7 +2184,11 @@ function cplSegTable(js,key,labelFn,head){
       +"<td class=\"r\">"+pct(a.bidM)+"</td><td class=\"r\">"+pct(a.actM)+"</td><td class=\"r\">"+cplGfCell(a.gf)+"</td>"
       +"<td class=\"r\">"+buyCell+"</td><td class=\"r\">"+pct(a.coPct)+"</td></tr>";
   }).join("");
-  return "<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>"+head+"</th><th class=\"r\">Jobs</th><th class=\"r\">Revenue</th><th class=\"r\">Share</th><th class=\"r\">As-bid margin</th><th class=\"r\">Actual margin</th><th class=\"r\">Gain/fade</th><th class=\"r\">Buyout</th><th class=\"r\">CO %</th></tr></thead><tbody>"+body+"</tbody></table></div>";
+  return "<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>"+head+"</th><th class=\"r\">Jobs</th><th class=\"r\">Revenue</th><th class=\"r\">Share</th><th class=\"r\">As-bid margin</th><th class=\"r\">Actual margin</th><th class=\"r\">Gain/fade</th><th class=\"r\">Buyout</th><th class=\"r\">CO %</th></tr></thead><tbody>"+body+"</tbody></table></div>"
+    /* SAMPLE SIZE IS PART OF THE NUMBER (5.2). A sector margin computed over two jobs is not a
+       sector margin, and a table that shows it in the same weight as one computed over thirty
+       invites exactly the wrong read. The Jobs column is the denominator; this says so. */
+    +"<div class=\"vsub\" style=\"margin-top:6px\">Read the <b>Jobs</b> column as the sample size — rows with fewer than 3 jobs are individual results, not a rate.</div>";
 }
 function renderCompleted(){
   var view=document.getElementById("view");
@@ -2149,7 +2207,15 @@ function renderCompleted(){
     +kpi("Jobs that faded",String(fading.length),fading.length?"finished ≥1 pt under their bid margin":"none finished under bid","")
     +"</div>";
 
-  var seg="<div class=\"vhead\">Sector performance — completed actuals</div>"
+  /* INCLUSION BASIS, stated (5.2/0.2). Completed and PM Load draw on different cohorts and
+     will never tie out; saying so beats leaving the reader to discover it as a contradiction. */
+  var yrs=all.map(function(j){return j.year;}).filter(Boolean).sort();
+  var basis="<div class=\"vsub\" style=\"margin-bottom:10px\"><b>What this counts.</b> "
+    +all.length+" completed jobs with a final contract value"
+    +(yrs.length?(", "+yrs[0]+"–"+yrs[yrs.length-1]):"")
+    +", pegged at completion. Foundation is the source. <b>Excludes</b> active work, and excludes completed jobs with no final contract value. "
+    +"This is a narrower cohort than PM Load, which counts billed revenue across all active and completed work — the two totals are not comparable and are not meant to be.</div>";
+  var seg=basis+"<div class=\"vhead\">Sector performance — completed actuals</div>"
     +"<div class=\"vsub\">Where the margin actually came from. Value-weighted from the pegged completion record: as-bid = original contract vs bid cost; actual = final contract vs final cost. Buyout = estimate minus actual by cost class (positive = bought under the bid carry).</div>"
     +cplSegTable(all,"clientType",cplCT,"Sector")
     +"<div class=\"vhead\">Work type performance</div>"
@@ -2466,7 +2532,23 @@ function renderPMLoad(){
 
   var caveats="<div class=\"pm-note\">"+((H.caveats||[]).map(esc).join(" &middot; "))+" Tiers: core = "+esc(H.tiers?H.tiers.core:"")+"; small = "+esc(H.tiers?H.tiers.small:"")+".</div>";
 
-  view.innerHTML=strip
+  /* 5.3 — WHAT THIS MEASURES, before it measures it. PM Load's since-2021 revenue runs several
+     times the Completed page's total, which reads as a contradiction until the scopes are
+     stated: they count different things on purpose. Every dimension the brief asks for is
+     named here rather than left to be reverse-engineered from a discrepancy. */
+  var roll=companyRollup();
+  var scope="<div class=\"panel\"><h3>What this page counts</h3>"
+    +"<table class=\"tbl\"><tbody>"
+    +"<tr><td><b>Measure</b></td><td>Billed revenue — cash actually invoiced, not contract value and not completed value.</td></tr>"
+    +"<tr><td><b>Inclusion</b></td><td>Every job Foundation has billed against since 2021: active, completed and closed alike.</td></tr>"
+    +"<tr><td><b>Source coverage</b></td><td>Foundation only. Procore plays no part here, so jobs the board never carried are included on equal terms.</td></tr>"
+    +"<tr><td><b>Construction Services</b></td><td><b>Included.</b> Jobs under "+fmtCompact(CS_THRESHOLD)+" are real billed revenue and are counted — they are most of the job COUNT and about 1% of the dollars, which is why the tiering below exists.</td></tr>"
+    +"<tr><td><b>Date basis</b></td><td>The month the billing was transacted.</td></tr>"
+    +"<tr><td><b>Why it exceeds Completed</b></td><td>Completed counts finished jobs at their final contract value; this counts billings on <i>all</i> work, most of which is still running. The two are not comparable and no reconciliation between them is meaningful.</td></tr>"
+    +"</tbody></table>"
+    +"<div class=\"sub\" style=\"margin-top:8px\">Company position today, for reference: "+cohortNote(roll)+"</div></div>";
+
+  view.innerHTML=strip+scope
     +"<div class=\"panel\"><h3>Annual billed revenue by job tier</h3><div class=\"sub\">Where the dollars actually are — the service tail is ~1% of revenue but most of the job count</div>"+legend+svg1+annualTable+"</div>"
     +"<div class=\"panel\"><h3>The load question</h3><div class=\"sub\">Same bench, roughly double the dollars — full-load = billed &ge;$2M in the year</div>"+pair+"</div>"
     +"<div class=\"panel\"><h3>When to hire</h3><div class=\"sub\">Forward revenue vs what the current bench sustainably carries</div>"+hire+"</div>"
