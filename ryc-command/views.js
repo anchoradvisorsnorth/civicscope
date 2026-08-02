@@ -1383,7 +1383,7 @@ function askEvidence(q){
     notIncluded:["Estimating Desk pursuits (a Desk surface — ask there)"]
       .concat(sc.subs?[]:["subcontractor spend"]).concat(sc.history?[]:["completed-job history"])
       .concat(sc.ar?[]:["per-customer AR detail"]).concat(sc.bidboard?[]:["the BC bid board"])
-      .concat(sc.parties?["client and customer names"]:[]).concat(sc.people?[]:["PM names"]) };
+      .concat(sc.parties?[]:["client and customer names"]).concat(sc.people?[]:["PM names"]) };
   return ev;
 }
 
