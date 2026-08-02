@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.24.0">
-<script src="/ryc-shell/shell.js?v1.24.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.24.1">
+<script src="/ryc-shell/shell.js?v1.24.1"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -182,6 +182,10 @@
   .ck-requested { background:#ffedd5; color:#9a3412; } .ck-received { background:#dcfce7; color:#166534; }
   .ck-done { background:#dcfce7; color:#166534; } .ck-open { background:#f3f4f6; color:#6b7280; }
   .ck-actions { display:flex; gap:6px; align-items:center; margin-left:auto; flex-wrap:wrap; }
+  /* A row whose "actions" are only an explanatory sentence is not a control cluster. Sharing
+     .ck-actions gave it margin-left:auto, which stranded the sentence against the right edge,
+     far from the label it explains, in a row that otherwise looked empty. */
+  .ck-hint { font-size:12px; color:var(--muted); flex:1 1 auto; min-width:0; }
   .btn-sm { padding:5px 11px; font-size:12px; border-radius:7px; background:var(--accent); color:#fff; border:none; cursor:pointer; font-weight:600; font-family:inherit; }
   .btn-sm.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
   .ck-date { padding:4px 7px; border:1px solid var(--line); border-radius:6px; font-size:12px; font-family:inherit; }
@@ -1830,7 +1834,7 @@ function renderPursuit() {
     : '<span class="ck-pill ck-na">none</span>';
   const rfiRow = `<div class="ck-row"><span class="ck-name">RFIs</span>${rfiChip}<div class="ck-actions">${rfi && rfi.items && rfi.items.length
     ? `<button class="btn-sm" onclick="rfiDoc()">📄 Print log</button><select class="ck-date" onchange="setRfiStatus(this.value)">` + ['drafted', 'sent', 'answered'].map(v => `<option value="${v}"${(rfi.status || 'drafted') === v ? ' selected' : ''}>${{ drafted: 'Drafted', sent: 'Sent', answered: 'Answered' }[v]}</option>`).join('') + `</select>`
-    : '<span class="note">build in the RFI card below</span>'}</div></div>`;
+    : '<span class="note">build it on the <button type="button" class="tablink" onclick="setArea(\'scope\')">Scope &amp; Estimate</button> tab</span>'}</div></div>`;
 
   const mtg = wf.checklist.prebid_meeting || {};
   const hasMtg = !!mtg.date;
@@ -1919,8 +1923,8 @@ function renderPursuit() {
      ${dueRow}
      ${statusRow('bonding', 'Bonding', 'Bond request', 'genBond()')}
      ${statusRow('builders_risk', 'Builders Risk', 'BR submission', 'genBuildersRisk()')}
-     <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-actions note">managed in the BuildingConnected card below</div></div>
-     <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-actions note">enter live quotes on the <button type="button" class="tablink" onclick="setArea('quotes')">Quotes</button> tab</div></div>
+     <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-hint note">managed on the <button type="button" class="tablink" onclick="setArea('packages')">Bid Packages</button> tab</div></div>
+     <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-hint note">enter live quotes on the <button type="button" class="tablink" onclick="setArea('quotes')">Quotes</button> tab</div></div>
      ${rfiRow}
      ${mtgRow}`
     + (showOutcomeGroup
@@ -3013,7 +3017,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.24.0';
+const TOOL_VERSION = 'v1.24.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
