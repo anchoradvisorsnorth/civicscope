@@ -609,11 +609,9 @@ function renderTrust(){
    single 30-hour constant this replaces called a healthy weekly source "stale" every week. */
 var _syncData=null;
 function loadSync(){
-  return fetch("/api/ryc-sync-log",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({pw:"ryc2026",action:"status"})})
-    .then(function(r){ return r.json(); })
-    .then(function(d){ _syncData=d&&d.ok?d:null; return _syncData; })
-    .catch(function(){ _syncData=null; return null; });
+  // D8: the interim credential lives in ONE place (RYCAuth), not at every call site.
+  return RYCAuth.post("status",{},{url:"/api/ryc-sync-log"})
+    .then(function(r){ _syncData=(r.ok&&r.data&&r.data.ok)?r.data:null; return _syncData; });
 }
 function syncStatePill(s){
   // Color is never the only signal — every pill carries its word (contract §3).
@@ -710,9 +708,8 @@ function renderIntegrations(){
 function showSyncHistory(key){
   var el=document.getElementById("syncHist");
   el.innerHTML='<div class="panel"><div class="sub">Loading run history…</div></div>';
-  fetch("/api/ryc-sync-log",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({pw:"ryc2026",action:"history",service:key,limit:20})})
-    .then(function(r){return r.json();}).then(function(d){
+  RYCAuth.post("history",{service:key,limit:20},{url:"/api/ryc-sync-log"}).then(function(rr){
+      var d=rr.ok?rr.data:null;
       if(!d||!d.ok){ el.innerHTML='<div class="panel"><div class="sub">History unavailable.</div></div>'; return; }
       var runs=d.runs||[];
       if(!runs.length){ el.innerHTML='<div class="panel"><div class="h">'+esc(key)+' — run history</div><div class="sub">No runs recorded yet. Telemetry starts at the next scheduled run.</div></div>'; return; }
@@ -1321,9 +1318,8 @@ function fillBriefDeltas(){
 }
 /* Brief section 5b — the Desk's open pipeline (cross-workspace read; leadership-safe summary). */
 function fillBriefPipeline(){
-  fetch("/api/ryc-estimate-log",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({pw:"ryc2026",action:"list"})})
-    .then(function(r){ return r.json(); }).then(function(d){
+  RYCAuth.post("list").then(function(rr){
+      var d=rr.ok?rr.data:null;
       var el=document.getElementById("brief-pipeline"); if(!el) return;
       if(!d||!d.ok){ el.innerHTML=""; return; }
       var pursuits=d.pursuits||[], runs=d.runs||[];
@@ -1543,9 +1539,11 @@ var _bidRecCache={};
 function loadBidRecord(jno){
   var el=document.getElementById("bid-record"); if(!el) return;
   if(_bidRecCache[jno]!==undefined){ el.innerHTML=_bidRecCache[jno]; return; }
-  fetch("/api/ryc-estimate-log",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({pw:"ryc2026",action:"by_job",job_no:String(jno)})})
-    .then(function(r){ return r.json(); }).then(function(d){
+  RYCAuth.post("by_job",{job_no:String(jno)}).then(function(rr){
+      // Don't CACHE an outage as "this job has no bid record" — an unreachable lookup is not
+      // an authoritative empty answer, and a cached one never retries (finding #5).
+      if(!rr.ok){ el.innerHTML=""; return; }
+      var d=rr.data;
       var p=d&&d.ok&&d.pursuits&&d.pursuits[0];
       if(!p||!p.latest){ _bidRecCache[jno]=""; el.innerHTML=""; return; }
       var wf=p.workflow||{}, sub=wf.submission||{}, aw=wf.award||{};
@@ -1570,7 +1568,7 @@ function loadBidRecord(jno){
       _bidRecCache[jno]="<div class=\"dw-sec\"><h4>Bid record — from the Estimating Desk</h4>"
         +"<table class=\"dwt\"><tr><th></th><th class=\"r\">Amount</th><th class=\"r\"></th></tr>"+rows+"</table>"+warn
         +"<div class=\"dw-note\">Linked "+((aw.linked_at||"").slice(0,10)||"—")+(p.latest.estimator?(" · estimated by "+esc(p.latest.estimator)):"")
-        +" · <a class=\"srclink\" href=\"/ryc/estimate#pursuit/"+p.id+"\" target=\"_blank\" rel=\"noopener\">Open pursuit &#8599;</a></div></div>";
+        +" · <a class=\"srclink\" href=\"/desk/pursuits/"+p.id+"\" target=\"_blank\" rel=\"noopener\">Open pursuit &#8599;</a></div></div>";
       el.innerHTML=_bidRecCache[jno];
     }).catch(function(){ el.innerHTML=""; });
 }

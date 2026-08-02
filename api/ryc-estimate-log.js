@@ -71,7 +71,10 @@ export default async function handler(req, res) {
      version conflict · RY40A name collision ("review") · RY40B already adopted · RY40C not
      passed · RY40D stage needs its fact op · RY40E clear the fact first · RY400 bad input.
      Actor is shared_gate until identity lands (contract §2 DEFERRED banner). */
-  const RPC_STATUS = { RY404: 404, RY409: 409, RY40A: 409, RY40B: 409, RY40C: 409, RY40D: 409, RY40E: 409, RY400: 400 };
+  // RY40F (job already linked / job number reserved) was raised by ryc_link_award but never
+  // mapped — it fell through to PostgREST's own status. Slice 2d raises it from a second place
+  // (ryc_upsert_job, on a reserved number), so it is mapped here where it belongs: a conflict.
+  const RPC_STATUS = { RY404: 404, RY409: 409, RY40A: 409, RY40B: 409, RY40C: 409, RY40D: 409, RY40E: 409, RY40F: 409, RY400: 400 };
   const rpc = async (fn, args) => {
     const r = await sb(`rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) });
     const txt = await r.text();
@@ -656,11 +659,202 @@ export default async function handler(req, res) {
     }
 
     /* Job identity map for Command's routes (contract D5): the UUID is the address, the
-       Foundation number is the display/search key. Small, cacheable, read-only. */
+       Foundation number is the display/search key. Small, cacheable, read-only.
+       This is the number->uuid map used to BUILD links. Resolving an incoming address is
+       `resolve_job` below — a client must never decide not-found from this list. */
     if (action === 'job_ids') {
-      const r = await sb('ryc_jobs?company_id=eq.ryc&select=id,job_no&order=job_no');
+      const r = await sb('ryc_jobs?company_id=eq.ryc&select=id,job_no,status&order=job_no');
       if (!r.ok) return res.status(r.status).json({ error: await r.text() });
       return res.status(200).json({ ok: true, jobs: await r.json() });
+    }
+
+    /* THE job resolver (Codex phase-C findings #5/#6/#7). One authoritative server answer for
+       every job address — uuid, current number, or a historical alias — returning a TYPED
+       state so the client never has to infer one:
+         active | closed | renumbered | not_found
+       `not_found` carries NO metadata, so this endpoint cannot be used as an existence
+       oracle (contract §3). A transport failure is a non-200 here and must NOT be rendered
+       as not-found by the caller. */
+    if (action === 'resolve_job') {
+      const ref = String(req.body.ref || '').trim().slice(0, 80);
+      if (!ref) return res.status(400).json({ error: 'ref required' });
+      const out = await rpc('ryc_resolve_job', { p_company: 'ryc', p_ref: ref });
+      if (out.status === 200) return res.status(200).json(Object.assign({ ok: true }, out.body));
+      // Pre-slice-2d fallback: the resolver function may not exist yet in this database.
+      // Degrade to the columns that have always been there rather than 500 — but keep the
+      // same typed shape so the client has exactly one contract to code against.
+      if (!/ryc_resolve_job|PGRST202|does not exist|404/i.test(JSON.stringify(out.body || ''))) {
+        return res.status(out.status).json(out.body);
+      }
+      const isUuid = UUID.test(ref);
+      const q = isUuid ? `id=eq.${ref}` : `job_no=eq.${encodeURIComponent(ref)}`;
+      const r = await sb(`ryc_jobs?company_id=eq.ryc&${q}&select=id,job_no,description&limit=1`);
+      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+      const rows = await r.json();
+      if (!rows.length) return res.status(200).json({ ok: true, state: 'not_found', legacy_resolver: true });
+      return res.status(200).json({ ok: true, state: 'active', job_id: rows[0].id,
+        job_no: rows[0].job_no, description: rows[0].description, legacy_resolver: true });
+    }
+
+    /* Mint job identities from the source feeds — the lane that makes identity CONTINUOUS
+       instead of dependent on someone remembering to run a script (finding #3). Foundation's
+       active feed and the completed-job record are both covered, so a link to a closed job
+       resolves to a real identity in a `closed` state rather than to not-found.
+       Idempotent: reruns report `minted: 0`. Callable from the VM cron alongside the other
+       nightly syncs. NOTE: neither feed exposes a stable surrogate key today (see
+       schema_ryc_slice2d.sql §2), so source_job_id is left null until the ODBC lane can
+       supply Foundation's own primary key. */
+    if (action === 'sync_jobs') {
+      const feeds = [];
+      const grab = async (url, label) => {
+        try {
+          const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now());
+          if (!r.ok) return { label, error: 'HTTP ' + r.status };
+          return { label, body: await r.json() };
+        } catch (e) { return { label, error: e.message }; }
+      };
+      const fdn = await grab(process.env.RYC_FOUNDATION_API || 'https://crm.jbkdevelopment.com/api/ryc-foundation', 'active');
+      const done = await grab('https://app.civicscope.io/ryc-data/ryc-portfolio.json', 'completed');
+      // A feed being down must not silently shrink the sync into a partial success.
+      if (fdn.error && done.error) return res.status(502).json({ error: `both job feeds unavailable: ${fdn.error} / ${done.error}` });
+
+      const rows = [];
+      let activeRowCount = 0, activeSrcCount = 0, activeDeclared = null;
+      if (fdn.body) {
+        const src = Array.isArray(fdn.body.jobs) ? fdn.body.jobs : Object.values(fdn.body.jobs || {});
+        activeSrcCount = src.length;
+        activeDeclared = fdn.body.jobCount;          // the SOURCE's own record count
+        for (const j of src) {
+          const no = String(j.jobNo || j.job_no || j.projectNumber || '').trim();
+          if (no) rows.push({ job_no: no.slice(0, 40), status: 'active',
+            description: String(j.description || j.name || '').slice(0, 200) || null,
+            customer: String(j.customerName || j.customer || '').slice(0, 200) || null });
+        }
+        activeRowCount = rows.length;
+        feeds.push({ feed: 'active', declared: activeDeclared, received: activeSrcCount, parsed: activeRowCount });
+      } else feeds.push({ feed: 'active', error: fdn.error });
+      if (done.body) {
+        const seen = new Set(rows.map(r => r.job_no.toUpperCase()));
+        for (const j of (done.body.jobs || [])) {
+          const no = String(j.id || j.jobNo || '').trim();
+          // an active job also present in the completed record stays ACTIVE — the live feed wins
+          if (!no || seen.has(no.toUpperCase())) continue;
+          rows.push({ job_no: no.slice(0, 40), status: 'closed',
+            description: String(j.name || '').slice(0, 200) || null,
+            customer: String(j.client || '').slice(0, 200) || null });
+        }
+        feeds.push({ feed: 'completed', rows: (done.body.jobs || []).length });
+      } else feeds.push({ feed: 'completed', error: done.error });
+
+      /* CAN THIS SNAPSHOT BE TRUSTED TO SAY WHAT IS *MISSING*?  No — and no heuristic here
+         can make it so, which is the conclusion of five review rounds on this one question.
+
+         Minting is safe: an identity that appears, exists. Inferring DISAPPEARANCE is not, and
+         it is the only thing that needs completeness. The attempts and why each failed:
+           · "HTTP 200 + rows parsed"        -> proves nonempty, not complete          (r4 #1)
+           · "jobCount matches the payload"  -> CIRCULAR; the producer returns
+                                                `jobCount: rows.length`                (r5 #1)
+           · "shrink guard vs known-active"  -> measures NET COUNT, not identity loss. A
+                                                same-sized snapshot of 95 unseen jobs shows
+                                                drop = 0 and would certify itself while
+                                                marking the whole portfolio vanished. It also
+                                                failed OPEN when the baseline query failed.
+                                                                                       (r6 #1/#2)
+         Even a membership-based tolerance knowingly permits N false disappearances, which
+         contradicts D9(g)'s "certified-complete" requirement outright.
+
+         So: DISAPPEARANCE INFERENCE IS OFF until a publisher-certified run manifest exists
+         (contract §5.2). `p_active_snapshot_complete` is hard-coded false. This is a standing,
+         documented service limitation — not a per-run incident — so it raises no queue item and
+         does not alarm the scheduled lane. Identity accrual, UUID resolution, aliases,
+         renumbering and the reservation rule are all unaffected. */
+      const activeComplete = false;
+      const inferenceState = 'disabled_pending_manifest';
+      const inferenceReason =
+        'Disappearance inference is disabled: the Foundation feed cannot certify that a snapshot '
+        + 'is complete (it reports jobCount as the length of the collection it returns). Identities '
+        + 'are still minted. Re-enable when the publisher-certified run manifest lands (contract §5.2).';
+
+      const out = await rpc('ryc_ingest_jobs', {
+        p_company: 'ryc', p_source: 'foundation', p_rows: rows,
+        p_request_id: 'jobsync-' + ((fdn.body && fdn.body.refreshed) || reqId()),
+        p_actor: { type: 'service', service_id: 'job-identity-sync', display: 'job sync', channel: 'sync' },
+        p_active_snapshot_complete: activeComplete,
+      });
+      if (out.status !== 200) return res.status(out.status).json(out.body);
+
+      /* Renumber candidates are now raised as DURABLE typed rows inside the ingest transaction,
+         with the exact UUIDs it minted (contract D9(g)). This handler no longer infers
+         membership from a "latest N by created_at" query — that could name jobs the run did not
+         create — and the signal no longer evaporates on the next idempotent run. All this does
+         is report how many items are open. */
+      return res.status(200).json(Object.assign({
+        feeds,
+        // `partial` means a FEED FAILED — a transport problem worth alerting on. The disabled
+        // inference below is a known standing limitation and must not masquerade as an incident,
+        // or the nightly lane alarms every single night about something nobody can action (r6 #4).
+        partial: !!(fdn.error || done.error),
+        active_snapshot_rows: activeRowCount,
+        disappearance_inference: inferenceState,
+        disappearance_inference_reason: inferenceReason,
+        needs_review: (out.body.open_reconciliation_items || 0) > 0,
+      }, out.body));
+    }
+
+    /* The reconciliation queue itself — the human end of D9(g). */
+    if (action === 'list_job_reconciliation') {
+      const st = ['open', 'resolved', 'dismissed'].includes(req.body.status) ? req.body.status : 'open';
+      const r = await sb(`ryc_job_reconciliation?company_id=eq.ryc&status=eq.${st}&order=created_at.desc&limit=100`);
+      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+      const items = await r.json();
+      // resolve the ids to numbers so the queue is readable without a second lookup
+      const ids = [...new Set(items.flatMap(i => [...(i.appeared_job_ids || []), ...(i.vanished_job_ids || [])]))];
+      let names = {};
+      if (ids.length) {
+        const jr = await sb(`ryc_jobs?id=in.(${ids.join(',')})&select=id,job_no,status`);
+        if (jr.ok) for (const j of await jr.json()) names[j.id] = { job_no: j.job_no, status: j.status };
+      }
+      return res.status(200).json({ ok: true, items, jobs: names });
+    }
+
+    /* A human may DISMISS a reconciliation item ("this was not a renumber"), with a reason.
+       They cannot mark one `resolved` — that status is set by ryc_renumber_job when the
+       renumber actually happens, so "resolved" is verified rather than asserted (r3 #5). */
+    if (action === 'dismiss_job_reconciliation') {
+      const id = String(req.body.id || '');
+      if (!UUID.test(id)) return res.status(400).json({ error: 'Bad id' });
+      const out = await rpc('ryc_dismiss_job_reconciliation', {
+        p_id: id, p_reason: String(req.body.reason || '').slice(0, 300),
+        p_request_id: reqId(), p_actor: gateActor,
+      });
+      return res.status(out.status).json(out.body);
+    }
+
+    /* Releasing a reserved job number so it can be reissued — deliberate, audited, reasoned.
+       The ONLY sanctioned route to number reuse (contract D9). */
+    if (action === 'release_job_alias') {
+      const jid = String(req.body.job_id || '');
+      const out = await rpc('ryc_release_job_alias', {
+        p_company: 'ryc',
+        p_job_id: UUID.test(jid) ? jid : null,   // null = resolve, but only if unambiguous
+        p_alias: String(req.body.alias || '').slice(0, 40),
+        p_reason: String(req.body.reason || '').slice(0, 300),
+        p_request_id: reqId(), p_actor: gateActor,
+      });
+      return res.status(out.status).json(out.body);
+    }
+
+    /* Renumbering is a domain fact, not an edit: it changes the DISPLAY number and retires
+       the old one as an alias while the UUID — every route, award link and audit row — stays
+       put. This is the operation D5 always implied and slice 2a had no way to express. */
+    if (action === 'renumber_job') {
+      const jid = String(req.body.job_id || '');
+      if (!UUID.test(jid)) return res.status(400).json({ error: 'Bad job_id' });
+      const out = await rpc('ryc_renumber_job', {
+        p_job_id: jid, p_new_job_no: String(req.body.job_no || '').slice(0, 40),
+        p_request_id: reqId(), p_actor: gateActor,
+      });
+      return res.status(out.status).json(out.body);
     }
 
     if (action === 'list_opportunities') {

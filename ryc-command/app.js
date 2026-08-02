@@ -3,7 +3,9 @@
    Split from index.html (Phase 7). Classic scripts, load order: core → views → app. */
 /* ---- gate / nav / boot ---- */
 function showApp(){ document.getElementById("gate").style.display="none"; document.getElementById("app").hidden=false; init(); }
-function tryGate(){ var v=document.getElementById("gate-input").value.trim(); if(v==="ryc2026"){ sessionStorage.setItem("ryc_cmd_auth","1"); showApp(); } else { document.getElementById("gate-err").textContent="Incorrect access code"; } }
+// The gate constant lives in RYCAuth (contract D8: ONE interim-credential seam), so phase D
+// replaces that module rather than hunting literals across two bundles.
+function tryGate(){ var v=document.getElementById("gate-input").value.trim(); if(v===RYCAuth.gate()){ sessionStorage.setItem("ryc_cmd_auth","1"); showApp(); } else { document.getElementById("gate-err").textContent="Incorrect access code"; } }
 document.getElementById("gate-btn").addEventListener("click",tryGate);
 document.getElementById("gate-input").addEventListener("keydown",function(e){ if(e.key==="Enter") tryGate(); });
 
@@ -98,50 +100,117 @@ function renderNav(){
   });
   RYCShell.mount({
     workspace:"command",
-    version:"v2.35.0-command · phase C shell + path routes",
+    version:"v2.36.0-command · phase C remediation (routing tokens, typed job states)",
     active:currentView,
     groups:groups,
     onSelect:function(k){ setView(k); },
     onLock:function(){ sessionStorage.removeItem("ryc_cmd_auth"); location.reload(); }
   });
 }
-/* ===== PHASE C ROUTING — paths, not hashes (contract v1.1 §3) =========================
+/* ===== PHASE C ROUTING — paths, not hashes (contract v1.2 §3) =========================
    Canonical: /command/<view> · /command/jobs/<job_uuid>
    A JOB IS ADDRESSED BY ITS IMMUTABLE UUID, never by its Foundation job number (contract D5):
    job numbers get corrected, reformatted and reused, so a URL built on one silently changes
-   meaning. The number remains the display and search key and resolves through ryc_job_aliases. */
+   meaning. The number remains the display and search key and resolves through ryc_job_aliases.
+
+   Remediated against Codex REVIEW_phase-c-shell-routing_2026-08-01:
+     #2  every navigation carries a TOKEN; a slow job lookup that lands after the user has
+         moved on is discarded instead of painting a stale drawer under a newer URL.
+     #5  "we could not ask" is no longer collapsed into "there is no such job".
+     #6  route resolution returns TYPED states (active/closed/renumbered/not-found) from the
+         server; not-found discloses nothing, and closed is its own state.
+     #9  route shapes are matched EXACTLY — surplus segments are not valid destinations.
+     #10 the gated request goes through RYCAuth, the one interim-credential seam. */
 var CMD_BASE="/command";
-var _cmdRouting=false, _jobIdCache=null;
+var CMD_HOME="command";                 // the canonical default view
+var CMD_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var _cmdRouting=false, _jobIdCache=null, _cmdNavToken=0, _jobFetch=null;
 function cmdUrl(k){ return CMD_BASE+"/"+k; }
+function isCmdView(k){ return NAV.some(function(n){ return n.key===k && !n.href; }); }
+/* ONE parser (finding #9). Returns a typed route or null when the address is not a valid
+   Command destination — including when it merely has extra segments glued on the end. */
+function parseCmdPath(pathname){
+  var parts=String(pathname||"").replace(/\/+$/,"").split("/").filter(Boolean);
+  if(parts[0]!=="command") return null;
+  if(parts.length===1) return {kind:"view",view:CMD_HOME,canonical:cmdUrl(CMD_HOME)};
+  if(parts[1]==="jobs"){
+    if(parts.length!==3||!parts[2]) return null;          // /command/jobs, /command/jobs/x/y
+    // A job route is UUID-ONLY (contract §3 routes / D5). Accepting any third segment meant
+    // /command/jobs/2513C004 resolved and opened a job at a NON-CANONICAL, number-based
+    // address — the exact thing routing by immutable id exists to prevent (r2 review #3).
+    if(!CMD_UUID.test(parts[2])) return null;
+    return {kind:"job",id:parts[2],canonical:CMD_BASE+"/jobs/"+parts[2]};
+  }
+  if(parts.length!==2) return null;                       // /command/billing/garbage
+  if(!isCmdView(parts[1])) return null;
+  return {kind:"view",view:parts[1],canonical:cmdUrl(parts[1])};
+}
 function setView(k){
-  if(!_cmdRouting) _cmdNotFound=null;           // a deliberate move clears the bad-address state
+  if(!_cmdRouting){ _cmdState=null; _cmdNavToken++; }   // a deliberate move clears the bad-address state
   closeDrawer(true); currentView=k;
   if(typeof RYCShell!=="undefined") RYCShell.setActive(k);
   renderView();
   if(!_cmdRouting && location.pathname!==cmdUrl(k)) history.pushState({v:k},"",cmdUrl(k));
 }
-// job_no <-> uuid, loaded once
+/* job_no -> uuid map, used to BUILD links. It must never be the thing that decides
+   not-found: a failed load is `ok:false`, is NOT cached, and never becomes an empty map
+   that reads as "no jobs exist" (finding #5). */
 function loadJobIds(){
-  if(_jobIdCache) return Promise.resolve(_jobIdCache);
-  return fetch("/api/ryc-estimate-log",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({pw:"ryc2026",action:"job_ids"})})
-    .then(function(r){ return r.ok?r.json():{jobs:[]}; })
-    .catch(function(){ return {jobs:[]}; })
-    .then(function(d){ _jobIdCache={byId:{},byNo:{}};
-      (d.jobs||[]).forEach(function(j){ _jobIdCache.byId[j.id]=j.job_no; _jobIdCache.byNo[j.job_no]=j.id; });
-      return _jobIdCache; });
+  if(_jobIdCache) return Promise.resolve({ok:true,map:_jobIdCache});
+  return RYCAuth.post("job_ids").then(function(r){
+    if(!r.ok) return {ok:false,error:r.error};
+    var m={byId:{},byNo:{}};
+    ((r.data&&r.data.jobs)||[]).forEach(function(j){ m.byId[j.id]=j.job_no; m.byNo[j.job_no]=j.id; });
+    _jobIdCache=m;
+    return {ok:true,map:m};
+  });
 }
-function openJobById(uuid){
-  return loadJobIds().then(function(m){
-    var no=m.byId[uuid];
-    if(!no){ renderCmdNotFound("No job matches that address."); return; }
-    // The identity table covers every Foundation job; Command's board shows the ACTIVE ones.
-    // A link to a real job that this workspace does not display is a different situation from
-    // a bad address, and saying so beats a click that appears to do nothing.
-    if(typeof jobByNo==="function" && !jobByNo(no)){
-      renderCmdNotFound("Job "+no+" exists, but it is not on Command's active board — so there is no job view to open. It may be closed, or outside the current portfolio.");
-      return;
+/* Deep link to a job. The server gives the typed verdict; this function only decides how to
+   render it — and only if the user is still on this address (finding #2). */
+function openJobById(uuid,tok){
+  if(_jobFetch){ try{ _jobFetch.abort(); }catch(e){} }   // supersede any in-flight lookup
+  var ctl=(typeof AbortController!=="undefined")?new AbortController():null;
+  _jobFetch=ctl;
+  var want=CMD_BASE+"/jobs/"+uuid;
+  var stale=function(){ return tok!==_cmdNavToken || location.pathname!==want; };
+  return RYCAuth.post("resolve_job",{ref:uuid},{signal:ctl&&ctl.signal}).then(function(r){
+    if(ctl===_jobFetch) _jobFetch=null;
+    if(r.aborted||stale()) return;                       // the user moved on — drop this route
+    if(!r.ok){
+      // An outage, a gate rejection or a malformed reply is NOT an authoritative absence.
+      return renderCmdState({title:"Job directory unavailable",
+        msg:"This address could not be checked right now — the job directory did not answer. The link may be perfectly good.",
+        retry:true});
     }
+    var d=r.data||{};
+    if(d.state==="not_found") return renderCmdState({title:"Page not found",msg:"No job matches that address."});
+    if(d.state==="closed") return renderCmdState({title:"Job closed",
+      msg:"That job is closed. Closed work is reported under Completed rather than on the active board.",
+      go:{label:"Go to Completed",view:"completed"}});
+    /* AMBIGUOUS is an identity conflict, not an absence. Falling through to the no-job_no
+       branch reported "not on this board", which is a false reading of a real data problem
+       (r2 review #3). Fail closed and say what is actually wrong. */
+    if(d.state==="ambiguous") return renderCmdState({title:"Ambiguous job reference",
+      msg:"That reference matches more than one job identity ("+((d.candidates&&d.candidates.length)||0)
+         +"), so Command will not guess which one you meant. Open the job by its unique address, or resolve the duplication in the job identity record."});
+    /* NOTE: there is deliberately no `renumbered` branch. Job routes are UUID-only, and the
+       resolver only returns `renumbered` for a NUMBER reference — so that branch was
+       unreachable from routing and only complicated the typed-state contract (r3 review,
+       answer 4). If number/alias lookup is ever wanted it belongs in a separate search action,
+       which can canonicalise to the UUID itself. Until then, an unrecognised state fails
+       closed rather than being interpreted optimistically. */
+    if(d.state!=="active") return renderCmdState({title:"Job unavailable",
+      msg:"That job could not be opened ("+esc(String(d.state||"unknown state"))+")."});
+    var no=d.job_no;
+    // The identity table covers every Foundation job; Command's board is fed by Procore. A
+    // real, open job the board does not carry is a coverage gap, not a bad address — say so
+    // WITHOUT echoing the record's metadata back (contract §3: no existence oracle).
+    if(!no||(typeof jobByNo==="function" && !jobByNo(no))){
+      return renderCmdState({title:"Not on this board",
+        msg:"That job exists but Command's active board does not carry it — it may sit outside the current portfolio.",
+        go:{label:"Go to Portfolio",view:"portfolio"}});
+    }
+    if(stale()) return;
     window._dwRouting=true;                 // the URL is already correct — don't rewrite it
     try{ setViewSilent("portfolio"); openDrawer(no,null); }
     finally{ window._dwRouting=false; }
@@ -149,36 +218,46 @@ function openJobById(uuid){
 }
 function jobUrl(jno){ var m=_jobIdCache; var id=m&&m.byNo[jno]; return id?CMD_BASE+"/jobs/"+id:null; }
 function setViewSilent(k){ _cmdRouting=true; try{ setView(k); } finally { _cmdRouting=false; } }
-/* Not-found is a STATE, not a one-shot paint: it borrows the Overview container, whose async
-   delta load would otherwise land afterwards and replace it with a working screen at a bad
-   address. renderView() honours the flag; a deliberate navigation clears it. */
-var _cmdNotFound=null;
-function paintCmdNotFound(){
+/* A failed route resolution is a STATE, not a one-shot paint: it borrows the Overview
+   container, whose async delta load would otherwise land afterwards and replace it with a
+   working screen at a bad address. renderView() honours the flag; a deliberate navigation
+   clears it. The states are distinct per contract §3 — not-found, closed and unavailable
+   are three different things and each says which it is. */
+var _cmdState=null;
+function paintCmdState(){
   var v=document.getElementById("view");
-  if(v&&_cmdNotFound) v.innerHTML="<div class=\"panel\"><div class=\"h\">Page not found</div><div class=\"sub\">"+esc(_cmdNotFound)
-    +"</div><div style=\"margin-top:10px\"><button class=\"pfill\" onclick=\"goCommand()\">Go to Overview</button></div></div>";
+  if(!v||!_cmdState) return;
+  var s=_cmdState, act="";
+  if(s.retry) act+="<button class=\"pfill\" onclick=\"retryCmdRoute()\">Try again</button> ";
+  if(s.go) act+="<button class=\"pfill\" onclick=\"goCommandView('"+esc(s.go.view)+"')\">"+esc(s.go.label)+"</button> ";
+  act+="<button class=\"pfill\" onclick=\"goCommand()\">Go to Overview</button>";
+  v.innerHTML="<div class=\"panel\"><div class=\"h\">"+esc(s.title)+"</div><div class=\"sub\">"+esc(s.msg)
+    +"</div><div style=\"margin-top:10px\">"+act+"</div></div>";
 }
-function renderCmdNotFound(msg){
-  _cmdNotFound=msg;
-  setViewSilent("command");
-  paintCmdNotFound();
-}
-function goCommand(){ _cmdNotFound=null; history.pushState({},"",cmdUrl("command")); routeCmd(); }
+function renderCmdState(s){ _cmdState=s; setViewSilent(CMD_HOME); paintCmdState(); }
+function goCommand(){ _cmdState=null; history.pushState({},"",cmdUrl(CMD_HOME)); routeCmd(); }
+function goCommandView(k){ _cmdState=null; history.pushState({},"",cmdUrl(k)); routeCmd(); }
+function retryCmdRoute(){ _cmdState=null; _jobIdCache=null; routeCmd(); }
 var LEGACY_CMD_HASH={dashboard:"command"};
 function routeCmd(){
-  _cmdNotFound=null;                            // a new address gets a fresh verdict
+  _cmdState=null;                               // a new address gets a fresh verdict
+  var tok=++_cmdNavToken;                       // ...and owns any async work it starts
   var h=(location.hash||"").replace(/^#\/?/,"");
   if(h){ // legacy hash bookmark → canonical path, replaced (a fragment never reaches the server)
     var k=LEGACY_CMD_HASH[h]||h;
     var jm=h.match(/^job\/(.+)$/);
-    history.replaceState({},"",jm?CMD_BASE+"/jobs/"+jm[1]:cmdUrl(NAV.some(function(n){return n.key===k;})?k:"command"));
+    history.replaceState({},"",jm?CMD_BASE+"/jobs/"+jm[1]:cmdUrl(isCmdView(k)?k:CMD_HOME));
   }
-  var parts=location.pathname.replace(/\/+$/,"").split("/").filter(Boolean);
-  if(parts[0]!=="command"){ history.replaceState({},"",cmdUrl("command")); return routeCmd(); }
-  if(parts[1]==="jobs"&&parts[2]){ return openJobById(parts[2]); }
-  var key=parts[1]||"command";
-  if(!NAV.some(function(n){ return n.key===key && !n.href; })) return renderCmdNotFound("There is no “"+key+"” page in Command.");
-  setViewSilent(key);
+  var route=parseCmdPath(location.pathname);
+  if(!route){
+    var parts=location.pathname.replace(/\/+$/,"").split("/").filter(Boolean);
+    if(parts[0]!=="command"){ history.replaceState({},"",cmdUrl(CMD_HOME)); return routeCmd(); }
+    return renderCmdState({title:"Page not found",msg:"That is not an address in Command."});
+  }
+  // one rendered state, one URL: /command and /command/ resolve to /command/command
+  if(location.pathname!==route.canonical) history.replaceState({},"",route.canonical);
+  if(route.kind==="job") return openJobById(route.id,tok);
+  setViewSilent(route.view);
 }
 window.addEventListener("popstate",function(){ routeCmd(); });
 /* per-view provenance — the topbar must not claim Foundation on views that never read it */
@@ -196,7 +275,7 @@ function viewCtx(){
   return "Procore (revised contract) + Foundation · loaded "+loaded;
 }
 function renderView(){
-  if(_cmdNotFound) return paintCmdNotFound();   // bad address — don't paint a working screen over it
+  if(_cmdState) return paintCmdState();         // bad address — don't paint a working screen over it
   var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",integrations:"Integrations & Sync",ai:"AI Assistant"};
   document.getElementById("view-title").textContent=titles[currentView]||"Overview";
   document.getElementById("view-ctx").innerHTML=viewCtx();

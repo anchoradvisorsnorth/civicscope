@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css">
-<script src="/ryc-shell/shell.js"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.0">
+<script src="/ryc-shell/shell.js?v1.22.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -250,7 +250,7 @@
 <script>
 // ---------- gate ----------
 function tryLogin() {
-  if (document.getElementById('pw-input').value === 'ryc2026') {
+  if (document.getElementById('pw-input').value === RYCAuth.gate()) {
     sessionStorage.setItem('ryc-auth', '1'); unlock();
   } else { document.getElementById('pw-error').style.display = 'block'; }
 }
@@ -263,7 +263,7 @@ function mountShell() {
   if (!global_RYCShell()) return;
   RYCShell.mount({
     workspace: 'desk',
-    version: TOOL_VERSION + ' · phase C shell',
+    version: TOOL_VERSION + ' · phase C remediation',
     active: 'history',
     onLock: () => { sessionStorage.removeItem('ryc-auth'); location.reload(); },
     groups: [
@@ -290,7 +290,14 @@ function unlock() {
   loadPortfolio();
   // A cold load at any address lands where the address says — the gate is in front of the
   // app, not in front of the router, so the originally requested URL survives sign-in.
-  translateLegacyHash();
+  //
+  // ORDER IS LOAD-BEARING (r3 review finding #2). The entry must be stamped, but `curUrl()` is
+  // pathname+search only — stamping FIRST replaced the address and silently dropped the hash,
+  // so translateLegacyHash() then saw nothing and every legacy bookmark
+  // (/ryc/estimate#pursuit/<uuid>, #inbox, …) landed on the desk instead of its destination.
+  // Translate first: a successful translation does its own stamped navReplace. Only stamp here
+  // when there was nothing to translate.
+  if (!translateLegacyHash()) navReplace(curUrl());
   routeFromLocation();
 }
 // NOTE: the auto-unlock for an already-authed session fires at the END of this script (see
@@ -1036,7 +1043,7 @@ async function bcPreview(btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Building preview…'; }
   try {
     const r = await fetch('/api/ryc-bc-load', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', mode: 'preview', projectName: (window._lastInp && window._lastInp.name) || 'Untitled', divisions: bcDivisions() }) });
+      body: JSON.stringify({ pw: RYCAuth.gate(), mode: 'preview', projectName: (window._lastInp && window._lastInp.name) || 'Untitled', divisions: bcDivisions() }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || d.detail || ('HTTP ' + r.status));
     const rows = d.packages.map((p, i) => {
@@ -1079,7 +1086,7 @@ async function bcCreate(btn) {
     (window._lastInp && window._lastInp.loc) ? 'Location: ' + window._lastInp.loc : null].filter(Boolean).join('\n') || null;
   try {
     const r = await fetch('/api/ryc-bc-load', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', mode: 'create', projectName: name, bidsDueAt: due, description: desc, divisions: chosen }) });
+      body: JSON.stringify({ pw: RYCAuth.gate(), mode: 'create', projectName: name, bidsDueAt: due, description: desc, divisions: chosen }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || d.detail || ('HTTP ' + r.status));
     // Remember the draft so this estimate can't be loaded to BC twice (survives reopen from history).
@@ -1088,7 +1095,7 @@ async function bcCreate(btn) {
     window._bcLoaded = { url: bcUrl, id: bcId };
     if ((window._runId || window._pursuitId) && (bcUrl || bcId)) {
       fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pw: 'ryc2026', action: 'link_bc', pursuit_id: window._pursuitId || null, id: window._runId || null, bc_project_id: bcId, bc_url: bcUrl }) })
+        body: JSON.stringify({ pw: RYCAuth.gate(), action: 'link_bc', pursuit_id: window._pursuitId || null, id: window._runId || null, bc_project_id: bcId, bc_url: bcUrl }) })
         .then(async res => {
           if (!res.ok) { console.warn('BC linkage not saved'); return; }
           const d = await res.json().catch(() => null);
@@ -1160,7 +1167,7 @@ function syncCoverage() {
     _qChain = _qChain.then(async () => {
       try {
         const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pw: 'ryc2026', action: 'record_quotes', pursuit_id: pid,
+          body: JSON.stringify({ pw: RYCAuth.gate(), action: 'record_quotes', pursuit_id: pid,
             run_id: rid, quotes: vals, package_count: q.m,
             expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null }) });
         const d = await r.json().catch(() => null);
@@ -1275,7 +1282,7 @@ async function linkAward(jobNo) {
   if (!confirm(msg)) return;
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', pursuit_id: window._pursuitId || null, id: window._runId, job_no: jobNo,
+      body: JSON.stringify({ pw: RYCAuth.gate(), action: 'link_award', pursuit_id: window._pursuitId || null, id: window._runId, job_no: jobNo,
         description: j ? j.description : null, customer: j ? j.customerName : null,
         expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null }) });
     const d = await r.json();
@@ -1291,7 +1298,7 @@ async function unlinkAward() {
   if (!window._runId || !confirm('Unlink this pursuit from its Foundation job?\n\nThe stage it held before the link will be restored — a corrected mistake must not stay recorded as a win.')) return;
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'link_award', pursuit_id: window._pursuitId || null, id: window._runId, unlink: true,
+      body: JSON.stringify({ pw: RYCAuth.gate(), action: 'link_award', pursuit_id: window._pursuitId || null, id: window._runId, unlink: true,
         expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
@@ -1338,7 +1345,7 @@ function persistWF() {
     if (w.checklist && w.checklist.rfis) draft.checklist.rfis = w.checklist.rfis;
     if (w.validation) draft.validation = w.validation;
     if (w.source) draft.source = w.source;
-    const body = JSON.stringify({ pw: 'ryc2026', action: 'set_workflow', pursuit_id: pid, workflow: draft });
+    const body = JSON.stringify({ pw: RYCAuth.gate(), action: 'set_workflow', pursuit_id: pid, workflow: draft });
     _wfChain = _wfChain.then(async () => {
       try {
         const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
@@ -1386,7 +1393,7 @@ async function recordFact(action, payload) {
   if (!window._pursuitId) { alert('Generate/save the estimate first so the pursuit exists.'); return false; }
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(Object.assign({ pw: 'ryc2026', action, pursuit_id: window._pursuitId }, payload)) });
+      body: JSON.stringify(Object.assign({ pw: RYCAuth.gate(), action, pursuit_id: window._pursuitId }, payload)) });
     const d = await r.json();
     // Version conflict (slice 2a typed ops): another session changed this pursuit — reload
     // its current state instead of overwriting; the user re-applies on fresh data.
@@ -1690,7 +1697,7 @@ function openBlankPursuit(pid) {
   } finally { _routing = wasRouting; }
   // one deliberate URL write, now that the pursuit state is coherent
   const u = DESK_BASE + '/pursuits/' + pid;
-  if (location.pathname !== u) history.pushState({}, '', u);
+  if (location.pathname !== u) navPush(u);      // stamped — see navPush (Codex remediation #3)
   // An adopted pursuit is a real pursuit: show its card so the bid due date, pre-bid meeting
   // and readiness are workable before the first estimate exists.
   renderPursuit();
@@ -2139,14 +2146,79 @@ function deskUrl(view, opts) {
 let _estView = null, _routing = false;
 /* Dirty-form guard (contract §3): leaving a half-typed estimate should ask first. Only the
    generator form counts — every other surface writes typed facts to the server as you go, so
-   there is nothing unsaved to lose there. */
+   there is nothing unsaved to lose there.
+
+   CODEX PHASE-C FINDING #1 (High), fixed here. The guard used to run only when `_routing`
+   was false — and the popstate handler sets `_routing = true` before applying the route. So
+   browser Back/Forward took the exact branch that SUPPRESSED the prompt and the half-typed
+   estimate vanished. The 41/41 pass did not rebut it: that test drove the guard through an
+   in-app rail click, never through the browser's own Back button.
+
+   The fix has three parts:
+     · every history entry is STAMPED with a monotonic index, so a popstate can tell which
+       direction the user went and how far;
+     · a history navigation is treated as a REQUESTED transition — the guard runs BEFORE the
+       route is applied, and cancelling calls history.go(delta) to put the user back where
+       they were, adding no new entry (a pushState "restore" would leave a junk forward
+       entry and break the next Back press);
+     · beforeunload covers refresh and tab close, which no in-app guard can see. */
 let _formDirty = false;
 function markFormDirty() { _formDirty = true; }
 function clearFormDirty() { _formDirty = false; }
+const DIRTY_MSG = 'This estimate has unsaved input. Leave and lose what you have typed?';
+// Which pursuit (if any) an address names — so moving between two different pursuits still
+// counts as leaving, while re-entering the SAME one does not.
+function pursuitIdForPath(path) {
+  const parts = String(path || '').replace(/\/+$/, '').split('/').filter(Boolean);
+  return (parts[0] === 'desk' && parts[1] === 'pursuits' && parts[2]) ? parts[2] : null;
+}
+function isDirtyForm() { return _formDirty && _estView === 'assist'; }
 function confirmLeaveForm(to) {
-  if (!_formDirty || _estView !== 'assist' || to === 'assist') return true;
-  if (confirm('This estimate has unsaved input. Leave and lose what you have typed?')) { clearFormDirty(); return true; }
+  if (!isDirtyForm() || to === 'assist') return true;
+  if (confirm(DIRTY_MSG)) { clearFormDirty(); return true; }
   return false;
+}
+// Same question, asked of a URL rather than a view key (the history path).
+function confirmLeaveToPath(path) {
+  if (!isDirtyForm()) return true;
+  const target = viewForPath(path);
+  const pid = pursuitIdForPath(path);
+  if (target === 'assist' && pid && pid === window._pursuitId) return true;   // same pursuit
+  if (confirm(DIRTY_MSG)) { clearFormDirty(); return true; }
+  return false;
+}
+/* Refresh / tab close / external link — the one exit an in-app guard cannot intercept.
+   Browsers show their own wording here; the only contract is that we ask at all. */
+window.addEventListener('beforeunload', (e) => {
+  if (!isDirtyForm()) return;
+  e.preventDefault();
+  e.returnValue = '';                 // required by older browsers to trigger the prompt
+  return '';
+});
+/* History-entry stamping. `_histIdx` is where we believe we are; each entry carries its own
+   index in history.state, so a popstate yields an exact delta even across several presses.
+   EVERY same-document write in this file goes through these two functions — `setInboxFilter`
+   used to push raw `{}`, which advanced the browser stack without advancing the logical index
+   and silently broke the delta for any multi-entry jump (Codex remediation finding #3).
+
+   The restore is also SELF-CORRECTING rather than trusting the arithmetic blindly: an entry
+   created by an older version of this page in the same tab carries no stamp, so after
+   history.go() we CHECK whether we actually landed back on the address we were defending and
+   step again if not. Bounded, so a pathological stack cannot loop. */
+let _histSeq = 0, _histIdx = 0;
+let _histHereUrl = null;                 // the address of the entry we believe we are on
+let _histRestoreUrl = null;              // the address a cancelled leave is defending
+let _histRestore = null;                 // {url, idx, tries} while undoing a cancelled move
+function curUrl() { return location.pathname + location.search; }
+function stateIdx(st) { return (st && typeof st.i === 'number') ? st.i : null; }
+function navPush(url, extra) {
+  _histIdx = ++_histSeq;
+  history.pushState(Object.assign({}, extra || {}, { i: _histIdx }), '', url);
+  _histHereUrl = curUrl();
+}
+function navReplace(url, extra) {
+  history.replaceState(Object.assign({}, extra || {}, { i: _histIdx }), '', url);
+  _histHereUrl = curUrl();
 }
 function setEstView(v) {
   if (!_routing && !confirmLeaveForm(v)) return;
@@ -2169,11 +2241,49 @@ function setEstView(v) {
   if (v === 'history') renderHistory();
   if (!_routing) {
     const u = deskUrl(v);
-    if (location.pathname + location.search !== u) history.pushState({ v }, '', u);
+    if (location.pathname + location.search !== u) navPush(u, { v });
   }
 }
-// Back/forward must work like a browser, not like an app that happens to have URLs.
-window.addEventListener('popstate', () => { routeFromLocation(); });
+/* Back/forward must work like a browser, not like an app that happens to have URLs — and a
+   dirty form must be able to STOP one, which is the whole of finding #1. */
+window.addEventListener('popstate', (e) => {
+  // ---- (a) we are mid-correction after a cancelled leave ----
+  if (_histRestore) {
+    if (curUrl() === _histRestore.url) {                    // landed back where we were
+      _histIdx = _histRestore.idx; _histHereUrl = curUrl(); _histRestore = null;
+      return;
+    }
+    if (++_histRestore.tries <= 3) {
+      const ti = stateIdx(e.state);
+      const d = (ti !== null) ? (_histRestore.idx - ti) : 1; // unstamped entry: step once more
+      if (d) { history.go(d); return; }
+    }
+    /* Could not step back to the exact entry (a stack this page version did not build).
+       A CANCELLED transition must still mean cancelled — the previous version routed to the
+       destination here, which silently turned "no, don't leave" into leaving (r2 review #5).
+       So: do NOT apply the destination route. Keep the dirty estimate exactly as it is and put
+       its address back on the current entry, which is what the user asked for. */
+    _histRestore = null;
+    navReplace(_histRestoreUrl || curUrl());
+    _histHereUrl = curUrl();
+    return;
+  }
+
+  // ---- (b) an ordinary history navigation: ASK BEFORE applying any route state ----
+  const fromUrl = _histHereUrl || curUrl(), fromIdx = _histIdx;
+  if (!confirmLeaveToPath(location.pathname)) {
+    const ti = stateIdx(e.state);
+    const d = (ti !== null) ? (fromIdx - ti) : 1;           // default: assume a single step
+    if (!d) return;
+    _histRestore = { url: fromUrl, idx: fromIdx, tries: 0 };
+    _histRestoreUrl = fromUrl;
+    history.go(d);                                          // undo the move; adds no entry
+    return;
+  }
+  const ti = stateIdx(e.state); if (ti !== null) _histIdx = ti;
+  _histHereUrl = curUrl();
+  routeFromLocation();
+});
 // Navigation token (Codex R5 router assessment): each route change bumps the token; an async
 // pursuit open only applies if its token is still current, so a stale fetch can never paint
 // over a newer navigation. Boolean flags guard only the sync hash-write loop.
@@ -2187,8 +2297,34 @@ function translateLegacyHash() {
   const m = h.match(/^pursuit\/([0-9a-f-]{36})$/i);
   const target = m ? DESK_BASE + '/pursuits/' + m[1] : LEGACY_HASH[h];
   if (!target) return false;
-  history.replaceState({}, '', target);
+  navReplace(target);                            // stamped, so entry 0 carries an index too
   return true;
+}
+/* ONE parser for Desk addresses (Codex finding #9). It matches EXACT route shapes: the old
+   router only inspected leading segments, so /desk/inbox/garbage and /desk/pursuits/<uuid>/x
+   rendered a perfectly good page while keeping a non-canonical URL. Returns null when the
+   address is not a Desk destination. */
+function parseDeskPath(pathname) {
+  const parts = String(pathname || '').replace(/\/+$/, '').split('/').filter(Boolean);
+  if (parts[0] !== 'desk') return null;
+  if (parts.length === 1) return { kind: 'view', seg: 'pursuits', view: 'history' };
+  if (parts[1] === 'pursuits' && parts.length === 3) {
+    if (parts[2] === 'new') return { kind: 'new' };
+    if (!/^[0-9a-f-]{36}$/i.test(parts[2])) return { kind: 'bad', why: 'That is not a valid pursuit address.' };
+    return { kind: 'pursuit', id: parts[2] };
+  }
+  if (parts.length !== 2) return null;                       // surplus segments are not a destination
+  const view = SEG_VIEW[parts[1]];
+  if (!view) return { kind: 'bad', why: 'There is no “' + parts[1] + '” page in the Estimating Desk.' };
+  return { kind: 'view', seg: parts[1], view };
+}
+// Which view an address resolves to, WITHOUT applying it — the dirty-form guard needs to know
+// where a history navigation is heading before it decides whether to allow it.
+function viewForPath(pathname) {
+  const r = parseDeskPath(pathname);
+  if (!r) return null;
+  if (r.kind === 'pursuit' || r.kind === 'new') return 'assist';
+  return r.kind === 'view' ? r.view : null;
 }
 /* Drive the app from the address bar. Unknown routes render a NOT-FOUND state AT the requested
    URL — they are not silently redirected to the desk, because a wrong address the user can see
@@ -2196,29 +2332,28 @@ function translateLegacyHash() {
 function routeFromLocation() {
   const tok = ++_navToken;
   _notFound = null;                     // a new address gets a fresh verdict
-  const path = location.pathname.replace(/\/+$/, '');
   const qs = new URLSearchParams(location.search);
-  const parts = path.split('/').filter(Boolean);           // ['desk','pursuits','<uuid>']
+  const parts = location.pathname.replace(/\/+$/, '').split('/').filter(Boolean);
   // legacy /ryc/estimate → canonicalise once, keeping any hash translation above
-  if (parts[0] === 'ryc') { history.replaceState({}, '', DESK_BASE + '/pursuits'); return routeFromLocation(); }
-  if (parts[0] !== 'desk') { history.replaceState({}, '', DESK_BASE + '/pursuits'); return routeFromLocation(); }
+  if (parts[0] !== 'desk') { navReplace(DESK_BASE + '/pursuits'); return routeFromLocation(); }
 
-  const seg = parts[1] || 'pursuits';
-  if (seg === 'pursuits' && parts[2]) {
-    const id = parts[2];
-    if (id === 'new') { _routing = true; try { newPursuit(); } finally { _routing = false; } return; }
-    if (!/^[0-9a-f-]{36}$/i.test(id)) return renderDeskNotFound('That is not a valid pursuit address.');
-    if (window._pursuitId === id && document.getElementById('resultsPanel').style.display === 'block') return;
-    openPursuitById(id, tok);
+  const route = parseDeskPath(location.pathname);
+  if (!route) return renderDeskNotFound('That is not an address in the Estimating Desk.');
+  if (route.kind === 'bad') return renderDeskNotFound(route.why);
+  if (route.kind === 'new') { _routing = true; try { newPursuit(); } finally { _routing = false; } return; }
+  if (route.kind === 'pursuit') {
+    if (window._pursuitId === route.id && document.getElementById('resultsPanel').style.display === 'block') return;
+    openPursuitById(route.id, tok);
     return;
   }
-  const v = SEG_VIEW[seg];
-  if (!v) return renderDeskNotFound('There is no “' + seg + '” page in the Estimating Desk.');
-  if (seg === 'inbox') { const f = qs.get('filter'); _inboxFilter = ['open', 'passed', 'all'].includes(f) ? f : 'open'; }
+  // one rendered state, one URL: /desk resolves to /desk/pursuits
+  const canonical = DESK_BASE + '/' + route.seg;
+  if (location.pathname.replace(/\/+$/, '') !== canonical) navReplace(canonical + location.search);
+  if (route.seg === 'inbox') { const f = qs.get('filter'); _inboxFilter = ['open', 'passed', 'all'].includes(f) ? f : 'open'; }
   _routing = true;
   try {
-    setEstView(v);
-    if (seg === 'intel' && qs.get('panel') === 'quick') setEstView('quickcheck');
+    setEstView(route.view);
+    if (route.seg === 'intel' && qs.get('panel') === 'quick') setEstView('quickcheck');
   } finally { _routing = false; }
 }
 /* Not-found renders IN PLACE (contract §3: unauthorized / not-found / archived are distinct
@@ -2230,35 +2365,70 @@ let _notFound = null;
 function paintNotFound() {
   const el = document.getElementById('history-body');
   if (!el || !_notFound) return;
-  el.innerHTML = `<div class="billing-block"><h3 class="section-header">Page not found</h3>
-    <div class="billing-empty">${esc(_notFound)}<div style="margin-top:10px"><button class="btn-sm" onclick="goDesk()">Go to Pursuits</button></div></div></div>`;
+  const s = _notFound;
+  const extra = s.action
+    ? `<button class="btn-sm" onclick="${s.action.fn}">${esc(s.action.label)}</button> `
+    : '';
+  el.innerHTML = `<div class="billing-block"><h3 class="section-header">${esc(s.title)}</h3>
+    <div class="billing-empty">${esc(s.msg)}<div style="margin-top:10px">${extra}<button class="btn-sm" onclick="goDesk()">Go to Pursuits</button></div></div></div>`;
 }
-function renderDeskNotFound(msg) {
-  _notFound = msg;
+/* Three DISTINCT route states, per contract §3 — a bad address, an archived pursuit and an
+   unreachable server are not the same thing and must not read as the same thing.
+   not-found deliberately carries no record metadata (no existence oracle). */
+function renderDeskState(state) {
+  _notFound = state;
   _routing = true;
   try { setEstView('history'); } finally { _routing = false; }
   paintNotFound();
 }
-function goDesk() { _notFound = null; history.pushState({}, '', DESK_BASE + '/pursuits'); routeFromLocation(); }
-async function openPursuitById(pid, tok) {
+function renderDeskNotFound(msg) { renderDeskState({ title: 'Page not found', msg }); }
+function renderDeskUnavailable(msg) {
+  renderDeskState({ title: 'Not available right now', msg, action: { label: 'Try again', fn: 'retryDeskRoute()' } });
+}
+function goDesk() { _notFound = null; navPush(DESK_BASE + '/pursuits'); routeFromLocation(); }
+function retryDeskRoute() { _notFound = null; historyCache = null; routeFromLocation(); }
+function openArchivedAnyway() {
+  if (!_notFound || !_notFound.pursuitId) return;
+  const pid = _notFound.pursuitId;
+  _notFound = null;
+  openPursuitById(pid, _navToken, true);
+}
+async function openPursuitById(pid, tok, allowArchived) {
   try {
     if (!historyCache) {
-      const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pw: 'ryc2026', action: 'list' }) });
-      const d = await r.json().catch(() => null);
-      if (d && d.ok) historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
+      // D8: through the ONE credential seam. And a failed load is NOT an empty list — caching
+      // `{runs:[],pursuits:[]}` would turn an outage into "that pursuit no longer exists".
+      const r = await RYCAuth.post('list');
+      if (tok !== undefined && tok !== _navToken) return;
+      if (!r.ok || !r.data || !r.data.ok) {
+        return renderDeskUnavailable('This pursuit could not be checked right now — the desk could not reach the server. The link may be perfectly good.');
+      }
+      historyCache = { runs: r.data.runs || [], pursuits: r.data.pursuits || [] };
     }
     if (tok !== undefined && tok !== _navToken) return;   // user navigated on — drop this route
+    const pursuit = ((historyCache && historyCache.pursuits) || []).find(x => x.id === pid);
     const runs = ((historyCache && historyCache.runs) || []).filter(r => r.pursuit_id === pid)
       .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    if (!pursuit && !runs.length) {
+      // unknown/deleted pursuit: render the state AT its address with a safe way back — never a
+      // silent blank form, and never a redirect that hides which link was wrong
+      return renderDeskNotFound('That pursuit no longer exists (deleted, or the link is stale).');
+    }
+    // ARCHIVED is its own state (finding #6): archiving is a decision someone made, and
+    // opening the pursuit as if nothing happened hides it. You can still go in — deliberately.
+    if (!allowArchived && pursuit && pursuit.archived_at) {
+      return renderDeskState({
+        title: 'Archived pursuit',
+        msg: `“${pursuit.name || 'This pursuit'}” was archived on ${(pursuit.archived_at || '').slice(0, 10)}. It is kept as part of the record and is out of the active worklist.`,
+        pursuitId: pid,
+        action: { label: 'Open it anyway', fn: 'openArchivedAnyway()' },
+      });
+    }
     if (runs.length) { openRun(runs[0].id); return; }
     // run-less pursuit (adopted opportunity) — deep link opens the prefilled generator
-    if (((historyCache && historyCache.pursuits) || []).some(x => x.id === pid)) { openBlankPursuit(pid); return; }
-    // unknown/deleted pursuit: render the state AT its address with a safe way back — never a
-    // silent blank form, and never a redirect that hides which link was wrong
-    return renderDeskNotFound('That pursuit no longer exists (deleted, or the link is stale).');
+    return openBlankPursuit(pid);
   } catch (e) {
-    return renderDeskNotFound('That pursuit could not be opened: ' + e.message);
+    return renderDeskUnavailable('That pursuit could not be opened: ' + e.message);
   }
 }
 
@@ -2387,7 +2557,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.21.0';
+const TOOL_VERSION = 'v1.22.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -2431,7 +2601,7 @@ async function saveRun(inp, p, batches, durationMs) {
     // (Codex R4 #1) — there is no second best-effort write whose silent failure could strand a
     // gated estimate as a legacy-looking, ungated revision.
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'save', record, pursuit_id: window._pursuitId || null, validation }) });
+      body: JSON.stringify({ pw: RYCAuth.gate(), action: 'save', record, pursuit_id: window._pursuitId || null, validation }) });
     const d = await r.json().catch(() => null);
     const meta = document.getElementById('resMeta');
     if (r.ok && d && d.ok) {
@@ -2491,7 +2661,7 @@ async function renderHistory(force) {
   try {
     if (!historyCache || force) {
       const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pw: 'ryc2026', action: 'list' }) });
+        body: JSON.stringify({ pw: RYCAuth.gate(), action: 'list' }) });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
       historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
@@ -2567,10 +2737,10 @@ async function loadOpportunities(force) {
   // (unchanged rows are no-ops), and a failure here must not blank the Inbox.
   try {
     await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'sync_opportunities' }) });
+      body: JSON.stringify({ pw: RYCAuth.gate(), action: 'sync_opportunities' }) });
   } catch {}
   const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pw: 'ryc2026', action: 'list_opportunities' }) });
+    body: JSON.stringify({ pw: RYCAuth.gate(), action: 'list_opportunities' }) });
   const d = await r.json();
   if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
   _inboxCache = d;
@@ -2596,7 +2766,11 @@ async function refreshInboxSignal() {
 function setInboxFilter(k) {
   _inboxFilter = k;
   const u = deskUrl('inbox');
-  if (location.pathname + location.search !== u) history.pushState({}, '', u);
+  // Query state is history state too. This push used to bypass the stamp, so the browser stack
+  // advanced without the logical index advancing — and a cancelled multi-entry Back then
+  // computed its correction from indexes that no longer matched physical positions
+  // (Codex remediation finding #3). Every same-document write now goes through navPush.
+  if (location.pathname + location.search !== u) navPush(u);
   renderInbox();
 }
 async function renderInbox(force) {
@@ -2648,7 +2822,7 @@ async function oppAction(i, body, verb) {
   const o = (window._opps || [])[i]; if (!o) return;
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(Object.assign({ pw: 'ryc2026', opportunity_id: o.id, expected_version: o.version }, body)) });
+      body: JSON.stringify(Object.assign({ pw: RYCAuth.gate(), opportunity_id: o.id, expected_version: o.version }, body)) });
     const d = await r.json();
     if (r.status === 409 && /review|collision/i.test(d.error || '')) { alert(d.error); }
     else if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
@@ -2667,7 +2841,7 @@ function adoptOppRow(i) {
 async function openPursuitAfterAdopt(pid) {
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'list' }) });
+      body: JSON.stringify({ pw: RYCAuth.gate(), action: 'list' }) });
     const d = await r.json();
     if (d && d.ok) historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
   } catch {}
@@ -2690,7 +2864,7 @@ async function renderOutcomes() {
   try {
     if (!historyCache) {
       const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pw: 'ryc2026', action: 'list' }) });
+        body: JSON.stringify({ pw: RYCAuth.gate(), action: 'list' }) });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
       historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
@@ -2737,7 +2911,7 @@ async function openRun(id) {
   el.innerHTML = '<div class="billing-empty">Loading estimate…</div>';
   try {
     const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'get', id }) });
+      body: JSON.stringify({ pw: RYCAuth.gate(), action: 'get', id }) });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
     const run = d.run;

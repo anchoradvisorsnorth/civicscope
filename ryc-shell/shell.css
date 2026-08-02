@@ -8,22 +8,63 @@
   background: #14181d; color: #cbd5e1; border-right: 1px solid #232a33;
   display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
 }
-.ryc-brand { display: flex; align-items: center; gap: 9px; padding: 15px 14px 12px; border-bottom: 1px solid #232a33; }
-.ryc-brand img { width: 26px; height: 26px; object-fit: contain; }
-.ryc-brand-txt { font-size: 13px; font-weight: 700; color: #f1f5f9; letter-spacing: .2px; line-height: 1.15; }
-.ryc-brand-sub { font-size: 10.5px; color: #7b8794; font-weight: 500; }
-
-/* Workspace switcher — ONE control, both directions. The current workspace is shown, not
-   hidden: you should always be able to see which side of the award line you are on. */
-.ryc-switch { padding: 10px 12px; border-bottom: 1px solid #232a33; }
-.ryc-switch-lbl { font-size: 9.5px; text-transform: uppercase; letter-spacing: .8px; color: #6b7280; margin-bottom: 5px; }
-.ryc-switch-row { display: flex; background: #0e1216; border: 1px solid #232a33; border-radius: 7px; overflow: hidden; }
-.ryc-switch-row a, .ryc-switch-row span {
-  flex: 1; text-align: center; padding: 6px 4px; font-size: 11.5px; font-weight: 600;
-  text-decoration: none; color: #8b96a3; cursor: pointer;
+/* Brand block = mark + workspace switcher, one unit. The two workspaces are DESTINATIONS,
+   not toggle states, so this is a menu rather than a segmented control: the block names where
+   you are ("Preconstruction" / "Operations") and opens to the full list of places you can go,
+   each at its canonical path. There is exactly ONE workspace switcher in the product. */
+.ryc-brand {
+  display: flex; align-items: center; gap: 9px; padding: 11px 10px 11px 14px;
+  border-bottom: 1px solid #232a33; position: relative;
 }
-.ryc-switch-row .on { background: #c2410c; color: #fff; cursor: default; }
-.ryc-switch-row a:hover:not(.on) { background: #1b2128; color: #e2e8f0; }
+.ryc-brand img { width: 26px; height: 26px; object-fit: contain; flex: none; }
+.ryc-ws-btn {
+  flex: 1; min-width: 0; display: block; text-align: left; background: none; border: none;
+  border-radius: 6px; padding: 4px 6px; margin: -4px -6px; cursor: pointer;
+  font-family: inherit; color: inherit;
+}
+.ryc-ws-btn:hover { background: #1b2128; }
+.ryc-ws-btn:focus-visible { outline: 2px solid #f97316; outline-offset: 1px; }
+.ryc-brand-txt { font-size: 13px; font-weight: 700; color: #f1f5f9; letter-spacing: .2px; line-height: 1.15; display: block; }
+.ryc-brand-sub {
+  font-size: 10.5px; color: #7b8794; font-weight: 500;
+  display: flex; align-items: center; gap: 4px;
+}
+.ryc-ws-caret { flex: none; opacity: .8; transition: transform .12s ease; }
+.ryc-ws-btn[aria-expanded="true"] .ryc-ws-caret { transform: rotate(180deg); }
+.ryc-ws-btn[aria-expanded="true"] .ryc-brand-sub { color: #cbd5e1; }
+
+.ryc-ws-menu {
+  position: absolute; z-index: 40; top: calc(100% - 4px); left: 10px; right: 10px;
+  background: #1b222b; border: 1px solid #333c47; border-radius: 8px; padding: 5px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .5);
+}
+.ryc-ws-menu[hidden] { display: none; }
+.ryc-ws-menu-h {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: .8px; color: #6b7280;
+  font-weight: 700; padding: 5px 8px 6px;
+}
+.ryc-ws-item {
+  display: block; padding: 7px 8px; border-radius: 6px; text-decoration: none;
+  border-left: 2px solid transparent;
+}
+.ryc-ws-item + .ryc-ws-item { margin-top: 1px; }
+.ryc-ws-item:hover { background: #232c36; }
+.ryc-ws-item:focus-visible { outline: 2px solid #f97316; outline-offset: -2px; }
+.ryc-ws-item.on { background: #232c36; border-left-color: #c2410c; }
+.ryc-ws-mode {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 12.5px; font-weight: 600; color: #f1f5f9; line-height: 1.3;
+}
+/* "Current" is text, not just the accent bar — status is never color-only (contract §8). */
+.ryc-ws-here {
+  font-size: 9px; text-transform: uppercase; letter-spacing: .6px; font-weight: 700;
+  color: #fdba74; border: 1px solid #7c3c14; border-radius: 3px; padding: 0 4px;
+}
+.ryc-ws-label { display: block; font-size: 11px; color: #98a3b0; line-height: 1.35; }
+.ryc-ws-path {
+  display: block; font-size: 10px; color: #6b7280; line-height: 1.35;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
 
 .ryc-nav { padding: 8px 10px; display: flex; flex-direction: column; gap: 1px; flex: 1; overflow-y: auto; }
 .ryc-nav-h {
