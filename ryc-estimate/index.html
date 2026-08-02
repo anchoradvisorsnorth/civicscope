@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.23.3">
-<script src="/ryc-shell/shell.js?v1.23.3"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.23.4">
+<script src="/ryc-shell/shell.js?v1.23.4"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -145,6 +145,12 @@
   .pkg-status.is-quoted { background:#dcfce7; color:#166534; }
   .pkg-mix-flag { display:block; margin-top:3px; color:#b91c1c; font-size:10.5px; font-weight:600; white-space:nowrap; }
   .pkg-quote { width:104px; padding:5px 7px; border:1px solid #d1d5db; border-radius:5px; font-size:12px; text-align:right; font-variant-numeric:tabular-nums; }
+  /* Cross-area pointer. Since the areas split, copy in Overview that said the packages were
+     "below" was pointing at a different tab — this makes the reference both accurate and clickable. */
+  .tablink { background:none; border:none; padding:0; font:inherit; color:inherit; font-weight:700;
+    text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+  .tablink:hover { color:var(--accent); }
+  .tablink:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
   .pkg-market { margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
   .pkg-market > summary { cursor:pointer; color:var(--muted); font-size:12px; font-weight:600; }
   .pkg-total td { background:#f9fafb; border-top:2px solid var(--line); }
@@ -249,7 +255,7 @@
     <div class="card" data-area="overview">
       <div id="resMeta" class="note" style="margin-bottom:8px"></div>
       <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:13px;color:#9a3412;margin-bottom:10px">
-        <strong>Conceptual bid-assembly draft — not a bid.</strong> Every package below is a subcontract placeholder to confirm with a live quote. Enter quotes as they arrive to assemble the real number; the conceptual range is an order-of-magnitude read only.
+        <strong>Conceptual bid-assembly draft — not a bid.</strong> Every package on the <button type="button" class="tablink" onclick="setArea('quotes')">Quotes</button> tab is a subcontract placeholder to confirm with a live quote. Enter quotes there as they arrive to assemble the real number; the conceptual range is an order-of-magnitude read only.
       </div>
       <div class="hero" style="align-items:center">
         <div><div style="font-size:20px;font-weight:700" id="costRange">—</div><div class="mid">conceptual range (low–high)</div></div>
@@ -1770,7 +1776,7 @@ function renderPursuit() {
      ${statusRow('bonding', 'Bonding', 'Bond request', 'genBond()')}
      ${statusRow('builders_risk', 'Builders Risk', 'BR submission', 'genBuildersRisk()')}
      <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-actions note">managed in the BuildingConnected card below</div></div>
-     <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-actions note">enter live quotes on the bid packages below</div></div>
+     <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-actions note">enter live quotes on the <button type="button" class="tablink" onclick="setArea('quotes')">Quotes</button> tab</div></div>
      ${rfiRow}
      ${mtgRow}`
     + (showOutcomeGroup
@@ -2182,7 +2188,7 @@ function renderResults(p, inp, bm) {
   const rn = document.getElementById('reconNote');
   if (rn) {
     rn.innerHTML = recon.rescaled
-      ? `Midpoint is the <strong>sum of the bid packages below</strong> ($${recon.total.toLocaleString('en-US')}). The model separately stated $${recon.stated.toLocaleString('en-US')} — a ${recon.drift >= 0 ? '+' : ''}${Math.round(recon.driftPct)}% difference it did not reconcile against its own division breakdown. The package rollup governs; the range is rescaled around it.`
+      ? `Midpoint is the <strong>sum of the bid packages</strong> ($${recon.total.toLocaleString('en-US')}). The model separately stated $${recon.stated.toLocaleString('en-US')} — a ${recon.drift >= 0 ? '+' : ''}${Math.round(recon.driftPct)}% difference it did not reconcile against its own division breakdown. The package rollup governs; the range is rescaled around it.`
       : '';
     rn.style.display = recon.rescaled ? 'block' : 'none';
   }
@@ -2819,7 +2825,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.23.3';
+const TOOL_VERSION = 'v1.23.4';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
