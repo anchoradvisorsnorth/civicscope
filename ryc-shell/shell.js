@@ -171,6 +171,29 @@
     if (n > 0) { el.textContent = n; el.style.display = ''; } else { el.style.display = 'none'; }
   }
 
+  /* Rename a rail entry at runtime. The contextual entry ("the thing you have open") is a
+     specific entity, so a generic label collides with the section that lists them — a rail
+     reading "Pursuits" above "Pursuit" tells you nothing about which one is open. Additive:
+     a workspace that never calls this is unaffected. */
+  function setItemLabel(key, label) {
+    var nav = document.getElementById('ryc-nav');
+    if (!nav) return;
+    var el = nav.querySelector('[data-key="' + key + '"]');
+    if (!el) return;
+    // Replace ONLY the label text node — the icon and the badge span are element children of
+    // the same button and must survive a rename.
+    var text = String(label == null ? '' : label);
+    var found = false;
+    Array.prototype.forEach.call(el.childNodes, function (n) {
+      if (n.nodeType === 3 && !found) { n.nodeValue = text; found = true; }
+    });
+    if (!found) {
+      var badge = el.querySelector('.ryc-badge');
+      el.insertBefore(document.createTextNode(text), badge || null);
+    }
+    el.setAttribute('title', text);
+  }
+
   function setItemVisible(key, visible) {
     var nav = document.getElementById('ryc-nav');
     if (!nav) return;
@@ -180,6 +203,7 @@
 
   global.RYCShell = {
     mount: mount, setActive: setActive, setBadge: setBadge, setItemVisible: setItemVisible,
+    setItemLabel: setItemLabel,
     workspaces: WORKSPACES,
   };
 

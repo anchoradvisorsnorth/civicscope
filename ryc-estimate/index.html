@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.23.4">
-<script src="/ryc-shell/shell.js?v1.23.4"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.23.5">
+<script src="/ryc-shell/shell.js?v1.23.5"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -145,6 +145,15 @@
   .pkg-status.is-quoted { background:#dcfce7; color:#166534; }
   .pkg-mix-flag { display:block; margin-top:3px; color:#b91c1c; font-size:10.5px; font-weight:600; white-space:nowrap; }
   .pkg-quote { width:104px; padding:5px 7px; border:1px solid #d1d5db; border-radius:5px; font-size:12px; text-align:right; font-variant-numeric:tabular-nums; }
+  /* Page header. A destination should say what it is and what it is for before it shows numbers. */
+  .page-head { margin:2px 0 16px; }
+  .page-head h2 { margin:0 0 6px; font-size:22px; letter-spacing:-0.01em; }
+  .page-lede { margin:0 0 8px; max-width:74ch; font-size:14px; line-height:1.55; color:#374151; }
+  .page-src { margin:0; max-width:74ch; font-size:12px; line-height:1.5; color:var(--muted); }
+  .defs { margin:0 0 16px; border:1px solid var(--line); border-radius:8px; padding:8px 12px; background:var(--card); }
+  .defs > summary { cursor:pointer; font-size:12.5px; font-weight:600; color:var(--muted); }
+  .defs > summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+  .defs[open] > summary { color:var(--ink); }
   /* Cross-area pointer. Since the areas split, copy in Overview that said the packages were
      "below" was pointing at a different tab — this makes the reference both accurate and clickable. */
   .tablink { background:none; border:none; padding:0; font:inherit; color:inherit; font-weight:700;
@@ -1601,7 +1610,11 @@ function setArea(k, silent) {
   document.querySelectorAll('#areaTabs button').forEach(b => b.classList.toggle('on', b.dataset.area === k));
   if (k === 'history') renderHistoryArea();
   if (!silent && !_routing) {
-    const u = deskUrl('assist') + (k === 'overview' ? '' : '?area=' + k);
+    // deskUrl('assist') ALREADY encodes the current area (_area was set to k above). Appending
+    // it again produced `?area=quotes?area=quotes`, which URLSearchParams reads as the single
+    // value "quotes?area=quotes" — outside the whitelist, so reopening a shared link silently
+    // landed on Overview instead of the area it was left on.
+    const u = deskUrl('assist');
     if (location.pathname + location.search !== u) navPush(u, { v: 'assist', area: k });
   }
 }
@@ -1628,6 +1641,12 @@ function renderPursuitHeader() {
       ${wf.submission && wf.submission.amount ? fact('Submitted', fmtCompact(wf.submission.amount), (wf.submission.at || '').slice(0, 10)) : ''}
       ${fact('Readiness', ready.length ? esc(ready.length + ' recorded') : '—', ready.join(' · ') || 'nothing recorded yet')}
     </div></div>`;
+  // Keep the rail entry in step with the pursuit's name (it can be renamed, and on a cold load
+  // setEstView runs before the run's inputs are known).
+  if (global_RYCShell() && RYCShell.setItemLabel) {
+    const n = inp.name || '';
+    RYCShell.setItemLabel('assist', n ? (n.length > 26 ? n.slice(0, 25).trimEnd() + '…' : n) : 'Untitled pursuit');
+  }
 }
 function renderAreaTabs() {
   const el = document.getElementById('areaTabs'); if (!el) return;
@@ -2486,7 +2505,15 @@ function setEstView(v) {
   document.getElementById('view-history').style.display = v === 'history' ? 'block' : 'none';
   // The pursuit page is an entity, not a permanent destination: its rail entry appears only
   // when one is open (and stays visible so you can get back to it from another view).
-  if (global_RYCShell()) RYCShell.setItemVisible('assist', !!(v === 'assist' || window._pursuitId));
+  if (global_RYCShell()) {
+    RYCShell.setItemVisible('assist', !!(v === 'assist' || window._pursuitId));
+    // Name the entry after the pursuit that is open. "Pursuits" (the list) above "Pursuit"
+    // (the open one) read as a duplicate and said nothing about which one you were in.
+    const openName = (window._lastInp && window._lastInp.name) || '';
+    RYCShell.setItemLabel('assist', openName
+      ? (openName.length > 26 ? openName.slice(0, 25).trimEnd() + '…' : openName)
+      : 'Untitled pursuit');
+  }
   if (v === 'costiq') renderCostIQ();
   if (v === 'quickcheck') renderQuickCheck();
   if (v === 'inbox') renderInbox();
@@ -2758,9 +2785,22 @@ function renderCostIQ() {
   const wts = [...new Set(all.map(j => ciDims(j).workType).filter(Boolean))].sort();
   const opts = ['all', ...wts].map(w => `<option value="${w}"${w === costiqWT ? ' selected' : ''}>${w === 'all' ? 'All work types' : ciWT(w)}</option>`).join('');
   const classJobs = costiqWT === 'all' ? all : all.filter(j => ciDims(j).workType === costiqWT);
-  const stamp = portfolio?.generated ? `<div class="billing-stamp">Foundation · ${fmtDate(portfolio.generated)} · completed 2023+</div>` : '';
-  el.innerHTML = stamp + band
-    + `<div class="billing-block"><div class="billing-sub">RYC's own completed-job actuals as estimating benchmarks. <strong>As-bid margin</strong> = (orig contract − orig cost) ÷ orig contract. <strong>Actual margin</strong> = (final − actual cost) ÷ final. <strong>Gain/Fade</strong> = actual − as-bid. <strong>Buyout</strong> = estimate − actual by cost class. Margins contract-weighted.</div></div>`
+  // The page opened straight onto four stat tiles and a formula paragraph, so it never said what
+  // it was or what to do with it. Lead with the question it answers; keep the definitions, but
+  // behind a disclosure so they are available without being the first thing read.
+  const head = `<div class="page-head">
+      <h2>Cost Intelligence</h2>
+      <p class="page-lede">What RYC's own finished jobs say about how we bid — margin we planned
+      versus margin we actually got, by client type, work type and cost class. Use it to sanity-check
+      a conceptual number before it goes out: if a pursuit's profile has historically faded, that is
+      the warning the estimate itself cannot give you.</p>
+      <p class="page-src">Source: Foundation completed jobs (2023 onward), ${all.length} jobs
+      · ${fmtCompact(top.contract)} contract value${portfolio?.generated ? ' · as of ' + fmtDate(portfolio.generated) : ''}.
+      Nothing here is forecast — every figure is a closed job.</p>
+    </div>`;
+  el.innerHTML = head + band
+    + `<details class="defs"><summary>How these numbers are defined</summary>
+       <div class="billing-sub" style="margin-top:8px">RYC's own completed-job actuals as estimating benchmarks. <strong>As-bid margin</strong> = (orig contract − orig cost) ÷ orig contract. <strong>Actual margin</strong> = (final − actual cost) ÷ final. <strong>Gain/Fade</strong> = actual − as-bid; a negative value means the job finished thinner than it was bid. <strong>Buyout</strong> = estimate − actual by cost class. Margins are contract-weighted, so large jobs move the average more than small ones.</div></details>`
     + `<div class="billing-block"><h3 class="section-header">Benchmarks by client type</h3>${ciBenchRows(all, 'clientType', ciCT)}</div>`
     + `<div class="billing-block"><h3 class="section-header">Benchmarks by work type</h3>${ciBenchRows(all, 'workType', ciWT)}</div>`
     + `<div class="billing-block"><h3 class="section-header">Cost composition by cost class <span class="cnt">where the money goes</span><select onchange="setCostIQWT(this.value)" style="margin-left:auto;padding:4px 8px;border-radius:6px;border:1px solid #d1d5db">${opts}</select></h3>`
@@ -2825,7 +2865,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.23.4';
+const TOOL_VERSION = 'v1.23.5';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
