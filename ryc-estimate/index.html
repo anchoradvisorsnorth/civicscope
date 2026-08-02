@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.3">
-<script src="/ryc-shell/shell.js?v1.22.3"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.4">
+<script src="/ryc-shell/shell.js?v1.22.4"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -28,8 +28,21 @@
   #app { display:none; }
   #app.ryc-shell { display:none; }              /* stays hidden until the gate opens */
   #app.ryc-shell.unlocked { display:grid; }
-  .ryc-main { padding:0 22px 60px; max-width:1400px; }
+  /* NO FIXED WIDTH CAP (usability program 2.2). The desk went 980px -> 1400px in phase C,
+     which Codex correctly called out as still a cap: "it got wider" was never the ask.
+     Worklists now use the width the window gives them. Reading-width limits stay where they
+     belong - on PROSE and on the estimate FORM, which genuinely get harder to read wide. */
+  .ryc-main { padding:0 22px 60px; }
   #inputPanel { max-width:960px; }
+  .billing-sub, .note { max-width:104ch; }
+  /* Worklist density: the brief asked for a BC-like worklist, i.e. more rows visible per
+     screen, not wider rows. Tabular numerals keep the money and date columns aligned. */
+  .ryc-main table.ryc-rows { font-size:12.5px; }
+  .ryc-main table.ryc-rows th { padding:7px 8px; font-size:10.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.5px; color:#6b7280; white-space:nowrap; }
+  .ryc-main table.ryc-rows td { padding:6px 8px; font-variant-numeric:tabular-nums; vertical-align:top; }
+  .ryc-main table.ryc-rows td:first-child { min-width:260px; }
+  .ryc-main table.ryc-rows .note { font-size:11px; }
   header { display:flex; align-items:center; gap:12px; padding:18px 0; border-bottom:1px solid var(--line); margin-bottom:22px; }
   header img { width:40px; }
   header h1 { font-size:20px; margin:0; }
@@ -207,7 +220,7 @@
     </div>
 
     <div class="card" id="bcCard" style="display:none">
-      <h3 style="margin-top:0">Load into BuildingConnected <span class="note">— creates a DRAFT project with these packages + bidder lists copied from recent similar work. Nothing emails anyone until you review and publish in BC.</span></h3>
+      <h3 style="margin-top:0">Create draft bid packages in BuildingConnected <span class="note">— copies bidder lists from recent similar work. Nothing is sent to anyone until you review and publish in BC.</span></h3>
       <div id="bcBody"></div>
     </div>
 
@@ -269,7 +282,7 @@ function mountShell() {
     groups: [
       { label: 'Pipeline', items: [
         { key: 'history', label: 'Pursuits', icon: '🗂' },
-        { key: 'inbox', label: 'Inbox', icon: '📥' },
+        { key: 'inbox', label: 'Opportunities', icon: '📥' },
       ] },
       { label: 'Intelligence', items: [
         { key: 'costiq', label: 'Cost Intelligence', icon: '📊' },
@@ -1112,10 +1125,12 @@ async function bcCreate(btn) {
       `<tr><td>${esc(p.division)}</td><td>${p.ok ? '✓' : '✗ ' + esc(p.error || '')}</td>`
       + `<td class="r">${p.biddersCopied || 0} bidders${p.templateFrom ? ` <span class="note">(from ${esc(p.templateFrom)})</span>` : ''}</td></tr>`).join('');
     document.getElementById('bcBody').innerHTML =
-      `<div style="font-size:14px;margin-bottom:8px">✓ <strong>DRAFT created</strong> — ${d.created} package${d.created === 1 ? '' : 's'}, ${d.totalBiddersCopied} bidders loaded${d.failed ? ` · <span style="color:#dc2626">${d.failed} failed</span>` : ''}</div>
+      `<div style="font-size:14px;margin-bottom:10px">&#10003; <strong>Draft created in BuildingConnected</strong> &mdash; ${d.created} package${d.created === 1 ? '' : 's'}, ${d.totalBiddersCopied} bidders${d.failed ? ` &middot; <span style="color:#dc2626">${d.failed} failed</span>` : ''}</div>
+      <div><a class="btn" href="${esc(d.url)}" target="_blank" rel="noopener">Open in BuildingConnected &rarr;</a>
+      <span class="note" style="margin-left:10px">Review the bidders there, then publish &mdash; publishing is what sends the invitations.</span></div>
+      <details style="margin-top:10px"><summary class="note" style="cursor:pointer">Per-package detail</summary>
       <table><thead><tr><th>Package</th><th>Status</th><th class="r">Bidders</th></tr></thead><tbody>${rows}</tbody></table>
-      <div style="margin-top:12px"><a class="btn" href="${esc(d.url)}" target="_blank" rel="noopener">Open in BuildingConnected →</a>
-      <span class="note" style="margin-left:10px">Review + adjust bidders there, then publish to send invitations. This estimate is now locked from re-loading to BC.</span></div>`;
+      <div class="note" style="margin-top:6px">This estimate is locked from loading to BC again, so a second draft cannot be created by accident.</div></details>`;
   } catch (e) {
     btn.disabled = false; btn.textContent = 'Create DRAFT in BuildingConnected';
     alert('Create failed: ' + e.message);
@@ -1527,7 +1542,7 @@ function renderPursuit() {
       ? `<button class="btn-sm ghost" onclick="unlinkAward()">Unlink</button>`
       : `<button class="btn-sm" onclick="openAwardPicker()">🔗 Link Foundation job</button>`}</div></div>
     <div id="awardPicker" style="display:none;padding:8px 0 4px"></div>
-    ${aw ? '' : '<div class="note" style="margin:-4px 0 8px">Link when accounting opens the job in Foundation — that\'s the award. Linking records the win and connects this estimate to the job\'s actuals.</div>'}`;
+    ${aw ? '' : '<div class="note" style="margin:-4px 0 8px">Desk does not create the job. <strong>Accounting opens it in Foundation</strong>, then link it here — that link IS the award. Linking records the win and connects this estimate to the job\'s actuals.</div>'}`;
 
   // Submitted bid — the number that actually left the building; the middle of the
   // conceptual → assembled → SUBMITTED → actual calibration chain. Captured once at the
@@ -1562,19 +1577,38 @@ function renderPursuit() {
   const factNote = window._factPrompt && wf.stage !== window._factPrompt
     ? `<div class="flag" style="margin-bottom:10px">${FACT_PROMPT[window._factPrompt]}</div>` : '';
 
+  /* TWO GROUPS, NOT ONE FLAT LIST (usability program 2.4). Bonding and builders risk are
+     genuine PRE-BID readiness and stay there. Submitted bid, outcome and the awarded-job
+     link are not preparation tasks — they are the transitions out of the pursuit, and the
+     award link in particular sat between ordinary checklist rows as though connecting a
+     Foundation job were another thing to tick off before bidding.
+
+     The award link appears only once the pursuit has actually been submitted (or already
+     carries an award/outcome). The brief says "hide until Won", but linking the Foundation
+     job IS how Won gets recorded, so gating on Won is circular; Submitted is the first
+     point at which the control can be true. Interpretation recorded in the program plan. */
+  const sub0 = wf.submission || {};
+  const showOutcomeGroup = ['submitted', 'won', 'lost'].includes(wf.stage)
+    || !!sub0.amount || !!wf.award || !!(wf.outcome && wf.outcome.result) || !!window._factPrompt;
+
   el.innerHTML = migrateNote + idNote + factNote +
     `<div class="note" style="margin-bottom:4px">Stage</div><div class="stagebar">${stageBar}</div>
-     <div class="note" style="margin:10px 0 2px">Pre-bid checklist</div>
+     <div class="note" style="margin:10px 0 2px">Pre-bid readiness</div>
      ${dueRow}
-     ${subRow}
-     ${outcomeRow}
-     ${awardRow}
      ${statusRow('bonding', 'Bonding', 'Bond request', 'genBond()')}
      ${statusRow('builders_risk', 'Builders Risk', 'BR submission', 'genBuildersRisk()')}
      <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-actions note">managed in the BuildingConnected card below</div></div>
      <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-actions note">enter live quotes on the bid packages below</div></div>
      ${rfiRow}
-     ${mtgRow}`;
+     ${mtgRow}`
+    + (showOutcomeGroup
+      ? `<div class="note" style="margin:16px 0 2px">Submission &amp; outcome</div>
+     ${subRow}
+     ${outcomeRow}
+     ${awardRow}`
+      : `<div class="note" style="margin:16px 0 2px">Submission &amp; outcome</div>
+     <div class="ck-row"><span class="ck-name">Not yet submitted</span><span class="ck-pill ck-na">pre-bid</span>
+     <div class="ck-actions note">Recording the submitted bid opens this section. The awarded-job link belongs here too — accounting opens the Foundation job first, then the pursuit connects to it.</div></div>`);
 }
 
 /* ===== Estimating Desk board (v1.10.0) ==============================================
@@ -2134,11 +2168,20 @@ function fmtDate(s) { return RYCFormat.date(s); }
    Every legacy hash still resolves: the loaded client translates it and REPLACES history with
    the canonical path — a fragment never reaches the server, so this cannot be a redirect. */
 const DESK_BASE = '/desk';
-const SEG_VIEW = { pursuits: 'history', inbox: 'inbox', outcomes: 'outcomes', intel: 'costiq' };
-const VIEW_SEG = { history: 'pursuits', inbox: 'inbox', outcomes: 'outcomes', costiq: 'intel' };
+/* `opportunities` is the destination; `inbox` is a LEGACY PATH kept resolvable.
+   Contract §3 only described legacy HASH inputs — a legacy *path* is new, and it works the
+   same way: parseDeskPath returns the CANONICAL segment for it, so routeFromLocation
+   replaces the address rather than leaving a second URL for one page. Queued for contract
+   v1.3 along with the canonical-path table update.
+   The internal view key stays `inbox` (element ids, badge key). Contract §1 governs UI
+   COPY, not internal identifiers, and renaming them buys nothing but churn. */
+const SEG_VIEW = { pursuits: 'history', opportunities: 'inbox', inbox: 'inbox', outcomes: 'outcomes', intel: 'costiq' };
+const SEG_CANON = { inbox: 'opportunities' };
+const VIEW_SEG = { history: 'pursuits', inbox: 'opportunities', outcomes: 'outcomes', costiq: 'intel' };
 // legacy hash → canonical path (bookmarks predating phase B/C keep working)
 const LEGACY_HASH = {
-  desk: '/desk/pursuits', pursuits: '/desk/pursuits', inbox: '/desk/inbox',
+  desk: '/desk/pursuits', pursuits: '/desk/pursuits', inbox: '/desk/opportunities',
+  opportunities: '/desk/opportunities',
   outcomes: '/desk/outcomes', intel: '/desk/intel', quick: '/desk/intel?panel=quick',
   new: '/desk/pursuits/new',
 };
@@ -2329,7 +2372,8 @@ function parseDeskPath(pathname) {
   if (parts.length !== 2) return null;                       // surplus segments are not a destination
   const view = SEG_VIEW[parts[1]];
   if (!view) return { kind: 'bad', why: 'There is no “' + parts[1] + '” page in the Estimating Desk.' };
-  return { kind: 'view', seg: parts[1], view };
+  // A legacy segment resolves, but reports its CANONICAL name so the address is replaced.
+  return { kind: 'view', seg: SEG_CANON[parts[1]] || parts[1], view };
 }
 // Which view an address resolves to, WITHOUT applying it — the dirty-form guard needs to know
 // where a history navigation is heading before it decides whether to allow it.
@@ -2362,7 +2406,7 @@ function routeFromLocation() {
   // one rendered state, one URL: /desk resolves to /desk/pursuits
   const canonical = DESK_BASE + '/' + route.seg;
   if (location.pathname.replace(/\/+$/, '') !== canonical) navReplace(canonical + location.search);
-  if (route.seg === 'inbox') { const f = qs.get('filter'); _inboxFilter = ['open', 'passed', 'all'].includes(f) ? f : 'open'; }
+  if (route.seg === 'opportunities') { const f = qs.get('filter'); _inboxFilter = ['open', 'passed', 'adopted', 'all'].includes(f) ? f : 'open'; }
   _routing = true;
   try {
     setEstView(route.view);
@@ -2570,7 +2614,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.22.3';
+const TOOL_VERSION = 'v1.22.4';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -2778,8 +2822,8 @@ async function refreshInboxSignal() {
       const soonest = (d.opportunities || []).filter(o => o.needs_review && o.bid_due_at)
         .sort((a, b) => a.bid_due_at.localeCompare(b.bid_due_at))[0];
       sig.innerHTML = n
-        ? `<span class="chip ck-needed">${n} new opportunit${n === 1 ? 'y' : 'ies'}</span> <span class="note">to review${soonest ? ` · earliest due ${esc(new Date(soonest.bid_due_at).toLocaleDateString([], { month: 'short', day: 'numeric' }))}` : ''}</span> <button class="btn-sm ghost" onclick="setEstView('inbox')">Open Inbox →</button>`
-        : '<span class="note">Inbox zero — every opportunity has been reviewed.</span>';
+        ? `<span class="chip ck-needed">${n} new opportunit${n === 1 ? 'y' : 'ies'}</span> <span class="note">to review${soonest ? ` · earliest due ${esc(new Date(soonest.bid_due_at).toLocaleDateString([], { month: 'short', day: 'numeric' }))}` : ''}</span> <button class="btn-sm ghost" onclick="setEstView('inbox')">Open Opportunities →</button>`
+        : '<span class="note">Nothing new — every opportunity has been reviewed.</span>';
     }
   } catch { /* the signal is additive; never break the worklist over it */ }
 }
@@ -2793,6 +2837,21 @@ function setInboxFilter(k) {
   if (location.pathname + location.search !== u) navPush(u);
   renderInbox();
 }
+/* Source labels. The schema has carried `source` since phase A ('bc_bidboard', with
+   Dodge/IndianaBids named as later additions) - it was simply never shown, which is what
+   made this destination look like "the BC list" rather than RYC's opportunity front door.
+   The source filter renders only when more than one source is actually present: a control
+   with a single option is noise, and implying Dodge is wired would be a lie. */
+const OPP_SOURCE = {
+  bc_bidboard: { label: 'BuildingConnected', short: 'BC' },
+  dodge:       { label: 'Dodge Construction', short: 'Dodge' },
+  indianabids: { label: 'IndianaBids', short: 'IN Bids' },
+  manual:      { label: 'Added manually', short: 'Manual' },
+};
+const oppSrc = (k) => OPP_SOURCE[k] || { label: k || 'Unknown', short: k || '—' };
+let _inboxSource = 'all';
+function setInboxSource(k) { _inboxSource = k; renderInbox(); }
+
 async function renderInbox(force) {
   const el = document.getElementById('inbox-body');
   el.innerHTML = '<div class="billing-empty">Loading opportunities…</div>';
@@ -2801,21 +2860,37 @@ async function renderInbox(force) {
     const all = d.opportunities || [];
     const needs = all.filter(o => o.needs_review);
     const passed = all.filter(o => o.review_state === 'passed');
-    const rows = _inboxFilter === 'passed' ? passed
+    const adopted = all.filter(o => o.review_state === 'adopted');
+    let rows = _inboxFilter === 'passed' ? passed
+      : _inboxFilter === 'adopted' ? adopted
       : _inboxFilter === 'all' ? all.filter(o => o.review_state !== 'adopted')
       : all.filter(o => o.needs_review || o.review_state === 'reviewing');
+    const sources = [...new Set(all.map(o => o.source).filter(Boolean))];
+    if (_inboxSource !== 'all') rows = rows.filter(o => o.source === _inboxSource);
     window._opps = rows;
-    const srcPill = (o) => o.source_status === 'open' ? ''
+
+    const statusPill = (o) => o.source_status === 'open' ? ''
       : `<span class="ck-pill ck-na" title="what the source says, independent of our review">${esc(o.source_status)}</span>`;
+    const day = (t) => t ? esc(new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' })) : '—';
+
     const body = rows.map((o, i) => {
       const changed = o.review_state === 'passed' && o.needs_review;
-      return `<tr><td><strong>${esc(o.name)}</strong> ${srcPill(o)}
+      const src = oppSrc(o.source);
+      const link = o.bc_url ? ` <a class="note" href="${esc(o.bc_url)}" target="_blank" rel="noopener">open ↗</a>` : '';
+      return `<tr><td><strong>${esc(o.name)}</strong> ${statusPill(o)}
         <div class="note">${esc([o.location, o.client].filter(Boolean).join(' · ')) || '—'}</div>
         ${changed ? `<div class="note" style="color:#b45309">⚠ Changed since you passed on it (revision ${o.current_source_revision}) — worth another look. Your earlier decision${o.disposition_reason ? ` (${esc(o.disposition_reason.replace(/_/g, ' '))})` : ''} is kept.</div>` : ''}</td>
-        <td>${o.bid_due_at ? esc(new Date(o.bid_due_at).toLocaleDateString([], { month: 'short', day: 'numeric' })) : '—'}</td>
-        <td>${o.review_state === 'passed' ? '<span class="ck-pill ck-na">passed</span>' : o.review_state === 'reviewing' ? '<span class="ck-pill ck-requested">reviewing</span>' : '<span class="ck-pill ck-needed">new</span>'}</td>
+        <td><span class="chip ck-open" title="${esc(src.label)}">${esc(src.short)}</span>${link}</td>
+        <td>${day(o.bid_due_at)}</td>
+        <td class="note">${day(o.first_seen_at)}${o.current_source_revision > 1 ? `<div>rev ${o.current_source_revision} · ${day(o.last_seen_at)}</div>` : ''}</td>
+        <td>${o.review_state === 'adopted' ? '<span class="ck-pill ck-received">adopted</span>'
+            : o.review_state === 'passed' ? '<span class="ck-pill ck-na">passed</span>'
+            : o.review_state === 'reviewing' ? '<span class="ck-pill ck-requested">reviewing</span>'
+            : '<span class="ck-pill ck-needed">new</span>'}</td>
         <td class="r" style="white-space:nowrap">
-          ${o.review_state === 'passed'
+          ${o.review_state === 'adopted'
+            ? (o.pursuit_id ? `<button class="btn-sm ghost" onclick="openPursuitById('${esc(o.pursuit_id)}')">Open pursuit →</button>` : '<span class="note">—</span>')
+            : o.review_state === 'passed'
             ? `<button class="btn-sm ghost" onclick="reopenOpp(${i})">↩ Reconsider</button>`
             : `<button class="btn-sm" onclick="adoptOppRow(${i})">＋ Adopt as pursuit</button>
                <select class="ck-date" onchange="passOpp(${i}, this.value); this.selectedIndex=0" style="margin-left:6px">
@@ -2823,19 +2898,26 @@ async function renderInbox(force) {
                </select>`}
         </td></tr>`;
     }).join('');
-    // the filter is part of the address — a shared Inbox link opens on the same list
+
+    // the filter is part of the address - a shared link opens on the same list
     const tab = (k, label, n) => `<button class="btn-sm ${_inboxFilter === k ? '' : 'ghost'}" onclick="setInboxFilter('${k}')">${label}${n != null ? ` (${n})` : ''}</button>`;
-    el.innerHTML = `<div class="billing-block"><h3 class="section-header">📥 Inbox <span class="cnt">${needs.length ? `${needs.length} to review` : 'nothing new to review'}</span>
-      <span style="margin-left:auto;display:flex;gap:6px">${tab('open', 'To review', needs.length)}${tab('passed', 'Passed', passed.length)}${tab('all', 'All')}
+    const srcTabs = sources.length > 1
+      ? `<span class="note" style="margin-left:10px">Source:</span>` + ['all'].concat(sources).map(k =>
+          `<button class="btn-sm ${_inboxSource === k ? '' : 'ghost'}" onclick="setInboxSource('${esc(k)}')">${k === 'all' ? 'All' : esc(oppSrc(k).short)}</button>`).join('')
+      : '';
+    const onlyBC = sources.length === 1 && sources[0] === 'bc_bidboard';
+
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Opportunities <span class="cnt">${needs.length ? `${needs.length} need a go/no-go` : 'nothing new to review'}</span>
+      <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">${tab('open', 'To review', needs.length)}${tab('passed', 'Passed', passed.length)}${tab('adopted', 'Adopted', adopted.length)}${tab('all', 'All')}${srcTabs}
       <button class="btn-sm ghost" onclick="renderInbox(true)">⟳</button></span></h3>
-      <div class="billing-sub">Opportunities from RYC's BuildingConnected bid board. <strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but if the source materially changes (bid date, scope, location, cancellation) it comes back marked as changed. Adopting creates the pursuit from source data; nothing is re-typed.</div>
+      <div class="billing-sub">New and changed work that needs a go/no-go decision. <strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but if the source materially changes (bid date, scope, location, cancellation) it comes back marked as changed. Adopting creates the pursuit from source data; nothing is re-typed.${onlyBC ? ' <em>Every opportunity here arrives from BuildingConnected today — Dodge and IndianaBids are still read by hand and are not wired in.</em>' : ''}</div>
       ${rows.length
-        ? `<table><thead><tr><th>Opportunity</th><th>Bids due</th><th>Review</th><th></th></tr></thead><tbody>${body}</tbody></table>`
-        : `<div class="billing-empty">${_inboxFilter === 'passed' ? 'Nothing passed yet.' : 'No new opportunities to review.'}</div>`}</div>`;
+        ? `<table><thead><tr><th>Opportunity</th><th>Source</th><th>Bids due</th><th>First seen</th><th>Review</th><th></th></tr></thead><tbody>${body}</tbody></table>`
+        : `<div class="billing-empty">${_inboxFilter === 'passed' ? 'Nothing passed yet.' : _inboxFilter === 'adopted' ? 'Nothing adopted yet.' : 'No new opportunities to review.'}</div>`}</div>`;
     refreshInboxSignal();
   } catch (e) {
-    console.error('[inbox] render failed:', e);
-    el.innerHTML = `<div class="billing-block"><h3 class="section-header">📥 Inbox</h3><div class="billing-empty">Inbox unavailable: ${esc(e.message)}</div></div>`;
+    console.error('[opportunities] render failed:', e);
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Opportunities</h3><div class="billing-empty">Opportunities unavailable: ${esc(e.message)}</div></div>`;
   }
 }
 async function oppAction(i, body, verb) {
