@@ -34,13 +34,17 @@ var currentView = "command";
 var CLOSEOUT_STAGES = { "Warranty":1, "Post-Construction":1 };
 var GF_MOVE_PTS = 1.0, GF_BURN_PTS = 12, GF_BURN_MINPCT = 20;
 
-/* ---- format helpers ---- */
-function fmt(n){ return n==null?"—":"$"+Math.round(n).toLocaleString("en-US"); }
-function fmtCompact(n){ if(n==null) return "—"; var a=Math.abs(n),s=n<0?"-":""; if(a>=1e6) return s+"$"+(a/1e6).toFixed(1)+"M"; if(a>=1e3) return s+"$"+Math.round(a/1e3).toLocaleString("en-US")+"K"; return s+"$"+Math.round(a).toLocaleString("en-US"); }
-function pct(n){ return n==null?"—":n.toFixed(1)+"%"; }
-function fmtDate(s){ if(!s) return "—"; var d=new Date(s); return isNaN(d.getTime())?"—":d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
-function ageTxt(ts){ if(!ts) return null; var h=(Date.now()-new Date(ts))/3600000; if(!(h>=0)) return null;
-  if(h<1.5) return Math.max(1,Math.round(h*60))+"m ago"; if(h<48) return (h<10?h.toFixed(1):Math.round(h))+"h ago"; return Math.round(h/24)+"d ago"; }
+/* ---- format helpers ----
+   The RULES now live in ONE place, RYCFormat in /ryc-shell/shell.js, loaded by both
+   workspaces (usability program 0.3). These stay as thin aliases rather than being renamed
+   across ~700 call sites: the point of the slice is that there is one implementation, not
+   that every caller changes its spelling. Command's compact rule became the canonical one,
+   so nothing on this side moves. */
+function fmt(n){ return RYCFormat.exact(n); }
+function fmtCompact(n){ return RYCFormat.compact(n); }
+function pct(n){ return RYCFormat.pct(n); }
+function fmtDate(s){ return RYCFormat.date(s); }
+function ageTxt(ts){ return RYCFormat.age(ts); }
 function esc(s){ if(!s) return ""; var d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 function pmName(job){ return (job.foundation && job.foundation.pmName) || (job.pm && job.pm.name) || null; }
 /* AS-BID margin — the margin the job was originally bid at: ORIGINAL contract vs ORIGINAL

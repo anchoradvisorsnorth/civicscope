@@ -1190,7 +1190,11 @@ function renderWOH(){
     +(missingTec?" <b>"+missingTec+"</b> job(s) missing a projected budget — Cost to Complete blank for those.":"")+"</div>";
   hookDrawerRows();
 }
-function briefDol(n){ return n==null?"<span class=\"m-m\">—</span>":(n<0?"$("+Math.abs(Math.round(n)).toLocaleString("en-US")+")":"$"+Math.round(n).toLocaleString("en-US")); }
+/* Work on Hand's money cell: the accounting form plus this view's muted-dash markup. The
+   NUMBER rule is shared (RYCFormat.accounting); the presentation stays here because the
+   <span class="m-m"> is Command's, not the shell's. WOH is a protected surface — if this
+   ever renders differently, scripts/guard-woh-parity.js fails the build. */
+function briefDol(n){ return n==null?"<span class=\"m-m\">—</span>":RYCFormat.accounting(n); }
 /* CSV export — ported from the legacy dashboard's exportWOHCSV (v1.23.1): values in
    Excel "Accounting" style ( $1,234.56 / $(1,234.56) ), UTF-8 BOM, CRLF. Same file shape. */
 function exportWOHCSV(){

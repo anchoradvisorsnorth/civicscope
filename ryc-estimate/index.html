@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.0">
-<script src="/ryc-shell/shell.js?v1.22.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.1">
+<script src="/ryc-shell/shell.js?v1.22.1"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -395,8 +395,13 @@ function segBenchmarks(inp) {
     analogs: set.slice(0, 10).map(j => ({ name: j.name, contract: j.contractFinal || null, sqft: j.sqft || null, psf: (j.sqft > 0 && j.contractFinal) ? Math.round(j.contractFinal / j.sqft) : null })),
   };
 }
-function pct(n) { return n == null ? '—' : n.toFixed(1) + '%'; }
-function money(n) { if (n == null) return '—'; const a = Math.abs(n), s = n < 0 ? '-' : ''; if (a >= 1e6) return s + '$' + (a / 1e6).toFixed(1) + 'M'; if (a >= 1e3) return s + '$' + Math.round(a / 1e3) + 'K'; return s + '$' + Math.round(a); }
+function pct(n) { return RYCFormat.pct(n); }
+/* NOTE: a second `function money()` used to be declared here — a COMPACT one. It was dead:
+   function declarations hoist, so the later exact-value money() (see openSheet's helpers)
+   won at every one of the 15 call sites regardless of source order. The documented rule is
+   "FULL via money()", so the live behaviour was the intended one and nothing changes by
+   deleting the shadowed copy — it only stopped a reader here from believing money() is
+   compact. Compact is fmtCompact(); both now delegate to RYCFormat (program 0.3). */
 
 // ---------- file upload (pipeline reused from GC estimator) ----------
 let uploadedFiles = [];
@@ -1779,7 +1784,13 @@ function pursuitData() {
   };
 }
 function TBC(v) { return (v === null || v === undefined || v === '') ? '<span class="tbc">[estimator to confirm]</span>' : esc(String(v)); }
-function money(v) { return v != null ? '$' + Math.round(v).toLocaleString() : '<span class="tbc">[estimator to confirm]</span>'; }
+/* THE money() the Desk actually calls (15 sites): full value for submission sheets, prompt
+   grounding, and estimate detail — contract §3's "full in financial detail, decisions and
+   printed artifacts". Number rule shared via RYCFormat.exact; the missing-value branch is a
+   submission-sheet concern and stays local, because a bond sheet must say what is still
+   needed rather than print a dash. (It also used a locale-less toLocaleString(), so the
+   sheets would have re-formatted on a non-US machine.) */
+function money(v) { return v != null ? RYCFormat.exact(v) : '<span class="tbc">[estimator to confirm]</span>'; }
 function openSheet(kind, title, sectionsHtml, footNote) {
   const w = window.open('', '_blank');
   if (!w) { alert('Popup blocked — allow popups for this site to open the submission sheet.'); return false; }
@@ -2101,15 +2112,17 @@ function resetAll() {
 // ===== Estimating hub: nav + Cost Intelligence + Quick Check =====
 // One money rule across the shell (Codex Step 3): COMPACT in dense scanning tables (desk
 // board, Cost Intelligence benches), FULL via money() in financial detail, editable decisions,
-// reconciliation, and printed artifacts. Same shape as Command's fmtCompact.
-function fmtCompact(n) {
-  if (n == null) return '—';
-  const a = Math.abs(n), s = n < 0 ? '-' : '';
-  if (a >= 1e6) return s + '$' + (a / 1e6).toFixed(a >= 1e7 ? 1 : 2).replace(/\.?0+$/, '') + 'M';
-  if (a >= 1e3) return s + '$' + Math.round(a / 1e3).toLocaleString('en-US') + 'K';
-  return s + '$' + Math.round(a).toLocaleString('en-US');
-}
-function fmtDate(s) { try { return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return ''; } }
+// reconciliation, and printed artifacts.
+//
+// The RULE now lives in RYCFormat (/ryc-shell/shell.js), shared with Command — "same shape as
+// Command's fmtCompact" had already stopped being true: this one used 2 decimals below $10M
+// with trailing zeros stripped, so the same dollar rendered $1.05M here and $1.1M there, and
+// $2M here and $2.0M there. Command's fixed one-decimal rule is now canonical (program 0.3),
+// because fixed decimals are what keeps a scanning column aligned.
+function fmtCompact(n) { return RYCFormat.compact(n); }
+// Was: `new Date(undefined)` fell through the try/catch and rendered the literal string
+// "Invalid Date". The shared rule returns the em dash.
+function fmtDate(s) { return RYCFormat.date(s); }
 /* Stable routes (Codex Step 3): the desk, each workspace, and EVERY PURSUIT are bookmarkable —
    refresh/back/share no longer drop you on the desk. #pursuit/<pursuit_id> is the pursuit's
    stable URL (the immutable identity, not a run id). */
@@ -2557,7 +2570,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.22.0';
+const TOOL_VERSION = 'v1.22.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};

@@ -226,4 +226,100 @@
   }
 
   global.RYCAuth = { post: post, gate: function () { return GATE; } };
+
+  /* ===================================================================================
+     RYCFormat — THE money / date / percent rules (contract §3, usability program 0.3).
+
+     Contract §3 says: "Money: compact in scanning tables, full in financial detail,
+     decisions, reconciliation, printed artifacts. One formatter per app, same rule."
+     Phase C shipped ONE shell but left TWO of everything below it — Command carried
+     fmt/fmtCompact/pct/fmtDate/ageTxt in core.js while the Desk carried its own money()/
+     pct()/fmtCompact()/fmtDate(), and the two compact rules had already drifted apart
+     ($2.0M vs $2M, $1.1M vs $1.05M). A shared shell that renders the same dollar two ways
+     is not one product. This lives beside RYCAuth for the same reason the rail does.
+
+     THREE money forms, because they answer three different questions — naming them
+     separately is what stops a caller from picking the wrong one by accident:
+
+       compact(n)     $2.6M · $250K · $412        scanning tables, dense lists
+       exact(n)       $2,600,000                  decisions, edit fields, detail, artifacts
+       accounting(n)  $2,600,000 · $(15,000)      audit tables that must foot, negatives in
+                                                  parentheses (Work on Hand, CSV export)
+
+     CANONICAL COMPACT = one decimal for millions. Deliberately Command's rule, not the
+     Desk's variable-precision variant: fixed decimals keep a tabular-nums column aligned,
+     which is the entire point of compact money, and it is the form the approved brief
+     itself writes ($2.6M). Consequence recorded in the program plan: the Desk's compact
+     values below $10M lose a decimal, so the 1.3 sweep must check Cost Intelligence for
+     benchmark figures that should be calling exact() rather than compact().
+     ================================================================================== */
+  var DASH = '—';                      // em dash — the one "no value" glyph
+
+  function num(n) { return (n === null || n === undefined || n !== n) ? null : Number(n); }
+
+  function compact(n) {
+    var v = num(n); if (v === null) return DASH;
+    var a = Math.abs(v), s = v < 0 ? '-' : '';
+    if (a >= 1e6) return s + '$' + (a / 1e6).toFixed(1) + 'M';
+    if (a >= 1e3) return s + '$' + Math.round(a / 1e3).toLocaleString('en-US') + 'K';
+    return s + '$' + Math.round(a).toLocaleString('en-US');
+  }
+  /* The sign goes OUTSIDE the currency symbol, matching compact(). Both workspaces'
+     previous exact formatters did '$' + n.toLocaleString(), which renders a negative as
+     "$-15,000" — inconsistent with the "-$15K" the same page shows in a compact column.
+     No current caller passes a negative (these are contract and bid values), so this
+     corrects a latent inconsistency rather than changing anything on screen today. */
+  function exact(n) {
+    var v = num(n); if (v === null) return DASH;
+    return (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString('en-US');
+  }
+  /* Negatives in parentheses, no currency sign inversion — the convention accounting reads,
+     and the one Work on Hand and its CSV already use. Kept byte-identical to the previous
+     briefDol(): scripts/guard-woh-parity.js fails the build if this moves. */
+  function accounting(n) {
+    var v = num(n); if (v === null) return DASH;
+    return v < 0
+      ? '$(' + Math.abs(Math.round(v)).toLocaleString('en-US') + ')'
+      : '$' + Math.round(v).toLocaleString('en-US');
+  }
+  function pct(n) {
+    var v = num(n); if (v === null) return DASH;
+    return v.toFixed(1) + '%';
+  }
+  /* Dates: ABSOLUTE on facts and audit ("Aug 2, 2026"), RELATIVE on freshness ("6h ago")
+     — contract §3. An unparseable date returns the dash rather than the string
+     "Invalid Date", which is what the Desk's own fmtDate used to render. */
+  /* A DATE-ONLY string is parsed at LOCAL NOON, not UTC midnight.
+     `new Date("2026-08-02")` is specified to parse as UTC, so in Eastern time it is
+     2026-08-01 20:00 and toLocaleDateString renders "Aug 1, 2026" — every date-only value
+     displayed one day early. Both workspaces' fmtDate had this; Foundation AR invoice and
+     due dates, Procore start/finish dates and Buildr schedule dates all arrive date-only,
+     so it was live. (Work on Hand already worked around it locally with a "T12:00:00"
+     suffix — that fix is now the shared rule.) Noon avoids the DST edges in both
+     directions. Timestamps that carry a time are left exactly as given. */
+  function toDate(s) {
+    if (s instanceof Date) return s;
+    if (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + 'T12:00:00');
+    return new Date(s);
+  }
+  function date(s) {
+    if (!s) return DASH;
+    var d = toDate(s);
+    return isNaN(d.getTime()) ? DASH : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  /* Returns null (not a dash) when there is nothing to age: callers compose it into a
+     sentence and supply their own fallback. */
+  function age(ts) {
+    if (!ts) return null;
+    var h = (Date.now() - new Date(ts)) / 3600000;
+    if (!(h >= 0)) return null;
+    if (h < 1.5) return Math.max(1, Math.round(h * 60)) + 'm ago';
+    if (h < 48) return (h < 10 ? h.toFixed(1) : Math.round(h)) + 'h ago';
+    return Math.round(h / 24) + 'd ago';
+  }
+
+  global.RYCFormat = {
+    compact: compact, exact: exact, accounting: accounting,
+    pct: pct, date: date, age: age, DASH: DASH,
+  };
 })(window);

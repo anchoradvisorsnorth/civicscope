@@ -100,7 +100,7 @@ function renderNav(){
   });
   RYCShell.mount({
     workspace:"command",
-    version:"v2.36.0-command · phase C remediation (routing tokens, typed job states)",
+    version:"v2.36.1-command · shared money·date rules (RYCFormat)",
     active:currentView,
     groups:groups,
     onSelect:function(k){ setView(k); },
