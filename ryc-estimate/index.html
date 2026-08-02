@@ -2150,6 +2150,7 @@ function confirmLeaveForm(to) {
 }
 function setEstView(v) {
   if (!_routing && !confirmLeaveForm(v)) return;
+  if (!_routing) _notFound = null;      // a deliberate move clears the bad-address state
   _estView = v;
   if (global_RYCShell()) RYCShell.setActive(v);
   document.getElementById('view-assist').style.display = v === 'assist' ? 'block' : 'none';
@@ -2194,6 +2195,7 @@ function translateLegacyHash() {
    is debuggable and one that rewrites itself is not. */
 function routeFromLocation() {
   const tok = ++_navToken;
+  _notFound = null;                     // a new address gets a fresh verdict
   const path = location.pathname.replace(/\/+$/, '');
   const qs = new URLSearchParams(location.search);
   const parts = path.split('/').filter(Boolean);           // ['desk','pursuits','<uuid>']
@@ -2220,15 +2222,24 @@ function routeFromLocation() {
   } finally { _routing = false; }
 }
 /* Not-found renders IN PLACE (contract §3: unauthorized / not-found / archived are distinct
-   states, and none of them silently move you somewhere else). */
+   states, and none of them silently move you somewhere else).
+   It is a STATE, not a one-shot paint: showing it borrows the Pursuits container, whose own
+   async render would otherwise land a moment later and quietly replace it with a normal
+   worklist — the user would see a working desk at a bad address. */
+let _notFound = null;
+function paintNotFound() {
+  const el = document.getElementById('history-body');
+  if (!el || !_notFound) return;
+  el.innerHTML = `<div class="billing-block"><h3 class="section-header">Page not found</h3>
+    <div class="billing-empty">${esc(_notFound)}<div style="margin-top:10px"><button class="btn-sm" onclick="goDesk()">Go to Pursuits</button></div></div></div>`;
+}
 function renderDeskNotFound(msg) {
+  _notFound = msg;
   _routing = true;
   try { setEstView('history'); } finally { _routing = false; }
-  const el = document.getElementById('history-body');
-  if (el) el.innerHTML = `<div class="billing-block"><h3 class="section-header">Page not found</h3>
-    <div class="billing-empty">${esc(msg)}<div style="margin-top:10px"><button class="btn-sm" onclick="goDesk()">Go to Pursuits</button></div></div></div>`;
+  paintNotFound();
 }
-function goDesk() { history.pushState({}, '', DESK_BASE + '/pursuits'); routeFromLocation(); }
+function goDesk() { _notFound = null; history.pushState({}, '', DESK_BASE + '/pursuits'); routeFromLocation(); }
 async function openPursuitById(pid, tok) {
   try {
     if (!historyCache) {
@@ -2474,6 +2485,7 @@ function deskPursuits(opts) {
   return includeArchived ? out : out.filter(p => !(p.pursuit && p.pursuit.archived_at));
 }
 async function renderHistory(force) {
+  if (_notFound) return paintNotFound();   // the address is bad — don't paint a working desk over it
   const el = document.getElementById('history-body');
   el.innerHTML = '<div class="billing-empty">Loading the desk…</div>';
   try {

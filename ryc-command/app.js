@@ -114,6 +114,7 @@ var CMD_BASE="/command";
 var _cmdRouting=false, _jobIdCache=null;
 function cmdUrl(k){ return CMD_BASE+"/"+k; }
 function setView(k){
+  if(!_cmdRouting) _cmdNotFound=null;           // a deliberate move clears the bad-address state
   closeDrawer(true); currentView=k;
   if(typeof RYCShell!=="undefined") RYCShell.setActive(k);
   renderView();
@@ -141,15 +142,24 @@ function openJobById(uuid){
 }
 function jobUrl(jno){ var m=_jobIdCache; var id=m&&m.byNo[jno]; return id?CMD_BASE+"/jobs/"+id:null; }
 function setViewSilent(k){ _cmdRouting=true; try{ setView(k); } finally { _cmdRouting=false; } }
-function renderCmdNotFound(msg){
-  setViewSilent("command");
+/* Not-found is a STATE, not a one-shot paint: it borrows the Overview container, whose async
+   delta load would otherwise land afterwards and replace it with a working screen at a bad
+   address. renderView() honours the flag; a deliberate navigation clears it. */
+var _cmdNotFound=null;
+function paintCmdNotFound(){
   var v=document.getElementById("view");
-  if(v) v.innerHTML="<div class=\"panel\"><div class=\"h\">Page not found</div><div class=\"sub\">"+esc(msg)
+  if(v&&_cmdNotFound) v.innerHTML="<div class=\"panel\"><div class=\"h\">Page not found</div><div class=\"sub\">"+esc(_cmdNotFound)
     +"</div><div style=\"margin-top:10px\"><button class=\"pfill\" onclick=\"goCommand()\">Go to Overview</button></div></div>";
 }
-function goCommand(){ history.pushState({},"",cmdUrl("command")); routeCmd(); }
+function renderCmdNotFound(msg){
+  _cmdNotFound=msg;
+  setViewSilent("command");
+  paintCmdNotFound();
+}
+function goCommand(){ _cmdNotFound=null; history.pushState({},"",cmdUrl("command")); routeCmd(); }
 var LEGACY_CMD_HASH={dashboard:"command"};
 function routeCmd(){
+  _cmdNotFound=null;                            // a new address gets a fresh verdict
   var h=(location.hash||"").replace(/^#\/?/,"");
   if(h){ // legacy hash bookmark → canonical path, replaced (a fragment never reaches the server)
     var k=LEGACY_CMD_HASH[h]||h;
@@ -179,6 +189,7 @@ function viewCtx(){
   return "Procore (revised contract) + Foundation · loaded "+loaded;
 }
 function renderView(){
+  if(_cmdNotFound) return paintCmdNotFound();   // bad address — don't paint a working screen over it
   var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",integrations:"Integrations & Sync",ai:"AI Assistant"};
   document.getElementById("view-title").textContent=titles[currentView]||"Overview";
   document.getElementById("view-ctx").innerHTML=viewCtx();
