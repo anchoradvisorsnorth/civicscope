@@ -45,7 +45,13 @@ export default async function handler(req, res) {
   if (size > 200 * 1024) {
     return res.status(413).json({ error: { message: 'Request too large' } });
   }
-  if (body && Number(body.max_tokens) > 4000) body.max_tokens = 4000;
+  // The ceiling must sit ABOVE every genuine caller or it is not a guard, it is a truncation bug.
+  // Audited 2026-08-02: the largest real request is 4096 (a sketch-attached estimate, and the
+  // `maxTokens || 4096` default in the GC estimator); everything else is 1100–2400. 8192 leaves
+  // every caller untouched while still refusing a 64K-output request from an arbitrary client.
+  // A first cut of this clamped at 4000 — under the 4096 caller — which is exactly the silent
+  // clipping this comment exists to stop happening again.
+  if (body && Number(body.max_tokens) > 8192) body.max_tokens = 8192;
 
   let last = { status: 502, data: { error: { message: 'No upstream response' } } };
 
