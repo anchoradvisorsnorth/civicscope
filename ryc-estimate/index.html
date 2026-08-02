@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.24.1">
-<script src="/ryc-shell/shell.js?v1.24.1"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.24.2">
+<script src="/ryc-shell/shell.js?v1.24.2"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -1723,7 +1723,13 @@ let _area = 'overview';
 function setArea(k, silent) {
   if (!PURSUIT_AREAS.some(a => a.key === k)) k = 'overview';
   _area = k;
+  // The tab bar lives INSIDE #resultsPanel and its buttons carry data-area too, so this sweep
+  // was hiding four of the five tabs on every call — the navigation was hiding itself, and the
+  // only way between areas was a text link that happened to point somewhere. Tabs are chrome,
+  // not content: skip anything inside the tab bar.
+  const tabBar = document.getElementById('areaTabs');
   document.querySelectorAll('#resultsPanel [data-area]').forEach(el => {
+    if (tabBar && tabBar.contains(el)) return;
     const mine = el.getAttribute('data-area') === k;
     // A card that hides itself (bcCard, gapCard, rfiCard) must STAY hidden when its area is
     // shown — the area controls membership, the card still controls whether it has anything
@@ -3017,7 +3023,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.24.1';
+const TOOL_VERSION = 'v1.24.2';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
