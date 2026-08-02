@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.0">
-<script src="/ryc-shell/shell.js?v1.25.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.1">
+<script src="/ryc-shell/shell.js?v1.25.1"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -545,7 +545,33 @@ uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag
 uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
 fileInput.addEventListener('change', e => handleFiles(e.target.files));
 
+/* Rendering a plan set to page images is async and slow — a 38MB spec book is ~90 canvas renders.
+   Nothing stopped the estimator from hitting "Create pursuit" mid-render, and the reader would
+   then sample whatever pages happened to exist: on a two-document drop, routinely only the first
+   document, with no sign anything was missing. The button now waits for the pile to settle. */
+let _filesProcessing = 0;
+function syncUploadBusy() {
+  const btn = document.getElementById('createBtn');
+  if (!btn) return;
+  const busy = _filesProcessing > 0;
+  // Never fight the reader for the button — createPursuitFromDocs owns it while reading.
+  if (btn.dataset.reading === '1') return;
+  btn.disabled = busy;
+  btn.textContent = busy ? 'Processing documents…' : 'Create pursuit & read documents';
+}
+
 async function handleFiles(fileList) {
+  _filesProcessing++;
+  syncUploadBusy();
+  try {
+    await handleFilesInner(fileList);
+  } finally {
+    _filesProcessing--;
+    syncUploadBusy();
+  }
+}
+
+async function handleFilesInner(fileList) {
   const errEl = document.getElementById('uploadError'); errEl.style.display = 'none';
   const allowed = ['application/pdf', 'image/png', 'image/jpeg'];
   const jpegQuality = 0.55, maxImageWidth = 1400;
@@ -603,10 +629,16 @@ async function createPursuitFromDocs() {
     note.textContent = '📋 Add an RFP or a plan set first — or use "enter the details myself" below.';
     return;
   }
+  if (_filesProcessing > 0) {
+    setReadNote('📋 Still processing your documents — one moment.');
+    return;
+  }
+  btn.dataset.reading = '1';
   btn.disabled = true;
   const label = btn.textContent;
   btn.textContent = 'Reading documents…';
-  try { await readDocuments(); } finally { btn.disabled = false; btn.textContent = label; }
+  try { await readDocuments(); }
+  finally { delete btn.dataset.reading; btn.disabled = false; btn.textContent = label; }
   showStep('details');
   syncInputMode();
 }
@@ -3036,7 +3068,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.25.0';
+const TOOL_VERSION = 'v1.25.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
