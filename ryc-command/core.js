@@ -26,8 +26,8 @@ var NAV = [
      defined asking questions of the data as administration — it sat here because the group
      had room. It is a utility until its audience is defined. */
   { key:"integrations", label:"Integrations & Sync", ic:"&#128260;", grp:"Admin" },
-  { key:"trust",    label:"Data Trust",     ic:"&#128270;", grp:"Admin" },
-  { key:"ai",       label:"AI Assistant",   ic:"&#128172;", grp:"" }
+  { key:"trust",    label:"Definitions & Sources", ic:"&#128270;", grp:"Admin" },
+  { key:"ai",       label:"Ask R. Yoder",   ic:"&#128172;", grp:"" }
 ];
 var currentView = "command";
 

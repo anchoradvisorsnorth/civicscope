@@ -640,7 +640,7 @@ function renderBilling(){
   var current=buckets[0]+buckets[1], aged=buckets[2]+buckets[3];
   function kpi(l,v,s2,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s2||"")+"</div></div>"; }
   var strip="<div class=\"kpi-strip k4\">"
-    +kpi("Pay apps to process",String(st.due.length),"in the "+PAYAPP.minAge+"–"+PAYAPP.maxAge+" day window",st.due.length?"warn":"")
+    +kpi("Pay apps to process",String(st.due.length),"in the "+PAYAPP.minAge+"–"+PAYAPP.maxAge+" day window"+defLink("Needs invoiced"),st.due.length?"warn":"")
     +kpi("Overdue AR (active)",haveAr?fmtCompact(current+aged):"Unavailable",haveAr?(fmtCompact(current)+" under 90d · "+fmtCompact(aged)+" aged"):"AR feed down",(current+aged)>0?"bad":"")
     +kpi("Earned, not billed",haveFnd?fmtCompact(needsInv):"Unavailable","across all active jobs","")
     +kpi("Retainage held",haveFnd?fmtCompact(retainage):"Unavailable","active jobs","")
@@ -911,7 +911,7 @@ function renderMargin(){
 
   view.innerHTML=warn+strip
     +"<div class=\"vhead\">Where margin is moving</div>"
-    +"<div class=\"vsub\">Current projected margin against the margin each job was bid at. Only jobs with a trusted ERP projected cost are ranked here; ⚠ cost burn = cost running ≥"+GF_BURN_PTS+" points ahead of progress.</div>"
+    +"<div class=\"vsub\">Current projected margin"+defLink("Projected Margin")+" against the margin each job was bid at. Only jobs with a trusted ERP projected cost are ranked here; ⚠ cost burn = cost running ≥"+GF_BURN_PTS+" points ahead of progress.</div>"
     +gfTable+unSec
     +"<div class=\"vhead\">Buyout exposure — committed vs cost budget</div><div class=\"vsub\">Procore sub + PO contracts vs revised cost budget. Uncommitted = still to buy (includes RYC-carried general conditions).</div>"+boTable
     +"<div class=\"vhead\">Data exceptions</div><div class=\"vsub\">Cross-source disagreements to reconcile before quoting these numbers.</div>"+excSec
@@ -920,6 +920,58 @@ function renderMargin(){
 }
 
 /* ===== Data Trust (Phase 6 — source health + the shared provenance reference) === */
+/* ===== Definitions & Sources (program 7.1) =============================================
+   "Data Trust" grew because staff needed definitions, and it answered by putting a wall of
+   system documentation in front of them: source health first, dictionary last. The need was
+   real; the shape was backwards. What someone actually arrives with is "what IS this number",
+   so the dictionary leads and is SEARCHABLE, source state follows, and unresolved exceptions
+   are grouped by their CONSEQUENCE — what you should not trust until they are fixed — rather
+   than by which job happens to carry them.
+
+   Search filters the rendered dictionary rather than requiring it to be restructured into
+   data: the dictionary is a shared artifact loaded by the Foundation query tool too, and
+   rewriting it into records would be a change to a second consumer for no gain here. */
+var _defQuery="";
+function defSearch(v){
+  _defQuery=String(v||"").toLowerCase();
+  applyDefFilter();
+}
+function applyDefFilter(){
+  var root=document.getElementById("ds-panel"); if(!root) return;
+  var q=_defQuery, shown=0, total=0;
+  Array.prototype.forEach.call(root.querySelectorAll("table"),function(tbl){
+    var any=false;
+    Array.prototype.forEach.call(tbl.querySelectorAll("tbody tr"),function(tr){
+      total++;
+      var hit=!q||tr.innerText.toLowerCase().indexOf(q)>-1;
+      tr.style.display=hit?"":"none";
+      if(hit){ any=true; shown++; }
+    });
+    // A table whose every row is filtered out is noise; its heading goes with it.
+    tbl.style.display=any?"":"none";
+    var prev=tbl.previousElementSibling;
+    if(prev&&/^H[23]$/.test(prev.tagName)) prev.style.display=any?"":"none";
+  });
+  // Prose blocks are not rows; they only make sense when nothing is being searched for.
+  Array.prototype.forEach.call(root.querySelectorAll(".ds-note, ol, .ds-head"),function(el){
+    el.style.display=q?"none":"";
+  });
+  var c=document.getElementById("def-count");
+  if(c) c.textContent=q?(shown+" of "+total+" definitions match “"+q+"”"):(total+" definitions");
+}
+/* Deep link from anywhere: "what is this?" beside a number opens the dictionary filtered to
+   that term, which is the contextual help the brief asks for without a second surface. */
+function openDefinition(term){
+  setView("trust");
+  setTimeout(function(){
+    var i=document.getElementById("def-search");
+    if(i){ i.value=term; defSearch(term); i.scrollIntoView({block:"center"}); }
+  },60);
+}
+function defLink(term,label){
+  return " <a href=\"#\" class=\"srclink\" onclick=\"openDefinition('"+attrEsc(term)+"');return false\" title=\"What is this?\">"+esc(label||"what is this?")+"</a>";
+}
+
 function renderTrust(){
   var view=document.getElementById("view");
   var now=Date.now();
@@ -936,37 +988,58 @@ function renderTrust(){
   var srcTable="<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Source</th><th>Provides</th><th>Cadence</th><th>Last data</th><th class=\"r\">Records</th><th>Health</th></tr></thead><tbody>"
     +srow("Procore cache","Schedule, %, RFIs, submittals, CO types, revised contracts, budgets, commitments/buyout","Daily 04:00 UTC (11pm ET) + on-demand",activeData&&activeData.refreshed,((activeData&&activeData.jobs)||[]).length+" jobs",!!activeData)
     +srow("Foundation snapshot","Cost to date, billings, retainage, PM names, CO postings, markups","Nightly 09:00 UTC (4am ET)",foundationData&&foundationData.refreshed,(foundationData&&foundationData.jobs?Object.keys(foundationData.jobs).length:0)+" jobs",!!foundationData)
-    +srow("Foundation AR","Open / overdue invoices with aging","Nightly 09:00 UTC (same run)",arData&&arData.refreshed,(((arData&&arData.invoices)||[]).length)+" invoices",!!arData)
-    +srow("Sub rollup","Actual-by-vendor + PO_Sub subcontracts, 2023+ (Subcontractors view, drawer sub lists)","Nightly (VM, ryc-dashboard-refresh)",subsData&&subsData.generated,(subsData&&subsData.subs?subsData.subs.length+" subs":"—"),!!subsData)
-    +srow("Buildr","Client-relations visits + follow-up tasks","Live API on page load",buildrData&&buildrData.refreshed,(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",!!buildrData)
-    +srow("BC bid board","Projects out to bid, trade-package invite coverage, bids received (Estimating view)","Daily 09:30 UTC (VM, bc-bidboard)",bcData&&bcData.generatedAt,(bcData&&bcData.published?bcData.published.length+" out to bid":"—"),!!bcData)
-    +srow("Portfolio archive","Completed-job record, pegged at completion (Completed view + sector insights)","Nightly (VM, ryc-dashboard-refresh)",portfolioData&&portfolioData.generated,((portfolioData&&portfolioData.jobs)||[]).length?(((portfolioData&&portfolioData.jobs)||[]).length+" jobs"):"—",!!portfolioData)
-    +"</tbody></table></div>"
-    +"<div class=\"vsub\" style=\"margin-top:8px\">Stale = no fresh data in 30h (a scheduled run was missed — check the Automation Health card on the CRM dashboard). Foundation is read-only by design; nothing here can write.</div>";
+    +srow("Foundation AR","Open / overdue / settled invoices with aging","Nightly 09:00 UTC (same run)",arData&&arData.refreshed,(((arData&&arData.invoices)||[]).length)+" invoices",!!arData)
+    +srow("Sub rollup","Actual-by-vendor + PO_Sub subcontracts, 2023+","Nightly (VM, ryc-dashboard-refresh)",subsData&&subsData.generated,(subsData&&subsData.subs?subsData.subs.length+" subs":"—"),!!subsData)
+    +srow("Buildr","Client-relations visits + forecast schedule","Live API on page load",buildrData&&buildrData.refreshed,(buildrData&&buildrData.jobs?Object.keys(buildrData.jobs).length:0)+" projects",!!buildrData)
+    +srow("BC bid board","Projects out to bid, package invite coverage, bids received","Daily 09:30 UTC (VM, bc-bidboard)",bcData&&bcData.generatedAt,(bcData&&bcData.published?bcData.published.length+" out to bid":"—"),!!bcData)
+    +srow("Portfolio archive","Completed-job record, pegged at completion","Nightly (VM, ryc-dashboard-refresh)",portfolioData&&portfolioData.generated,((portfolioData&&portfolioData.jobs)||[]).length?(((portfolioData&&portfolioData.jobs)||[]).length+" jobs"):"—",!!portfolioData)
+    +"</tbody></table></div>";
 
+  /* EXCEPTIONS BY CONSEQUENCE, not by job. The question a reader has is "which numbers should
+     I not quote yet" — so the grouping is what each class of exception invalidates. */
   var exc=buildExceptions(getActiveJobs());
+  var CONSEQUENCE={
+    "Contract conflict":"Contract value and anything derived from it — margin, gain/fade, work on hand",
+    "Projected cost ⚑ verify":"Projected margin and gain/fade on the affected jobs (already shown ungraded)",
+    "Missing projected cost":"Gain/fade cannot be graded for these jobs at all",
+    "Stale stage in Procore":"Stage, and any stage-based filter or closeout test",
+    "Lifecycle mismatch":"Whether the job belongs in active totals",
+    "Client label mismatch":"Client and sector attribution, not the money",
+    "No Foundation match":"Every financial figure — these are Procore-only and unverified by accounting"
+  };
   var byIssue={};
-  exc.forEach(function(e){ byIssue[e.issue]=(byIssue[e.issue]||0)+1; });
-  var excSummary=exc.length
-    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Exception type</th><th class=\"r\">Jobs</th></tr></thead><tbody>"
-      +Object.keys(byIssue).map(function(k){ return "<tr class=\"static\"><td>"+esc(k)+"</td><td class=\"r\">"+byIssue[k]+"</td></tr>"; }).join("")
-      +"</tbody></table></div><div class=\"vsub\" style=\"margin-top:8px\">Full job-by-job list with details on <a href=\"#\" onclick=\"setView(&quot;margin&quot;);return false\" style=\"color:var(--accent);font-weight:600\">Margin &amp; Risk → Data exceptions</a>.</div>")
-    :"<div class=\"vsub\">No open reconciliation exceptions — Procore and Foundation agree everywhere.</div>";
+  exc.forEach(function(e){ (byIssue[e.issue]=byIssue[e.issue]||[]).push(e); });
+  var issues=Object.keys(byIssue).sort(function(a,b){ return byIssue[b].length-byIssue[a].length; });
+  var excSec=exc.length
+    ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Open exception</th><th class=\"r\">Jobs</th><th>What you should not trust until it is fixed</th></tr></thead><tbody>"
+      +issues.map(function(k){
+        return "<tr class=\"static\"><td><b>"+esc(k)+"</b></td><td class=\"r\">"+byIssue[k].length+"</td>"
+          +"<td style=\"white-space:normal\">"+esc(CONSEQUENCE[k]||"—")+"</td></tr>";
+      }).join("")+"</tbody></table></div>"
+      +"<div class=\"vsub\" style=\"margin-top:8px\">Job-by-job detail is on <a href=\"#\" onclick=\"setView('margin');return false\" style=\"color:var(--accent);font-weight:600\">Margin &amp; Risk</a>, and the field-level trail on each job's own page.</div>")
+    :"<div class=\"vsub\">No open exceptions — Procore and Foundation agree everywhere.</div>";
+
+  var roll=(foundationData&&foundationData.jobs)?companyRollup():null;
 
   view.innerHTML="<div class=\"trust\">"
-    +"<div class=\"vhead\">Source health</div><div class=\"vsub\">Every feed this cockpit reads, its cadence, and the age of the data on screen right now. Healthy feeds are silent on the Overview — only delays surface there.</div>"+srcTable
-    /* The manual re-pull buttons MOVED to Admin → Integrations & Sync (contract §4: one
-       audited home for refresh machinery). They are not duplicated here — two buttons for the
-       same job in two places is how a second implementation starts. Coverage context stays,
-       because it is about the DATA, which is what this page owns. */
-    +"<div class=\"vhead\" style=\"margin-top:18px\">Data controls</div><div class=\"vsub\">Manual re-pulls now live in <b>Admin → Integrations &amp; Sync</b>, alongside each source's run history. Coverage: "+foundationOnlyNonGC().length+" Foundation-only active jobs not on the board · Greencroft: "+greencroftBoardJobs().length+" on board + "+greencroftJobs().length+" Foundation-only.</div>"
-    +"<div style=\"margin:8px 0 4px\"><button class=\"pfill\" onclick=\"setView('integrations')\">&#128260; Open Integrations &amp; Sync</button></div>"
-    +"<div class=\"vhead\">Reconciliation exceptions</div><div class=\"vsub\">Cross-source disagreements currently open — the audit-layer worklist.</div>"+excSummary
-    +"<div class=\"vhead\" style=\"display:flex;align-items:center;gap:10px\">Field provenance reference <button class=\"pfill\" onclick=\"printDS()\">🖨 Print</button></div>"
-    +"<div class=\"vsub\">The shared Data Sources dictionary — one definition, loaded by this cockpit and the Foundation query tool. Git-tracked source: RYC_Dashboard_Data_Dictionary.md.</div>"
+    /* 1. What someone actually came for. */
+    +"<div class=\"vhead\" style=\"display:flex;align-items:center;gap:10px;flex-wrap:wrap\">Metric dictionary"
+    +"<input id=\"def-search\" type=\"text\" placeholder=\"Search a metric, field or source…\" oninput=\"defSearch(this.value)\" style=\"flex:1;min-width:240px;padding:7px 10px;border:1px solid #cfd6e2;border-radius:7px;font:inherit;font-size:13px\">"
+    +"<button class=\"pfill\" onclick=\"printDS()\">🖨 Print</button></div>"
+    +"<div class=\"vsub\" id=\"def-count\"></div>"
     +"<div id=\"ds-panel\" style=\"background:#fff;border:1px solid #dfe4ec;border-radius:var(--r);padding:18px 22px\">"
-    +(typeof dataSourcesHTML==="function"?dataSourcesHTML():"<div class=\"vsub\">data-sources.js failed to load — provenance reference unavailable.</div>")
-    +"</div></div>";
+    +(typeof dataSourcesHTML==="function"?dataSourcesHTML():"<div class=\"vsub\">data-sources.js failed to load — the dictionary is unavailable.</div>")
+    +"</div>"
+    /* 2. Is the data current. */
+    +"<div class=\"vhead\" style=\"margin-top:18px\">Sources</div>"
+    +"<div class=\"vsub\">Every feed behind these numbers, its cadence, and the age of what is on screen right now. Healthy feeds stay silent on the Overview — only delays surface there. Manual re-pulls live in <b>Admin → Integrations &amp; Sync</b> alongside each source's run history."
+    +(roll?(" Coverage: "+cohortNote(roll)):"")+"</div>"+srcTable
+    +"<div style=\"margin:8px 0 4px\"><button class=\"pfill\" onclick=\"setView('integrations')\">&#128260; Open Integrations &amp; Sync</button></div>"
+    /* 3. What is currently untrustworthy, and why it matters. */
+    +"<div class=\"vhead\">Open exceptions</div>"
+    +"<div class=\"vsub\">Grouped by consequence — what each one puts in doubt — rather than by which job carries it.</div>"+excSec
+    +"</div>";
+  applyDefFilter();
   hookDrawerRows();
 }
 
@@ -1111,118 +1184,165 @@ function showSyncHistory(key){
     });
 }
 
-/* Same API (/api/ryc-foundation-query), same sessionStorage key (fdn_pw) and recents
-   (fdn_recent) as /ryc/foundation — a login or question history carries across both tools.
-   The tool password is FOUNDATION_TOOL_PASSWORD (server-side check), separate from the gate. */
-var AI_EXAMPLES=[
-  "Top 10 active jobs by cost to date",
-  "Total billed and total cost for each active job",
-  "Which jobs have the most overdue AR?",
-  "Current contract value by job including change orders",
-  "Retainage held on active jobs",
-  "Active jobs by project manager"
+/* The live-SQL tool moved OUT of Command and back to its own page (/ryc/foundation), which
+   is where its separate password already lived. Command links to it rather than embedding it:
+   two tools answering different questions behind two different credentials should not look
+   like one surface (program 7.2, decision #11). */
+/* ===== Ask R. Yoder (program 7.2) ======================================================
+   WHAT CHANGED. The page was a natural-language SQL tool: it wrote SQL against Foundation,
+   ran it live, and showed a result grid. A useful proof, but the product identity was the
+   query — the user had to know that "which PMs need to process pay apps" is a Foundation
+   question at all, and the answer came back as raw columns with no as-of and no definition.
+
+   Ask R. Yoder answers a BUSINESS question from the sources Command already holds and already
+   trusts: the Procore cache, the Foundation snapshot and AR, the subcontractor rollup, the
+   completed-job record, the BC bid board, Buildr's forecast, and the Desk's pursuits. Every
+   material number comes back with its source and its as-of, because a figure without those is
+   the thing this product spent a whole program removing.
+
+   WHY NOT LIVE SQL AS THE DEFAULT. Two reasons, both deliberate:
+     1. Those sources are already normalised and reconciled here. Asking Foundation raw
+        re-opens every convention question the dictionary exists to settle.
+     2. Live SQL sits behind its own credential and STAYS there (decision #11). Folding it into
+        the shared gate would widen who can run arbitrary queries against accounting, which is
+        not a usability improvement. It remains available below, unchanged, as a power tool.
+
+   THE EVIDENCE PACK is assembled deterministically on the client from data already loaded —
+   aggregates and the rows relevant to the question, never the whole database. What is sent is
+   stated on the page rather than left to be assumed. */
+function askEvidence(){
+  var ev={ asOf:{}, coverage:null, jobs:[], pursuits:null };
+  ev.asOf.procore=(activeData&&activeData.refreshed)||null;
+  ev.asOf.foundation=(foundationData&&foundationData.refreshed)||null;
+  ev.asOf.ar=(arData&&arData.refreshed)||null;
+  ev.asOf.bidboard=(bcData&&bcData.generatedAt)||null;
+  if(foundationData&&foundationData.jobs&&activeData&&activeData.jobs) ev.coverage=companyRollup();
+
+  var bill=(foundationData&&foundationData.jobs)?billingStates():null;
+  var payDue={}; if(bill) bill.due.forEach(function(r){ payDue[String(r.job)]=r.age; });
+  var gf={}; gainFadeRows().forEach(function(r){ gf[String(r.job)]=r; });
+
+  getActiveJobs().forEach(function(j){
+    var f=j.foundation||{}, no=String(j.projectNumber||"");
+    var g=gf[no], sl=getStoplight(j,j);
+    ev.jobs.push({
+      job:no, name:j.name||"", pm:pmName(j)||null, client:j.client||null, stage:j.stage||null,
+      sector:RYCTaxonomy.sectorLabel(RYCTaxonomy.classify(j).sector),
+      workType:RYCTaxonomy.workLabel(RYCTaxonomy.classify(j).workType),
+      contract:j.contractValue||null, costToDate:j.costToDate!=null?j.costToDate:null,
+      pctComplete:j.pctComplete!=null?Math.round(j.pctComplete):null,
+      billed:f.totalInvoiced!=null?f.totalInvoiced:null, retainage:f.retainage||null,
+      projectedMarginPct:projMarginSuspect(j)?null:projectedMargin(j),
+      projectedMarginUnverified:projMarginSuspect(j)||undefined,
+      asBidMarginPct:asBidMargin(j),
+      marginMovePts:g?+g.gfPts.toFixed(1):null, marginMoveDollars:g?Math.round(g.gfDollars):null,
+      marginMoveGraded:g?(g.src==="erp"):null,
+      status:isCloseoutOnly(j)?"closeout":sl.color,
+      flags:sl.reasons.map(function(r){return r.text;}),
+      daysSinceLastInvoice:payDue[no]!=null?payDue[no]:null,
+      needsPayApp:payDue[no]!=null
+    });
+  });
+  if(bill){
+    ev.billing={ payAppsDue:bill.due.length, notBilled60Plus:bill.stale.length, neverInvoiced:bill.never.length,
+      rule:"last invoice "+PAYAPP.minAge+"-"+PAYAPP.maxAge+" days ago AND cost >= $"+PAYAPP.minCost
+        +" (backtested against 17 weeks of the weekly report: "+PAYAPP.recall+"% recall, "+PAYAPP.precision+"% precision) — PROVISIONAL" };
+  }
+  var over=(arData&&arData.invoices)?arRows("overdue","active"):[];
+  ev.overdueAr={ total:Math.round(over.reduce(function(s2,v){return s2+(v.openBalance||0);},0)), invoices:over.length,
+    byJob:over.slice(0,40).map(function(v){ return {job:String(v.jobNo||""),customer:v.customer||null,open:Math.round(v.openBalance||0),daysOverdue:v.daysOverdue||0}; }) };
+  if(subsData&&subsData.subs) ev.topSubs=subsData.subs.slice(0,20).map(function(x){
+    return {name:x.name,actual:Math.round(x.actualCost||0),committed:Math.round(x.committed||0),
+      currentJobs:subJobSplit(x).cur.map(function(j2){return String(j2.jobNo);})};
+  });
+  if(portfolioData&&portfolioData.jobs) ev.completed=portfolioData.jobs.filter(function(j){return (j.contractFinal||0)>0;})
+    .map(function(j){ var d=RYCTaxonomy.classify(j);
+      return {job:j.id,name:j.name,year:j.year||null,sector:RYCTaxonomy.sectorLabel(d.sector),
+        workType:RYCTaxonomy.workLabel(d.workType),finalContract:Math.round(j.contractFinal||0),
+        finalCost:Math.round(j.directCost||0),asBidMarginPct:j.bidMarginPct,actualMarginPct:j.projectedMarginPct}; });
+  return ev;
+}
+var ASK_EXAMPLES=[
+  "Which jobs lost more than two margin points, and what changed?",
+  "Which PMs need to process pay applications this week?",
+  "Where are we carrying the most overdue cash?",
+  "Which subs are currently on our wastewater jobs?",
+  "How have municipal renovation estimates performed against completed actuals?"
 ];
-var _aiLast=null;
-function aiCall(payload){
-  var body=Object.assign({password:sessionStorage.getItem("fdn_pw")},payload);
-  return fetch("/api/ryc-foundation-query",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
-    .then(function(r){ return r.json().catch(function(){return {};}).then(function(d){ return {status:r.status,data:d}; }); });
+var _askBusy=false;
+function askRYC(){
+  var q=(document.getElementById("ask-q").value||"").trim();
+  if(!q||_askBusy) return;
+  _askBusy=true;
+  var out=document.getElementById("ask-out");
+  document.getElementById("ask-btn").disabled=true;
+  out.innerHTML="<div class=\"panel\"><div class=\"sub\">Reading the sources…</div></div>";
+  var ev=askEvidence();
+  var sys="You are answering questions about R. Yoder Construction from evidence supplied to you. "
+    +"You have NO other knowledge of this company — if the evidence does not support an answer, say so plainly.\n\n"
+    +"RULES:\n"
+    +"1. Answer in business language, directly, first. No preamble.\n"
+    +"2. EVERY material number you state must appear in `figures` with its source and as-of date.\n"
+    +"3. If the question crosses datasets with different coverage, say so in `caveat`.\n"
+    +"4. If you cannot verify something, put it in `unverified` — never estimate or infer a number.\n"
+    +"5. Margin figures marked projectedMarginUnverified are NOT graded — never quote them as fact.\n"
+    +"6. marginMoveGraded=false means the movement is reconstructed from budget growth, a scenario, not a forecast.\n"
+    +"7. The pay-app rule is PROVISIONAL; say so if you use it.\n"
+    +"Respond ONLY with minified JSON: {\"answer\":\"...\",\"figures\":[{\"label\":\"...\",\"value\":\"...\",\"source\":\"...\",\"asOf\":\"...\"}],"
+    +"\"jobs\":[\"job numbers referenced\"],\"caveat\":\"... or empty\",\"unverified\":\"... or empty\"}";
+  fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1600,temperature:0.2,system:sys,
+      messages:[{role:"user",content:"QUESTION: "+q+"\n\nEVIDENCE (JSON):\n"+JSON.stringify(ev)}]})})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var text=(d&&d.content&&d.content[0]&&d.content[0].text)||"";
+      var p2=null;
+      try{ p2=JSON.parse(text); }catch(e){ var m=text.match(/\{[\s\S]*\}/); if(m){ try{ p2=JSON.parse(m[0]); }catch(e2){} } }
+      if(!p2||!p2.answer){ out.innerHTML="<div class=\"panel\"><div class=\"sub\">No usable answer came back."+(text?" Raw reply: "+esc(text.slice(0,400)):"")+"</div></div>"; return; }
+      var figs=(p2.figures||[]).map(function(f){
+        return "<tr class=\"static\"><td>"+esc(f.label||"")+"</td><td class=\"r\"><b>"+esc(String(f.value==null?"—":f.value))+"</b></td>"
+          +"<td>"+esc(f.source||"—")+"</td><td class=\"r\">"+esc(f.asOf||"—")+"</td></tr>";
+      }).join("");
+      var links=(p2.jobs||[]).filter(function(n){ return jobByNo(n); }).slice(0,10).map(function(n){
+        return "<button class=\"pfill\" onclick=\"goJobPage('"+attrEsc(String(n))+"')\">"+esc(String(n))+" &rarr;</button>";
+      }).join(" ");
+      out.innerHTML="<div class=\"panel\"><div style=\"font-size:15px;line-height:1.6\">"+esc(p2.answer)+"</div>"
+        +(figs?("<div class=\"sub\" style=\"margin-top:12px\">Every figure, with where it came from and when:</div>"
+          +"<table class=\"tbl\"><thead><tr><th>Figure</th><th class=\"r\">Value</th><th>Source</th><th class=\"r\">As of</th></tr></thead><tbody>"+figs+"</tbody></table>"):"")
+        +(p2.caveat?("<div class=\"warn-banner\" style=\"margin-top:12px;background:#fdf6ea;border-color:#e8d3ad;color:#7a5a1e\"><b>Coverage:</b> "+esc(p2.caveat)+"</div>"):"")
+        +(p2.unverified?("<div class=\"warn-banner\" style=\"margin-top:10px\"><b>Could not verify:</b> "+esc(p2.unverified)+"</div>"):"")
+        +(links?("<div class=\"sub\" style=\"margin-top:12px\">Jobs referenced</div><div style=\"margin-top:4px\">"+links+"</div>"):"")
+        +"<details style=\"margin-top:12px\"><summary class=\"sub\" style=\"cursor:pointer\">What was sent to answer this</summary>"
+        +"<div class=\"sub\" style=\"margin-top:6px\">"+ev.jobs.length+" active jobs (identity, contract, cost, billing, margin, status), "
+        +(ev.completed?ev.completed.length+" completed jobs, ":"")+(ev.topSubs?ev.topSubs.length+" subcontractors, ":"")
+        +"AR aging and the company coverage partition — aggregates and the fields above, never raw ledgers. Read-only: nothing here writes anywhere.</div></details>"
+        +"</div>";
+    })
+    .catch(function(e){ out.innerHTML="<div class=\"panel\"><div class=\"sub\">Could not reach the answering service: "+esc(e.message||"error")+"</div></div>"; })
+    .then(function(){ _askBusy=false; var b=document.getElementById("ask-btn"); if(b) b.disabled=false; });
 }
-function aiDisclaimer(){
-  return "<div class=\"warn-banner\" style=\"background:#fdf3ea;border-color:#f0d5bc;color:#8a4b12\"><b>Live Foundation data — raw values.</b> "
-    +"This queries Foundation in real time and returns raw numbers; the rest of this cockpit reads a nightly snapshot and applies conventions (contract incl. COs, gross billings, forecast margins) — the two can legitimately differ by up to a day or by definition. Answers reconcile to Foundation; see <a href=\"#\" onclick=\"setView(&quot;trust&quot;);return false\" style=\"color:#8a4b12;font-weight:700\">Data Trust</a> for how each number is defined. Read-only; payroll/employee data blocked.</div>";
-}
+function askExample(i){ document.getElementById("ask-q").value=ASK_EXAMPLES[i]; askRYC(); }
+
 function renderAI(){
   var view=document.getElementById("view");
-  if(!sessionStorage.getItem("fdn_pw")){
-    view.innerHTML="<div class=\"ai\">"+aiDisclaimer()
-      +"<div class=\"panel\" style=\"max-width:420px\"><h3>Unlock Foundation reports</h3><div class=\"sub\">This tool has its own password (not the dashboard access code).</div>"
-      +"<input id=\"ai-pw\" type=\"password\" placeholder=\"Foundation Reports password\" style=\"width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d5dbe6;border-radius:7px;font-size:14px\">"
-      +"<div id=\"ai-pw-err\" style=\"color:#d64545;font-size:12px;height:16px;margin-top:6px\"></div>"
-      +"<button class=\"ask-btn\" style=\"margin-top:6px\" onclick=\"aiLogin()\">Unlock</button></div></div>";
-    var pw=document.getElementById("ai-pw");
-    pw.addEventListener("keydown",function(e){ if(e.key==="Enter") aiLogin(); });
-    pw.focus();
-    return;
-  }
-  var recents=[];
-  try{ recents=JSON.parse(localStorage.getItem("fdn_recent")||"[]"); }catch(e){}
-  view.innerHTML="<div class=\"ai\">"+aiDisclaimer()
-    +"<div class=\"panel\"><h3>Ask Foundation</h3><div class=\"sub\">Plain English in — Claude writes the SQL, runs it read-only against Foundation live, and shows the result.</div>"
-    +"<textarea id=\"ai-q\" rows=\"2\" placeholder=\"e.g. Show total billed and total cost for each active job\"></textarea>"
-    +"<div style=\"display:flex;justify-content:flex-end;margin-top:10px\"><button class=\"ask-btn\" id=\"ai-ask\" onclick=\"aiAsk()\">Ask</button></div>"
-    +"<div class=\"ai-cards\">"+AI_EXAMPLES.map(function(t){ return "<div class=\"ai-card\" data-q=\""+attrEsc(t)+"\">"+esc(t)+"</div>"; }).join("")+"</div>"
-    +(recents.length?("<div class=\"sub\" style=\"margin:12px 0 0\">Recent</div><div class=\"ai-chips\">"+recents.map(function(t){ return "<span class=\"ai-chip\" data-q=\""+attrEsc(t)+"\">"+esc(t)+"</span>"; }).join("")+"</div>"):"")
-    +"</div><div id=\"ai-out\"></div></div>";
-  Array.prototype.forEach.call(view.querySelectorAll("[data-q]"),function(el){
-    el.addEventListener("click",function(){ document.getElementById("ai-q").value=el.getAttribute("data-q"); aiAsk(); });
-  });
-  var q=document.getElementById("ai-q");
-  q.addEventListener("keydown",function(e){ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)) aiAsk(); });
-}
-function aiLogin(){
-  var pw=document.getElementById("ai-pw").value;
-  if(!pw) return;
-  sessionStorage.setItem("fdn_pw",pw);
-  aiCall({verify:true}).then(function(r){
-    if(r.status===200){ renderAI(); }
-    else{ sessionStorage.removeItem("fdn_pw"); document.getElementById("ai-pw-err").textContent="Incorrect password."; }
-  });
-}
-function aiIsNum(v){ return v!==null&&v!==""&&!isNaN(Number(v)); }
-function aiFmt(v){ return aiIsNum(v)?Number(v).toLocaleString("en-US",{maximumFractionDigits:2}):(v==null?"":v); }
-function aiSql(sql){ return sql?("<details><summary>View the SQL Claude wrote</summary><pre>"+esc(sql)+"</pre></details>"):""; }
-function aiPushRecent(q){
-  var r=[];
-  try{ r=JSON.parse(localStorage.getItem("fdn_recent")||"[]"); }catch(e){}
-  r=[q].concat(r.filter(function(x){return x!==q;})).slice(0,8);
-  localStorage.setItem("fdn_recent",JSON.stringify(r));
-}
-function aiAsk(){
-  var q=(document.getElementById("ai-q").value||"").trim();
-  if(!q) return;
-  var btn=document.getElementById("ai-ask"), out=document.getElementById("ai-out");
-  btn.disabled=true;
-  out.innerHTML="<div class=\"panel\" style=\"margin-top:14px\"><span class=\"spin\"></span>&nbsp; Thinking — writing SQL, querying Foundation live…</div>";
-  aiCall({question:q}).then(function(r){
-    btn.disabled=false;
-    if(r.status===401){ sessionStorage.removeItem("fdn_pw"); renderAI(); return; }
-    aiPushRecent(q);
-    var d=r.data||{};
-    if(d.status==="refused"){ out.innerHTML="<div class=\"err-box\"><b>Cannot answer that one.</b><br>"+esc(d.explanation||"")+"</div>"; return; }
-    if(d.status==="blocked"){ out.innerHTML="<div class=\"err-box\"><b>Query blocked by the safety guard.</b><br>"+esc(d.error||"")+"</div>"+aiSql(d.sql); return; }
-    if(d.status!=="ok"){ out.innerHTML="<div class=\"err-box\"><b>Something went wrong.</b><br>"+esc(d.error||"Unknown error")+"</div>"+(d.sql?aiSql(d.sql):""); return; }
-    var cols=d.columns||[], rows=d.rows||[];
-    var numCol=cols.map(function(_,i){ return rows.length&&rows.every(function(rr){ return rr[i]==null||aiIsNum(rr[i]); }); });
-    var html="";
-    if(d.explanation) html+="<div class=\"vsub\" style=\"margin:14px 0 6px\">"+esc(d.explanation)+"</div>";
-    html+="<div style=\"display:flex;justify-content:space-between;align-items:center;margin:8px 0 4px\"><span class=\"vsub\" style=\"margin:0\">"+rows.length+" row"+(rows.length===1?"":"s")+(d.truncated?(" (capped at "+d.row_cap+")"):"")+"</span><button class=\"pfill\" onclick=\"aiCSV()\">⬇ CSV</button></div>";
-    html+="<div class=\"out-table\"><table><thead><tr>"+cols.map(function(c,i){ return "<th class=\""+(numCol[i]?"num":"")+"\">"+esc(c)+"</th>"; }).join("")+"</tr></thead><tbody>";
-    rows.forEach(function(rr){ html+="<tr>"+rr.map(function(v,i){ return "<td class=\""+(numCol[i]?"num":"")+"\">"+esc(aiFmt(v))+"</td>"; }).join("")+"</tr>"; });
-    html+="</tbody></table></div>"+aiSql(d.sql);
-    out.innerHTML=html;
-    _aiLast={cols:cols,rows:rows};
-  }).catch(function(e){
-    btn.disabled=false;
-    out.innerHTML="<div class=\"err-box\"><b>Request failed.</b><br>"+esc(e.message||String(e))+"</div>";
-  });
-}
-function aiCSV(){
-  if(!_aiLast) return;
-  function qv(v){ v=v==null?"":String(v); return /[\",\n]/.test(v)?("\""+v.replace(/\"/g,"\"\"")+"\""):v; }
-  var csv=[_aiLast.cols.map(qv).join(",")].concat(_aiLast.rows.map(function(r){ return r.map(qv).join(","); })).join("\n");
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
-  a.download="foundation-report.csv"; a.click(); URL.revokeObjectURL(a.href);
+  var ready=!!(activeData&&foundationData);
+  view.innerHTML="<div class=\"ai\">"
+    +"<div class=\"panel\"><h3>Ask R. Yoder</h3>"
+    +"<div class=\"sub\">Ask a question about the business. The answer is built from the same reconciled sources every other page reads — the Procore cache, the Foundation snapshot and AR, subcontractor spend, completed-job history, the bid board and the Desk's pursuits — and every material number comes back with its source and its as-of date. Read-only: nothing here writes anywhere.</div>"
+    +(ready?"":"<div class=\"warn-banner\" style=\"margin-top:10px\">⚠️ Feeds are still loading or unavailable — answers would be incomplete.</div>")
+    +"<textarea id=\"ask-q\" rows=\"2\" placeholder=\"e.g. Which PMs need to process pay applications this week?\"></textarea>"
+    +"<div style=\"display:flex;justify-content:flex-end;margin-top:10px\"><button class=\"ask-btn\" id=\"ask-btn\" onclick=\"askRYC()\">Ask</button></div>"
+    +"<div class=\"ai-cards\">"+ASK_EXAMPLES.map(function(t,i){ return "<div class=\"ai-card\" onclick=\"askExample("+i+")\">"+esc(t)+"</div>"; }).join("")+"</div>"
+    +"</div><div id=\"ask-out\"></div>"
+    /* The live-SQL tool stays, unchanged and separately gated (decision #11). It answers a
+       different question — "what does the raw ledger say right now" — and folding its
+       credential into the shared gate would widen who can query accounting directly. */
+    +"<div class=\"panel\"><h3>Foundation, live</h3>"
+    +"<div class=\"sub\">A different question: the <b>raw</b> ledger as of this second, rather than the reconciled overnight picture above. It writes SQL against Foundation live, keeps its own password, and is read-only. Raw values will legitimately differ from every other page here — the conventions are in <a href=\"#\" onclick=\"setView('trust');return false\" style=\"color:var(--accent);font-weight:600\">Definitions &amp; Sources</a>.</div>"
+    +"<div style=\"margin-top:10px\"><a class=\"pfill\" href=\"/ryc/foundation\" target=\"_blank\" rel=\"noopener\">Open the Foundation query tool &#8599;</a></div>"
+    +"</div></div>";
 }
 
-/* ===== Revenue Forecast (2026-07-07 — Buildr forecast, Steve's report) ======== */
-/* Mirrors buildr.app → Analytics → Forecast (the source of Steve's "revenue projections"):
-   each open Buildr project's amount spread LINEARLY across start→end by month, grouped
-   Booked (active + upcoming/awarded) vs Potential (pursuit). Forward-only — months already
-   elapsed are treated as earned and excluded. Probability weighting deliberately omitted
-   (RYC keys probability as 0/1 on all but a handful — matches Steve's weighted=0 display).
-   Undated projects can't spread; they're surfaced as an explicit bucket, never dropped. */
 function fcMonthIdx(d){ return d.getFullYear()*12+d.getMonth(); }
 function fcMonthLabel(idx){ var y=Math.floor(idx/12), m=idx%12; return new Date(y,m,1).toLocaleDateString("en-US",{month:"short",year:"numeric"}); }
 function fcSpread(projects){

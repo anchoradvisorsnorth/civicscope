@@ -100,7 +100,7 @@ function renderNav(){
   });
   RYCShell.mount({
     workspace:"command",
-    version:"v2.37.1",
+    version:"v2.38.0",
     active:currentView,
     groups:groups,
     onSelect:function(k){ setView(k); },
@@ -123,9 +123,17 @@ function renderNav(){
      #10 the gated request goes through RYCAuth, the one interim-credential seam. */
 var CMD_BASE="/command";
 var CMD_HOME="command";                 // the canonical default view
+/* A destination's ADDRESS and its internal key are allowed to differ (program 7.1). "Data
+   Trust" was named for the project that built it rather than for what a user wants from it;
+   the address is now /command/definitions. The internal key stays `trust` — contract §1
+   governs UI COPY, not identifiers, and renaming ~30 call sites buys nothing.
+   /command/trust remains resolvable as a LEGACY PATH and self-canonicalises, the same
+   mechanism the Desk uses for /desk/inbox. */
+var CMD_SEG={trust:"definitions"};                    // key   -> canonical segment
+var CMD_KEY={definitions:"trust", trust:"trust"};     // segment (incl. legacy) -> key
 var CMD_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 var _cmdRouting=false, _jobIdCache=null, _cmdNavToken=0, _jobFetch=null;
-function cmdUrl(k){ return CMD_BASE+"/"+k; }
+function cmdUrl(k){ return CMD_BASE+"/"+(CMD_SEG[k]||k); }
 function isCmdView(k){ return NAV.some(function(n){ return n.key===k && !n.href; }); }
 /* ONE parser (finding #9). Returns a typed route or null when the address is not a valid
    Command destination — including when it merely has extra segments glued on the end. */
@@ -142,8 +150,10 @@ function parseCmdPath(pathname){
     return {kind:"job",id:parts[2],canonical:CMD_BASE+"/jobs/"+parts[2]};
   }
   if(parts.length!==2) return null;                       // /command/billing/garbage
-  if(!isCmdView(parts[1])) return null;
-  return {kind:"view",view:parts[1],canonical:cmdUrl(parts[1])};
+  var key=CMD_KEY[parts[1]]||parts[1];
+  if(!isCmdView(key)) return null;
+  // canonical is derived from the KEY, so a legacy segment resolves and is then replaced
+  return {kind:"view",view:key,canonical:cmdUrl(key)};
 }
 function setView(k){
   if(!_cmdRouting){ _cmdState=null; _jobPage=null; _cmdNavToken++; }   // a deliberate move clears the bad-address AND job-page states
@@ -285,7 +295,7 @@ function renderCmdState(s){ _cmdState=s; setViewSilent(CMD_HOME); paintCmdState(
 function goCommand(){ _cmdState=null; history.pushState({},"",cmdUrl(CMD_HOME)); routeCmd(); }
 function goCommandView(k){ _cmdState=null; history.pushState({},"",cmdUrl(k)); routeCmd(); }
 function retryCmdRoute(){ _cmdState=null; _jobIdCache=null; routeCmd(); }
-var LEGACY_CMD_HASH={dashboard:"command"};
+var LEGACY_CMD_HASH={dashboard:"command",trust:"trust"};
 function routeCmd(){
   _cmdState=null; _jobPage=null;                // a new address gets a fresh verdict
   var tok=++_cmdNavToken;                       // ...and owns any async work it starts
@@ -313,7 +323,7 @@ function viewCtx(){
   var loaded=loadedAt?loadedAt.toLocaleString():"…";
   if(currentView==="forecast") return "Buildr (BD's system of record) · pulled live · loaded "+loaded;
   if(currentView==="estimating") return "BuildingConnected (read-only, daily pull) · this pull "+((bcData&&ageTxt(bcData.generatedAt))||"…");
-  if(currentView==="ai") return "Foundation via live ODBC · queries run at ask time (not the nightly snapshot)";
+  if(currentView==="ai") return "Answered from the reconciled sources every other page reads · read-only";
   if(currentView==="pmload") return "Foundation billing/cost history (full job record, 2021&rarr;) · pull "+((pmHistData&&ageTxt(pmHistData.generatedAt))||"&hellip;");
   if(currentView==="subs") return "Foundation actual-by-vendor + PO_Sub subcontracts (2023&rarr; jobs) · nightly VM rollup · this pull "+((subsData&&ageTxt(subsData.generated))||"&hellip;");
   if(currentView==="completed") return "Foundation completed record (2023&rarr;, pegged at completion) + Procore enrichment · rebuilt nightly · this pull "+((portfolioData&&ageTxt(portfolioData.generated))||"&hellip;");
@@ -324,7 +334,7 @@ function viewCtx(){
 function renderView(){
   if(_cmdState) return paintCmdState();         // bad address — don't paint a working screen over it
   if(_jobPage) return paintJobPage();           // a job address is a destination, not a transient paint
-  var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Bid Board",brief:"Executive Brief",trust:"Data Trust",integrations:"Integrations & Sync",ai:"AI Assistant"};
+  var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Bid Board",brief:"Executive Brief",trust:"Definitions & Sources",integrations:"Integrations & Sync",ai:"Ask R. Yoder"};
   document.getElementById("view-title").textContent=titles[currentView]||"Overview";
   document.getElementById("view-ctx").innerHTML=viewCtx();
   var view=document.getElementById("view");
