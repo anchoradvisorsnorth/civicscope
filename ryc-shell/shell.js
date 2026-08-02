@@ -78,8 +78,10 @@
       + switcherHTML(opts.workspace)
       + '<div class="ryc-nav" id="ryc-nav">' + navHTML(state.groups, state.active) + '</div>'
       // Pre-identity: state what is true rather than inventing a person (contract §3).
+      // VENDOR-NEUTRAL BY INSTRUCTION (Keith, 2026-08-01): identity is deferred and the
+      // provider is undecided, so this copy must not name or imply one.
       + '<div class="ryc-user"><strong>Shared access</strong>'
-      + 'Signed in with the team password — individual sign-in arrives with Entra.'
+      + 'Signed in with the team password. Individual sign-in is not enabled yet.'
       + (state.onLock ? '<button id="ryc-lock">Lock</button>' : '')
       + '<div class="ryc-ver">' + esc(opts.version || '') + '</div></div>';
 

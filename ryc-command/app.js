@@ -98,20 +98,72 @@ function renderNav(){
   });
   RYCShell.mount({
     workspace:"command",
-    version:"v2.34.0-command · phase C shell",
+    version:"v2.35.0-command · phase C shell + path routes",
     active:currentView,
     groups:groups,
     onSelect:function(k){ setView(k); },
     onLock:function(){ sessionStorage.removeItem("ryc_cmd_auth"); location.reload(); }
   });
 }
-function setView(k){ closeDrawer(true); currentView=k;
+/* ===== PHASE C ROUTING — paths, not hashes (contract v1.1 §3) =========================
+   Canonical: /command/<view> · /command/jobs/<job_uuid>
+   A JOB IS ADDRESSED BY ITS IMMUTABLE UUID, never by its Foundation job number (contract D5):
+   job numbers get corrected, reformatted and reused, so a URL built on one silently changes
+   meaning. The number remains the display and search key and resolves through ryc_job_aliases. */
+var CMD_BASE="/command";
+var _cmdRouting=false, _jobIdCache=null;
+function cmdUrl(k){ return CMD_BASE+"/"+k; }
+function setView(k){
+  closeDrawer(true); currentView=k;
   if(typeof RYCShell!=="undefined") RYCShell.setActive(k);
   renderView();
-  if(location.hash.replace(/^#\/?/,"")!==k) location.hash=k; // deep-linkable views; no-op when driven by hashchange
+  if(!_cmdRouting && location.pathname!==cmdUrl(k)) history.pushState({v:k},"",cmdUrl(k));
 }
-function hashKey(){ return location.hash.replace(/^#\/?/,""); }
-window.addEventListener("hashchange",function(){ var k=hashKey(); if(k!==currentView && NAV.some(function(n){ return n.key===k && !n.href; })) setView(k); });
+// job_no <-> uuid, loaded once
+function loadJobIds(){
+  if(_jobIdCache) return Promise.resolve(_jobIdCache);
+  return fetch("/api/ryc-estimate-log",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({pw:"ryc2026",action:"job_ids"})})
+    .then(function(r){ return r.ok?r.json():{jobs:[]}; })
+    .catch(function(){ return {jobs:[]}; })
+    .then(function(d){ _jobIdCache={byId:{},byNo:{}};
+      (d.jobs||[]).forEach(function(j){ _jobIdCache.byId[j.id]=j.job_no; _jobIdCache.byNo[j.job_no]=j.id; });
+      return _jobIdCache; });
+}
+function openJobById(uuid){
+  return loadJobIds().then(function(m){
+    var no=m.byId[uuid];
+    if(!no){ renderCmdNotFound("No job matches that address."); return; }
+    window._dwRouting=true;                 // the URL is already correct — don't rewrite it
+    try{ setViewSilent("portfolio"); openDrawer(no,null); }
+    finally{ window._dwRouting=false; }
+  });
+}
+function jobUrl(jno){ var m=_jobIdCache; var id=m&&m.byNo[jno]; return id?CMD_BASE+"/jobs/"+id:null; }
+function setViewSilent(k){ _cmdRouting=true; try{ setView(k); } finally { _cmdRouting=false; } }
+function renderCmdNotFound(msg){
+  setViewSilent("command");
+  var v=document.getElementById("view");
+  if(v) v.innerHTML="<div class=\"panel\"><div class=\"h\">Page not found</div><div class=\"sub\">"+esc(msg)
+    +"</div><div style=\"margin-top:10px\"><button class=\"pfill\" onclick=\"goCommand()\">Go to Overview</button></div></div>";
+}
+function goCommand(){ history.pushState({},"",cmdUrl("command")); routeCmd(); }
+var LEGACY_CMD_HASH={dashboard:"command"};
+function routeCmd(){
+  var h=(location.hash||"").replace(/^#\/?/,"");
+  if(h){ // legacy hash bookmark → canonical path, replaced (a fragment never reaches the server)
+    var k=LEGACY_CMD_HASH[h]||h;
+    var jm=h.match(/^job\/(.+)$/);
+    history.replaceState({},"",jm?CMD_BASE+"/jobs/"+jm[1]:cmdUrl(NAV.some(function(n){return n.key===k;})?k:"command"));
+  }
+  var parts=location.pathname.replace(/\/+$/,"").split("/").filter(Boolean);
+  if(parts[0]!=="command"){ history.replaceState({},"",cmdUrl("command")); return routeCmd(); }
+  if(parts[1]==="jobs"&&parts[2]){ return openJobById(parts[2]); }
+  var key=parts[1]||"command";
+  if(!NAV.some(function(n){ return n.key===key && !n.href; })) return renderCmdNotFound("There is no “"+key+"” page in Command.");
+  setViewSilent(key);
+}
+window.addEventListener("popstate",function(){ routeCmd(); });
 /* per-view provenance — the topbar must not claim Foundation on views that never read it */
 var FDN_FED={command:1,portfolio:1,billing:1,woh:1,margin:1,brief:1,trust:1};
 function viewCtx(){
@@ -151,10 +203,11 @@ function renderView(){
   if(currentView==="ai"){ renderAI(); return; }
 }
 function init(){
-  var k=hashKey(); if(NAV.some(function(n){ return n.key===k; })) currentView=k; // honor deep link on boot
+  // Boot from the ADDRESS: a cold load at any route lands there, and the gate in front of the
+  // app means the originally requested URL survives sign-in.
   renderNav();
   document.getElementById("view").innerHTML="<div class=\"panel\"><div class=\"sub\">Loading data…</div></div>";
-  loadData().then(function(){ renderView(); });
+  loadData().then(function(){ routeCmd(); });
 }
 if(sessionStorage.getItem("ryc_cmd_auth")==="1"){ showApp(); }
 else { setTimeout(function(){ document.getElementById("gate-input").focus(); },100); }

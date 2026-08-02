@@ -1521,6 +1521,12 @@ function drawerHtml(j){
 function openDrawer(jno,trigger){
   var j=jobByNo(jno); if(!j) return;
   closeDrawer(true);
+  // A job is an addressable thing (contract §3): opening one puts it in the URL by its
+  // IMMUTABLE id, so it can be linked, refreshed and backed out of like any other page.
+  if(typeof jobUrl==="function" && !window._dwRouting){
+    var u=jobUrl(jno);
+    if(u && location.pathname!==u) history.pushState({job:jno},"",u);
+  }
   _dwTrigger=trigger||null;
   var wrap=document.createElement("div"); wrap.id="dwrap";
   wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Job detail: "+attrEsc(j.name||jno)+"\">"+drawerHtml(j)+"</aside>";
@@ -1573,6 +1579,11 @@ function closeDrawer(silent){
   var w=document.getElementById("dwrap");
   if(!w) return;
   w.remove();
+  // leaving the job leaves its address — but only when the user closed it, not when the
+  // router is swapping views (which is already writing the correct URL itself)
+  if(!window._dwRouting && typeof currentView!=="undefined" && /^\/command\/jobs\//.test(location.pathname)){
+    history.pushState({},"","/command/"+currentView);
+  }
   document.removeEventListener("keydown",dwEsc);
   if(!silent&&_dwTrigger&&document.contains(_dwTrigger)) _dwTrigger.focus();
   _dwTrigger=null;

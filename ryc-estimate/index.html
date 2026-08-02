@@ -288,10 +288,10 @@ function unlock() {
   document.getElementById('app').classList.add('unlocked');
   mountShell();
   loadPortfolio();
-  // The desk is the front door — unless the URL carries a deep link (bookmarked pursuit,
-  // shared workspace), which is honored on load.
-  if (location.hash && location.hash !== '#pursuits' && location.hash !== '#desk') routeFromHash();
-  else setEstView('history');
+  // A cold load at any address lands where the address says — the gate is in front of the
+  // app, not in front of the router, so the originally requested URL survives sign-in.
+  translateLegacyHash();
+  routeFromLocation();
 }
 // NOTE: the auto-unlock for an already-authed session fires at the END of this script (see
 // bottom). It used to run here, which meant unlock() -> setEstView('history') -> renderHistory()
@@ -1688,9 +1688,9 @@ function openBlankPursuit(pid) {
   } catch {}
   setEstView('assist');
   } finally { _routing = wasRouting; }
-  // one deliberate hash write, now that the pursuit state is coherent
-  const h = '#pursuit/' + pid;
-  if (location.hash !== h) { _settingHash++; location.hash = h; }
+  // one deliberate URL write, now that the pursuit state is coherent
+  const u = DESK_BASE + '/pursuits/' + pid;
+  if (location.pathname !== u) history.pushState({}, '', u);
   // An adopted pursuit is a real pursuit: show its card so the bid due date, pre-bid meeting
   // and readiness are workable before the first estimate exists.
   renderPursuit();
@@ -2106,19 +2106,50 @@ function fmtDate(s) { try { return new Date(s).toLocaleDateString('en-US', { mon
 /* Stable routes (Codex Step 3): the desk, each workspace, and EVERY PURSUIT are bookmarkable —
    refresh/back/share no longer drop you on the desk. #pursuit/<pursuit_id> is the pursuit's
    stable URL (the immutable identity, not a run id). */
-/* Phase B canonical routes: #pursuits is the default (contract v1.1 §3 made it canonical and
-   #desk an explicit LEGACY ALIAS, rather than pretending a redirect made the divergence
-   conformant). Old hashes still resolve so existing bookmarks keep working. */
-const VIEW_HASH = { history: 'pursuits', inbox: 'inbox', outcomes: 'outcomes', assist: 'new', costiq: 'intel', quickcheck: 'quick' };
-const HASH_VIEW = {
-  pursuits: 'history', inbox: 'inbox', outcomes: 'outcomes', new: 'assist', intel: 'costiq', quick: 'quickcheck',
-  desk: 'history',   // legacy alias — bookmarks predating the IA split
+/* ===== PHASE C ROUTING — paths, not hashes (contract v1.1 §3) =========================
+   Canonical: /desk/pursuits · /desk/inbox · /desk/outcomes · /desk/intel · /desk/pursuits/new
+              /desk/pursuits/<uuid>
+   View state that is part of the address (which Inbox filter, whether the Quick Check panel is
+   open) lives in QUERY PARAMETERS, decided now so the URL shape does not get redesigned later.
+   Every legacy hash still resolves: the loaded client translates it and REPLACES history with
+   the canonical path — a fragment never reaches the server, so this cannot be a redirect. */
+const DESK_BASE = '/desk';
+const SEG_VIEW = { pursuits: 'history', inbox: 'inbox', outcomes: 'outcomes', intel: 'costiq' };
+const VIEW_SEG = { history: 'pursuits', inbox: 'inbox', outcomes: 'outcomes', costiq: 'intel' };
+// legacy hash → canonical path (bookmarks predating phase B/C keep working)
+const LEGACY_HASH = {
+  desk: '/desk/pursuits', pursuits: '/desk/pursuits', inbox: '/desk/inbox',
+  outcomes: '/desk/outcomes', intel: '/desk/intel', quick: '/desk/intel?panel=quick',
+  new: '/desk/pursuits/new',
 };
-/* _settingHash is a COUNTER, not a boolean. Two hash writes in one synchronous pass queue two
-   hashchange events; a boolean absorbed only the first, and the second re-entered the router —
-   the loop that wedged the adopt-then-open path (found in demo rehearsal 2026-08-01). */
-let _estView = null, _routing = false, _settingHash = 0;
+function deskUrl(view, opts) {
+  opts = opts || {};
+  if (view === 'assist') return DESK_BASE + '/pursuits/' + (window._pursuitId || 'new');
+  if (view === 'quickcheck') return DESK_BASE + '/intel?panel=quick';
+  let u = DESK_BASE + '/' + (VIEW_SEG[view] || 'pursuits');
+  const q = [];
+  if (view === 'inbox' && _inboxFilter && _inboxFilter !== 'open') q.push('filter=' + encodeURIComponent(_inboxFilter));
+  if (opts.panel) q.push('panel=' + encodeURIComponent(opts.panel));
+  return q.length ? u + '?' + q.join('&') : u;
+}
+/* Phase C retired hash routing entirely, which also retires the hash-write loop that wedged
+   the adopt-then-open path: pushState/replaceState do not fire an event the router listens to,
+   so a URL write can no longer re-enter routing. `_routing` still guards programmatic view
+   changes from writing history entries. */
+let _estView = null, _routing = false;
+/* Dirty-form guard (contract §3): leaving a half-typed estimate should ask first. Only the
+   generator form counts — every other surface writes typed facts to the server as you go, so
+   there is nothing unsaved to lose there. */
+let _formDirty = false;
+function markFormDirty() { _formDirty = true; }
+function clearFormDirty() { _formDirty = false; }
+function confirmLeaveForm(to) {
+  if (!_formDirty || _estView !== 'assist' || to === 'assist') return true;
+  if (confirm('This estimate has unsaved input. Leave and lose what you have typed?')) { clearFormDirty(); return true; }
+  return false;
+}
 function setEstView(v) {
+  if (!_routing && !confirmLeaveForm(v)) return;
   _estView = v;
   if (global_RYCShell()) RYCShell.setActive(v);
   document.getElementById('view-assist').style.display = v === 'assist' ? 'block' : 'none';
@@ -2136,31 +2167,68 @@ function setEstView(v) {
   if (v === 'outcomes') renderOutcomes();
   if (v === 'history') renderHistory();
   if (!_routing) {
-    const h = (v === 'assist' && window._pursuitId) ? '#pursuit/' + window._pursuitId : '#' + VIEW_HASH[v];
-    if (location.hash !== h) { _settingHash++; location.hash = h; }
+    const u = deskUrl(v);
+    if (location.pathname + location.search !== u) history.pushState({ v }, '', u);
   }
 }
-window.addEventListener('hashchange', () => {
-  if (_settingHash > 0) { _settingHash--; return; }
-  routeFromHash();
-});
+// Back/forward must work like a browser, not like an app that happens to have URLs.
+window.addEventListener('popstate', () => { routeFromLocation(); });
 // Navigation token (Codex R5 router assessment): each route change bumps the token; an async
 // pursuit open only applies if its token is still current, so a stale fetch can never paint
 // over a newer navigation. Boolean flags guard only the sync hash-write loop.
 let _navToken = 0;
-function routeFromHash() {
+/* Translate a legacy hash URL to its canonical path and REPLACE history, so an old bookmark
+   silently becomes a current one instead of living on as a second address for the same thing.
+   Returns true if it rewrote the URL. */
+function translateLegacyHash() {
   const h = (location.hash || '').replace(/^#/, '');
-  const tok = ++_navToken;
+  if (!h) return false;
   const m = h.match(/^pursuit\/([0-9a-f-]{36})$/i);
-  if (m) {
-    // already showing this pursuit → nothing to do
-    if (window._pursuitId === m[1] && document.getElementById('resultsPanel').style.display === 'block') return;
-    openPursuitById(m[1], tok);
+  const target = m ? DESK_BASE + '/pursuits/' + m[1] : LEGACY_HASH[h];
+  if (!target) return false;
+  history.replaceState({}, '', target);
+  return true;
+}
+/* Drive the app from the address bar. Unknown routes render a NOT-FOUND state AT the requested
+   URL — they are not silently redirected to the desk, because a wrong address the user can see
+   is debuggable and one that rewrites itself is not. */
+function routeFromLocation() {
+  const tok = ++_navToken;
+  const path = location.pathname.replace(/\/+$/, '');
+  const qs = new URLSearchParams(location.search);
+  const parts = path.split('/').filter(Boolean);           // ['desk','pursuits','<uuid>']
+  // legacy /ryc/estimate → canonicalise once, keeping any hash translation above
+  if (parts[0] === 'ryc') { history.replaceState({}, '', DESK_BASE + '/pursuits'); return routeFromLocation(); }
+  if (parts[0] !== 'desk') { history.replaceState({}, '', DESK_BASE + '/pursuits'); return routeFromLocation(); }
+
+  const seg = parts[1] || 'pursuits';
+  if (seg === 'pursuits' && parts[2]) {
+    const id = parts[2];
+    if (id === 'new') { _routing = true; try { newPursuit(); } finally { _routing = false; } return; }
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return renderDeskNotFound('That is not a valid pursuit address.');
+    if (window._pursuitId === id && document.getElementById('resultsPanel').style.display === 'block') return;
+    openPursuitById(id, tok);
     return;
   }
-  const v = HASH_VIEW[h] || 'history';
-  _routing = true; try { setEstView(v); } finally { _routing = false; }
+  const v = SEG_VIEW[seg];
+  if (!v) return renderDeskNotFound('There is no “' + seg + '” page in the Estimating Desk.');
+  if (seg === 'inbox') { const f = qs.get('filter'); _inboxFilter = ['open', 'passed', 'all'].includes(f) ? f : 'open'; }
+  _routing = true;
+  try {
+    setEstView(v);
+    if (seg === 'intel' && qs.get('panel') === 'quick') setEstView('quickcheck');
+  } finally { _routing = false; }
 }
+/* Not-found renders IN PLACE (contract §3: unauthorized / not-found / archived are distinct
+   states, and none of them silently move you somewhere else). */
+function renderDeskNotFound(msg) {
+  _routing = true;
+  try { setEstView('history'); } finally { _routing = false; }
+  const el = document.getElementById('history-body');
+  if (el) el.innerHTML = `<div class="billing-block"><h3 class="section-header">Page not found</h3>
+    <div class="billing-empty">${esc(msg)}<div style="margin-top:10px"><button class="btn-sm" onclick="goDesk()">Go to Pursuits</button></div></div></div>`;
+}
+function goDesk() { history.pushState({}, '', DESK_BASE + '/pursuits'); routeFromLocation(); }
 async function openPursuitById(pid, tok) {
   try {
     if (!historyCache) {
@@ -2175,10 +2243,12 @@ async function openPursuitById(pid, tok) {
     if (runs.length) { openRun(runs[0].id); return; }
     // run-less pursuit (adopted opportunity) — deep link opens the prefilled generator
     if (((historyCache && historyCache.pursuits) || []).some(x => x.id === pid)) { openBlankPursuit(pid); return; }
-    // unknown/deleted pursuit: say so with a safe way back — never a silent blank form
-    alert('That pursuit link points to a pursuit that no longer exists (deleted, or the link is stale). Returning to the desk.');
-  } catch {}
-  _routing = true; try { setEstView('history'); } finally { _routing = false; }
+    // unknown/deleted pursuit: render the state AT its address with a safe way back — never a
+    // silent blank form, and never a redirect that hides which link was wrong
+    return renderDeskNotFound('That pursuit no longer exists (deleted, or the link is stale).');
+  } catch (e) {
+    return renderDeskNotFound('That pursuit could not be opened: ' + e.message);
+  }
 }
 
 // helpers the ported views need (these lived on the dashboard, not previously on this page)
@@ -2306,7 +2376,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.20.0';
+const TOOL_VERSION = 'v1.21.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -2511,6 +2581,12 @@ async function refreshInboxSignal() {
     }
   } catch { /* the signal is additive; never break the worklist over it */ }
 }
+function setInboxFilter(k) {
+  _inboxFilter = k;
+  const u = deskUrl('inbox');
+  if (location.pathname + location.search !== u) history.pushState({}, '', u);
+  renderInbox();
+}
 async function renderInbox(force) {
   const el = document.getElementById('inbox-body');
   el.innerHTML = '<div class="billing-empty">Loading opportunities…</div>';
@@ -2541,7 +2617,8 @@ async function renderInbox(force) {
                </select>`}
         </td></tr>`;
     }).join('');
-    const tab = (k, label, n) => `<button class="btn-sm ${_inboxFilter === k ? '' : 'ghost'}" onclick="_inboxFilter='${k}';renderInbox()">${label}${n != null ? ` (${n})` : ''}</button>`;
+    // the filter is part of the address — a shared Inbox link opens on the same list
+    const tab = (k, label, n) => `<button class="btn-sm ${_inboxFilter === k ? '' : 'ghost'}" onclick="setInboxFilter('${k}')">${label}${n != null ? ` (${n})` : ''}</button>`;
     el.innerHTML = `<div class="billing-block"><h3 class="section-header">📥 Inbox <span class="cnt">${needs.length ? `${needs.length} to review` : 'nothing new to review'}</span>
       <span style="margin-left:auto;display:flex;gap:6px">${tab('open', 'To review', needs.length)}${tab('passed', 'Passed', passed.length)}${tab('all', 'All')}
       <button class="btn-sm ghost" onclick="renderInbox(true)">⟳</button></span></h3>

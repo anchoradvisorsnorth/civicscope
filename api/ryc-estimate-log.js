@@ -655,6 +655,14 @@ export default async function handler(req, res) {
       return res.status(out.status).json(out.status === 200 ? Object.assign({ board_generated_at: board.generatedAt }, out.body) : out.body);
     }
 
+    /* Job identity map for Command's routes (contract D5): the UUID is the address, the
+       Foundation number is the display/search key. Small, cacheable, read-only. */
+    if (action === 'job_ids') {
+      const r = await sb('ryc_jobs?company_id=eq.ryc&select=id,job_no&order=job_no');
+      if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+      return res.status(200).json({ ok: true, jobs: await r.json() });
+    }
+
     if (action === 'list_opportunities') {
       const limit = Math.min(Number(req.body.limit) || 200, 500);
       const state = ['new', 'reviewing', 'passed', 'adopted'].includes(req.body.review_state) ? `&review_state=eq.${req.body.review_state}` : '';
