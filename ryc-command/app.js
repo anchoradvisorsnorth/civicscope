@@ -135,6 +135,13 @@ function openJobById(uuid){
   return loadJobIds().then(function(m){
     var no=m.byId[uuid];
     if(!no){ renderCmdNotFound("No job matches that address."); return; }
+    // The identity table covers every Foundation job; Command's board shows the ACTIVE ones.
+    // A link to a real job that this workspace does not display is a different situation from
+    // a bad address, and saying so beats a click that appears to do nothing.
+    if(typeof jobByNo==="function" && !jobByNo(no)){
+      renderCmdNotFound("Job "+no+" exists, but it is not on Command's active board — so there is no job view to open. It may be closed, or outside the current portfolio.");
+      return;
+    }
     window._dwRouting=true;                 // the URL is already correct — don't rewrite it
     try{ setViewSilent("portfolio"); openDrawer(no,null); }
     finally{ window._dwRouting=false; }
