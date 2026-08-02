@@ -1335,8 +1335,12 @@ function setStage(k) {
   recordFact('set_stage', { stage: k, expected_version: Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null })
     .then(ok => { if (ok) historyCache = null; });
 }
+// Focus is applied on the next frame AND once more after the smooth scroll settles: the
+// pursuit card re-renders its innerHTML, so a focus set too early lands on a detached node.
 function focusFact(id) {
-  setTimeout(() => { const el = document.getElementById(id); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus(); } }, 60);
+  const put = () => { const el = document.getElementById(id); if (el && document.activeElement !== el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } };
+  requestAnimationFrame(put);
+  setTimeout(put, 250);
 }
 // Assembled total = live quotes where entered, conceptual placeholders elsewhere.
 function assembledTotal() {
