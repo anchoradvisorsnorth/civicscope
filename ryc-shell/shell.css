@@ -97,6 +97,57 @@
 
 .ryc-main { min-width: 0; display: flex; flex-direction: column; }
 
+/* ── Interactive rows: ONE pattern, both workspaces (usability program 1.1) ─────────────
+   A row that opens something has to look like it does — before the pointer arrives, and
+   with no pointer at all. Keyboard operation and visible focus are shell REQUIREMENTS
+   (contract §8), not enhancements, and the Estimating Desk had none of them: its rows were
+   `cursor:pointer` and an inline onclick, with no CSS rule behind `.hrow` anywhere.
+
+   OPT-IN BY MARKUP, deliberately. A table opts in with `class="ryc-rows"`; a row that opens
+   something carries `class="ryc-row"`. The affordance is therefore decided by the row
+   builder, not inherited by every table that happens to use the same CSS — which is what
+   keeps Command's Work on Hand exactly where it is: its rows are wired and clickable, they
+   simply do not carry `ryc-row`, so nothing here reaches them.
+
+   ASYMMETRY, STATED: Command's own `.ptable` rules already provide hover, visible focus and
+   sticky headers — and those same rules render Work on Hand. They therefore cannot be
+   collapsed into this block while WOH is protected, so on the Command side this pattern is
+   ADDITIVE (the resting affordance + the chevron) rather than the single definition. Full
+   consolidation is blocked until WOH is reopened; recorded in the program plan, not hidden. */
+/* Every value carries an inline fallback, so a row can opt in on its own — a table only
+   needs `ryc-rows` when it also wants the sticky header. That keeps the Command side to a
+   one-class-per-row change instead of touching every <table> in a 2,000-line view file. */
+.ryc-row { cursor: pointer; }
+.ryc-row:hover { background: var(--ryc-row-hover, #f6f8fb); }
+.ryc-row:focus-visible { outline: 2px solid var(--ryc-row-accent, #c2410c); outline-offset: -2px; }
+
+/* Resting state carries a faint left edge, so the row reads as openable without hovering
+   it first — discoverability, not decoration. It firms up on hover and focus alike, so a
+   keyboard user gets exactly what a mouse user gets. */
+.ryc-row > td:first-child { box-shadow: inset 2px 0 0 rgba(194, 65, 12, .18); transition: box-shadow .12s ease; }
+.ryc-row:hover > td:first-child,
+.ryc-row:focus-visible > td:first-child { box-shadow: inset 2px 0 0 var(--ryc-row-accent, #c2410c); }
+
+/* The chevron is absolutely positioned and its space is RESERVED by padding, so it can
+   never shift a column, fight a colspan, or land on top of a right-aligned number — the
+   three ways a chevron normally breaks a table it was added to late. */
+.ryc-row > td:last-child { position: relative; padding-right: 20px; }
+.ryc-row > td:last-child::after {
+  content: "\203A"; position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  font-size: 15px; line-height: 1; color: var(--ryc-row-accent, #c2410c);
+  opacity: 0; transition: opacity .12s ease, right .12s ease; pointer-events: none;
+}
+.ryc-row:hover > td:last-child::after,
+.ryc-row:focus-visible > td:last-child::after { opacity: .9; right: 4px; }
+
+/* Headers stay visible on a long worklist — table-level opt-in, because Command's .ptable
+   already does this and only the Desk's tables need it. */
+.ryc-rows thead th { position: sticky; top: 0; z-index: 2; background: var(--ryc-thead-bg, #f7f9fc); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ryc-row > td:first-child, .ryc-row > td:last-child::after { transition: none; }
+}
+
 @media (max-width: 900px) {
   /* Contract §8: phones get a read/triage posture, not a desktop layout squeezed down. */
   .ryc-shell { grid-template-columns: 1fr; }

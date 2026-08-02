@@ -100,7 +100,7 @@ function renderNav(){
   });
   RYCShell.mount({
     workspace:"command",
-    version:"v2.36.1-command · shared money·date rules (RYCFormat)",
+    version:"v2.36.2-command · shared row pattern (RYCTable)",
     active:currentView,
     groups:groups,
     onSelect:function(k){ setView(k); },

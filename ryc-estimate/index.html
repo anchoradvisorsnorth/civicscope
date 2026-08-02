@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.1">
-<script src="/ryc-shell/shell.js?v1.22.1"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.2">
+<script src="/ryc-shell/shell.js?v1.22.2"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -1610,7 +1610,7 @@ function deskRow(p) {
     const dueCell0 = due == null ? '<span class="note">—</span>'
       : `<span class="chip ${due < 0 ? 'ck-needed' : due <= 3 ? 'ck-requested' : 'ck-received'}">${esc(new Date(wf.due_date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span>`
         + `<div class="note">${due < 0 ? Math.abs(due) + 'd overdue' : due === 0 ? 'today' : due + 'd'}</div>`;
-    return `<tr class="hrow" style="cursor:pointer" onclick="openBlankPursuit('${pursuit.id}')">`
+    return `<tr class="hrow ryc-row" data-open-pursuit="${esc(pursuit.id)}" data-open-label="Open pursuit ${esc(pursuit.name)}">`
       + `<td><strong>${esc(pursuit.name)}</strong>${pursuit.location ? ` <span class="note">· ${esc(pursuit.location)}</span>` : ''}`
       + `<div class="note">${wf.source === 'bc_bidboard' ? 'from BuildingConnected · ' : ''}no estimate yet — open to generate</div></td>`
       + `<td>${dueCell0}</td><td><span class="chip ck-open">${esc(stageLabel0)}</span></td><td><span class="note">—</span></td>`
@@ -1652,7 +1652,7 @@ function deskRow(p) {
 
   const dispName = (pursuit && pursuit.name) || latest.project_name;
   const dispLoc = (pursuit && pursuit.location) || latest.location;
-  return `<tr class="hrow" style="cursor:pointer" onclick="openRun('${latest.id}')">`
+  return `<tr class="hrow ryc-row" data-open-run="${esc(latest.id)}" data-open-label="Open pursuit ${esc(dispName)}">`
     + `<td><strong>${esc(dispName)}</strong>${dispLoc ? ` <span class="note">· ${esc(dispLoc)}</span>` : ''}`
     + `<div class="note">${runs.length > 1 ? runs.length + ' revisions · ' : ''}${pages ? pages + ' plan pp' : 'scope-only'}${latest.estimator ? ' · ' + esc(latest.estimator) : ''}</div></td>`
     + `<td>${dueCell}</td><td>${stageChip}</td><td>${covCell}</td><td>${pre}</td>`
@@ -2570,7 +2570,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.22.1';
+const TOOL_VERSION = 'v1.22.2';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -2713,7 +2713,14 @@ async function renderHistory(force) {
       </span></h3>
       <div class="billing-sub">What estimating needs to move today. Each project is one pursuit — repeat runs are its revisions. Click a row to open the pursuit and work it: advance stage, set the bid due date, generate bond / builders-risk submissions, draft RFIs, enter quotes.</div>
       <div id="inboxSignal" style="margin:2px 0 10px"></div>
-      <table><thead><tr><th>Pursuit</th><th>Due</th><th>Stage</th><th>Quotes</th><th>Pre-bid</th><th class="r">Conceptual value</th><th>Conf.</th><th>Last activity</th></tr></thead><tbody>${html}</tbody></table></div>`;
+      <table class="ryc-rows"><thead><tr><th>Pursuit</th><th>Due</th><th>Stage</th><th>Quotes</th><th>Pre-bid</th><th class="r">Conceptual value</th><th>Conf.</th><th>Last activity</th></tr></thead><tbody>${html}</tbody></table></div>`;
+
+    /* Rows are wired through the SHARED helper (program 1.1), not an inline onclick: they
+       are now reachable by Tab, activatable by Enter and Space, labelled for a screen
+       reader, and visibly focused — none of which was true before. Two openers, because a
+       pursuit with no estimate yet opens the prefilled generator rather than a run. */
+    RYCTable.wire(el, 'data-open-run', (id) => openRun(id));
+    RYCTable.wire(el, 'data-open-pursuit', (id) => openBlankPursuit(id));
 
     // Intake lives in the Inbox now, but it must never become invisible: a compact signal
     // here keeps new opportunities in view from the screen estimating actually starts on.

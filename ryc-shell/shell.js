@@ -322,4 +322,76 @@
     compact: compact, exact: exact, accounting: accounting,
     pct: pct, date: date, age: age, DASH: DASH,
   };
+
+  /* ===================================================================================
+     RYCTable — ONE way a table row opens something (usability program 1.1).
+
+     Contract §8 makes keyboard operation and visible focus shell requirements. The Desk
+     was not meeting them: `<tr class="hrow" style="cursor:pointer" onclick="openRun(...)">`
+     with no CSS behind `.hrow` at all — not reachable by Tab, not activatable by Enter, and
+     invisible to anyone navigating without a mouse. Command had three near-identical copies
+     of the correct wiring (hookDrawerRows / hookSubRows / hookCplRows).
+
+     wire(root, attr, onOpen) delegates ONE click and ONE keydown listener on `root` for
+     every `tr[attr]` beneath it, and stamps the rows with the semantics a button needs.
+
+     It deliberately does NOT add the visual affordance class. That is the row builder's
+     decision, expressed in markup as `class="ryc-row"` — which is precisely what lets Work
+     on Hand stay wired and clickable while none of the 1.1 styling reaches it.
+     ================================================================================== */
+  function labelFor(tr) {
+    var explicit = tr.getAttribute('data-open-label');
+    if (explicit) return explicit;
+    var first = tr.querySelector('td');
+    var t = (first && (first.innerText || first.textContent) || '').trim().split('\n')[0];
+    return t ? ('Open ' + t.slice(0, 80)) : 'Open row';
+  }
+
+  var wiredBy = {};                       // attr -> WeakSet<Element> of already-wired roots
+
+  function wire(root, attr, onOpen) {
+    if (!root || typeof onOpen !== 'function') return;
+    var sel = 'tr[' + attr + ']';
+
+    /* Idempotent: re-rendering a view re-runs this, and a second listener on the same
+       container would open the drawer twice per click.
+       The bookkeeping lives in a WeakSet, NOT a data-* attribute on the element. The first
+       version set `root.dataset[...]`, which is a real attribute inside the rendered DOM —
+       the Work on Hand parity guard failed on it. Test-visible state must not be written
+       into the page. A WeakSet also lets the entry be collected with the element. */
+    var seen = wiredBy[attr] || (wiredBy[attr] = new WeakSet());
+    if (!seen.has(root)) {
+      seen.add(root);
+      root.addEventListener('click', function (e) {
+        var tr = e.target.closest(sel);
+        if (tr && root.contains(tr)) onOpen(tr.getAttribute(attr), tr);
+      });
+      root.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var tr = e.target.closest(sel);
+        if (!tr || !root.contains(tr)) return;
+        e.preventDefault();                 // Space must not scroll the page
+        onOpen(tr.getAttribute(attr), tr);
+      });
+    }
+
+    /* Only rows that OPTED IN are decorated. `ryc-row` is the row builder saying "this row
+       is an openable row in the 1.1 sense"; a row that is merely wired keeps exactly the
+       attributes its builder emitted.
+
+       This is not a nicety — it is what keeps Work on Hand frozen. WOH's rows are wired and
+       already carry tabindex and role, but no aria-label, and stamping one on them changed
+       what a screen reader announces on a protected surface. The parity guard caught it and
+       failed the build, which is the system working: the fix is to scope the change, not to
+       re-bless the baseline. WOH's rows still read their full cell text as their accessible
+       name, which is the behaviour they have always had. */
+    Array.prototype.forEach.call(root.querySelectorAll(sel), function (tr) {
+      if (!tr.classList.contains('ryc-row')) return;
+      if (!tr.hasAttribute('tabindex')) tr.setAttribute('tabindex', '0');
+      if (!tr.hasAttribute('role')) tr.setAttribute('role', 'button');
+      if (!tr.hasAttribute('aria-label')) tr.setAttribute('aria-label', labelFor(tr));
+    });
+  }
+
+  global.RYCTable = { wire: wire };
 })(window);

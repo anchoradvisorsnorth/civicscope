@@ -251,7 +251,7 @@ function updatePTable(){
     if(r.needsInv>1000) bill="<span class=\"m-a\">inv "+fmtCompact(r.needsInv)+"</span>";
     if(r.overdue>0) bill+=(bill?" · ":"")+"<span class=\"m-r\">od "+fmtCompact(r.overdue)+"</span>";
     if(!bill) bill="<span class=\"m-m\">—</span>";
-    tb+="<tr tabindex=\"0\" role=\"button\" data-jno=\""+attrEsc(r.jno)+"\" aria-label=\"Open job detail: "+attrEsc(r.name)+"\">"
+    tb+="<tr class=\"ryc-row\" tabindex=\"0\" role=\"button\" data-jno=\""+attrEsc(r.jno)+"\" aria-label=\"Open job detail: "+attrEsc(r.name)+"\">"
       +"<td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(r.client?" · "+esc(r.client):"")+srcLink(r.procoreUrl,"Procore")+"</div></td>"
       +"<td>"+esc(r.pm||"—")+"</td><td>"+esc(r.stage||"—")+(r.stageConflict?" <span title=\"Procore stage says Pre-Construction but the job shows real cost activity — stage is stale; update it in Procore (see Data exceptions)\" style=\"color:#c07f1a;cursor:help\">⚑</span>":"")+"</td>"
       +"<td class=\"r\">"+fmtCompact(r.contract)+(r.conflict?" <span title=\"Procore and Foundation contracts diverge — see Data conflicts on the Command Center\" style=\"color:#c07f1a\">⚑</span>":"")+"</td>"
@@ -317,11 +317,19 @@ function renderPortfolio(){
 /* ===== Billing & Cash (Phase 4 — light operator worklist) ==================== */
 var blShowAll=false;
 function agingBucket(d){ return d<=30?0:d<=90?1:d<=180?2:3; }
+/* WORK ON HAND USES THIS ONE. It stays exactly as it was: wired, focusable and clickable,
+   but WITHOUT the `ryc-row` affordance class — which is how the shared 1.1 row pattern
+   reaches every other table in Command and none of Work on Hand. Protection by markup,
+   not by a fork of the CSS. scripts/guard-woh-parity.js fails the build if that slips. */
 function rowAttr(jno){ return jobByNo(jno)?(" data-jno=\""+attrEsc(jno)+"\" tabindex=\"0\" role=\"button\""):" class=\"static\""; }
+/* Everything else opts IN to the affordance (resting left edge, hover, focus, chevron). */
+function openAttr(jno){ var a=rowAttr(jno); return /data-jno/.test(a)?(" class=\"ryc-row\""+a):a; }
+/* One wiring implementation, shared with the Desk (RYCTable, program 1.1). This replaced
+   three near-identical copies here — drawer rows, subcontractor rows, completed-job rows —
+   each of which had its own click/keydown pair to keep in step with the others. */
 function hookDrawerRows(){
   Array.prototype.forEach.call(document.querySelectorAll(".view tbody"),function(tb){
-    tb.addEventListener("click",function(e){ var tr=e.target.closest("tr[data-jno]"); if(tr) openDrawer(tr.getAttribute("data-jno"),tr); });
-    tb.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ var tr=e.target.closest("tr[data-jno]"); if(tr){ e.preventDefault(); openDrawer(tr.getAttribute("data-jno"),tr); } } });
+    RYCTable.wire(tb,"data-jno",function(jno,tr){ openDrawer(jno,tr); });
   });
 }
 function renderBilling(){
@@ -361,7 +369,7 @@ function renderBilling(){
   var arRowsHtml=arJobs.map(function(r){
     var pm=fj[r.jno]?fj[r.jno].pmName:null;
     function cell(v){ return "<td class=\"r\">"+(v>0?fmtCompact(v):"<span class=\"m-m\">—</span>")+"</td>"; }
-    return "<tr"+rowAttr(r.jno)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(pm?" · "+esc(pm):"")+"</div></td>"
+    return "<tr"+openAttr(r.jno)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+(pm?" · "+esc(pm):"")+"</div></td>"
       +cell(r.b[0])+cell(r.b[1])+cell(r.b[2])+cell(r.b[3])
       +"<td class=\"r\"><b>"+fmtCompact(r.total)+"</b></td><td class=\"r\">"+r.oldest+"d</td></tr>";
   }).join("");
@@ -375,7 +383,7 @@ function renderBilling(){
   var posRows=(blShowAll?accts:flagged).slice().sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);});
   var posHtml=posRows.map(function(r){
     var ni=r.under>0?("<span class=\"m-a\">"+fmtCompact(r.under)+"</span>"+(r.exact?"":" <span class=\"cell-sub\">bid-est</span>")):(r.over>0?("<span class=\"m-g\">+"+fmtCompact(r.over)+"</span>"):"<span class=\"m-m\">—</span>");
-    return "<tr"+rowAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(String(r.job))+" · "+esc(r.pm)+"</div></td>"
+    return "<tr"+openAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(String(r.job))+" · "+esc(r.pm)+"</div></td>"
       +"<td class=\"r\">"+fmtCompact(r.contract)+"</td><td class=\"r\">"+fmtCompact(r.cost)+"</td><td class=\"r\">"+fmtCompact(r.invoiced)+"</td>"
       +"<td class=\"r\">"+ni+"</td><td class=\"r\">"+(r.retainage>0?fmtCompact(r.retainage):"<span class=\"m-m\">—</span>")+"</td>"
       +"<td class=\"r\">"+(r.overdue>0?("<span class=\"m-r\">"+fmtCompact(r.overdue)+"</span>"):"<span class=\"m-m\">—</span>")+"</td></tr>";
@@ -493,7 +501,7 @@ function renderMargin(){
     // recon rows are ungraded scenarios: muted, tagged, never coloured as a real fade/gain
     var erp=r.src==="erp";
     var tag=erp?"":" <span class=\"m-m\" title=\"Projected cost unverified — this figure is reconstructed from budget growth, a scenario, not a graded forecast\">≈ budget-based</span>";
-    return "<tr"+rowAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.job)+" · "+esc(r.pm)+tag+"</div></td>"
+    return "<tr"+openAttr(r.job)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.job)+" · "+esc(r.pm)+tag+"</div></td>"
       +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
       +"<td class=\"r\">"+r.asbidMargin.toFixed(1)+"%</td><td class=\"r\">"+(erp?r.curMargin.toFixed(1)+"%":"<span class=\"m-m\">≈"+r.curMargin.toFixed(1)+"%</span>")+"</td>"
       +"<td class=\"r\"><span class=\""+(erp?pcls(r.gfPts):"m-m")+"\">"+(r.gfPts>=0?"+":"")+r.gfPts.toFixed(1)+"</span></td>"
@@ -506,7 +514,7 @@ function renderMargin(){
 
   /* buyout table */
   var boHtml=bo.slice().sort(function(a,b){return b.uncommitted-a.uncommitted;}).map(function(r){
-    return "<tr"+rowAttr(r.jno)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+" · "+esc(r.pm)+"</div></td>"
+    return "<tr"+openAttr(r.jno)+"><td><div class=\"jname\">"+esc(r.name)+"</div><div class=\"jno\">"+esc(r.jno)+" · "+esc(r.pm)+"</div></td>"
       +"<td class=\"r\">"+(r.pct!=null?Math.round(r.pct)+"%":"—")+"</td>"
       +"<td class=\"r\">"+fmtCompact(r.budget)+"</td><td class=\"r\">"+fmtCompact(r.committed)+"</td>"
       +"<td class=\"r\">"+(r.pending>0?fmtCompact(r.pending):"<span class=\"m-m\">—</span>")+"</td>"
@@ -520,7 +528,7 @@ function renderMargin(){
 
   /* exceptions table */
   var excHtml=exc.map(function(r){
-    return "<tr"+rowAttr(r.jno||"")+"><td><div class=\"jname\">"+esc(r.name||"")+"</div><div class=\"jno\">"+esc(r.jno||"")+"</div></td><td>"+esc(r.issue)+"</td><td style=\"white-space:normal\">"+r.detail+"</td></tr>";
+    return "<tr"+openAttr(r.jno||"")+"><td><div class=\"jname\">"+esc(r.name||"")+"</div><div class=\"jno\">"+esc(r.jno||"")+"</div></td><td>"+esc(r.issue)+"</td><td style=\"white-space:normal\">"+r.detail+"</td></tr>";
   }).join("");
   var excTable=exc.length
     ?("<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th>Job</th><th>Issue</th><th>Detail</th></tr></thead><tbody>"+excHtml+"</tbody></table></div>")
@@ -917,7 +925,7 @@ function renderForecast(){
   function projRows(list){
     return list.slice().sort(function(a,b){return (b.amount||0)-(a.amount||0);}).map(function(p){
       var dated=p.startDate&&p.endDate;
-      return "<tr"+rowAttr(p.projectNumber||"")+"><td><div class=\"jname\">"+esc(p.name)+"</div><div class=\"jno\">"+esc(p.company||"")+(p.assignedTo?" · "+esc(p.assignedTo):"")+srcLink(buildrUrl(p.id),"Buildr")+"</div></td>"
+      return "<tr"+openAttr(p.projectNumber||"")+"><td><div class=\"jname\">"+esc(p.name)+"</div><div class=\"jno\">"+esc(p.company||"")+(p.assignedTo?" · "+esc(p.assignedTo):"")+srcLink(buildrUrl(p.id),"Buildr")+"</div></td>"
         +"<td>"+esc(p.status==="pursuit"?(p.stage||"pursuit"):p.status)+"</td>"
         +"<td>"+(dated?(fmtDate(p.startDate)+" → "+fmtDate(p.endDate)):"<span class=\"m-a\">no dates</span>"+srcLink(buildrUrl(p.id),"fix"))+"</td>"
         +"<td class=\"r\">"+fmtCompact(p.amount)+"</td>"
@@ -1615,7 +1623,7 @@ function renderSubs(){
     +"</div>";
   var shown=subsShowAll?subs:subs.slice(0,40);
   var rows=shown.map(function(s,i){
-    return "<tr data-vno=\""+attrEsc(s.vendorNo)+"\" tabindex=\"0\" role=\"button\" title=\"Job history\"><td class=\"r\" style=\"color:#8b95ab\">"+(i+1)+"</td>"
+    return "<tr class=\"ryc-row\" data-vno=\""+attrEsc(s.vendorNo)+"\" tabindex=\"0\" role=\"button\" title=\"Job history\"><td class=\"r\" style=\"color:#8b95ab\">"+(i+1)+"</td>"
       +"<td><div class=\"jname\">"+esc(s.name)+"</div></td>"
       +"<td class=\"r\">"+(s.actualJobs||s.committedJobs||0)+"</td>"
       +"<td class=\"r\">"+(s.committed?fmtCompact(s.committed):"<span class=\"m-m\">—</span>")+"</td>"
@@ -1632,8 +1640,7 @@ function renderSubs(){
 }
 function hookSubRows(){
   Array.prototype.forEach.call(document.querySelectorAll(".view tbody"),function(tb){
-    tb.addEventListener("click",function(e){ var tr=e.target.closest("tr[data-vno]"); if(tr) openSubDrawer(tr.getAttribute("data-vno"),tr); });
-    tb.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ var tr=e.target.closest("tr[data-vno]"); if(tr){ e.preventDefault(); openSubDrawer(tr.getAttribute("data-vno"),tr); } } });
+    RYCTable.wire(tb,"data-vno",function(vno,tr){ openSubDrawer(vno,tr); });
   });
 }
 function openSubDrawer(vno,trigger){
@@ -1740,7 +1747,7 @@ function renderCompleted(){
     .slice().sort(function(a,b){ return (b.year||0)-(a.year||0)||((b.contractFinal||0)-(a.contractFinal||0)); });
   var rows=shown.map(function(j){
     var gfp=(j.bidMarginPct!=null&&j.projectedMarginPct!=null)?(j.projectedMarginPct-j.bidMarginPct):null;
-    return "<tr data-cid=\""+attrEsc(j.id)+"\" tabindex=\"0\" role=\"button\" title=\"Job outcome\"><td><div class=\"jname\">"+esc(j.name)+"</div><div class=\"jno\">"+esc(j.id)+(j.pmName?" · "+esc(j.pmName):"")+"</div></td>"
+    return "<tr class=\"ryc-row\" data-cid=\""+attrEsc(j.id)+"\" tabindex=\"0\" role=\"button\" title=\"Job outcome\"><td><div class=\"jname\">"+esc(j.name)+"</div><div class=\"jno\">"+esc(j.id)+(j.pmName?" · "+esc(j.pmName):"")+"</div></td>"
       +"<td>"+esc(j.client||"—")+"</td><td>"+cplCT(j.clientType)+"</td><td>"+cplWT(j.workType)+"</td>"
       +"<td class=\"r\">"+(j.year||"—")+"</td>"
       +"<td class=\"r\">"+fmtCompact(j.contractFinal)+"</td><td class=\"r\">"+fmtCompact(j.directCost)+"</td>"
@@ -1758,8 +1765,7 @@ function renderCompleted(){
 }
 function hookCplRows(){
   Array.prototype.forEach.call(document.querySelectorAll(".view tbody"),function(tb){
-    tb.addEventListener("click",function(e){ var tr=e.target.closest("tr[data-cid]"); if(tr) openCplDrawer(tr.getAttribute("data-cid"),tr); });
-    tb.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ var tr=e.target.closest("tr[data-cid]"); if(tr){ e.preventDefault(); openCplDrawer(tr.getAttribute("data-cid"),tr); } } });
+    RYCTable.wire(tb,"data-cid",function(cid,tr){ openCplDrawer(cid,tr); });
   });
 }
 function openCplDrawer(cid,trigger){
