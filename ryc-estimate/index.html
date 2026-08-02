@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.23.2">
-<script src="/ryc-shell/shell.js?v1.23.2"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.23.3">
+<script src="/ryc-shell/shell.js?v1.23.3"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -124,6 +124,35 @@
   .area-tabs button.on { color:var(--accent); border-bottom-color:var(--accent); }
   .area-tabs button:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
   .area-tabs .tab-n { font-weight:400; color:var(--muted); margin-left:5px; }
+  /* Bid-package quote coverage is a scanning surface. Keep the decision fields in one compact
+     row; generated scope and benchmark evidence stay available through native disclosure. */
+  .pkg-table { table-layout:fixed; }
+  .pkg-table th { white-space:nowrap; }
+  .pkg-table td { vertical-align:middle; }
+  /* table-layout:fixed reads column widths from the FIRST ROW only, so this width has to sit on
+     the header cell — the same rule on a tbody td is silently ignored and every column falls back
+     to an equal fifth (measured: 20%, not 38%), squeezing the package name the change exists to
+     make scannable. The .pkg-name rule below governs the mobile table-layout:auto branch. */
+  .pkg-table thead th:first-child { width:38%; }
+  .pkg-table .pkg-name { width:38%; }
+  .pkg-detail > summary { cursor:pointer; font-weight:600; line-height:1.35; }
+  .pkg-detail > summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+  .pkg-detail-body { margin:7px 0 2px 18px; padding:8px 10px; background:#f9fafb; border-left:2px solid var(--line); color:var(--muted); font-size:12px; line-height:1.45; }
+  .pkg-detail-body > div + div { margin-top:5px; }
+  .pkg-evidence.warn { color:#b91c1c; }
+  .pkg-status { display:inline-block; padding:2px 7px; border-radius:999px; font-size:10.5px; font-weight:700; white-space:nowrap; }
+  .pkg-status.needs-quote { background:#fef3c7; color:#92400e; }
+  .pkg-status.is-quoted { background:#dcfce7; color:#166534; }
+  .pkg-mix-flag { display:block; margin-top:3px; color:#b91c1c; font-size:10.5px; font-weight:600; white-space:nowrap; }
+  .pkg-quote { width:104px; padding:5px 7px; border:1px solid #d1d5db; border-radius:5px; font-size:12px; text-align:right; font-variant-numeric:tabular-nums; }
+  .pkg-market { margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
+  .pkg-market > summary { cursor:pointer; color:var(--muted); font-size:12px; font-weight:600; }
+  .pkg-total td { background:#f9fafb; border-top:2px solid var(--line); }
+  @media (max-width:760px) {
+    .pkg-table { table-layout:auto; }
+    .pkg-table thead th:first-child { width:auto; }
+    .pkg-table .pkg-name { min-width:220px; width:auto; }
+  }
   /* pursuit workflow */
   .stagebar { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0 14px; }
   .stage-step { padding:5px 12px; border:1px solid var(--line); background:#fff; border-radius:20px; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; font-family:inherit; }
@@ -984,9 +1013,10 @@ function subPricingPanel() {
   const rows = subPricing.trades.slice(0, 24).map(t =>
     `<tr><td>${esc(t.trade)}</td><td class="r">${t.n}</td><td class="r">$${t.p25.toLocaleString()}</td><td class="r"><strong>$${t.median.toLocaleString()}</strong></td><td class="r">$${t.p75.toLocaleString()}</td></tr>`
   ).join('');
-  return `<h3 style="margin-top:18px">RYC market sub-pricing <span class="note">— real sub bids by trade, ${subPricing.bids.toLocaleString()} bids across ${subPricing.projects} jobs (BuildingConnected)</span></h3>`
+  return `<details class="pkg-market"><summary>RYC market sub-pricing evidence — ${subPricing.bids.toLocaleString()} bids across ${subPricing.projects} jobs</summary>`
+    + `<h3>Market sub-pricing by trade <span class="note">— real BuildingConnected sub bids</span></h3>`
     + `<table><thead><tr><th>Trade</th><th class="r">Bids</th><th class="r">P25</th><th class="r">Median</th><th class="r">P75</th></tr></thead><tbody>${rows}</tbody></table>`
-    + `<div class="note" style="margin-top:6px">Actual subcontractor quotes from RYC's bid history (all project types) — sanity-check the division amounts above against what subs really bid. <strong>P25–P75</strong> is the typical bid band. Each matched division above shows an inline <em>subs $P25–$P75 (n)</em> band pulled for <em>this project's type</em> (building / education / water-WW), inferred from the project name/scope; it falls back to the all-RYC band when the class sample is thin (n&lt;8). Hover for the median and sample size. Treat these as a quote sanity range, not a price to hit.</div>`;
+    + `<div class="note" style="margin-top:6px">Actual subcontractor quotes from RYC's bid history (all project types) — sanity-check the package carries above against what subs really bid. <strong>P25–P75</strong> is the typical bid band. A package uses its project-class band when at least eight bids support it and otherwise falls back to all RYC bids. Treat these as quote sanity ranges, not prices to hit.</div></details>`;
 }
 
 // Auto-match an estimate division to a BuildingConnected sub-pricing trade (high-confidence keyword
@@ -1048,6 +1078,11 @@ let quotes = {};
 function setQuote(i, val, conceptual) {
   const q = Number(val) || null;
   if (q) quotes[i] = q; else delete quotes[i];
+  const qs = document.getElementById('qstatus-' + i);
+  if (qs) {
+    qs.textContent = q ? 'Quoted' : 'Awaiting quote';
+    qs.className = 'pkg-status ' + (q ? 'is-quoted' : 'needs-quote');
+  }
   const vc = document.getElementById('qvar-' + i);
   if (vc) {
     if (q && conceptual) { const dv = (q - conceptual) / conceptual * 100; const c = dv > 5 ? '#dc2626' : dv < -5 ? '#16a34a' : '#6b7280'; vc.innerHTML = `<span style="color:${c};font-weight:600">${dv >= 0 ? '+' : ''}${dv.toFixed(0)}%</span>`; }
@@ -2176,14 +2211,15 @@ function renderResults(p, inp, bm) {
       const shr = tot > 0 && d.amount ? d.amount / tot * 100 : null;
       const b = d.div ? ds[d.div] : null;
       let mix = '';
+      let mixFlag = false;
       if (b && shr != null && b.jobsWithDivision >= 4) {
         const hi = b.sharePctP75 * 1.6, lo = b.sharePctP25 * 0.4;
         // Show the sample size inline — the mix library is only 16 jobs, so a division backed by 4-5
         // jobs should read as thin, not authoritative.
         const ref = `RYC ${b.sharePctP25}–${b.sharePctP75}% · ${b.jobsWithDivision} jobs`;
-        if (shr > hi) { mix = `<span style="color:#dc2626;font-weight:600"> ⚑ ${shr.toFixed(0)}% vs ${ref}</span>`; flagged++; }
-        else if (shr < lo) { mix = `<span style="color:#dc2626;font-weight:600"> ⚑ low ${shr.toFixed(0)}% vs ${ref}</span>`; flagged++; }
-        else mix = `<span class="note"> · ${shr.toFixed(0)}% (${ref})</span>`;
+        if (shr > hi) { mix = `<div class="pkg-evidence warn"><strong>Historical share:</strong> ⚑ ${shr.toFixed(0)}% vs ${ref}</div>`; mixFlag = true; flagged++; }
+        else if (shr < lo) { mix = `<div class="pkg-evidence warn"><strong>Historical share:</strong> ⚑ low ${shr.toFixed(0)}% vs ${ref}</div>`; mixFlag = true; flagged++; }
+        else mix = `<div class="pkg-evidence"><strong>Historical share:</strong> ${shr.toFixed(0)}% (${ref})</div>`;
       }
       // Inline market sub-pricing: the matched trade's real sub-bid $ median for THIS project class
       // (building / education / water-WW), comparable to the division $ at left. Robust (uses bid
@@ -2203,17 +2239,20 @@ function renderResults(p, inp, bm) {
         // Flag a band too wide to price against (scope-driven spread, e.g. Earthwork p25 $1.3K / p75 $3.5M).
         const wide = bnd.p25 > 0 && (bnd.p75 / bnd.p25) >= 8;
         const band = `${money(bnd.p25)}–${money(bnd.p75)}`;
-        const tip = `RYC sub bids — ${st.trade} (${scope}): P25 ${money(bnd.p25)} · median ${money(bnd.median)} · P75 ${money(bnd.p75)} · ${bnd.n} bids (BuildingConnected).${wide ? ' Very wide spread — treat as a quote sanity range, not a target.' : ''}`;
-        subMix = ` <span class="note" title="${esc(tip)}"> · subs ${band} (${scope}, n=${bnd.n}${wide ? ', wide' : ''})</span>`;
+        subMix = `<div class="pkg-evidence"><strong>Market sub bids:</strong> ${esc(st.trade)} · ${band} (${esc(scope)}, n=${bnd.n}) · median ${money(bnd.median)}${wide ? ' · very wide spread; use only as a sanity range' : ''}</div>`;
       }
-      return `<tr><td>${esc(d.name)}${d.scope ? ` <span class="note">— ${esc(d.scope)}</span>` : ''}${mix}${subMix}</td>`
+      const quoted = !!quotes[i];
+      const detail = (d.scope ? `<div class="pkg-scope"><strong>Scope:</strong> ${esc(d.scope)}</div>` : '<div class="pkg-scope">No generated scope detail.</div>')
+        + mix + subMix;
+      return `<tr><td class="pkg-name"><details class="pkg-detail"><summary>${esc(d.name)}</summary><div class="pkg-detail-body">${detail}</div></details></td>`
+        + `<td><span id="qstatus-${i}" class="pkg-status ${quoted ? 'is-quoted' : 'needs-quote'}">${quoted ? 'Quoted' : 'Awaiting quote'}</span>${mixFlag ? '<span class="pkg-mix-flag">⚑ check mix</span>' : ''}</td>`
         + `<td class="r">${d.amount ? '$' + d.amount.toLocaleString() : '—'}</td>`
-        + `<td class="r"><input class="qin" type="number" min="0" placeholder="quote $" value="${quotes[i] || ''}" oninput="setQuote(${i}, this.value, ${d.amount || 0})" style="width:92px;padding:3px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;text-align:right"></td>`
+        + `<td class="r"><input class="qin pkg-quote" type="number" min="0" inputmode="decimal" aria-label="Selected quote for ${esc(d.name)}" placeholder="quote $" value="${quotes[i] || ''}" oninput="setQuote(${i}, this.value, ${d.amount || 0})"></td>`
         + `<td class="r" id="qvar-${i}"><span class="note">—</span></td></tr>`;
     }).join('');
-    dw.innerHTML = `<table><thead><tr><th>Package / scope <span class="note">(share vs RYC history · market sub band)</span></th><th class="r">Conceptual</th><th class="r">Your quote</th><th class="r">Var</th></tr></thead><tbody>`
+    dw.innerHTML = `<table class="pkg-table"><thead><tr><th>Package <span class="note">(expand for scope &amp; evidence)</span></th><th>Status</th><th class="r">Conceptual carry</th><th class="r">Selected quote</th><th class="r">Variance</th></tr></thead><tbody>`
       + rowHtml
-      + `<tr><td><strong>Conceptual rollup — not a bid</strong></td><td class="r"><strong>${tot ? '$' + tot.toLocaleString() : '—'}</strong></td><td class="r" id="qassembled"><span class="note">enter quotes →</span></td><td class="r" id="qassembledvar"></td></tr></tbody></table>`
+      + `<tr class="pkg-total"><td colspan="2"><strong>Assembled total</strong><div class="note">quotes where entered; conceptual carries elsewhere</div></td><td class="r"><strong>${tot ? '$' + tot.toLocaleString() : '—'}</strong><div class="note">conceptual rollup</div></td><td class="r" id="qassembled"><span class="note">enter quotes →</span></td><td class="r" id="qassembledvar"></td></tr></tbody></table>`
       + ((p.exclusions && p.exclusions.length) ? `<div class="note" style="margin-top:6px"><strong>Excluded by contract scope:</strong> ${p.exclusions.map(x => esc(x.name || x.line)).join(' · ')} — carried as exclusions, not $0 packages.</div>` : '')
       + `<div class="note" style="margin-top:6px">Enter a live sub quote on any package to see its variance vs the conceptual placeholder; the <strong>assembled total</strong> updates as quotes replace placeholders — that's your real number forming.</div>`
       + (benchmarks ? `<div class="note" style="margin-top:4px">⚑ = this package's share of cost is outside RYC's historical p25–p75 range for comparable work (${benchmarks.jobs ? benchmarks.jobs.length : ''} jobs) — re-check scope/quantities or verify the quote.${flagged ? ` <strong>${flagged} flagged.</strong>` : ' None flagged.'}</div>` : '');
@@ -2780,7 +2819,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.23.2';
+const TOOL_VERSION = 'v1.23.3';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
