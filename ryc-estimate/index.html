@@ -1670,11 +1670,6 @@ function openBlankPursuit(pid) {
     if (p.work_type) document.getElementById('f-wt').value = p.work_type;
   } catch {}
   setEstView('assist');
-  // An adopted-but-not-yet-estimated pursuit is still a real pursuit: show its card so the bid
-  // due date, pre-bid meeting and readiness can be worked BEFORE the first estimate exists.
-  // Deferred a tick: called synchronously inside the gate's unlock() it re-entered the same
-  // render path and wedged the page on a deep link (caught in demo rehearsal, 2026-08-01).
-  setTimeout(renderPursuit, 0);
 }
 
 // Start a fresh pursuit from the desk: clear prior pursuit state so nothing bleeds across.
