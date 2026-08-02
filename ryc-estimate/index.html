@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.24.2">
-<script src="/ryc-shell/shell.js?v1.24.2"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.24.3">
+<script src="/ryc-shell/shell.js?v1.24.3"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -628,12 +628,23 @@ async function createPursuitFromDocs() {
    one of them. Plans win on physical facts, the RFP wins on commercial ones; neither overwrites
    anything the user typed. */
 async function readDocuments() {
-  const rfp = uploadedFiles.filter(f => f.kind === 'rfp').slice(0, 3);
-  const plans = uploadedFiles.filter(f => (f.kind || 'plans') === 'plans').slice(0, 3);
+  // Five pages, not three. Project manuals and bid packets often open with a Dodge-generated
+  // cover, a blank, and a table of contents before anything nameable — three pages could land
+  // entirely on front matter and come back empty, which reads as "your document is useless".
+  const PAGES = 5;
+  const allRfp = uploadedFiles.filter(f => f.kind === 'rfp');
+  const allPlans = uploadedFiles.filter(f => (f.kind || 'plans') === 'plans');
+  const rfp = allRfp.slice(0, PAGES);
+  const plans = allPlans.slice(0, PAGES);
   const note = document.getElementById('autofillNote');
   note.style.display = 'block';
   note.textContent = `📋 Reading ${[rfp.length ? 'RFP' : null, plans.length ? 'plan set' : null].filter(Boolean).join(' + ')}…`;
-  const filled = [];
+  const filled = [], failures = [];
+  const readSpan = (used, total, label) =>
+    total > used ? `${label} pages 1–${used} of ${total}` : `${label} ${total} page${total === 1 ? '' : 's'}`;
+  const spans = [];
+  if (allRfp.length) spans.push(readSpan(rfp.length, allRfp.length, 'RFP'));
+  if (allPlans.length) spans.push(readSpan(plans.length, allPlans.length, 'plans'));
   const setIf = (id, v, label) => { const el = document.getElementById(id); if (v && el && !el.value.trim()) { el.value = v; filled.push(label); } };
   const applySel = (id, v, touchedFlag, label) => {
     const el = document.getElementById(id);
@@ -641,7 +652,9 @@ async function readDocuments() {
   };
   let meta = {}, terms = {};
   if (rfp.length) {
-    const got = await readPass(rfp, RFP_PROMPT);
+    const res = await readPass(rfp, RFP_PROMPT);
+    if (!res.ok) failures.push('RFP: ' + res.error);
+    const got = res.ok ? res.data : null;
     if (got) {
       terms = got;
       setIf('f-name', got.project_name, 'name');
@@ -653,7 +666,9 @@ async function readDocuments() {
     }
   }
   if (plans.length) {
-    const got = await readPass(plans, PLANS_PROMPT);
+    const res = await readPass(plans, PLANS_PROMPT);
+    if (!res.ok) failures.push('Plans: ' + res.error);
+    const got = res.ok ? res.data : null;
     if (got) {
       setIf('f-name', got.project_name, 'name');
       setIf('f-loc', got.location, 'location');
@@ -680,17 +695,40 @@ async function readDocuments() {
     terms.bonding_required === true ? 'Bonding required' : null,
     terms.delivery_method ? 'Delivery: ' + terms.delivery_method : null,
   ].filter(Boolean).join(' · ');
-  note.textContent = filled.length
-    ? `📋 Filled from your documents: ${[...new Set(filled)].join(', ')}${bits ? ' · ' + bits : ''} — verify before running.`
-    : (bits ? `📋 Read from your documents — ${bits}` : '📋 Documents read — nothing could be filled automatically.');
+  /* Three outcomes, three messages. The old single fallback said "nothing could be filled"
+     whether the reader errored or the pages genuinely had nothing on them — which blamed the
+     user's document for what might have been a failed call, and gave no way to tell. */
+  const read = spans.join(' · ');
+  if (filled.length) {
+    note.textContent = `📋 Filled from ${read}: ${[...new Set(filled)].join(', ')}${bits ? ' · ' + bits : ''} — verify before running.`;
+  } else if (failures.length) {
+    note.textContent = `⚠ Could not read your documents — ${failures.join('; ')}. Nothing was filled;`
+      + ` try again, or enter the details below yourself.`;
+  } else if (bits) {
+    note.textContent = `📋 Read ${read} — ${bits}`;
+  } else {
+    // Genuinely empty: name the pages examined so the fix is obvious (the cover sheet is
+    // usually just outside the window on a big spec book).
+    note.textContent = `📋 Read ${read} — no project details on those pages.`
+      + ` The title or cover sheet is often deeper in a large set: add it as its own upload,`
+      + ` or fill the fields below yourself.`;
+  }
   window._autofillDone = true;
 }
+/* Returns a TYPED outcome, never a bare null. "The reader failed" and "the document had nothing
+   on those pages" need different words and lead to different fixes — collapsing them into one
+   silent null told the user their document was useless when the call may simply have errored. */
 async function readPass(pages, prompt) {
+  let rawTxt;
   try {
-    const rawTxt = await callClaude(prompt, pages, 500);
-    const m = rawTxt.match(/\{[\s\S]*\}/);
-    return m ? JSON.parse(m[0]) : null;
-  } catch (e) { return null; }
+    rawTxt = await callClaude(prompt, pages, 500);
+  } catch (e) {
+    return { ok: false, error: (e && e.message) ? e.message : 'the document reader could not be reached' };
+  }
+  const m = rawTxt && rawTxt.match(/\{[\s\S]*\}/);
+  if (!m) return { ok: false, error: 'the reader replied in an unexpected format' };
+  try { return { ok: true, data: JSON.parse(m[0]) }; }
+  catch { return { ok: false, error: 'the reader returned malformed JSON' }; }
 }
 const RFP_PROMPT = `These are the first pages of a construction RFP / invitation to bid / instructions to bidders. Extract what the bidding documents state. Reply with ONLY a JSON object, no prose:
 {"project_name": string|null, "location": string|null (city, ST), "owner": string|null (the owner/awarding authority), "architect": string|null (architect or engineer of record), "client_type": one of "school","municipal","commercial","industrial","private","mixed_use" or null (infer from the owner: school corp=school, city/town/county/utility=municipal), "work_type": one of "new_construction","renovation","addition","repair" or null, "bid_due_date": string|null (YYYY-MM-DD, the bid/proposal due date), "bonding_required": true|false|null (is a bid or performance bond required), "delivery_method": string|null (e.g. design-bid-build, CM at risk, design-build), "scope_summary": string|null (one sentence)}
@@ -3023,7 +3061,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.24.2';
+const TOOL_VERSION = 'v1.24.3';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
