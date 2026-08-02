@@ -625,7 +625,58 @@ export default async function handler(req, res) {
     // Ingest the BC bid board into ryc_opportunities. Published rows ingest fully; recentClosed
     // rows only UPDATE opportunities we already track (flipping source_status) — backfilling
     // months of historic closed bids as "new" would flood the review queue.
+    /* Opportunity intake is source-parameterized (Keith, 2026-08-02 — Dodge / IndianaBids).
+       BuildingConnected keeps its bespoke mapping because its board JSON predates the
+       opportunity row contract. EVERY OTHER SOURCE publishes rows already in the canonical
+       shape, so the API does not grow a per-source mapper: a new source is a new VM publisher
+       plus one line here. `ryc_ingest_opportunities` is unchanged — it already takes p_source,
+       and the unique(company_id, source, source_opportunity_id) constraint gives each source
+       its own dedup namespace. */
     if (action === 'sync_opportunities') {
+      const NORMALIZED_SOURCES = {
+        dodge: { file: 'dodge-board.json', label: 'Dodge' },
+        indianabids: { file: 'indianabids-board.json', label: 'IndianaBids' },
+      };
+      const source = String(req.body.source || 'bc_bidboard');
+      if (source !== 'bc_bidboard' && !NORMALIZED_SOURCES[source]) {
+        return res.status(400).json({ error: 'unknown opportunity source: ' + source });
+      }
+      if (source !== 'bc_bidboard') {
+        const cfg = NORMALIZED_SOURCES[source];
+        const nr = await fetch('https://app.civicscope.io/ryc-data/' + cfg.file + '?t=' + Date.now());
+        if (!nr.ok) return res.status(502).json({ error: cfg.label + ' board unavailable: HTTP ' + nr.status });
+        let nb; try { nb = await nr.json(); } catch { return res.status(502).json({ error: cfg.label + ' board is not valid JSON' }); }
+        if (!Array.isArray(nb.opportunities)) {
+          return res.status(502).json({ error: cfg.label + ' board is malformed (no opportunities array)' });
+        }
+        const str = (v, n) => (v == null || v === '') ? null : String(v).slice(0, n);
+        // Anything without a stable source id cannot be deduped, so it is dropped rather than
+        // ingested as a row that would re-insert on every run.
+        const nrows = nb.opportunities.map(o => {
+          const sid = str(o.source_opportunity_id, 120);
+          const name = str(o.name, 250);
+          if (!sid || !name) return null;
+          return {
+            source_opportunity_id: sid,
+            name,
+            client: str(o.client, 200),
+            location: str(o.location, 200),
+            bid_due_at: o.bid_due_at || null,
+            bc_url: str(o.url, 500),
+            source_status: ['open', 'expired', 'cancelled'].includes(o.source_status) ? o.source_status : 'open',
+            payload: (o.payload && typeof o.payload === 'object') ? o.payload : {},
+          };
+        }).filter(Boolean);
+        const nout = await rpc('ryc_ingest_opportunities', {
+          p_source: source, p_rows: nrows,
+          p_request_id: source + '-' + (nb.generatedAt || reqId()),
+          p_actor: gateActor,
+        });
+        return res.status(nout.status).json(nout.status === 200
+          ? Object.assign({ board_generated_at: nb.generatedAt, source,
+              received: nb.opportunities.length, ingested: nrows.length }, nout.body)
+          : nout.body);
+      }
       const br = await fetch('https://app.civicscope.io/ryc-data/bc-bidboard.json?t=' + Date.now());
       if (!br.ok) return res.status(502).json({ error: 'bid board unavailable: HTTP ' + br.status });
       const board = await br.json();
