@@ -1680,6 +1680,21 @@ function closeDrawer(silent){ RYCDrawer.dismiss({silent:!!silent}); }
    vendor ledger + per-sub job-history drawer. ===== */
 var subsShowAll=false;
 function toggleSubsAll(){ subsShowAll=!subsShowAll; renderSubs(); }
+/* CURRENT = the sub is on a job the ACTIVE BOARD carries. "Where are they working now" is
+   the operational question a spend ranking cannot answer; an all-time job count answers a
+   different one (usability program 3.4). jobByNo() is the same board-membership test the
+   rest of Command uses, so this can never drift from what Portfolio calls active. */
+function subJobSplit(s){
+  var cur=[], hist=[];
+  (s.jobs||[]).forEach(function(jj){ (jobByNo(jj.jobNo)?cur:hist).push(jj); });
+  cur.sort(function(a,b){ return (b.actual||0)-(a.actual||0); });
+  hist.sort(function(a,b){ return (b.actual||0)-(a.actual||0); });
+  return {cur:cur, hist:hist};
+}
+function subCurrentCount(s){
+  var n=subJobSplit(s).cur.length;
+  return n?("<b>"+n+"</b>"):"<span class=\"m-m\">0</span>";
+}
 function subDeltaCell(d){ return d==null?"<span class=\"m-m\">—</span>":"<span class=\""+(d<0?"m-r":"m-g")+"\">"+(d>=0?"+":"")+fmtCompact(d)+"</span>"; }
 function renderSubs(){
   var view=document.getElementById("view");
@@ -1699,7 +1714,7 @@ function renderSubs(){
   var rows=shown.map(function(s,i){
     return "<tr class=\"ryc-row\" data-vno=\""+attrEsc(s.vendorNo)+"\" tabindex=\"0\" role=\"button\" title=\"Job history\"><td class=\"r\" style=\"color:#8b95ab\">"+(i+1)+"</td>"
       +"<td><div class=\"jname\">"+esc(s.name)+"</div></td>"
-      +"<td class=\"r\">"+(s.actualJobs||s.committedJobs||0)+"</td>"
+      +"<td class=\"r\">"+subCurrentCount(s)+"<div class=\"cell-sub\">"+(s.actualJobs||s.committedJobs||0)+" all time</div></td>"
       +"<td class=\"r\">"+(s.committed?fmtCompact(s.committed):"<span class=\"m-m\">—</span>")+"</td>"
       +"<td class=\"r\"><b>"+fmtCompact(s.actualCost)+"</b></td>"
       +"<td class=\"r\">"+subDeltaCell(s.variance)+"</td></tr>";
@@ -1708,7 +1723,7 @@ function renderSubs(){
   view.innerHTML=strip
     +"<div class=\"vhead\" style=\"display:flex;align-items:center;gap:10px\">Top subcontractors — ranked by actual spend "+toggle+"</div>"
     +"<div class=\"vsub\"><b>Actual</b> = subcontractor cost booked in Foundation by vendor across 2023+ jobs. <b>Committed</b> = signed subcontract amount (PO_Sub). Δ = committed − actual: positive = under / in-progress; negative = actual over the subcontract (change orders or T&amp;M). Committed-vs-actual mixes in-progress jobs and T&amp;M (PO-less) subs — read <b>Actual</b> as the spend ranking. The buyout spread vs the original <i>bid</i> carry needs the estimate — a later phase. Click a sub for its job history.</div>"
-    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th class=\"r\">#</th><th>Subcontractor</th><th class=\"r\">Jobs</th><th class=\"r\">Committed</th><th class=\"r\">Actual spend</th><th class=\"r\">Δ vs committed</th></tr></thead><tbody>"+rows+"</tbody></table></div>"
+    +"<div class=\"ptable-wrap\"><table class=\"ptable\"><thead><tr><th class=\"r\">#</th><th>Subcontractor</th><th class=\"r\">On now</th><th class=\"r\">Committed</th><th class=\"r\">Actual spend</th><th class=\"r\">Δ vs committed</th></tr></thead><tbody>"+rows+"</tbody></table></div>"
     +(subsShowAll?"":"<div class=\"vsub\" style=\"margin-top:8px\">Top 40 of "+subs.length+" shown.</div>");
   hookSubRows();
 }
@@ -1722,7 +1737,7 @@ function openSubDrawer(vno,trigger){
   if(!s) return;
   closeDrawer(true);
   function stat(l,v,su){ return "<div class=\"dw-stat\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div>"+(su?"<div class=\"s\">"+su+"</div>":"")+"</div>"; }
-  var head="<div class=\"dw-head\"><div><h3>"+esc(s.name)+"</h3>"
+  var dhead="<div class=\"dw-head\"><div><h3>"+esc(s.name)+"</h3>"
     +"<div class=\"dw-sub\">Subcontractor · vendor "+esc(s.vendorNo)+" · "+(s.actualJobs||(s.jobs||[]).length)+" jobs with booked cost (2023+)</div></div>"
     +"<button class=\"dw-close\" onclick=\"closeDrawer()\" aria-label=\"Close\">&times;</button></div>";
   var stats="<div class=\"dw-sec\"><h4>Total across RYC (2023+)</h4><div class=\"dw-stats\">"
@@ -1730,20 +1745,38 @@ function openSubDrawer(vno,trigger){
     +stat("Committed",s.committed?fmtCompact(s.committed):"—","signed subcontracts (PO_Sub)")
     +stat("Δ committed − actual",s.variance==null?"—":((s.variance>=0?"+":"")+fmtCompact(s.variance)),"")
     +"</div></div>";
-  var jobRows=(s.jobs||[]).map(function(jj){
+  var split=subJobSplit(s);
+  function jobRow(jj, live){
     var v=(jj.committed>0&&jj.actual>0)?(jj.committed-jj.actual):null;
-    return "<tr><td><span class=\"cell-sub\">"+esc(jj.jobNo)+"</span> "+esc(jj.jobName||"")+"</td>"
+    var j=live?jobByNo(jj.jobNo):null;
+    var sl=j?getStoplight(j,j):null;
+    var pm=j?(pmName(j)||""):"";
+    return "<tr"+(live?(" data-jno=\""+attrEsc(jj.jobNo)+"\" style=\"cursor:pointer\" title=\"Open this job\""):"")+">"
+      +"<td><span class=\"cell-sub\">"+esc(jj.jobNo)+"</span> "+esc(jj.jobName||"")+(pm?"<div class=\"cell-sub\">PM "+esc(pm)+"</div>":"")+"</td>"
+      +(live?("<td>"+statusPill(isCloseoutOnly(j)?"closeout":sl.color,sl.reasons.map(function(r){return r.text;}).join(" · "))+"</td>"):"<td><span class=\"m-m\">closed</span></td>")
       +"<td class=\"r\">"+(jj.committed?fmtCompact(jj.committed):"—")+"</td>"
       +"<td class=\"r\">"+fmtCompact(jj.actual)+"</td>"
       +"<td class=\"r\">"+(v==null?"—":((v>=0?"+":"")+fmtCompact(v)))+"</td></tr>";
-  }).join("");
-  var jobsSec="<div class=\"dw-sec\"><h4>Jobs (top "+(s.jobs||[]).length+" by spend)</h4>"
-    +"<table class=\"dwt\"><tr><th>Job</th><th class=\"r\">Committed</th><th class=\"r\">Actual</th><th class=\"r\">Δ</th></tr>"+jobRows+"</table>"
-    +"<div class=\"dw-note\">Δ = committed − actual: positive = under / in-progress; negative = actual over the subcontract (change orders or T&amp;M).</div></div>";
+  }
+  var sHead="<tr><th>Job</th><th>Status</th><th class=\"r\">Committed</th><th class=\"r\">Actual</th><th class=\"r\">Remaining</th></tr>";
+  var curSec=split.cur.length
+    ? ("<table class=\"dwt\">"+sHead+split.cur.map(function(j){return jobRow(j,true);}).join("")+"</table>"
+       +"<div class=\"dw-note\">Remaining = committed &minus; actual: positive = still to spend on an in-progress subcontract; negative = actual over the subcontract (change orders or T&amp;M). Click a job to open it.</div>")
+    : "<div class=\"dw-note\">Not currently on any job the active board carries.</div>";
+  var histSec=split.hist.length
+    ? ("<details style=\"margin-top:10px\"><summary class=\"dw-note\" style=\"cursor:pointer\">Earlier jobs &mdash; "+split.hist.length+"</summary>"
+       +"<table class=\"dwt\" style=\"margin-top:6px\">"+sHead+split.hist.map(function(j){return jobRow(j,false);}).join("")+"</table></details>")
+    : "";
+  var jobsSec="<div class=\"dw-sec\"><h4>Currently on "+split.cur.length+" active job"+(split.cur.length===1?"":"s")+"</h4>"
+    +curSec+histSec+"</div>";
   var wrap=document.createElement("div"); wrap.id="dwrap";
-  wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Subcontractor detail: "+attrEsc(s.name)+"\">"+head+"<div class=\"dw-body\">"+stats+jobsSec+"</div></aside>";
+  wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Subcontractor detail: "+attrEsc(s.name)+"\">"+dhead+"<div class=\"dw-body\">"+stats+jobsSec+"</div></aside>";
   document.body.appendChild(wrap);
   RYCDrawer.mount(wrap,{trigger:trigger||null});
+  // a job listed under a sub is a ROUTE to that job, not just a label
+  Array.prototype.forEach.call(wrap.querySelectorAll("tr[data-jno]"),function(tr){
+    tr.addEventListener("click",function(){ openDrawer(tr.getAttribute("data-jno"),null); });
+  });
 }
 
 /* ===== Completed (v2.24.0) — the as-built record + sector insights. Restores the legacy
