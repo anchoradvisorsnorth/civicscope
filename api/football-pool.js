@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.5.0-integrity';   // reveal-at-deadline, CAS saves, server-scored finalize, validated picks
+const VER = '1.6.0-sandbox';   // + sandbox- slugs read roster from sandbox-config
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
