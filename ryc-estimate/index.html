@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.6">
-<script src="/ryc-shell/shell.js?v1.22.6"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.23.0">
+<script src="/ryc-shell/shell.js?v1.23.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -110,6 +110,20 @@
   .section-header { font-size:15px; margin:0 0 6px; display:flex; align-items:center; }
   .cnt { font-size:12px; color:var(--muted); font-weight:400; margin-left:8px; }
   .muted-cell { color:var(--muted); }
+  /* pursuit work areas (2.3) */
+  .pursuit-head { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 20px; margin-bottom:10px; }
+  .pursuit-head h2 { margin:0; font-size:19px; }
+  .pursuit-head .ph-sub { color:var(--muted); font-size:12.5px; margin-top:3px; }
+  .pursuit-head .ph-facts { display:flex; flex-wrap:wrap; gap:18px; margin-top:12px; }
+  .pursuit-head .ph-fact .l { font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+  .pursuit-head .ph-fact .v { font-size:15px; font-weight:700; margin-top:1px; }
+  .area-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:14px; border-bottom:1px solid var(--line); }
+  .area-tabs button { background:none; border:none; border-bottom:2px solid transparent; padding:8px 12px;
+    font:inherit; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
+  .area-tabs button:hover { color:var(--ink); }
+  .area-tabs button.on { color:var(--accent); border-bottom-color:var(--accent); }
+  .area-tabs button:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+  .area-tabs .tab-n { font-weight:400; color:var(--muted); margin-left:5px; }
   /* pursuit workflow */
   .stagebar { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0 14px; }
   .stage-step { padding:5px 12px; border:1px solid var(--line); background:#fff; border-radius:20px; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; font-family:inherit; }
@@ -195,8 +209,15 @@
   </div>
 
   <!-- RESULTS -->
+  <!-- 2.3: the pursuit stopped being one unbounded scroll. A persistent header carries the
+       identity and the number; the work splits into five areas, each answering one question.
+       The cards themselves are unchanged — they are GROUPED, not rewritten, because the
+       requirement is that a user no longer navigates one endless page, not that a particular
+       component be used. -->
   <div id="resultsPanel" style="display:none">
-    <div class="card">
+    <div id="pursuitHeader"></div>
+    <div id="areaTabs" class="area-tabs"></div>
+    <div class="card" data-area="overview">
       <div id="resMeta" class="note" style="margin-bottom:8px"></div>
       <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:13px;color:#9a3412;margin-bottom:10px">
         <strong>Conceptual bid-assembly draft — not a bid.</strong> Every package below is a subcontract placeholder to confirm with a live quote. Enter quotes as they arrive to assemble the real number; the conceptual range is an order-of-magnitude read only.
@@ -210,43 +231,44 @@
       <div id="gateBanner" style="display:none;margin-top:8px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-left:3px solid #dc2626;border-radius:6px;color:#991b1b;font-size:13px;line-height:1.5"></div>
     </div>
 
-    <div class="card" id="pursuitCard" style="display:none">
+    <div class="card" id="pursuitCard" data-area="overview" style="display:none">
       <h3 style="margin-top:0">Pursuit status <span class="note">— tracks this estimate through the pre-bid workflow</span></h3>
       <div id="pursuitBody"></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-area="quotes">
       <h3 style="margin-top:0">Bid packages to price <span class="note">— each line is a subcontract package; enter live quotes to assemble the number</span></h3>
       <div id="divisionsWrap"></div>
     </div>
 
-    <div class="card" id="bcCard" style="display:none">
+    <div class="card" id="bcCard" data-area="packages" style="display:none">
       <h3 style="margin-top:0">Create draft bid packages in BuildingConnected <span class="note">— copies bidder lists from recent similar work. Nothing is sent to anyone until you review and publish in BC.</span></h3>
       <div id="bcBody"></div>
     </div>
 
-    <div class="card" id="gapCard" style="display:none">
+    <div class="card" id="gapCard" data-area="scope" style="display:none">
       <h3 style="margin-top:0">Open questions to tighten the number <span class="note">— resolve before pricing</span></h3>
       <div id="gapWrap"></div>
     </div>
 
-    <div class="card" id="rfiCard" style="display:none">
+    <div class="card" id="rfiCard" data-area="scope" style="display:none">
       <h3 style="margin-top:0">RFI builder <span class="note">— turns the open questions into formal pre-bid RFIs, each with RYC's suggested assumption to carry unless the design team directs otherwise</span></h3>
       <div id="rfiBody"></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-area="scope">
       <h3 style="margin-top:0">Estimator read</h3>
       <div id="narrative" class="note" style="color:var(--ink);font-size:14px"></div>
       <h3>Assumptions</h3>
       <ul id="assumptions"></ul>
     </div>
 
-    <div class="card ground">
+    <div class="card ground" data-area="scope">
       <h3 style="margin-top:0">Grounded against RYC history</h3>
       <div id="groundBody"></div>
     </div>
 
+    <div class="card" data-area="history"><div id="historyArea"></div></div>
     <button class="btn btn-ghost" onclick="refine()">Edit inputs</button>
     <button class="btn btn-ghost" onclick="resetAll()">New project</button>
   </div>
@@ -1496,6 +1518,109 @@ function statusRow(item, label, genLabel, genFn) {
     <div class="ck-actions"><button class="btn-sm" onclick="${genFn}">📄 ${genLabel}</button>${sel}</div></div>`;
 }
 
+/* ===== Pursuit work areas (program 2.3) ================================================
+   The pursuit page mixed summary, workflow controls, the conceptual estimate, quote entry, BC
+   publishing, open questions, bonding, builders risk, award linking and calibration context in
+   one scroll. Five areas, each answering one question:
+
+     Overview       what stage is this, what is blocking it, what is the number
+     Scope & Estimate  what did the model read, what is assumed, what is still open
+     Quotes         package by package — what came in, what are we carrying
+     Bid Packages   what exists in BuildingConnected
+     History        revisions, decisions, submission, outcome, corrections
+
+   The area is QUERY STATE (`?area=quotes`), not a path segment: contract §3 permits exactly
+   one shape for `/desk/pursuits/<uuid>` and treats surplus segments as not-found, while query
+   state is the pattern already used for the Opportunities filter and the Quick Check panel.
+   Values are whitelisted, so a hand-typed area cannot render a blank page. */
+const PURSUIT_AREAS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'scope',    label: 'Scope & Estimate' },
+  { key: 'quotes',   label: 'Quotes' },
+  { key: 'packages', label: 'Bid Packages' },
+  { key: 'history',  label: 'History' },
+];
+let _area = 'overview';
+function setArea(k, silent) {
+  if (!PURSUIT_AREAS.some(a => a.key === k)) k = 'overview';
+  _area = k;
+  document.querySelectorAll('#resultsPanel [data-area]').forEach(el => {
+    const mine = el.getAttribute('data-area') === k;
+    // A card that hides itself (bcCard, gapCard, rfiCard) must STAY hidden when its area is
+    // shown — the area controls membership, the card still controls whether it has anything
+    // to say. Its own display:none is preserved via a marker rather than overwritten.
+    if (!mine) {
+      if (!el.dataset.areaHidden) { el.dataset.selfHidden = (el.style.display === 'none') ? '1' : ''; el.dataset.areaHidden = '1'; }
+      el.style.display = 'none';
+    } else if (el.dataset.areaHidden) {
+      el.style.display = el.dataset.selfHidden === '1' ? 'none' : '';
+      delete el.dataset.areaHidden;
+    }
+  });
+  document.querySelectorAll('#areaTabs button').forEach(b => b.classList.toggle('on', b.dataset.area === k));
+  if (k === 'history') renderHistoryArea();
+  if (!silent && !_routing) {
+    const u = deskUrl('assist') + (k === 'overview' ? '' : '?area=' + k);
+    if (location.pathname + location.search !== u) navPush(u, { v: 'assist', area: k });
+  }
+}
+/* The persistent header: identity and the number stay on screen whichever area is open, so
+   moving between them never loses the thing the whole page is about. */
+function renderPursuitHeader() {
+  const el = document.getElementById('pursuitHeader'); if (!el) return;
+  const wf = curWF(), inp = window._lastInp || {}, rec = curRecon();
+  const dtd = daysToDue(wf);
+  const stage = (WF_STAGES.find(x => x.key === wf.stage) || {}).label || wf.stage || 'Takeoff';
+  const q = quoteState();
+  const ready = [];
+  if (wf.checklist && wf.checklist.bonding && wf.checklist.bonding.status && wf.checklist.bonding.status !== 'na') ready.push('Bond ' + wf.checklist.bonding.status);
+  if (wf.checklist && wf.checklist.builders_risk && wf.checklist.builders_risk.status && wf.checklist.builders_risk.status !== 'na') ready.push('BR ' + wf.checklist.builders_risk.status);
+  if (q.m) ready.push('Quotes ' + q.n + '/' + q.m);
+  if (wf.award && wf.award.job_no) ready.push('Awarded ' + wf.award.job_no);
+  const fact = (l, v, s2) => `<div class="ph-fact"><div class="l">${l}</div><div class="v">${v}</div>${s2 ? `<div class="l" style="text-transform:none;letter-spacing:0">${s2}</div>` : ''}</div>`;
+  el.innerHTML = `<div class="pursuit-head">
+    <h2>${esc(inp.name || 'Untitled pursuit')}</h2>
+    <div class="ph-sub">${esc([inp.loc, inp.ct && ciCT(inp.ct), inp.wt && ciWT(inp.wt)].filter(Boolean).join(' · ')) || '—'}</div>
+    <div class="ph-facts">
+      ${fact('Stage', esc(stage), wf.due_date ? ('bid due ' + RYCFormat.date(wf.due_date) + (dtd != null ? (dtd < 0 ? ` · ${Math.abs(dtd)}d overdue` : dtd === 0 ? ' · today' : ` · ${dtd}d`) : '')) : 'no bid date set')}
+      ${fact('Working number', rec.total ? fmtCompact(rec.total) : '—', (window._lastP && window._lastP.confidence) ? esc(window._lastP.confidence) + ' confidence' : 'conceptual')}
+      ${wf.submission && wf.submission.amount ? fact('Submitted', fmtCompact(wf.submission.amount), (wf.submission.at || '').slice(0, 10)) : ''}
+      ${fact('Readiness', ready.length ? esc(ready.length + ' recorded') : '—', ready.join(' · ') || 'nothing recorded yet')}
+    </div></div>`;
+}
+function renderAreaTabs() {
+  const el = document.getElementById('areaTabs'); if (!el) return;
+  const q = quoteState();
+  const counts = { quotes: q.m ? `${q.n}/${q.m}` : '', packages: bcState() === 'loaded' ? '✓' : '' };
+  el.innerHTML = PURSUIT_AREAS.map(a =>
+    `<button type="button" data-area="${a.key}" class="${a.key === _area ? 'on' : ''}" onclick="setArea('${a.key}')">`
+    + `${esc(a.label)}${counts[a.key] ? `<span class="tab-n">${counts[a.key]}</span>` : ''}</button>`).join('');
+}
+/* History: revisions and decisions in one place, which previously existed only as scattered
+   pills and a spread percentage on the board. */
+function renderHistoryArea() {
+  const el = document.getElementById('historyArea'); if (!el) return;
+  const wf = curWF();
+  const p2 = ((historyCache && historyCache.pursuits) || []).find(x => x.id === window._pursuitId);
+  const runs = ((historyCache && historyCache.runs) || []).filter(r => r.pursuit_id === window._pursuitId)
+    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  const rows = runs.map((r, i) => `<tr><td>${runs.length - i}</td><td>${esc((r.created_at || '').slice(0, 10))}</td>`
+    + `<td class="r">${r.cost_mid ? fmtCompact(r.cost_mid) : '—'}</td><td>${esc(r.confidence || '—')}</td>`
+    + `<td>${esc(r.estimator || '—')}</td>`
+    + `<td>${r.id === window._runId ? '<span class="ck-pill ck-received">open</span>' : `<button class="btn-sm ghost" onclick="openRun('${esc(r.id)}')">Open</button>`}</td></tr>`).join('');
+  const events = [];
+  if (p2 && p2.created_at) events.push([p2.created_at.slice(0, 10), 'Pursuit created' + (wf.source === 'bc_bidboard' ? ' from a BuildingConnected opportunity' : '')]);
+  if (wf.submission && wf.submission.at) events.push([wf.submission.at.slice(0, 10), 'Bid submitted at ' + fmtCompact(wf.submission.amount)]);
+  if (wf.award && wf.award.linked_at) events.push([wf.award.linked_at.slice(0, 10), 'Won — linked to Foundation job ' + wf.award.job_no]);
+  if (wf.outcome && wf.outcome.result) events.push([(wf.outcome.at || '').slice(0, 10), 'Lost' + (wf.outcome.winner ? ' to ' + wf.outcome.winner : '') + (wf.outcome.winning_amount ? ' at ' + fmtCompact(wf.outcome.winning_amount) : '')]);
+  events.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  el.innerHTML = `<h3 style="margin-top:0">History</h3>
+    <div class="billing-sub">Every revision of this pursuit and the decisions recorded against it. Revisions are immutable — a correction appends, it never rewrites.</div>
+    ${runs.length ? `<table><thead><tr><th>Rev</th><th>Generated</th><th class="r">Conceptual</th><th>Confidence</th><th>Estimator</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+      : '<div class="billing-empty">No estimate has been generated for this pursuit yet.</div>'}
+    ${events.length ? `<h3>Decisions</h3><table><tbody>${events.map(e => `<tr><td style="width:110px" class="note">${esc(e[0] || '—')}</td><td>${esc(e[1])}</td></tr>`).join('')}</tbody></table>` : ''}`;
+}
+
 function renderPursuit() {
   const el = document.getElementById('pursuitBody'); if (!el) return;
   document.getElementById('pursuitCard').style.display = 'block';
@@ -1621,6 +1746,10 @@ function renderPursuit() {
       : `<div class="note" style="margin:16px 0 2px">Submission &amp; outcome</div>
      <div class="ck-row"><span class="ck-name">Not yet submitted</span><span class="ck-pill ck-na">pre-bid</span>
      <div class="ck-actions note">Recording the submitted bid opens this section. The awarded-job link belongs here too — accounting opens the Foundation job first, then the pursuit connects to it.</div></div>`);
+
+  renderPursuitHeader();
+  renderAreaTabs();
+  setArea(_area, true);
 }
 
 /* ===== Estimating Desk board (v1.10.0) ==============================================
@@ -2199,7 +2328,13 @@ const LEGACY_HASH = {
 };
 function deskUrl(view, opts) {
   opts = opts || {};
-  if (view === 'assist') return DESK_BASE + '/pursuits/' + (window._pursuitId || 'new');
+  if (view === 'assist') {
+    // The open work area travels in the address, so a shared pursuit link opens where it was
+    // left. Query state, not a path segment: contract §3 allows exactly one shape for
+    // /desk/pursuits/<uuid> and treats surplus segments as not-found.
+    const base = DESK_BASE + '/pursuits/' + (window._pursuitId || 'new');
+    return base + (_area && _area !== 'overview' ? '?area=' + _area : '');
+  }
   if (view === 'quickcheck') return DESK_BASE + '/intel?panel=quick';
   let u = DESK_BASE + '/' + (VIEW_SEG[view] || 'pursuits');
   const q = [];
@@ -2411,7 +2546,13 @@ function routeFromLocation() {
   if (route.kind === 'bad') return renderDeskNotFound(route.why);
   if (route.kind === 'new') { _routing = true; try { newPursuit(); } finally { _routing = false; } return; }
   if (route.kind === 'pursuit') {
-    if (window._pursuitId === route.id && document.getElementById('resultsPanel').style.display === 'block') return;
+    // Whitelisted, so a hand-typed area can never render a blank page.
+    const wantArea = qs.get('area');
+    _area = PURSUIT_AREAS.some(a => a.key === wantArea) ? wantArea : 'overview';
+    if (window._pursuitId === route.id && document.getElementById('resultsPanel').style.display === 'block') {
+      _routing = true; try { setArea(_area); } finally { _routing = false; }
+      return;
+    }
     openPursuitById(route.id, tok);
     return;
   }
@@ -2634,7 +2775,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.22.6';
+const TOOL_VERSION = 'v1.23.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
