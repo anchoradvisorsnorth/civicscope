@@ -40,10 +40,36 @@ export default async function handler(req, res) {
   // NOT the confidentiality fix. RYC's confidential traffic no longer uses this endpoint at all;
   // it goes through the gated single-processor /api/ryc-ask. An identity-bearing allowlist for
   // this proxy is tracked separately because it has to land with the automation callers.
+  //
+  // THE 200KB FLAT CAP WAS A TRUNCATION BUG (found 2026-08-02, same day it shipped). The audit
+  // behind it measured TEXT prompts (~25KB) and never looked at an image caller. One rendered
+  // plan page is 70-220KB of base64, and the takeoff deliberately batches up to 3MB / 10 pages
+  // (splitIntoBatches). So the flat cap 413'd every multi-page vision request: the RYC
+  // estimator's own plan-set takeoff — the product's core function — and the new-pursuit
+  // document reader. Single-page requests slipped under it, which is why it looked fine.
+  //
+  // Text and images are bounded SEPARATELY: an arbitrary text caller stays cheap, while a
+  // genuine vision caller is bounded by image count and a ceiling that sits above the largest
+  // real batch. Both refusals now report the measured numbers, so this can never again fail
+  // silently enough to look like "the document had nothing in it".
   const body = req.body;
   const size = (() => { try { return JSON.stringify(body || '').length; } catch { return 0; } })();
-  if (size > 200 * 1024) {
-    return res.status(413).json({ error: { message: 'Request too large' } });
+  const imageCount = (() => {
+    try {
+      return (body.messages || []).reduce((n, m) => n + (Array.isArray(m.content)
+        ? m.content.filter(c => c && c.type === 'image').length : 0), 0);
+    } catch { return 0; }
+  })();
+  const TEXT_LIMIT = 200 * 1024;          // unchanged for text-only callers
+  const IMAGE_LIMIT = 4 * 1024 * 1024;    // above the 3MB takeoff batch, below Vercel's 4.5MB body limit
+  const MAX_IMAGES = 16;                  // splitIntoBatches caps a batch at 10 pages
+  if (imageCount > MAX_IMAGES) {
+    return res.status(413).json({ error: { message: `Too many images (${imageCount} > ${MAX_IMAGES})` } });
+  }
+  const limit = imageCount > 0 ? IMAGE_LIMIT : TEXT_LIMIT;
+  if (size > limit) {
+    return res.status(413).json({ error: { message:
+      `Request too large (${Math.round(size / 1024)}KB > ${Math.round(limit / 1024)}KB${imageCount ? `, ${imageCount} images` : ''})` } });
   }
   // The ceiling must sit ABOVE every genuine caller or it is not a guard, it is a truncation bug.
   // Audited 2026-08-02: the largest real request is 4096 (a sketch-attached estimate, and the
