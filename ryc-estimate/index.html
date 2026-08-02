@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.4">
-<script src="/ryc-shell/shell.js?v1.22.4"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.5">
+<script src="/ryc-shell/shell.js?v1.22.5"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -155,15 +155,11 @@
       <div class="grid2">
         <label>Project name<input id="f-name" placeholder="e.g. Wakarusa Elementary HVAC"></label>
         <label>Location<input id="f-loc" placeholder="e.g. Wakarusa, IN"></label>
-        <label>Client type<select id="f-ct">
-          <option value="school">School</option><option value="municipal">Municipal</option>
-          <option value="commercial">Commercial</option><option value="industrial">Industrial</option>
-          <option value="private">Private / Institutional</option><option value="mixed_use">Mixed Use</option>
-        </select></label>
-        <label>Work type<select id="f-wt">
-          <option value="new_construction">New Construction</option><option value="renovation">Renovation</option>
-          <option value="addition">Addition</option><option value="repair">Repair</option>
-        </select></label>
+        <!-- Options are filled from the SHARED vocabulary at unlock (program 0.1). They were
+             hard-coded and missing water/wastewater entirely, so an estimator could not
+             classify RYC's largest category of active work. -->
+        <label>Client type<select id="f-ct"></select></label>
+        <label>Work type<select id="f-wt"></select></label>
         <label>Size (SF) <span class="opt">optional</span><input id="f-sf" type="number" placeholder="e.g. 25000"></label>
         <label>Known budget / target $ <span class="opt">optional</span><input id="f-target" type="number" placeholder="e.g. 4000000"></label>
         <label>Estimator <span class="opt">optional — initials, shown in run history</span><input id="f-est" maxlength="12" placeholder="e.g. KP"></label>
@@ -272,6 +268,16 @@ document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key
    Pipeline is the work moving through the desk, Intelligence is what the desk knows. The
    pursuit entry is contextual (an entity you have open), and Calendar arrives when pursuit
    volume justifies a destination rather than because the contract named it. */
+/* Fill the classification selects from the one vocabulary, so they can never drift from
+   what Command reports or from what the benchmarks are grouped by. */
+function fillTaxonomySelects() {
+  const put = (id, keys, label) => {
+    const el = document.getElementById(id); if (!el || el.options.length) return;
+    el.innerHTML = keys.map(k => `<option value="${k}">${esc(label(k))}</option>`).join('');
+  };
+  put('f-ct', RYCTaxonomy.sectorOptions(), RYCTaxonomy.sectorLabel);
+  put('f-wt', RYCTaxonomy.workOptions(), RYCTaxonomy.workLabel);
+}
 function mountShell() {
   if (!global_RYCShell()) return;
   RYCShell.mount({
@@ -299,6 +305,7 @@ function global_RYCShell() { return typeof RYCShell !== 'undefined' && RYCShell;
 function unlock() {
   document.getElementById('lock-screen').style.display = 'none';
   document.getElementById('app').classList.add('unlocked');
+  fillTaxonomySelects();
   mountShell();
   loadPortfolio();
   // A cold load at any address lands where the address says — the gate is in front of the
@@ -2493,9 +2500,15 @@ async function openPursuitById(pid, tok, allowArchived) {
 const ciClass = (k) => CLASS_LABEL[k] || (k || '—');
 function estAnalogs(ct, wt) {
   const jobs = (portfolio?.jobs || []).filter(j => j.contractFinal);
-  let set = jobs.filter(j => j.clientType === ct && j.workType === wt), basis = 'client type + work type';
-  if (set.length < 3) { const s = jobs.filter(j => j.clientType === ct); if (s.length > set.length) { set = s; basis = 'client type'; } }
-  if (set.length < 3) { const s = jobs.filter(j => j.workType === wt); if (s.length > set.length) { set = s; basis = 'work type'; } }
+  /* Compare NORMALISED dimensions (program 0.1). Portfolio jobs still carry legacy values
+     until the nightly build re-runs, so a Municipal + Treatment/Process estimate would find
+     zero analogs against a stored `municipal_water_wastewater` job and silently fall back to
+     a broader, less relevant cohort — the benchmark would look fine and mean less. */
+  const want = RYCTaxonomy.classify({ clientType: ct, workType: wt });
+  const dim = (j) => RYCTaxonomy.classify(j);
+  let set = jobs.filter(j => { const d = dim(j); return d.sector === want.sector && d.workType === want.workType; }), basis = 'client type + work type';
+  if (set.length < 3) { const s = jobs.filter(j => dim(j).sector === want.sector); if (s.length > set.length) { set = s; basis = 'client type'; } }
+  if (set.length < 3) { const s = jobs.filter(j => dim(j).workType === want.workType); if (s.length > set.length) { set = s; basis = 'work type'; } }
   if (!set.length) { set = jobs; basis = 'full portfolio'; }
   return { set, basis };
 }
@@ -2517,12 +2530,14 @@ function ciAgg(jobs) {
   return { n, contract, bidMargin, actMargin, gainFade: (bidMargin != null && actMargin != null) ? actMargin - bidMargin : null, buyTotal, buySubPct: buyTotal > 0 ? buySub / buyTotal * 100 : null, coPct: bidContract > 0 ? coTotal / bidContract * 100 : null };
 }
 function ciGfCell(v) { if (v == null) return '<span class="muted-cell">—</span>'; const c = v >= 0 ? '#16a34a' : '#dc2626'; return `<span style="color:${c};font-weight:600">${v >= 0 ? '+' : ''}${v.toFixed(1)} pts</span>`; }
-const CIQ_CT = { school: 'School', municipal: 'Municipal', commercial: 'Commercial', industrial: 'Industrial', private: 'Private / Institutional', mixed_use: 'Mixed Use', residential: 'Residential' };
-const CIQ_WT = { new_construction: 'New Construction', renovation: 'Renovation', addition: 'Addition', repair: 'Repair' };
-const ciCT = (k) => CIQ_CT[k] || (k || '—');
-const ciWT = (k) => CIQ_WT[k] || (k || '—');
+/* Shared vocabulary (program 0.1). The Desk's own maps had no water/wastewater entry at
+   all, while Command's did — so RYC's biggest active category could not be named here. */
+const ciCT = (k) => RYCTaxonomy.sectorLabel(RYCTaxonomy.classify({ clientType: k }).sector);
+const ciWT = (k) => RYCTaxonomy.workLabel(k);
+const ciDims = (j) => RYCTaxonomy.classify(j);
 function ciBenchRows(jobs, keyField, labelFn) {
-  const groups = {}; for (const j of jobs) { const k = j[keyField] || '—'; (groups[k] ||= []).push(j); }
+  const groups = {};
+  for (const j of jobs) { const d = ciDims(j); const k = keyField === 'workType' ? d.workType : d.sector; (groups[k] ||= []).push(j); }
   const rows = Object.entries(groups).map(([k, js]) => ({ label: labelFn(k), a: ciAgg(js) })).sort((x, y) => y.a.contract - x.a.contract);
   let body = '';
   for (const r of rows) { const a = r.a; const buy = a.buyTotal !== 0 ? `${fmtCompact(a.buyTotal)}${a.buySubPct != null ? ` <span class="note">${Math.round(a.buySubPct)}% sub</span>` : ''}` : '<span class="muted-cell">—</span>';
@@ -2544,9 +2559,9 @@ function renderCostIQ() {
   const top = ciAgg(all);
   const card = (label, val) => `<div class="kpi-card"><div class="kpi-val">${val}</div><div class="kpi-label">${label}</div></div>`;
   const band = `<div class="kpi-band">${card('Completed jobs', all.length)}${card('Contract value', fmtCompact(top.contract))}${card('Avg as-bid margin', pct(top.bidMargin))}${card('Avg actual margin', pct(top.actMargin))}</div>`;
-  const wts = [...new Set(all.map(j => j.workType).filter(Boolean))].sort();
+  const wts = [...new Set(all.map(j => ciDims(j).workType).filter(Boolean))].sort();
   const opts = ['all', ...wts].map(w => `<option value="${w}"${w === costiqWT ? ' selected' : ''}>${w === 'all' ? 'All work types' : ciWT(w)}</option>`).join('');
-  const classJobs = costiqWT === 'all' ? all : all.filter(j => j.workType === costiqWT);
+  const classJobs = costiqWT === 'all' ? all : all.filter(j => ciDims(j).workType === costiqWT);
   const stamp = portfolio?.generated ? `<div class="billing-stamp">Foundation · ${fmtDate(portfolio.generated)} · completed 2023+</div>` : '';
   el.innerHTML = stamp + band
     + `<div class="billing-block"><div class="billing-sub">RYC's own completed-job actuals as estimating benchmarks. <strong>As-bid margin</strong> = (orig contract − orig cost) ÷ orig contract. <strong>Actual margin</strong> = (final − actual cost) ÷ final. <strong>Gain/Fade</strong> = actual − as-bid. <strong>Buyout</strong> = estimate − actual by cost class. Margins contract-weighted.</div></div>`
@@ -2614,7 +2629,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.22.4';
+const TOOL_VERSION = 'v1.22.5';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};

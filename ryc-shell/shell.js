@@ -478,4 +478,94 @@
     mount: drawerMount, dismiss: drawerDismiss,
     isOpen: function () { return !!_dw; },
   };
+
+  /* ===================================================================================
+     RYCTaxonomy — TWO independent dimensions, one vocabulary (program 0.1).
+
+     THE PROBLEM. Sector and work type were curated by hand in two separate build scripts —
+     RYC/jobs/procore-refresh.js for active jobs, RYC/foundations/build-completed-portfolio.js
+     for completed ones. Exactly three jobs appear in both maps, and all three disagreed.
+     Foundation's own customer names settle them:
+       2504CO01  "Aluminum Insights Group LLC"      commercial vs industrial -> INDUSTRIAL
+       2504CO05  "Jomar Machine & Fabrication"      commercial vs industrial -> INDUSTRIAL
+       2419CO02  "Ruthmere Foundation Inc."         commercial vs school     -> NEITHER.
+                 Ruthmere is a nonprofit museum foundation, so both maps were wrong; it is
+                 Private / Institutional. Its work type is genuinely unresolved (the curated
+                 Procore record says renovation, the completed record says new construction),
+                 so it is UNKNOWN rather than a confident guess — per the approved brief.
+
+     `municipal_water_wastewater` fused a client market with a kind of work, which is the
+     single-dimension inference the brief warns against. It normalises to sector=municipal
+     plus workType=treatment_process. Treatment/process beats "renovation" as the work-type
+     answer here because these tables feed ESTIMATING: what the facility is predicts cost
+     composition far better than whether the scope was new or a retrofit. That nuance is
+     genuinely lost, and RYC should confirm the wording (recorded in the program plan).
+
+     WHY A NORMALISING READ LAYER rather than a data migration: procore-cache.json and
+     ryc-portfolio.json are written by VM cron, so corrected values only appear after a
+     nightly run. Normalising on READ means both workspaces present one vocabulary
+     immediately and keep doing so whichever vintage of JSON they are handed — no flag day,
+     and no window where the two workspaces disagree again.
+     ================================================================================== */
+  var SECTOR = {
+    school:      'School',
+    municipal:   'Municipal',
+    commercial:  'Commercial',
+    industrial:  'Industrial',
+    private:     'Private / Institutional',
+    mixed_use:   'Mixed Use',
+    residential: 'Residential',
+    unknown:     'Unknown',
+  };
+  var WORK_TYPE = {
+    new_construction:       'New Construction',
+    renovation:             'Renovation',
+    addition:               'Addition',
+    repair:                 'Repair',
+    treatment_process:      'Treatment / Process',
+    utility_infrastructure: 'Utility / Infrastructure',
+    service:                'Service / Small Project',
+    unknown:                'Unknown',
+  };
+  // legacy stored value -> {sector, workType?}. A workType here OVERRIDES the stored one,
+  // because the legacy key carried that dimension inside the sector field.
+  var LEGACY_SECTOR = {
+    municipal_water_wastewater: { sector: 'municipal', workType: 'treatment_process' },
+    faith_nonprofit:            { sector: 'private' },
+    education:                  { sector: 'school' },
+  };
+  var LEGACY_WORK = { expansion: 'addition', new_const: 'new_construction' };
+
+  /* Read a record's two dimensions. Accepts whatever the JSON carries — `clientType`/
+     `workType` today, `sector` if a builder is ever migrated — and always returns keys that
+     exist in the vocabularies above. */
+  function classify(rec) {
+    rec = rec || {};
+    var rawS = rec.sector || rec.clientType || rec.client_type || null;
+    var rawW = rec.workType || rec.work_type || null;
+    var out = { sector: 'unknown', workType: 'unknown' };
+    var legacy = rawS && LEGACY_SECTOR[rawS];
+    if (legacy) {
+      out.sector = legacy.sector;
+      if (legacy.workType) out.workType = legacy.workType;
+    } else if (rawS && SECTOR[rawS]) {
+      out.sector = rawS;
+    }
+    if (out.workType === 'unknown' && rawW) {
+      var w = LEGACY_WORK[rawW] || rawW;
+      if (WORK_TYPE[w]) out.workType = w;
+    }
+    return out;
+  }
+  var sectorLabel = function (k) { return SECTOR[k] || SECTOR[(classify({ sector: k }) || {}).sector] || 'Unknown'; };
+  var workLabel = function (k) { return WORK_TYPE[LEGACY_WORK[k] || k] || 'Unknown'; };
+
+  global.RYCTaxonomy = {
+    SECTOR: SECTOR, WORK_TYPE: WORK_TYPE,
+    classify: classify, sectorLabel: sectorLabel, workLabel: workLabel,
+    // ordered option lists for form controls — Unknown is never offered as a CHOICE, only
+    // rendered when the data genuinely has none.
+    sectorOptions: function () { return Object.keys(SECTOR).filter(function (k) { return k !== 'unknown'; }); },
+    workOptions: function () { return Object.keys(WORK_TYPE).filter(function (k) { return k !== 'unknown'; }); },
+  };
 })(window);

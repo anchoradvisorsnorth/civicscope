@@ -1513,8 +1513,8 @@ function drawerHtml(j){
     +stat("Projected finish",fmtDate(j.projectedFinish||j.completionDate),dpf>0?("<span style=\"color:#c07f1a\">"+dpf+"d past</span>"):(j.projectedFinish?Math.abs(dpf)+"d out":""))
     +stat("RFIs open",j.rfis?(j.rfis.open+" <span style=\"color:#8b95ab;font-size:12px\">/ "+j.rfis.total+"</span>"):"—","")
     +stat("Submittals open",j.submittals?(j.submittals.open+" <span style=\"color:#8b95ab;font-size:12px\">/ "+j.submittals.total+"</span>"):"—","")
-    +stat("Work type",esc((j.workType||"—").replace(/_/g," ")),"")
-    +stat("Client type",esc(j.clientType||"—"),"")
+    +stat("Work type",esc(RYCTaxonomy.workLabel(RYCTaxonomy.classify(j).workType)),"")
+    +stat("Sector",esc(RYCTaxonomy.sectorLabel(RYCTaxonomy.classify(j).sector)),"")
     +"</div></div>";
 
   /* source trail */
@@ -1675,10 +1675,16 @@ function openSubDrawer(vno,trigger){
    rebuilt nightly w/ Procore enrichment) — performance by sector + work type from ACTUALS,
    plus a browsable job table w/ per-job outcome drawer (buyout by class, subs, field stats).
    Estimating-grade benchmarks (size bands, cost/SF) live on /ryc/estimate Cost Intelligence. ===== */
-var CPL_CT={school:"School",municipal:"Municipal",commercial:"Commercial",industrial:"Industrial",private:"Private / Institutional",mixed_use:"Mixed Use",municipal_water_wastewater:"Water / WW",residential:"Residential"};
-var CPL_WT={new_construction:"New Construction",renovation:"Renovation",addition:"Addition",repair:"Repair"};
-function cplCT(k){ return CPL_CT[k]||(k||"—"); }
-function cplWT(k){ if(k==="expansion") k="addition"; return CPL_WT[k]||(k||"—"); }
+/* Sector and work type come from the SHARED taxonomy now (program 0.1). The two local
+   label maps here and on the Desk had already drifted — this one carried
+   municipal_water_wastewater and residential, the Desk's carried residential but not
+   water/wastewater, so the same completed job could be filed under different sectors in the
+   two workspaces. Legacy stored values normalise on read; see RYCTaxonomy. */
+function cplCT(k){ return RYCTaxonomy.sectorLabel(RYCTaxonomy.classify({clientType:k}).sector); }
+function cplWT(k){ return RYCTaxonomy.workLabel(k); }
+/* A job's two dimensions, normalised — municipal_water_wastewater carries its work type
+   inside the sector field, so grouping must read BOTH through the same function. */
+function cplDims(j){ return RYCTaxonomy.classify(j); }
 var cplFilter="all";
 function cplSetFilter(v){ cplFilter=v; renderCompleted(); }
 function cplJobs(){ return ((portfolioData&&portfolioData.jobs)||[]).filter(function(j){ return (j.contractFinal||0)>0; }); }
@@ -1698,7 +1704,7 @@ function cplAgg(js){
 function cplGfCell(v){ if(v==null) return "<span class=\"m-m\">—</span>"; return "<span class=\""+(v<=-GF_MOVE_PTS?"m-r":v>=GF_MOVE_PTS?"m-g":"m-m")+"\">"+(v>=0?"+":"")+v.toFixed(1)+" pts</span>"; }
 function cplSegTable(js,key,labelFn,head){
   var groups={};
-  js.forEach(function(j){ var k=(key==="workType"&&j[key]==="expansion")?"addition":(j[key]||"—"); (groups[k]=groups[k]||[]).push(j); });
+  js.forEach(function(j){ var d=cplDims(j); var k=(key==="workType")?d.workType:d.sector; (groups[k]=groups[k]||[]).push(j); });
   var totalRev=js.reduce(function(s,j){ return s+(j.contractFinal||0); },0);
   var rows=Object.keys(groups).map(function(k){ return {label:labelFn(k),a:cplAgg(groups[k])}; })
     .sort(function(x,y){ return y.a.rev-x.a.rev; });
@@ -1736,14 +1742,14 @@ function renderCompleted(){
     +"<div class=\"vhead\">Work type performance</div>"
     +cplSegTable(all,"workType",cplWT,"Work type");
 
-  var types=[["all","All"]].concat(Object.keys(all.reduce(function(m,j){ m[j.clientType||"—"]=1; return m; },{})).sort().map(function(k){ return [k,cplCT(k)]; }));
+  var types=[["all","All"]].concat(Object.keys(all.reduce(function(m,j){ m[cplDims(j).sector]=1; return m; },{})).sort().map(function(k){ return [k,RYCTaxonomy.sectorLabel(k)]; }));
   var pills="<div class=\"pbar\">"+types.map(function(p){ return "<button class=\"pfill"+(cplFilter===p[0]?" on\" style=\"border-color:var(--accent);color:var(--accent)":"")+"\" onclick=\"cplSetFilter('"+p[0]+"')\">"+p[1]+"</button>"; }).join("")+"<span class=\"pcount\"></span></div>";
-  var shown=(cplFilter==="all"?all:all.filter(function(j){ return (j.clientType||"—")===cplFilter; }))
+  var shown=(cplFilter==="all"?all:all.filter(function(j){ return cplDims(j).sector===cplFilter; }))
     .slice().sort(function(a,b){ return (b.year||0)-(a.year||0)||((b.contractFinal||0)-(a.contractFinal||0)); });
   var rows=shown.map(function(j){
     var gfp=(j.bidMarginPct!=null&&j.projectedMarginPct!=null)?(j.projectedMarginPct-j.bidMarginPct):null;
     return "<tr class=\"ryc-row\" data-cid=\""+attrEsc(j.id)+"\" tabindex=\"0\" role=\"button\" title=\"Job outcome\"><td><div class=\"jname\">"+esc(j.name)+"</div><div class=\"jno\">"+esc(j.id)+(j.pmName?" · "+esc(j.pmName):"")+"</div></td>"
-      +"<td>"+esc(j.client||"—")+"</td><td>"+cplCT(j.clientType)+"</td><td>"+cplWT(j.workType)+"</td>"
+      +"<td>"+esc(j.client||"—")+"</td><td>"+RYCTaxonomy.sectorLabel(cplDims(j).sector)+"</td><td>"+RYCTaxonomy.workLabel(cplDims(j).workType)+"</td>"
       +"<td class=\"r\">"+(j.year||"—")+"</td>"
       +"<td class=\"r\">"+fmtCompact(j.contractFinal)+"</td><td class=\"r\">"+fmtCompact(j.directCost)+"</td>"
       +"<td class=\"r\">"+(j.bidMarginPct!=null?j.bidMarginPct.toFixed(1)+"%":"—")+"</td>"
@@ -1770,7 +1776,7 @@ function openCplDrawer(cid,trigger){
   function stat(l,v,su){ return "<div class=\"dw-stat\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div>"+(su?"<div class=\"s\">"+su+"</div>":"")+"</div>"; }
   var gfp=(j.bidMarginPct!=null&&j.projectedMarginPct!=null)?(j.projectedMarginPct-j.bidMarginPct):null;
   var head="<div class=\"dw-head\"><div><h3>"+esc(j.name)+"</h3>"
-    +"<div class=\"dw-sub\">"+esc(j.id)+" · "+esc(j.client||"—")+" · "+cplCT(j.clientType)+" · "+cplWT(j.workType)+(j.pmName?" · PM "+esc(j.pmName):"")+"</div>"
+    +"<div class=\"dw-sub\">"+esc(j.id)+" · "+esc(j.client||"—")+" · "+RYCTaxonomy.sectorLabel(cplDims(j).sector)+" · "+RYCTaxonomy.workLabel(cplDims(j).workType)+(j.pmName?" · PM "+esc(j.pmName):"")+"</div>"
     +"<div style=\"margin-top:8px\"><span class=\"pill g\">Completed"+(j.year?" "+j.year:"")+"</span></div></div>"
     +"<button class=\"dw-close\" onclick=\"closeDrawer()\" aria-label=\"Close\">&times;</button></div>";
   var coFinal=(j.contractFinal||0)-(j.contractOriginal||0);

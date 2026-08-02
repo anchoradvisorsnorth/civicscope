@@ -100,7 +100,7 @@ function renderNav(){
   });
   RYCShell.mount({
     workspace:"command",
-    version:"v2.36.3",
+    version:"v2.36.4",
     active:currentView,
     groups:groups,
     onSelect:function(k){ setView(k); },
