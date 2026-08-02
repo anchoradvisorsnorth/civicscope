@@ -169,7 +169,8 @@ export default async function handler(req, res) {
       const roster = (cfg?.data?.players) || [];
       const revealed = isRevealed(wk);
       if (!revealed && wk.picks) {
-        // pick privacy: until everyone locks (or kickoff), only your own picks come back (name+pin); others show locked-status only
+        // pick privacy: until the DEADLINE, only your own picks come back (name+pin);
+        // everyone else shows locked-status only. Locking no longer reveals anything.
         const name = String(req.query.name || '').toUpperCase();
         const pin = String(req.query.pin || '');
         const me = roster.find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
