@@ -1672,9 +1672,9 @@ function openBlankPursuit(pid) {
   setEstView('assist');
   // An adopted-but-not-yet-estimated pursuit is still a real pursuit: show its card so the bid
   // due date, pre-bid meeting and readiness can be worked BEFORE the first estimate exists.
-  // (Without this the card stays hidden until a run is generated, which reads as "nothing here
-  // yet" on a pursuit that already carries a BC due date.)
-  renderPursuit();
+  // Deferred a tick: called synchronously inside the gate's unlock() it re-entered the same
+  // render path and wedged the page on a deep link (caught in demo rehearsal, 2026-08-01).
+  setTimeout(renderPursuit, 0);
 }
 
 // Start a fresh pursuit from the desk: clear prior pursuit state so nothing bleeds across.
