@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.2">
-<script src="/ryc-shell/shell.js?v1.22.2"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.3">
+<script src="/ryc-shell/shell.js?v1.22.3"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -263,7 +263,7 @@ function mountShell() {
   if (!global_RYCShell()) return;
   RYCShell.mount({
     workspace: 'desk',
-    version: TOOL_VERSION + ' · phase C remediation',
+    version: TOOL_VERSION,
     active: 'history',
     onLock: () => { sessionStorage.removeItem('ryc-auth'); location.reload(); },
     groups: [
@@ -2570,7 +2570,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.22.2';
+const TOOL_VERSION = 'v1.22.3';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};

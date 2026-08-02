@@ -300,7 +300,12 @@ function buildrFollowUps(){
 // conversation (retainage tied up, closeout dragging) than financial risk. The REAL closeout test
 // is Foundation-side: retainage to zero, all subs paid, job closed. Only jobs whose sole red
 // trigger is "past projected finish" move there; a cost-overrun/negative-margin red stays red.
-function daysPastFinish(j){ var fin=j.projectedFinish||j.completionDate; return fin?Math.floor((Date.now()-new Date(fin))/86400000):0; }
+/* RYCFormat.parse, not new Date(): `completionDate` arrives date-only from Procore, and
+   `new Date("2026-08-31")` is UTC midnight — four hours early in Eastern time. That pushed
+   this count over its day boundary early, and it feeds isCloseoutAging() -> the Overview
+   "Closeout aging" list. A job could join that list four hours before it was actually 30
+   days past finish (program 1.3). `projectedFinish` carries a time and is unaffected. */
+function daysPastFinish(j){ var fin=j.projectedFinish||j.completionDate; return fin?Math.floor((Date.now()-RYCFormat.parse(fin))/86400000):0; }
 function isCloseoutAging(j){ return daysPastFinish(j)>30 && j.pctComplete!=null && j.pctComplete>=98 && !!j.foundation; }
 function isCloseoutOnly(j){ var sl=getStoplight(j,j);
   return sl.color==="red" && isCloseoutAging(j) &&

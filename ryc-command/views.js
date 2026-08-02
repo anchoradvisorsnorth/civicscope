@@ -594,7 +594,7 @@ function renderTrust(){
     +"<div style=\"margin:8px 0 4px\"><button class=\"pfill\" onclick=\"setView('integrations')\">&#128260; Open Integrations &amp; Sync</button></div>"
     +"<div class=\"vhead\">Reconciliation exceptions</div><div class=\"vsub\">Cross-source disagreements currently open — the audit-layer worklist.</div>"+excSummary
     +"<div class=\"vhead\" style=\"display:flex;align-items:center;gap:10px\">Field provenance reference <button class=\"pfill\" onclick=\"printDS()\">🖨 Print</button></div>"
-    +"<div class=\"vsub\">The shared Data Sources dictionary — one definition, loaded by this cockpit, the legacy dashboard, and the Foundation query tool. Git-tracked source: RYC_Dashboard_Data_Dictionary.md.</div>"
+    +"<div class=\"vsub\">The shared Data Sources dictionary — one definition, loaded by this cockpit and the Foundation query tool. Git-tracked source: RYC_Dashboard_Data_Dictionary.md.</div>"
     +"<div id=\"ds-panel\" style=\"background:#fff;border:1px solid #dfe4ec;border-radius:var(--r);padding:18px 22px\">"
     +(typeof dataSourcesHTML==="function"?dataSourcesHTML():"<div class=\"vsub\">data-sources.js failed to load — provenance reference unavailable.</div>")
     +"</div></div>";
@@ -863,7 +863,11 @@ function fcSpread(projects){
     if(!(p.amount>0)) return;
     var cls=(p.status==="pursuit")?"potential":"booked";
     if(!p.startDate||!p.endDate){ undated.push(p); return; }
-    var s=fcMonthIdx(new Date(p.startDate)), e=fcMonthIdx(new Date(p.endDate));
+    /* RYCFormat.parse, not new Date(): Buildr schedule dates are date-only, so UTC-midnight
+       parsing put a project starting on the 1st of a month into the PREVIOUS month's
+       revenue bucket in Eastern time — silently moving forecast dollars across a period
+       boundary, and across a quarter subtotal four times a year (program 1.3). */
+    var s=fcMonthIdx(RYCFormat.parse(p.startDate)), e=fcMonthIdx(RYCFormat.parse(p.endDate));
     if(!(e>=s)){ undated.push(p); return; }
     var perMonth=p.amount/(e-s+1);
     for(var m=Math.max(s,nowIdx);m<=e;m++){
@@ -1351,7 +1355,6 @@ function fillBriefPipeline(){
 }
 
 /* ===== Job detail drawer (Phase 3a — existing data only; commitments arrive in 3b) ===== */
-var _dwTrigger=null;
 function jobByNo(jno){
   var jobs=(activeData&&activeData.jobs)||[];
   for(var i=0;i<jobs.length;i++){ if(String(jobs[i].projectNumber||"").trim()===String(jno).trim()) return jobs[i]; }
@@ -1522,7 +1525,7 @@ function drawerHtml(j){
     +"<tr><td>Open / overdue invoices</td><td>Foundation AR feed</td><td class=\"r\">"+(aAge||"—")+"</td></tr>"
     +"<tr><td>Schedule, %, RFIs, submittals, CO types</td><td>Procore daily cache</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
     +"<tr><td>Commitments / buyout</td><td>Procore sub + PO contracts (daily cache)</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
-    +"</table><div class=\"dw-note\">Full field-by-field provenance: 📖 Data Sources on the legacy dashboard, or RYC_Dashboard_Data_Dictionary.md.</div></div>";
+    +"</table><div class=\"dw-note\">Full field-by-field provenance: <a href=\"#\" onclick=\"closeDrawer();setView(&quot;trust&quot;);return false\" style=\"color:var(--accent);font-weight:600\">Data Trust</a>.</div></div>";
 
   return head+"<div class=\"dw-body\">"+snap+recon+billing+buyout+jobSubsSec+costSec+coSec+field+trail+"</div>";
 }
@@ -1535,13 +1538,12 @@ function openDrawer(jno,trigger){
     var u=jobUrl(jno);
     if(u && location.pathname!==u) history.pushState({job:jno},"",u);
   }
-  _dwTrigger=trigger||null;
   var wrap=document.createElement("div"); wrap.id="dwrap";
   wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Job detail: "+attrEsc(j.name||jno)+"\">"+drawerHtml(j)+"</aside>";
   document.body.appendChild(wrap);
-  document.addEventListener("keydown",dwEsc);
+  // Focus trap, Escape, background scroll lock and focus restore are the shell's (program 1.2).
+  RYCDrawer.mount(wrap,{trigger:trigger||null,onClose:onDrawerClosed});
   loadBidRecord(jno);
-  var cb=wrap.querySelector(".dw-close"); if(cb) cb.focus();
 }
 
 /* Step 5 — the award seam read back the other way: an awarded job shows WHAT RYC BID IT AT.
@@ -1584,20 +1586,15 @@ function loadBidRecord(jno){
       el.innerHTML=_bidRecCache[jno];
     }).catch(function(){ el.innerHTML=""; });
 }
-function dwEsc(e){ if(e.key==="Escape") closeDrawer(); }
-function closeDrawer(silent){
-  var w=document.getElementById("dwrap");
-  if(!w) return;
-  w.remove();
-  // leaving the job leaves its address — but only when the user closed it, not when the
-  // router is swapping views (which is already writing the correct URL itself)
+/* Leaving the job leaves its address — but only when the USER closed it, not when the
+   router is swapping views (which is already writing the correct URL itself). This is the
+   one piece of drawer behaviour that is Command's rather than the shell's. */
+function onDrawerClosed(){
   if(!window._dwRouting && typeof currentView!=="undefined" && /^\/command\/jobs\//.test(location.pathname)){
     history.pushState({},"","/command/"+currentView);
   }
-  document.removeEventListener("keydown",dwEsc);
-  if(!silent&&_dwTrigger&&document.contains(_dwTrigger)) _dwTrigger.focus();
-  _dwTrigger=null;
 }
+function closeDrawer(silent){ RYCDrawer.dismiss({silent:!!silent}); }
 
 
 /* ===== Subcontractors (v2.23.0) — Foundation actual-by-vendor + PO_Sub subcontracts,
@@ -1647,7 +1644,6 @@ function openSubDrawer(vno,trigger){
   var s=((subsData&&subsData.subs)||[]).filter(function(x){ return x.vendorNo===vno; })[0];
   if(!s) return;
   closeDrawer(true);
-  _dwTrigger=trigger||null;
   function stat(l,v,su){ return "<div class=\"dw-stat\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div>"+(su?"<div class=\"s\">"+su+"</div>":"")+"</div>"; }
   var head="<div class=\"dw-head\"><div><h3>"+esc(s.name)+"</h3>"
     +"<div class=\"dw-sub\">Subcontractor · vendor "+esc(s.vendorNo)+" · "+(s.actualJobs||(s.jobs||[]).length)+" jobs with booked cost (2023+)</div></div>"
@@ -1670,8 +1666,7 @@ function openSubDrawer(vno,trigger){
   var wrap=document.createElement("div"); wrap.id="dwrap";
   wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Subcontractor detail: "+attrEsc(s.name)+"\">"+head+"<div class=\"dw-body\">"+stats+jobsSec+"</div></aside>";
   document.body.appendChild(wrap);
-  document.addEventListener("keydown",dwEsc);
-  var cb=wrap.querySelector(".dw-close"); if(cb) cb.focus();
+  RYCDrawer.mount(wrap,{trigger:trigger||null});
 }
 
 /* ===== Completed (v2.24.0) — the as-built record + sector insights. Restores the legacy
@@ -1772,7 +1767,6 @@ function openCplDrawer(cid,trigger){
   var j=cplJobs().filter(function(x){ return x.id===cid; })[0];
   if(!j) return;
   closeDrawer(true);
-  _dwTrigger=trigger||null;
   function stat(l,v,su){ return "<div class=\"dw-stat\"><div class=\"l\">"+l+"</div><div class=\"v\">"+v+"</div>"+(su?"<div class=\"s\">"+su+"</div>":"")+"</div>"; }
   var gfp=(j.bidMarginPct!=null&&j.projectedMarginPct!=null)?(j.projectedMarginPct-j.bidMarginPct):null;
   var head="<div class=\"dw-head\"><div><h3>"+esc(j.name)+"</h3>"
@@ -1818,8 +1812,7 @@ function openCplDrawer(cid,trigger){
   var wrap=document.createElement("div"); wrap.id="dwrap";
   wrap.innerHTML="<div class=\"dw-overlay\" onclick=\"closeDrawer()\"></div><aside class=\"drawer\" role=\"dialog\" aria-modal=\"true\" aria-label=\"Completed job: "+attrEsc(j.name)+"\">"+head+"<div class=\"dw-body\">"+outcome+buySec+subSec+opsSec+"</div></aside>";
   document.body.appendChild(wrap);
-  document.addEventListener("keydown",dwEsc);
-  var cb=wrap.querySelector(".dw-close"); if(cb) cb.focus();
+  RYCDrawer.mount(wrap,{trigger:trigger||null});
 }
 
 /* ===== PM Load (v2.21.0) — per-PM workload history + forward hiring signal.

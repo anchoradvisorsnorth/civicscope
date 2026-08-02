@@ -321,6 +321,11 @@
   global.RYCFormat = {
     compact: compact, exact: exact, accounting: accounting,
     pct: pct, date: date, age: age, DASH: DASH,
+    /* Exposed because DISPLAY was only half the problem: code that does arithmetic on a
+       date-only string hits the same UTC-midnight trap, and a shared display rule that
+       leaves the arithmetic wrong is not one date rule. Consumers: daysPastFinish() and
+       the Forecast month spread (program 1.3). */
+    parse: toDate,
   };
 
   /* ===================================================================================
@@ -394,4 +399,83 @@
   }
 
   global.RYCTable = { wire: wire };
+
+  /* ===================================================================================
+     RYCDrawer — ONE implementation of the hard parts of a modal drawer (program 1.2).
+
+     Command had three hand-rolled drawers (job, subcontractor, completed job), each
+     repeating overlay + Escape + focus-restore, and each declaring `aria-modal="true"`
+     WITHOUT trapping focus — so Tab walked straight out of the dialog and into the page
+     behind it, which is a real defect rather than a missing nicety. The Desk has no drawer
+     at all yet and will need the same behaviour.
+
+     The shell owns BEHAVIOUR only: focus trap, Escape, background scroll lock, focus
+     restore, single-instance. The MARKUP and styling stay with the workspace, because the
+     drawer's look is part of each workspace's mood below the shell (contract §1).
+
+     SCOPE NOTE: the plan's other half of 1.2 — drawer as a capped preview with an explicit
+     "open the full page" escape — lands in 3.2, where the full routed job page it escapes
+     to actually exists. Shipping the affordance before its destination would be an
+     affordance pointing at nothing.
+     ================================================================================== */
+  var FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),'
+    + 'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  var _dw = null;
+
+  function visibleFocusables(panel) {
+    return Array.prototype.filter.call(panel.querySelectorAll(FOCUSABLE), function (el) {
+      return el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement;
+    });
+  }
+
+  function drawerMount(wrap, opts) {
+    opts = opts || {};
+    if (_dw) drawerDismiss({ silent: true });
+    var panel = wrap.querySelector('[role="dialog"]') || wrap;
+
+    /* Locking the background without compensating for the scrollbar shifts the whole page
+       sideways the moment the drawer opens. Reserve its width instead. */
+    var sbw = window.innerWidth - document.documentElement.clientWidth;
+    _dw = {
+      wrap: wrap, panel: panel, trigger: opts.trigger || null, onClose: opts.onClose || null,
+      prevOverflow: document.body.style.overflow, prevPad: document.body.style.paddingRight,
+    };
+    document.body.style.overflow = 'hidden';
+    if (sbw > 0) document.body.style.paddingRight = sbw + 'px';
+
+    _dw.key = function (e) {
+      if (e.key === 'Escape') { e.preventDefault(); drawerDismiss(); return; }
+      if (e.key !== 'Tab') return;
+      var f = visibleFocusables(panel);
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (!panel.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', _dw.key, true);
+
+    var close = panel.querySelector('.dw-close');
+    var f0 = visibleFocusables(panel)[0];
+    (close || f0 || panel).focus();
+  }
+
+  function drawerDismiss(opts) {
+    if (!_dw) return;
+    var d = _dw; _dw = null;
+    document.removeEventListener('keydown', d.key, true);
+    document.body.style.overflow = d.prevOverflow;
+    document.body.style.paddingRight = d.prevPad;
+    if (d.wrap && d.wrap.parentNode) d.wrap.parentNode.removeChild(d.wrap);
+    var silent = !!(opts && opts.silent);
+    // Focus goes back to the row that opened it — otherwise closing a drawer drops the
+    // keyboard user at the top of the document with their place in the table lost.
+    if (!silent && d.trigger && document.contains(d.trigger)) d.trigger.focus();
+    if (d.onClose) d.onClose(silent);
+  }
+
+  global.RYCDrawer = {
+    mount: drawerMount, dismiss: drawerDismiss,
+    isOpen: function () { return !!_dw; },
+  };
 })(window);
