@@ -100,7 +100,7 @@ function renderNav(){
   });
   RYCShell.mount({
     workspace:"command",
-    version:"v2.36.7",
+    version:"v2.36.8",
     active:currentView,
     groups:groups,
     onSelect:function(k){ setView(k); },
@@ -146,7 +146,7 @@ function parseCmdPath(pathname){
   return {kind:"view",view:parts[1],canonical:cmdUrl(parts[1])};
 }
 function setView(k){
-  if(!_cmdRouting){ _cmdState=null; _cmdNavToken++; }   // a deliberate move clears the bad-address state
+  if(!_cmdRouting){ _cmdState=null; _jobPage=null; _cmdNavToken++; }   // a deliberate move clears the bad-address AND job-page states
   closeDrawer(true); currentView=k;
   if(typeof RYCShell!=="undefined") RYCShell.setActive(k);
   renderView();
@@ -211,10 +211,57 @@ function openJobById(uuid,tok){
         go:{label:"Go to Portfolio",view:"portfolio"}});
     }
     if(stale()) return;
-    window._dwRouting=true;                 // the URL is already correct — don't rewrite it
-    try{ setViewSilent("portfolio"); openDrawer(no,null); }
-    finally{ window._dwRouting=false; }
+    // 3.2: a job address now renders the JOB PAGE, not a drawer floating over Portfolio.
+    // The route was already canonical and typed; it was just landing on a preview.
+    paintJobPage(no);
   });
+}
+/* ===== 3.2 job page state ==============================================================
+   Like _cmdState, this is a STATE rather than a one-shot paint: Command reloads its feeds on
+   a timer and re-renders, and without this the async re-render would quietly replace the job
+   page with Portfolio while the address still said /command/jobs/<uuid>. */
+var _jobPage=null;
+function paintJobPage(jno){
+  if(jno!=null) _jobPage=jno;
+  if(!_jobPage) return;
+  var j=(typeof jobByNo==="function")?jobByNo(_jobPage):null;
+  if(!j){ _jobPage=null; return renderCmdState({title:"Not on this board",
+    msg:"That job exists but Command's active board does not carry it — it may sit outside the current portfolio.",
+    go:{label:"Go to Portfolio",view:"portfolio"}}); }
+  /* Set the rail directly rather than through setView(): setView calls renderView(), which
+     honours _jobPage and calls straight back here — an infinite recursion that rendered
+     nothing at all. The job page is its own destination, so it paints itself. */
+  closeDrawer(true);
+  currentView="portfolio";                  // the rail highlights where the job lives
+  if(typeof RYCShell!=="undefined") RYCShell.setActive("portfolio");
+  document.getElementById("view-title").textContent=j.name||"Job";
+  document.getElementById("view-ctx").innerHTML=viewCtx();
+  document.querySelector(".content").classList.toggle("light",true);
+  document.getElementById("view").innerHTML=jobPageHtml(j);
+  hookDrawerRows();
+  if(typeof loadBidRecord==="function") loadBidRecord(_jobPage);
+}
+/* Opening the page from the drawer: the drawer closes, the address changes to the job's own,
+   and the page renders — so Back returns to the list rather than to a re-opened drawer. */
+function goJobPage(jno){
+  var open=function(u){
+    window._dwRouting=true;
+    try{ closeDrawer(true); } finally { window._dwRouting=false; }
+    /* REPLACE, don't push, when the drawer already put us at this address. Opening the drawer
+       pushes the job's URL; pushing it a second time to go from preview to page stacked two
+       identical entries, so Back appeared to do nothing — it was stepping between two copies
+       of the same address. Preview and page are two depths of ONE rendered state, so they
+       share one history entry. */
+    if(u && location.pathname!==u) history.pushState({job:jno},"",u);
+    else if(u) history.replaceState({job:jno},"",u);
+    paintJobPage(jno);
+  };
+  var u=(typeof jobUrl==="function")?jobUrl(jno):null;
+  if(u) return open(u);
+  // The cache may not have landed yet (or the request failed). Fetch it, then open — rather
+  // than silently doing nothing, which is what a null URL used to cause.
+  loadJobIds().then(function(){ open((typeof jobUrl==="function")?jobUrl(jno):null); })
+              .catch(function(){ open(null); });
 }
 function jobUrl(jno){ var m=_jobIdCache; var id=m&&m.byNo[jno]; return id?CMD_BASE+"/jobs/"+id:null; }
 function setViewSilent(k){ _cmdRouting=true; try{ setView(k); } finally { _cmdRouting=false; } }
@@ -240,7 +287,7 @@ function goCommandView(k){ _cmdState=null; history.pushState({},"",cmdUrl(k)); r
 function retryCmdRoute(){ _cmdState=null; _jobIdCache=null; routeCmd(); }
 var LEGACY_CMD_HASH={dashboard:"command"};
 function routeCmd(){
-  _cmdState=null;                               // a new address gets a fresh verdict
+  _cmdState=null; _jobPage=null;                // a new address gets a fresh verdict
   var tok=++_cmdNavToken;                       // ...and owns any async work it starts
   var h=(location.hash||"").replace(/^#\/?/,"");
   if(h){ // legacy hash bookmark → canonical path, replaced (a fragment never reaches the server)
@@ -276,6 +323,7 @@ function viewCtx(){
 }
 function renderView(){
   if(_cmdState) return paintCmdState();         // bad address — don't paint a working screen over it
+  if(_jobPage) return paintJobPage();           // a job address is a destination, not a transient paint
   var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",integrations:"Integrations & Sync",ai:"AI Assistant"};
   document.getElementById("view-title").textContent=titles[currentView]||"Overview";
   document.getElementById("view-ctx").innerHTML=viewCtx();
@@ -304,7 +352,11 @@ function init(){
   // app means the originally requested URL survives sign-in.
   renderNav();
   document.getElementById("view").innerHTML="<div class=\"panel\"><div class=\"sub\">Loading data…</div></div>";
-  loadData().then(function(){ routeCmd(); });
+  // loadJobIds() had NO CALLER — so _jobIdCache was always null, jobUrl() always returned
+  // null, and clicking a job never put its UUID in the address. The canonical job route
+  // resolved perfectly but was reachable only by typing or bookmarking it. Loaded here,
+  // alongside the feeds, and deliberately NOT awaited: routing must not wait on it.
+  loadData().then(function(){ loadJobIds(); routeCmd(); });
 }
 if(sessionStorage.getItem("ryc_cmd_auth")==="1"){ showApp(); }
 else { setTimeout(function(){ document.getElementById("gate-input").focus(); },100); }

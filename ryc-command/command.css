@@ -277,3 +277,11 @@ table.dwt{width:100%;border-collapse:collapse;font-size:12px}
 .ptable tbody tr.gc-roll .jname{font-weight:700}
 .ptable tbody tr.gc-child > td:first-child{padding-left:20px}
 .gc-tick{color:#9aa4b2;font-size:11px;margin-right:2px}
+
+/* Job page (usability program 3.2) — the depth the drawer used to carry, at its own address. */
+.jobpage-head{background:#fff;border:1px solid #dfe4ec;border-radius:var(--r);padding:16px 20px;margin-bottom:14px}
+.jobpage-head h2{margin:0;font-size:19px}
+.jobpage-sub{color:#67718a;font-size:12.5px;margin-top:3px;line-height:1.5}
+.jobpage .dw-sec{background:#fff;border:1px solid #dfe4ec;border-radius:var(--r);padding:14px 18px;margin-bottom:12px}
+.jobpage .dw-sec h4{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#5b6578}
+.jobpage .dw-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}

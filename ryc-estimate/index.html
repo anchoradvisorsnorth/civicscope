@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.5">
-<script src="/ryc-shell/shell.js?v1.22.5"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.22.6">
+<script src="/ryc-shell/shell.js?v1.22.6"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -41,6 +41,11 @@
   .ryc-main table.ryc-rows th { padding:7px 8px; font-size:10.5px; font-weight:700;
     text-transform:uppercase; letter-spacing:.5px; color:#6b7280; white-space:nowrap; }
   .ryc-main table.ryc-rows td { padding:6px 8px; font-variant-numeric:tabular-nums; vertical-align:top; }
+  /* The 2.2 density rule out-specifies shell.css's chevron reservation (.ryc-row > td:last-child),
+     which silently took the reserved 20px back to 8px and let the chevron sit over the last
+     column's content. Restated here at the winning specificity rather than weakening the shared
+     rule, which other tables rely on. */
+  .ryc-main table.ryc-rows tr.ryc-row td:last-child { padding-right:20px; }
   .ryc-main table.ryc-rows td:first-child { min-width:260px; }
   .ryc-main table.ryc-rows .note { font-size:11px; }
   header { display:flex; align-items:center; gap:12px; padding:18px 0; border-bottom:1px solid var(--line); margin-bottom:22px; }
@@ -2629,7 +2634,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.22.5';
+const TOOL_VERSION = 'v1.22.6';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};

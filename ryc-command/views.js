@@ -1584,7 +1584,7 @@ function reconRow(label,pv,fv,fmtFn){
   var dTxt=big?("<span title=\"Diverges — reconcile\">⚑ "+fmtCompact(d)+"</span>"):("✓ "+(Math.abs(d)<1000?"match":fmtCompact(d)));
   return "<tr><td>"+label+"</td><td class=\"r\">"+pTxt+"</td><td class=\"r\">"+fTxt+"</td><td class=\"r "+(big?"dv":"ok")+"\">"+dTxt+"</td></tr>";
 }
-function drawerHtml(j){
+function jobSections(j){
   var f=j.foundation||null, b=j.budget||{}, sl=getStoplight(j,j);
   var status=isCloseoutOnly(j)?"closeout":sl.color;
   var reasons=sl.reasons.map(function(r){return r.text;}).join(" · ");
@@ -1743,8 +1743,56 @@ function drawerHtml(j){
     +"<tr><td>Commitments / buyout</td><td>Procore sub + PO contracts (daily cache)</td><td class=\"r\">"+(pAge||"—")+"</td></tr>"
     +"</table><div class=\"dw-note\">Full field-by-field provenance: <a href=\"#\" onclick=\"closeDrawer();setView(&quot;trust&quot;);return false\" style=\"color:var(--accent);font-weight:600\">Data Trust</a>.</div></div>";
 
-  return head+"<div class=\"dw-body\">"+snap+recon+billing+buyout+jobSubsSec+costSec+coSec+field+trail+"</div>";
+  return { head:head, snap:snap, recon:recon, billing:billing, buyout:buyout,
+           subs:jobSubsSec, cost:costSec, co:coSec, field:field, trail:trail,
+           status:status, reasons:reasons };
 }
+
+/* ===== 3.2 — the drawer is a PREVIEW; the page is where the depth lives =================
+   The drawer had grown into nine stacked sections: reconciliation, every open invoice, every
+   commitment, every sub, cost by class, change orders, field stats and a source trail. That is
+   a full job page compressed into a sidebar, and it is the "no drawer should require scrolling
+   through invoices, commitments, subcontractors, classes, change orders, field status and
+   provenance in one stream" the brief names.
+
+   Same content, two depths, ONE set of builders — so the preview can never quietly disagree
+   with the page. The drawer answers "is this the job I meant, and is it in trouble?"; the page
+   answers everything else, at an address that can be linked, refreshed and bookmarked.
+
+   This also completes the half of 1.2 that was deferred: the preview cap now has a real
+   destination to escape to. */
+function drawerHtml(j){
+  var x=jobSections(j);
+  /* The button is unconditional. It used to be gated on jobUrl() already having an id, which
+     meant it silently vanished whenever the id cache had not landed — a control that appears
+     or not depending on a background fetch is worse than one that resolves on click. */
+  var more="<div class=\"dw-sec\"><h4>Full detail</h4>"
+    +"<div class=\"dw-note\">Reconciliation, open invoices, commitments, subcontractors, cost by class, change orders, field status and the source trail all live on the job page — this drawer is a preview so it stays scannable.</div>"
+    +"<div style=\"margin-top:10px\">"
+    +"<button class=\"pfill\" onclick=\"goJobPage('"+attrEsc(String(j.projectNumber))+"')\">Open the full job page &rarr;</button>"
+    +"</div></div>";
+  return x.head+"<div class=\"dw-body\">"+x.snap+more+"</div>";
+}
+
+/* The full page. Sections in the order the brief specifies, each one a real heading rather than
+   another block in an unbounded scroll. */
+function jobPageHtml(j){
+  var x=jobSections(j);
+  var back="<div style=\"margin-bottom:12px\"><button class=\"pfill\" onclick=\"goCommandView('portfolio')\">&larr; Portfolio</button>"
+    +srcLink(procoreUrl(j),"Procore")+srcLink(buildrUrl(buildrIdFor(j.projectNumber)),"Buildr")+"</div>";
+  var head="<div class=\"jobpage-head\"><h2>"+esc(j.name||"")+"</h2>"
+    +"<div class=\"jobpage-sub\">"+esc(j.projectNumber||"")
+    +(j.client?" · "+esc(j.client):"")+(pmName(j)?" · PM "+esc(pmName(j)):"")
+    +(j.superintendent&&j.superintendent.name?" · Super "+esc(j.superintendent.name):"")
+    +(j.address?"<br>"+esc(j.address):"")+"</div>"
+    +"<div style=\"margin-top:8px\">"+statusPill(x.status,x.reasons)
+    +" <span style=\"color:#67718a;font-size:11.5px;margin-left:6px\">"+esc(j.stage||"")+"</span></div>"
+    +(x.reasons?"<div class=\"dw-reason\" style=\"margin-top:8px\">"+esc(x.reasons)+"</div>":"")
+    +"</div>";
+  return back+head+"<div class=\"jobpage\">"
+    +x.snap+x.recon+x.billing+x.buyout+x.subs+x.cost+x.co+x.field+x.trail+"</div>";
+}
+
 function openDrawer(jno,trigger){
   var j=jobByNo(jno); if(!j) return;
   closeDrawer(true);
