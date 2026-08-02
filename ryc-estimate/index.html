@@ -1654,9 +1654,20 @@ async function adoptOpp(i) {
 }
 // Open a run-less pursuit: the generator, prefilled from the pursuit, with identity attached —
 // the first estimate generated here lands as revision #1 of THIS pursuit.
+/* Opening an adopted-but-unestimated pursuit used to WEDGE THE PAGE (found in demo rehearsal,
+   2026-08-01). newPursuit() nulls _pursuitId and calls setEstView('assist'), which wrote hash
+   '#new'; this function then set _pursuitId and called setEstView again, writing
+   '#pursuit/<id>'. Two synchronous hash writes queue TWO hashchange events, but _settingHash
+   is a single boolean — the first event consumed it, the second re-entered routeFromHash and
+   the pair ping-ponged forever. A pursuit WITH runs was unaffected because openRun() never
+   calls newPursuit(), which is why only the adopt-then-open path (a demo step) locked up.
+   Fix: suppress hash writes while state is rebuilt, then write the canonical hash once. */
 function openBlankPursuit(pid) {
   const p = ((historyCache && historyCache.pursuits) || []).find(x => x.id === pid);
   if (!p) return;
+  const wasRouting = _routing;
+  _routing = true;
+  try {
   newPursuit();
   window._pursuitId = pid;
   window._pursuitVersion = Number.isInteger(p.version) ? p.version : null;
@@ -1670,6 +1681,13 @@ function openBlankPursuit(pid) {
     if (p.work_type) document.getElementById('f-wt').value = p.work_type;
   } catch {}
   setEstView('assist');
+  } finally { _routing = wasRouting; }
+  // one deliberate hash write, now that the pursuit state is coherent
+  const h = '#pursuit/' + pid;
+  if (location.hash !== h) { _settingHash = true; location.hash = h; }
+  // An adopted pursuit is a real pursuit: show its card so the bid due date, pre-bid meeting
+  // and readiness are workable before the first estimate exists.
+  renderPursuit();
 }
 
 // Start a fresh pursuit from the desk: clear prior pursuit state so nothing bleeds across.
