@@ -31,120 +31,136 @@ function gmSub(gm){
   return "row-level projections · "+gm.jobs+" of "+gm.of+" jobs ("+covPct+"% of contract)";
 }
 
+/* ===== Overview — the BRIEFING, not a second Portfolio (program 6.1) ====================
+   Portfolio is the inventory; this is the briefing. They were showing substantially the same
+   job list in two arrangements, and Overview was additionally near-identical to the Executive
+   Brief. Each now answers a different question:
+
+     Overview          what changed, what needs attention, and WHERE to go next  (working screen)
+     Portfolio         what active jobs exist and how each is performing         (inventory)
+     Executive Brief   what changed, what decisions matter, what is the outlook  (artifact)
+
+   The difference between Overview and the Brief is not content, it is USE: this one links out
+   to the page that owns each item, because the next thing you do is go there. The Brief is
+   printed and presented, so it carries its own totals and links to nothing.
+
+   Order is deliberate — what CHANGED leads, because a briefing that opens with a standing
+   total tells you nothing you did not already know. Attention is ranked into ONE list rather
+   than six equal-weight sections. No source-health cards, no refresh controls, no
+   reconciliation prose, no portfolio table, no action register. */
 function renderCommand(){
   var haveFnd=!!(foundationData&&foundationData.jobs);
   var haveAr=!!(arData&&arData.invoices);
   var jobs=getActiveJobs();
-  var gc=greencroftJobs();
-  var gcContract=gc.reduce(function(s,f){return s+((f.currentContract>0)?f.currentContract:(f.originalContract||0));},0);
-  var totalContract=jobs.reduce(function(s,j){return s+(j.contractValue||0);},0)+gcContract;
-  var lights=jobs.map(function(j){return {j:j,sl:getStoplight(j,j)};});
-  var closeouts=lights.filter(function(x){ return isCloseoutOnly(x.j); });
-  var closeoutSet=new Set(closeouts.map(function(x){return x.j;}));
-  var reds=lights.filter(function(x){return x.sl.color==="red" && !closeoutSet.has(x.j);});
-  var ambers=lights.filter(function(x){return x.sl.color==="amber";});
-  var gm=projectedGrossMargin();
-  var accts=haveFnd?activeAccountRows():[];
-  var needsInv=accts.reduce(function(s,r){return s+r.under;},0);
-  var overdue=accts.reduce(function(s,r){return s+r.overdue;},0);
-  var flagged=reds.length+ambers.length;
   var missing=[];
   if(!activeData||!activeData.jobs) missing.push("Procore");
   if(!haveFnd) missing.push("Foundation");
   if(!haveAr) missing.push("AR");
   var warn=missing.length?("<div class=\"warn-banner\">⚠️ "+missing.join(" + ")+" feed unavailable — affected figures show <b>Unavailable</b>, not $0.</div>"):"";
 
-  /* KPI strip */
-  function kpi(l,v,s,cls){ return "<div class=\"kpi\"><div class=\"kl\">"+l+"</div><div class=\"kv "+(cls||"")+"\">"+v+"</div><div class=\"ks\">"+(s||"")+"</div></div>"; }
-  var strip="<div class=\"kpi-strip\">"
-    +kpi("Active contract value",fmt(totalContract),(jobs.length+gc.length)+" active jobs — incl. "+(greencroftBoardJobs().length+gc.length)+" Greencroft"+(gc.length?" ("+gc.length+" off-board)":""),"accent")
-    +kpi("Projected gross margin",gm?gm.pct.toFixed(1)+"%":"—",gmSub(gm),(gm&&gm.pct<8)?"warn":"")
-    +kpi("Overdue AR (active)",haveAr?fmtCompact(overdue):"Unavailable",haveAr?"needs collection":"AR feed down",haveAr?(overdue>0?"bad":""):"warn")
-    +kpi("Needs invoicing",haveFnd?fmtCompact(needsInv):"Unavailable",haveFnd?"earned, not billed":"Foundation feed down",haveFnd?(needsInv>0?"warn":""):"warn")
-    +kpi("Jobs flagged",String(flagged),reds.length+" red · "+ambers.length+" amber · "+closeouts.length+" closeout",flagged>0?"warn":"")
-    +"</div>";
+  var lights=jobs.map(function(j){return {j:j,sl:getStoplight(j,j)};});
+  var closeouts=lights.filter(function(x){ return isCloseoutOnly(x.j); });
+  var closeoutSet=new Set(closeouts.map(function(x){return x.j;}));
+  var reds=lights.filter(function(x){return x.sl.color==="red" && !closeoutSet.has(x.j);});
+  var ambers=lights.filter(function(x){return x.sl.color==="amber";});
+  var fades=gainFadeRows().filter(function(r){return r.src==="erp"&&r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;});
+  var accts=haveFnd?activeAccountRows():[];
+  var payapps=haveFnd?billingStates().due:[];
+  var overdue=accts.reduce(function(s2,r){return s2+r.overdue;},0);
 
-  /* Priority queue */
-  function row(cls,name,jno,detail,val,vcls){
+  /* ---- 1. WHAT CHANGED (async; the container leads the page) ---- */
+  var changed="<div class=\"panel\"><h3>What changed</h3><div id=\"delta-panel\"><div class=\"sub\">Computing from the nightly snapshot trail…</div></div></div>";
+
+  /* ---- 2. NEEDS ATTENTION — one ranked list, grouped by business issue ---- */
+  /* Greencroft collapses here too: a briefing that opens with nine near-identical unit jobs
+     has buried everything else, and the program is one conversation (3.1). */
+  function attn(cls,label,name,jno,detail,val){
     return "<div class=\"q-row "+cls+"\"><div class=\"q-job\">"+esc(name)+"<span class=\"q-jno\">"+esc(jno||"")+"</span></div>"
-      +"<div class=\"q-detail\">"+detail+"</div>"+(val!=null?"<div class=\"q-val "+(vcls||"")+"\">"+val+"</div>":"")+"</div>";
+      +"<div class=\"q-detail\"><b>"+esc(label)+"</b> · "+detail+"</div>"
+      +(val!=null?"<div class=\"q-val\">"+val+"</div>":"")+"</div>";
   }
-  function section(title,n,rowsHtml,empty,badge){
-    return "<div class=\"qsec\"><div class=\"qh\">"+title+" <span class=\"qn\">"+(badge!=null?badge:n)+"</span></div>"+(n?rowsHtml:"<div class=\"q-empty\">"+empty+"</div>")+"</div>";
+  function collapseGc(items,getJob){
+    var gc=items.filter(function(x){return getJob(x).program==="greencroft";});
+    var rest=items.filter(function(x){return getJob(x).program!=="greencroft";});
+    return {rest:rest,gc:gc};
   }
-  /* Greencroft rolls up here too (3.1, the third approved surface). A leadership briefing that
-     opens with nine near-identical unit jobs has buried whatever else is on the list, and the
-     program is one conversation, not nine. Presentation only — the constituent jobs keep every
-     number and remain individually reachable from Portfolio and Margin & Risk. */
-  function queueRollup(items,cls,label,detailFn){
-    var gc=items.filter(function(x){return x.j.program==="greencroft";});
-    var rest=items.filter(function(x){return x.j.program!=="greencroft";});
-    var html=rest.map(detailFn).join("");
-    if(gc.length>1){
-      var v=gc.reduce(function(s2,x){return s2+(x.j.contractValue||0);},0);
-      html+=row(cls,"Greencroft program","",gc.length+" unit jobs "+label+" — one program, listed individually on Portfolio and Margin &amp; Risk",fmtCompact(v),"");
-    } else { html+=gc.map(detailFn).join(""); }
-    return html;
-  }
-  // red
-  var redRows=queueRollup(reds,"red","flagged",function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="red";}).map(function(z){return z.text;}).join(" · "); return row("red",x.j.name||"",x.j.projectNumber,"<b>"+esc(r)+"</b>",fmtCompact(x.j.contractValue),""); });
-  // amber
-  var amberRows=queueRollup(ambers,"amber","to watch",function(x){ var r=x.sl.reasons.filter(function(z){return z.level==="amber";}).map(function(z){return z.text;}).join(" · "); return row("amber",x.j.name||"",x.j.projectNumber,esc(r),fmtCompact(x.j.contractValue),""); });
-  // closeout aging — Foundation-side closeout test: retainage still held, billing gap, job still open
-  var closeoutRows=closeouts.map(function(x){
-    var j=x.j, f=j.foundation||{};
-    var leftToBill=(j.contractValue||0)-(f.totalInvoiced||0);
-    var bits=[daysPastFinish(j)+"d past projected finish","<b>"+fmtCompact(f.retainage||0)+"</b> retainage held"];
-    if(leftToBill>1000) bits.push("<b>"+fmtCompact(leftToBill)+"</b> left to bill");
-    bits.push(esc(pmName(j)||"(no PM)"));
-    return row("closeout",j.name||"",j.projectNumber,bits.join(" · ")+srcLink(procoreUrl(j),"Procore"),fmtCompact(j.contractValue),"");
-  }).join("");
-  // data conflicts — Procore revised vs Foundation contract divergence (⚑ flags), surfaced for reconciliation
-  var conflicts=jobs.filter(function(j){return j.revisedContract>0 && j.foundation && j.foundation.currentContract>0 &&
-    Math.abs(j.foundation.currentContract-j.revisedContract)>50000 && Math.abs(j.foundation.currentContract-j.revisedContract)>j.revisedContract*0.02;});
-  var conflictRows=conflicts.map(function(j){
-    var d=j.revisedContract-j.foundation.currentContract;
-    var detail="Procore revised <b>"+fmtCompact(j.revisedContract)+"</b> vs Foundation <b>"+fmtCompact(j.foundation.currentContract)+"</b> · "
-      +(d>0?"Procore ahead — check CO posting in Foundation":"Foundation ahead — check Procore prime contract")+srcLink(procoreUrl(j),"Procore");
-    return row("conflict",j.name||"",j.projectNumber,detail,"Δ "+fmtCompact(Math.abs(d)),"warn");
-  }).join("");
-  // billing follow-up: needs-invoiced + overdue
-  var billAll=accts.filter(function(r){return r.under>1000||r.overdue>0;}).sort(function(a,b){return (b.under+b.overdue)-(a.under+a.overdue);});
-  var billCount=billAll.length;
-  var billRows=billAll.slice(0,10).map(function(r){ var bits=[]; if(r.under>0) bits.push("needs invoicing <b>"+fmtCompact(r.under)+"</b>"+(r.exact?"":" <span style=\"color:var(--faint)\">(bid-est)</span>")); if(r.overdue>0) bits.push("overdue AR <b>"+fmtCompact(r.overdue)+"</b>"); return row("info",r.name||"",r.job,bits.join(" · ")+" · "+esc(r.pm),null,""); }).join("");
-  var billBadge=!haveFnd?"n/a":(billCount>10?"top 10 of "+billCount:String(billCount));
-  // margin fades
-  // Alarm surfaces include ONLY erp-sourced (trusted-projection) rows — a budget-growth
-  // reconstruction is a scenario, not a graded fade (Codex R4 #6).
-  var fades=gainFadeRows().filter(function(r){return r.src==="erp"&&r.gfPts<=-GF_MOVE_PTS;}).sort(function(a,b){return a.gfPts-b.gfPts;}).slice(0,8);
-  var fadeRows=fades.map(function(r){ return row("fade",r.name,r.job,"fading <b>"+r.gfPts.toFixed(1)+" pts</b>"+(r.burnRisk?" · cost-burn risk":"")+" · "+esc(r.pm),fmtCompact(r.gfDollars),r.gfDollars<0?"bad":""); }).join("");
-  // client follow-ups (Buildr)
-  var bf=buildrFollowUps();
-  var cfuRows=bf.items.slice(0,10).map(function(r){ return row("info",r.name,r.job,esc(r.detail)+(r.open?" · <b>"+r.open+" open</b>":"")+" · "+esc(r.pm)+srcLink(buildrUrl(r.buildrId),"Buildr"),null,""); }).join("");
-  var cfuEmpty=bf.loaded===0?"Buildr feed unavailable.":(bf.matched===0?bf.loaded+" Buildr projects loaded, but none matched active job numbers — check the join.":"0 flagged · "+bf.loaded+" loaded, "+bf.matched+" matched active jobs.");
+  var items=[];
+  var rSplit=collapseGc(reds,function(x){return x.j;});
+  rSplit.rest.forEach(function(x){
+    items.push({rank:0,html:attn("red","Risk",x.j.name||"",x.j.projectNumber,
+      esc(x.sl.reasons.filter(function(z){return z.level==="red";}).map(function(z){return z.text;}).join(" · "))+" · "+esc(pmName(x.j)||"no PM"),
+      fmtCompact(x.j.contractValue))});
+  });
+  if(rSplit.gc.length>1) items.push({rank:0,html:attn("red","Risk","Greencroft program","",
+    rSplit.gc.length+" unit jobs flagged — one program, itemised on Portfolio",
+    fmtCompact(rSplit.gc.reduce(function(s2,x){return s2+(x.j.contractValue||0);},0)))});
+  else rSplit.gc.forEach(function(x){ items.push({rank:0,html:attn("red","Risk",x.j.name||"",x.j.projectNumber,esc(pmName(x.j)||"no PM"),fmtCompact(x.j.contractValue))}); });
 
-  var queue="<div class=\"panel\"><h3>Priority queue</h3><div class=\"sub\">What leadership should talk about this week — jobs to act on, most urgent first. Contract = Procore Revised; billing/AR/cost = Foundation.</div>"
-    +section("🔴 Needs attention now",reds.length,redRows,"No red jobs — no financial or genuine schedule risk flagged.")
-    +section("🟠 Watch",ambers.length,amberRows,"No amber jobs.")
-    +section("🏁 Closeout aging",closeouts.length,closeoutRows,"No jobs stuck in closeout.")
-    +section("💵 Billing & cash follow-up",(haveFnd?billCount:1),(haveFnd?billRows:"<div class=\"q-empty\">Foundation data unavailable — billing/AR not computed.</div>"),"Nothing needs invoicing or overdue.",billBadge)
-    +section("📉 Margin fades",fades.length,fadeRows,"No jobs fading.")
-    +section("⚖️ Data conflicts",conflicts.length,conflictRows,"Procore and Foundation contracts agree on every job.")
-    // Buildr renders ONLY when it has something credible to say (Codex Step 3: a "0 flagged"
-    // section over a 1-job join is reassurance from an unusable feed). Join stats live in
-    // Data Trust, where plumbing belongs.
-    +(bf.flagged>0?section("🤝 Client follow-up (Buildr)",bf.items.length,cfuRows,cfuEmpty):"")
+  fades.slice(0,4).forEach(function(r){
+    items.push({rank:1,html:attn("fade","Margin",r.name,r.job,
+      "fading <b>"+r.gfPts.toFixed(1)+" pts</b> vs as-bid"+(r.burnRisk?" · cost burn ahead of progress":"")+" · "+esc(r.pm),
+      fmtCompact(r.gfDollars))});
+  });
+  closeouts.slice(0,3).forEach(function(x){
+    var f=x.j.foundation||{};
+    items.push({rank:2,html:attn("closeout","Closeout",x.j.name||"",x.j.projectNumber,
+      daysPastFinish(x.j)+"d past finish · <b>"+fmtCompact(f.retainage||0)+"</b> retainage held",
+      fmtCompact(x.j.contractValue))});
+  });
+  var aSplit=collapseGc(ambers,function(x){return x.j;});
+  aSplit.rest.slice(0,4).forEach(function(x){
+    items.push({rank:3,html:attn("amber","Watch",x.j.name||"",x.j.projectNumber,
+      esc(x.sl.reasons.filter(function(z){return z.level==="amber";}).map(function(z){return z.text;}).join(" · ")),
+      fmtCompact(x.j.contractValue))});
+  });
+  if(aSplit.gc.length>1) items.push({rank:3,html:attn("amber","Watch","Greencroft program","",aSplit.gc.length+" unit jobs to watch","")});
+  items.sort(function(a,b){return a.rank-b.rank;});
+  var attention="<div class=\"panel\"><h3>Needs attention</h3>"
+    +"<div class=\"sub\">Ranked worst first, grouped by the kind of problem rather than by which page owns it. Each one is worked on the page named beside it.</div>"
+    +(items.length?items.map(function(i){return i.html;}).join(""):"<div class=\"q-empty\">Nothing flagged — no confirmed risk, no material fade, nothing stuck in closeout.</div>")
     +"</div>";
 
-  /* Healthy is silent (Codex Step 3): the full source-health strip moved to Data Trust.
-     A delayed or missing feed produces ONE exception line here — nothing renders when all
-     feeds are current. (>30h = a scheduled run was missed.) */
+  /* ---- 3. THIS WEEK'S OPERATING PICTURE — compact, each linking to its owning page ---- */
+  function card(title,view,value,sub){
+    return "<div class=\"kpi\" style=\"cursor:pointer\" role=\"button\" tabindex=\"0\""
+      +" onclick=\"setView('"+view+"')\" onkeydown=\"if(event.key==='Enter'||event.key===' '){event.preventDefault();setView('"+view+"');}\">"
+      +"<div class=\"kl\">"+title+" &rarr;</div><div class=\"kv\">"+value+"</div><div class=\"ks\">"+(sub||"")+"</div></div>";
+  }
+  var gm=projectedGrossMargin();
+  var fwd=null;
+  if(forecastData&&forecastData.projects){
+    var sp=fcSpread(forecastData.projects); fwd=0;
+    Object.keys(sp.buckets).forEach(function(m){ m=+m; if(m>=sp.nowIdx&&m<sp.nowIdx+12) fwd+=sp.buckets[m].booked; });
+  }
+  var week="<div class=\"panel\"><h3>This week</h3>"
+    +"<div class=\"sub\">Where the work is. Each card opens the page that owns it.</div>"
+    +"<div class=\"kpi-strip k4\">"
+    +card("Billing &amp; Cash","billing",haveFnd?String(payapps.length):"—",
+          haveFnd?("pay apps to process · "+fmtCompact(overdue)+" overdue AR"):"Foundation feed down")
+    +card("Margin &amp; Risk","margin",gm?gm.pct.toFixed(1)+"%":"—",
+          fades.length?(fades.length+" jobs fading vs as-bid"):"nothing fading")
+    +card("Forecast","forecast",fwd!=null?fmtCompact(fwd):"—","booked, next 12 months")
+    +card("Preconstruction","estimating",bcData&&bcData.published?String(bcData.published.length):"—","projects out to bid")
+    +"</div><div id=\"brief-pipeline-mini\" class=\"sub\" style=\"margin-top:8px\"></div></div>";
+
+  /* ---- 4. COVERAGE EXCEPTION — only when it changes how the numbers read ---- */
+  var cov="";
+  if(haveFnd&&activeData&&activeData.jobs){
+    var roll=companyRollup();
+    if(roll.coverageGap.n||roll.unclassified.n){
+      cov="<div class=\"panel\"><h3>Coverage</h3><div class=\"sub\">"
+        +(roll.coverageGap.n?("<b>"+roll.coverageGap.n+"</b> active jobs carrying "+fmtCompact(roll.coverageGap.contract)+" are not on the Procore board, so they are absent from stage, margin and field figures above. "):"")
+        +(roll.unclassified.n?("<b>"+roll.unclassified.n+"</b> have no contract value recorded and are excluded from every company total. "):"")
+        +"Full partition on Portfolio.</div></div>";
+    }
+  }
+  /* A delayed feed is the one plumbing fact a briefing needs — healthy feeds stay silent. */
   var staleFeeds=[];
-  [["Procore",!!activeData,activeData&&activeData.refreshed],["Foundation",!!foundationData,foundationData&&foundationData.refreshed],["AR",!!arData,arData&&arData.refreshed],["BC bid board",!!bcData,bcData&&bcData.generatedAt]]
-    .forEach(function(x){ if(!x[1]) staleFeeds.push(x[0]+" down"); else if(x[2]&&(Date.now()-new Date(x[2]))/3600000>30) staleFeeds.push(x[0]+" stale ("+ageTxt(x[2])+")"); });
+  [["Procore",!!activeData,activeData&&activeData.refreshed],["Foundation",!!foundationData,foundationData&&foundationData.refreshed],["AR",!!arData,arData&&arData.refreshed]]
+    .forEach(function(x){ if(x[1]&&x[2]&&(Date.now()-new Date(x[2]))/3600000>30) staleFeeds.push(x[0]+" stale ("+ageTxt(x[2])+")"); });
   var staleWarn=staleFeeds.length?("<div class=\"warn-banner\">⚠️ Data delayed: "+staleFeeds.join(" · ")+" — details in Data Trust.</div>"):"";
 
-  return warn+staleWarn+strip+queue+"<div id=\"delta-panel\"></div>";
+  return warn+staleWarn+changed+attention+week+cov;
 }
 
 /* Computed change layer (Codex Step 4): week-over-week movement derived from the nightly
@@ -189,12 +205,12 @@ function computeDeltas(cb){
 }
 function loadCommandDeltas(){
   var el=document.getElementById("delta-panel"); if(!el) return;
-  el.innerHTML="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computing from nightly snapshots…</div></div>";
+  el.innerHTML="<div class=\"sub\">Computing from nightly snapshots…</div>";
   computeDeltas(function(d){
     if(!d){ var e2=document.getElementById("delta-panel"); if(e2) e2.innerHTML=""; return; }
     var el2=document.getElementById("delta-panel"); if(!el2) return;
     function li(name,jno,txt,val){ return "<div class=\"q-row info\"><div class=\"q-job\">"+esc(name)+"<span class=\"q-jno\">"+esc(jno||"")+"</span></div><div class=\"q-detail\">"+txt+"</div><div class=\"q-val\">"+val+"</div></div>"; }
-    var html="<div class=\"panel\"><h3>Changes — last 7 days</h3><div class=\"sub\">Computed from the nightly Foundation snapshot trail (baseline run "+d.baseLabel+", "+d.oldN+" jobs → now, "+d.curN+"). Derived, never hand-maintained.</div>"
+    var html="<div class=\"sub\">Since the "+d.baseLabel+" snapshot ("+d.oldN+" jobs &rarr; "+d.curN+"). Derived from the nightly trail, never hand-maintained.</div>"
       +"<div class=\"q-row info\"><div class=\"q-job\">Week totals</div><div class=\"q-detail\"><b>"+fmtCompact(d.billed)+"</b> billed · <b>"+fmtCompact(d.cost)+"</b> cost recorded"
       +(d.newJobs.length?(" · <b>"+d.newJobs.length+"</b> new job"+(d.newJobs.length===1?"":"s")):"")
       +(d.closed.length?(" · <b>"+d.closed.length+"</b> closed"):"")+"</div></div>"
@@ -203,7 +219,6 @@ function loadCommandDeltas(){
     d.newJobs.slice(0,5).forEach(function(c){ html+=li(c.description||"",c.jobNo,"NEW in Foundation this week"+(c.pmName?(" · "+esc(c.pmName)):""),fmtCompact(c.currentContract||c.originalContract)); });
     d.closed.slice(0,5).forEach(function(o){ html+=li(o.description||"",o.jobNo,"closed in Foundation this week","—"); });
     d.movers.slice(0,3).forEach(function(x){ html+=li(x.j.description||"",x.j.jobNo,"cost recorded "+fmtCompact(x.d)+" this week",""); });
-    html+="</div>";
     el2.innerHTML=html;
   });
 }
@@ -1460,7 +1475,8 @@ function renderEstimating(){
 
   view.innerHTML=strip
     +"<div class=\"vhead\">Bid board — projects out to bid</div>"
-    +"<div class=\"vsub\">Straight from BuildingConnected (read-only, pulled daily; this pull "+(ageTxt(bcData.generatedAt)||"just now")+"). <b>At risk</b> = a trade package with zero bids received and zero subs committed to bidding — the packages that come in empty on bid day unless someone works the phones. Estimating tools: <a href=\"/ryc/estimate\" style=\"color:var(--accent);font-weight:600\">/ryc/estimate</a>.</div>"
+    +"<div class=\"vsub\">The company-level preconstruction picture, straight from BuildingConnected (read-only, pulled daily; this pull "+(ageTxt(bcData.generatedAt)||"just now")+"). <b>At risk</b> = a trade package with zero bids received and zero subs committed to bidding — the ones that come in empty on bid day unless someone works the phones. "
+      +"<b>Command observes preconstruction; the Estimating Desk does the work</b> — adopting an opportunity, pricing it and recording the outcome all happen there, and nothing on this page edits a pursuit.</div>"
     +board+drafts+staleSec+outcomes;
 }
 
@@ -1683,7 +1699,7 @@ function renderBrief(){
   var capSub=pmTop.length?("<b>"+pmTop.length+"</b> PMs across <b>"+jobs.length+"</b> active jobs — heaviest: "+pmTop.slice(0,3).map(function(x){return esc(x.pm)+" ("+x.n+")";}).join(", ")+". Full picture on PM Load."):"—";
 
   view.innerHTML=warn+"<div class=\"brief\">"
-    +"<div class=\"bh\"><div><h1>Executive Brief</h1><div class=\"bsub\">R. Yoder Construction — active work · as of "+dateStr+" · Procore data "+(pAge||"—")+", Foundation "+(fAge||"—")+"</div></div>"
+    +"<div class=\"bh\"><div><h1>Executive Brief</h1><div class=\"bsub\">R. Yoder Construction — active work · as of "+dateStr+" · Procore data "+(pAge||"—")+", Foundation "+(fAge||"—")+"<br><span style=\"font-size:11px\">Self-contained by design: this is the printed and presented artifact, so it carries its own totals and links to nothing. The working version, with every item linked to the page that owns it, is Overview.</span></div></div>"
     +"<div class=\"brief-actions\"><button class=\"pfill\" onclick=\"briefPresent()\">🖥 Present</button><button class=\"pfill\" onclick=\"window.print()\">🖨 Print</button></div></div>"
     +"<div class=\"brief-sec\">"+band+"</div>"
     /* R5 #10 ordering: the brief LEADS with what changed, then what needs a decision. */
@@ -1715,11 +1731,15 @@ function fillBriefDeltas(){
     el.innerHTML=lines.map(function(l){return "<div class=\"ssub\">"+l+"</div>";}).join("");
   });
 }
+/* Overview's Desk line — the same cross-workspace read the Brief uses, into its own node.
+   One loader, two mount points: a second copy would be a second thing to keep in step. */
+function fillOverviewPipeline(){ return deskPipelineInto("brief-pipeline-mini"); }
 /* Brief section 5b — the Desk's open pipeline (cross-workspace read; leadership-safe summary). */
-function fillBriefPipeline(){
+function fillBriefPipeline(){ return deskPipelineInto("brief-pipeline"); }
+function deskPipelineInto(nodeId){
   RYCAuth.post("list").then(function(rr){
       var d=rr.ok?rr.data:null;
-      var el=document.getElementById("brief-pipeline"); if(!el) return;
+      var el=document.getElementById(nodeId); if(!el) return;
       if(!d||!d.ok){ el.innerHTML=""; return; }
       var pursuits=d.pursuits||[], runs=d.runs||[];
       var latestByP={};
@@ -1734,7 +1754,7 @@ function fillBriefPipeline(){
         +(dueSoon.length?(" · <b>"+dueSoon.length+"</b> due within 7 days"):"")
         +(decided.length?(" · record to date "+won+"W–"+(decided.length-won)+"L"):" · no decided bids yet")
         +".</div>";
-    }).catch(function(){ var el=document.getElementById("brief-pipeline"); if(el) el.innerHTML=""; });
+    }).catch(function(){ var el=document.getElementById(nodeId); if(el) el.innerHTML=""; });
 }
 
 /* ===== Job detail drawer (Phase 3a — existing data only; commitments arrive in 3b) ===== */

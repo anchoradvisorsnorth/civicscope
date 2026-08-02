@@ -100,7 +100,7 @@ function renderNav(){
   });
   RYCShell.mount({
     workspace:"command",
-    version:"v2.37.0",
+    version:"v2.37.1",
     active:currentView,
     groups:groups,
     onSelect:function(k){ setView(k); },
@@ -324,7 +324,7 @@ function viewCtx(){
 function renderView(){
   if(_cmdState) return paintCmdState();         // bad address — don't paint a working screen over it
   if(_jobPage) return paintJobPage();           // a job address is a destination, not a transient paint
-  var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Estimating — Bid Board",brief:"Executive Brief",trust:"Data Trust",integrations:"Integrations & Sync",ai:"AI Assistant"};
+  var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Bid Board",brief:"Executive Brief",trust:"Data Trust",integrations:"Integrations & Sync",ai:"AI Assistant"};
   document.getElementById("view-title").textContent=titles[currentView]||"Overview";
   document.getElementById("view-ctx").innerHTML=viewCtx();
   var view=document.getElementById("view");
