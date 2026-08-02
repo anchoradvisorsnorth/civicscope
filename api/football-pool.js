@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.4.0-sms-optional';
+const VER = '1.5.0-integrity';   // reveal-at-deadline, CAS saves, server-scored finalize, validated picks
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -37,15 +37,67 @@ export default async function handler(req, res) {
     if (!r.ok) throw new Error('db write failed: ' + (await r.text()).slice(0, 150));
     return (await r.json())[0];
   };
+  /* COMPARE-AND-SWAP write (Codex 2026-08-01 finding #1 — Confirmed/High).
+     save_picks read the whole week, changed one player's entry, and wrote the whole document
+     back. Two players saving at once both read revision A; the second write was derived from A
+     and ERASED the first player's picks. The filter below makes the write conditional on the
+     row not having moved: PostgREST returns 0 rows if updated_at changed, and the caller
+     re-reads and retries. A per-member entry row is the real fix and belongs to the rebuild;
+     this removes the data-loss window on the schema that exists today. */
+  const putRowCAS = async (slug, data, expectedUpdatedAt) => {
+    const r = await sb(`football_pools?slug=eq.${slug}&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ data, updated_at: new Date().toISOString() }),
+    });
+    if (!r.ok) throw new Error('db write failed: ' + (await r.text()).slice(0, 150));
+    const rows = await r.json();
+    return rows.length ? rows[0] : null;          // null = someone else wrote first
+  };
   const cleanSlug = (s) => String(s || '').replace(/[^a-z0-9-]/gi, '').slice(0, 30);
   const pastDeadline = (wk) => wk.deadline && Date.now() > Date.parse(wk.deadline);
-  // All roster players have a locked pick → the competitive reason to hide picks is gone.
+  // All roster players have a locked pick — used ONLY to fire the "all picks are in" email.
   const allLocked = (wk, roster) => {
     if (!roster || !roster.length || !wk.picks) return false;
     return roster.every(p => wk.picks[p.name] && wk.picks[p.name].locked);
   };
-  // Reveal everyone's picks once all are locked OR first kickoff passes, whichever comes first.
-  const isRevealed = (wk, roster) => pastDeadline(wk) || allLocked(wk, roster);
+  /* THE DEADLINE IS THE ONLY THING THAT REVEALS (Codex finding #2 — Confirmed/High).
+     This used to also reveal once everyone had locked. The reasoning ("all locked → the
+     competitive reason to hide picks is gone") only holds if a lock is FINAL — and it isn't,
+     there is a supported unlock path. So the last player to lock could read everyone else's
+     card, unlock, and revise. Mike confirmed 2026-08-01 he does not need the early board. */
+  const isRevealed = (wk) => pastDeadline(wk);
+
+  /* Cover vs the FROZEN line — identical rule to the board's coverOf() and the sim's cover().
+     Kept server-side so scoring never depends on what a browser computed. */
+  const coverOf = (g, sc) => {
+    if (!sc || sc.homeScore == null || sc.awayScore == null) return null;
+    const favHome = g.favAbbrev === g.homeAbbrev;
+    const favScore = favHome ? sc.homeScore : sc.awayScore;
+    const dogScore = favHome ? sc.awayScore : sc.homeScore;
+    const dog = favHome ? g.awayAbbrev : g.homeAbbrev;
+    if (favScore - dogScore > g.line) return g.favAbbrev;
+    if (favScore - dogScore === g.line) return 'PUSH';
+    return dog;
+  };
+  // 1 point a cover, 0.5 a push, 0 a loss — computed from FROZEN picks + FROZEN lines.
+  const scoreWeek = (wk, results) => {
+    const pts = {}, covers = {};
+    for (const g of (wk.games || [])) covers[g.id] = coverOf(g, (results || {})[g.id]);
+    for (const [name, entry] of Object.entries(wk.picks || {})) {
+      let p = 0;
+      for (const g of (wk.games || [])) {
+        const cov = covers[g.id], side = (entry.picks || {})[g.id];
+        if (!cov || !side) continue;
+        if (cov === 'PUSH') p += 0.5;
+        else if (cov === side) p += 1;
+      }
+      pts[name] = p;
+    }
+    const best = Math.max(-1, ...Object.values(pts));
+    const winners = Object.keys(pts).filter(n => pts[n] === best).sort();
+    return { points: pts, covers, winner: winners.length > 1 ? 'TIE: ' + winners.join(', ') : (winners[0] || null) };
+  };
 
   // Email the group that all picks are in and the board is live. Best-effort; SMS added later.
   async function notifyAllLocked(wk, slug, roster) {
@@ -54,14 +106,14 @@ export default async function handler(req, res) {
     const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#101828">
       <div style="background:linear-gradient(135deg,#0a2240,#14532d);color:#fff;padding:18px 22px;border-radius:10px 10px 0 0">
         <div style="font-size:20px;font-weight:800">🏈 All picks are in — ${wk.label || slug} is locked</div>
-        <div style="font-size:13px;color:#b9c6da;margin-top:3px">Everyone's locked in, so all picks are now visible.</div>
+        <div style="font-size:13px;color:#b9c6da;margin-top:3px">Everyone is locked in. Picks stay hidden until kickoff, then the board goes live.</div>
       </div>
       <div style="border:1px solid #e4e7ec;border-top:none;border-radius:0 0 10px 10px;padding:18px 22px;background:#fff">
         <table style="font-size:13px;border-collapse:collapse;margin-bottom:12px">${rows}</table>
         <div style="text-align:center;margin:8px 0">
-          <a href="https://app.civicscope.io/pool/football" style="display:inline-block;background:#c8a24b;color:#1a1300;font-weight:800;font-size:16px;padding:12px 24px;border-radius:10px;text-decoration:none">See everyone's picks →</a>
+          <a href="https://app.civicscope.io/pool/football" style="display:inline-block;background:#c8a24b;color:#1a1300;font-weight:800;font-size:16px;padding:12px 24px;border-radius:10px;text-decoration:none">Open the board →</a>
         </div>
-        <div style="font-size:12px;color:#667085">Live scoring against the spread all weekend. Good luck.</div>
+        <div style="font-size:12px;color:#667085">Picks reveal at kickoff, then live scoring against the spread all weekend. Good luck.</div>
       </div></div>`;
     for (const p of roster) {
       if (!p.email) continue;
@@ -107,7 +159,7 @@ export default async function handler(req, res) {
       const wk = row.data;
       const cfg = await getRow('config');
       const roster = (cfg?.data?.players) || [];
-      const revealed = isRevealed(wk, roster);
+      const revealed = isRevealed(wk);
       if (!revealed && wk.picks) {
         // pick privacy: until everyone locks (or kickoff), only your own picks come back (name+pin); others show locked-status only
         const name = String(req.query.name || '').toUpperCase();
@@ -221,16 +273,42 @@ export default async function handler(req, res) {
           }
           return res.status(200).json({ slug, locked: true, deadline: wk.deadline, emailed });
         }
+        /* THE SERVER DECIDES THE WINNER (Codex finding #3 — Confirmed/High).
+           This used to take `weeklyWinner` as free text from the commissioner and the season
+           table counted that string — so a typo, a stale browser calculation, or a crafted
+           request permanently credited the wrong person. The winner is now derived from the
+           frozen picks and the frozen lines; a client-supplied winner is ignored and reported
+           back if it disagrees. Scores are PERSISTED so the board no longer depends on ESPN
+           keeping the history around. */
         if (action === 'finalize_week') {
           const slug = cleanSlug(req.body.slug);
           const row = await getRow(slug);
           if (!row) return res.status(404).json({ error: 'week not found' });
           const wk = row.data;
+          const results = req.body.results || wk.results;
+          if (!results || !Object.keys(results).length) {
+            return res.status(400).json({ error: 'final scores required to finalize' });
+          }
+          const missing = (wk.games || []).filter(g => !results[g.id] || results[g.id].homeScore == null || results[g.id].awayScore == null);
+          if (missing.length) {
+            return res.status(400).json({ error: `not every game has a final score (${missing.map(g => g.short || g.id).join(', ')})` });
+          }
+          const scored = scoreWeek(wk, results);
+          const claimed = req.body.weeklyWinner || null;
+          wk.results = results;
+          wk.scores = scored.points;                 // persisted — survives ESPN dropping history
+          wk.covers = scored.covers;
+          wk.weeklyWinner = scored.winner;           // derived, never supplied
           wk.finalized = true;
-          wk.results = req.body.results || wk.results;       // {gameId:{homeScore,awayScore,coverAbbrev|'PUSH'}}
-          wk.weeklyWinner = req.body.weeklyWinner || wk.weeklyWinner; // name or 'TIE: A, B'
+          wk.finalizedAt = new Date().toISOString();
+          wk.scoringVersion = VER;
           await putRow(slug, wk);
-          return res.status(200).json({ slug, finalized: true, weeklyWinner: wk.weeklyWinner });
+          return res.status(200).json({
+            slug, finalized: true, weeklyWinner: wk.weeklyWinner, points: scored.points,
+            ...(claimed && claimed !== scored.winner
+              ? { note: `ignored the submitted winner "${claimed}" — the frozen picks and lines score to "${scored.winner}"` }
+              : {}),
+          });
         }
       }
 
@@ -242,30 +320,61 @@ export default async function handler(req, res) {
         const cfg = await getRow('config');
         const me = ((cfg?.data?.players) || []).find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
         if (!me) return res.status(403).json({ error: 'bad name or PIN' });
-        const row = await getRow(slug);
-        if (!row) return res.status(404).json({ error: 'week not found' });
-        const wk = row.data;
-        if (!wk.slateLocked) return res.status(400).json({ error: 'slate not locked yet' });
-        if (pastDeadline(wk)) return res.status(400).json({ error: 'picks closed — first game has kicked off' });
-        wk.picks = wk.picks || {};
-        const mine = wk.picks[me.name] || {};
-        if (mine.locked && !req.body.unlock) return res.status(400).json({ error: 'your picks are locked' });
-        const valid = new Set((wk.games || []).map(g => String(g.id)));
-        const picks = {};
-        for (const [gid, side] of Object.entries(req.body.picks || {})) {
-          if (valid.has(String(gid))) picks[gid] = String(side).slice(0, 6);
-        }
-        wk.picks[me.name] = { picks, locked: !!req.body.lock, savedAt: new Date().toISOString() };
         const roster = (cfg?.data?.players) || [];
-        // If this lock completes the board (everyone locked), fire the "all in" email once.
-        // Set the guard flag BEFORE persisting so a retry can't double-send.
-        let fireNotify = false;
-        if (req.body.lock && !wk.notifiedAllLocked && allLocked(wk, roster)) {
-          wk.notifiedAllLocked = true;
-          fireNotify = true;
+        /* Read → modify → CONDITIONAL write, retried on contention. Only this member's entry
+           is touched; if anyone else's save landed in between, the write is rejected and we
+           start over from their revision instead of overwriting it. */
+        let fireNotify = false, saved = null, picks = {};
+        for (let attempt = 0; attempt < 4 && !saved; attempt++) {
+          const row = await getRow(slug);
+          if (!row) return res.status(404).json({ error: 'week not found' });
+          const wk = row.data;
+          if (!wk.slateLocked) return res.status(400).json({ error: 'slate not locked yet' });
+          if (pastDeadline(wk)) return res.status(400).json({ error: 'picks closed — first game has kicked off' });
+          wk.picks = wk.picks || {};
+          const mine = wk.picks[me.name] || {};
+          if (mine.locked && !req.body.unlock) return res.status(400).json({ error: 'your picks are locked' });
+
+          /* VALIDATE AGAINST THE SLATE (Codex finding #4 — Confirmed/High). Completeness and
+             legality used to be enforced only by the browser's lock button, so the API would
+             accept zero picks, a subset, or any 6-char string as a "side". Under a deadline
+             freeze the latest draft becomes final automatically, so a card the server never
+             checked could be scored. */
+          const byId = new Map((wk.games || []).map(g => [String(g.id), g]));
+          picks = {};
+          const badSides = [];
+          for (const [gid, side] of Object.entries(req.body.picks || {})) {
+            const g = byId.get(String(gid));
+            if (!g) continue;                                    // not on this slate — ignore
+            const s = String(side).toUpperCase().slice(0, 6);
+            if (s !== String(g.homeAbbrev).toUpperCase() && s !== String(g.awayAbbrev).toUpperCase()) {
+              badSides.push(`${g.short || gid}: "${side}"`);
+              continue;
+            }
+            picks[gid] = s;
+          }
+          if (badSides.length) {
+            return res.status(400).json({ error: `pick must be one of the two teams in the game — ${badSides.join('; ')}` });
+          }
+          const total = (wk.games || []).length;
+          const complete = Object.keys(picks).length === total;
+          // Locking requires a COMPLETE card; a partial draft may be saved but not locked.
+          if (req.body.lock && !complete) {
+            return res.status(400).json({ error: `all ${total} games need a pick to lock (you have ${Object.keys(picks).length})` });
+          }
+          wk.picks[me.name] = { picks, locked: !!req.body.lock, complete, savedAt: new Date().toISOString() };
+
+          // If this lock completes the board, fire the "all in" email once. The guard flag is
+          // set BEFORE persisting so a retry can't double-send.
+          fireNotify = false;
+          if (req.body.lock && !wk.notifiedAllLocked && allLocked(wk, roster)) {
+            wk.notifiedAllLocked = true;
+            fireNotify = true;
+          }
+          saved = await putRowCAS(slug, wk, row.updated_at);
         }
-        await putRow(slug, wk);
-        if (fireNotify) await notifyAllLocked(wk, slug, roster);
+        if (!saved) return res.status(409).json({ error: 'another save landed at the same moment — try again' });
+        if (fireNotify) await notifyAllLocked(saved.data, slug, roster);
         return res.status(200).json({ ok: true, locked: !!req.body.lock, count: Object.keys(picks).length, allLocked: fireNotify });
       }
 

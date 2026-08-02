@@ -1,8 +1,13 @@
 // api/golf-pool.js — storage for the friends' golf pool picks (The Open 2026).
 // GET  ?slug=open-2026            → { slug, name, data, updated_at }  (public read; hidden pool)
+//      PICKS ARE MASKED until data.locked (or ?code=<commissioner code>) — see the GET branch.
 // POST { slug, code, name?, data } → upsert, gated by GOLF_POOL_CODE env var (commissioner code).
 // data shape: { participants: [{ name, picks: [espnDisplayName x10] }], locked: bool, lockedAt, lockedBy }
 // Table: golf_pools in the CivicScope Supabase project (RLS on, service-key access only).
+
+// Bump on every change — GET ?ver=1 returns it, so the LIVE function build is verifiable
+// (the Vercel webhook has served stale function builds before; CLAUDE.md deploy gotcha).
+const VER = '1.1.0-masked-until-lock';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -21,11 +26,34 @@ export default async function handler(req, res) {
   });
 
   try {
+    if (req.query && req.query.ver !== undefined) return res.status(200).json({ ver: VER });
+    /* PICKS ARE MASKED UNTIL THE POOL IS LOCKED (Codex 2026-08-01 finding #2 — Confirmed/High).
+       This GET is public and used to return the entire blob — every participant's full slate —
+       to anyone who knew the slug, whether or not the pool had been locked. Golf's lock is the
+       commissioner's "everyone's in" moment, so it is the reveal boundary until competitions
+       carry their own deadline in the rebuild.
+       Masked responses still report WHO has entered and how many picks they have, so the board
+       can show readiness without showing the picks themselves. */
     if (req.method === 'GET') {
       const slug = String(req.query.slug || 'open-2026').replace(/[^a-z0-9-]/gi, '');
       const r = await sb(`golf_pools?slug=eq.${slug}&select=slug,name,data,updated_at`);
       const rows = await r.json();
-      return res.status(200).json(rows[0] || { slug, name: null, data: null });
+      const row = rows[0];
+      if (!row) return res.status(200).json({ slug, name: null, data: null });
+
+      const locked = !!(row.data && row.data.locked);
+      const revealCode = String(req.query.code || '');
+      const isCommish = process.env.GOLF_POOL_CODE && revealCode === process.env.GOLF_POOL_CODE;
+      if (locked || isCommish) return res.status(200).json(row);
+
+      const masked = Object.assign({}, row.data, {
+        participants: ((row.data && row.data.participants) || []).map(p => ({
+          name: p.name,
+          pickCount: (p.picks || []).length,      // readiness, not content
+        })),
+        picksHidden: true,
+      });
+      return res.status(200).json(Object.assign({}, row, { data: masked }));
     }
 
     if (req.method === 'POST') {
