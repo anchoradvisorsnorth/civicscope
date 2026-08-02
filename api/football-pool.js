@@ -55,6 +55,14 @@ export default async function handler(req, res) {
     return rows.length ? rows[0] : null;          // null = someone else wrote first
   };
   const cleanSlug = (s) => String(s || '').replace(/[^a-z0-9-]/gi, '').slice(0, 30);
+  /* SANDBOX BOUNDARY (Keith, 2026-08-01: "sandbox this thing for now").
+     A competition whose slug starts with `sandbox-` reads its roster from `sandbox-config`,
+     never from the live `config` row. That makes test play a genuinely separate world instead
+     of something that borrows the real crew — and it means verification never has to write to
+     a shared production record and put it back afterwards (the pattern flagged as unsafe in
+     the deploy review). Real competitions are untouched by anything sandboxed. */
+  const isSandbox = (slug) => String(slug || '').startsWith('sandbox-');
+  const rosterSlugFor = (slug) => (isSandbox(slug) ? 'sandbox-config' : 'config');
   const pastDeadline = (wk) => wk.deadline && Date.now() > Date.parse(wk.deadline);
   // All roster players have a locked pick — used ONLY to fire the "all picks are in" email.
   const allLocked = (wk, roster) => {
@@ -157,7 +165,7 @@ export default async function handler(req, res) {
       const row = await getRow(slug);
       if (!row) return res.status(200).json({ slug, data: null });
       const wk = row.data;
-      const cfg = await getRow('config');
+      const cfg = await getRow(rosterSlugFor(slug));
       const roster = (cfg?.data?.players) || [];
       const revealed = isRevealed(wk);
       if (!revealed && wk.picks) {
@@ -243,7 +251,7 @@ export default async function handler(req, res) {
           // notify players (best-effort; skips players without an email)
           let emailed = 0;
           if (req.body.notify) {
-            const cfg = await getRow('config');
+            const cfg = await getRow(rosterSlugFor(slug));
             const players = (cfg?.data?.players) || [];
             const base = `https://app.civicscope.io/pool/football`;
             const gameRows = wk.games.map(g =>
@@ -317,7 +325,7 @@ export default async function handler(req, res) {
         const slug = cleanSlug(req.body.slug);
         const name = String(req.body.name || '').toUpperCase();
         const pin = String(req.body.pin || '');
-        const cfg = await getRow('config');
+        const cfg = await getRow(rosterSlugFor(slug));
         const me = ((cfg?.data?.players) || []).find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
         if (!me) return res.status(403).json({ error: 'bad name or PIN' });
         const roster = (cfg?.data?.players) || [];
