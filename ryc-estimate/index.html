@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.23.6">
-<script src="/ryc-shell/shell.js?v1.23.6"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.24.0">
+<script src="/ryc-shell/shell.js?v1.24.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -214,26 +214,52 @@
   <div id="view-assist" style="display:none">
   <!-- INPUT -->
   <div id="inputPanel">
-    <div class="page-head">
-      <h2 id="inputTitle">New pursuit</h2>
-      <p class="page-lede" id="inputLede">Drop the plan set first — the takeoff reads it and fills in
-      what it can. The details below are what the estimate is grounded against: client and work type
-      pick which slice of RYC's completed-job history it is compared to.</p>
-    </div>
-
-    <!-- Plans first (Keith, 2026-08-02): a pursuit starts from a plan set ~99% of the time, so the
-         upload is the first thing on the page, not the last. The classification fields follow
-         because several of them are auto-filled from the documents. -->
-    <div class="card">
-      <label>Plans &amp; specs <span class="opt">PDF / PNG / JPG — multi-page plan sets handled in batches</span></label>
-      <div class="upload" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-        <div id="uploadPrompt">📐 Drop plan set / spec book here, or click to browse</div>
-        <div id="fileList"></div>
+    <!-- Two steps (Keith, 2026-08-02): a pursuit starts from documents ~99% of the time, and the
+         cover-sheet reader already fills most of the detail fields. Showing empty fields first was
+         deceptive — it asked for what it was about to extract. Documents first, then a review
+         screen with those fields already populated. -->
+    <div id="step-docs">
+      <div class="page-head">
+        <h2 id="inputTitle">New pursuit</h2>
+        <p class="page-lede" id="inputLede">Start with the documents. The RFP and the plan set are read
+        for the project name, location, size, client and work type, and the scope — so the next screen
+        arrives filled in rather than blank. Add either one, or both.</p>
       </div>
-      <input type="file" id="fileInput" accept="application/pdf,image/png,image/jpeg" multiple style="display:none">
+
+      <div class="card">
+        <label>RFP / bid documents <span class="opt">invitation to bid, instructions to bidders, front-end spec — often issued on its own</span></label>
+        <div class="upload" id="rfpZone" onclick="document.getElementById('rfpInput').click()">
+          <div id="rfpPrompt">📄 Drop the RFP / bid documents here, or click to browse</div>
+          <div id="rfpList"></div>
+        </div>
+        <input type="file" id="rfpInput" accept="application/pdf,image/png,image/jpeg" multiple style="display:none">
+      </div>
+
+      <div class="card">
+        <label>Plans &amp; specs <span class="opt">PDF / PNG / JPG — multi-page plan sets handled in batches</span></label>
+        <div class="upload" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <div id="uploadPrompt">📐 Drop plan set / spec book here, or click to browse</div>
+          <div id="fileList"></div>
+        </div>
+        <input type="file" id="fileInput" accept="application/pdf,image/png,image/jpeg" multiple style="display:none">
+      </div>
+
       <div class="err" id="uploadError"></div>
       <div class="hint" id="autofillNote" style="display:none;margin-top:8px"></div>
+
+      <button class="btn" id="createBtn" onclick="createPursuitFromDocs()">Create pursuit &amp; read documents</button>
+      <div style="margin-top:10px">
+        <button type="button" class="tablink" onclick="skipDocs()">No documents yet — enter the details myself</button>
+      </div>
     </div>
+
+    <div id="step-details" style="display:none">
+      <div class="page-head">
+        <h2 id="detailsTitle">Review the details</h2>
+        <p class="page-lede" id="detailsLede">Anything read from the documents is filled in below — check
+        it before running. Client and work type decide which slice of RYC's completed-job history the
+        estimate is grounded against, so those two are worth a second look.</p>
+      </div>
 
     <div class="card">
       <div class="grid2">
@@ -252,8 +278,12 @@
       <div class="hint" style="margin-top:8px">The estimate is grounded in RYC's own completed-job actuals for the selected client/work type — margins, buyout, and cost composition come from RYC history, not generic pricing.</div>
     </div>
 
-    <button class="btn" id="goBtn" onclick="runEstimate()">Create pursuit &amp; generate estimate</button>
-    <div class="err" id="errorMsg"></div>
+      <button class="btn" id="goBtn" onclick="runEstimate()">Generate estimate</button>
+      <div class="err" id="errorMsg"></div>
+      <div style="margin-top:10px">
+        <button type="button" class="tablink" id="backToDocsBtn" onclick="backToDocs()">← Back to documents</button>
+      </div>
+    </div>
   </div>
 
   <!-- LOADING -->
@@ -508,12 +538,21 @@ function pct(n) { return RYCFormat.pct(n); }
 let uploadedFiles = [];
 if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const uploadZone = document.getElementById('uploadZone'), fileInput = document.getElementById('fileInput');
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
-uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
-fileInput.addEventListener('change', e => handleFiles(e.target.files));
+const rfpZone = document.getElementById('rfpZone'), rfpInput = document.getElementById('rfpInput');
+/* Two document classes, one page array. Each page carries `kind` so the readers can look at the
+   right pages: the RFP carries the commercial terms, the plan set carries the physical scope, and
+   reading three pages of whichever happened to be dropped first got that wrong half the time. */
+function wireZone(zone, input, kind) {
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files, kind); });
+  input.addEventListener('change', e => handleFiles(e.target.files, kind));
+}
+wireZone(uploadZone, fileInput, 'plans');
+wireZone(rfpZone, rfpInput, 'rfp');
 
-async function handleFiles(fileList) {
+async function handleFiles(fileList, kind) {
+  kind = kind || 'plans';
   const errEl = document.getElementById('uploadError'); errEl.style.display = 'none';
   const allowed = ['application/pdf', 'image/png', 'image/jpeg'];
   const jpegQuality = 0.55, maxImageWidth = 1400;
@@ -534,60 +573,128 @@ async function handleFiles(fileList) {
           canvas.width = viewport.width; canvas.height = viewport.height;
           await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
           const base64 = canvas.toDataURL('image/jpeg', jpegQuality).split(',')[1];
-          uploadedFiles.push({ name: `${file.name} (p${p})`, size: Math.round(base64.length * 0.75), base64 });
+          uploadedFiles.push({ name: `${file.name} (p${p})`, size: Math.round(base64.length * 0.75), base64, kind });
         }
         renderFileList();
       } else {
         const base64 = await compressImage(file, maxImageWidth, jpegQuality);
-        uploadedFiles.push({ name: file.name, size: Math.round(base64.length * 0.75), base64 });
+        uploadedFiles.push({ name: file.name, size: Math.round(base64.length * 0.75), base64, kind });
         renderFileList();
       }
     } catch (err) { errEl.textContent = `Error on "${file.name}": ${err.message || 'unknown'}`; errEl.style.display = 'block'; }
   }
-  fileInput.value = '';
-  autofillFromPlans(); // background — reads the cover sheet, prefills empty fields only
+  fileInput.value = ''; rfpInput.value = '';
+  // Reading now happens on "Create pursuit", not on drop — the user is still adding documents here.
 }
 
 /* ===== cover-sheet autofill (2026-07-22) — the plans carry the project name, owner, architect,
    address, and usually SF, so the human shouldn't retype them. One cheap Vision call on the first
    pages; fills ONLY empty fields (never overwrites what the user typed); owner/architect ride into
    the BC draft description. Best-effort: any failure just leaves the form manual. ===== */
-async function autofillFromPlans() {
-  if (!uploadedFiles.length || window._autofillBusy) return;
-  const nameEl = document.getElementById('f-name');
-  if (nameEl.value.trim() && window._autofillDone) return; // already ran and user has a name — don't nag
-  window._autofillBusy = true;
+/* ===== step navigation ===============================================================
+   Documents first, then the details they populate. */
+function showStep(which) {
+  const d = document.getElementById('step-docs'), t = document.getElementById('step-details');
+  if (!d || !t) return;
+  d.style.display = which === 'docs' ? 'block' : 'none';
+  t.style.display = which === 'docs' ? 'none' : 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function skipDocs() { showStep('details'); syncInputMode(); }
+function backToDocs() { showStep('docs'); }
+async function createPursuitFromDocs() {
+  const btn = document.getElementById('createBtn');
   const note = document.getElementById('autofillNote');
-  note.style.display = 'block'; note.textContent = '📋 Reading cover sheet…';
+  if (!uploadedFiles.length) {
+    note.style.display = 'block';
+    note.textContent = '📋 Add an RFP or a plan set first — or use "enter the details myself" below.';
+    return;
+  }
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = 'Reading documents…';
+  try { await readDocuments(); } finally { btn.disabled = false; btn.textContent = label; }
+  showStep('details');
+  syncInputMode();
+}
+
+/* Read the RFP and the plan set separately, then merge. They answer different questions: the RFP
+   carries the commercial terms (who is bidding it, when it is due, bonding), the plan set carries
+   the physical scope. A single pass over "the first three pages of whatever was dropped" saw only
+   one of them. Plans win on physical facts, the RFP wins on commercial ones; neither overwrites
+   anything the user typed. */
+async function readDocuments() {
+  const rfp = uploadedFiles.filter(f => f.kind === 'rfp').slice(0, 3);
+  const plans = uploadedFiles.filter(f => (f.kind || 'plans') === 'plans').slice(0, 3);
+  const note = document.getElementById('autofillNote');
+  note.style.display = 'block';
+  note.textContent = `📋 Reading ${[rfp.length ? 'RFP' : null, plans.length ? 'plan set' : null].filter(Boolean).join(' + ')}…`;
+  const filled = [];
+  const setIf = (id, v, label) => { const el = document.getElementById(id); if (v && el && !el.value.trim()) { el.value = v; filled.push(label); } };
+  const applySel = (id, v, touchedFlag, label) => {
+    const el = document.getElementById(id);
+    if (v && el && [...el.options].some(o => o.value === v) && !window[touchedFlag]) { el.value = v; filled.push(label); }
+  };
+  let meta = {}, terms = {};
+  if (rfp.length) {
+    const got = await readPass(rfp, RFP_PROMPT);
+    if (got) {
+      terms = got;
+      setIf('f-name', got.project_name, 'name');
+      setIf('f-loc', got.location, 'location');
+      setIf('f-scope', got.scope_summary, 'scope');
+      applySel('f-ct', got.client_type, '_ctTouched', 'client type');
+      applySel('f-wt', got.work_type, '_wtTouched', 'work type');
+      meta.owner = got.owner || null; meta.architect = got.architect || null;
+    }
+  }
+  if (plans.length) {
+    const got = await readPass(plans, PLANS_PROMPT);
+    if (got) {
+      setIf('f-name', got.project_name, 'name');
+      setIf('f-loc', got.location, 'location');
+      setIf('f-sf', got.size_sf, 'SF');
+      setIf('f-scope', got.scope_summary, 'scope');
+      applySel('f-ct', got.client_type, '_ctTouched', 'client type');
+      applySel('f-wt', got.work_type, '_wtTouched', 'work type');
+      meta.owner = meta.owner || got.owner || null;
+      meta.architect = meta.architect || got.architect || null;
+    }
+  }
+  window._planMeta = { owner: meta.owner || null, architect: meta.architect || null };
+  // Commercial terms are surfaced, not silently written into the workflow — the pursuit does not
+  // exist yet, and a bid date is a durable audited fact, not a form default.
+  window._rfpMeta = {
+    bid_due_date: terms.bid_due_date || null,
+    bonding_required: terms.bonding_required == null ? null : terms.bonding_required,
+    delivery_method: terms.delivery_method || null,
+  };
+  const bits = [
+    meta.owner ? 'Owner: ' + meta.owner : null,
+    meta.architect ? 'Architect: ' + meta.architect : null,
+    terms.bid_due_date ? 'Bid due: ' + terms.bid_due_date : null,
+    terms.bonding_required === true ? 'Bonding required' : null,
+    terms.delivery_method ? 'Delivery: ' + terms.delivery_method : null,
+  ].filter(Boolean).join(' · ');
+  note.textContent = filled.length
+    ? `📋 Filled from your documents: ${[...new Set(filled)].join(', ')}${bits ? ' · ' + bits : ''} — verify before running.`
+    : (bits ? `📋 Read from your documents — ${bits}` : '📋 Documents read — nothing could be filled automatically.');
+  window._autofillDone = true;
+}
+async function readPass(pages, prompt) {
   try {
-    const pages = uploadedFiles.slice(0, 3);
-    const prompt = `These are the first pages of a construction plan set or spec book (cover sheet / title block / index). Extract project metadata. Reply with ONLY a JSON object, no prose:
-{"project_name": string|null, "location": string|null (city, ST), "owner": string|null (the client/owner entity), "architect": string|null, "client_type": one of "school","municipal","commercial","industrial","private","mixed_use" or null (infer from the owner: school corp=school, city/town/county/utility=municipal), "work_type": one of "new_construction","renovation","addition","repair" or null, "size_sf": number|null (building area if stated), "scope_summary": string|null (one sentence, from the drawing index or project description)}
-Use null for anything not actually on these pages — do not guess names.`;
     const rawTxt = await callClaude(prompt, pages, 500);
     const m = rawTxt.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error('no JSON');
-    const d = JSON.parse(m[0]);
-    const filled = [];
-    const setIf = (id, v, label) => { const el = document.getElementById(id); if (v && el && !el.value.trim()) { el.value = v; filled.push(label); } };
-    setIf('f-name', d.project_name, 'name');
-    setIf('f-loc', d.location, 'location');
-    setIf('f-sf', d.size_sf, 'SF');
-    setIf('f-scope', d.scope_summary, 'scope');
-    const ctEl = document.getElementById('f-ct'), wtEl = document.getElementById('f-wt');
-    if (d.client_type && [...ctEl.options].some(o => o.value === d.client_type) && !window._ctTouched) { ctEl.value = d.client_type; filled.push('client type'); }
-    if (d.work_type && [...wtEl.options].some(o => o.value === d.work_type) && !window._wtTouched) { wtEl.value = d.work_type; filled.push('work type'); }
-    window._planMeta = { owner: d.owner || null, architect: d.architect || null };
-    const meta = [d.owner ? 'Owner: ' + d.owner : null, d.architect ? 'Architect: ' + d.architect : null].filter(Boolean).join(' · ');
-    note.textContent = filled.length
-      ? `📋 Prefilled from cover sheet: ${filled.join(', ')}${meta ? ' · ' + meta : ''} — verify before running.`
-      : (meta ? `📋 From cover sheet — ${meta}` : '📋 Cover sheet read — nothing new to fill.');
-    window._autofillDone = true;
-  } catch (e) {
-    note.textContent = '📋 Could not read a cover sheet from these pages — fill the fields manually.';
-  }
-  window._autofillBusy = false;
+    return m ? JSON.parse(m[0]) : null;
+  } catch (e) { return null; }
 }
+const RFP_PROMPT = `These are the first pages of a construction RFP / invitation to bid / instructions to bidders. Extract what the bidding documents state. Reply with ONLY a JSON object, no prose:
+{"project_name": string|null, "location": string|null (city, ST), "owner": string|null (the owner/awarding authority), "architect": string|null (architect or engineer of record), "client_type": one of "school","municipal","commercial","industrial","private","mixed_use" or null (infer from the owner: school corp=school, city/town/county/utility=municipal), "work_type": one of "new_construction","renovation","addition","repair" or null, "bid_due_date": string|null (YYYY-MM-DD, the bid/proposal due date), "bonding_required": true|false|null (is a bid or performance bond required), "delivery_method": string|null (e.g. design-bid-build, CM at risk, design-build), "scope_summary": string|null (one sentence)}
+Use null for anything not actually stated on these pages — do not guess.`;
+const PLANS_PROMPT = `These are the first pages of a construction plan set or spec book (cover sheet / title block / index). Extract project metadata. Reply with ONLY a JSON object, no prose:
+{"project_name": string|null, "location": string|null (city, ST), "owner": string|null (the client/owner entity), "architect": string|null, "client_type": one of "school","municipal","commercial","industrial","private","mixed_use" or null, "work_type": one of "new_construction","renovation","addition","repair" or null, "size_sf": number|null (building area if stated), "scope_summary": string|null (one sentence, from the drawing index or project description)}
+Use null for anything not actually on these pages — do not guess names.`;
+
 // user touching the selects wins over any later autofill
 document.getElementById('f-ct').addEventListener('change', () => { window._ctTouched = true; });
 document.getElementById('f-wt').addEventListener('change', () => { window._wtTouched = true; });
@@ -607,12 +714,20 @@ function compressImage(file, maxWidth, quality) {
 }
 function removeFile(i) { uploadedFiles.splice(i, 1); renderFileList(); }
 function renderFileList() {
-  const list = document.getElementById('fileList'), prompt = document.getElementById('uploadPrompt');
-  if (!uploadedFiles.length) { list.innerHTML = ''; uploadZone.classList.remove('has-files'); prompt.style.display = 'block'; return; }
-  uploadZone.classList.add('has-files'); prompt.style.display = 'none';
-  list.innerHTML = uploadedFiles.map((f, i) => {
+  paintZone('plans', 'fileList', 'uploadPrompt', uploadZone);
+  paintZone('rfp', 'rfpList', 'rfpPrompt', rfpZone);
+}
+/* Each zone shows only its own documents. The remove button still indexes into the single
+   uploadedFiles array, so the index must come from that array, not from the filtered view. */
+function paintZone(kind, listId, promptId, zone) {
+  const list = document.getElementById(listId), prompt = document.getElementById(promptId);
+  if (!list || !prompt) return;
+  const mine = uploadedFiles.map((f, i) => ({ f, i })).filter(x => (x.f.kind || 'plans') === kind);
+  if (!mine.length) { list.innerHTML = ''; zone.classList.remove('has-files'); prompt.style.display = 'block'; return; }
+  zone.classList.add('has-files'); prompt.style.display = 'none';
+  list.innerHTML = mine.map(({ f, i }) => {
     const size = f.size > 1048576 ? (f.size / 1048576).toFixed(1) + ' MB' : Math.round(f.size / 1024) + ' KB';
-    return `<div class="file-item"><span>📄</span><span class="file-item-name">${f.name}</span><span class="file-item-size">${size}</span><button class="file-item-remove" onclick="event.stopPropagation(); removeFile(${i})">✕</button></div>`;
+    return `<div class="file-item"><span>📄</span><span class="file-item-name">${esc(f.name)}</span><span class="file-item-size">${size}</span><button class="file-item-remove" onclick="event.stopPropagation(); removeFile(${i})">✕</button></div>`;
   }).join('');
 }
 
@@ -2361,20 +2476,28 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '
 function syncInputMode() {
   const editing = !!window._pursuitId;
   const name = (window._lastInp && window._lastInp.name) || '';
-  const t = document.getElementById('inputTitle'), l = document.getElementById('inputLede'),
-        b = document.getElementById('goBtn');
-  if (t) t.textContent = editing ? (name ? 'Edit & re-run — ' + name : 'Edit & re-run') : 'New pursuit';
-  if (l) l.textContent = editing
+  const dt = document.getElementById('detailsTitle'), dl = document.getElementById('detailsLede'),
+        b = document.getElementById('goBtn'), back = document.getElementById('backToDocsBtn');
+  if (dt) dt.textContent = editing ? (name ? 'Edit & re-run — ' + name : 'Edit & re-run') : 'Review the details';
+  if (dl) dl.textContent = editing
     ? 'Adjust the inputs and re-run. This creates a new revision of the same pursuit — the earlier run stays in its History.'
-    : 'Drop the plan set first — the takeoff reads it and fills in what it can. The details below are what the estimate is grounded against: client and work type pick which slice of RYC\'s completed-job history it is compared to.';
-  if (b) b.textContent = editing ? 'Re-run estimate' : 'Create pursuit & generate estimate';
+    : 'Anything read from the documents is filled in below — check it before running. Client and work type decide which slice of RYC\'s completed-job history the estimate is grounded against, so those two are worth a second look.';
+  if (b) b.textContent = editing ? 'Re-run estimate' : 'Generate estimate';
+  // Re-running an existing pursuit starts from its details, not from an empty document step.
+  if (back) back.style.display = editing ? 'none' : '';
 }
-function refine() { document.getElementById('resultsPanel').style.display = 'none'; document.getElementById('inputPanel').style.display = 'block'; syncInputMode(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+// Edit & re-run opens on the details of a pursuit that already exists — its documents were read
+// on the run that created it, so it must not land back on an empty document step.
+function refine() { document.getElementById('resultsPanel').style.display = 'none'; document.getElementById('inputPanel').style.display = 'block'; showStep('details'); syncInputMode(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 function resetAll() {
   ['f-name', 'f-loc', 'f-sf', 'f-target', 'f-scope'].forEach(id => document.getElementById(id).value = '');
   uploadedFiles = []; renderFileList();
+  window._autofillDone = false; window._ctTouched = false; window._wtTouched = false; window._rfpMeta = null;
+  const note = document.getElementById('autofillNote');
+  if (note) { note.style.display = 'none'; note.textContent = ''; }
   document.getElementById('resultsPanel').style.display = 'none';
   document.getElementById('inputPanel').style.display = 'block';
+  showStep('docs');
   syncInputMode();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -2890,7 +3013,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.23.6';
+const TOOL_VERSION = 'v1.24.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
