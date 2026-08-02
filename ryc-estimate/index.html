@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.23.5">
-<script src="/ryc-shell/shell.js?v1.23.5"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.23.6">
+<script src="/ryc-shell/shell.js?v1.23.6"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -214,6 +214,27 @@
   <div id="view-assist" style="display:none">
   <!-- INPUT -->
   <div id="inputPanel">
+    <div class="page-head">
+      <h2 id="inputTitle">New pursuit</h2>
+      <p class="page-lede" id="inputLede">Drop the plan set first — the takeoff reads it and fills in
+      what it can. The details below are what the estimate is grounded against: client and work type
+      pick which slice of RYC's completed-job history it is compared to.</p>
+    </div>
+
+    <!-- Plans first (Keith, 2026-08-02): a pursuit starts from a plan set ~99% of the time, so the
+         upload is the first thing on the page, not the last. The classification fields follow
+         because several of them are auto-filled from the documents. -->
+    <div class="card">
+      <label>Plans &amp; specs <span class="opt">PDF / PNG / JPG — multi-page plan sets handled in batches</span></label>
+      <div class="upload" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <div id="uploadPrompt">📐 Drop plan set / spec book here, or click to browse</div>
+        <div id="fileList"></div>
+      </div>
+      <input type="file" id="fileInput" accept="application/pdf,image/png,image/jpeg" multiple style="display:none">
+      <div class="err" id="uploadError"></div>
+      <div class="hint" id="autofillNote" style="display:none;margin-top:8px"></div>
+    </div>
+
     <div class="card">
       <div class="grid2">
         <label>Project name<input id="f-name" placeholder="e.g. Wakarusa Elementary HVAC"></label>
@@ -228,21 +249,10 @@
         <label>Estimator <span class="opt">optional — initials, shown in run history</span><input id="f-est" maxlength="12" placeholder="e.g. KP"></label>
         <label class="full">Scope notes<textarea id="f-scope" rows="2" placeholder="e.g. HVAC + roof replacement, occupied during construction, tight summer window"></textarea></label>
       </div>
-    </div>
-
-    <div class="card">
-      <label>Plans &amp; specs <span class="opt">PDF / PNG / JPG — multi-page plan sets handled in batches</span></label>
-      <div class="upload" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-        <div id="uploadPrompt">📐 Drop plan set / spec book here, or click to browse</div>
-        <div id="fileList"></div>
-      </div>
-      <input type="file" id="fileInput" accept="application/pdf,image/png,image/jpeg" multiple style="display:none">
-      <div class="err" id="uploadError"></div>
-      <div class="hint" id="autofillNote" style="display:none;margin-top:8px"></div>
       <div class="hint" style="margin-top:8px">The estimate is grounded in RYC's own completed-job actuals for the selected client/work type — margins, buyout, and cost composition come from RYC history, not generic pricing.</div>
     </div>
 
-    <button class="btn" id="goBtn" onclick="runEstimate()">Generate grounded estimate</button>
+    <button class="btn" id="goBtn" onclick="runEstimate()">Create pursuit &amp; generate estimate</button>
     <div class="err" id="errorMsg"></div>
   </div>
 
@@ -2345,12 +2355,27 @@ function renderResults(p, inp, bm) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-function refine() { document.getElementById('resultsPanel').style.display = 'none'; document.getElementById('inputPanel').style.display = 'block'; window.scrollTo({ top: 0, behavior: 'smooth' }); }
+/* The input panel is two different jobs wearing one face: starting a pursuit, and re-running an
+   existing one. The heading and the button now say which, so the entry point ("＋ New pursuit")
+   and the action that completes it read as the same operation. */
+function syncInputMode() {
+  const editing = !!window._pursuitId;
+  const name = (window._lastInp && window._lastInp.name) || '';
+  const t = document.getElementById('inputTitle'), l = document.getElementById('inputLede'),
+        b = document.getElementById('goBtn');
+  if (t) t.textContent = editing ? (name ? 'Edit & re-run — ' + name : 'Edit & re-run') : 'New pursuit';
+  if (l) l.textContent = editing
+    ? 'Adjust the inputs and re-run. This creates a new revision of the same pursuit — the earlier run stays in its History.'
+    : 'Drop the plan set first — the takeoff reads it and fills in what it can. The details below are what the estimate is grounded against: client and work type pick which slice of RYC\'s completed-job history it is compared to.';
+  if (b) b.textContent = editing ? 'Re-run estimate' : 'Create pursuit & generate estimate';
+}
+function refine() { document.getElementById('resultsPanel').style.display = 'none'; document.getElementById('inputPanel').style.display = 'block'; syncInputMode(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 function resetAll() {
   ['f-name', 'f-loc', 'f-sf', 'f-target', 'f-scope'].forEach(id => document.getElementById(id).value = '');
   uploadedFiles = []; renderFileList();
   document.getElementById('resultsPanel').style.display = 'none';
   document.getElementById('inputPanel').style.display = 'block';
+  syncInputMode();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 // ===== Estimating hub: nav + Cost Intelligence + Quick Check =====
@@ -2865,7 +2890,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.23.5';
+const TOOL_VERSION = 'v1.23.6';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
