@@ -124,15 +124,22 @@
 <div id="app">
   <header style="display:flex;align-items:center;gap:14px">
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.18.0 · PHASE A COMPLETE: every durable fact is a typed atomic audited operation and the generic save accepts draft state only (allowlist) · award/quotes/archive/BC-link typed · stage/submission/outcome + readiness typed · tz-aware due-date + pre-bid · job identity (ryc_jobs) · durable opportunity lifecycle · R5 fixes: typed submission/outcome, BC-ID identity, visible dup warnings · outcomes & calibration · stable pursuit routes · plan takeoff · market sub-pricing</div></div>
+    <div style="flex:1"><h1>R. Yoder · Estimating Desk</h1><div class="meta">v1.19.0 · PHASE B — content IA: Pursuits · Inbox (durable opportunity review: pass with a reason, and it comes back only if the source materially changes) · Outcomes (with stated denominators) · Cost Intelligence. PHASE A: every durable fact is a typed atomic audited operation; the generic save takes draft state only</div></div>
     <a href="/ryc/command" style="white-space:nowrap;font-size:13px;color:#c2410c;text-decoration:none;font-weight:600">Command →</a>
   </header>
 
+  <!-- Phase B content IA: the single-scroll desk becomes four named places. Intake, active
+       work and outcomes are DIFFERENT decisions with different row semantics; stacking them in
+       one scroll meant the thing you needed was wherever you happened to have scrolled. The
+       pursuit page is an ENTITY, reached by opening one — it appears here contextually rather
+       than as a permanent destination. Quick Check folded into Cost Intelligence: it is a
+       utility, not an information domain. (Calendar arrives with the shared shell in phase C.) -->
   <div class="estnav">
-    <button class="estnav-btn active" data-view="history" onclick="setEstView('history')">🗂 Estimating Desk</button>
-    <button class="estnav-btn" data-view="assist" onclick="setEstView('assist')">Pursuit</button>
-    <button class="estnav-btn" data-view="costiq" onclick="setEstView('costiq')">Cost Intelligence</button>
-    <button class="estnav-btn" data-view="quickcheck" onclick="setEstView('quickcheck')">Quick Check</button>
+    <button class="estnav-btn active" data-view="history" onclick="setEstView('history')">🗂 Pursuits</button>
+    <button class="estnav-btn" data-view="inbox" onclick="setEstView('inbox')">📥 Inbox<span id="inboxBadge"></span></button>
+    <button class="estnav-btn" data-view="outcomes" onclick="setEstView('outcomes')">🎯 Outcomes</button>
+    <button class="estnav-btn" data-view="costiq" onclick="setEstView('costiq')">📊 Cost Intelligence</button>
+    <button class="estnav-btn" data-view="assist" id="nav-pursuit" style="display:none" onclick="setEstView('assist')">📋 Pursuit</button>
   </div>
 
   <div id="view-assist" style="display:none">
@@ -240,6 +247,8 @@
 
   <div id="view-costiq" style="display:none"><div id="costiq-body"></div></div>
   <div id="view-quickcheck" style="display:none"><div id="quickcheck-body"></div></div>
+  <div id="view-inbox" style="display:none"><div id="inbox-body"></div></div>
+  <div id="view-outcomes" style="display:none"><div id="outcomes-body"></div></div>
   <div id="view-history"><div id="history-body"></div></div>
 </div>
 
@@ -259,7 +268,7 @@ function unlock() {
   loadPortfolio();
   // The desk is the front door — unless the URL carries a deep link (bookmarked pursuit,
   // shared workspace), which is honored on load.
-  if (location.hash && location.hash !== '#desk') routeFromHash();
+  if (location.hash && location.hash !== '#pursuits' && location.hash !== '#desk') routeFromHash();
   else setEstView('history');
 }
 // NOTE: the auto-unlock for an already-authed session fires at the END of this script (see
@@ -1618,44 +1627,15 @@ function deskRow(p) {
     + `<td>${esc(latest.confidence || '—')}</td>`
     + `<td class="note">${act}</td></tr>`;
 }
-/* ===== Opportunity intake (Codex Step 4) ============================================ */
-let bcBoardCache = null;
-async function loadBcBoard() {
-  if (bcBoardCache) return bcBoardCache;
-  const r = await fetch('/ryc-data/bc-bidboard.json?t=' + Date.now());
-  bcBoardCache = await r.json();
-  return bcBoardCache;
-}
-// Tracked = the pursuit carries the BC project's STABLE ID — never a name match (Codex R5 #1:
-// "DeMotte WWTP Improvements" vs "Wanatah WWTP Improvements" = 0.67 Jaccard, and a fuzzy
-// suppression is invisible — the opportunity just vanishes). Name similarity is now only a
-// VISIBLE "possible duplicate" warning on the still-listed opportunity; adopt is idempotent
-// on BC id, so listing too much is safe and hiding too much is not.
-function bcOpportunities(board, pursuitRows, runs) {
-  const linked = new Set(pursuitRows.map(p => p.bc_project_id).filter(Boolean));
-  (runs || []).forEach(r => { if (r.bc_project_id) linked.add(r.bc_project_id); });
-  const norm = s => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
-  const pN = pursuitRows.map(p => ({ name: p.name, toks: new Set(norm(p.name)) }));
-  return (board.published || []).filter(bp => !linked.has(bp.id)).map(bp => {
-    const B = new Set(norm(bp.name));
-    const dup = pN.find(x => { let i = 0; for (const t of x.toks) if (B.has(t)) i++; const u = new Set([...x.toks, ...B]).size; return u > 0 && i / u >= 0.5; });
-    return Object.assign({}, bp, { possibleDup: dup ? dup.name : null });
-  });
-}
-async function adoptOpp(i) {
-  const bp = (window._bcOpps || [])[i]; if (!bp) return;
-  try {
-    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: 'ryc2026', action: 'create_pursuit',
-        name: bp.name, location: [bp.city, bp.st].filter(Boolean).join(', ') || null,
-        due_date: bp.bidsDueAt ? bp.bidsDueAt.slice(0, 10) : null, source: 'bc_bidboard',
-        bc_project_id: bp.id, bc_url: 'https://app.buildingconnected.com/projects/' + bp.id }) });
-    const d = await r.json();
-    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
-    historyCache = null;
-    renderHistory(true);
-  } catch (e) { alert('Could not adopt: ' + e.message); }
-}
+/* ===== Opportunity intake — REPLACED by the server-backed Inbox (phase B) ==============
+   The client-side version (loadBcBoard + bcOpportunities + adoptOpp) diffed the board JSON
+   against pursuits on every render, so "untracked" was recomputed from scratch each time and
+   a decision to PASS on a job had nowhere to live — the same job reappeared every morning.
+   Opportunities are now durable server records (ryc_opportunities) with an audited review
+   lifecycle; see renderInbox().
+   R5 #1's duplicate protection did not weaken, it moved and hardened: adoption is idempotent
+   on the BC project id, and a name collision with a DIFFERENT BC project is refused server-side
+   with a 409 "review before adopting" — enforcement rather than an advisory warning. */
 // Open a run-less pursuit: the generator, prefilled from the pursuit, with identity attached —
 // the first estimate generated here lands as revision #1 of THIS pursuit.
 /* Opening an adopted-but-unestimated pursuit used to WEDGE THE PAGE (found in demo rehearsal,
@@ -1688,7 +1668,7 @@ function openBlankPursuit(pid) {
   } finally { _routing = wasRouting; }
   // one deliberate hash write, now that the pursuit state is coherent
   const h = '#pursuit/' + pid;
-  if (location.hash !== h) { _settingHash = true; location.hash = h; }
+  if (location.hash !== h) { _settingHash++; location.hash = h; }
   // An adopted pursuit is a real pursuit: show its card so the bid due date, pre-bid meeting
   // and readiness are workable before the first estimate exists.
   renderPursuit();
@@ -2104,26 +2084,43 @@ function fmtDate(s) { try { return new Date(s).toLocaleDateString('en-US', { mon
 /* Stable routes (Codex Step 3): the desk, each workspace, and EVERY PURSUIT are bookmarkable —
    refresh/back/share no longer drop you on the desk. #pursuit/<pursuit_id> is the pursuit's
    stable URL (the immutable identity, not a run id). */
-const VIEW_HASH = { history: 'desk', assist: 'new', costiq: 'intel', quickcheck: 'quick' };
-const HASH_VIEW = { desk: 'history', new: 'assist', intel: 'costiq', quick: 'quickcheck' };
-let _estView = null, _routing = false, _settingHash = false;
+/* Phase B canonical routes: #pursuits is the default (contract v1.1 §3 made it canonical and
+   #desk an explicit LEGACY ALIAS, rather than pretending a redirect made the divergence
+   conformant). Old hashes still resolve so existing bookmarks keep working. */
+const VIEW_HASH = { history: 'pursuits', inbox: 'inbox', outcomes: 'outcomes', assist: 'new', costiq: 'intel', quickcheck: 'quick' };
+const HASH_VIEW = {
+  pursuits: 'history', inbox: 'inbox', outcomes: 'outcomes', new: 'assist', intel: 'costiq', quick: 'quickcheck',
+  desk: 'history',   // legacy alias — bookmarks predating the IA split
+};
+/* _settingHash is a COUNTER, not a boolean. Two hash writes in one synchronous pass queue two
+   hashchange events; a boolean absorbed only the first, and the second re-entered the router —
+   the loop that wedged the adopt-then-open path (found in demo rehearsal 2026-08-01). */
+let _estView = null, _routing = false, _settingHash = 0;
 function setEstView(v) {
   _estView = v;
   document.querySelectorAll('.estnav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
   document.getElementById('view-assist').style.display = v === 'assist' ? 'block' : 'none';
   document.getElementById('view-costiq').style.display = v === 'costiq' ? 'block' : 'none';
   document.getElementById('view-quickcheck').style.display = v === 'quickcheck' ? 'block' : 'none';
+  document.getElementById('view-inbox').style.display = v === 'inbox' ? 'block' : 'none';
+  document.getElementById('view-outcomes').style.display = v === 'outcomes' ? 'block' : 'none';
   document.getElementById('view-history').style.display = v === 'history' ? 'block' : 'none';
+  // The pursuit page is an entity, not a permanent destination: its nav entry appears only
+  // when one is open (and stays visible so you can get back to it from another view).
+  const np = document.getElementById('nav-pursuit');
+  if (np) np.style.display = (v === 'assist' || window._pursuitId) ? '' : 'none';
   if (v === 'costiq') renderCostIQ();
   if (v === 'quickcheck') renderQuickCheck();
+  if (v === 'inbox') renderInbox();
+  if (v === 'outcomes') renderOutcomes();
   if (v === 'history') renderHistory();
   if (!_routing) {
     const h = (v === 'assist' && window._pursuitId) ? '#pursuit/' + window._pursuitId : '#' + VIEW_HASH[v];
-    if (location.hash !== h) { _settingHash = true; location.hash = h; }
+    if (location.hash !== h) { _settingHash++; location.hash = h; }
   }
 }
 window.addEventListener('hashchange', () => {
-  if (_settingHash) { _settingHash = false; return; }
+  if (_settingHash > 0) { _settingHash--; return; }
   routeFromHash();
 });
 // Navigation token (Codex R5 router assessment): each route change bumps the token; an async
@@ -2288,7 +2285,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.18.0';
+const TOOL_VERSION = 'v1.19.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -2352,6 +2349,39 @@ async function saveRun(inp, p, batches, durationMs) {
   } catch { const meta = document.getElementById('resMeta'); if (meta) meta.textContent += ' · history save failed'; }
 }
 let historyCache = null;
+/* Shared pursuit assembly — Pursuits and Outcomes are two READS of the same spine, so the
+   grouping lives in one place rather than being duplicated per view.
+   Group runs by their PURSUIT id (the immutable identity): renames don't split it and two
+   pursuits that happen to share a name stay distinct. Orphan runs (pre-migration or a failed
+   pursuit attach) fall back to legacy name grouping so nothing disappears. Archived pursuits
+   are EXCLUDED here — archive is a filter, never a group loaded into the active worklist. */
+function deskPursuits(opts) {
+  const includeArchived = !!(opts && opts.includeArchived);
+  const runs = (historyCache && historyCache.runs) || [];
+  const allP = (historyCache && historyCache.pursuits) || [];
+  const byId = {}; allP.forEach(p => { byId[p.id] = p; });
+  const groups = {};
+  for (const run of runs) {
+    const k = run.pursuit_id ? 'p:' + run.pursuit_id : 'n:' + (run.project_name || '').trim().toLowerCase();
+    (groups[k] = groups[k] || []).push(run);
+  }
+  const out = Object.values(groups).map(g => {
+    const rs = g.slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    const latest = rs[0];
+    const pursuit = latest.pursuit_id ? (byId[latest.pursuit_id] || null) : null;
+    const wf = (pursuit && pursuit.workflow) || latest.workflow || {};
+    return { runs: rs, latest, pursuit, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf) };
+  });
+  // Run-less pursuits (adopted opportunities) are pursuits too — the entity exists from
+  // adoption, not from the first estimate.
+  const runPids = new Set(runs.filter(r => r.pursuit_id).map(r => r.pursuit_id));
+  allP.forEach(pr => {
+    if (runPids.has(pr.id)) return;
+    const wf = pr.workflow || {};
+    out.push({ runs: [], latest: null, pursuit: pr, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf) });
+  });
+  return includeArchived ? out : out.filter(p => !(p.pursuit && p.pursuit.archived_at));
+}
 async function renderHistory(force) {
   const el = document.getElementById('history-body');
   el.innerHTML = '<div class="billing-empty">Loading the desk…</div>';
@@ -2364,31 +2394,7 @@ async function renderHistory(force) {
       historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
     }
     const runs = historyCache.runs;
-    // Group runs by their PURSUIT id — the immutable identity; renames don't split it and two
-    // pursuits that happen to share a name stay distinct. Orphan runs (pre-migration or a
-    // failed pursuit attach) fall back to the legacy name grouping so nothing disappears.
-    const byId = {};
-    (historyCache.pursuits || []).forEach(p => { byId[p.id] = p; });
-    const groups = {};
-    for (const run of runs) {
-      const k = run.pursuit_id ? 'p:' + run.pursuit_id : 'n:' + (run.project_name || '').trim().toLowerCase();
-      (groups[k] = groups[k] || []).push(run);
-    }
-    const pursuits = Object.values(groups).map(g => {
-      const runs = g.slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-      const latest = runs[0];
-      const pursuit = latest.pursuit_id ? (byId[latest.pursuit_id] || null) : null;
-      const wf = (pursuit && pursuit.workflow) || latest.workflow || {};
-      return { runs, latest, pursuit, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf) };
-    });
-    // Run-less pursuits (source-ingested opportunities, adopted but not yet estimated) are
-    // pursuits too — the entity exists from opportunity, not from first estimate.
-    const runPids = new Set(runs.filter(r => r.pursuit_id).map(r => r.pursuit_id));
-    (historyCache.pursuits || []).forEach(pr => {
-      if (runPids.has(pr.id)) return;
-      const wf = pr.workflow || {};
-      pursuits.push({ runs: [], latest: null, pursuit: pr, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf) });
-    });
+    const pursuits = deskPursuits();
     if (!pursuits.length) {
       el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk
         <span style="margin-left:auto"><button class="btn-sm" onclick="newPursuit()">＋ New pursuit</button></span></h3>
@@ -2413,40 +2419,174 @@ async function renderHistory(force) {
     }
 
     const attention = pursuits.filter(p => p.bucket === 'due').length;
-    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk <span class="cnt">${totalOpen} open pursuit${totalOpen === 1 ? '' : 's'}${attention ? ` · <strong style="color:#dc2626">${attention} need attention</strong>` : ''}</span>
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Pursuits <span class="cnt">${totalOpen} open pursuit${totalOpen === 1 ? '' : 's'}${attention ? ` · <strong style="color:#dc2626">${attention} need attention</strong>` : ''}</span>
       <span style="margin-left:auto;display:flex;gap:6px">
         <button class="btn-sm" onclick="newPursuit()">＋ New pursuit</button>
         <button class="btn-sm ghost" onclick="setEstView('quickcheck')">Quick check</button>
         <button class="btn-sm ghost" onclick="renderHistory(true)">⟳</button>
       </span></h3>
       <div class="billing-sub">What estimating needs to move today. Each project is one pursuit — repeat runs are its revisions. Click a row to open the pursuit and work it: advance stage, set the bid due date, generate bond / builders-risk submissions, draft RFIs, enter quotes.</div>
+      <div id="inboxSignal" style="margin:2px 0 10px"></div>
       <table><thead><tr><th>Pursuit</th><th>Due</th><th>Stage</th><th>Quotes</th><th>Pre-bid</th><th class="r">Conceptual value</th><th>Conf.</th><th>Last activity</th></tr></thead><tbody>${html}</tbody></table></div>`;
 
-    // Opportunity intake (Codex Step 4): projects RYC has out to bid in BuildingConnected
-    // that no Desk pursuit tracks. Adoption is ONE CLICK — name, location, bid due date, and
-    // the BC linkage come from the source; nothing is rekeyed.
-    try {
-      const board = await loadBcBoard();
-      const opps = bcOpportunities(board, historyCache.pursuits || [], runs);
-      window._bcOpps = opps;
-      if (opps.length) {
-        const oppRows = opps.map((bp, i) =>
-          `<tr><td><strong>${esc(bp.name)}</strong><div class="note">${[bp.city, bp.st].filter(Boolean).join(', ')}${bp.packages ? ` · ${bp.packages} packages` : ''}${bp.invites ? ` · ${bp.invites} invites` : ''}</div>`
-          + `${bp.possibleDup ? `<div class="note" style="color:#b45309">⚠ similar name to pursuit "${esc(bp.possibleDup)}" — possible duplicate; adopting is safe (idempotent on the BC project), but check before working both</div>` : ''}</td>`
-          + `<td>${bp.bidsDueAt ? esc(new Date(bp.bidsDueAt).toLocaleDateString([], { month: 'short', day: 'numeric' })) : '—'}</td>`
-          + `<td class="r">${bp.value ? fmtCompact(bp.value) : '—'}</td>`
-          + `<td class="r"><button class="btn-sm" onclick="adoptOpp(${i})">＋ Adopt as pursuit</button></td></tr>`).join('');
-        el.innerHTML += `<div class="billing-block"><h3 class="section-header">📥 Untracked opportunities <span class="cnt">out to bid in BuildingConnected, not on the desk</span></h3>
-          <div class="billing-sub">Live from RYC's BC bid board (${board.generatedAt ? 'pulled ' + fmtDate(board.generatedAt) : 'daily pull'}). Adopting creates the pursuit from the source data — one click, no re-typing.</div>
-          <table><thead><tr><th>Project</th><th>Bids due</th><th class="r">Value</th><th></th></tr></thead><tbody>${oppRows}</tbody></table></div>`;
-      }
-    } catch { /* the intake section is additive — a bid-board failure never breaks the desk */ }
+    // Intake lives in the Inbox now, but it must never become invisible: a compact signal
+    // here keeps new opportunities in view from the screen estimating actually starts on.
+    refreshInboxSignal();
 
-    // Step 5 — calibration readout. Every decided pursuit carries its full chain
-    // (conceptual → submitted → outcome/award), so this is a pure READ: win rate,
-    // bid-vs-conceptual drift, and lost-to-winner deltas, accruing as bids decide.
-    // Won-job ACTUALS read in Command's job drawer (the by_job seam), not here.
-    try {
+  } catch (e) {
+    // Surface the real cause: this catch previously turned a code-level bug into a message that
+    // read like a transient network problem, which hid it from the E2E gate.
+    console.error('[desk] render failed:', e);
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Pursuits</h3><div class="billing-empty">Desk unavailable: ${esc(e.message)}</div></div>`;
+  }
+}
+
+/* ===== INBOX — opportunity review (phase B) ========================================
+   This is the phase-A opportunity lifecycle finally surfaced. It reads SERVER records
+   (ryc_opportunities_v), not a client-side diff of the board JSON, which is what makes a
+   review decision durable: passing on a job is a recorded, audited fact with a reason, so the
+   same job stops reappearing every morning as though nobody had looked at it.
+   Two orthogonal lifecycles are shown as what they are — what the SOURCE says (open/expired/
+   cancelled) and what RYC DECIDED (new/reviewing/passed/adopted). */
+const DISPOSITION_REASONS = [
+  ['out_of_geography', 'Out of our geography'],
+  ['wrong_work_type', 'Not our work type'],
+  ['capacity', 'No capacity'],
+  ['client', 'Client / owner'],
+  ['timing', 'Timing'],
+  ['other', 'Other'],
+];
+let _inboxFilter = 'open';   // 'open' = needs a decision · 'passed' · 'all'
+let _inboxCache = null;
+async function loadOpportunities(force) {
+  if (_inboxCache && !force) return _inboxCache;
+  // Ingest first so the review queue reflects the latest board pull; idempotent and cheap
+  // (unchanged rows are no-ops), and a failure here must not blank the Inbox.
+  try {
+    await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw: 'ryc2026', action: 'sync_opportunities' }) });
+  } catch {}
+  const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pw: 'ryc2026', action: 'list_opportunities' }) });
+  const d = await r.json();
+  if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+  _inboxCache = d;
+  return d;
+}
+// The badge counts what NEEDS A DECISION (new, or changed since it was reviewed) — never the
+// raw unadopted count, which would make a reviewed-and-passed job permanent noise.
+async function refreshInboxSignal() {
+  try {
+    const d = await loadOpportunities();
+    const n = d.needs_review_count || 0;
+    const badge = document.getElementById('inboxBadge');
+    if (badge) badge.innerHTML = n ? ` <span class="chip ck-needed" style="margin-left:5px">${n}</span>` : '';
+    const sig = document.getElementById('inboxSignal');
+    if (sig) {
+      const soonest = (d.opportunities || []).filter(o => o.needs_review && o.bid_due_at)
+        .sort((a, b) => a.bid_due_at.localeCompare(b.bid_due_at))[0];
+      sig.innerHTML = n
+        ? `<span class="chip ck-needed">${n} new opportunit${n === 1 ? 'y' : 'ies'}</span> <span class="note">to review${soonest ? ` · earliest due ${esc(new Date(soonest.bid_due_at).toLocaleDateString([], { month: 'short', day: 'numeric' }))}` : ''}</span> <button class="btn-sm ghost" onclick="setEstView('inbox')">Open Inbox →</button>`
+        : '<span class="note">Inbox zero — every opportunity has been reviewed.</span>';
+    }
+  } catch { /* the signal is additive; never break the worklist over it */ }
+}
+async function renderInbox(force) {
+  const el = document.getElementById('inbox-body');
+  el.innerHTML = '<div class="billing-empty">Loading opportunities…</div>';
+  try {
+    const d = await loadOpportunities(force);
+    const all = d.opportunities || [];
+    const needs = all.filter(o => o.needs_review);
+    const passed = all.filter(o => o.review_state === 'passed');
+    const rows = _inboxFilter === 'passed' ? passed
+      : _inboxFilter === 'all' ? all.filter(o => o.review_state !== 'adopted')
+      : all.filter(o => o.needs_review || o.review_state === 'reviewing');
+    window._opps = rows;
+    const srcPill = (o) => o.source_status === 'open' ? ''
+      : `<span class="ck-pill ck-na" title="what the source says, independent of our review">${esc(o.source_status)}</span>`;
+    const body = rows.map((o, i) => {
+      const changed = o.review_state === 'passed' && o.needs_review;
+      return `<tr><td><strong>${esc(o.name)}</strong> ${srcPill(o)}
+        <div class="note">${esc([o.location, o.client].filter(Boolean).join(' · ')) || '—'}</div>
+        ${changed ? `<div class="note" style="color:#b45309">⚠ Changed since you passed on it (revision ${o.current_source_revision}) — worth another look. Your earlier decision${o.disposition_reason ? ` (${esc(o.disposition_reason.replace(/_/g, ' '))})` : ''} is kept.</div>` : ''}</td>
+        <td>${o.bid_due_at ? esc(new Date(o.bid_due_at).toLocaleDateString([], { month: 'short', day: 'numeric' })) : '—'}</td>
+        <td>${o.review_state === 'passed' ? '<span class="ck-pill ck-na">passed</span>' : o.review_state === 'reviewing' ? '<span class="ck-pill ck-requested">reviewing</span>' : '<span class="ck-pill ck-needed">new</span>'}</td>
+        <td class="r" style="white-space:nowrap">
+          ${o.review_state === 'passed'
+            ? `<button class="btn-sm ghost" onclick="reopenOpp(${i})">↩ Reconsider</button>`
+            : `<button class="btn-sm" onclick="adoptOppRow(${i})">＋ Adopt as pursuit</button>
+               <select class="ck-date" onchange="passOpp(${i}, this.value); this.selectedIndex=0" style="margin-left:6px">
+                 <option value="">Pass…</option>${DISPOSITION_REASONS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
+               </select>`}
+        </td></tr>`;
+    }).join('');
+    const tab = (k, label, n) => `<button class="btn-sm ${_inboxFilter === k ? '' : 'ghost'}" onclick="_inboxFilter='${k}';renderInbox()">${label}${n != null ? ` (${n})` : ''}</button>`;
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">📥 Inbox <span class="cnt">${needs.length ? `${needs.length} to review` : 'nothing new to review'}</span>
+      <span style="margin-left:auto;display:flex;gap:6px">${tab('open', 'To review', needs.length)}${tab('passed', 'Passed', passed.length)}${tab('all', 'All')}
+      <button class="btn-sm ghost" onclick="renderInbox(true)">⟳</button></span></h3>
+      <div class="billing-sub">Opportunities from RYC's BuildingConnected bid board. <strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but if the source materially changes (bid date, scope, location, cancellation) it comes back marked as changed. Adopting creates the pursuit from source data; nothing is re-typed.</div>
+      ${rows.length
+        ? `<table><thead><tr><th>Opportunity</th><th>Bids due</th><th>Review</th><th></th></tr></thead><tbody>${body}</tbody></table>`
+        : `<div class="billing-empty">${_inboxFilter === 'passed' ? 'Nothing passed yet.' : 'No new opportunities to review.'}</div>`}</div>`;
+    refreshInboxSignal();
+  } catch (e) {
+    console.error('[inbox] render failed:', e);
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">📥 Inbox</h3><div class="billing-empty">Inbox unavailable: ${esc(e.message)}</div></div>`;
+  }
+}
+async function oppAction(i, body, verb) {
+  const o = (window._opps || [])[i]; if (!o) return;
+  try {
+    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ pw: 'ryc2026', opportunity_id: o.id, expected_version: o.version }, body)) });
+    const d = await r.json();
+    if (r.status === 409 && /review|collision/i.test(d.error || '')) { alert(d.error); }
+    else if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    _inboxCache = null; historyCache = null;
+    await renderInbox(true);
+    return d;
+  } catch (e) { alert('Could not ' + verb + ': ' + e.message); }
+}
+function adoptOppRow(i) {
+  const o = (window._opps || [])[i]; if (!o) return;
+  oppAction(i, { action: 'adopt_opportunity' }, 'adopt').then(d => {
+    if (d && d.pursuit_id) { historyCache = null; openPursuitAfterAdopt(d.pursuit_id); }
+  });
+}
+// Adopting should land you IN the pursuit — that is the next thing you do with it.
+async function openPursuitAfterAdopt(pid) {
+  try {
+    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw: 'ryc2026', action: 'list' }) });
+    const d = await r.json();
+    if (d && d.ok) historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
+  } catch {}
+  openPursuitById(pid);
+}
+function passOpp(i, reason) {
+  if (!reason) return;
+  const note = prompt('Optional note for passing on this (why, in your words):', '') || '';
+  oppAction(i, { action: 'dispose_opportunity', reason, note }, 'pass');
+}
+function reopenOpp(i) { oppAction(i, { action: 'reopen_opportunity' }, 'reconsider'); }
+
+/* ===== OUTCOMES & CALIBRATION (own view, phase B) ==================================
+   The estimator's feedback loop, separated from active work because it answers a different
+   question: not "what moves today" but "is the number any good". Denominators are stated
+   explicitly (Codex) — a 2-bid sample must not read like a statistic. */
+async function renderOutcomes() {
+  const el = document.getElementById('outcomes-body');
+  el.innerHTML = '<div class="billing-empty">Loading outcomes…</div>';
+  try {
+    if (!historyCache) {
+      const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pw: 'ryc2026', action: 'list' }) });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
+    }
+    const pursuits = deskPursuits();
       const decided = pursuits.filter(p => p.stage === 'won' || p.stage === 'lost');
       const won = decided.filter(p => p.stage === 'won'), lost = decided.filter(p => p.stage === 'lost');
       const chain = p => {
@@ -2465,17 +2605,21 @@ async function renderHistory(force) {
         `<tr><td><strong>${esc((p.pursuit && p.pursuit.name) || (p.latest && p.latest.project_name) || '')}</strong>
          <span class="chip ${p.stage === 'won' ? 'ck-received' : ''}" ${p.stage === 'lost' ? 'style="background:#fee2e2;color:#991b1b"' : ''}>${p.stage}</span></td>
          <td class="note">${chain(p)}</td></tr>`).join('');
-      el.innerHTML += `<div class="billing-block"><h3 class="section-header">🎯 Outcomes &amp; calibration <span class="cnt">${decided.length ? `${won.length}W–${lost.length}L${decided.length >= 2 ? ` · ${Math.round(won.length / decided.length * 100)}% win rate` : ''}${medDrift != null ? ` · median bid ${medDrift >= 0 ? '+' : ''}${medDrift.toFixed(1)}% vs conceptual` : ''}` : 'accrues as bids decide'}</span></h3>
+      // DENOMINATORS ARE THE HEADLINE, not a footnote: a win rate over 3 decisions is not a
+      // statistic, and a drift median over 2 priced chains is not calibration. State n every
+      // time so a small sample cannot read as authority.
+      const graded = drifts.length;
+      const sampleNote = decided.length
+        ? `<div class="note" style="margin-top:6px">Sample: <strong>${decided.length}</strong> decided pursuit${decided.length === 1 ? '' : 's'} (${won.length} won · ${lost.length} lost) · <strong>${graded}</strong> with a conceptual→bid chain to grade.${decided.length < 5 ? ' <span style="color:#b45309">Too few to read as a rate — these are individual results, not a trend.</span>' : ''}</div>`
+        : '';
+      el.innerHTML = `<div class="billing-block"><h3 class="section-header">🎯 Outcomes &amp; calibration <span class="cnt">${decided.length ? `${won.length}W–${lost.length}L${decided.length >= 5 ? ` · ${Math.round(won.length / decided.length * 100)}% win rate (n=${decided.length})` : ''}${medDrift != null && graded >= 3 ? ` · median bid ${medDrift >= 0 ? '+' : ''}${medDrift.toFixed(1)}% vs conceptual (n=${graded})` : ''}` : 'accrues as bids decide'}</span></h3>
         ${decided.length
-          ? `<table><thead><tr><th>Pursuit</th><th>Conceptual → submitted → outcome</th></tr></thead><tbody>${calRows}</tbody></table>
+          ? `<table><thead><tr><th>Pursuit</th><th>Conceptual → submitted → outcome</th></tr></thead><tbody>${calRows}</tbody></table>${sampleNote}
              <div class="note" style="margin-top:6px">The estimator's feedback loop: how conceptual numbers move to real bids, and where bids land against the market. Won-job actuals (bid → final cost) read in Command's job drawer.</div>`
           : `<div class="billing-empty">No decided pursuits yet. As bids are marked Won (award link) or Lost (outcome), the conceptual → submitted → outcome chain accrues here — the calibration data this desk exists to produce.</div>`}</div>`;
-    } catch { /* calibration is additive too */ }
   } catch (e) {
-    // Surface the real cause: this catch previously turned a code-level bug into a message that
-    // read like a transient network problem, which hid it from the E2E gate.
-    console.error('[desk] render failed:', e);
-    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk</h3><div class="billing-empty">Desk unavailable: ${esc(e.message)}</div></div>`;
+    console.error('[outcomes] render failed:', e);
+    el.innerHTML = `<div class="billing-block"><h3 class="section-header">Outcomes</h3><div class="billing-empty">Outcomes unavailable: ${esc(e.message)}</div></div>`;
   }
 }
 async function openRun(id) {
