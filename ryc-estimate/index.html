@@ -2135,25 +2135,11 @@ async function openPursuitById(pid, tok) {
       if (d && d.ok) historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
     }
     if (tok !== undefined && tok !== _navToken) return;   // user navigated on — drop this route
-    // A pursuit adopted in ANOTHER tab (or after this tab's list was cached) is absent from a
-    // stale cache — declaring it deleted on that basis is wrong and alarming. Re-read once
-    // before concluding anything, so "no longer exists" only ever means it really doesn't.
-    let known = ((historyCache && historyCache.pursuits) || []).some(x => x.id === pid);
-    if (!known) {
-      try {
-        const r2 = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pw: 'ryc2026', action: 'list' }) });
-        const d2 = await r2.json().catch(() => null);
-        if (d2 && d2.ok) historyCache = { runs: d2.runs || [], pursuits: d2.pursuits || [] };
-        if (tok !== undefined && tok !== _navToken) return;
-        known = ((historyCache && historyCache.pursuits) || []).some(x => x.id === pid);
-      } catch {}
-    }
     const runs = ((historyCache && historyCache.runs) || []).filter(r => r.pursuit_id === pid)
       .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
     if (runs.length) { openRun(runs[0].id); return; }
     // run-less pursuit (adopted opportunity) — deep link opens the prefilled generator
-    if (known) { openBlankPursuit(pid); return; }
+    if (((historyCache && historyCache.pursuits) || []).some(x => x.id === pid)) { openBlankPursuit(pid); return; }
     // unknown/deleted pursuit: say so with a safe way back — never a silent blank form
     alert('That pursuit link points to a pursuit that no longer exists (deleted, or the link is stale). Returning to the desk.');
   } catch {}
