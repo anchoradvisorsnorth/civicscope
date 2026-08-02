@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-01T23:19:35.915Z",
+ "generatedAt": "2026-08-02T09:30:08.039Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -605,20 +605,6 @@
      "awardedCompany": null
     },
     {
-     "id": "6a022160e2751b37f7554aa8",
-     "name": "Building Insulation",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "6a02212e44826dba5a600a30",
      "name": "PEMB Insulation",
      "number": null,
@@ -634,6 +620,20 @@
      "biddingSubs": [
       "Silvercote"
      ]
+    },
+    {
+     "id": "6a022160e2751b37f7554aa8",
+     "name": "Building Insulation",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a022a285e266905149cee3c",
@@ -739,6 +739,23 @@
      ]
     },
     {
+     "id": "6a0226c86b1f45287a679316",
+     "name": "Doors, Frames & Hardware",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 1,
+     "undecided": 2,
+     "notBidding": 0,
+     "viewed": 3,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "MX5"
+     ]
+    },
+    {
      "id": "6a021f32dd943d2e725eefaa",
      "name": "Structural Steel",
      "number": null,
@@ -754,23 +771,6 @@
      "biddingSubs": [
       "Evans Metal Products Co., Inc.",
       "Kammerer Dynamics"
-     ]
-    },
-    {
-     "id": "6a0226c86b1f45287a679316",
-     "name": "Doors, Frames & Hardware",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 1,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 3,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "MX5"
      ]
     },
     {
@@ -926,23 +926,6 @@
      "undecidedSubs": []
     },
     {
-     "id": "6a5e4021a21b1ed85d711132",
-     "name": "Cabinets",
-     "number": "12-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "LUE Manufacturing"
-     ]
-    },
-    {
      "id": "6a5e40b1c1e6346dabec73ca",
      "name": "Plumbing & HVAC",
      "number": "22/23-01",
@@ -957,6 +940,23 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "MW Chupp Inc"
+     ]
+    },
+    {
+     "id": "6a5e4021a21b1ed85d711132",
+     "name": "Cabinets",
+     "number": "12-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "LUE Manufacturing"
      ]
     },
     {
@@ -1164,7 +1164,7 @@
      "bidding": 1,
      "undecided": 12,
      "notBidding": 1,
-     "viewed": 5,
+     "viewed": 6,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
