@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.30.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.30.0">
-<script src="/ryc-shell/shell.js?v1.30.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.30.1"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.30.1">
+<script src="/ryc-shell/shell.js?v1.30.1"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -3189,7 +3189,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.30.0';
+const TOOL_VERSION = 'v1.30.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -3510,9 +3510,30 @@ async function oppAction(i, body, verb) {
 }
 function adoptOppRow(i) {
   const o = (window._opps || [])[i]; if (!o) return;
+  /* Carry the source link across. Adopting a Dodge opportunity used to land on an empty new-
+     pursuit screen asking you to paste the Dodge URL — the one the row you just clicked already
+     had. The opportunity object is right here; hand it forward. */
+  const carried = (o.source === 'dodge' && o.bc_url) ? o.bc_url
+    : (o.payload && o.payload.dodge_id) ? String(o.payload.dodge_id) : null;
   oppAction(i, { action: 'adopt_opportunity' }, 'adopt').then(d => {
-    if (d && d.pursuit_id) { historyCache = null; openPursuitAfterAdopt(d.pursuit_id); }
+    if (d && d.pursuit_id) {
+      historyCache = null;
+      window._adoptedSource = carried;
+      openPursuitAfterAdopt(d.pursuit_id);
+    }
   });
+}
+/* An adopted pursuit with no estimate opens on the input screen. If it came from Dodge, fill the
+   lookup field and run it — the estimator should arrive with the project loaded and the "Fetch
+   documents from Dodge" offer already on screen, not with an empty box. */
+function applyAdoptedSource() {
+  const src = window._adoptedSource;
+  if (!src) return;
+  window._adoptedSource = null;
+  const el = document.getElementById('dodgeUrl');
+  if (!el) return;
+  el.value = src;
+  lookupDodge();
 }
 // Adopting should land you IN the pursuit — that is the next thing you do with it.
 async function openPursuitAfterAdopt(pid) {
@@ -3523,6 +3544,9 @@ async function openPursuitAfterAdopt(pid) {
     if (d && d.ok) historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
   } catch {}
   openPursuitById(pid);
+  // The pursuit has no estimate yet, so it opens on the input screen — prefill and run the
+  // lookup there rather than making the estimator re-paste what the opportunity already knew.
+  setTimeout(applyAdoptedSource, 900);
 }
 function passOpp(i, reason) {
   if (!reason) return;
