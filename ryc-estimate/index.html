@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.42.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.42.0">
-<script src="/ryc-shell/shell.js?v1.42.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.43.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.43.0">
+<script src="/ryc-shell/shell.js?v1.43.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -140,6 +140,17 @@
   .opp-sec-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:16px 0 8px; }
   .opp-sec-head h4 { margin:0; font-size:14px; }
   .opp-sec-head:first-of-type { margin-top:4px; }
+  /* The column picker is a setting, not a headline — small, right-aligned, collapsed. */
+  .opp-cols { margin:0 0 8px; margin-left:auto; width:max-content; }
+  .opp-cols > summary { font-size:11.5px; color:var(--muted); padding:3px 9px; border:1px solid var(--line);
+    border-radius:99px; background:#fff; cursor:pointer; list-style:none; }
+  .opp-cols > summary::-webkit-details-marker { display:none; }
+  .opp-cols[open] > summary { background:#f8fafc; }
+  .star { background:none; border:none; cursor:pointer; font-size:15px; line-height:1; padding:0 6px 0 0;
+    color:#cbd5e1; font-family:inherit; }
+  .star.on { color:#f59e0b; }
+  .star:hover { color:#f59e0b; }
+  tr.starred > td:first-child { box-shadow:inset 3px 0 0 #f59e0b; }
   /* "Pass…" rendered as a bare select and read as a text field — nothing said it was an action,
      and the native popup ran off the right edge of the table. It is a button now, the destructive
      twin of Adopt, and the reason list replaces it inline. */
@@ -3795,7 +3806,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.42.0';
+const TOOL_VERSION = 'v1.43.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -4133,7 +4144,8 @@ function toggleOppCol(src, k) {
 }
 function oppColPicker(src) {
   const cur = colsFor(src);
-  return `<details class="defs" style="margin:0 0 10px"><summary>Columns (${cur.length} shown)</summary>
+  // Was a full-width bar holding one word. Compact, right-aligned, out of the way until wanted.
+  return `<details class="defs opp-cols"><summary>⚙ Columns · ${cur.length}</summary>
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">
       ${OPP_COLUMNS.map(c => `<label class="note" style="display:flex;gap:5px;align-items:center;cursor:pointer">
         <input type="checkbox" ${cur.includes(c.key) ? 'checked' : ''} onchange="toggleOppCol('${esc(src)}','${c.key}')"> ${esc(c.label)}</label>`).join('')}
@@ -4141,6 +4153,23 @@ function oppColPicker(src) {
     <div class="note" style="margin-top:8px">These come from the full source record, not from how the source's own view is configured.</div></details>`;
 }
 const oppColsActive = (src) => OPP_COLUMNS.filter(c => colsFor(src).includes(c.key));
+
+/* Stars live in this browser, not on the server. `ryc_opportunities` has no star column and
+   there is no per-user identity yet (shared team password until Entra), so a server-side star
+   would be one flag every estimator toggled on each other's behalf — worse than personal. When
+   identity lands this becomes a real per-user star and these migrate. */
+const STAR_KEY = 'ryc-opp-stars';
+const stars = () => { try { const v = JSON.parse(localStorage.getItem(STAR_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
+const isStarred = (id) => stars().includes(id);
+function toggleStar(id) {
+  const cur = stars();
+  const next = cur.includes(id) ? cur.filter(x => x !== id) : cur.concat([id]);
+  try { localStorage.setItem(STAR_KEY, JSON.stringify(next)); } catch {}
+  renderInbox();
+}
+const starBtn = (o) => `<button type="button" class="star${isStarred(o.id) ? ' on' : ''}" `
+  + `title="${isStarred(o.id) ? 'Remove from starred' : 'Star this — it pins to the top and stays in the list'}" `
+  + `onclick="event.stopPropagation();toggleStar('${esc(o.id)}')">${isStarred(o.id) ? '★' : '☆'}</button>`;
 
 /* Adopt and Pass are the two decisions this screen exists to collect, so they are two buttons.
    Pass was a native <select> whose first option was the label — you had to know that opening a
@@ -4198,7 +4227,7 @@ async function renderInbox(force) {
       const nameCell = o.bc_url
         ? `<a href="${esc(o.bc_url)}" target="_blank" rel="noopener" class="opp-name" title="Open in ${esc(oppSrc(o.source).label)}">${esc(o.name)} ↗</a>`
         : `<strong>${esc(o.name)}</strong>`;
-      return `<tr><td>${nameCell} ${statusPill(o)}
+      return `<tr${isStarred(o.id) ? ' class="starred"' : ''}><td>${starBtn(o)}${nameCell} ${statusPill(o)}
         <div class="note">${esc([o.location, o.client].filter(Boolean).join(' · ')) || '—'}</div>
         ${changed ? `<div class="note" style="color:#b45309">⚠ Changed since you passed on it (revision ${o.current_source_revision}) — worth another look. Your earlier decision${o.disposition_reason ? ` (${esc(o.disposition_reason.replace(/_/g, ' '))})` : ''} is kept.</div>` : ''}</td>
         <td>${day(o.bid_due_at)}</td>
@@ -4210,6 +4239,17 @@ async function renderInbox(force) {
         ${optCells}
         <td class="r" style="white-space:nowrap"><div id="oppAct${i}">${oppActions(o, i)}</div></td></tr>`;
     };
+
+    /* Starred rows are pinned ABOVE the full list and DELIBERATELY still appear in it — Keith's
+       call. The pin is a shortcut to the handful you are working, not a filter that hides them
+       from the queue they belong to. */
+    const starredRows = visible.filter(o => isStarred(o.id));
+    const starSection = starredRows.length
+      ? `<div class="opp-sec-head"><h4>★ Starred</h4><span class="note">${starredRows.length} pinned — still listed with everything else below</span></div>`
+        + `<div class="opp-scroll"><table><thead><tr><th>Opportunity</th><th>Bids due</th><th>First seen</th><th>Review</th>`
+        + oppColsActive('dodge').map(c => `<th>${esc(c.label)}</th>`).join('')
+        + `<th></th></tr></thead><tbody>${starredRows.map(o => rowHtml(o, o.source === 'indianabids' ? 'indianabids' : 'dodge')).join('')}</tbody></table></div>`
+      : '';
 
     const sections = INTAKE_SOURCES.map(src => {
       const mine = visible.filter(o => o.source === src.key);
@@ -4233,7 +4273,7 @@ async function renderInbox(force) {
       <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">${tab('open', 'To review', needs.length)}${tab('passed', 'Passed', passed.length)}${tab('adopted', 'Adopted', adopted.length)}${tab('all', 'All')}
       <button class="btn-sm ghost" onclick="renderInbox(true)">⟳</button></span></h3>
       <div class="billing-sub"><strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but comes back if the source materially changes. Adopting creates the pursuit from source data; nothing is re-typed.</div>
-      ${flat.length || _inboxFilter === 'open' ? sections
+      ${flat.length || _inboxFilter === 'open' ? starSection + sections
         : `<div class="billing-empty">${_inboxFilter === 'passed' ? 'Nothing passed yet.' : _inboxFilter === 'adopted' ? 'Nothing adopted yet.' : 'No opportunities.'}</div>`}</div>`;
     refreshInboxSignal();
   } catch (e) {
