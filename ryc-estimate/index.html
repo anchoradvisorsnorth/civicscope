@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.32.2"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.32.2">
-<script src="/ryc-shell/shell.js?v1.32.2"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.33.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.33.0">
+<script src="/ryc-shell/shell.js?v1.33.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -128,6 +128,20 @@
     color:#b91c1c; background:#fff; border:1px solid #fecaca; border-radius:7px; cursor:pointer; }
   .pass-select:hover { background:#fef2f2; border-color:#fca5a5; }
   .pass-select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  /* Takeoff progress, shown where the estimator now is: on the pursuit. */
+  .takeoff-bar { display:flex; align-items:center; gap:8px; margin:10px 0 0; padding:9px 12px;
+    background:#eff6ff; border:1px solid #bfdbfe; border-left:3px solid #3b82f6; border-radius:6px;
+    font-size:13px; color:#1e40af; line-height:1.5; }
+  .takeoff-bar.done { background:#f0fdf4; border-color:#bbf7d0; border-left-color:#16a34a; color:#166534; }
+  .takeoff-bar.failed { background:#fffbeb; border-color:#fde68a; border-left-color:#f59e0b; color:#854d0e; }
+  .takeoff-bar .spin { width:13px; height:13px; border:2px solid #bfdbfe; border-top-color:#3b82f6;
+    border-radius:50%; display:inline-block; animation:tkspin 1s linear infinite; flex:none; }
+  @keyframes tkspin { to { transform:rotate(360deg); } }
+  /* The two intake routes are alternatives, not sequential steps — the screen read as "do this,
+     then that" and estimators did both. */
+  .or-split { display:flex; align-items:center; gap:12px; margin:14px 0; color:var(--muted); font-size:12px;
+    text-transform:uppercase; letter-spacing:.08em; }
+  .or-split::before, .or-split::after { content:''; flex:1; height:1px; background:var(--line); }
   .docs-bar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:10px 0 0; }
   .docs-bar a.btn-sm { text-decoration:none; }
   .pursuit-head .ph-fact .l { font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
@@ -243,9 +257,10 @@
     <div id="step-docs">
       <div class="page-head">
         <h2 id="inputTitle">New pursuit</h2>
-        <p class="page-lede" id="inputLede">Start with the documents. The RFP and the plan set are read
-        for the project name, location, size, client and work type, and the scope — so the next screen
-        arrives filled in rather than blank. Add either one, or both.</p>
+<p class="page-lede" id="inputLede">Two ways in, and you only need one.
+        <strong>Paste a Dodge link</strong> and the server fetches the documents, files them into a
+        SharePoint job folder and runs the takeoff. Or <strong>drop the documents yourself</strong> if
+        the job did not come from Dodge.</p>
       </div>
 
       <!-- ONE pile (Keith, 2026-08-02). Two zones asked the estimator to pre-sort an RFP from a
@@ -269,6 +284,8 @@
           <div id="intakeActions" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
         </div>
       </div>
+
+      <div class="or-split" id="orSplit"><span>or</span></div>
 
       <div class="card" id="docsCard">
         <label>Project documents <span class="opt">RFP, bid packet, specs, drawings — drop them all here; the reader works out what each one is</span></label>
@@ -878,7 +895,7 @@ function intakeActions(html) { const e = document.getElementById('intakeActions'
    lookup succeeds the fetch path IS the right one, so the manual path steps aside — recoverable
    from the fetch box if the fetch fails. */
 function setManualDocsVisible(on) {
-  ['docsCard', 'docsActions'].forEach(id => {
+  ['docsCard', 'docsActions', 'orSplit'].forEach(id => {
     const e = document.getElementById(id);
     if (e) e.style.display = on ? '' : 'none';
   });
@@ -964,10 +981,20 @@ async function intakeCommit() {
     const r = d.result || {};
     _intakeFolderName = name;
     _intakeFolderUrl = r.sharePointUrl || null;
-    intakeMsg(`✓ <a href="${esc(r.sharePointUrl || '#')}" target="_blank" rel="noopener"><strong>Job folder created</strong></a>`
-      + ` — ${r.documents || 0} documents filed on the RYC template.`
-      + (r.pursuitUrl ? ` Pursuit: <a href="${esc(r.pursuitUrl)}" target="_blank" rel="noopener">open</a>.` : '')
-      + `<br>⏳ Takeoff running on the server against the full set — this takes several minutes.`);
+    /* The folder and the pursuit exist now — so BE on the pursuit. Watching a green box on a "New
+       pursuit" screen while an "Untitled pursuit" sat in the rail was the confusion: the thing had
+       been created and the UI was still pretending you were creating it. The takeoff keeps running
+       server-side and reports onto the pursuit page. */
+    const pid = (r.pursuit && r.pursuit.id) || null;
+    _takeoffWatch = { projectId: _intakeId, pursuitId: pid,
+                      folderUrl: r.sharePointUrl || null, documents: r.documents || 0 };
+    if (pid) {
+      intakeMsg('✓ Job folder created — opening the pursuit…');
+      await openPursuitAfterAdopt(pid);      // in-app navigation, not a new tab
+    } else {
+      intakeMsg(`✓ <a href="${esc(r.sharePointUrl || '#')}" target="_blank" rel="noopener"><strong>Job folder created</strong></a>`
+        + ` — ${r.documents || 0} documents filed. No pursuit was created.`);
+    }
     pollIntake();
   } catch (e) {
     intakeMsg('⚠ ' + e.message);
@@ -989,12 +1016,12 @@ function pollIntake() {
       const t = d.takeoff, running = d.running;
       if (t && t.at) {
         stop();
+        if (_takeoffWatch) Object.assign(_takeoffWatch, { done: true, divisions: t.divisions,
+          total: t.total, pages: t.pages, saved: t.saved });
+        renderPursuit();          // the banner lives on the pursuit page now
         const money = t.total ? '$' + Number(t.total).toLocaleString() : '—';
-        intakeMsg(`✓ <strong>Takeoff complete</strong> — ${t.divisions} packages, rollup ${money}, from ${t.pages} pages.`
-          + (t.saved ? ` Saved to the pursuit.` : ` <span style="color:#b45309">Computed but NOT saved to the pursuit.</span>`)
-          + (d.folder && d.folder.webUrl ? ` <a href="${esc(d.folder.webUrl)}" target="_blank" rel="noopener">Job folder</a>.` : ''));
-        intakeActions(d.pursuit && d.pursuit.url
-          ? `<a class="btn-sm" href="${esc(d.pursuit.url)}">Open the pursuit →</a>` : '');
+        intakeMsg(`✓ <strong>Takeoff complete</strong> — ${t.divisions} packages, rollup ${money}, from ${t.pages} pages.`);
+        intakeActions('');
         return;
       }
       if (running) { empties = 0; return; }
@@ -1002,10 +1029,10 @@ function pollIntake() {
       // a way forward rather than a verdict the user cannot act on.
       if (++empties >= 4) {
         stop();
-        intakeMsg('⚠ The takeoff is not running and produced no result. Your documents are filed and the '
-          + 'pursuit exists — only the estimate is missing.');
-        intakeActions(`<button type="button" class="btn-sm" onclick="intakeRetryTakeoff()">Run the takeoff again</button>`
-          + (_intakeFolderUrl ? `<a class="btn-sm ghost" href="${esc(_intakeFolderUrl)}" target="_blank" rel="noopener">Job folder</a>` : ''));
+        if (_takeoffWatch) _takeoffWatch.failed = true;
+        renderPursuit();
+        intakeMsg('⚠ The takeoff is not running and produced no result.');
+        intakeActions(`<button type="button" class="btn-sm" onclick="intakeRetryTakeoff()">Run the takeoff again</button>`);
       }
     } catch { /* a transient poll failure is not evidence of anything */ }
   }, 15000);
@@ -1953,6 +1980,24 @@ function setArea(k, silent) {
    folder on the RYC template, and until now nothing on the pursuit pointed at it — the estimator
    had to go find the folder by hand, which is the same errand the intake exists to remove.
    Renders nothing for pursuits created before the intake, or created without documents. */
+/* Progress banner for a takeoff running on the server. It lives on the PURSUIT because that is
+   where the estimator now is while it runs. */
+let _takeoffWatch = null;
+function takeoffBanner() {
+  const w = _takeoffWatch;
+  if (!w || !w.pursuitId || w.pursuitId !== window._pursuitId) return '';
+  if (w.done) {
+    return `<div class="takeoff-bar done">✓ Takeoff complete — ${esc(String(w.divisions || 0))} packages`
+      + (w.total ? `, rollup ${esc(fmtCompact(w.total))}` : '')
+      + `, from ${esc(String(w.pages || 0))} pages. Reload to see it below.</div>`;
+  }
+  if (w.failed) {
+    return `<div class="takeoff-bar failed">⚠ The takeoff stopped without producing a result. `
+      + `Your ${esc(String(w.documents || 0))} documents are filed and this pursuit exists — only the estimate is missing.</div>`;
+  }
+  return `<div class="takeoff-bar"><span class="spin"></span> Takeoff running on the server against `
+    + `${esc(String(w.documents || 0))} documents — several minutes. You can leave this page; it keeps running.</div>`;
+}
 function docsBar(wf) {
   const d = (wf && wf.docs) || null;
   if (!d || !d.folder) return '';
@@ -1979,6 +2024,7 @@ function renderPursuitHeader() {
   el.innerHTML = `<div class="pursuit-head">
     <h2>${esc(inp.name || 'Untitled pursuit')}</h2>
     <div class="ph-sub">${esc([inp.loc, inp.ct && ciCT(inp.ct), inp.wt && ciWT(inp.wt)].filter(Boolean).join(' · ')) || '—'}</div>
+    ${takeoffBanner()}
     ${docsBar(wf)}
     <div class="ph-facts">
       ${fact('Stage', esc(stage), wf.due_date ? ('bid due ' + RYCFormat.date(wf.due_date) + (dtd != null ? (dtd < 0 ? ` · ${Math.abs(dtd)}d overdue` : dtd === 0 ? ' · today' : ` · ${dtd}d`) : '')) : 'no bid date set')}
@@ -3242,7 +3288,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.32.2';
+const TOOL_VERSION = 'v1.33.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
