@@ -36,6 +36,10 @@
     const window = { _scopeC: ctx.scopeC || null };
     const CLASS_LABEL = { SUB: 'Subcontract', MAT: 'GC materials', LAB: 'GC/supervision labor', BUR: 'Labor burden', EQU: 'Equipment', OTH: 'Other', REQ: 'Other' };
     const num = s => parseMoney(s).value;
+    const DISTINCT_CLASSES = ['water_wastewater', 'education'];
+
+    const DRIFT_LIMIT_PCT = 10;
+    const PCLASS_LABEL = { water_wastewater: 'water / wastewater', education: 'education', building: 'building' };
 function segBenchmarks(inp) {
   const ct = inp.ct, wt = inp.wt, excludeName = inp.name;
   let excluded = 0;
