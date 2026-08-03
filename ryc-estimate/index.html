@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.2">
-<script src="/ryc-shell/shell.js?v1.25.2"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.3">
+<script src="/ryc-shell/shell.js?v1.25.3"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -651,21 +651,43 @@ async function createPursuitFromDocs() {
    prompt ran. Sampling per document rather than per pile also fixes the real failure: taking the
    first N of everything meant a plan set dropped after a 41-page bid packet was never looked at. */
 async function readDocuments() {
-  const PER_DOC = 3, MAX_PAGES = 9;
+  // 16 = the image ceiling the /api/claude guard enforces; asking for more is a guaranteed 413.
+  const PER_DOC = 3, MAX_PAGES = 16;
   const groups = new Map();
   uploadedFiles.forEach(f => {
     const k = String(f.name || 'document').replace(/\s*\(p\d+\)\s*$/, '');
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(f);
   });
-  const sample = [], spans = [];
-  for (const [name, pages] of groups) {
-    const take = pages.slice(0, PER_DOC).filter(() => sample.length < MAX_PAGES);
-    take.forEach(pg => sample.push(pg));
-    spans.push(pages.length > take.length
-      ? `${name} (pages 1–${take.length} of ${pages.length})`
-      : `${name} (${pages.length} page${pages.length === 1 ? '' : 's'})`);
+  /* ROUND-ROBIN across documents, not the first N documents. A drawing set arrives as one
+     single-page PDF per sheet, so "3 pages from each until the ceiling" spent the whole budget on
+     the first three sheets — and the sheet order is whatever the file list gave us, which put two
+     interior detail sheets ahead of the cover. Taking page 1 of every document first guarantees
+     the cover sheet and the front-end spec are seen whatever order they were dropped in. */
+  /* Title sheets first. A drawing set's cover carries the project name, owner, architect and area;
+     an interior detail sheet carries none of it. File order is whatever the OS handed us — on a
+     real 17-sheet set that put A701 and A702 ahead of COVER and left A000 outside the window
+     entirely. This only reorders WHICH pages are read; a wrong guess costs nothing. */
+  const TITLEISH = /(cover|title|index|sheet\s*list|^|[_-])(g0|t0|a000|c000|000000)/i;
+  const names = [...groups.keys()].sort((a, b) => {
+    const rank = n => TITLEISH.test(n.replace(/^.*?[\\/]/, '')) ? 0 : 1;
+    return rank(a) - rank(b);
+  });
+  const sample = [], seen = new Map();
+  for (let round = 0; round < PER_DOC && sample.length < MAX_PAGES; round++) {
+    for (const name of names) {
+      if (sample.length >= MAX_PAGES) break;
+      const pg = groups.get(name)[round];
+      if (!pg) continue;
+      sample.push(pg);
+      seen.set(name, (seen.get(name) || 0) + 1);
+    }
   }
+  const spans = names.filter(n => seen.has(n)).map(name => {
+    const total = groups.get(name).length, used = seen.get(name);
+    return total > used ? `${name} (${used} of ${total} pages)` : `${name} (${total} page${total === 1 ? '' : 's'})`;
+  });
+  if (names.length > seen.size) spans.push(`+${names.length - seen.size} more not sampled`);
   setReadNote(`📋 Reading ${groups.size} document${groups.size === 1 ? '' : 's'}…`);
   const filled = [], failures = [];
   const setIf = (id, v, label) => { const el = document.getElementById(id); if (v && el && !el.value.trim()) { el.value = v; filled.push(label); } };
@@ -689,6 +711,11 @@ async function readDocuments() {
   // exist yet, and a bid date is a durable audited fact, not a form default.
   window._rfpMeta = {
     bid_due_date: (got && got.bid_due_date) || null,
+    bid_due_time: (got && got.bid_due_time) || null,
+    bid_delivery_location: (got && got.bid_delivery_location) || null,
+    prebid_meeting_at: (got && got.prebid_meeting_at) || null,
+    prebid_location: (got && got.prebid_location) || null,
+    prebid_mandatory: (got && got.prebid_mandatory != null) ? got.prebid_mandatory : null,
     bonding_required: (got && got.bonding_required != null) ? got.bonding_required : null,
     delivery_method: (got && got.delivery_method) || null,
   };
@@ -696,7 +723,11 @@ async function readDocuments() {
     got && got.documents_seen ? 'Read as: ' + got.documents_seen : null,
     got && got.owner ? 'Owner: ' + got.owner : null,
     got && got.architect ? 'Architect: ' + got.architect : null,
-    got && got.bid_due_date ? 'Bid due: ' + got.bid_due_date : null,
+    got && got.bid_due_date ? 'Bid due: ' + got.bid_due_date + (got.bid_due_time ? ' ' + got.bid_due_time : '') : null,
+    got && got.bid_delivery_location ? 'Bids to: ' + got.bid_delivery_location : null,
+    got && got.prebid_meeting_at ? 'Pre-bid: ' + got.prebid_meeting_at
+      + (got.prebid_location ? ' @ ' + got.prebid_location : '')
+      + (got.prebid_mandatory === true ? ' (mandatory)' : '') : null,
     got && got.bonding_required === true ? 'Bonding required' : null,
     got && got.delivery_method ? 'Delivery: ' + got.delivery_method : null,
   ].filter(Boolean).join(' · ');
@@ -751,7 +782,7 @@ async function readPass(pages, prompt) {
    so the reader is told the set is mixed and asked to say what it decided it was looking at —
    which also makes a wrong read visible in the note rather than silent. */
 const DOC_PROMPT = `These are sample pages from one or more construction procurement documents for a SINGLE project. The set is MIXED and unlabelled — it may include any of: an RFP or invitation to bid, instructions to bidders, a front-end spec / project manual, technical specification sections, addenda, or a drawing set cover / title sheet. Work out what you are looking at, then extract the project facts. Reply with ONLY a JSON object, no prose:
-{"documents_seen": string|null (short description of what these pages are, e.g. "invitation to bid + drawing cover sheet"), "project_name": string|null, "location": string|null (city, ST), "owner": string|null (owner / awarding authority / school corporation), "architect": string|null (architect or engineer of record), "client_type": one of "school","municipal","commercial","industrial","private","mixed_use" or null (infer from the owner: school corp=school, city/town/county/utility=municipal), "work_type": one of "new_construction","renovation","addition","repair" or null, "size_sf": number|null (building area, only if stated), "bid_due_date": string|null (YYYY-MM-DD, the bid/proposal due date if stated), "bonding_required": true|false|null (is a bid or performance bond required), "delivery_method": string|null (e.g. design-bid-build, CM at risk, design-build), "scope_summary": string|null (one sentence)}
+{"documents_seen": string|null (short description of what these pages are, e.g. "invitation to bid + drawing cover sheet"), "project_name": string|null, "location": string|null (city, ST), "owner": string|null (owner / awarding authority / school corporation), "architect": string|null (architect or engineer of record), "client_type": one of "school","municipal","commercial","industrial","private","mixed_use" or null (infer from the owner: school corp=school, city/town/county/utility=municipal), "work_type": one of "new_construction","renovation","addition","repair" or null, "size_sf": number|null (building area, only if stated), "bid_due_date": string|null (YYYY-MM-DD, the bid/proposal due date if stated), "bid_due_time": string|null (local time bids are due, e.g. "1:00 PM"), "bid_delivery_location": string|null (where bids are delivered / opened), "prebid_meeting_at": string|null (YYYY-MM-DD of a pre-bid meeting or walkthrough, if stated), "prebid_location": string|null (where the pre-bid meeting is held), "prebid_mandatory": true|false|null, "bonding_required": true|false|null (is a bid or performance bond required), "delivery_method": string|null (e.g. design-bid-build, CM at risk, design-build), "scope_summary": string|null (one sentence)}
 Use null for anything not actually stated on these pages — do not guess names, dates or areas. If pages disagree, prefer the drawing title block or the bidding documents' own title page.`;
 
 // user touching the selects wins over any later autofill
@@ -3071,7 +3102,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.25.2';
+const TOOL_VERSION = 'v1.25.3';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
