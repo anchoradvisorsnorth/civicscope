@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.4">
-<script src="/ryc-shell/shell.js?v1.25.4"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.5">
+<script src="/ryc-shell/shell.js?v1.25.5"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -697,9 +697,15 @@ async function readDocuments() {
   setReadNote(`📋 Reading ${groups.size} document${groups.size === 1 ? '' : 's'}…`);
   const filled = [], failures = [];
   const setIf = (id, v, label) => { const el = document.getElementById(id); if (v && el && !el.value.trim()) { el.value = v; filled.push(label); } };
+  /* Once a read has set a classification the user has now SEEN in the summary, a later read must
+     not silently flip it. Reading twice is normal — drop the summary sheet, then add the drawings
+     — and the second pass sees different pages, so an unguarded re-read could quietly change
+     school→municipal between the review screen and the estimate. */
   const applySel = (id, v, touchedFlag, label) => {
     const el = document.getElementById(id);
-    if (v && el && [...el.options].some(o => o.value === v) && !window[touchedFlag]) { el.value = v; filled.push(label); }
+    if (v && el && [...el.options].some(o => o.value === v) && !window[touchedFlag]) {
+      el.value = v; filled.push(label); window[touchedFlag] = true;
+    }
   };
   const res = await readPass(sample, DOC_PROMPT);
   if (!res.ok) failures.push(res.error);
@@ -3108,7 +3114,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.25.4';
+const TOOL_VERSION = 'v1.25.5';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
