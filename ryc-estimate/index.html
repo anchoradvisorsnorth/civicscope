@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.44.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.44.0">
-<script src="/ryc-shell/shell.js?v1.44.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.45.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.45.0">
+<script src="/ryc-shell/shell.js?v1.45.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -2249,6 +2249,13 @@ function isBcRef(o) {
   return !!o.id && src !== 'dodge' && src !== 'indianabids';
 }
 function bcState() { return isBcRef(window._bcLoaded) ? 'loaded' : 'none'; }
+/* Only a genuine BuildingConnected reference may be held as BC linkage. Anything else (today: a
+   Dodge project id and a construction.com url, written into the same columns by the adopt path)
+   is a SOURCE reference and belongs nowhere near the BC card. */
+function setBcLoaded(url, id, source) {
+  const ref = (url || id) ? { url: url || null, id: id || null, source: source } : null;
+  window._bcLoaded = isBcRef(ref) ? { url: ref.url, id: ref.id } : null;
+}
 function quoteState() { const m = (window._lastDivisions || []).length; const n = Object.keys(quotes || {}).filter(k => /^\d+$/.test(k)).length; return { n, m }; }
 
 function ckPill(s) { const L = { na: 'N/A', needed: 'Needed', requested: 'Requested', received: 'Received' }; return `<span class="ck-pill ck-${s || 'na'}">${L[s || 'na']}</span>`; }
@@ -2722,7 +2729,7 @@ function openBlankPursuit(pid) {
   window._pursuitVersion = Number.isInteger(p.version) ? p.version : null;
   window._workflow = (p.workflow && p.workflow.stage) ? p.workflow : defaultWF();
   // An adopted opportunity already EXISTS in BC — the loader must offer "open", never a duplicate create.
-  window._bcLoaded = (p.bc_url || p.bc_project_id) ? { url: p.bc_url || null, id: p.bc_project_id || null } : null;
+  setBcLoaded(p.bc_url, p.bc_project_id, (p.workflow && p.workflow.source) || '');
   try {
     document.getElementById('f-name').value = p.name || '';
     document.getElementById('f-loc').value = p.location || '';
@@ -3111,7 +3118,7 @@ function renderResults(p, inp, bm) {
   window._lastInp = inp;
   window._lastP = p;
   document.getElementById('bcCard').style.display = 'block';
-  if (window._bcLoaded && (window._bcLoaded.url || window._bcLoaded.id)) bcLoadedCard(); else bcResetCard();
+  if (bcState() === 'loaded') bcLoadedCard(); else bcResetCard();
   // Canonical conceptual total = the package rollup (see reconcileTotals). The model's own
   // stated midpoint is not authoritative; it is reported only when it materially disagrees.
   const recon = reconcileTotals(p);
@@ -3841,7 +3848,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.44.0';
+const TOOL_VERSION = 'v1.45.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -4463,7 +4470,7 @@ async function openRun(id) {
     // BC linkage is a pursuit fact (whichever revision created the draft, the pursuit is loaded)
     const bcUrl = (pursuit && pursuit.bc_url) || run.bc_url || null;
     const bcId = (pursuit && pursuit.bc_project_id) || run.bc_project_id || null;
-    window._bcLoaded = (bcUrl || bcId) ? { url: bcUrl, id: bcId } : null;
+    setBcLoaded(bcUrl, bcId, ((pursuit && pursuit.workflow) || run.workflow || {}).source || '');
     // Pursuit workflow is authoritative; legacy un-migrated runs fall back to their own copy.
     window._workflow = (pursuit && pursuit.workflow) || run.workflow || defaultWF();
     if (!window._workflow.stage) window._workflow = Object.assign(defaultWF(), window._workflow);
