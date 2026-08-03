@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.31.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.31.0">
-<script src="/ryc-shell/shell.js?v1.31.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.32.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.32.0">
+<script src="/ryc-shell/shell.js?v1.32.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -3196,7 +3196,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.31.0';
+const TOOL_VERSION = 'v1.32.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -3381,10 +3381,15 @@ async function loadOpportunities(force) {
   if (_inboxCache && !force) return _inboxCache;
   // Ingest first so the review queue reflects the latest board pull; idempotent and cheap
   // (unchanged rows are no-ops), and a failure here must not blank the Inbox.
-  try {
-    await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pw: RYCAuth.gate(), action: 'sync_opportunities' }) });
-  } catch {}
+  /* BuildingConnected is DOWNSTREAM, not intake (Keith, 2026-08-03). A job appears in BC because
+     RYC put it out to bid — that is the OUTPUT of the go/no-go this screen exists to make. Pulling
+     it back in as an opportunity inverts the flow and asks the estimator to decide on work that
+     has already been decided. The BC rows already ingested are left alone and remain reachable
+     through the Source filter; nothing new is pulled. Dodge is the intake source. */
+  // No sync from the client. Dodge is refreshed by the VM cron (daily, heartbeat-monitored) and
+  // BuildingConnected is no longer an intake source, so opening the Inbox is a READ. It used to
+  // fire a BC sync on every load, which is both the wrong direction and work the page should not
+  // be doing while someone waits for it to paint.
   const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pw: RYCAuth.gate(), action: 'list_opportunities' }) });
   const d = await r.json();
@@ -3431,7 +3436,8 @@ const OPP_SOURCE = {
   manual:      { label: 'Added manually', short: 'Manual' },
 };
 const oppSrc = (k) => OPP_SOURCE[k] || { label: k || 'Unknown', short: k || '—' };
-let _inboxSource = 'all';
+// Default to the intake source. BC rows predate this decision and stay reachable via the filter.
+let _inboxSource = 'dodge';
 function setInboxSource(k) { _inboxSource = k; renderInbox(); }
 
 /* Optional columns, chosen by the estimator — not by whoever configured the Dodge saved view.
