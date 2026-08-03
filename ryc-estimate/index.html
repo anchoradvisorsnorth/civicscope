@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.32.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.32.0">
-<script src="/ryc-shell/shell.js?v1.32.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.32.1"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.32.1">
+<script src="/ryc-shell/shell.js?v1.32.1"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -782,6 +782,9 @@ async function lookupDodge() {
   const raw = (el.value || '').trim();
   if (!raw) { setDodgeNote('Paste the Dodge project link, or its report number.'); return; }
   btn.disabled = true; const label = btn.textContent; btn.textContent = 'Looking up…';
+  // Hide the manual path NOW, not on success: during the lookup the estimator was shown a drop
+  // zone and two buttons for the very thing being fetched, and had to guess which was right.
+  setManualDocsVisible(false);
   setDodgeNote('🔎 Asking Dodge…');
   try {
     const r = await fetch('/api/ryc-dodge-project', {
@@ -790,12 +793,14 @@ async function lookupDodge() {
     });
     const d = await r.json().catch(() => null);
     if (!r.ok || !d || !d.ok) {
+      setManualDocsVisible(true);
       setDodgeNote('⚠ ' + ((d && d.error) || `Dodge lookup failed (HTTP ${r.status})`)
         + ' You can still drop the documents below.');
       return;
     }
     applyDodge(d.project);
   } catch (e) {
+    setManualDocsVisible(true);   // the fetch path failed — dropping files is now the answer
     setDodgeNote('⚠ Could not reach the Dodge lookup. You can still drop the documents below.');
   } finally { btn.disabled = false; btn.textContent = label; }
 }
@@ -868,12 +873,43 @@ function setManualDocsVisible(on) {
     if (e) e.style.display = on ? '' : 'none';
   });
 }
+/* What the estimator needs to decide, on the screen where they decide it. A one-line note and a
+   button was a gate that asked for a click while showing almost nothing to justify it. */
+function intakeProjectCard(p) {
+  const row = (label, v) => v == null || v === '' ? '' :
+    `<div><span class="note">${esc(label)}</span><div style="font-weight:600">${esc(String(v))}</div></div>`;
+  const money = (n) => n ? '$' + Number(n).toLocaleString() : null;
+  const loc = [p.location && p.location.line1, p.location && p.location.city, p.location && p.location.state]
+    .filter(Boolean).join(', ');
+  const mine = (p.planholders || []).some(c => /yoder/i.test(c.firm || ''));
+  return `<div style="display:flex;flex-wrap:wrap;gap:18px;margin:2px 0 10px">
+      ${row('Dodge value', money(p.value))}
+      ${row('Bid due', p.bid_due_date ? p.bid_due_date + (p.bid_due_time ? ' ' + p.bid_due_time : '') : null)}
+      ${row('Type', [p.client_type, p.work_type].filter(Boolean).join(' / '))}
+      ${row('Size', p.size_sf ? Number(p.size_sf).toLocaleString() + ' sf' : null)}
+      ${row('Owner', p.owner && p.owner.firm)}
+      ${row('Architect', p.architect && p.architect.firm)}
+      ${row('Bidders', (p.planholders || []).length ? (p.planholders.length + (mine ? ' · RYC is one' : '')) : null)}
+    </div>
+    ${loc ? `<div class="note" style="margin-bottom:8px">${esc(loc)}</div>` : ''}`;
+}
 function showIntake(p) {
   const box = document.getElementById('intakeBox'); if (!box || !p) return;
   _intakeId = p.dodge_id;
   box.style.display = 'block';
   setManualDocsVisible(false);
-  intakeMsg(`This project's documents are on Dodge. The server can fetch them, file them into a SharePoint job folder, and run the takeoff — no downloading or dragging.`);
+  /* Arriving from Adopt means the go/no-go has ALREADY been made — that is what adopting is.
+     Stopping to ask whether they want the documents adds a click to a decision taken one screen
+     earlier. Fetch straight away; the manual escape stays available if the fetch fails. */
+  if (window._cameFromAdopt) {
+    window._cameFromAdopt = false;
+    intakeMsg(intakeProjectCard(p) + `Adopted from Opportunities — fetching the documents now.`);
+    intakeActions('');
+    intakePrepare();
+    return;
+  }
+  intakeMsg(intakeProjectCard(p)
+    + `Documents are on Dodge. The server can fetch them, file them into a SharePoint job folder on the RYC template, and run the takeoff — no downloading or dragging.`);
   intakeActions(`<button type="button" class="btn-sm" onclick="intakePrepare()">Fetch documents from Dodge</button>`
     + `<button type="button" class="tablink" onclick="setManualDocsVisible(true)">or drop files myself</button>`);
 }
@@ -3196,7 +3232,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.32.0';
+const TOOL_VERSION = 'v1.32.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -3585,6 +3621,7 @@ function applyAdoptedSource() {
   const src = window._adoptedSource;
   if (!src) return;
   window._adoptedSource = null;
+  window._cameFromAdopt = true;   // the go/no-go happened on the Opportunities screen
   const el = document.getElementById('dodgeUrl');
   if (!el) return;
   el.value = src;
