@@ -237,19 +237,30 @@ function parseResponse(raw) {
   };
 }
 
+/* The package rollup governs the number — but only once it is close enough to the model's own
+   stated midpoint to be a REFINEMENT of it rather than a different answer.
+   Beyond the tolerance the old behaviour multiplied low/high by divTot/stated, which produced a
+   screen that looked perfectly internally consistent around a figure nothing had validated. Two
+   runs over the SAME documents came back $2.61M and $536K while the model's stated range held at
+   ~$1.0–1.3M both times: the instability was entirely in the division list, and rescaling dressed
+   it up as a coherent estimate. Past the limit we now keep the stated figures as the headline,
+   carry the rollup alongside as an unreconciled fact, and let the gate say so. */
 function reconcileTotals(p) {
   const divTot = (p.divisions || []).reduce((s, d) => s + (d.amount || 0), 0);
   const stated = num(p.mid), lo = num(p.low), hi = num(p.high);
-  const flat = { total: stated, low: lo, high: hi, stated, drift: 0, driftPct: 0, rescaled: false };
-  if (!divTot || !stated) return divTot ? Object.assign({}, flat, { total: divTot }) : flat;
-  const k = divTot / stated, drift = divTot - stated;
+  const flat = { total: stated, low: lo, high: hi, stated, rollup: divTot || null, drift: 0, driftPct: 0, rescaled: false, unreconciled: false };
+  if (!divTot || !stated) return divTot ? Object.assign({}, flat, { total: divTot, rollup: divTot }) : flat;
+  const k = divTot / stated, drift = divTot - stated, driftPct = drift / stated * 100;
+  if (Math.abs(driftPct) > DRIFT_LIMIT_PCT) {
+    return { total: stated, low: lo, high: hi, stated, rollup: divTot, drift, driftPct, rescaled: false, unreconciled: true };
+  }
   return {
     total: divTot,
     low: lo != null ? Math.round(lo * k) : null,
     high: hi != null ? Math.round(hi * k) : null,
-    stated, drift, driftPct: drift / stated * 100,
+    stated, rollup: divTot, drift, driftPct,
     // Only call it a rescale when it would actually move a displayed figure.
-    rescaled: Math.abs(k - 1) > 0.005,
+    rescaled: Math.abs(k - 1) > 0.005, unreconciled: false,
   };
 }
 

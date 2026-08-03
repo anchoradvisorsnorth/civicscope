@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.36.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.36.0">
-<script src="/ryc-shell/shell.js?v1.36.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.37.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.37.0">
+<script src="/ryc-shell/shell.js?v1.37.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -131,12 +131,13 @@
   /* Source badge and its "open ↗" link were two separate targets saying one thing. One chip. */
   .src-chip { text-decoration:none; cursor:pointer; }
   .src-chip:hover { filter:brightness(.96); text-decoration:underline; }
-  /* "Pass…" rendered as a bare select and read as a text field — nothing said it was an action.
-     Styled as the destructive twin of Adopt, so the pair reads as the two available decisions. */
-  .pass-select { margin-left:6px; padding:5px 9px; font-size:12px; font-weight:600; font-family:inherit;
-    color:#b91c1c; background:#fff; border:1px solid #fecaca; border-radius:7px; cursor:pointer; }
-  .pass-select:hover { background:#fef2f2; border-color:#fca5a5; }
-  .pass-select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  /* "Pass…" rendered as a bare select and read as a text field — nothing said it was an action,
+     and the native popup ran off the right edge of the table. It is a button now, the destructive
+     twin of Adopt, and the reason list replaces it inline. */
+  /* .btn-sm is declared later in this sheet, so this needs both classes to win on specificity
+     rather than relying on source order. */
+  .btn-sm.pass-btn { margin-left:6px; color:#b91c1c; background:#fff; border:1px solid #fecaca; }
+  .btn-sm.pass-btn:hover { background:#fef2f2; border-color:#fca5a5; }
   /* Takeoff progress, shown where the estimator now is: on the pursuit. */
   .takeoff-bar { display:flex; align-items:center; gap:8px; margin:10px 0 0; padding:9px 12px;
     background:#eff6ff; border:1px solid #bfdbfe; border-left:3px solid #3b82f6; border-radius:6px;
@@ -377,14 +378,24 @@
   <div id="resultsPanel" style="display:none">
     <div id="pursuitHeader"></div>
     <div id="areaTabs" class="area-tabs"></div>
-    <div class="card" data-area="overview">
+    <!-- A pursuit with no estimate yet is still a pursuit. It used to open inside the NEW-pursuit
+         input chrome — a Dodge box and a drop zone under a heading with the job's name — which
+         reads as being dumped back on the create screen. It opens on its own page now, and
+         generating the estimate is an action you take from it. -->
+    <div class="card" id="noEstimateCard" data-area="overview" style="display:none">
+      <h3 style="margin-top:0">No estimate yet</h3>
+      <div class="billing-sub" id="noEstimateWhy"></div>
+      <div id="noEstimateActions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"></div>
+    </div>
+
+    <div class="card" id="estimateCard" data-area="overview">
       <div id="resMeta" class="note" style="margin-bottom:8px"></div>
       <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:13px;color:#9a3412;margin-bottom:10px">
         <strong>Conceptual bid-assembly draft — not a bid.</strong> Every package on the <button type="button" class="tablink" onclick="setArea('quotes')">Bid Packages</button> tab is a subcontract placeholder to confirm with a live quote. Enter quotes there as they arrive to assemble the real number; the conceptual range is an order-of-magnitude read only.
       </div>
       <div class="hero" style="align-items:center">
         <div><div style="font-size:20px;font-weight:700" id="costRange">—</div><div class="mid">conceptual range (low–high)</div></div>
-        <div><div style="font-size:20px;font-weight:700" id="costMid">—</div><div class="mid">midpoint = package rollup</div></div>
+        <div><div style="font-size:20px;font-weight:700" id="costMid">—</div><div class="mid" id="midBasis">midpoint = package rollup</div></div>
         <div id="confTag" class="tag"></div>
       </div>
       <div class="note" id="reconNote" style="display:none;margin-top:8px;padding:8px 10px;background:#fefce8;border:1px solid #fde68a;border-radius:6px;color:#854d0e"></div>
@@ -1318,7 +1329,8 @@ GAP_QUESTIONS:
 - [question]? (±$[impact])
 [3-6 questions ordered by dollar impact; if none, write: GAP_QUESTIONS: none]
 
-Rules: This is a CONCEPTUAL bid-assembly draft, NOT a final bid — every division cost is a subcontract placeholder to be confirmed with a live sub quote (RYC self-performs nothing). Current northern-Indiana pricing. Design-Bid-Build. Include GC overhead, general conditions, permitting, design/engineering allowance (3-5%). Exclude land. No proprietary database names (RSMeans, Gordian).`;
+Rules: This is a CONCEPTUAL bid-assembly draft, NOT a final bid — every division cost is a subcontract placeholder to be confirmed with a live sub quote (RYC self-performs nothing). Current northern-Indiana pricing. Design-Bid-Build. Include GC overhead, general conditions, permitting, design/engineering allowance (3-5%). Exclude land. No proprietary database names (RSMeans, Gordian).
+ARITHMETIC: the DIVISIONS amounts must add up to COST_MIDPOINT within 5%. Add them before you answer. If they do not reconcile, adjust the divisions — not the midpoint — until they do. A division list that sums to a different number than your own midpoint is the single most common failure of this output and makes the estimate unusable.`;
 
 function buildPrompt(...a) { return _core().buildPrompt(...a); }
 function consolidatePrompt(...a) { return _core().consolidatePrompt(...a); }
@@ -1996,6 +2008,8 @@ const PURSUIT_AREAS = [
 let _area = 'overview';
 function setArea(k, silent) {
   if (!PURSUIT_AREAS.some(a => a.key === k)) k = 'overview';
+  // A deep link to /scope on a pursuit with no estimate lands on Overview rather than an empty tab.
+  if (window._noEstimate && !NO_ESTIMATE_AREAS.includes(k)) k = 'overview';
   _area = k;
   // The tab bar lives INSIDE #resultsPanel and its buttons carry data-area too, so this sweep
   // was hiding four of the five tabs on every call — the navigation was hiding itself, and the
@@ -2092,11 +2106,16 @@ function renderPursuitHeader() {
     RYCShell.setItemLabel('assist', n ? (n.length > 26 ? n.slice(0, 25).trimEnd() + '…' : n) : 'Untitled pursuit');
   }
 }
+// Scope & Estimate, Bid Packages and BuildingConnected are all readings of an estimate. With no
+// estimate they are three empty tabs that look like the page failed to load.
+const NO_ESTIMATE_AREAS = ['overview', 'history'];
+const areasNow = () => window._noEstimate
+  ? PURSUIT_AREAS.filter(a => NO_ESTIMATE_AREAS.includes(a.key)) : PURSUIT_AREAS;
 function renderAreaTabs() {
   const el = document.getElementById('areaTabs'); if (!el) return;
   const q = quoteState();
   const counts = { quotes: q.m ? `${q.n}/${q.m}` : '', packages: bcState() === 'loaded' ? '✓' : '' };
-  el.innerHTML = PURSUIT_AREAS.map(a =>
+  el.innerHTML = areasNow().map(a =>
     `<button type="button" data-area="${a.key}" class="${a.key === _area ? 'on' : ''}" onclick="setArea('${a.key}')">`
     + `${esc(a.label)}${counts[a.key] ? `<span class="tab-n">${counts[a.key]}</span>` : ''}</button>`).join('');
 }
@@ -2386,32 +2405,96 @@ function openBlankPursuit(pid) {
     if (p.client_type) document.getElementById('f-ct').value = p.client_type;
     if (p.work_type) document.getElementById('f-wt').value = p.work_type;
   } catch {}
+  /* It is a pursuit, so it opens on the PURSUIT page — header, stage, bid date, documents,
+     readiness — with the estimate as the thing that is missing rather than the screen it lands
+     on. _lastInp is what the header and the rail read for a name; there is no run to supply it. */
+  window._noEstimate = true;
+  window._lastInp = { name: p.name || '', loc: p.location || '', ct: p.client_type || '', wt: p.work_type || '' };
+  window._lastP = null;
   setEstView('assist');
-  /* This is an EXISTING pursuit that has no estimate yet — not a new one. Reusing the input
-     screen unchanged meant "Open pursuit" landed on something headed "New pursuit" with an empty
-     Dodge box, which reads as being dumped on the wrong page. Say whose pursuit it is, and if it
-     came from Dodge carry the link straight back in so the documents are one click away. */
-  const t = document.getElementById('inputTitle'), l = document.getElementById('inputLede');
-  if (t) t.textContent = p.name || 'Pursuit';
-  if (l) l.textContent = 'This pursuit exists but has no estimate yet. Fetch its documents or drop them in, then generate.';
-  const srcId = (p.workflow && p.workflow.docs && p.workflow.docs.source_id) || null;
-  if (srcId) {
-    const el = document.getElementById('dodgeUrl');
-    if (el && !el.value) { el.value = String(srcId); window._cameFromAdopt = true; lookupDodge(); }
-  }
   } finally { _routing = wasRouting; }
   // one deliberate URL write, now that the pursuit state is coherent
   const u = DESK_BASE + '/pursuits/' + pid;
   if (location.pathname !== u) navPush(u);      // stamped — see navPush (Codex remediation #3)
-  // An adopted pursuit is a real pursuit: show its card so the bid due date, pre-bid meeting
-  // and readiness are workable before the first estimate exists.
+  showPursuitWithoutEstimate(p);
+}
+
+/* Which of the two Overview cards is the real one. setArea() remembers a card's OWN hidden state
+   in dataset.selfHidden so an area switch can restore it, so flipping these two has to update
+   that memory as well — otherwise coming back to Overview restores whichever card was hidden when
+   the marker was first written. */
+function setOverviewMode(hasEstimate) {
+  const set = (id, show) => {
+    const el = document.getElementById(id); if (!el) return;
+    el.style.display = show ? '' : 'none';
+    el.dataset.selfHidden = show ? '' : '1';
+    delete el.dataset.areaHidden;
+  };
+  set('estimateCard', hasEstimate);
+  set('noEstimateCard', !hasEstimate);
+}
+
+/* The pursuit page in its pre-estimate state. Everything that already exists about the job is
+   workable (bid date, pre-bid meeting, bonding, the SharePoint folder); the areas that only
+   exist once an estimate does are not offered as empty tabs. */
+function showPursuitWithoutEstimate(p) {
+  const lp = document.getElementById('loadingPanel');
+  if (lp) lp.style.display = 'none';      // clears the adopt-in-flight spinner
+  document.getElementById('inputPanel').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'block';
+  setOverviewMode(false);
+  const wf = curWF();
+  const srcId = (wf.docs && wf.docs.source_id) || (p && p.bc_project_id) || null;
+  const hasDocs = !!(wf.docs && wf.docs.folder);
+  const why = document.getElementById('noEstimateWhy');
+  if (why) {
+    why.textContent = hasDocs
+      ? 'The job folder is built and the documents are filed. Run the takeoff when you want a conceptual number — everything else on this page works without one.'
+      : 'This pursuit is tracked but nothing has been priced yet. Add the documents and generate, or leave it here and work the bid date, the pre-bid meeting and the bonding in the meantime.';
+  }
+  const acts = document.getElementById('noEstimateActions');
+  if (acts) {
+    acts.innerHTML = `<button class="btn" onclick="startEstimateForPursuit()">Generate estimate</button>`
+      + (hasDocs ? `<a class="btn ghost" href="${esc(wf.docs.folder)}" target="_blank" rel="noopener" style="text-decoration:none">Open the job folder ↗</a>` : '')
+      + (srcId && !hasDocs ? `<button class="btn ghost" onclick="startEstimateForPursuit()">Fetch the documents from Dodge</button>` : '');
+  }
+  renderPursuitHeader();
+  renderAreaTabs();
   renderPursuit();
+  setArea(_area, true);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* "Generate estimate" from a pursuit that has none: the input flow, carrying the pursuit's
+   identity, so the first run lands as revision #1 of THIS pursuit rather than a new one. */
+function startEstimateForPursuit() {
+  const pid = window._pursuitId;
+  const p = ((historyCache && historyCache.pursuits) || []).find(x => x.id === pid) || {};
+  const wf = curWF();
+  document.getElementById('resultsPanel').style.display = 'none';
+  document.getElementById('inputPanel').style.display = 'block';
+  showStep('docs');
+  try {
+    document.getElementById('f-name').value = p.name || (window._lastInp && window._lastInp.name) || '';
+    document.getElementById('f-loc').value = p.location || '';
+    if (p.client_type) document.getElementById('f-ct').value = p.client_type;
+    if (p.work_type) document.getElementById('f-wt').value = p.work_type;
+  } catch {}
+  const t = document.getElementById('inputTitle'), l = document.getElementById('inputLede');
+  if (t) t.textContent = p.name || 'Pursuit';
+  if (l) l.textContent = 'Give it something to read — fetch the documents from Dodge or drop them in — then generate. This becomes revision 1 of this pursuit.';
+  const srcId = (wf.docs && wf.docs.source_id) || p.bc_project_id || adoptedSourceId();
+  if (srcId) {
+    const el = document.getElementById('dodgeUrl');
+    if (el && !el.value) { el.value = String(srcId); window._cameFromAdopt = true; lookupDodge(); }
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // Start a fresh pursuit from the desk: clear prior pursuit state so nothing bleeds across.
 function newPursuit() {
   window._runId = null; window._pursuitId = null; window._pursuitVersion = null; window._workflow = defaultWF(); window._bcLoaded = null;
-  window._manualMode = false;
+  window._manualMode = false; window._noEstimate = false;
   window._recon = null; window._gate = null; window._lastDivisions = null; window._pkgConceptualTotal = null;
   // Document-derived caches MUST clear too. extractScopeConstraints() keys its cache on the
   // concatenated upload filenames, so two projects that both ship "Plans.pdf" / "Project
@@ -2659,7 +2742,7 @@ function renderResults(p, inp, bm) {
       const lineList = gate.blocking.map(i => `<li><code>${esc(i.line)}</code> <span class="note">— ${i.reason === 'no_amount' ? 'CSI row with no readable amount' : 'line carried a $ figure but could not be read as a package'}</span></li>`).join('');
       gb.innerHTML = `<strong>⚠ Conceptual total not verified — documents are blocked.</strong>`
         + (gate.blocking.length ? `<div style="margin-top:6px">The estimate parser could not price ${gate.blocking.length} line${gate.blocking.length === 1 ? '' : 's'}, so ${gate.blocking.length === 1 ? 'that package is' : 'those packages are'} missing from the rollup below:</div><ul style="margin:6px 0 0 18px">${lineList}</ul>` : '')
-        + (gate.drift ? `<div style="margin-top:6px">The model's stated midpoint (${recon.stated ? '$' + recon.stated.toLocaleString('en-US') : '—'}) differs from its own package rollup by ${Math.round(recon.driftPct)}% — larger than the ${DRIFT_LIMIT_PCT}% tolerance, which usually means a package is missing or double-counted.</div>` : '')
+        + (gate.drift ? `<div style="margin-top:6px">The package rollup (${recon.rollup ? '$' + recon.rollup.toLocaleString('en-US') : '—'}) differs from this run's own stated midpoint (${recon.stated ? '$' + recon.stated.toLocaleString('en-US') : '—'}) by ${Math.round(recon.driftPct)}% — larger than the ${DRIFT_LIMIT_PCT}% tolerance, which usually means a package is missing or double-counted. The stated figures are displayed; the rollup is not treated as the number.</div>` : '')
         + `<div style="margin-top:6px">Re-run the estimate, or treat the rollup as incomplete. Bond request, builders-risk worksheet and the BuildingConnected draft will not generate from an unverified number.</div>`;
       gb.style.display = 'block';
     } else if (gate.ranges.length) {
@@ -2670,12 +2753,16 @@ function renderResults(p, inp, bm) {
   document.getElementById('costMid').textContent = recon.total != null ? '$' + recon.total.toLocaleString('en-US') : '—';
   document.getElementById('costRange').textContent = (recon.low != null ? '$' + recon.low.toLocaleString('en-US') : '—')
     + ' – ' + (recon.high != null ? '$' + recon.high.toLocaleString('en-US') : '—');
+  const mb = document.getElementById('midBasis');
+  if (mb) mb.textContent = recon.unreconciled ? 'midpoint as stated — packages do not reconcile' : 'midpoint = package rollup';
   const rn = document.getElementById('reconNote');
   if (rn) {
-    rn.innerHTML = recon.rescaled
+    rn.innerHTML = recon.unreconciled
+      ? `The bid packages below sum to <strong>$${(recon.rollup || 0).toLocaleString('en-US')}</strong>, which is ${recon.drift >= 0 ? '+' : ''}${Math.round(recon.driftPct)}% away from the $${recon.stated.toLocaleString('en-US')} this same run stated as its midpoint. Past ${DRIFT_LIMIT_PCT}% the two are not the same estimate, so <strong>the stated figures are shown</strong> and the package rollup is carried as-is rather than rescaling the range around it. Price the packages and the real number will come from the quotes.`
+      : recon.rescaled
       ? `Midpoint is the <strong>sum of the bid packages</strong> ($${recon.total.toLocaleString('en-US')}). The model separately stated $${recon.stated.toLocaleString('en-US')} — a ${recon.drift >= 0 ? '+' : ''}${Math.round(recon.driftPct)}% difference it did not reconcile against its own division breakdown. The package rollup governs; the range is rescaled around it.`
       : '';
-    rn.style.display = recon.rescaled ? 'block' : 'none';
+    rn.style.display = (recon.rescaled || recon.unreconciled) ? 'block' : 'none';
   }
   const tag = document.getElementById('confTag');
   tag.textContent = (p.confidence || 'Medium') + ' Confidence';
@@ -2803,6 +2890,9 @@ function renderResults(p, inp, bm) {
 
   document.getElementById('inputPanel').style.display = 'none';
   document.getElementById('resultsPanel').style.display = 'block';
+  window._noEstimate = false;
+  setOverviewMode(true);
+  renderAreaTabs();
   /* LAST, not inside renderPursuit alone. renderPursuit runs part-way through this function,
      so cards shown AFTER it (the RFI builder, the grounding panel) escaped the area filter and
      rendered alongside Overview — caught on production against a real pursuit, where those
@@ -3368,7 +3458,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.36.0';
+const TOOL_VERSION = 'v1.37.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -3688,6 +3778,30 @@ function oppColPicker() {
 }
 const oppColsActive = () => OPP_COLUMNS.filter(c => _oppCols.includes(c.key));
 
+/* Adopt and Pass are the two decisions this screen exists to collect, so they are two buttons.
+   Pass was a native <select> whose first option was the label — you had to know that opening a
+   dropdown and choosing a reason WAS the act of passing, the control read as a text field, and
+   its popup ran off the right edge of the table. Now: a button, and the reason is a second,
+   visible step that replaces the buttons in place. No modal, nothing to scroll to. */
+function oppActions(o, i) {
+  if (o.review_state === 'adopted') {
+    return o.pursuit_id ? `<button class="btn-sm ghost" onclick="openPursuitById('${esc(o.pursuit_id)}')">Open pursuit →</button>` : '<span class="note">—</span>';
+  }
+  if (o.review_state === 'passed') return `<button class="btn-sm ghost" onclick="reopenOpp(${i})">↩ Reconsider</button>`;
+  return `<button class="btn-sm" onclick="adoptOppRow(${i})">＋ Adopt as pursuit</button>`
+    + `<button class="btn-sm pass-btn" onclick="showPassReasons(${i})" title="Pass on this job — you'll pick a reason">✕ Pass</button>`;
+}
+function showPassReasons(i) {
+  const cell = document.getElementById('oppAct' + i); if (!cell) return;
+  cell.innerHTML = `<span class="note" style="margin-right:6px">Pass because:</span>`
+    + DISPOSITION_REASONS.map(([v, l]) => `<button class="btn-sm pass-btn" onclick="passOpp(${i}, '${v}')">${esc(l)}</button>`).join('')
+    + `<button class="btn-sm ghost" onclick="cancelPass(${i})">Cancel</button>`;
+}
+function cancelPass(i) {
+  const cell = document.getElementById('oppAct' + i), o = (window._opps || [])[i];
+  if (cell && o) cell.innerHTML = oppActions(o, i);
+}
+
 async function renderInbox(force) {
   const el = document.getElementById('inbox-body');
   el.innerHTML = '<div class="billing-empty">Loading opportunities…</div>';
@@ -3728,16 +3842,7 @@ async function renderInbox(force) {
             : o.review_state === 'reviewing' ? '<span class="ck-pill ck-requested">reviewing</span>'
             : '<span class="ck-pill ck-needed">new</span>'}</td>
         ${optCells}
-        <td class="r" style="white-space:nowrap">
-          ${o.review_state === 'adopted'
-            ? (o.pursuit_id ? `<button class="btn-sm ghost" onclick="openPursuitById('${esc(o.pursuit_id)}')">Open pursuit →</button>` : '<span class="note">—</span>')
-            : o.review_state === 'passed'
-            ? `<button class="btn-sm ghost" onclick="reopenOpp(${i})">↩ Reconsider</button>`
-            : `<button class="btn-sm" onclick="adoptOppRow(${i})">＋ Adopt as pursuit</button>
-               <select class="pass-select" title="Pass on this — pick a reason" onchange="passOpp(${i}, this.value); this.selectedIndex=0">
-                 <option value="">✕ Pass…</option>${DISPOSITION_REASONS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
-               </select>`}
-        </td></tr>`;
+        <td class="r" style="white-space:nowrap"><div id="oppAct${i}">${oppActions(o, i)}</div></td></tr>`;
     }).join('');
 
     // the filter is part of the address - a shared link opens on the same list
@@ -3784,26 +3889,39 @@ function adoptOppRow(i) {
      had. The opportunity object is right here; hand it forward. */
   const carried = (o.source === 'dodge' && o.bc_url) ? o.bc_url
     : (o.payload && o.payload.dodge_id) ? String(o.payload.dodge_id) : null;
+  /* Move FIRST. Adopting posts the decision, re-reads the whole desk and then opens the pursuit —
+     several seconds during which the estimator sat on the Opportunities list with nothing saying
+     their click had registered, and the row they clicked still on screen. Go to the pursuit view
+     immediately and show it loading; the id arrives a moment later. */
+  showAdopting(o.name);
   oppAction(i, { action: 'adopt_opportunity' }, 'adopt').then(d => {
     if (d && d.pursuit_id) {
       historyCache = null;
       window._adoptedSource = carried;
       openPursuitAfterAdopt(d.pursuit_id);
+    } else {
+      // adopt failed (oppAction already said why) — put them back where they were
+      setEstView('inbox');
     }
   });
 }
-/* An adopted pursuit with no estimate opens on the input screen. If it came from Dodge, fill the
-   lookup field and run it — the estimator should arrive with the project loaded and the "Fetch
-   documents from Dodge" offer already on screen, not with an empty box. */
-function applyAdoptedSource() {
-  const src = window._adoptedSource;
-  if (!src) return;
-  window._adoptedSource = null;
-  window._cameFromAdopt = true;   // the go/no-go happened on the Opportunities screen
-  const el = document.getElementById('dodgeUrl');
-  if (!el) return;
-  el.value = src;
-  lookupDodge();
+/* The waiting state for an adoption in flight, on the destination page rather than the origin. */
+function showAdopting(name) {
+  _routing = true;
+  try { setEstView('assist'); } finally { _routing = false; }
+  document.getElementById('inputPanel').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'none';
+  const lp = document.getElementById('loadingPanel');
+  if (lp) { lp.style.display = 'block'; loadLabel('Opening ' + (name || 'the pursuit') + ' — creating it from the opportunity…'); }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+/* The Dodge reference the opportunity already carried, kept for the moment the estimator asks for
+   the estimate. It used to be pushed into the lookup box and RUN on arrival — that made sense when
+   adopting landed on the input screen. It lands on the pursuit page now, so firing a lookup into a
+   hidden panel would just be work nobody asked for; startEstimateForPursuit() picks this up. */
+function adoptedSourceId() {
+  const s = window._adoptedSource;
+  return s || null;
 }
 // Adopting should land you IN the pursuit — that is the next thing you do with it.
 async function openPursuitAfterAdopt(pid) {
@@ -3813,10 +3931,7 @@ async function openPursuitAfterAdopt(pid) {
     const d = await r.json();
     if (d && d.ok) historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
   } catch {}
-  openPursuitById(pid);
-  // The pursuit has no estimate yet, so it opens on the input screen — prefill and run the
-  // lookup there rather than making the estimator re-paste what the opportunity already knew.
-  setTimeout(applyAdoptedSource, 900);
+  await openPursuitById(pid);
 }
 function passOpp(i, reason) {
   if (!reason) return;
