@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.33.1"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.33.1">
-<script src="/ryc-shell/shell.js?v1.33.1"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.34.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.34.0">
+<script src="/ryc-shell/shell.js?v1.34.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -414,6 +414,10 @@
     <div class="card" data-area="history"><div id="historyArea"></div></div>
     <button class="btn btn-ghost" onclick="refine()">Edit inputs</button>
     <button class="btn btn-ghost" onclick="resetAll()">New project</button>
+    <!-- Walking away and creating-in-error are different things and get different verbs.
+         Neither touches SharePoint: the job folder and its documents stay where they are. -->
+    <button class="btn btn-ghost" onclick="surrenderPursuit()" title="Move to the surrendered list — SharePoint is untouched">Surrender</button>
+    <button class="btn btn-ghost" onclick="deletePursuit()" style="color:#b91c1c" title="Only for a pursuit created in error — SharePoint is untouched">Delete</button>
   </div>
   </div><!-- /view-assist -->
 
@@ -2334,6 +2338,18 @@ function openBlankPursuit(pid) {
     if (p.work_type) document.getElementById('f-wt').value = p.work_type;
   } catch {}
   setEstView('assist');
+  /* This is an EXISTING pursuit that has no estimate yet — not a new one. Reusing the input
+     screen unchanged meant "Open pursuit" landed on something headed "New pursuit" with an empty
+     Dodge box, which reads as being dumped on the wrong page. Say whose pursuit it is, and if it
+     came from Dodge carry the link straight back in so the documents are one click away. */
+  const t = document.getElementById('inputTitle'), l = document.getElementById('inputLede');
+  if (t) t.textContent = p.name || 'Pursuit';
+  if (l) l.textContent = 'This pursuit exists but has no estimate yet. Fetch its documents or drop them in, then generate.';
+  const srcId = (p.workflow && p.workflow.docs && p.workflow.docs.source_id) || null;
+  if (srcId) {
+    const el = document.getElementById('dodgeUrl');
+    if (el && !el.value) { el.value = String(srcId); window._cameFromAdopt = true; lookupDodge(); }
+  }
   } finally { _routing = wasRouting; }
   // one deliberate URL write, now that the pursuit state is coherent
   const u = DESK_BASE + '/pursuits/' + pid;
@@ -3291,7 +3307,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.33.1';
+const TOOL_VERSION = 'v1.34.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -3388,6 +3404,39 @@ function deskPursuits(opts) {
   });
   return includeArchived ? out : out.filter(p => !(p.pursuit && p.pursuit.archived_at));
 }
+/* Surrendered pursuits are ARCHIVED, not deleted — a job RYC decided to walk away from is part
+   of the record. Nothing in SharePoint is touched either way; the job folder and its documents
+   stay exactly where they are. */
+let _showArchived = false;
+function toggleArchived() {
+  _showArchived = !_showArchived;
+  const b = document.getElementById('archToggle');
+  if (b) b.textContent = _showArchived ? 'Hide surrendered' : 'Surrendered';
+  renderHistory(true);
+}
+async function surrenderPursuit() {
+  if (!window._pursuitId) return;
+  if (!confirm('Surrender this pursuit?\n\n'
+    + 'It moves to the surrendered list and leaves the active board.\n\n'
+    + 'Nothing in SharePoint is touched — the job folder and its documents stay exactly where they are.')) return;
+  const ok = await recordFact('set_archived', { archived: true, expected_version: _ver() });
+  if (ok) { historyCache = null; setEstView('history'); }
+}
+async function deletePursuit() {
+  if (!window._pursuitId) return;
+  if (!confirm('DELETE this pursuit?\n\n'
+    + 'Use this only for one created in error. It cannot be undone.\n\n'
+    + 'Nothing in SharePoint is touched — the job folder and its documents stay exactly where they are. '
+    + 'A pursuit with award history or saved revisions cannot be deleted; surrender it instead.')) return;
+  try {
+    const r = await fetch(LOG_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw: RYCAuth.gate(), action: 'delete_pursuit', pursuit_id: window._pursuitId }) });
+    const d = await r.json().catch(() => null);
+    if (!r.ok || !d || d.ok === false) throw new Error((d && d.error) || ('HTTP ' + r.status));
+    historyCache = null; window._pursuitId = null; setEstView('history');
+  } catch (e) { alert('Could not delete: ' + e.message); }
+}
+
 async function renderHistory(force) {
   if (_notFound) return paintNotFound();   // the address is bad — don't paint a working desk over it
   const el = document.getElementById('history-body');
@@ -3401,7 +3450,8 @@ async function renderHistory(force) {
       historyCache = { runs: d.runs || [], pursuits: d.pursuits || [] };
     }
     const runs = historyCache.runs;
-    const pursuits = deskPursuits();
+    const pursuits = deskPursuits({ includeArchived: _showArchived }).filter(p =>
+      _showArchived ? (p.pursuit && p.pursuit.archived_at) : true);
     if (!pursuits.length) {
       el.innerHTML = `<div class="billing-block"><h3 class="section-header">Estimating desk
         <span style="margin-left:auto"><button class="btn-sm" onclick="newPursuit()">＋ New pursuit</button></span></h3>
@@ -3418,22 +3468,23 @@ async function renderHistory(force) {
 
     const totalOpen = pursuits.filter(p => !['closed'].includes(p.bucket)).length;
     let html = '';
-    for (const bk of DESK_BUCKETS) {
-      const inBucket = pursuits.filter(p => p.bucket === bk.key);
-      if (!inBucket.length) continue;
-      html += `<tr><td colspan="8" style="padding:16px 0 4px"><span class="chip ${bk.chip}">${bk.label}</span> <span class="note">${inBucket.length} · ${bk.hint}</span></td></tr>`;
-      for (const p of inBucket) html += deskRow(p);
+    /* Grouped by STAGE (Keith, 2026-08-03), not by derived urgency buckets. Stage is the thing
+       an estimator moves a job through and the thing they think in; "Due now / In progress" was a
+       second vocabulary layered on top of it. Urgency still shows per row via the due date. */
+    for (const st of WF_STAGES) {
+      const inStage = pursuits.filter(p => (p.stage || 'takeoff') === st.key);
+      if (!inStage.length) continue;
+      const noEst = inStage.filter(p => !p.runs.length).length;
+      html += `<tr><td colspan="8" style="padding:16px 0 4px"><span class="chip ck-open">${esc(st.label)}</span> <span class="note">${inStage.length}${noEst ? ` · ${noEst} with no estimate yet` : ''}</span></td></tr>`;
+      for (const p of inStage) html += deskRow(p);
     }
 
     const attention = pursuits.filter(p => p.bucket === 'due').length;
     el.innerHTML = `<div class="billing-block"><h3 class="section-header">Pursuits <span class="cnt">${totalOpen} open pursuit${totalOpen === 1 ? '' : 's'}${attention ? ` · <strong style="color:#dc2626">${attention} need attention</strong>` : ''}</span>
       <span style="margin-left:auto;display:flex;gap:6px">
         <button class="btn-sm" onclick="newPursuit()">＋ New pursuit</button>
-        <button class="btn-sm ghost" onclick="setEstView('quickcheck')">Quick check</button>
-        <button class="btn-sm ghost" onclick="renderHistory(true)">⟳</button>
+        <button class="btn-sm ghost" onclick="toggleArchived()" id="archToggle">Surrendered</button>
       </span></h3>
-      <div class="billing-sub">What estimating needs to move today. Each project is one pursuit — repeat runs are its revisions. Click a row to open the pursuit and work it: advance stage, set the bid due date, generate bond / builders-risk submissions, draft RFIs, enter quotes.</div>
-      <div id="inboxSignal" style="margin:2px 0 10px"></div>
       <table class="ryc-rows"><thead><tr><th>Pursuit</th><th>Due</th><th>Stage</th><th>Quotes</th><th>Pre-bid</th><th class="r">Conceptual value</th><th>Conf.</th><th>Last activity</th></tr></thead><tbody>${html}</tbody></table></div>`;
 
     /* Rows are wired through the SHARED helper (program 1.1), not an inline onclick: they
