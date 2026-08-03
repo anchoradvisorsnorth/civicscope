@@ -36,6 +36,25 @@
     const window = { _scopeC: ctx.scopeC || null };
     const CLASS_LABEL = { SUB: 'Subcontract', MAT: 'GC materials', LAB: 'GC/supervision labor', BUR: 'Labor burden', EQU: 'Equipment', OTH: 'Other', REQ: 'Other' };
     const num = s => parseMoney(s).value;
+    const OUT_FORMAT = `Respond in EXACTLY this format:
+    COST_LOW: [number, no decimals]
+    COST_HIGH: [number, no decimals]
+    COST_MIDPOINT: [number, no decimals]
+    CONFIDENCE: [High / Medium / Low]
+    NARRATIVE: [2-3 sentences, estimator-to-estimator. What drives the range and the key risks, referencing RYC's historical pattern for this work.]
+    DIVISIONS:
+    - [2-digit CSI division #] [name]: $[amount] — [brief scope]
+    - [Use RYC's CSI divisions and START each line with the 2-digit number: 01 General Requirements, 02 Existing Conditions, 03 Concrete, 04 Masonry, 05 Metals, 06 Wood, 07 Thermal & Moisture, 08 Doors & Windows, 09 Finishes, 10 Specialties, 11 Equipment, 12 Furnishings, 13 Special Construction (PEMB), 21 Fire Suppression, 22 Plumbing, 23 Mechanical, 26 Electrical, 31 Earthwork, 32 Exterior Improvements, 33 Utilities. Biggest first. EVERY division is a SUBCONTRACT placeholder pending a real quote — RYC self-performs nothing.]
+    ASSUMPTIONS:
+    - [assumption]
+    - [assumption]
+    - [assumption]
+    GAP_QUESTIONS:
+    - [question]? (±$[impact])
+    - [question]? (±$[impact])
+    [3-6 questions ordered by dollar impact; if none, write: GAP_QUESTIONS: none]
+    
+    Rules: This is a CONCEPTUAL bid-assembly draft, NOT a final bid — every division cost is a subcontract placeholder to be confirmed with a live sub quote (RYC self-performs nothing). Current northern-Indiana pricing. Design-Bid-Build. Include GC overhead, general conditions, permitting, design/engineering allowance (3-5%). Exclude land. No proprietary database names (RSMeans, Gordian).`;
     const DISTINCT_CLASSES = ['water_wastewater', 'education'];
 
     const DRIFT_LIMIT_PCT = 10;
