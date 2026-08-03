@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.5">
-<script src="/ryc-shell/shell.js?v1.25.5"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.26.0">
+<script src="/ryc-shell/shell.js?v1.26.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -236,6 +236,18 @@
       <!-- ONE pile (Keith, 2026-08-02). Two zones asked the estimator to pre-sort an RFP from a
            bid packet from a spec book from a plan set, and getting it wrong changed which prompt
            ran. The reader works that out itself now. -->
+      <!-- Dodge lookup. One authenticated call returns what the Overview and Project Teams tabs
+           show — including the planholder list, which no downloaded document contains. -->
+      <div class="card">
+        <label>Dodge project <span class="opt">paste the Dodge link or report number — pulls the project, the bid date and who else is bidding</span></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="dodgeUrl" placeholder="https://www.construction.com/dcc/projects/202600298246/overview  —  or just 202600298246"
+                 style="flex:1 1 420px;min-width:0;padding:9px 11px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;font-family:inherit">
+          <button type="button" class="btn-sm" id="dodgeBtn" onclick="lookupDodge()">Look up</button>
+        </div>
+        <div class="hint" id="dodgeNote" style="display:none;margin-top:8px"></div>
+      </div>
+
       <div class="card">
         <label>Project documents <span class="opt">RFP, bid packet, specs, drawings — drop them all here; the reader works out what each one is</span></label>
         <div class="upload" id="uploadZone" onclick="document.getElementById('fileInput').click()">
@@ -762,6 +774,78 @@ async function readDocuments() {
       + ` or fill the fields below yourself.`);
   }
   window._autofillDone = true;
+}
+
+/* ===== Dodge lookup =================================================================
+   Fills the same fields the document reader fills, from Dodge's own record. It fills EMPTY
+   fields only, exactly like the reader — so whichever runs second cannot overwrite the first,
+   and neither can overwrite the estimator. */
+async function lookupDodge() {
+  const el = document.getElementById('dodgeUrl'), btn = document.getElementById('dodgeBtn');
+  const raw = (el.value || '').trim();
+  if (!raw) { setDodgeNote('Paste the Dodge project link, or its report number.'); return; }
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Looking up…';
+  setDodgeNote('🔎 Asking Dodge…');
+  try {
+    const r = await fetch('/api/ryc-dodge-project', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw: RYCAuth.gate(), url: raw }),
+    });
+    const d = await r.json().catch(() => null);
+    if (!r.ok || !d || !d.ok) {
+      setDodgeNote('⚠ ' + ((d && d.error) || `Dodge lookup failed (HTTP ${r.status})`)
+        + ' You can still drop the documents below.');
+      return;
+    }
+    applyDodge(d.project);
+  } catch (e) {
+    setDodgeNote('⚠ Could not reach the Dodge lookup. You can still drop the documents below.');
+  } finally { btn.disabled = false; btn.textContent = label; }
+}
+function setDodgeNote(t) {
+  const n = document.getElementById('dodgeNote');
+  if (n) { n.textContent = t; n.style.display = 'block'; }
+}
+function applyDodge(p) {
+  if (!p) return;
+  const filled = [];
+  const setIf = (id, v, label) => { const e = document.getElementById(id); if (v && e && !e.value.trim()) { e.value = v; filled.push(label); } };
+  const applySel = (id, v, flag, label) => {
+    const e = document.getElementById(id);
+    if (v && e && [...e.options].some(o => o.value === v) && !window[flag]) { e.value = v; filled.push(label); window[flag] = true; }
+  };
+  setIf('f-name', p.name, 'name');
+  const loc = [p.location && p.location.city, p.location && p.location.state].filter(Boolean).join(', ');
+  setIf('f-loc', loc, 'location');
+  setIf('f-sf', p.size_sf, 'SF');
+  setIf('f-scope', (p.scope_text || '').replace(/\s+/g, ' ').trim(), 'scope');
+  applySel('f-ct', p.client_type, '_ctTouched', 'client type');
+  applySel('f-wt', p.work_type, '_wtTouched', 'work type');
+  window._dodge = p;
+  window._planMeta = Object.assign({}, window._planMeta, {
+    owner: (p.owner && p.owner.firm) || (window._planMeta || {}).owner || null,
+    architect: (p.architect && p.architect.firm) || (window._planMeta || {}).architect || null,
+  });
+  window._rfpMeta = Object.assign({}, window._rfpMeta, {
+    bid_due_date: p.bid_due_date || (window._rfpMeta || {}).bid_due_date || null,
+    bid_due_time: p.bid_due_time || null,
+    bid_delivery_location: p.bid_submit_to || null,
+  });
+  // Two numbers in the description is the common shape (an addition plus a remodel) and the
+  // structured Dodge field reports only the smaller one — say so rather than let it pass.
+  const sfNote = (p.size_breakdown && p.size_breakdown.length > 1)
+    ? ` · SF ${p.size_sf.toLocaleString()} = ${p.size_breakdown.map(n => n.toLocaleString()).join(' + ')} — check this is the area you mean`
+    : '';
+  const bits = [
+    p.value ? 'Dodge value $' + Number(p.value).toLocaleString() : null,
+    p.stage || null,
+    p.bid_due_date ? 'Bid due ' + p.bid_due_date + (p.bid_due_time ? ' ' + p.bid_due_time : '') : null,
+    p.owner && p.owner.firm ? 'Owner: ' + p.owner.firm : null,
+    p.architect && p.architect.firm ? 'Architect: ' + p.architect.firm : null,
+    (p.addenda && p.addenda.length) ? p.addenda.length + ' addendum' + (p.addenda.length === 1 ? '' : 's') : null,
+    (p.planholders && p.planholders.length) ? p.planholders.length + ' planholders' : null,
+  ].filter(Boolean).join(' · ');
+  setDodgeNote(`✓ ${p.name || 'Project'} — ${bits}${sfNote}${filled.length ? ` · filled: ${filled.join(', ')}` : ' · nothing new to fill'}`);
 }
 
 /* The read summary has to be visible where the user LANDS. It lived only in the document step,
@@ -3114,7 +3198,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.25.5';
+const TOOL_VERSION = 'v1.26.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
