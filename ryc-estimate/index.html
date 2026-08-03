@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.34.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.34.0">
-<script src="/ryc-shell/shell.js?v1.34.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.34.1"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.34.1">
+<script src="/ryc-shell/shell.js?v1.34.1"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -2945,10 +2945,14 @@ function setEstView(v) {
   // The pursuit page is an entity, not a permanent destination: its rail entry appears only
   // when one is open (and stays visible so you can get back to it from another view).
   if (global_RYCShell()) {
-    /* Only when a pursuit actually EXISTS. Keying this on the view meant /desk/pursuits/new —
-       where nothing has been created yet — showed an "Untitled pursuit" under OPEN, which named
-       nothing and led nowhere. */
-    RYCShell.setItemVisible('assist', !!window._pursuitId);
+    /* Only when a pursuit actually EXISTS **and** we are looking at it. Keying this on the view
+       alone showed an "Untitled pursuit" on /desk/pursuits/new where nothing had been created;
+       keying it on the id alone left the last pursuit pinned under OPEN long after navigating to
+       Opportunities or Cost Intelligence, so the rail advertised something you had left.
+       OPEN means open right now. */
+    const openNamed = !!window._pursuitId && v === 'assist'
+      && !!((window._lastInp && window._lastInp.name) || (curWF() && curWF().name));
+    RYCShell.setItemVisible('assist', openNamed);
     // Name the entry after the pursuit that is open. "Pursuits" (the list) above "Pursuit"
     // (the open one) read as a duplicate and said nothing about which one you were in.
     const openName = (window._lastInp && window._lastInp.name) || '';
@@ -3307,7 +3311,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.34.0';
+const TOOL_VERSION = 'v1.34.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
