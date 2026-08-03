@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RYC Estimating Assist — Plans → Grounded Estimate</title>
+<title>RYC Desk</title>
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.37.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.37.0">
-<script src="/ryc-shell/shell.js?v1.37.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.38.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.38.0">
+<script src="/ryc-shell/shell.js?v1.38.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -115,7 +115,12 @@
   .pursuit-head { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 20px; margin-bottom:10px; }
   .pursuit-head h2 { margin:0; font-size:19px; }
   .pursuit-head .ph-sub { color:var(--muted); font-size:12.5px; margin-top:3px; }
-  .pursuit-head .ph-facts { display:flex; flex-wrap:wrap; gap:18px; margin-top:12px; }
+  .pursuit-head .ph-facts { display:flex; flex-wrap:wrap; gap:18px; margin-top:12px; align-items:flex-start; }
+  /* Known facts left, computed facts right — the spacer does the split and collapses on narrow. */
+  .pursuit-head .ph-spacer { flex:1 1 40px; min-width:0; }
+  .pursuit-head .ph-eyebrow { font-size:10.5px; text-transform:uppercase; letter-spacing:.7px;
+    color:var(--muted); font-weight:700; margin-bottom:2px; }
+  @media (max-width:760px) { .pursuit-head .ph-spacer { display:none; } }
   /* Where this job's documents live — the intake fills a SharePoint folder and nothing on the
      pursuit used to point at it. */
   /* The opportunities table carries optional columns now, so it can exceed the viewport. It
@@ -128,9 +133,13 @@
   .opp-scroll th:last-child, .opp-scroll td:last-child {
     position:sticky; right:0; background:#fff; z-index:2;
     box-shadow:-9px 0 9px -9px rgba(15,23,42,.22); }
-  /* Source badge and its "open ↗" link were two separate targets saying one thing. One chip. */
-  .src-chip { text-decoration:none; cursor:pointer; }
-  .src-chip:hover { filter:brightness(.96); text-decoration:underline; }
+  /* The Source column is gone — each section names its source — so the job name itself is the
+     link out to the source record. */
+  .opp-name { font-weight:700; color:var(--ink); text-decoration:none; }
+  .opp-name:hover { text-decoration:underline; }
+  .opp-sec-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:16px 0 8px; }
+  .opp-sec-head h4 { margin:0; font-size:14px; }
+  .opp-sec-head:first-of-type { margin-top:4px; }
   /* "Pass…" rendered as a bare select and read as a text field — nothing said it was an action,
      and the native popup ran off the right edge of the table. It is a button now, the destructive
      twin of Adopt, and the reason list replaces it inline. */
@@ -213,6 +222,8 @@
   .stage-step.done { background:#e0e7ff; border-color:#c7d2fe; color:#3730a3; }
   .stage-step.current { background:var(--accent); border-color:var(--accent); color:#fff; }
   .stage-step.lost.current { background:#dc2626; border-color:#dc2626; }
+  /* Reporting, not a control — it must not look clickable. */
+  .stage-step.stage-read { cursor:default; display:inline-block; }
   .ck-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
   .ck-row:last-child { border-bottom:none; }
   .ck-name { font-weight:600; font-size:13px; min-width:130px; }
@@ -231,6 +242,13 @@
   a.btn, a.btn-sm { display:inline-block; text-decoration:none; }
   .btn-sm.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
   .btn.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  /* Ordered steps, so the sequence reads as a sequence rather than a row of equal choices. */
+  .step-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; flex-wrap:wrap; }
+  .step-n { width:22px; height:22px; flex:0 0 22px; border-radius:50%; display:inline-flex;
+    align-items:center; justify-content:center; font-size:12px; font-weight:700;
+    background:#e5e7eb; color:var(--muted); }
+  .step-n.on { background:var(--accent); color:#fff; }
   .ck-date { padding:4px 7px; border:1px solid var(--line); border-radius:6px; font-size:12px; font-family:inherit; }
   .chip { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin:1px 2px; }
 </style>
@@ -240,7 +258,7 @@
 <div id="lock-screen">
   <div class="lock-box">
     <img src="/ryc-estimate/RYC_Shield_Orange.png" alt="RYC">
-    <h2>RYC Estimating Assist</h2>
+    <h2>RYC Desk</h2>
     <div class="subtitle">R. Yoder Construction</div>
     <input type="password" id="pw-input" placeholder="Password" autofocus>
     <button onclick="tryLogin()">Enter</button>
@@ -385,7 +403,7 @@
     <div class="card" id="noEstimateCard" data-area="overview" style="display:none">
       <h3 style="margin-top:0">No estimate yet</h3>
       <div class="billing-sub" id="noEstimateWhy"></div>
-      <div id="noEstimateActions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"></div>
+      <div id="noEstimateActions" style="margin-top:14px"></div>
     </div>
 
     <div class="card" id="estimateCard" data-area="overview">
@@ -1607,6 +1625,26 @@ const WF_STAGES = [
 function defaultWF() { return { stage: 'takeoff', checklist: {} }; }
 function curWF() { if (!window._workflow) window._workflow = defaultWF(); return window._workflow; }
 
+/* STAGE IS DERIVED, NOT CLICKED (Keith, 2026-08-03: "stage is confusing and appears to be manual —
+   a pursuit is in takeoff until it goes out to bid").
+   Every stage past takeoff already has a durable audited fact behind it: a linked Foundation job,
+   a recorded outcome, a recorded submission, a quote. A row of buttons that could set the same
+   states was a second, unaudited path to them — which is how a pursuit ends up reading "Won" with
+   no award event under it. The facts decide; the bar reports.
+   `out_to_bid` is the one exception: publishing happens inside BuildingConnected, so until the BC
+   read-back lands there is no event to derive it from and it stays an explicit mark. */
+function derivedStage(wf) {
+  wf = wf || {};
+  if (wf.award && wf.award.job_no) return { key: 'won', why: 'Foundation job linked' };
+  if (wf.outcome && wf.outcome.result) return { key: 'lost', why: 'outcome recorded' };
+  if (wf.submission && wf.submission.amount) return { key: 'submitted', why: 'bid recorded' };
+  const q = (typeof quoteState === 'function') ? quoteState() : { n: 0, m: 0 };
+  if (q.n > 0) return { key: 'pricing', why: `${q.n} quote${q.n === 1 ? '' : 's'} in` };
+  if (wf.stage === 'out_to_bid' || wf.stage === 'pricing') return { key: wf.stage, why: 'marked out to bid' };
+  return { key: 'takeoff', why: 'until packages go out' };
+}
+function stageWhy(wf) { return derivedStage(wf).why; }
+
 /* Two fields the Estimating Desk needs that the estimate row never carried: the BID DUE DATE
    (what actually orders an estimator's day) and QUOTE COVERAGE (packages priced of total).
    Both live inside the existing free-form `workflow` jsonb, so the desk needed no DDL. */
@@ -1968,7 +2006,21 @@ function setMeeting() {
 }
 
 // Derived checklist state (not stored): BC load + quote coverage
-function bcState() { return (window._bcLoaded && (window._bcLoaded.url || window._bcLoaded.id)) ? 'loaded' : 'none'; }
+/* `bc_project_id` / `bc_url` predate Dodge and are reused server-side as generic SOURCE fields:
+   adopting a Dodge opportunity writes the DODGE id and the DODGE url into them. Reading that back
+   as "BC: loaded ✓" told the estimator a BuildingConnected package existed on a pursuit that had
+   never touched BC, and offered to "open" what was actually a Dodge link. Only a genuine BC
+   reference counts. (The real fix is separating source identity from BC linkage in the schema —
+   that rides with the BC read-back build, not this one.) */
+function isBcRef(o) {
+  if (!o) return false;
+  const u = String(o.url || '');
+  if (u) return /buildingconnected\.com|autodesk\.com/i.test(u);
+  // No url to judge by: a bare id is only BC's if nothing says it came from somewhere else.
+  const src = (curWF() && curWF().source) || '';
+  return !!o.id && src !== 'dodge' && src !== 'indianabids';
+}
+function bcState() { return isBcRef(window._bcLoaded) ? 'loaded' : 'none'; }
 function quoteState() { const m = (window._lastDivisions || []).length; const n = Object.keys(quotes || {}).filter(k => /^\d+$/.test(k)).length; return { n, m }; }
 
 function ckPill(s) { const L = { na: 'N/A', needed: 'Needed', requested: 'Requested', received: 'Received' }; return `<span class="ck-pill ck-${s || 'na'}">${L[s || 'na']}</span>`; }
@@ -2080,7 +2132,7 @@ function renderPursuitHeader() {
   const el = document.getElementById('pursuitHeader'); if (!el) return;
   const wf = curWF(), inp = window._lastInp || {}, rec = curRecon();
   const dtd = daysToDue(wf);
-  const stage = (WF_STAGES.find(x => x.key === wf.stage) || {}).label || wf.stage || 'Takeoff';
+  const stage = (WF_STAGES.find(x => x.key === derivedStage(wf).key) || {}).label || 'Takeoff';
   const q = quoteState();
   const ready = [];
   if (wf.checklist && wf.checklist.bonding && wf.checklist.bonding.status && wf.checklist.bonding.status !== 'na') ready.push('Bond ' + wf.checklist.bonding.status);
@@ -2088,13 +2140,21 @@ function renderPursuitHeader() {
   if (q.m) ready.push('Quotes ' + q.n + '/' + q.m);
   if (wf.award && wf.award.job_no) ready.push('Awarded ' + wf.award.job_no);
   const fact = (l, v, s2) => `<div class="ph-fact"><div class="l">${l}</div><div class="v">${v}</div>${s2 ? `<div class="l" style="text-transform:none;letter-spacing:0">${s2}</div>` : ''}</div>`;
+  const srcLabel = wf.source === 'dodge' ? 'from Dodge' : wf.source === 'indianabids' ? 'from IndianaBids'
+    : wf.source === 'bc_bidboard' ? 'from BuildingConnected' : wf.source === 'manual' ? 'entered by hand' : '';
+  /* KNOWN facts on the left (what the job IS), COMPUTED on the right (what we've made of it).
+     Bid due was buried as a caption under Stage — it is the field the whole desk sorts by. */
+  const dueSub = dtd == null ? '' : (dtd < 0 ? `${Math.abs(dtd)}d overdue` : dtd === 0 ? 'today' : `${dtd}d out`);
   el.innerHTML = `<div class="pursuit-head">
+    <div class="ph-eyebrow">Pursuit${srcLabel ? ' · ' + esc(srcLabel) : ''}</div>
     <h2>${esc(inp.name || 'Untitled pursuit')}</h2>
     <div class="ph-sub">${esc([inp.loc, inp.ct && ciCT(inp.ct), inp.wt && ciWT(inp.wt)].filter(Boolean).join(' · ')) || '—'}</div>
     ${takeoffBanner()}
     ${docsBar(wf)}
     <div class="ph-facts">
-      ${fact('Stage', esc(stage), wf.due_date ? ('bid due ' + RYCFormat.date(wf.due_date) + (dtd != null ? (dtd < 0 ? ` · ${Math.abs(dtd)}d overdue` : dtd === 0 ? ' · today' : ` · ${dtd}d`) : '')) : 'no bid date set')}
+      ${fact('Stage', esc(stage), stageWhy(wf))}
+      ${fact('Bid due', wf.due_date ? esc(RYCFormat.date(wf.due_date)) : '—', wf.due_date ? dueSub : 'not set')}
+      <div class="ph-spacer"></div>
       ${fact('Working number', rec.total ? fmtCompact(rec.total) : '—', (window._lastP && window._lastP.confidence) ? esc(window._lastP.confidence) + ' confidence' : 'conceptual')}
       ${wf.submission && wf.submission.amount ? fact('Submitted', fmtCompact(wf.submission.amount), (wf.submission.at || '').slice(0, 10)) : ''}
       ${fact('Readiness', ready.length ? esc(ready.length + ' recorded') : '—', ready.join(' · ') || 'nothing recorded yet')}
@@ -2148,14 +2208,24 @@ function renderPursuit() {
   const el = document.getElementById('pursuitBody'); if (!el) return;
   document.getElementById('pursuitCard').style.display = 'block';
   const wf = curWF();
-  const curIdx = WF_STAGES.findIndex(s => s.key === wf.stage);
-  const spineIdx = ['won', 'lost'].includes(wf.stage) ? 3 : curIdx; // won/lost sit past 'submitted'
+  const ds = derivedStage(wf);
+  const curIdx = WF_STAGES.findIndex(s => s.key === ds.key);
+  const spineIdx = ['won', 'lost'].includes(ds.key) ? 3 : curIdx; // won/lost sit past 'submitted'
   const stageBar = WF_STAGES.map((s, i) => {
-    let cls = 'stage-step';
-    if (s.key === wf.stage) cls += ' current' + (s.key === 'lost' ? ' lost' : '');
+    let cls = 'stage-step stage-read';
+    if (s.key === ds.key) cls += ' current' + (s.key === 'lost' ? ' lost' : '');
     else if (i <= spineIdx && !['won', 'lost'].includes(s.key)) cls += ' done';
-    return `<button class="${cls}" onclick="setStage('${s.key}')">${s.label}</button>`;
+    return `<span class="${cls}">${s.label}</span>`;
   }).join('');
+  /* The single stage with no fact behind it. Out to bid means "published in BuildingConnected",
+     and until the BC read-back exists nothing here can know that — so it is marked, explicitly,
+     and labelled as the manual one rather than dressed up as derived. */
+  const canMarkOut = !['submitted', 'won', 'lost', 'pricing'].includes(ds.key);
+  const stageCtl = canMarkOut
+    ? `<button class="btn-sm ghost" onclick="setStage('${ds.key === 'out_to_bid' ? 'takeoff' : 'out_to_bid'}')">`
+      + `${ds.key === 'out_to_bid' ? '↩ Back to takeoff' : 'Mark out to bid'}</button>`
+      + `<span class="note" style="margin-left:8px">the only stage set by hand — the rest follow the facts you record</span>`
+    : `<span class="note">${esc(ds.why)} — stage follows the facts, there is nothing to set here</span>`;
 
   const q = quoteState();
   const bc = bcState();
@@ -2247,19 +2317,26 @@ function renderPursuit() {
      carries an award/outcome). The brief says "hide until Won", but linking the Foundation
      job IS how Won gets recorded, so gating on Won is circular; Submitted is the first
      point at which the control can be true. Interpretation recorded in the program plan. */
+  /* Bid packages, quotes and RFIs are all readings of an estimate, and their rows point at the
+     Scope & Estimate / Bid Packages / BuildingConnected tabs — none of which render before the
+     first estimate exists. Pointing at a tab that isn't there is worse than not mentioning it. */
+  const estimateRows = window._noEstimate ? '' :
+    `<div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-hint note">managed on the <button type="button" class="tablink" onclick="setArea('packages')">BuildingConnected</button> tab</div></div>
+     <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-hint note">enter live quotes on the <button type="button" class="tablink" onclick="setArea('quotes')">Bid Packages</button> tab</div></div>
+     ${rfiRow}`;
+
   const sub0 = wf.submission || {};
   const showOutcomeGroup = ['submitted', 'won', 'lost'].includes(wf.stage)
     || !!sub0.amount || !!wf.award || !!(wf.outcome && wf.outcome.result) || !!window._factPrompt;
 
   el.innerHTML = migrateNote + idNote + factNote +
     `<div class="note" style="margin-bottom:4px">Stage</div><div class="stagebar">${stageBar}</div>
+     <div class="ck-row" style="border:0;padding-top:6px">${stageCtl}</div>
      <div class="note" style="margin:10px 0 2px">Pre-bid readiness</div>
      ${dueRow}
      ${statusRow('bonding', 'Bonding', 'Bond request', 'genBond()')}
      ${statusRow('builders_risk', 'Builders Risk', 'BR submission', 'genBuildersRisk()')}
-     <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-hint note">managed on the <button type="button" class="tablink" onclick="setArea('packages')">BuildingConnected</button> tab</div></div>
-     <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-hint note">enter live quotes on the <button type="button" class="tablink" onclick="setArea('quotes')">Bid Packages</button> tab</div></div>
-     ${rfiRow}
+     ${estimateRows}
      ${mtgRow}`
     + (showOutcomeGroup
       ? `<div class="note" style="margin:16px 0 2px">Submission &amp; outcome</div>
@@ -2446,18 +2523,43 @@ function showPursuitWithoutEstimate(p) {
   const wf = curWF();
   const srcId = (wf.docs && wf.docs.source_id) || (p && p.bc_project_id) || null;
   const hasDocs = !!(wf.docs && wf.docs.folder);
+  /* THE REAL ORDER (Keith, 2026-08-03). "Generate estimate" and "Fetch documents" as two flat
+     buttons implied either would do and skipped the step that comes first: the Dodge lookup, which
+     is what supplies the value, planholders, owner and architect. Adoption carries the bid date
+     across, so it looks like the lookup already ran — it hasn't. Numbered, and a step you cannot
+     usefully take yet is visible but disabled with the reason on it, not silently absent. */
+  const lookedUp = !!window._dodge;
   const why = document.getElementById('noEstimateWhy');
   if (why) {
-    why.textContent = hasDocs
-      ? 'The job folder is built and the documents are filed. Run the takeoff when you want a conceptual number — everything else on this page works without one.'
-      : 'This pursuit is tracked but nothing has been priced yet. Add the documents and generate, or leave it here and work the bid date, the pre-bid meeting and the bonding in the meantime.';
+    why.textContent = srcId
+      ? 'Nothing is priced yet. Work it in order — the Dodge record first, then the documents, then the number. Bid date, pre-bid meeting and bonding below are workable at any point.'
+      : 'Nothing is priced yet. Add the documents, then generate. Bid date, pre-bid meeting and bonding below are workable at any point.';
+  }
+  const step = (n, label, fn, enabled, note) =>
+    `<div class="step-row"><span class="step-n${enabled ? ' on' : ''}">${n}</span>`
+    + `<button class="btn${n === firstOpen ? '' : ' ghost'}" onclick="${fn}"${enabled ? '' : ' disabled'}>${esc(label)}</button>`
+    + (note ? `<span class="note">${esc(note)}</span>` : '') + `</div>`;
+  const link = (n, label, href, note) =>
+    `<div class="step-row"><span class="step-n on">${n}</span>`
+    + `<a class="btn ghost" href="${esc(href)}" target="_blank" rel="noopener" style="text-decoration:none">${esc(label)}</a>`
+    + (note ? `<span class="note">${esc(note)}</span>` : '') + `</div>`;
+  let firstOpen, rows;
+  if (srcId) {
+    firstOpen = !lookedUp ? 1 : !hasDocs ? 2 : 3;
+    rows = step(1, lookedUp ? 'Look up in Dodge again' : 'Look up in Dodge', 'startEstimateForPursuit()', true,
+                lookedUp ? 'already pulled' : 'value, planholders, owner, architect')
+      + (hasDocs
+        ? link(2, 'Open the job folder ↗', wf.docs.folder, 'documents are filed')
+        : step(2, 'Fetch documents & build the job folder', 'startEstimateForPursuit()', lookedUp,
+               lookedUp ? '' : 'do the lookup first'))
+      + step(3, 'Generate estimate', "startEstimateForPursuit('details')", hasDocs, hasDocs ? '' : 'needs documents to read');
+  } else {
+    firstOpen = hasDocs ? 2 : 1;
+    rows = step(1, 'Add documents', 'startEstimateForPursuit()', true, 'RFP, bid packet, specs, drawings')
+      + step(2, 'Generate estimate', "startEstimateForPursuit('details')", hasDocs, hasDocs ? '' : 'needs documents to read');
   }
   const acts = document.getElementById('noEstimateActions');
-  if (acts) {
-    acts.innerHTML = `<button class="btn" onclick="startEstimateForPursuit()">Generate estimate</button>`
-      + (hasDocs ? `<a class="btn ghost" href="${esc(wf.docs.folder)}" target="_blank" rel="noopener" style="text-decoration:none">Open the job folder ↗</a>` : '')
-      + (srcId && !hasDocs ? `<button class="btn ghost" onclick="startEstimateForPursuit()">Fetch the documents from Dodge</button>` : '');
-  }
+  if (acts) acts.innerHTML = rows;
   renderPursuitHeader();
   renderAreaTabs();
   renderPursuit();
@@ -2467,13 +2569,14 @@ function showPursuitWithoutEstimate(p) {
 
 /* "Generate estimate" from a pursuit that has none: the input flow, carrying the pursuit's
    identity, so the first run lands as revision #1 of THIS pursuit rather than a new one. */
-function startEstimateForPursuit() {
+function startEstimateForPursuit(target) {
   const pid = window._pursuitId;
   const p = ((historyCache && historyCache.pursuits) || []).find(x => x.id === pid) || {};
   const wf = curWF();
   document.getElementById('resultsPanel').style.display = 'none';
   document.getElementById('inputPanel').style.display = 'block';
-  showStep('docs');
+  showStep(target === 'details' ? 'details' : 'docs');
+  if (target === 'details') syncInputMode();
   try {
     document.getElementById('f-name').value = p.name || (window._lastInp && window._lastInp.name) || '';
     document.getElementById('f-loc').value = p.location || '';
@@ -3458,7 +3561,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.37.0';
+const TOOL_VERSION = 'v1.38.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -3699,11 +3802,13 @@ async function loadOpportunities(force) {
 async function refreshInboxSignal() {
   try {
     const d = await loadOpportunities();
-    const n = d.needs_review_count || 0;
+    // Intake only — the badge must agree with the page, and BC is no longer on the page.
+    const intake = (d.opportunities || []).filter(isIntake);
+    const n = intake.filter(o => o.needs_review).length;
     if (global_RYCShell()) RYCShell.setBadge('inbox', n);
     const sig = document.getElementById('inboxSignal');
     if (sig) {
-      const soonest = (d.opportunities || []).filter(o => o.needs_review && o.bid_due_at)
+      const soonest = intake.filter(o => o.needs_review && o.bid_due_at)
         .sort((a, b) => a.bid_due_at.localeCompare(b.bid_due_at))[0];
       sig.innerHTML = n
         ? `<span class="chip ck-needed">${n} new opportunit${n === 1 ? 'y' : 'ies'}</span> <span class="note">to review${soonest ? ` · earliest due ${esc(new Date(soonest.bid_due_at).toLocaleDateString([], { month: 'short', day: 'numeric' }))}` : ''}</span> <button class="btn-sm ghost" onclick="setEstView('inbox')">Open Opportunities →</button>`
@@ -3733,9 +3838,23 @@ const OPP_SOURCE = {
   manual:      { label: 'Added manually', short: 'Manual' },
 };
 const oppSrc = (k) => OPP_SOURCE[k] || { label: k || 'Unknown', short: k || '—' };
-// Default to the intake source. BC rows predate this decision and stay reachable via the filter.
-let _inboxSource = 'dodge';
-function setInboxSource(k) { _inboxSource = k; renderInbox(); }
+
+/* THE ONLY TWO INTAKE SOURCES (Keith, 2026-08-03). BuildingConnected is DOWNSTREAM, not intake:
+   the Desk pushes bid packages to BC for setup and reads BC back so the pursuit tracks through
+   bidding. It appeared here only because BC held projects nobody had adopted, and showing it as a
+   source implied work arrives from it. Removed from this page — the BC ingest keeps running and
+   its rows stay in the table, they are simply not opportunities awaiting a go/no-go.
+
+   ONE SECTION PER SOURCE, each with its own columns: Dodge's 31-field record and IndianaBids'
+   are not the same shape, so a single shared column picker can only ever fit one of them. The
+   section header names the source, which is what retired the Source column and the filter tabs. */
+const INTAKE_SOURCES = [
+  { key: 'dodge', label: 'Dodge', live: true,
+    note: 'RYC saved search “our territory” — bidding in the next 30 days' },
+  { key: 'indianabids', label: 'IndianaBids', live: false,
+    note: 'not connected yet — still read by hand' },
+];
+const isIntake = (o) => INTAKE_SOURCES.some(s => s.key === o.source);
 
 /* Optional columns, chosen by the estimator — not by whoever configured the Dodge saved view.
    Every ingested opportunity carries its full source record (31 fields for Dodge), so the choice
@@ -3759,24 +3878,35 @@ const OPP_COLUMNS = [
   { key: 'addenda',      label: 'Addenda',      get: p => (p.addenda != null ? String(p.addenda) : null) },
   { key: 'report_date',  label: 'Published',    get: p => p.report_date },
 ];
+/* Column choice is PER SOURCE — one shared list could only ever suit whichever source it was
+   written for. Migrates the old single-list key on first read so nobody loses their selection. */
+const OPP_COLS_DEFAULT = ['value', 'client_type', 'ryc_is_planholder'];
 let _oppCols = (() => {
-  try { const v = JSON.parse(localStorage.getItem('ryc-opp-cols') || 'null'); if (Array.isArray(v)) return v; } catch {}
-  return ['value', 'client_type', 'ryc_is_planholder'];
+  try {
+    const v = JSON.parse(localStorage.getItem('ryc-opp-cols-v2') || 'null');
+    if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+    const legacy = JSON.parse(localStorage.getItem('ryc-opp-cols') || 'null');
+    if (Array.isArray(legacy)) return { dodge: legacy, indianabids: legacy.slice() };
+  } catch {}
+  return { dodge: OPP_COLS_DEFAULT.slice(), indianabids: OPP_COLS_DEFAULT.slice() };
 })();
-function toggleOppCol(k) {
-  _oppCols = _oppCols.includes(k) ? _oppCols.filter(x => x !== k) : _oppCols.concat([k]);
-  try { localStorage.setItem('ryc-opp-cols', JSON.stringify(_oppCols)); } catch {}
+const colsFor = (src) => Array.isArray(_oppCols[src]) ? _oppCols[src] : (_oppCols[src] = OPP_COLS_DEFAULT.slice());
+function toggleOppCol(src, k) {
+  const cur = colsFor(src);
+  _oppCols[src] = cur.includes(k) ? cur.filter(x => x !== k) : cur.concat([k]);
+  try { localStorage.setItem('ryc-opp-cols-v2', JSON.stringify(_oppCols)); } catch {}
   renderInbox();
 }
-function oppColPicker() {
-  return `<details class="defs" style="margin:0 0 10px"><summary>Columns (${_oppCols.length} shown)</summary>
+function oppColPicker(src) {
+  const cur = colsFor(src);
+  return `<details class="defs" style="margin:0 0 10px"><summary>Columns (${cur.length} shown)</summary>
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">
       ${OPP_COLUMNS.map(c => `<label class="note" style="display:flex;gap:5px;align-items:center;cursor:pointer">
-        <input type="checkbox" ${_oppCols.includes(c.key) ? 'checked' : ''} onchange="toggleOppCol('${c.key}')"> ${esc(c.label)}</label>`).join('')}
+        <input type="checkbox" ${cur.includes(c.key) ? 'checked' : ''} onchange="toggleOppCol('${esc(src)}','${c.key}')"> ${esc(c.label)}</label>`).join('')}
     </div>
-    <div class="note" style="margin-top:8px">These come from the full source record, not from how the Dodge view is configured.</div></details>`;
+    <div class="note" style="margin-top:8px">These come from the full source record, not from how the source's own view is configured.</div></details>`;
 }
-const oppColsActive = () => OPP_COLUMNS.filter(c => _oppCols.includes(c.key));
+const oppColsActive = (src) => OPP_COLUMNS.filter(c => colsFor(src).includes(c.key));
 
 /* Adopt and Pass are the two decisions this screen exists to collect, so they are two buttons.
    Pass was a native <select> whose first option was the label — you had to know that opening a
@@ -3807,34 +3937,36 @@ async function renderInbox(force) {
   el.innerHTML = '<div class="billing-empty">Loading opportunities…</div>';
   try {
     const d = await loadOpportunities(force);
-    const all = d.opportunities || [];
+    // BC rows are still ingested and still in the table — they are just not intake (see
+    // INTAKE_SOURCES). Everything on this page, including the counts, is intake only.
+    const all = (d.opportunities || []).filter(isIntake);
     const needs = all.filter(o => o.needs_review);
     const passed = all.filter(o => o.review_state === 'passed');
     const adopted = all.filter(o => o.review_state === 'adopted');
-    let rows = _inboxFilter === 'passed' ? passed
+    const visible = _inboxFilter === 'passed' ? passed
       : _inboxFilter === 'adopted' ? adopted
       : _inboxFilter === 'all' ? all.filter(o => o.review_state !== 'adopted')
       : all.filter(o => o.needs_review || o.review_state === 'reviewing');
-    const sources = [...new Set(all.map(o => o.source).filter(Boolean))];
-    if (_inboxSource !== 'all') rows = rows.filter(o => o.source === _inboxSource);
-    window._opps = rows;
 
     const statusPill = (o) => o.source_status === 'open' ? ''
       : `<span class="ck-pill ck-na" title="what the source says, independent of our review">${esc(o.source_status)}</span>`;
     const day = (t) => t ? esc(new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' })) : '—';
 
-    const body = rows.map((o, i) => {
+    /* ONE FLAT INDEX ACROSS THE SECTIONS. Adopt/Pass address a row by its position in
+       window._opps, so the sections write into a single shared list rather than each
+       restarting at 0 — two sections both holding an index 0 would send every decision on the
+       second section's rows to the first section's jobs. */
+    const flat = [];
+    const rowHtml = (o, src) => {
+      const i = flat.push(o) - 1;
       const changed = o.review_state === 'passed' && o.needs_review;
-      const src = oppSrc(o.source);
-      // One target, not two: the badge IS the link out to the source record.
-      const srcCell = o.bc_url
-        ? `<a class="chip ck-open src-chip" href="${esc(o.bc_url)}" target="_blank" rel="noopener" title="Open this project in ${esc(src.label)}">${esc(src.short)} ↗</a>`
-        : `<span class="chip ck-open" title="${esc(src.label)}">${esc(src.short)}</span>`;
-      const optCells = oppColsActive().map(c => { let v = null; try { v = c.get(o.payload || {}); } catch {} return `<td class="note">${v == null || v === '' ? '—' : esc(String(v))}</td>`; }).join('');
-      return `<tr><td><strong>${esc(o.name)}</strong> ${statusPill(o)}
+      const optCells = oppColsActive(src).map(c => { let v = null; try { v = c.get(o.payload || {}); } catch {} return `<td class="note">${v == null || v === '' ? '—' : esc(String(v))}</td>`; }).join('');
+      const nameCell = o.bc_url
+        ? `<a href="${esc(o.bc_url)}" target="_blank" rel="noopener" class="opp-name" title="Open in ${esc(oppSrc(o.source).label)}">${esc(o.name)} ↗</a>`
+        : `<strong>${esc(o.name)}</strong>`;
+      return `<tr><td>${nameCell} ${statusPill(o)}
         <div class="note">${esc([o.location, o.client].filter(Boolean).join(' · ')) || '—'}</div>
         ${changed ? `<div class="note" style="color:#b45309">⚠ Changed since you passed on it (revision ${o.current_source_revision}) — worth another look. Your earlier decision${o.disposition_reason ? ` (${esc(o.disposition_reason.replace(/_/g, ' '))})` : ''} is kept.</div>` : ''}</td>
-        <td>${srcCell}</td>
         <td>${day(o.bid_due_at)}</td>
         <td class="note">${day(o.first_seen_at)}${o.current_source_revision > 1 ? `<div>rev ${o.current_source_revision} · ${day(o.last_seen_at)}</div>` : ''}</td>
         <td>${o.review_state === 'adopted' ? '<span class="ck-pill ck-received">adopted</span>'
@@ -3843,26 +3975,32 @@ async function renderInbox(force) {
             : '<span class="ck-pill ck-needed">new</span>'}</td>
         ${optCells}
         <td class="r" style="white-space:nowrap"><div id="oppAct${i}">${oppActions(o, i)}</div></td></tr>`;
+    };
+
+    const sections = INTAKE_SOURCES.map(src => {
+      const mine = visible.filter(o => o.source === src.key);
+      const head = `<div class="opp-sec-head"><h4>${esc(src.label)}</h4>`
+        + `<span class="note">${esc(src.note)}${src.live && mine.length ? ` · ${mine.length} shown` : ''}</span></div>`;
+      if (!src.live) return head;                                  // no connector, no empty table
+      if (!mine.length) return head + `<div class="billing-empty" style="margin-bottom:14px">Nothing here right now.</div>`;
+      // The section header names the source, so the rows no longer carry a Source column.
+      return head + oppColPicker(src.key)
+        + `<div class="opp-scroll"><table><thead><tr><th>Opportunity</th><th>Bids due</th><th>First seen</th><th>Review</th>`
+        + oppColsActive(src.key).map(c => `<th>${esc(c.label)}</th>`).join('')
+        + `<th></th></tr></thead><tbody>${mine.map(o => rowHtml(o, src.key)).join('')}</tbody></table></div>`;
     }).join('');
+
+    window._opps = flat;
 
     // the filter is part of the address - a shared link opens on the same list
     const tab = (k, label, n) => `<button class="btn-sm ${_inboxFilter === k ? '' : 'ghost'}" onclick="setInboxFilter('${k}')">${label}${n != null ? ` (${n})` : ''}</button>`;
-    const srcTabs = sources.length > 1
-      ? `<span class="note" style="margin-left:10px">Source:</span>` + ['all'].concat(sources).map(k =>
-          `<button class="btn-sm ${_inboxSource === k ? '' : 'ghost'}" onclick="setInboxSource('${esc(k)}')">${k === 'all' ? 'All' : esc(oppSrc(k).short)}</button>`).join('')
-      : '';
-    const onlyBC = sources.length === 1 && sources[0] === 'bc_bidboard';
 
     el.innerHTML = `<div class="billing-block"><h3 class="section-header">Opportunities <span class="cnt">${needs.length ? `${needs.length} need a go/no-go` : 'nothing new to review'}</span>
-      <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">${tab('open', 'To review', needs.length)}${tab('passed', 'Passed', passed.length)}${tab('adopted', 'Adopted', adopted.length)}${tab('all', 'All')}${srcTabs}
+      <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">${tab('open', 'To review', needs.length)}${tab('passed', 'Passed', passed.length)}${tab('adopted', 'Adopted', adopted.length)}${tab('all', 'All')}
       <button class="btn-sm ghost" onclick="renderInbox(true)">⟳</button></span></h3>
-      <div class="billing-sub">New and changed work that needs a go/no-go decision. <strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but if the source materially changes (bid date, scope, location, cancellation) it comes back marked as changed. Adopting creates the pursuit from source data; nothing is re-typed.${onlyBC ? ' <em>Opportunities arrive from BuildingConnected and from the RYC Dodge saved search (“our territory”, bidding in the next 30 days). IndianaBids is still read by hand.</em>' : ''}</div>
-      ${rows.length
-        /* Fixed columns stay contiguous; the estimator's chosen columns are one group at the end,
-           between Review and the pinned decision cell — they no longer split Bids due from
-           First seen and Review. */
-        ? oppColPicker() + `<div class="opp-scroll"><table><thead><tr><th>Opportunity</th><th>Source</th><th>Bids due</th><th>First seen</th><th>Review</th>${oppColsActive().map(c=>`<th>${esc(c.label)}</th>`).join('')}<th></th></tr></thead><tbody>${body}</tbody></table></div>`
-        : `<div class="billing-empty">${_inboxFilter === 'passed' ? 'Nothing passed yet.' : _inboxFilter === 'adopted' ? 'Nothing adopted yet.' : 'No new opportunities to review.'}</div>`}</div>`;
+      <div class="billing-sub"><strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but comes back if the source materially changes. Adopting creates the pursuit from source data; nothing is re-typed.</div>
+      ${flat.length || _inboxFilter === 'open' ? sections
+        : `<div class="billing-empty">${_inboxFilter === 'passed' ? 'Nothing passed yet.' : _inboxFilter === 'adopted' ? 'Nothing adopted yet.' : 'No opportunities.'}</div>`}</div>`;
     refreshInboxSignal();
   } catch (e) {
     console.error('[opportunities] render failed:', e);
