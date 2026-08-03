@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.26.2">
-<script src="/ryc-shell/shell.js?v1.26.2"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.27.0">
+<script src="/ryc-shell/shell.js?v1.27.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -1858,6 +1858,46 @@ async function recordFact(action, payload) {
   } catch (e) { alert('Could not record: ' + e.message); return false; }
 }
 const _ver = () => Number.isInteger(window._pursuitVersion) ? window._pursuitVersion : null;
+
+/* Write the Dodge facts onto the pursuit once it exists.
+   The lookup runs BEFORE the pursuit does, so bid date, bonding and the pre-bid meeting were only
+   ever shown in a note and then dropped — the tool read them off the bidding documents and made
+   the estimator key them in again. They are typed audited facts, so they go through the same
+   operations the buttons use, one at a time (each bumps the pursuit version).
+   Only EMPTY fields are filled: anything already recorded is a human decision and is left alone. */
+async function applyDodgeFacts() {
+  if (window._dodgeFactsApplied || !window._pursuitId) return;
+  const p = window._dodge || window._rfpMeta;
+  if (!p) return;
+  window._dodgeFactsApplied = true;   // set BEFORE any write — recordFact re-renders, and a
+                                      // re-entrant call here would replay the whole set.
+  const wf = curWF() || {}, ck = wf.checklist || {};
+  const applied = [];
+
+  if (p.bid_due_date && !wf.due_date) {
+    if (await recordFact('set_due_date', { due_date: p.bid_due_date, expected_version: _ver() })) {
+      applied.push('bid due ' + p.bid_due_date);
+    }
+  }
+  // Dodge states whether a bond is required, not whether RYC has asked for one — so this records
+  // "needed", never "requested". Claiming a request that nobody made is worse than a blank.
+  if (p.bonding_required === true && ((ck.bonding || {}).status || 'na') === 'na') {
+    if (await recordFact('set_checklist_item', { item: 'bonding', status: 'needed', expected_version: _ver() })) {
+      applied.push('bonding needed');
+    }
+  }
+  const mtg = ck.prebid_meeting || {};
+  if (p.prebid_meeting_at && !wf.prebid && !mtg.date) {
+    // The typed op wants a local datetime; Dodge gives a date, so default to a 00:00 start the
+    // estimator can correct rather than inventing a time.
+    const start = /T/.test(p.prebid_meeting_at) ? p.prebid_meeting_at.slice(0, 16) : p.prebid_meeting_at + 'T00:00';
+    if (await recordFact('set_prebid_meeting', { start, location: p.prebid_location || '', expected_version: _ver() })) {
+      applied.push('pre-bid ' + p.prebid_meeting_at);
+    }
+  }
+  if (applied.length) setReadNote('📋 From Dodge, applied to this pursuit: ' + applied.join(' · ')
+    + '. Verify — a pre-bid time defaults to midnight unless the documents stated one.');
+}
 async function setSubmission() {
   const el = document.getElementById('sub-amt');
   const amt = el ? Math.round(Number(el.value)) : 0;
@@ -2160,6 +2200,8 @@ function renderPursuit() {
   renderPursuitHeader();
   renderAreaTabs();
   setArea(_area, true);
+  // The pursuit now exists, so Dodge's bidding facts can finally be written to it.
+  if (window._pursuitId && !window._dodgeFactsApplied) applyDodgeFacts();
 }
 
 /* ===== Estimating Desk board (v1.10.0) ==============================================
@@ -3238,7 +3280,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.26.2';
+const TOOL_VERSION = 'v1.27.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
