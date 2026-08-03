@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.28.4"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.28.4">
-<script src="/ryc-shell/shell.js?v1.28.4"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.29.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.29.0">
+<script src="/ryc-shell/shell.js?v1.29.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -247,6 +247,13 @@
           <button type="button" class="btn-sm" id="dodgeBtn" onclick="lookupDodge()">Look up</button>
         </div>
         <div class="hint" id="dodgeNote" style="display:none;margin-top:8px"></div>
+        <!-- Appears only after a lookup succeeds: at that point we know the documents exist and
+             how many, so asking the estimator to download and drag them is asking them to do by
+             hand the thing the server already knows how to do. -->
+        <div id="intakeBox" style="display:none;margin-top:10px;padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-left:3px solid #16a34a;border-radius:6px">
+          <div id="intakeMsg" style="font-size:13px;color:#166534;line-height:1.5"></div>
+          <div id="intakeActions" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
+        </div>
       </div>
 
       <div class="card">
@@ -804,6 +811,7 @@ function applyDodge(p) {
   applySel('f-ct', p.client_type, '_ctTouched', 'client type');
   applySel('f-wt', p.work_type, '_wtTouched', 'work type');
   window._dodge = p;
+  showIntake(p);   // documents can be fetched now that we know the project
   window._planMeta = Object.assign({}, window._planMeta, {
     owner: (p.owner && p.owner.firm) || (window._planMeta || {}).owner || null,
     architect: (p.architect && p.architect.firm) || (window._planMeta || {}).architect || null,
@@ -833,6 +841,92 @@ function applyDodge(p) {
   if (cb && !uploadedFiles.length) cb.textContent = 'Continue to details';
   const alt = document.querySelector('#step-docs .tablink');
   if (alt) alt.textContent = 'Skip the documents — enter the details myself';
+}
+
+/* ===== document intake: fetch from Dodge instead of asking for files =====================
+   The server can pull every plan, spec and addendum, file them into a SharePoint job folder on
+   the RYC template, create the pursuit, and run the takeoff against the full set with no page
+   ceiling. Making the estimator download and drag PDFs was asking them to do that by hand. */
+let _intakeId = null, _intakePoll = null;
+function intakeMsg(html) { const e = document.getElementById('intakeMsg'); if (e) e.innerHTML = html; }
+function intakeActions(html) { const e = document.getElementById('intakeActions'); if (e) e.innerHTML = html; }
+function showIntake(p) {
+  const box = document.getElementById('intakeBox'); if (!box || !p) return;
+  _intakeId = p.dodge_id;
+  box.style.display = 'block';
+  intakeMsg(`This project's documents are on Dodge. The server can fetch them, file them into a SharePoint job folder, and run the takeoff — no downloading or dragging.`);
+  intakeActions(`<button type="button" class="btn-sm" onclick="intakePrepare()">Fetch documents from Dodge</button>`);
+}
+async function intakeCall(stage, extra) {
+  const r = await fetch('/api/ryc-desk-intake', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ pw: RYCAuth.gate(), stage, id: _intakeId }, extra || {})),
+  });
+  const d = await r.json().catch(() => null);
+  if (!r.ok || !d || d.ok === false) throw new Error((d && d.error) || `HTTP ${r.status}`);
+  return d;
+}
+async function intakePrepare() {
+  intakeActions('');
+  intakeMsg('📥 Fetching the document set from Dodge — this takes a minute or two…');
+  try {
+    const d = await intakeCall('prepare');
+    const p = d.preview || {};
+    const c = p.documents || {};
+    const parts = Object.entries(c.byClass || {}).map(([k, v]) => `${v} ${k}`).join(' · ');
+    // The folder name is a PROPOSAL. It is what RYC lives with for the life of the job, so it is
+    // editable here and nothing is created until it is confirmed.
+    intakeMsg(`Found <strong>${c.total || 0} documents</strong>${parts ? ` (${parts})` : ''}`
+      + `${c.bytes ? ` · ${(c.bytes / 1048576).toFixed(0)} MB` : ''}.`
+      + `${p.collision ? ` <span style="color:#b45309">⚠ A folder named “${p.proposedFolderName}” already exists — rename it below or it will be reused.</span>` : ''}`
+      + `<br>Job folder name — edit if you want, then confirm:`);
+    intakeActions(`<input id="intakeName" value="${esc(p.proposedFolderName || '')}" style="flex:1 1 320px;min-width:0;padding:7px 10px;border:1px solid #86efac;border-radius:6px;font-size:13px;font-family:inherit">`
+      + `<button type="button" class="btn-sm" onclick="intakeCommit()">Create folder &amp; run takeoff</button>`);
+  } catch (e) {
+    intakeMsg('⚠ Could not fetch the documents — ' + e.message + ' You can still drop files below.');
+    intakeActions(`<button type="button" class="btn-sm ghost" onclick="intakePrepare()">Try again</button>`);
+  }
+}
+async function intakeCommit() {
+  const nameEl = document.getElementById('intakeName');
+  const name = (nameEl && nameEl.value || '').trim();
+  if (!name) { intakeMsg('A job folder name is required.'); return; }
+  intakeActions('');
+  intakeMsg('📁 Creating the job folder and uploading the documents…');
+  try {
+    const d = await intakeCall('commit', { name });
+    const r = d.result || {};
+    intakeMsg(`✓ <a href="${esc(r.sharePointUrl || '#')}" target="_blank" rel="noopener"><strong>Job folder created</strong></a>`
+      + ` — ${r.documents || 0} documents filed on the RYC template.`
+      + (r.pursuitUrl ? ` Pursuit: <a href="${esc(r.pursuitUrl)}" target="_blank" rel="noopener">open</a>.` : '')
+      + `<br>⏳ Takeoff running on the server against the full set — this takes several minutes.`);
+    pollIntake();
+  } catch (e) {
+    intakeMsg('⚠ ' + e.message);
+    intakeActions(`<button type="button" class="btn-sm ghost" onclick="intakeCommit()">Try again</button>`);
+  }
+}
+function pollIntake() {
+  clearInterval(_intakePoll);
+  _intakePoll = setInterval(async () => {
+    try {
+      const d = await intakeCall('status');
+      const t = d.takeoff, running = d.running;
+      if (t && t.at) {
+        clearInterval(_intakePoll);
+        const money = t.total ? '$' + Number(t.total).toLocaleString() : '—';
+        intakeMsg(`✓ <strong>Takeoff complete</strong> — ${t.divisions} packages, rollup ${money}, from ${t.pages} pages.`
+          + (t.saved ? ` Saved to the pursuit — open it to see the estimate.` : ` <span style="color:#b45309">Result computed but not saved to the pursuit.</span>`)
+          + (d.folder && d.folder.webUrl ? ` <a href="${esc(d.folder.webUrl)}" target="_blank" rel="noopener">Job folder</a>.` : ''));
+        intakeActions(d.pursuit && d.pursuit.url
+          ? `<a class="btn-sm" href="${esc(d.pursuit.url)}">Open the pursuit →</a>` : '');
+      } else if (!running) {
+        // Nothing running and no result: the takeoff failed on the VM rather than silently vanishing.
+        clearInterval(_intakePoll);
+        intakeMsg('⚠ The takeoff stopped without producing a result. The documents are filed; run the takeoff from the Desk, or retry.');
+      }
+    } catch { /* transient poll failure is not worth surfacing */ }
+  }, 15000);
 }
 
 /* The read summary has to be visible where the user LANDS. It lived only in the document step,
@@ -3029,7 +3123,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.28.4';
+const TOOL_VERSION = 'v1.29.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
