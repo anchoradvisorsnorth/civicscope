@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.29.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.29.0">
-<script src="/ryc-shell/shell.js?v1.29.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.29.1"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.29.1">
+<script src="/ryc-shell/shell.js?v1.29.1"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -256,7 +256,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="docsCard">
         <label>Project documents <span class="opt">RFP, bid packet, specs, drawings — drop them all here; the reader works out what each one is</span></label>
         <div class="upload" id="uploadZone" onclick="document.getElementById('fileInput').click()">
           <div id="uploadPrompt">📄 Drop RFP, plans and specs here, or click to browse</div>
@@ -268,9 +268,11 @@
       <div class="err" id="uploadError"></div>
       <div class="hint" id="autofillNote" style="display:none;margin-top:8px"></div>
 
+      <div id="docsActions">
       <button class="btn" id="createBtn" onclick="createPursuitFromDocs()">Create pursuit &amp; read documents</button>
       <div style="margin-top:10px">
         <button type="button" class="tablink" onclick="skipDocs()">No documents yet — enter the details myself</button>
+      </div>
       </div>
     </div>
 
@@ -330,7 +332,7 @@
     <div class="card" data-area="overview">
       <div id="resMeta" class="note" style="margin-bottom:8px"></div>
       <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:13px;color:#9a3412;margin-bottom:10px">
-        <strong>Conceptual bid-assembly draft — not a bid.</strong> Every package on the <button type="button" class="tablink" onclick="setArea('quotes')">Quotes</button> tab is a subcontract placeholder to confirm with a live quote. Enter quotes there as they arrive to assemble the real number; the conceptual range is an order-of-magnitude read only.
+        <strong>Conceptual bid-assembly draft — not a bid.</strong> Every package on the <button type="button" class="tablink" onclick="setArea('quotes')">Bid Packages</button> tab is a subcontract placeholder to confirm with a live quote. Enter quotes there as they arrive to assemble the real number; the conceptual range is an order-of-magnitude read only.
       </div>
       <div class="hero" style="align-items:center">
         <div><div style="font-size:20px;font-weight:700" id="costRange">—</div><div class="mid">conceptual range (low–high)</div></div>
@@ -850,12 +852,24 @@ function applyDodge(p) {
 let _intakeId = null, _intakePoll = null;
 function intakeMsg(html) { const e = document.getElementById('intakeMsg'); if (e) e.innerHTML = html; }
 function intakeActions(html) { const e = document.getElementById('intakeActions'); if (e) e.innerHTML = html; }
+/* Two paths on screen at once is the confusion: the estimator sees "Fetch documents from Dodge"
+   AND a drop zone asking for the same files, and has to work out which one is right. Once a
+   lookup succeeds the fetch path IS the right one, so the manual path steps aside — recoverable
+   from the fetch box if the fetch fails. */
+function setManualDocsVisible(on) {
+  ['docsCard', 'docsActions'].forEach(id => {
+    const e = document.getElementById(id);
+    if (e) e.style.display = on ? '' : 'none';
+  });
+}
 function showIntake(p) {
   const box = document.getElementById('intakeBox'); if (!box || !p) return;
   _intakeId = p.dodge_id;
   box.style.display = 'block';
+  setManualDocsVisible(false);
   intakeMsg(`This project's documents are on Dodge. The server can fetch them, file them into a SharePoint job folder, and run the takeoff — no downloading or dragging.`);
-  intakeActions(`<button type="button" class="btn-sm" onclick="intakePrepare()">Fetch documents from Dodge</button>`);
+  intakeActions(`<button type="button" class="btn-sm" onclick="intakePrepare()">Fetch documents from Dodge</button>`
+    + `<button type="button" class="tablink" onclick="setManualDocsVisible(true)">or drop files myself</button>`);
 }
 async function intakeCall(stage, extra) {
   const r = await fetch('/api/ryc-desk-intake', {
@@ -896,6 +910,8 @@ async function intakeCommit() {
   try {
     const d = await intakeCall('commit', { name });
     const r = d.result || {};
+    _intakeFolderName = name;
+    _intakeFolderUrl = r.sharePointUrl || null;
     intakeMsg(`✓ <a href="${esc(r.sharePointUrl || '#')}" target="_blank" rel="noopener"><strong>Job folder created</strong></a>`
       + ` — ${r.documents || 0} documents filed on the RYC template.`
       + (r.pursuitUrl ? ` Pursuit: <a href="${esc(r.pursuitUrl)}" target="_blank" rel="noopener">open</a>.` : '')
@@ -906,28 +922,53 @@ async function intakeCommit() {
     intakeActions(`<button type="button" class="btn-sm ghost" onclick="intakeCommit()">Try again</button>`);
   }
 }
+/* The poll used to give up FOREVER the first time it saw "nothing running, no result" — so any
+   transient gap ended the watch, and the page then went on asserting a failure while the takeoff
+   was in fact re-run and succeeded. Now: tolerate a few empty polls (the VM has a gap between
+   commit returning and the detached takeoff registering), and when it really has stopped, offer a
+   retry instead of a dead end. */
 function pollIntake() {
   clearInterval(_intakePoll);
+  let empties = 0;
+  const stop = () => clearInterval(_intakePoll);
   _intakePoll = setInterval(async () => {
     try {
       const d = await intakeCall('status');
       const t = d.takeoff, running = d.running;
       if (t && t.at) {
-        clearInterval(_intakePoll);
+        stop();
         const money = t.total ? '$' + Number(t.total).toLocaleString() : '—';
         intakeMsg(`✓ <strong>Takeoff complete</strong> — ${t.divisions} packages, rollup ${money}, from ${t.pages} pages.`
-          + (t.saved ? ` Saved to the pursuit — open it to see the estimate.` : ` <span style="color:#b45309">Result computed but not saved to the pursuit.</span>`)
+          + (t.saved ? ` Saved to the pursuit.` : ` <span style="color:#b45309">Computed but NOT saved to the pursuit.</span>`)
           + (d.folder && d.folder.webUrl ? ` <a href="${esc(d.folder.webUrl)}" target="_blank" rel="noopener">Job folder</a>.` : ''));
         intakeActions(d.pursuit && d.pursuit.url
           ? `<a class="btn-sm" href="${esc(d.pursuit.url)}">Open the pursuit →</a>` : '');
-      } else if (!running) {
-        // Nothing running and no result: the takeoff failed on the VM rather than silently vanishing.
-        clearInterval(_intakePoll);
-        intakeMsg('⚠ The takeoff stopped without producing a result. The documents are filed; run the takeoff from the Desk, or retry.');
+        return;
       }
-    } catch { /* transient poll failure is not worth surfacing */ }
+      if (running) { empties = 0; return; }
+      // Four consecutive empty polls (~1 min) before calling it stopped — and even then, offer
+      // a way forward rather than a verdict the user cannot act on.
+      if (++empties >= 4) {
+        stop();
+        intakeMsg('⚠ The takeoff is not running and produced no result. Your documents are filed and the '
+          + 'pursuit exists — only the estimate is missing.');
+        intakeActions(`<button type="button" class="btn-sm" onclick="intakeRetryTakeoff()">Run the takeoff again</button>`
+          + (_intakeFolderUrl ? `<a class="btn-sm ghost" href="${esc(_intakeFolderUrl)}" target="_blank" rel="noopener">Job folder</a>` : ''));
+      }
+    } catch { /* a transient poll failure is not evidence of anything */ }
   }, 15000);
 }
+let _intakeFolderUrl = null;
+async function intakeRetryTakeoff() {
+  intakeActions('');
+  intakeMsg('⏳ Restarting the takeoff…');
+  try { await intakeCall('commit', { name: _intakeFolderName || '' }); pollIntake(); }
+  catch (e) {
+    intakeMsg('⚠ Could not restart the takeoff — ' + e.message);
+    intakeActions(`<button type="button" class="btn-sm ghost" onclick="intakeRetryTakeoff()">Try again</button>`);
+  }
+}
+let _intakeFolderName = null;
 
 /* The read summary has to be visible where the user LANDS. It lived only in the document step,
    which advancing to the review step hides — so every one of these messages, including the
@@ -1813,8 +1854,11 @@ function statusRow(item, label, genLabel, genFn) {
 const PURSUIT_AREAS = [
   { key: 'overview', label: 'Overview' },
   { key: 'scope',    label: 'Scope & Estimate' },
-  { key: 'quotes',   label: 'Quotes' },
-  { key: 'packages', label: 'Bid Packages' },
+  // 'quotes' holds the bid packages you price; 'packages' is the BuildingConnected export.
+  // In effect the old labels were backwards: an estimator hunting for the packages clicked the
+  // tab called Bid Packages and found a BC button. Keys unchanged so deep links still resolve.
+  { key: 'quotes',   label: 'Bid Packages' },
+  { key: 'packages', label: 'BuildingConnected' },
   { key: 'history',  label: 'History' },
 ];
 let _area = 'overview';
@@ -2027,8 +2071,8 @@ function renderPursuit() {
      ${dueRow}
      ${statusRow('bonding', 'Bonding', 'Bond request', 'genBond()')}
      ${statusRow('builders_risk', 'Builders Risk', 'BR submission', 'genBuildersRisk()')}
-     <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-hint note">managed on the <button type="button" class="tablink" onclick="setArea('packages')">Bid Packages</button> tab</div></div>
-     <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-hint note">enter live quotes on the <button type="button" class="tablink" onclick="setArea('quotes')">Quotes</button> tab</div></div>
+     <div class="ck-row"><span class="ck-name">BC packages</span>${bcChip}<div class="ck-hint note">managed on the <button type="button" class="tablink" onclick="setArea('packages')">BuildingConnected</button> tab</div></div>
+     <div class="ck-row"><span class="ck-name">Quotes</span>${qChip || '<span class="chip ck-open">no packages</span>'}<div class="ck-hint note">enter live quotes on the <button type="button" class="tablink" onclick="setArea('quotes')">Bid Packages</button> tab</div></div>
      ${rfiRow}
      ${mtgRow}`
     + (showOutcomeGroup
@@ -3123,7 +3167,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.29.0';
+const TOOL_VERSION = 'v1.29.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
