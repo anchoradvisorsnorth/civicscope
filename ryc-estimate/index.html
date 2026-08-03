@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.30.1"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.30.1">
-<script src="/ryc-shell/shell.js?v1.30.1"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.31.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.31.0">
+<script src="/ryc-shell/shell.js?v1.31.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -3196,7 +3196,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.30.1';
+const TOOL_VERSION = 'v1.31.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -3434,6 +3434,47 @@ const oppSrc = (k) => OPP_SOURCE[k] || { label: k || 'Unknown', short: k || '—
 let _inboxSource = 'all';
 function setInboxSource(k) { _inboxSource = k; renderInbox(); }
 
+/* Optional columns, chosen by the estimator — not by whoever configured the Dodge saved view.
+   Every ingested opportunity carries its full source record (31 fields for Dodge), so the choice
+   is a display question, not another round trip. Dodge's own picker only offers what that saved
+   view exposes; this offers what we actually stored. Selection persists per browser. */
+const OPP_COLUMNS = [
+  { key: 'value',        label: 'Value',        get: p => p.value ? fmtCompact(p.value) : null },
+  { key: 'client_type',  label: 'Client type',  get: p => p.client_type },
+  { key: 'work_type',    label: 'Work type',    get: p => p.work_type },
+  { key: 'county',       label: 'County',       get: p => p.county },
+  { key: 'city',         label: 'City',         get: p => p.city },
+  { key: 'state',        label: 'State',        get: p => p.state },
+  { key: 'size_sf',      label: 'Sq ft',        get: p => p.size_sf ? Number(p.size_sf).toLocaleString() : null },
+  { key: 'stage',        label: 'Action stage', get: p => p.stage },
+  { key: 'owner',        label: 'Owner',        get: p => p.owner },
+  { key: 'architect',    label: 'Architect',    get: p => p.architect },
+  { key: 'prebid_at',    label: 'Pre-bid',      get: p => p.prebid_at },
+  { key: 'bid_due_time', label: 'Bid time',     get: p => p.bid_due_time },
+  { key: 'planholders',  label: 'Planholders',  get: p => (p.planholders != null ? String(p.planholders) : null) },
+  { key: 'ryc_is_planholder', label: 'RYC bidding?', get: p => p.ryc_is_planholder == null ? null : (p.ryc_is_planholder ? 'yes' : 'no') },
+  { key: 'addenda',      label: 'Addenda',      get: p => (p.addenda != null ? String(p.addenda) : null) },
+  { key: 'report_date',  label: 'Published',    get: p => p.report_date },
+];
+let _oppCols = (() => {
+  try { const v = JSON.parse(localStorage.getItem('ryc-opp-cols') || 'null'); if (Array.isArray(v)) return v; } catch {}
+  return ['value', 'client_type', 'ryc_is_planholder'];
+})();
+function toggleOppCol(k) {
+  _oppCols = _oppCols.includes(k) ? _oppCols.filter(x => x !== k) : _oppCols.concat([k]);
+  try { localStorage.setItem('ryc-opp-cols', JSON.stringify(_oppCols)); } catch {}
+  renderInbox();
+}
+function oppColPicker() {
+  return `<details class="defs" style="margin:0 0 10px"><summary>Columns (${_oppCols.length} shown)</summary>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">
+      ${OPP_COLUMNS.map(c => `<label class="note" style="display:flex;gap:5px;align-items:center;cursor:pointer">
+        <input type="checkbox" ${_oppCols.includes(c.key) ? 'checked' : ''} onchange="toggleOppCol('${c.key}')"> ${esc(c.label)}</label>`).join('')}
+    </div>
+    <div class="note" style="margin-top:8px">These come from the full source record, not from how the Dodge view is configured.</div></details>`;
+}
+const oppColsActive = () => OPP_COLUMNS.filter(c => _oppCols.includes(c.key));
+
 async function renderInbox(force) {
   const el = document.getElementById('inbox-body');
   el.innerHTML = '<div class="billing-empty">Loading opportunities…</div>';
@@ -3464,6 +3505,7 @@ async function renderInbox(force) {
         ${changed ? `<div class="note" style="color:#b45309">⚠ Changed since you passed on it (revision ${o.current_source_revision}) — worth another look. Your earlier decision${o.disposition_reason ? ` (${esc(o.disposition_reason.replace(/_/g, ' '))})` : ''} is kept.</div>` : ''}</td>
         <td><span class="chip ck-open" title="${esc(src.label)}">${esc(src.short)}</span>${link}</td>
         <td>${day(o.bid_due_at)}</td>
+        ${oppColsActive().map(c=>{let v=null; try{v=c.get(o.payload||{});}catch{} return `<td class="note">${v==null||v===''?'—':esc(String(v))}</td>`;}).join('')}
         <td class="note">${day(o.first_seen_at)}${o.current_source_revision > 1 ? `<div>rev ${o.current_source_revision} · ${day(o.last_seen_at)}</div>` : ''}</td>
         <td>${o.review_state === 'adopted' ? '<span class="ck-pill ck-received">adopted</span>'
             : o.review_state === 'passed' ? '<span class="ck-pill ck-na">passed</span>'
@@ -3494,7 +3536,7 @@ async function renderInbox(force) {
       <button class="btn-sm ghost" onclick="renderInbox(true)">⟳</button></span></h3>
       <div class="billing-sub">New and changed work that needs a go/no-go decision. <strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but if the source materially changes (bid date, scope, location, cancellation) it comes back marked as changed. Adopting creates the pursuit from source data; nothing is re-typed.${onlyBC ? ' <em>Opportunities arrive from BuildingConnected and from the RYC Dodge saved search (“our territory”, bidding in the next 30 days). IndianaBids is still read by hand.</em>' : ''}</div>
       ${rows.length
-        ? `<table><thead><tr><th>Opportunity</th><th>Source</th><th>Bids due</th><th>First seen</th><th>Review</th><th></th></tr></thead><tbody>${body}</tbody></table>`
+        ? oppColPicker() + `<table><thead><tr><th>Opportunity</th><th>Source</th><th>Bids due</th>${oppColsActive().map(c=>`<th>${esc(c.label)}</th>`).join('')}<th>First seen</th><th>Review</th><th></th></tr></thead><tbody>${body}</tbody></table>`
         : `<div class="billing-empty">${_inboxFilter === 'passed' ? 'Nothing passed yet.' : _inboxFilter === 'adopted' ? 'Nothing adopted yet.' : 'No new opportunities to review.'}</div>`}</div>`;
     refreshInboxSignal();
   } catch (e) {
