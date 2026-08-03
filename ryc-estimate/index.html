@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.40.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.40.0">
-<script src="/ryc-shell/shell.js?v1.40.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.41.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.41.0">
+<script src="/ryc-shell/shell.js?v1.41.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -1115,9 +1115,10 @@ async function startAutoIntake(dodgeId, name, pursuitId) {
 }
 function retryAutoIntake(did) { const j = autoJobs()[did]; if (j) startAutoIntake(did, j.name, j.pursuitId); }
 
-const _autoWatch = {};
+const _autoWatch = {}, _autoIdle = {};
 function watchAutoIntake(dodgeId) {
   if (_autoWatch[dodgeId]) return;
+  _autoIdle[dodgeId] = 0;
   const tick = async () => {
     const job = autoJobs()[dodgeId];
     if (!job) { clearInterval(_autoWatch[dodgeId]); delete _autoWatch[dodgeId]; return; }
@@ -1150,6 +1151,19 @@ function watchAutoIntake(dodgeId) {
       if (_estView === 'history') renderHistory();
       return;
     }
+    /* Nothing running, no result, no error. A build is a detached process, so it CAN die without
+       recording anything — a service restart did exactly that once. Four quiet polls (~80s) and
+       we say so, rather than showing a spinner forever over a process that is not there. */
+    if (!d.running) {
+      if (++_autoIdle[dodgeId] >= 4) {
+        clearInterval(_autoWatch[dodgeId]); delete _autoWatch[dodgeId]; forgetAutoJob(dodgeId);
+        toast('auto' + dodgeId, { kind: 'bad', title: job.name + ' — the build stopped',
+          body: 'It is no longer running and produced no result. Nothing was lost; running it again picks up from what it already fetched.',
+          action: { label: 'Try again', fn: `retryAutoIntake('${esc(dodgeId)}')` } });
+        if (_estView === 'history') renderHistory();
+        return;
+      }
+    } else { _autoIdle[dodgeId] = 0; }
     const step = liveStep;
     toast('auto' + dodgeId, { title: 'Sit tight — building ' + job.name,
       body: '⏳ ' + esc(AUTO_STEP[step] || step) + '… <span class="note">this runs on the server — you can close the tab</span>' });
@@ -1165,7 +1179,23 @@ function renderPursuitIfOpen() {
   }
 }
 // Re-attach on load, so a reload never goes quiet on a build that is still running.
-function resumeAutoIntakes() { Object.keys(autoJobs()).forEach(watchAutoIntake); }
+/* After a reset the server has no pursuit and no intake state, but this browser still holds the
+   job in localStorage and would sit watching something that no longer exists. Drop any job whose
+   pursuit is gone before re-attaching. */
+async function resumeAutoIntakes() {
+  const jobs = autoJobs();
+  const ids = Object.keys(jobs);
+  if (!ids.length) return;
+  try {
+    if (!historyCache) {
+      const r = await RYCAuth.post('list');
+      if (r.ok && r.data && r.data.ok) historyCache = { runs: r.data.runs || [], pursuits: r.data.pursuits || [] };
+    }
+    const live = new Set(((historyCache && historyCache.pursuits) || []).map(p => p.id));
+    ids.forEach(did => { if (jobs[did].pursuitId && !live.has(jobs[did].pursuitId)) forgetAutoJob(did); });
+  } catch { /* if we cannot check, watch them — a false stop is worse than a stale toast */ }
+  Object.keys(autoJobs()).forEach(watchAutoIntake);
+}
 const autoJobFor = (srcId) => srcId ? autoJobs()[String(srcId)] || null : null;
 
 async function intakePrepare() {
@@ -3734,7 +3764,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.40.0';
+const TOOL_VERSION = 'v1.41.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
