@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.26.0">
-<script src="/ryc-shell/shell.js?v1.26.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.26.1">
+<script src="/ryc-shell/shell.js?v1.26.1"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -295,6 +295,7 @@
       <div class="hint" style="margin-top:8px">The estimate is grounded in RYC's own completed-job actuals for the selected client/work type — margins, buyout, and cost composition come from RYC history, not generic pricing.</div>
     </div>
 
+      <div class="hint" id="scaleWarn" style="display:none;margin:0 0 10px;padding:9px 11px;background:#fffbeb;border:1px solid #fde68a;border-left:3px solid #f59e0b;border-radius:6px;color:#854d0e;line-height:1.5"></div>
       <button class="btn" id="goBtn" onclick="runEstimate()">Generate estimate</button>
       <div class="err" id="errorMsg"></div>
       <div style="margin-top:10px">
@@ -634,7 +635,22 @@ function showStep(which) {
   t.style.display = which === 'docs' ? 'none' : 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-function skipDocs() { showStep('details'); syncInputMode(); }
+/* An estimate with neither an area nor a target budget has no scale to price against — it reads
+   the drawings and guesses magnitude. On a real job that produced $676K against a $4.2M project.
+   The inputs are still optional; this says out loud what happens without them. */
+function syncScaleWarning() {
+  const el = document.getElementById('scaleWarn'); if (!el) return;
+  const sf = (document.getElementById('f-sf') || {}).value;
+  const tgt = (document.getElementById('f-target') || {}).value;
+  const bare = !String(sf || '').trim() && !String(tgt || '').trim();
+  el.style.display = bare ? 'block' : 'none';
+  if (bare) {
+    el.textContent = '⚠ No size and no target budget. The estimate can still run, but with nothing '
+      + 'to anchor scale it prices the drawings alone — expect the magnitude to be soft. A square '
+      + 'footage or a known budget (a Dodge lookup supplies both) is the single biggest lever on accuracy.';
+  }
+}
+function skipDocs() { showStep('details'); syncInputMode(); syncScaleWarning(); }
 function backToDocs() { showStep('docs'); }
 async function createPursuitFromDocs() {
   const btn = document.getElementById('createBtn');
@@ -656,6 +672,7 @@ async function createPursuitFromDocs() {
   finally { delete btn.dataset.reading; btn.disabled = false; btn.textContent = label; }
   showStep('details');
   syncInputMode();
+  syncScaleWarning();
 }
 
 /* ONE mixed pile, sampled per DOCUMENT. Splitting the intake into "RFP" and "plans" made the
@@ -701,11 +718,24 @@ async function readDocuments() {
       seen.set(name, (seen.get(name) || 0) + 1);
     }
   }
-  const spans = names.filter(n => seen.has(n)).map(name => {
-    const total = groups.get(name).length, used = seen.get(name);
-    return total > used ? `${name} (${used} of ${total} pages)` : `${name} (${total} page${total === 1 ? '' : 's'})`;
-  });
-  if (names.length > seen.size) spans.push(`+${names.length - seen.size} more not sampled`);
+  /* Naming all 17 files produced a wall of text nobody reads. Past a handful, report the shape —
+     how many documents, how many pages, and what was left out — not the filenames. */
+  const used = names.filter(n => seen.has(n));
+  const pagesRead = sample.length;
+  let spans;
+  if (used.length > 4) {
+    spans = [`${used.length} of ${names.length} documents · ${pagesRead} pages sampled`];
+    if (names.length > used.length) {
+      const missed = names.filter(n => !seen.has(n)).map(n => n.replace(/\.[a-z]+$/i, ''));
+      spans.push(`not read: ${missed.slice(0, 4).join(', ')}${missed.length > 4 ? ` +${missed.length - 4}` : ''}`);
+    }
+  } else {
+    spans = used.map(name => {
+      const total = groups.get(name).length, u = seen.get(name);
+      return total > u ? `${name} (${u} of ${total} pages)` : `${name} (${total} page${total === 1 ? '' : 's'})`;
+    });
+    if (names.length > used.length) spans.push(`+${names.length - used.length} not sampled`);
+  }
   setReadNote(`📋 Reading ${groups.size} document${groups.size === 1 ? '' : 's'}…`);
   const filled = [], failures = [];
   const setIf = (id, v, label) => { const el = document.getElementById(id); if (v && el && !el.value.trim()) { el.value = v; filled.push(label); } };
@@ -883,6 +913,7 @@ Use null for anything not actually stated on these pages — do not guess names,
 
 // user touching the selects wins over any later autofill
 document.getElementById('f-ct').addEventListener('change', () => { window._ctTouched = true; });
+['f-sf','f-target'].forEach(id => { const e=document.getElementById(id); if (e) e.addEventListener('input', syncScaleWarning); });
 document.getElementById('f-wt').addEventListener('change', () => { window._wtTouched = true; });
 function compressImage(file, maxWidth, quality) {
   return new Promise((resolve, reject) => {
@@ -3198,7 +3229,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.26.0';
+const TOOL_VERSION = 'v1.26.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
