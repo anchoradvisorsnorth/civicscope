@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.32.1"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.32.1">
-<script src="/ryc-shell/shell.js?v1.32.1"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.32.2"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.32.2">
+<script src="/ryc-shell/shell.js?v1.32.2"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -118,6 +118,16 @@
   .pursuit-head .ph-facts { display:flex; flex-wrap:wrap; gap:18px; margin-top:12px; }
   /* Where this job's documents live — the intake fills a SharePoint folder and nothing on the
      pursuit used to point at it. */
+  /* The opportunities table carries optional columns now, so it can exceed the viewport. It
+     scrolls inside its own box rather than pushing the page sideways. */
+  .opp-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .opp-scroll table { min-width:100%; }
+  /* "Pass…" rendered as a bare select and read as a text field — nothing said it was an action.
+     Styled as the destructive twin of Adopt, so the pair reads as the two available decisions. */
+  .pass-select { margin-left:6px; padding:5px 9px; font-size:12px; font-weight:600; font-family:inherit;
+    color:#b91c1c; background:#fff; border:1px solid #fecaca; border-radius:7px; cursor:pointer; }
+  .pass-select:hover { background:#fef2f2; border-color:#fca5a5; }
+  .pass-select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .docs-bar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:10px 0 0; }
   .docs-bar a.btn-sm { text-decoration:none; }
   .pursuit-head .ph-fact .l { font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
@@ -3232,7 +3242,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.32.1';
+const TOOL_VERSION = 'v1.32.2';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -3559,8 +3569,8 @@ async function renderInbox(force) {
             : o.review_state === 'passed'
             ? `<button class="btn-sm ghost" onclick="reopenOpp(${i})">↩ Reconsider</button>`
             : `<button class="btn-sm" onclick="adoptOppRow(${i})">＋ Adopt as pursuit</button>
-               <select class="ck-date" onchange="passOpp(${i}, this.value); this.selectedIndex=0" style="margin-left:6px">
-                 <option value="">Pass…</option>${DISPOSITION_REASONS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
+               <select class="pass-select" title="Pass on this — pick a reason" onchange="passOpp(${i}, this.value); this.selectedIndex=0">
+                 <option value="">✕ Pass…</option>${DISPOSITION_REASONS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
                </select>`}
         </td></tr>`;
     }).join('');
@@ -3578,7 +3588,7 @@ async function renderInbox(force) {
       <button class="btn-sm ghost" onclick="renderInbox(true)">⟳</button></span></h3>
       <div class="billing-sub">New and changed work that needs a go/no-go decision. <strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but if the source materially changes (bid date, scope, location, cancellation) it comes back marked as changed. Adopting creates the pursuit from source data; nothing is re-typed.${onlyBC ? ' <em>Opportunities arrive from BuildingConnected and from the RYC Dodge saved search (“our territory”, bidding in the next 30 days). IndianaBids is still read by hand.</em>' : ''}</div>
       ${rows.length
-        ? oppColPicker() + `<table><thead><tr><th>Opportunity</th><th>Source</th><th>Bids due</th>${oppColsActive().map(c=>`<th>${esc(c.label)}</th>`).join('')}<th>First seen</th><th>Review</th><th></th></tr></thead><tbody>${body}</tbody></table>`
+        ? oppColPicker() + `<div class="opp-scroll"><table><thead><tr><th>Opportunity</th><th>Source</th><th>Bids due</th>${oppColsActive().map(c=>`<th>${esc(c.label)}</th>`).join('')}<th>First seen</th><th>Review</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`
         : `<div class="billing-empty">${_inboxFilter === 'passed' ? 'Nothing passed yet.' : _inboxFilter === 'adopted' ? 'Nothing adopted yet.' : 'No new opportunities to review.'}</div>`}</div>`;
     refreshInboxSignal();
   } catch (e) {
@@ -3642,8 +3652,10 @@ async function openPursuitAfterAdopt(pid) {
 }
 function passOpp(i, reason) {
   if (!reason) return;
-  const note = prompt('Optional note for passing on this (why, in your words):', '') || '';
-  oppAction(i, { action: 'dispose_opportunity', reason, note }, 'pass');
+  /* No prompt(). Passing already records a controlled reason, which is the durable part; the
+     free-text note was optional and was asked for with a modal that blocks the page on every
+     single pass. Working through 60 opportunities meant 60 dialogs. */
+  oppAction(i, { action: 'dispose_opportunity', reason, note: '' }, 'pass');
 }
 function reopenOpp(i) { oppAction(i, { action: 'reopen_opportunity' }, 'reconsider'); }
 
