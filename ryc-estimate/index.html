@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.43.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.43.0">
-<script src="/ryc-shell/shell.js?v1.43.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.44.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.44.0">
+<script src="/ryc-shell/shell.js?v1.44.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -1219,6 +1219,25 @@ function renderPursuitIfOpen() {
     if (p) showPursuitWithoutEstimate(p);
   }
 }
+/* A build runs on the VM, not in a tab — so ANY browser must be able to see one in flight. The
+   in-flight list was localStorage only, which meant a build started from another machine (or by
+   the server directly) rendered as "Build it — documents, job folder and takeoff" on a job that
+   was already most of the way through exactly that. The server is the truth; ask it. */
+async function adoptServerBuild(srcId, name, pursuitId) {
+  const did = String(srcId || '').match(/\d{6,}/);
+  if (!did || autoJobs()[did[0]]) return false;
+  try {
+    const d = await intakeCall('status', { id: did[0] });
+    if (!d.running || (d.takeoff && d.takeoff.at)) return false;
+    const j = autoJobs();
+    j[did[0]] = { name, pursuitId, at: Date.now(), step: d.running,
+                  pct: (d.progress || {}).pct, label: (d.progress || {}).label };
+    saveAutoJobs(j);
+    watchAutoIntake(did[0]);
+    return true;
+  } catch { return false; }
+}
+
 // Re-attach on load, so a reload never goes quiet on a build that is still running.
 /* After a reset the server has no pursuit and no intake state, but this browser still holds the
    job in localStorage and would sit watching something that no longer exists. Drop any job whose
@@ -2225,7 +2244,8 @@ function isBcRef(o) {
   const u = String(o.url || '');
   if (u) return /buildingconnected\.com|autodesk\.com/i.test(u);
   // No url to judge by: a bare id is only BC's if nothing says it came from somewhere else.
-  const src = (curWF() && curWF().source) || '';
+  // `source` is passed for board rows, where the open pursuit's workflow is the wrong thing to ask.
+  const src = o.source != null ? o.source : ((curWF() && curWF().source) || '');
   return !!o.id && src !== 'dodge' && src !== 'indianabids';
 }
 function bcState() { return isBcRef(window._bcLoaded) ? 'loaded' : 'none'; }
@@ -2592,6 +2612,9 @@ function deskBucket(wf, hasEstimate) {
   if ((st === 'out_to_bid' || st === 'pricing') && (!cov || !cov.m || cov.n < cov.m)) return 'quotes';
   return 'active';
 }
+/* Probed source ids, so a board that re-renders every 20s while a build runs does not fire a
+   status request per row per render. Cleared when the desk is reloaded from the server. */
+const _boardProbed = new Set();
 function deskRow(p) {
   const { latest, wf, runs, due, pursuit } = p;
   // A pursuit can exist BEFORE any estimate (source-ingested opportunity, Codex Step 4) —
@@ -2603,7 +2626,13 @@ function deskRow(p) {
       : `<span class="chip ${due < 0 ? 'ck-needed' : due <= 3 ? 'ck-requested' : 'ck-received'}">${esc(new Date(wf.due_date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span>`
         + `<div class="note">${due < 0 ? Math.abs(due) + 'd overdue' : due === 0 ? 'today' : due + 'd'}</div>`;
     const rawSrc0 = String((wf.docs && wf.docs.source_id) || pursuit.bc_project_id || '');
-    const build0 = autoJobFor((rawSrc0.match(/\d{6,}/) || [])[0]);
+    const src0 = (rawSrc0.match(/\d{6,}/) || [])[0];
+    const build0 = autoJobFor(src0);
+    // Not tracked here? The VM may still be building it. One probe per row, once per render pass.
+    if (!build0 && src0 && !_boardProbed.has(src0)) {
+      _boardProbed.add(src0);
+      adoptServerBuild(src0, pursuit.name, pursuit.id).then(found => { if (found) renderHistory(); });
+    }
     const buildStep0 = build0 ? (build0.label || AUTO_STEP[build0.step] || build0.step) : null;
     return `<tr class="hrow ryc-row" data-open-pursuit="${esc(pursuit.id)}" data-open-label="Open pursuit ${esc(pursuit.name)}">`
       + `<td><strong>${esc(pursuit.name)}</strong>${pursuit.location ? ` <span class="note">· ${esc(pursuit.location)}</span>` : ''}`
@@ -2612,7 +2641,7 @@ function deskRow(p) {
       + `<td>${dueCell0}</td>`
       + `<td>${build0 ? '<span class="chip ck-requested" title="Documents, job folder and takeoff are running on the server">Building</span>'
           : `<span class="chip ck-open">${esc(stageLabel0)}</span>`}</td><td><span class="note">—</span></td>`
-      + `<td>${(pursuit.bc_url || pursuit.bc_project_id) ? '<span class="chip ck-done" title="Exists in BuildingConnected">↗BC</span>' : '<span class="note">—</span>'}</td>`
+      + `<td>${isBcRef({ url: pursuit.bc_url, id: pursuit.bc_project_id, source: wf.source || '' }) ? '<span class="chip ck-done" title="Exists in BuildingConnected">↗BC</span>' : '<span class="note">—</span>'}</td>`
       + `<td class="r"><span class="note">—</span></td><td>—</td><td class="note">${act0}</td></tr>`;
   }
   const stageLabel = (WF_STAGES.find(s => s.key === p.stage) || {}).label || p.stage;
@@ -2750,6 +2779,12 @@ function showPursuitWithoutEstimate(p) {
        manual — no source to fetch from, so documents then generate, which is the real order. */
   const job = autoJobFor(srcId);
   const building = !!job;
+  // Nothing local — the server may still have a build running. Ask, then re-render if so.
+  if (!building && srcId && window._buildProbe !== srcId) {
+    window._buildProbe = srcId;
+    adoptServerBuild(srcId, p.name || (window._lastInp && window._lastInp.name) || 'this pursuit', window._pursuitId)
+      .then(found => { if (found) showPursuitWithoutEstimate(p); });
+  }
   const card = document.getElementById('noEstimateCard');
   const head = card && card.querySelector('h3');
   if (head) head.textContent = building ? 'Building this pursuit' : 'No estimate yet';
@@ -3806,7 +3841,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.43.0';
+const TOOL_VERSION = 'v1.44.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
