@@ -219,7 +219,10 @@ export default async function handler(req, res) {
         bonding: 'set_checklist_item', builders_risk: 'set_checklist_item',
         prebid_meeting: 'set_prebid_meeting',
       };
-      const ALLOWED = ['checklist', 'validation', 'source'];   // draft + presentation only
+      // 'docs' = where this job's documents live (SharePoint job folder + subfolders). A location,
+      // not a decision: it drives no workflow state, gates nothing, and is safe to overwrite. It
+      // belongs with the presentation keys, not behind a typed operation.
+      const ALLOWED = ['checklist', 'validation', 'source', 'docs'];   // draft + presentation only
       const ALLOWED_CHECKLIST = ['rfis'];                      // drafted RFI content
 
       const offending = Object.keys(incoming).filter(k => DOMAIN_KEYS[k])

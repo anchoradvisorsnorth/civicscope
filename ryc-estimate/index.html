@@ -2119,17 +2119,24 @@ function renderPursuit() {
    soonest-due first. Every column below is backed by real stored state — nothing is shown that
    the tool cannot actually populate. */
 const DESK_BUCKETS = [
+  // Adopted but not started. Without this they scattered by bid date: an opportunity adopted
+  // months after its bid date led "Due now" at 116 days overdue, and one adopted this morning sat
+  // under "In progress" having had nothing done to it. Neither was in progress; both were queued.
+  { key: 'queued', label: 'Queued', chip: 'ck-open', hint: 'adopted, no estimate yet — pick one up' },
   { key: 'due', label: 'Due now', chip: 'ck-needed', hint: 'bid due within 3 days, or overdue' },
   { key: 'quotes', label: 'Awaiting quotes', chip: 'ck-requested', hint: 'out to bid / pricing with packages still unpriced' },
   { key: 'active', label: 'In progress', chip: 'ck-open', hint: 'takeoff and scope work' },
   { key: 'submitted', label: 'Submitted', chip: 'ck-received', hint: 'awaiting award' },
   { key: 'closed', label: 'Closed', chip: 'ck-done', hint: 'won / lost' },
 ];
-function deskBucket(wf) {
+function deskBucket(wf, hasEstimate) {
   wf = wf || {};
   const st = wf.stage || 'takeoff';
   if (st === 'won' || st === 'lost') return 'closed';
   if (st === 'submitted') return 'submitted';
+  // Nothing has been done to it yet. An overdue bid date does not make an untouched pursuit
+  // urgent — it makes it stale, and putting it under "Due now" buries the work that is live.
+  if (hasEstimate === false && st === 'takeoff') return 'queued';
   const d = daysToDue(wf);
   if (d != null && d <= 3) return 'due';           // urgency outranks everything still open
   const cov = wf.coverage;
@@ -3274,7 +3281,7 @@ function deskPursuits(opts) {
     const latest = rs[0];
     const pursuit = latest.pursuit_id ? (byId[latest.pursuit_id] || null) : null;
     const wf = (pursuit && pursuit.workflow) || latest.workflow || {};
-    return { runs: rs, latest, pursuit, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf) };
+    return { runs: rs, latest, pursuit, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf, true) };
   });
   // Run-less pursuits (adopted opportunities) are pursuits too — the entity exists from
   // adoption, not from the first estimate.
@@ -3282,7 +3289,7 @@ function deskPursuits(opts) {
   allP.forEach(pr => {
     if (runPids.has(pr.id)) return;
     const wf = pr.workflow || {};
-    out.push({ runs: [], latest: null, pursuit: pr, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf) });
+    out.push({ runs: [], latest: null, pursuit: pr, wf, stage: wf.stage || 'takeoff', due: daysToDue(wf), bucket: deskBucket(wf, false) });
   });
   return includeArchived ? out : out.filter(p => !(p.pursuit && p.pursuit.archived_at));
 }
