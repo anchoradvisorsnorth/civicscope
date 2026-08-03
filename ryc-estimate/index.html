@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.39.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.39.0">
-<script src="/ryc-shell/shell.js?v1.39.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.39.1"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.39.1">
+<script src="/ryc-shell/shell.js?v1.39.1"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -1140,7 +1140,7 @@ function watchAutoIntake(dodgeId) {
       return;
     }
     const step = d.running || Object.keys(AUTO_STEP).reverse().find(k => st[k]) || 'record';
-    toast('auto' + dodgeId, { title: 'Building ' + job.name,
+    toast('auto' + dodgeId, { title: 'Sit tight — building ' + job.name,
       body: '⏳ ' + esc(AUTO_STEP[step] || step) + '… <span class="note">this runs on the server — you can close the tab</span>' });
   };
   _autoWatch[dodgeId] = setInterval(tick, 20000);
@@ -2661,8 +2661,6 @@ function showPursuitWithoutEstimate(p) {
   const card = document.getElementById('noEstimateCard');
   const head = card && card.querySelector('h3');
   if (head) head.textContent = building ? 'Building this pursuit' : 'No estimate yet';
-  const pc = document.getElementById('pursuitCard');
-  if (pc) pc.style.display = building ? 'none' : 'block';
   const why = document.getElementById('noEstimateWhy');
   if (why) {
     why.textContent = building
@@ -2699,6 +2697,11 @@ function showPursuitWithoutEstimate(p) {
   renderPursuitHeader();
   renderAreaTabs();
   renderPursuit();
+  // AFTER renderPursuit — it shows #pursuitCard unconditionally, so hiding it any earlier is
+  // immediately undone. Bonding and a pre-bid meeting on a job whose documents have not landed
+  // yet is noise stacked on a progress bar.
+  const pc = document.getElementById('pursuitCard');
+  if (pc) pc.style.display = building ? 'none' : 'block';
   setArea(_area, true);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -3710,7 +3713,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.39.0';
+const TOOL_VERSION = 'v1.39.1';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
