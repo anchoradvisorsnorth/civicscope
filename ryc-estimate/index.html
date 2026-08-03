@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.45.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.45.0">
-<script src="/ryc-shell/shell.js?v1.45.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.46.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.46.0">
+<script src="/ryc-shell/shell.js?v1.46.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -491,7 +491,9 @@
 
     <div class="card" data-area="history"><div id="historyArea"></div></div>
     <button class="btn btn-ghost" onclick="refine()">Edit inputs</button>
-    <button class="btn btn-ghost" onclick="resetAll()">New project</button>
+    <!-- "New project" lived here, two levels inside a specific pursuit, where it did no work this
+         page is about — starting a different job is a Pursuits-board action and it is already
+         there as "+ New pursuit". Removed (Keith, 2026-08-03). -->
     <!-- Walking away and creating-in-error are different things and get different verbs.
          Neither touches SharePoint: the job folder and its documents stay where they are. -->
     <button class="btn btn-ghost" onclick="surrenderPursuit()" title="Move to the surrendered list — SharePoint is untouched">Surrender</button>
@@ -3848,7 +3850,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.45.0';
+const TOOL_VERSION = 'v1.46.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
