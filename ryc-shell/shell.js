@@ -121,7 +121,7 @@
           + '<span class="ryc-ico">' + (it.icon || '') + '</span>' + esc(it.label)
           + '<span class="ryc-badge" data-badge="' + esc(it.key) + '" style="display:none"></span></button>';
       }).join('');
-      return (g.label ? '<div class="ryc-nav-h">' + esc(g.label) + '</div>' : '') + items;
+      return (g.label ? '<div class="ryc-nav-h" data-group="' + esc(g.label) + '">' + esc(g.label) + '</div>' : '') + items;
     }).join('');
   }
 
@@ -199,10 +199,27 @@
     if (!nav) return;
     var el = nav.querySelector('[data-key="' + key + '"]');
     if (el) el.style.display = visible ? '' : 'none';
+    syncGroupHeaders();
+  }
+
+  /* A group whose every item is hidden must hide its heading too. Hiding the only item under
+     "OPEN" left the word OPEN floating above nothing — a label for an empty set. */
+  function syncGroupHeaders() {
+    var nav = document.getElementById('ryc-nav');
+    if (!nav) return;
+    var kids = Array.prototype.slice.call(nav.children);
+    var header = null, anyVisible = false;
+    function settle() { if (header) header.style.display = anyVisible ? '' : 'none'; }
+    kids.forEach(function (n) {
+      if (n.classList && n.classList.contains('ryc-nav-h')) { settle(); header = n; anyVisible = false; return; }
+      if (n.style && n.style.display !== 'none') anyVisible = true;
+    });
+    settle();
   }
 
   global.RYCShell = {
     mount: mount, setActive: setActive, setBadge: setBadge, setItemVisible: setItemVisible,
+    syncGroupHeaders: syncGroupHeaders,
     setItemLabel: setItemLabel,
     workspaces: WORKSPACES,
   };
