@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.1">
-<script src="/ryc-shell/shell.js?v1.25.1"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.2">
+<script src="/ryc-shell/shell.js?v1.25.2"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -187,6 +187,9 @@
      far from the label it explains, in a row that otherwise looked empty. */
   .ck-hint { font-size:12px; color:var(--muted); flex:1 1 auto; min-width:0; }
   .btn-sm { padding:5px 11px; font-size:12px; border-radius:7px; background:var(--accent); color:#fff; border:none; cursor:pointer; font-weight:600; font-family:inherit; }
+  /* These classes were written for <button>. Used on an <a> they inherited the link underline and
+     stayed inline, so a link styled as a button read as neither. */
+  a.btn, a.btn-sm { display:inline-block; text-decoration:none; }
   .btn-sm.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
   .ck-date { padding:4px 7px; border:1px solid var(--line); border-radius:6px; font-size:12px; font-family:inherit; }
   .chip { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin:1px 2px; }
@@ -1312,7 +1315,7 @@ function bcLoadedCard() {
   const u = (window._bcLoaded && window._bcLoaded.url) || null;
   b.innerHTML =
     `<div style="font-size:14px;margin-bottom:8px">✓ <strong>Already loaded to BuildingConnected.</strong> A draft project was created from this estimate — to prevent a duplicate, it can't be loaded again from here.</div>`
-    + (u ? `<a class="btn" href="${esc(u)}" target="_blank" rel="noopener">Open in BuildingConnected →</a>` : `<span class="note">BC link not recorded on this run — find it in BuildingConnected.</span>`)
+    + (u ? `<a class="btn-sm" href="${esc(u)}" target="_blank" rel="noopener">Open in BuildingConnected →</a>` : `<span class="note">BC link not recorded on this run — find it in BuildingConnected.</span>`)
     + `<div class="note" style="margin-top:6px">Need a fresh draft after major scope changes? Create it directly in BuildingConnected.</div>`;
 }
 async function bcPreview(btn) {
@@ -1384,7 +1387,7 @@ async function bcCreate(btn) {
       + `<td class="r">${p.biddersCopied || 0} bidders${p.templateFrom ? ` <span class="note">(from ${esc(p.templateFrom)})</span>` : ''}</td></tr>`).join('');
     document.getElementById('bcBody').innerHTML =
       `<div style="font-size:14px;margin-bottom:10px">&#10003; <strong>Draft created in BuildingConnected</strong> &mdash; ${d.created} package${d.created === 1 ? '' : 's'}, ${d.totalBiddersCopied} bidders${d.failed ? ` &middot; <span style="color:#dc2626">${d.failed} failed</span>` : ''}</div>
-      <div><a class="btn" href="${esc(d.url)}" target="_blank" rel="noopener">Open in BuildingConnected &rarr;</a>
+      <div><a class="btn-sm" href="${esc(d.url)}" target="_blank" rel="noopener">Open in BuildingConnected &rarr;</a>
       <span class="note" style="margin-left:10px">Review the bidders there, then publish &mdash; publishing is what sends the invitations.</span></div>
       <details style="margin-top:10px"><summary class="note" style="cursor:pointer">Per-package detail</summary>
       <table><thead><tr><th>Package</th><th>Status</th><th class="r">Bidders</th></tr></thead><tbody>${rows}</tbody></table>
@@ -3068,7 +3071,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.25.1';
+const TOOL_VERSION = 'v1.25.2';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
