@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.26.1">
-<script src="/ryc-shell/shell.js?v1.26.1"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.26.2">
+<script src="/ryc-shell/shell.js?v1.26.2"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -656,8 +656,12 @@ async function createPursuitFromDocs() {
   const btn = document.getElementById('createBtn');
   const note = document.getElementById('autofillNote');
   if (!uploadedFiles.length) {
+    // A Dodge lookup already established the project. Demanding documents on top of that sent the
+    // estimator looking for a "no documents" escape hatch when they were not, in fact, empty-handed.
+    if (window._dodge) { showStep('details'); syncInputMode(); syncScaleWarning(); return; }
     note.style.display = 'block';
-    note.textContent = '📋 Add an RFP or a plan set first — or use "enter the details myself" below.';
+    note.textContent = '📋 Add an RFP or a plan set first, or look up the Dodge project above — '
+      + 'or use "enter the details myself" below.';
     return;
   }
   if (_filesProcessing > 0) {
@@ -876,6 +880,11 @@ function applyDodge(p) {
     (p.planholders && p.planholders.length) ? p.planholders.length + ' planholders' : null,
   ].filter(Boolean).join(' · ');
   setDodgeNote(`✓ ${p.name || 'Project'} — ${bits}${sfNote}${filled.length ? ` · filled: ${filled.join(', ')}` : ' · nothing new to fill'}`);
+  // The project is established now, with or without documents — say so on the button.
+  const cb = document.getElementById('createBtn');
+  if (cb && !uploadedFiles.length) cb.textContent = 'Continue to details';
+  const alt = document.querySelector('#step-docs .tablink');
+  if (alt) alt.textContent = 'Skip the documents — enter the details myself';
 }
 
 /* The read summary has to be visible where the user LANDS. It lived only in the document step,
@@ -3229,7 +3238,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.26.1';
+const TOOL_VERSION = 'v1.26.2';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
