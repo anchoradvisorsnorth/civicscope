@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.35.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.35.0">
-<script src="/ryc-shell/shell.js?v1.35.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.36.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.36.0">
+<script src="/ryc-shell/shell.js?v1.36.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -229,6 +229,7 @@
      stayed inline, so a link styled as a button read as neither. */
   a.btn, a.btn-sm { display:inline-block; text-decoration:none; }
   .btn-sm.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .btn.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
   .ck-date { padding:4px 7px; border:1px solid var(--line); border-radius:6px; font-size:12px; font-family:inherit; }
   .chip { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin:1px 2px; }
 </style>
@@ -266,10 +267,15 @@
     <div id="step-docs">
       <div class="page-head">
         <h2 id="inputTitle">New pursuit</h2>
-<p class="page-lede" id="inputLede">Two ways in, and you only need one.
-        <strong>Paste a Dodge link</strong> and the server fetches the documents, files them into a
-        SharePoint job folder and runs the takeoff. Or <strong>drop the documents yourself</strong> if
-        the job did not come from Dodge.</p>
+<!-- This lede claimed two routes when there are three, and described the Dodge route as if the
+     lookup itself fetched documents, filed a SharePoint folder and ran the takeoff. None of that
+     happens here — the lookup reads the project record, and the fetch/file/takeoff is a separate
+     confirmed step afterwards. Copy now matches what each button actually does. -->
+<p class="page-lede" id="inputLede">Three ways in, and you only need one.
+        <strong>Paste a Dodge link</strong> to pull the project record — bid date, value, who else is
+        bidding. Fetching the documents and building the job folder is a separate step you confirm
+        after. Or <strong>drop the documents yourself</strong> if the job did not come from Dodge. Or
+        <strong>create the pursuit now</strong> and add documents later.</p>
       </div>
 
       <!-- ONE pile (Keith, 2026-08-02). Two zones asked the estimator to pre-sort an RFP from a
@@ -308,11 +314,13 @@
       <div class="err" id="uploadError"></div>
       <div class="hint" id="autofillNote" style="display:none;margin-top:8px"></div>
 
-      <div id="docsActions">
+      <!-- The third route was an underlined text link that read as a footnote, and it led to a
+           screen whose button said "Generate estimate" — which is not what an estimator with no
+           documents is doing. They are opening a pursuit. It is a peer button now, and it
+           creates the pursuit. -->
+      <div id="docsActions" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <button class="btn" id="createBtn" onclick="createPursuitFromDocs()">Create pursuit &amp; read documents</button>
-      <div style="margin-top:10px">
-        <button type="button" class="tablink" onclick="skipDocs()">No documents yet — enter the details myself</button>
-      </div>
+      <button type="button" class="btn ghost" id="manualBtn" onclick="manualPursuit()">Create pursuit manually</button>
       </div>
     </div>
 
@@ -346,7 +354,7 @@
     </div>
 
       <div class="hint" id="scaleWarn" style="display:none;margin:0 0 10px;padding:9px 11px;background:#fffbeb;border:1px solid #fde68a;border-left:3px solid #f59e0b;border-radius:6px;color:#854d0e;line-height:1.5"></div>
-      <button class="btn" id="goBtn" onclick="runEstimate()">Generate estimate</button>
+      <button class="btn" id="goBtn" onclick="submitDetails()">Generate estimate</button>
       <div class="err" id="errorMsg"></div>
       <div style="margin-top:10px">
         <button type="button" class="tablink" id="backToDocsBtn" onclick="backToDocs()">← Back to documents</button>
@@ -643,6 +651,8 @@ function showStep(which) {
    The inputs are still optional; this says out loud what happens without them. */
 function syncScaleWarning() {
   const el = document.getElementById('scaleWarn'); if (!el) return;
+  // It warns about estimate accuracy. On the manual route nothing is being estimated yet.
+  if (window._manualMode && !window._pursuitId) { el.style.display = 'none'; return; }
   const sf = (document.getElementById('f-sf') || {}).value;
   const tgt = (document.getElementById('f-target') || {}).value;
   const bare = !String(sf || '').trim() && !String(tgt || '').trim();
@@ -653,8 +663,38 @@ function syncScaleWarning() {
       + 'footage or a known budget (a Dodge lookup supplies both) is the single biggest lever on accuracy.';
   }
 }
-function skipDocs() { showStep('details'); syncInputMode(); syncScaleWarning(); }
-function backToDocs() { showStep('docs'); }
+/* Manual route: no documents, no Dodge record — the estimator is opening a pursuit so the job has
+   somewhere to live while they chase the plans. It creates the PURSUIT and stops there. Running it
+   through the estimate path would have produced a priced revision off nothing but a name, which is
+   the least trustworthy number this tool can make. */
+function manualPursuit() { window._manualMode = true; showStep('details'); syncInputMode(); syncScaleWarning(); }
+function skipDocs() { manualPursuit(); }
+function backToDocs() { window._manualMode = false; showStep('docs'); syncInputMode(); }
+
+async function createManualPursuit() {
+  const nameEl = document.getElementById('f-name');
+  const name = (nameEl.value || '').trim();
+  if (!name) return showErr('Project name is required.');
+  const btn = document.getElementById('goBtn');
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Creating pursuit…';
+  document.getElementById('errorMsg').style.display = 'none';
+  try {
+    const r = await RYCAuth.post('create_pursuit', {
+      name,
+      location: (document.getElementById('f-loc').value || '').trim() || null,
+      source: 'manual',
+    });
+    if (!r.ok || !r.data || !r.data.ok || !r.data.pursuit) {
+      throw new Error((r.data && r.data.error) || 'The pursuit could not be created.');
+    }
+    window._manualMode = false;
+    historyCache = null;                       // the board must see the pursuit that now exists
+    await openPursuitById(r.data.pursuit.id);
+  } catch (e) {
+    showErr(e.message || 'The pursuit could not be created.');
+  } finally { btn.disabled = false; btn.textContent = label; }
+}
 async function createPursuitFromDocs() {
   const btn = document.getElementById('createBtn');
   const note = document.getElementById('autofillNote');
@@ -664,7 +704,7 @@ async function createPursuitFromDocs() {
     if (window._dodge) { showStep('details'); syncInputMode(); syncScaleWarning(); return; }
     note.style.display = 'block';
     note.textContent = '📋 Add an RFP or a plan set first, or look up the Dodge project above — '
-      + 'or use "enter the details myself" below.';
+      + 'or use "Create pursuit manually" beside this button.';
     return;
   }
   if (_filesProcessing > 0) {
@@ -892,8 +932,8 @@ function applyDodge(p) {
   // The project is established now, with or without documents — say so on the button.
   const cb = document.getElementById('createBtn');
   if (cb && !uploadedFiles.length) cb.textContent = 'Continue to details';
-  const alt = document.querySelector('#step-docs .tablink');
-  if (alt) alt.textContent = 'Skip the documents — enter the details myself';
+  const alt = document.getElementById('manualBtn');
+  if (alt) alt.textContent = 'Skip the documents for now';
 }
 
 /* ===== document intake: fetch from Dodge instead of asking for files =====================
@@ -2371,6 +2411,7 @@ function openBlankPursuit(pid) {
 // Start a fresh pursuit from the desk: clear prior pursuit state so nothing bleeds across.
 function newPursuit() {
   window._runId = null; window._pursuitId = null; window._pursuitVersion = null; window._workflow = defaultWF(); window._bcLoaded = null;
+  window._manualMode = false;
   window._recon = null; window._gate = null; window._lastDivisions = null; window._pkgConceptualTotal = null;
   // Document-derived caches MUST clear too. extractScopeConstraints() keys its cache on the
   // concatenated upload filenames, so two projects that both ship "Plans.pdf" / "Project
@@ -2775,17 +2816,24 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '
    and the action that completes it read as the same operation. */
 function syncInputMode() {
   const editing = !!window._pursuitId;
+  const manual = !!window._manualMode && !editing;
   const name = (window._lastInp && window._lastInp.name) || '';
   const dt = document.getElementById('detailsTitle'), dl = document.getElementById('detailsLede'),
         b = document.getElementById('goBtn'), back = document.getElementById('backToDocsBtn');
-  if (dt) dt.textContent = editing ? (name ? 'Edit & re-run — ' + name : 'Edit & re-run') : 'Review the details';
-  if (dl) dl.textContent = editing
+  if (dt) dt.textContent = manual ? 'Create the pursuit'
+    : editing ? (name ? 'Edit & re-run — ' + name : 'Edit & re-run') : 'Review the details';
+  if (dl) dl.textContent = manual
+    ? 'Name the job and it gets a pursuit — somewhere to hold the bid date, the pre-bid meeting and the documents while you chase them. The estimate comes later, once there is something to read.'
+    : editing
     ? 'Adjust the inputs and re-run. This creates a new revision of the same pursuit — the earlier run stays in its History.'
     : 'Anything read from the documents is filled in below — check it before running. Client and work type decide which slice of RYC\'s completed-job history the estimate is grounded against, so those two are worth a second look.';
-  if (b) b.textContent = editing ? 'Re-run estimate' : 'Generate estimate';
+  if (b) b.textContent = manual ? 'Create pursuit' : editing ? 'Re-run estimate' : 'Generate estimate';
   // Re-running an existing pursuit starts from its details, not from an empty document step.
   if (back) back.style.display = editing ? 'none' : '';
 }
+/* One button, two jobs — which one depends on how the estimator got here. Nothing about "Create
+   pursuit" should run a model. */
+function submitDetails() { return window._manualMode && !window._pursuitId ? createManualPursuit() : runEstimate(); }
 // Edit & re-run opens on the details of a pursuit that already exists — its documents were read
 // on the run that created it, so it must not land back on an empty document step.
 function refine() { document.getElementById('resultsPanel').style.display = 'none'; document.getElementById('inputPanel').style.display = 'block'; showStep('details'); syncInputMode(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -3320,7 +3368,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.35.0';
+const TOOL_VERSION = 'v1.36.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
