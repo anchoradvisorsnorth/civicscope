@@ -635,9 +635,24 @@ export default async function handler(req, res) {
       }
       const rr = await sb(`ryc_estimates?pursuit_id=eq.${pid}&select=id&limit=1`);
       if (rr.ok && (await rr.json()).length) return res.status(409).json({ error: 'Pursuit still has revisions — delete them first.' });
+      /* An adopted opportunity POINTS AT the pursuit (ryc_opportunities.pursuit_id), so deleting
+         one straight out failed on the foreign key and surfaced a raw Postgres constraint message
+         to the estimator. Deleting a pursuit that came from an opportunity means the adoption was
+         a mistake, so the opportunity goes back to the review queue rather than being stranded as
+         "adopted" against a pursuit that no longer exists.
+         Written directly rather than through an RPC because the state machine has no un-adopt by
+         design — adoption is one-way in normal use. This is the deliberate exception, and it is
+         reachable only from an explicit Delete on an estimate-less pursuit. */
+      const un = await sb(`ryc_opportunities?company_id=eq.ryc&pursuit_id=eq.${pid}&select=id,name`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ pursuit_id: null, review_state: 'new', disposition_reason: null, disposition_note: null }),
+      });
+      if (!un.ok) return res.status(un.status).json({ error: 'Could not release the opportunity that points at this pursuit: ' + (await un.text()).slice(0, 200) });
+      const released = await un.json().catch(() => []);
       const r = await sb(`ryc_pursuits?id=eq.${pid}&tenant=eq.ryc`, { method: 'DELETE' });
       if (!r.ok) return res.status(r.status).json({ error: await r.text() });
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({ ok: true, released: (released || []).map(x => x.name) });
     }
 
     // Ingest the BC bid board into ryc_opportunities. Published rows ingest fully; recentClosed
