@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.41.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.41.0">
-<script src="/ryc-shell/shell.js?v1.41.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.42.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.42.0">
+<script src="/ryc-shell/shell.js?v1.42.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -264,6 +264,9 @@
     background:#e5e7eb; color:var(--muted); }
   .step-n.on { background:var(--accent); color:#fff; }
   .build-live { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .pbar { height:6px; background:#e5e7eb; border-radius:99px; overflow:hidden; margin-top:6px; }
+  .pbar > span { display:block; height:100%; background:var(--accent); border-radius:99px;
+    transition:width .5s ease; }
   .spinner-sm { width:15px; height:15px; flex:0 0 15px; border:2px solid #e5e7eb;
     border-top-color:var(--accent); border-radius:50%; animation:spin .9s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
@@ -1096,6 +1099,27 @@ function forgetAutoJob(did) { const j = autoJobs(); delete j[did]; saveAutoJobs(
 const AUTO_STEP = { record: 'reading the Dodge record', documents: 'downloading the documents',
   preview: 'checking the job folder name', folders: 'building the job folder',
   upload: 'filing the documents', takeoff: 'running the takeoff' };
+/* A ten-minute wait deserves a real position, not a spinner. The intake stages are weighted by
+   how long they actually take — the takeoff is over half the wall clock — and inside the takeoff
+   the VM now reports its own batch position, so the last stretch moves rather than sitting at
+   whatever number the stage before it ended on. */
+const CHAIN = [
+  { key: 'record', w: 4 }, { key: 'documents', w: 22 }, { key: 'preview', w: 2 },
+  { key: 'folders', w: 6 }, { key: 'upload', w: 16 }, { key: 'takeoff', w: 50 },
+];
+function chainProgress(d) {
+  const st = d.stages || {};
+  let done = 0, label = null;
+  for (const s of CHAIN) {
+    if (s.key === 'takeoff') break;
+    if (st[s.key]) done += s.w; else { label = AUTO_STEP[s.key]; break; }
+  }
+  if (label) return { pct: Math.min(99, done), label };
+  // in the takeoff: the VM's own percentage, scaled into the last band
+  const p = d.progress || {};
+  const inner = typeof p.pct === 'number' ? p.pct : 0;
+  return { pct: Math.min(99, done + Math.round(50 * inner / 100)), label: p.label || AUTO_STEP.takeoff };
+}
 
 async function startAutoIntake(dodgeId, name, pursuitId) {
   const j = autoJobs(); j[dodgeId] = { name, pursuitId, at: Date.now() }; saveAutoJobs(j);
@@ -1145,7 +1169,10 @@ function watchAutoIntake(dodgeId) {
       clearInterval(_autoWatch[dodgeId]); delete _autoWatch[dodgeId]; forgetAutoJob(dodgeId);
       const money = t.total ? '$' + Number(t.total).toLocaleString() : '—';
       toast('auto' + dodgeId, { kind: 'done', title: job.name + ' is ready',
-        body: `Job folder built, documents filed, takeoff run — ${t.divisions} packages, rollup ${esc(money)}, from ${t.pages} pages.`,
+        body: `Job folder built, documents filed, takeoff run — ${t.divisions} packages, rollup ${esc(money)}, from ${t.pages} pages.`
+          + (d.workbook && d.workbook.webUrl
+             ? ` <a href="${esc(d.workbook.webUrl)}" target="_blank" rel="noopener">The takeoff workbook ↗</a> is filed in the job folder's Estimates.`
+             : ''),
         action: pid ? { label: 'Open the pursuit →', fn: `dismissToast('toast-auto${esc(dodgeId)}');openPursuitById('${esc(pid)}')` } : null });
       historyCache = null;
       if (_estView === 'history') renderHistory();
@@ -1164,9 +1191,12 @@ function watchAutoIntake(dodgeId) {
         return;
       }
     } else { _autoIdle[dodgeId] = 0; }
-    const step = liveStep;
+    const prog = chainProgress(d);
+    { const j = autoJobs(); if (j[dodgeId]) { j[dodgeId].pct = prog.pct; j[dodgeId].label = prog.label; saveAutoJobs(j); } }
     toast('auto' + dodgeId, { title: 'Sit tight — building ' + job.name,
-      body: '⏳ ' + esc(AUTO_STEP[step] || step) + '… <span class="note">this runs on the server — you can close the tab</span>' });
+      body: `<div>${esc(prog.label)}…</div>`
+        + `<div class="pbar"><span style="width:${prog.pct}%"></span></div>`
+        + `<div class="note">${prog.pct}% · runs on the server — you can close the tab</div>` });
   };
   _autoWatch[dodgeId] = setInterval(tick, 20000);
   tick();
@@ -2563,10 +2593,10 @@ function deskRow(p) {
         + `<div class="note">${due < 0 ? Math.abs(due) + 'd overdue' : due === 0 ? 'today' : due + 'd'}</div>`;
     const rawSrc0 = String((wf.docs && wf.docs.source_id) || pursuit.bc_project_id || '');
     const build0 = autoJobFor((rawSrc0.match(/\d{6,}/) || [])[0]);
-    const buildStep0 = build0 && build0.step ? AUTO_STEP[build0.step] || build0.step : null;
+    const buildStep0 = build0 ? (build0.label || AUTO_STEP[build0.step] || build0.step) : null;
     return `<tr class="hrow ryc-row" data-open-pursuit="${esc(pursuit.id)}" data-open-label="Open pursuit ${esc(pursuit.name)}">`
       + `<td><strong>${esc(pursuit.name)}</strong>${pursuit.location ? ` <span class="note">· ${esc(pursuit.location)}</span>` : ''}`
-      + `<div class="note">${build0 ? '⏳ ' + esc(buildStep0 || 'building') + '…'
+      + `<div class="note">${build0 ? esc(buildStep0 || 'building') + `… ${build0.pct != null ? build0.pct + '%' : ''}`
           : (wf.source === 'bc_bidboard' ? 'from BuildingConnected · ' : '') + 'no estimate yet — open to generate'}</div></td>`
       + `<td>${dueCell0}</td>`
       + `<td>${build0 ? '<span class="chip ck-requested" title="Documents, job folder and takeoff are running on the server">Building</span>'
@@ -2730,8 +2760,9 @@ function showPursuitWithoutEstimate(p) {
     + (note ? `<span class="note">${esc(note)}</span>` : '') + `</div>`;
   let firstOpen = 1, rows;
   if (building) {
-    rows = `<div class="build-live"><span class="spinner-sm"></span><span>${esc(job.name || 'This pursuit')} — running now. `
-      + `The toast tracks it, and this page fills in as it lands.</span></div>`
+    rows = `<div class="build-live"><span class="spinner-sm"></span><span>${esc(job.label || 'running')}…</span></div>`
+      + `<div class="pbar" style="max-width:520px;margin-top:10px"><span style="width:${job.pct || 3}%"></span></div>`
+      + `<div class="note" style="margin-top:6px">${job.pct != null ? job.pct + '% · ' : ''}runs on the server — you can leave this page or close the tab</div>`
       + (hasDocs ? link(1, 'Open the job folder ↗', wf.docs.folder, 'already filed') : '');
   } else if (srcId) {
     rows = `<div class="step-row"><button class="btn" onclick="buildFromSource()">Build it — documents, job folder and takeoff</button>`
@@ -3764,7 +3795,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.41.0';
+const TOOL_VERSION = 'v1.42.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
