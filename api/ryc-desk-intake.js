@@ -23,8 +23,11 @@ export default async function handler(req, res) {
     return res.status(503).json({ ok: false, kind: 'not_configured',
       error: 'Document intake is not configured on this deployment.' });
   }
-  if (!['prepare', 'commit', 'status'].includes(String(stage || ''))) {
-    return res.status(400).json({ ok: false, error: 'stage must be prepare, commit or status' });
+  /* 'auto' runs the whole chain — Dodge record, documents, job folder, takeoff — detached on the
+     VM and returns immediately. It is the normal path now: adopting a pursuit should not make the
+     estimator drive four steps. prepare/commit stay for the manual/recovery route. */
+  if (!['auto', 'prepare', 'commit', 'status'].includes(String(stage || ''))) {
+    return res.status(400).json({ ok: false, error: 'stage must be auto, prepare, commit or status' });
   }
   const raw = String(id || '').trim();
   const m = raw.match(/projects\/(\d{6,})/) || raw.match(/(\d{10,})/);
@@ -35,14 +38,17 @@ export default async function handler(req, res) {
 
   const qs = new URLSearchParams({ id: m[1] });
   if (stage === 'commit') qs.set('name', String(name).trim());
+  if (stage === 'auto' && String(name || '').trim()) qs.set('name', String(name).trim());
   const url = `${base.replace(/\/$/, '')}/intake/${stage}?${qs}`;
-  // prepare/commit are minutes long; status must stay snappy so polling is cheap.
-  const budget = stage === 'status' ? 20000 : 290000;
+  // prepare/commit are minutes long; status and auto both return at once so polling stays cheap.
+  const budget = (stage === 'status' || stage === 'auto') ? 20000 : 290000;
 
   try {
     const r = await fetch(url, { headers: { 'x-api-key': key }, signal: AbortSignal.timeout(budget) });
     const text = await r.text();
     let body = null; try { body = JSON.parse(text); } catch {}
+    // auto answers 202 Accepted — started, not finished. That is success, not an upstream failure.
+    if (r.status === 202 && body) return res.status(200).json(body);
     if (!r.ok || !body) {
       return res.status(r.status === 409 ? 409 : 502).json({
         ok: false, kind: (body && body.kind) || 'upstream_failed',

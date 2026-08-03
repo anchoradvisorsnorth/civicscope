@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.38.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.38.0">
-<script src="/ryc-shell/shell.js?v1.38.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.39.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.39.0">
+<script src="/ryc-shell/shell.js?v1.39.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -243,12 +243,30 @@
   .btn-sm.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
   .btn.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
   .btn:disabled { opacity:.45; cursor:not-allowed; }
+  /* Toasts — the adopt flow runs for ~10 minutes on the server and the estimator should be able to
+     walk away from it. Stacked bottom-right, dismissible, never blocking. */
+  .toast-wrap { position:fixed; right:18px; bottom:18px; z-index:60; display:flex; flex-direction:column;
+    gap:8px; max-width:min(380px, calc(100vw - 36px)); }
+  .toast { background:#fff; border:1px solid var(--line); border-left:3px solid var(--accent);
+    border-radius:9px; box-shadow:0 6px 24px rgba(15,23,42,.14); padding:11px 13px; font-size:13px;
+    line-height:1.45; display:flex; gap:9px; align-items:flex-start; }
+  .toast.done { border-left-color:#16a34a; }
+  .toast.bad  { border-left-color:#dc2626; }
+  .toast .t-body { flex:1 1 auto; min-width:0; }
+  .toast .t-title { font-weight:700; }
+  .toast .t-x { flex:0 0 auto; background:none; border:none; cursor:pointer; color:var(--muted);
+    font-size:15px; line-height:1; padding:1px 2px; font-family:inherit; }
+  .toast .btn-sm { margin-top:7px; }
   /* Ordered steps, so the sequence reads as a sequence rather than a row of equal choices. */
   .step-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; flex-wrap:wrap; }
   .step-n { width:22px; height:22px; flex:0 0 22px; border-radius:50%; display:inline-flex;
     align-items:center; justify-content:center; font-size:12px; font-weight:700;
     background:#e5e7eb; color:var(--muted); }
   .step-n.on { background:var(--accent); color:#fff; }
+  .build-live { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .spinner-sm { width:15px; height:15px; flex:0 0 15px; border:2px solid #e5e7eb;
+    border-top-color:var(--accent); border-radius:50%; animation:spin .9s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
   .ck-date { padding:4px 7px; border:1px solid var(--line); border-radius:6px; font-size:12px; font-family:inherit; }
   .chip { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; margin:1px 2px; }
 </style>
@@ -541,6 +559,9 @@ function unlock() {
   // when there was nothing to translate.
   if (!translateLegacyHash()) navReplace(curUrl());
   routeFromLocation();
+  // A build kicked off before a reload is still running on the VM — re-attach to its toast so the
+  // page never goes quiet on work that is genuinely in progress.
+  resumeAutoIntakes();
 }
 // NOTE: the auto-unlock for an already-authed session fires at the END of this script (see
 // bottom). It used to run here, which meant unlock() -> setEstView('history') -> renderHistory()
@@ -1022,6 +1043,29 @@ function showIntake(p) {
   intakeActions(`<button type="button" class="btn-sm" onclick="intakePrepare()">Fetch documents from Dodge</button>`
     + `<button type="button" class="tablink" onclick="setManualDocsVisible(true)">or drop files myself</button>`);
 }
+/* ===== toasts ==========================================================================
+   Adopting kicks off ~10 minutes of server work. A toast says it started, updates in place as
+   the stages land, and says so when it is done — without pinning the estimator to a screen. */
+function toastWrap() {
+  let w = document.getElementById('toastWrap');
+  if (!w) { w = document.createElement('div'); w.id = 'toastWrap'; w.className = 'toast-wrap'; document.body.appendChild(w); }
+  return w;
+}
+function toast(key, opts) {
+  const o = opts || {};
+  const id = 'toast-' + String(key).replace(/[^a-z0-9]/gi, '');
+  let t = document.getElementById(id);
+  if (!t) { t = document.createElement('div'); t.id = id; toastWrap().appendChild(t); }
+  t.className = 'toast' + (o.kind ? ' ' + o.kind : '');
+  t.innerHTML = `<div class="t-body"><div class="t-title">${esc(o.title || '')}</div>`
+    + (o.body ? `<div class="note" style="color:var(--ink)">${o.body}</div>` : '')
+    + (o.action ? `<button class="btn-sm" onclick="${o.action.fn}">${esc(o.action.label)}</button>` : '')
+    + `</div><button class="t-x" title="Dismiss" onclick="dismissToast('${id}')">✕</button>`;
+  if (o.autoDismiss) setTimeout(() => dismissToast(id), o.autoDismiss);
+  return t;
+}
+function dismissToast(id) { const t = document.getElementById(id); if (t) t.remove(); }
+
 async function intakeCall(stage, extra) {
   const r = await fetch('/api/ryc-desk-intake', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1031,6 +1075,88 @@ async function intakeCall(stage, extra) {
   if (!r.ok || !d || d.ok === false) throw new Error((d && d.error) || `HTTP ${r.status}`);
   return d;
 }
+/* ===== ADOPT RUNS THE WHOLE THING (Keith, 2026-08-03) ==================================
+   Adopting used to hand back a pursuit and four numbered steps to drive by hand. It now fires
+   the entire chain — Dodge record, documents, SharePoint job folder, takeoff — detached on the
+   VM, and reports through a toast. The work does NOT live in this tab: /intake/auto returns as
+   soon as it has started, so closing the browser cannot orphan a half-built job folder. All this
+   loop does is watch and tell you.
+   In-flight jobs are remembered locally so a reload re-attaches to the toast instead of going
+   quiet on something that is still running. */
+const AUTO_KEY = 'ryc-auto-intake';
+const autoJobs = () => { try { return JSON.parse(localStorage.getItem(AUTO_KEY) || '{}') || {}; } catch { return {}; } };
+const saveAutoJobs = (j) => { try { localStorage.setItem(AUTO_KEY, JSON.stringify(j)); } catch {} };
+function forgetAutoJob(did) { const j = autoJobs(); delete j[did]; saveAutoJobs(j); }
+const AUTO_STEP = { record: 'reading the Dodge record', documents: 'downloading the documents',
+  preview: 'checking the job folder name', folders: 'building the job folder',
+  upload: 'filing the documents', takeoff: 'running the takeoff' };
+
+async function startAutoIntake(dodgeId, name, pursuitId) {
+  const j = autoJobs(); j[dodgeId] = { name, pursuitId, at: Date.now() }; saveAutoJobs(j);
+  toast('auto' + dodgeId, { title: 'Sit tight — building ' + name,
+    body: 'Pulling the Dodge record, filing the documents into a SharePoint job folder and running the takeoff. This finishes on the server, so you can keep working or close the tab.' });
+  try { await intakeCall('auto', { id: dodgeId }); }
+  catch (e) {
+    // "already running" is the idempotent case — attach to it rather than reporting a failure.
+    if (!/already/i.test(e.message || '')) {
+      toast('auto' + dodgeId, { kind: 'bad', title: "Couldn't start the build for " + name,
+        body: esc(e.message || 'the intake service did not accept the job'),
+        action: { label: 'Try again', fn: `retryAutoIntake('${esc(dodgeId)}')` } });
+      return;
+    }
+  }
+  watchAutoIntake(dodgeId);
+}
+function retryAutoIntake(did) { const j = autoJobs()[did]; if (j) startAutoIntake(did, j.name, j.pursuitId); }
+
+const _autoWatch = {};
+function watchAutoIntake(dodgeId) {
+  if (_autoWatch[dodgeId]) return;
+  const tick = async () => {
+    const job = autoJobs()[dodgeId];
+    if (!job) { clearInterval(_autoWatch[dodgeId]); delete _autoWatch[dodgeId]; return; }
+    let d = null;
+    try { d = await intakeCall('status', { id: dodgeId }); }
+    catch { return; }                                  // a transient poll failure proves nothing
+    const st = d.stages || {}, t = d.takeoff;
+    const pid = (d.pursuit && d.pursuit.id) || job.pursuitId || null;
+    if (pid && pid !== job.pursuitId) { const j = autoJobs(); if (j[dodgeId]) { j[dodgeId].pursuitId = pid; saveAutoJobs(j); } }
+    if (window._pursuitId === pid) renderPursuitIfOpen();
+
+    if (d.autoError) {
+      clearInterval(_autoWatch[dodgeId]); delete _autoWatch[dodgeId]; forgetAutoJob(dodgeId);
+      toast('auto' + dodgeId, { kind: 'bad', title: job.name + " — the build stopped",
+        body: esc(d.autoError),
+        action: { label: 'Try again', fn: `retryAutoIntake('${esc(dodgeId)}')` } });
+      return;
+    }
+    if (t && t.at) {
+      clearInterval(_autoWatch[dodgeId]); delete _autoWatch[dodgeId]; forgetAutoJob(dodgeId);
+      const money = t.total ? '$' + Number(t.total).toLocaleString() : '—';
+      toast('auto' + dodgeId, { kind: 'done', title: job.name + ' is ready',
+        body: `Job folder built, documents filed, takeoff run — ${t.divisions} packages, rollup ${esc(money)}, from ${t.pages} pages.`,
+        action: pid ? { label: 'Open the pursuit →', fn: `dismissToast('toast-auto${esc(dodgeId)}');openPursuitById('${esc(pid)}')` } : null });
+      historyCache = null;
+      return;
+    }
+    const step = d.running || Object.keys(AUTO_STEP).reverse().find(k => st[k]) || 'record';
+    toast('auto' + dodgeId, { title: 'Building ' + job.name,
+      body: '⏳ ' + esc(AUTO_STEP[step] || step) + '… <span class="note">this runs on the server — you can close the tab</span>' });
+  };
+  _autoWatch[dodgeId] = setInterval(tick, 20000);
+  tick();
+}
+// A pursuit page open on the job being built should reflect it without a manual refresh.
+function renderPursuitIfOpen() {
+  if (window._noEstimate && window._pursuitId) {
+    const p = ((historyCache && historyCache.pursuits) || []).find(x => x.id === window._pursuitId);
+    if (p) showPursuitWithoutEstimate(p);
+  }
+}
+// Re-attach on load, so a reload never goes quiet on a build that is still running.
+function resumeAutoIntakes() { Object.keys(autoJobs()).forEach(watchAutoIntake); }
+const autoJobFor = (srcId) => srcId ? autoJobs()[String(srcId)] || null : null;
+
 async function intakePrepare() {
   intakeActions('');
   intakeMsg('📥 Fetching the document set from Dodge — this takes a minute or two…');
@@ -2521,19 +2647,29 @@ function showPursuitWithoutEstimate(p) {
   document.getElementById('resultsPanel').style.display = 'block';
   setOverviewMode(false);
   const wf = curWF();
-  const srcId = (wf.docs && wf.docs.source_id) || (p && p.bc_project_id) || null;
+  const rawSrc = String((wf.docs && wf.docs.source_id) || (p && p.bc_project_id) || '');
+  const srcId = (rawSrc.match(/\d{6,}/) || [])[0] || null;
   const hasDocs = !!(wf.docs && wf.docs.folder);
-  /* THE REAL ORDER (Keith, 2026-08-03). "Generate estimate" and "Fetch documents" as two flat
-     buttons implied either would do and skipped the step that comes first: the Dodge lookup, which
-     is what supplies the value, planholders, owner and architect. Adoption carries the bid date
-     across, so it looks like the lookup already ran — it hasn't. Numbered, and a step you cannot
-     usefully take yet is visible but disabled with the reason on it, not silently absent. */
-  const lookedUp = !!window._dodge;
+  /* THREE STATES, not a menu of steps (Keith, 2026-08-03).
+       building — the chain is running on the server; show where it is and nothing else. The
+                  pursuit-status card is hidden meanwhile: bonding and pre-bid meeting on a job
+                  whose documents have not landed is noise on top of a progress bar.
+       source, idle — one button that does everything, not four the estimator has to sequence.
+       manual — no source to fetch from, so documents then generate, which is the real order. */
+  const job = autoJobFor(srcId);
+  const building = !!job;
+  const card = document.getElementById('noEstimateCard');
+  const head = card && card.querySelector('h3');
+  if (head) head.textContent = building ? 'Building this pursuit' : 'No estimate yet';
+  const pc = document.getElementById('pursuitCard');
+  if (pc) pc.style.display = building ? 'none' : 'block';
   const why = document.getElementById('noEstimateWhy');
   if (why) {
-    why.textContent = srcId
-      ? 'Nothing is priced yet. Work it in order — the Dodge record first, then the documents, then the number. Bid date, pre-bid meeting and bonding below are workable at any point.'
-      : 'Nothing is priced yet. Add the documents, then generate. Bid date, pre-bid meeting and bonding below are workable at any point.';
+    why.textContent = building
+      ? 'The Dodge record, the documents, the SharePoint job folder and the takeoff are all being done for you. This runs on the server — you can leave this page or close the tab and it keeps going.'
+      : srcId
+      ? 'Nothing is priced yet. One button does the rest: the Dodge record, the documents, the job folder and the takeoff.'
+      : 'Nothing is priced yet. Add the documents, then generate.';
   }
   const step = (n, label, fn, enabled, note) =>
     `<div class="step-row"><span class="step-n${enabled ? ' on' : ''}">${n}</span>`
@@ -2543,16 +2679,16 @@ function showPursuitWithoutEstimate(p) {
     `<div class="step-row"><span class="step-n on">${n}</span>`
     + `<a class="btn ghost" href="${esc(href)}" target="_blank" rel="noopener" style="text-decoration:none">${esc(label)}</a>`
     + (note ? `<span class="note">${esc(note)}</span>` : '') + `</div>`;
-  let firstOpen, rows;
-  if (srcId) {
-    firstOpen = !lookedUp ? 1 : !hasDocs ? 2 : 3;
-    rows = step(1, lookedUp ? 'Look up in Dodge again' : 'Look up in Dodge', 'startEstimateForPursuit()', true,
-                lookedUp ? 'already pulled' : 'value, planholders, owner, architect')
-      + (hasDocs
-        ? link(2, 'Open the job folder ↗', wf.docs.folder, 'documents are filed')
-        : step(2, 'Fetch documents & build the job folder', 'startEstimateForPursuit()', lookedUp,
-               lookedUp ? '' : 'do the lookup first'))
-      + step(3, 'Generate estimate', "startEstimateForPursuit('details')", hasDocs, hasDocs ? '' : 'needs documents to read');
+  let firstOpen = 1, rows;
+  if (building) {
+    rows = `<div class="build-live"><span class="spinner-sm"></span><span>${esc(job.name || 'This pursuit')} — running now. `
+      + `The toast tracks it, and this page fills in as it lands.</span></div>`
+      + (hasDocs ? link(1, 'Open the job folder ↗', wf.docs.folder, 'already filed') : '');
+  } else if (srcId) {
+    rows = `<div class="step-row"><button class="btn" onclick="buildFromSource()">Build it — documents, job folder and takeoff</button>`
+      + `<span class="note">~10 minutes, on the server</span></div>`
+      + (hasDocs ? link(1, 'Open the job folder ↗', wf.docs.folder, 'documents are filed') : '')
+      + `<div class="note" style="margin-top:8px">Or <button type="button" class="tablink" onclick="startEstimateForPursuit()">do it by hand</button> — look up, fetch and generate as separate steps.</div>`;
   } else {
     firstOpen = hasDocs ? 2 : 1;
     rows = step(1, 'Add documents', 'startEstimateForPursuit()', true, 'RFP, bid packet, specs, drawings')
@@ -2565,6 +2701,19 @@ function showPursuitWithoutEstimate(p) {
   renderPursuit();
   setArea(_area, true);
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* The one-button path from an already-adopted pursuit that was never built (or whose build
+   failed and was cleared). Same chain adopting fires. */
+function buildFromSource() {
+  const pid = window._pursuitId;
+  const p = ((historyCache && historyCache.pursuits) || []).find(x => x.id === pid) || {};
+  const wf = curWF();
+  const raw = String((wf.docs && wf.docs.source_id) || p.bc_project_id || adoptedSourceId() || '');
+  const did = (raw.match(/\d{6,}/) || [])[0];
+  if (!did) return;
+  startAutoIntake(did, p.name || (window._lastInp && window._lastInp.name) || 'this pursuit', pid);
+  showPursuitWithoutEstimate(p);
 }
 
 /* "Generate estimate" from a pursuit that has none: the input flow, carrying the pursuit's
@@ -3561,7 +3710,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.38.0';
+const TOOL_VERSION = 'v1.39.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -4027,31 +4176,24 @@ function adoptOppRow(i) {
      had. The opportunity object is right here; hand it forward. */
   const carried = (o.source === 'dodge' && o.bc_url) ? o.bc_url
     : (o.payload && o.payload.dodge_id) ? String(o.payload.dodge_id) : null;
-  /* Move FIRST. Adopting posts the decision, re-reads the whole desk and then opens the pursuit —
-     several seconds during which the estimator sat on the Opportunities list with nothing saying
-     their click had registered, and the row they clicked still on screen. Go to the pursuit view
-     immediately and show it loading; the id arrives a moment later. */
-  showAdopting(o.name);
+  /* ADOPT = DO THE WHOLE THING. The estimator has made the only decision that needed them; the
+     rest — Dodge record, documents, job folder, takeoff — is mechanical, takes ~10 minutes, and
+     used to be four buttons they had to sit and drive. Toast, then it runs on the server. They
+     stay on Opportunities and keep triaging. */
+  const dodgeId = (o.source === 'dodge')
+    ? String((o.payload && o.payload.dodge_id) || o.source_opportunity_id || '').match(/\d{6,}/)?.[0] || null
+    : null;
+  toast('adopt' + o.id, { title: 'Sit tight — creating ' + o.name, body: 'Adopting the opportunity…' });
   oppAction(i, { action: 'adopt_opportunity' }, 'adopt').then(d => {
-    if (d && d.pursuit_id) {
-      historyCache = null;
-      window._adoptedSource = carried;
-      openPursuitAfterAdopt(d.pursuit_id);
-    } else {
-      // adopt failed (oppAction already said why) — put them back where they were
-      setEstView('inbox');
-    }
+    if (!d || !d.pursuit_id) { dismissToast('toast-adopt' + String(o.id).replace(/[^a-z0-9]/gi, '')); return; }
+    historyCache = null;
+    window._adoptedSource = carried;
+    dismissToast('toast-adopt' + String(o.id).replace(/[^a-z0-9]/gi, ''));
+    if (dodgeId) startAutoIntake(dodgeId, o.name, d.pursuit_id);
+    else toast('adopt' + o.id, { kind: 'done', title: o.name + ' is a pursuit now',
+      body: 'Nothing to fetch automatically — add its documents when you have them.',
+      action: { label: 'Open the pursuit →', fn: `openPursuitById('${esc(d.pursuit_id)}')` }, autoDismiss: 15000 });
   });
-}
-/* The waiting state for an adoption in flight, on the destination page rather than the origin. */
-function showAdopting(name) {
-  _routing = true;
-  try { setEstView('assist'); } finally { _routing = false; }
-  document.getElementById('inputPanel').style.display = 'none';
-  document.getElementById('resultsPanel').style.display = 'none';
-  const lp = document.getElementById('loadingPanel');
-  if (lp) { lp.style.display = 'block'; loadLabel('Opening ' + (name || 'the pursuit') + ' — creating it from the opportunity…'); }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 /* The Dodge reference the opportunity already carried, kept for the moment the estimator asks for
    the estimate. It used to be pushed into the lookup box and RUN on arrival — that made sense when
