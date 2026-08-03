@@ -564,6 +564,21 @@ export default async function handler(req, res) {
       const wf = { stage: 'takeoff', checklist: {} };
       if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.due_date || ''))) wf.due_date = req.body.due_date;
       if (req.body.source) wf.source = String(req.body.source).slice(0, 40);
+      /* Where this job's documents actually live. Without it the Desk has no way to reach the
+         SharePoint folder the intake just filled — the two halves existed but nothing on the
+         pursuit pointed at the other. Stored as plain links, not a typed fact: it is a location,
+         not a decision, and it never drives workflow state. */
+      if (req.body.docs && typeof req.body.docs === 'object') {
+        const u = (v) => (typeof v === 'string' && /^https:\/\//i.test(v)) ? v.slice(0, 700) : null;
+        const d = {
+          folder: u(req.body.docs.folder),
+          drawings: u(req.body.docs.drawings),
+          specifications: u(req.body.docs.specifications),
+          addendums: u(req.body.docs.addendums),
+          source_id: req.body.docs.source_id ? String(req.body.docs.source_id).slice(0, 60) : null,
+        };
+        if (d.folder) wf.docs = d;
+      }
       const body = {
         tenant: 'ryc', name, norm_name: normName(name),
         location: req.body.location ? String(req.body.location).slice(0, 200) : null,
@@ -643,9 +658,18 @@ export default async function handler(req, res) {
       }
       if (source !== 'bc_bidboard') {
         const cfg = NORMALIZED_SOURCES[source];
-        const nr = await fetch('https://app.civicscope.io/ryc-data/' + cfg.file + '?t=' + Date.now());
-        if (!nr.ok) return res.status(502).json({ error: cfg.label + ' board unavailable: HTTP ' + nr.status });
-        let nb; try { nb = await nr.json(); } catch { return res.status(502).json({ error: cfg.label + ' board is not valid JSON' }); }
+        let nb;
+        if (Array.isArray(req.body.opportunities)) {
+          /* Rows POSTed directly. BuildingConnected publishes a file to the repo because its
+             board is also read by other things; a Dodge refresh is a private pull for this one
+             consumer, and routing it through a git push + Vercel deploy would add minutes of
+             latency and a deploy per refresh for no benefit. */
+          nb = { opportunities: req.body.opportunities, generatedAt: req.body.generatedAt || null };
+        } else {
+          const nr = await fetch('https://app.civicscope.io/ryc-data/' + cfg.file + '?t=' + Date.now());
+          if (!nr.ok) return res.status(502).json({ error: cfg.label + ' board unavailable: HTTP ' + nr.status });
+          try { nb = await nr.json(); } catch { return res.status(502).json({ error: cfg.label + ' board is not valid JSON' }); }
+        }
         if (!Array.isArray(nb.opportunities)) {
           return res.status(502).json({ error: cfg.label + ' board is malformed (no opportunities array)' });
         }

@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.29.1"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.29.1">
-<script src="/ryc-shell/shell.js?v1.29.1"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.30.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.30.0">
+<script src="/ryc-shell/shell.js?v1.30.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -116,6 +116,10 @@
   .pursuit-head h2 { margin:0; font-size:19px; }
   .pursuit-head .ph-sub { color:var(--muted); font-size:12.5px; margin-top:3px; }
   .pursuit-head .ph-facts { display:flex; flex-wrap:wrap; gap:18px; margin-top:12px; }
+  /* Where this job's documents live — the intake fills a SharePoint folder and nothing on the
+     pursuit used to point at it. */
+  .docs-bar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:10px 0 0; }
+  .docs-bar a.btn-sm { text-decoration:none; }
   .pursuit-head .ph-fact .l { font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
   .pursuit-head .ph-fact .v { font-size:15px; font-weight:700; margin-top:1px; }
   .area-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:14px; border-bottom:1px solid var(--line); }
@@ -426,8 +430,10 @@ function mountShell() {
     onLock: () => { sessionStorage.removeItem('ryc-auth'); location.reload(); },
     groups: [
       { label: 'Pipeline', items: [
-        { key: 'history', label: 'Pursuits', icon: '🗂' },
+        // Opportunities first: the day starts with what needs a go/no-go, not with what is
+        // already being worked (Keith, 2026-08-03).
         { key: 'inbox', label: 'Opportunities', icon: '📥' },
+        { key: 'history', label: 'Pursuits', icon: '🗂' },
       ] },
       { label: 'Intelligence', items: [
         { key: 'costiq', label: 'Cost Intelligence', icon: '📊' },
@@ -1897,6 +1903,21 @@ function setArea(k, silent) {
 }
 /* The persistent header: identity and the number stay on screen whichever area is open, so
    moving between them never loses the thing the whole page is about. */
+/* Links to where this job's documents actually live. The intake files them into a SharePoint job
+   folder on the RYC template, and until now nothing on the pursuit pointed at it — the estimator
+   had to go find the folder by hand, which is the same errand the intake exists to remove.
+   Renders nothing for pursuits created before the intake, or created without documents. */
+function docsBar(wf) {
+  const d = (wf && wf.docs) || null;
+  if (!d || !d.folder) return '';
+  const link = (href, label) => href
+    ? `<a class="btn-sm ghost" href="${esc(href)}" target="_blank" rel="noopener">${esc(label)}</a>` : '';
+  return `<div class="docs-bar">
+    <a class="btn-sm" href="${esc(d.folder)}" target="_blank" rel="noopener">📁 Documents</a>
+    ${link(d.drawings, 'Drawings')}${link(d.specifications, 'Specifications')}${link(d.addendums, 'Addendums')}
+    <span class="note">job folder in SharePoint</span>
+  </div>`;
+}
 function renderPursuitHeader() {
   const el = document.getElementById('pursuitHeader'); if (!el) return;
   const wf = curWF(), inp = window._lastInp || {}, rec = curRecon();
@@ -1912,6 +1933,7 @@ function renderPursuitHeader() {
   el.innerHTML = `<div class="pursuit-head">
     <h2>${esc(inp.name || 'Untitled pursuit')}</h2>
     <div class="ph-sub">${esc([inp.loc, inp.ct && ciCT(inp.ct), inp.wt && ciWT(inp.wt)].filter(Boolean).join(' · ')) || '—'}</div>
+    ${docsBar(wf)}
     <div class="ph-facts">
       ${fact('Stage', esc(stage), wf.due_date ? ('bid due ' + RYCFormat.date(wf.due_date) + (dtd != null ? (dtd < 0 ? ` · ${Math.abs(dtd)}d overdue` : dtd === 0 ? ' · today' : ` · ${dtd}d`) : '')) : 'no bid date set')}
       ${fact('Working number', rec.total ? fmtCompact(rec.total) : '—', (window._lastP && window._lastP.confidence) ? esc(window._lastP.confidence) + ' confidence' : 'conceptual')}
@@ -3167,7 +3189,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.29.1';
+const TOOL_VERSION = 'v1.30.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -3463,7 +3485,7 @@ async function renderInbox(force) {
     el.innerHTML = `<div class="billing-block"><h3 class="section-header">Opportunities <span class="cnt">${needs.length ? `${needs.length} need a go/no-go` : 'nothing new to review'}</span>
       <span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">${tab('open', 'To review', needs.length)}${tab('passed', 'Passed', passed.length)}${tab('adopted', 'Adopted', adopted.length)}${tab('all', 'All')}${srcTabs}
       <button class="btn-sm ghost" onclick="renderInbox(true)">⟳</button></span></h3>
-      <div class="billing-sub">New and changed work that needs a go/no-go decision. <strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but if the source materially changes (bid date, scope, location, cancellation) it comes back marked as changed. Adopting creates the pursuit from source data; nothing is re-typed.${onlyBC ? ' <em>Every opportunity here arrives from BuildingConnected today — Dodge and IndianaBids are still read by hand and are not wired in.</em>' : ''}</div>
+      <div class="billing-sub">New and changed work that needs a go/no-go decision. <strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but if the source materially changes (bid date, scope, location, cancellation) it comes back marked as changed. Adopting creates the pursuit from source data; nothing is re-typed.${onlyBC ? ' <em>Opportunities arrive from BuildingConnected and from the RYC Dodge saved search (“our territory”, bidding in the next 30 days). IndianaBids is still read by hand.</em>' : ''}</div>
       ${rows.length
         ? `<table><thead><tr><th>Opportunity</th><th>Source</th><th>Bids due</th><th>First seen</th><th>Review</th><th></th></tr></thead><tbody>${body}</tbody></table>`
         : `<div class="billing-empty">${_inboxFilter === 'passed' ? 'Nothing passed yet.' : _inboxFilter === 'adopted' ? 'Nothing adopted yet.' : 'No new opportunities to review.'}</div>`}</div>`;
