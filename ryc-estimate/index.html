@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.34.1"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.34.1">
-<script src="/ryc-shell/shell.js?v1.34.1"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.35.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.35.0">
+<script src="/ryc-shell/shell.js?v1.35.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -122,6 +122,15 @@
      scrolls inside its own box rather than pushing the page sideways. */
   .opp-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .opp-scroll table { min-width:100%; }
+  /* The decision — Adopt / Pass — is the reason this table exists, and it was the first thing to
+     slide off the right edge as soon as an estimator turned on a third optional column. Pinned:
+     the optional columns scroll under it, the two buttons never leave the screen. */
+  .opp-scroll th:last-child, .opp-scroll td:last-child {
+    position:sticky; right:0; background:#fff; z-index:2;
+    box-shadow:-9px 0 9px -9px rgba(15,23,42,.22); }
+  /* Source badge and its "open ↗" link were two separate targets saying one thing. One chip. */
+  .src-chip { text-decoration:none; cursor:pointer; }
+  .src-chip:hover { filter:brightness(.96); text-decoration:underline; }
   /* "Pass…" rendered as a bare select and read as a text field — nothing said it was an action.
      Styled as the destructive twin of Adopt, so the pair reads as the two available decisions. */
   .pass-select { margin-left:6px; padding:5px 9px; font-size:12px; font-weight:600; font-family:inherit;
@@ -3311,7 +3320,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.34.1';
+const TOOL_VERSION = 'v1.35.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -3655,18 +3664,22 @@ async function renderInbox(force) {
     const body = rows.map((o, i) => {
       const changed = o.review_state === 'passed' && o.needs_review;
       const src = oppSrc(o.source);
-      const link = o.bc_url ? ` <a class="note" href="${esc(o.bc_url)}" target="_blank" rel="noopener">open ↗</a>` : '';
+      // One target, not two: the badge IS the link out to the source record.
+      const srcCell = o.bc_url
+        ? `<a class="chip ck-open src-chip" href="${esc(o.bc_url)}" target="_blank" rel="noopener" title="Open this project in ${esc(src.label)}">${esc(src.short)} ↗</a>`
+        : `<span class="chip ck-open" title="${esc(src.label)}">${esc(src.short)}</span>`;
+      const optCells = oppColsActive().map(c => { let v = null; try { v = c.get(o.payload || {}); } catch {} return `<td class="note">${v == null || v === '' ? '—' : esc(String(v))}</td>`; }).join('');
       return `<tr><td><strong>${esc(o.name)}</strong> ${statusPill(o)}
         <div class="note">${esc([o.location, o.client].filter(Boolean).join(' · ')) || '—'}</div>
         ${changed ? `<div class="note" style="color:#b45309">⚠ Changed since you passed on it (revision ${o.current_source_revision}) — worth another look. Your earlier decision${o.disposition_reason ? ` (${esc(o.disposition_reason.replace(/_/g, ' '))})` : ''} is kept.</div>` : ''}</td>
-        <td><span class="chip ck-open" title="${esc(src.label)}">${esc(src.short)}</span>${link}</td>
+        <td>${srcCell}</td>
         <td>${day(o.bid_due_at)}</td>
-        ${oppColsActive().map(c=>{let v=null; try{v=c.get(o.payload||{});}catch{} return `<td class="note">${v==null||v===''?'—':esc(String(v))}</td>`;}).join('')}
         <td class="note">${day(o.first_seen_at)}${o.current_source_revision > 1 ? `<div>rev ${o.current_source_revision} · ${day(o.last_seen_at)}</div>` : ''}</td>
         <td>${o.review_state === 'adopted' ? '<span class="ck-pill ck-received">adopted</span>'
             : o.review_state === 'passed' ? '<span class="ck-pill ck-na">passed</span>'
             : o.review_state === 'reviewing' ? '<span class="ck-pill ck-requested">reviewing</span>'
             : '<span class="ck-pill ck-needed">new</span>'}</td>
+        ${optCells}
         <td class="r" style="white-space:nowrap">
           ${o.review_state === 'adopted'
             ? (o.pursuit_id ? `<button class="btn-sm ghost" onclick="openPursuitById('${esc(o.pursuit_id)}')">Open pursuit →</button>` : '<span class="note">—</span>')
@@ -3692,7 +3705,10 @@ async function renderInbox(force) {
       <button class="btn-sm ghost" onclick="renderInbox(true)">⟳</button></span></h3>
       <div class="billing-sub">New and changed work that needs a go/no-go decision. <strong>Passing is a decision, not a dismissal</strong> — it is recorded with a reason and the job stops asking, but if the source materially changes (bid date, scope, location, cancellation) it comes back marked as changed. Adopting creates the pursuit from source data; nothing is re-typed.${onlyBC ? ' <em>Opportunities arrive from BuildingConnected and from the RYC Dodge saved search (“our territory”, bidding in the next 30 days). IndianaBids is still read by hand.</em>' : ''}</div>
       ${rows.length
-        ? oppColPicker() + `<div class="opp-scroll"><table><thead><tr><th>Opportunity</th><th>Source</th><th>Bids due</th>${oppColsActive().map(c=>`<th>${esc(c.label)}</th>`).join('')}<th>First seen</th><th>Review</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`
+        /* Fixed columns stay contiguous; the estimator's chosen columns are one group at the end,
+           between Review and the pinned decision cell — they no longer split Bids due from
+           First seen and Review. */
+        ? oppColPicker() + `<div class="opp-scroll"><table><thead><tr><th>Opportunity</th><th>Source</th><th>Bids due</th><th>First seen</th><th>Review</th>${oppColsActive().map(c=>`<th>${esc(c.label)}</th>`).join('')}<th></th></tr></thead><tbody>${body}</tbody></table></div>`
         : `<div class="billing-empty">${_inboxFilter === 'passed' ? 'Nothing passed yet.' : _inboxFilter === 'adopted' ? 'Nothing adopted yet.' : 'No new opportunities to review.'}</div>`}</div>`;
     refreshInboxSignal();
   } catch (e) {
