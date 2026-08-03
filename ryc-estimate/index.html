@@ -7,8 +7,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.3">
-<script src="/ryc-shell/shell.js?v1.25.3"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.25.4">
+<script src="/ryc-shell/shell.js?v1.25.4"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -652,13 +652,19 @@ async function createPursuitFromDocs() {
    first N of everything meant a plan set dropped after a 41-page bid packet was never looked at. */
 async function readDocuments() {
   // 16 = the image ceiling the /api/claude guard enforces; asking for more is a guaranteed 413.
-  const PER_DOC = 3, MAX_PAGES = 16;
+  const MAX_PAGES = 16;
   const groups = new Map();
   uploadedFiles.forEach(f => {
     const k = String(f.name || 'document').replace(/\s*\(p\d+\)\s*$/, '');
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(f);
   });
+  /* Depth adapts to how many documents there are. A drawing set is many one-page files and wants
+     breadth; a project manual is ONE long file whose cover/title/seal pages carry the project but
+     whose Invitation to Bid — the bid date, the bond requirement, the pre-bid meeting — sits
+     several pages deeper. A fixed 3-page depth read the cover of a 108-page manual and stopped
+     just short of everything that makes it worth reading. */
+  const PER_DOC = Math.max(3, Math.floor(MAX_PAGES / Math.max(1, groups.size)));
   /* ROUND-ROBIN across documents, not the first N documents. A drawing set arrives as one
      single-page PDF per sheet, so "3 pages from each until the ceiling" spent the whole budget on
      the first three sheets — and the sheet order is whatever the file list gave us, which put two
@@ -3102,7 +3108,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.25.3';
+const TOOL_VERSION = 'v1.25.4';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
