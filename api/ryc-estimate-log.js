@@ -289,6 +289,26 @@ export default async function handler(req, res) {
       if (req.body.bc_url !== undefined) patch.bc_url = req.body.bc_url ? String(req.body.bc_url).slice(0, 500) : null;
       if (req.body.bc_project_id !== undefined) patch.bc_project_id = req.body.bc_project_id ? String(req.body.bc_project_id).slice(0, 120) : null;
       if (!Object.keys(patch).length) return res.status(400).json({ error: 'nothing to patch' });
+      /* Before BC claims the column: if this pursuit's bc_project_id is actually a SOURCE id
+         (a Dodge project, written there by adopt_opportunity), move it somewhere permanent first.
+         Pushing Early Learning Center to BuildingConnected silently destroyed its Dodge id and with
+         it the link to its own documents. BC linkage may overwrite BC's field; it may not erase
+         where the job came from. */
+      if (UUID.test(pid) && patch.bc_project_id) {
+        const rp = await sb(`ryc_pursuits?id=eq.${pid}&tenant=eq.ryc&select=bc_project_id,workflow`);
+        if (rp.ok) {
+          const cur = (await rp.json())[0];
+          const prior = cur && cur.bc_project_id;
+          const wfc = (cur && cur.workflow) || {};
+          const isBcId = prior && /^[0-9a-f]{24}$/i.test(String(prior));   // BC ids are 24-hex
+          if (prior && !isBcId && !wfc.source_id && String(prior) !== String(patch.bc_project_id)) {
+            await sb(`ryc_pursuits?id=eq.${pid}&tenant=eq.ryc`, {
+              method: 'PATCH', headers: { Prefer: 'return=minimal' },
+              body: JSON.stringify({ workflow: Object.assign({}, wfc, { source_id: String(prior) }) }),
+            });
+          }
+        }
+      }
       // BC linkage is a PURSUIT fact (slice 2c: typed + audited, and a BC project cannot be
       // claimed by two pursuits); the run row is also stamped for the history badge.
       let outVer = null;
@@ -557,6 +577,14 @@ export default async function handler(req, res) {
       const name = String(req.body.name || '').trim().slice(0, 250);
       if (!name) return res.status(400).json({ error: 'name required' });
       const bcId = req.body.bc_project_id ? String(req.body.bc_project_id).slice(0, 120) : null;
+      /* SOURCE identity, separate from BC linkage. The intake correctly refuses to put a Dodge id
+         in bc_project_id — but that left create_pursuit with nothing to dedupe on, and adopting a
+         job then building it produced two pursuits. Dedupe on this instead; nothing else writes it. */
+      const srcId = req.body.source_id ? String(req.body.source_id).slice(0, 120) : null;
+      if (srcId) {
+        const rs = await sb(`ryc_pursuits?tenant=eq.ryc&workflow->>source_id=eq.${encodeURIComponent(srcId)}&limit=1`);
+        if (rs.ok) { const rows = await rs.json(); if (rows.length) return res.status(200).json({ ok: true, pursuit: rows[0], existed: true }); }
+      }
       // SOURCE ID is the identity (Codex R5 #4): adoption is idempotent on bc_project_id — a
       // stale bid board or a renamed pursuit can never duplicate a BC project, because the
       // lookup key is the source id, not the mutable display name (unique index backstops).
@@ -565,6 +593,7 @@ export default async function handler(req, res) {
         if (rb.ok) { const rows = await rb.json(); if (rows.length) return res.status(200).json({ ok: true, pursuit: rows[0], existed: true }); }
       }
       const wf = { stage: 'takeoff', checklist: {} };
+      if (srcId) wf.source_id = srcId;
       if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.due_date || ''))) wf.due_date = req.body.due_date;
       if (req.body.source) wf.source = String(req.body.source).slice(0, 40);
       /* Where this job's documents actually live. Without it the Desk has no way to reach the
@@ -970,6 +999,25 @@ export default async function handler(req, res) {
       }
       const fn = { adopt_opportunity: 'ryc_adopt_opportunity', dispose_opportunity: 'ryc_dispose_opportunity', reopen_opportunity: 'ryc_reopen_opportunity' }[action];
       const out = await rpc(fn, args);
+      /* The adopt RPC writes the source id into bc_project_id (it predates Dodge). Copy it into
+         workflow.source_id immediately, so the pursuit still knows where it came from after BC
+         linkage claims that column — and so a later intake dedupes against it. Best-effort: the
+         adoption itself must not fail over this. */
+      if (out.status === 200 && out.body && out.body.pursuit_id) {
+        try {
+          const rp = await sb(`ryc_pursuits?id=eq.${out.body.pursuit_id}&tenant=eq.ryc&select=bc_project_id,workflow`);
+          if (rp.ok) {
+            const cur = (await rp.json())[0];
+            const wfc = (cur && cur.workflow) || {};
+            if (cur && cur.bc_project_id && !wfc.source_id) {
+              await sb(`ryc_pursuits?id=eq.${out.body.pursuit_id}&tenant=eq.ryc`, {
+                method: 'PATCH', headers: { Prefer: 'return=minimal' },
+                body: JSON.stringify({ workflow: Object.assign({}, wfc, { source_id: String(cur.bc_project_id) }) }),
+              });
+            }
+          }
+        } catch { /* the adoption stands regardless */ }
+      }
       return res.status(out.status).json(out.body);
     }
 

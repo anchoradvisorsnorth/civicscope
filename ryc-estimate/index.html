@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.48.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.48.0">
-<script src="/ryc-shell/shell.js?v1.48.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.49.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.49.0">
+<script src="/ryc-shell/shell.js?v1.49.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -2375,7 +2375,7 @@ async function loadBidform(srcId) {
   return _bidform[m[0]];
 }
 function bidformBanner(wf, p) {
-  const raw = String((wf && wf.docs && wf.docs.source_id) || (p && p.bc_project_id) || '');
+  const raw = sourceIdOf(wf, p);
   const id = (raw.match(/\d{6,}/) || [])[0];
   if (!id) return '';
   const st = _bidform[id];
@@ -2453,6 +2453,18 @@ async function savePlanRoom(id) {
   } catch (e) { if (msg) msg.textContent = e.message; }
 }
 
+/* WHERE THIS PURSUIT CAME FROM — read in a fixed order, because `bc_project_id` is not reliable.
+   It is BuildingConnected's field, and claiming a BC project overwrites whatever was in it: pushing
+   Early Learning Center to BC on 2026-08-04 destroyed its Dodge id and with it every link back to
+   its own documents. `workflow.source_id` is written by the source path alone and survives that. */
+function sourceIdOf(wf, p) {
+  wf = wf || {}; p = p || {};
+  const cand = (wf.docs && wf.docs.source_id) || wf.source_id || p.bc_project_id || '';
+  const str = String(cand || '');
+  // A 24-hex value is a BuildingConnected id, never a source id — do not hand it to the intake.
+  if (/^[0-9a-f]{24}$/i.test(str)) return '';
+  return str;
+}
 function docsBar(wf) {
   const d = (wf && wf.docs) || null;
   if (!d || !d.folder) return '';
@@ -2734,7 +2746,7 @@ function deskRow(p) {
     const dueCell0 = due == null ? '<span class="note">—</span>'
       : `<span class="chip ${due < 0 ? 'ck-needed' : due <= 3 ? 'ck-requested' : 'ck-received'}">${esc(new Date(wf.due_date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span>`
         + `<div class="note">${due < 0 ? Math.abs(due) + 'd overdue' : due === 0 ? 'today' : due + 'd'}</div>`;
-    const rawSrc0 = String((wf.docs && wf.docs.source_id) || pursuit.bc_project_id || '');
+    const rawSrc0 = sourceIdOf(wf, pursuit);
     const src0 = (rawSrc0.match(/\d{6,}/) || [])[0];
     const build0 = autoJobFor(src0);
     // Not tracked here? The VM may still be building it. One probe per row, once per render pass.
@@ -2881,7 +2893,7 @@ function showPursuitWithoutEstimate(p) {
   document.getElementById('resultsPanel').style.display = 'block';
   setOverviewMode(false);
   const wf = curWF();
-  const rawSrc = String((wf.docs && wf.docs.source_id) || (p && p.bc_project_id) || '');
+  const rawSrc = sourceIdOf(wf, p);
   const srcId = (rawSrc.match(/\d{6,}/) || [])[0] || null;
   const hasDocs = !!(wf.docs && wf.docs.folder);
   /* THREE STATES, not a menu of steps (Keith, 2026-08-03).
@@ -2953,7 +2965,7 @@ function buildFromSource() {
   const pid = window._pursuitId;
   const p = ((historyCache && historyCache.pursuits) || []).find(x => x.id === pid) || {};
   const wf = curWF();
-  const raw = String((wf.docs && wf.docs.source_id) || p.bc_project_id || adoptedSourceId() || '');
+  const raw = (sourceIdOf(wf, p) || String(adoptedSourceId() || ''));
   const did = (raw.match(/\d{6,}/) || [])[0];
   if (!did) return;
   startAutoIntake(did, p.name || (window._lastInp && window._lastInp.name) || 'this pursuit', pid);
@@ -2979,7 +2991,7 @@ function startEstimateForPursuit(target) {
   const t = document.getElementById('inputTitle'), l = document.getElementById('inputLede');
   if (t) t.textContent = p.name || 'Pursuit';
   if (l) l.textContent = 'Give it something to read — fetch the documents from Dodge or drop them in — then generate. This becomes revision 1 of this pursuit.';
-  const srcId = (wf.docs && wf.docs.source_id) || p.bc_project_id || adoptedSourceId();
+  const srcId = sourceIdOf(wf, p) || adoptedSourceId();
   if (srcId) {
     const el = document.getElementById('dodgeUrl');
     if (el && !el.value) { el.value = String(srcId); window._cameFromAdopt = true; lookupDodge(); }
@@ -3954,7 +3966,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.48.0';
+const TOOL_VERSION = 'v1.49.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
