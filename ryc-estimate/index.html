@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.47.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.47.0">
-<script src="/ryc-shell/shell.js?v1.47.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.48.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.48.0">
+<script src="/ryc-shell/shell.js?v1.48.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -174,6 +174,11 @@
   .or-split::before, .or-split::after { content:''; flex:1; height:1px; background:var(--line); }
   .docs-bar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:10px 0 0; }
   .docs-bar a.btn-sm { text-decoration:none; }
+  /* Can this actually be BID, or only priced? Loud when the answer is no. */
+  .bidform { margin-top:10px; padding:10px 13px; border-radius:8px; font-size:13px; line-height:1.5; }
+  .bidform.warn { background:#fffbeb; border:1px solid #fde68a; border-left:3px solid #f59e0b; color:#854d0e; }
+  .bidform.ok { background:#f0fdf4; border:1px solid #bbf7d0; border-left:3px solid #16a34a; color:#166534; }
+  .bidform .note { color:inherit; opacity:.82; }
   .pursuit-head .ph-fact .l { font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
   .pursuit-head .ph-fact .v { font-size:15px; font-weight:700; margin-top:1px; }
   .area-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:14px; border-bottom:1px solid var(--line); }
@@ -2354,6 +2359,100 @@ function takeoffBanner() {
   return `<div class="takeoff-bar"><span class="spin"></span> Takeoff running on the server against `
     + `${esc(String(w.documents || 0))} documents — several minutes. You can leave this page; it keeps running.</div>`;
 }
+/* CAN RYC ACTUALLY BID THIS, or only price it? (Brad, 2026-08-04.) Dodge routinely serves the
+   technical specs and drawings without the Bid Form or the Instructions to Bidders — those live at
+   the plan room of record, which is also what puts a contractor on the responsible-bidder list.
+   Measured on Central Noble ELC: 18 spec divisions, 17 sheets, and no bid form. The Desk filed all
+   of it and looked finished, which is the dangerous version of wrong. */
+let _bidform = {};                       // dodgeId -> { bidform, planRoom } as the server sees it
+async function loadBidform(srcId) {
+  const m = String(srcId || '').match(/\d{6,}/);
+  if (!m) return null;
+  try {
+    const d = await intakeCall('status', { id: m[0] });
+    _bidform[m[0]] = { bidform: d.bidform || null, planRoom: d.planRoom || null };
+  } catch { _bidform[m[0]] = null; }
+  return _bidform[m[0]];
+}
+function bidformBanner(wf, p) {
+  const raw = String((wf && wf.docs && wf.docs.source_id) || (p && p.bc_project_id) || '');
+  const id = (raw.match(/\d{6,}/) || [])[0];
+  if (!id) return '';
+  const st = _bidform[id];
+  if (st === undefined) { _bidform[id] = null; loadBidform(id).then(x => { if (x && x.bidform) renderPursuitHeader(); }); return ''; }
+  if (!st || !st.bidform) return '';
+  const b = st.bidform, room = st.planRoom || {};
+  const traps = (b.traps || []).length;
+  const trapLink = traps
+    ? `<button type="button" class="tablink" onclick="showBidTraps('${esc(id)}')">${traps} submission requirement${traps === 1 ? '' : 's'} to watch</button>`
+    : '';
+  if (b.bidFormPresent === 'yes') {
+    return `<div class="bidform ok">✓ <strong>Bid form present</strong>${b.title ? ' — ' + esc(b.title) : ''} ${trapLink}
+      <div id="pr-${esc(id)}"></div></div>`;
+  }
+  const known = room.found !== false && (room.planRoom || room.url);
+  return `<div class="bidform warn">
+    <div><strong>⚠ Scope documents only — no bid form in this set.</strong>
+    ${b.title ? `The manual references <em>${esc(b.title)}</em> but it was not included.` : ''}
+    Downloading from Dodge does not put RYC on the responsible-bidder list.</div>
+    ${(b.missing || []).length ? `<div class="note" style="margin-top:5px">Missing: ${esc(b.missing.slice(0, 4).map(x => x.split('(')[0].trim()).join(' · '))}${b.missing.length > 4 ? ' · +' + (b.missing.length - 4) + ' more' : ''}</div>` : ''}
+    <div style="margin-top:7px">
+      ${known
+        ? `<span class="chip ck-done">Plan room known</span> <strong>${esc(room.planRoom || room.url)}</strong>
+           ${room.url && room.planRoom ? `<a class="btn-sm ghost" href="${esc(room.url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}
+           ${room.how ? `<div class="note">${esc(room.how)}</div>` : ''}
+           <button type="button" class="tablink" onclick="editPlanRoom('${esc(id)}')">change</button>`
+        : `<span class="note">Obtain from <strong>${esc(String(b.obtainFrom || 'the architect').split('—')[0].trim())}</strong>.</span>
+           <button class="btn-sm" onclick="editPlanRoom('${esc(id)}')">Record where you got them</button>
+           <span class="note">once — every later job by this architect inherits it</span>`}
+    </div>
+    ${trapLink ? '<div style="margin-top:6px">' + trapLink + '</div>' : ''}
+    <div id="pr-${esc(id)}"></div></div>`;
+}
+function showBidTraps(id) {
+  const b = (_bidform[id] || {}).bidform || {};
+  const box = document.getElementById('pr-' + id); if (!box) return;
+  box.innerHTML = `<div class="card" style="margin-top:9px">
+    ${(b.traps || []).length ? `<div class="note" style="font-weight:700;margin-bottom:5px">Would get the bid rejected or force rework</div>
+      <ul style="margin:0 0 8px 18px">${b.traps.map(t => '<li>' + esc(t) + '</li>').join('')}</ul>` : ''}
+    ${(b.requiredWithBid || []).length ? `<div class="note" style="font-weight:700;margin-bottom:5px">Required with the bid</div>
+      <ul style="margin:0 0 8px 18px">${b.requiredWithBid.map(t => '<li>' + esc(t) + '</li>').join('')}</ul>` : ''}
+    ${b.verdict ? '<div class="note">' + esc(b.verdict) + '</div>' : ''}
+    <button class="btn-sm ghost" onclick="closePr('${esc(id)}')">Close</button></div>`;
+}
+function closePr(id) { const e = document.getElementById('pr-' + id); if (e) e.innerHTML = ''; }
+function editPlanRoom(id) {
+  const room = (_bidform[id] || {}).planRoom || {};
+  const box = document.getElementById('pr-' + id); if (!box) return;
+  box.innerHTML = `<div class="card" style="margin-top:9px">
+    <div class="note" style="margin-bottom:7px">Where do RYC's bid documents for
+      <strong>${esc(room.architect || 'this architect')}</strong> come from? Recorded once, then filled in
+      automatically on every future project by the same firm.</div>
+    <div class="grid2">
+      <label>Plan room<input id="pr-name" placeholder="e.g. Eastern Engineering plan room" value="${esc(room.planRoom || '')}"></label>
+      <label>Link<input id="pr-url" placeholder="https://…" value="${esc(room.url || '')}"></label>
+      <label class="full">How you get on the planholder list<input id="pr-how" placeholder="e.g. register and download — no fee, puts you on the list" value="${esc(room.how || '')}"></label>
+    </div>
+    <div style="margin-top:8px"><button class="btn-sm" onclick="savePlanRoom('${esc(id)}')">Save</button>
+    <button class="btn-sm ghost" onclick="closePr('${esc(id)}')">Cancel</button>
+    <span class="note" id="pr-msg"></span></div></div>`;
+}
+async function savePlanRoom(id) {
+  const v = (x) => ((document.getElementById(x) || {}).value || '').trim();
+  const msg = document.getElementById('pr-msg');
+  if (msg) msg.textContent = 'saving…';
+  try {
+    const d = await intakeCall('planroom', { id, set: { planRoom: v('pr-name'), url: v('pr-url'), how: v('pr-how') } });
+    if (!d || d.ok === false) throw new Error((d && d.error) || 'save failed');
+    _bidform[id] = Object.assign({}, _bidform[id],
+      { planRoom: Object.assign({ found: true, architect: d.architect }, d.room) });
+    closePr(id);
+    renderPursuitHeader();
+    toast('planroom', { kind: 'done', title: 'Plan room recorded',
+      body: 'Every future project by ' + esc(d.architect || 'this architect') + ' will show it automatically.' });
+  } catch (e) { if (msg) msg.textContent = e.message; }
+}
+
 function docsBar(wf) {
   const d = (wf && wf.docs) || null;
   if (!d || !d.folder) return '';
@@ -2387,6 +2486,7 @@ function renderPursuitHeader() {
     <h2>${esc(inp.name || 'Untitled pursuit')}</h2>
     <div class="ph-sub">${esc([inp.loc, inp.ct && ciCT(inp.ct), inp.wt && ciWT(inp.wt)].filter(Boolean).join(' · ')) || '—'}</div>
     ${takeoffBanner()}
+    ${bidformBanner(wf, ((historyCache && historyCache.pursuits) || []).find(x => x.id === window._pursuitId))}
     ${docsBar(wf)}
     <div class="ph-facts">
       ${fact('Stage', esc(stage), stageWhy(wf))}
@@ -3854,7 +3954,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.47.0';
+const TOOL_VERSION = 'v1.48.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};

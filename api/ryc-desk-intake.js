@@ -26,8 +26,11 @@ export default async function handler(req, res) {
   /* 'auto' runs the whole chain — Dodge record, documents, job folder, takeoff — detached on the
      VM and returns immediately. It is the normal path now: adopting a pursuit should not make the
      estimator drive four steps. prepare/commit stay for the manual/recovery route. */
-  if (!['auto', 'prepare', 'commit', 'status'].includes(String(stage || ''))) {
-    return res.status(400).json({ ok: false, error: 'stage must be auto, prepare, commit or status' });
+  /* 'planroom' reads or records where a given ARCHITECT's bid documents actually come from. Dodge
+     names the architect but never says how to get on their planholder list — and that is what
+     decides whether RYC can bid at all. Recorded once per firm, inherited by every later project. */
+  if (!['auto', 'prepare', 'commit', 'status', 'planroom'].includes(String(stage || ''))) {
+    return res.status(400).json({ ok: false, error: 'stage must be auto, prepare, commit, status or planroom' });
   }
   const raw = String(id || '').trim();
   const m = raw.match(/projects\/(\d{6,})/) || raw.match(/(\d{10,})/);
@@ -39,9 +42,13 @@ export default async function handler(req, res) {
   const qs = new URLSearchParams({ id: m[1] });
   if (stage === 'commit') qs.set('name', String(name).trim());
   if (stage === 'auto' && String(name || '').trim()) qs.set('name', String(name).trim());
+  if (stage === 'planroom') {
+    if (req.body.firm) qs.set('firm', String(req.body.firm).slice(0, 200));
+    if (req.body.set) qs.set('set', JSON.stringify(req.body.set).slice(0, 1200));
+  }
   const url = `${base.replace(/\/$/, '')}/intake/${stage}?${qs}`;
   // prepare/commit are minutes long; status and auto both return at once so polling stays cheap.
-  const budget = (stage === 'status' || stage === 'auto') ? 20000 : 290000;
+  const budget = ['status', 'auto', 'planroom'].includes(stage) ? 20000 : 290000;
 
   try {
     const r = await fetch(url, { headers: { 'x-api-key': key }, signal: AbortSignal.timeout(budget) });
