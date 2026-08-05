@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-04T09:30:08.263Z",
+ "generatedAt": "2026-08-05T09:30:09.494Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -509,20 +509,6 @@
      ]
     },
     {
-     "id": "6a021d9b0b9343200b33a5f4",
-     "name": "Masonry",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 0,
-     "undecided": 3,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "6a021d2288ed57c2a441b604",
      "name": "Concrete",
      "number": null,
@@ -540,21 +526,18 @@
      ]
     },
     {
-     "id": "6a022cf0c3591c68c7a3215e",
-     "name": "HVAC",
+     "id": "6a021d9b0b9343200b33a5f4",
+     "name": "Masonry",
      "number": null,
      "state": "PUBLISHED",
      "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
+     "invites": 3,
+     "bidding": 0,
+     "undecided": 3,
      "notBidding": 0,
      "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Dynamic Mechanical Services, Inc."
-     ]
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a022d0bae28a07b4d475101",
@@ -571,6 +554,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "D&D Electrical Contractors"
+     ]
+    },
+    {
+     "id": "6a022cf0c3591c68c7a3215e",
+     "name": "HVAC",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Dynamic Mechanical Services, Inc."
      ]
     },
     {
@@ -943,23 +943,6 @@
      ]
     },
     {
-     "id": "6a5e3ff5610262832998be8c",
-     "name": "Acoustical Ceilings",
-     "number": "09-04",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-07-27T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Matteson Acoustics"
-     ]
-    },
-    {
      "id": "6a5e4021a21b1ed85d711132",
      "name": "Cabinets",
      "number": "12-01",
@@ -974,6 +957,23 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "LUE Manufacturing"
+     ]
+    },
+    {
+     "id": "6a5e3ff5610262832998be8c",
+     "name": "Acoustical Ceilings",
+     "number": "09-04",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-07-27T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Matteson Acoustics"
      ]
     },
     {
@@ -1088,72 +1088,13 @@
    "value": null,
    "isPublic": false,
    "packages": 7,
-   "covered": 3,
-   "atRisk": 4,
+   "covered": 6,
+   "atRisk": 1,
    "invites": 42,
-   "bidding": 6,
-   "undecided": 30,
-   "bidsReceived": 0,
+   "bidding": 10,
+   "undecided": 25,
+   "bidsReceived": 2,
    "pkgs": [
-    {
-     "id": "6a6918f6f9301e246dde4265",
-     "name": "Pavement and Markings",
-     "number": "32-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-04T16:00:00.000Z",
-     "invites": 9,
-     "bidding": 0,
-     "undecided": 8,
-     "notBidding": 1,
-     "viewed": 6,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Central Paving Inc.",
-      "Traffic Control Specialists, Inc.",
-      "Airmarking Co., Inc.",
-      "Gaunt",
-      "Rieth-Riley Construction Co., Inc.",
-      "Wayne Asphalt and Construction Company",
-      "Milestone Contractors, L.P.",
-      "E & B Paving, LLC"
-     ]
-    },
-    {
-     "id": "6a69198e01e49f73cf948fd6",
-     "name": "Soil Preperation and Seeding",
-     "number": "32-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-04T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 0,
-     "undecided": 2,
-     "notBidding": 1,
-     "viewed": 3,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Bojrab Landscape Management",
-      "Harlow Enterprises, Inc."
-     ]
-    },
-    {
-     "id": "6a6b72fd3d66513eda88ed61",
-     "name": "Site Staking",
-     "number": "01-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-04T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Bertsch-Frank & Associates, LLC"
-     ]
-    },
     {
      "id": "6a70afd848b455e4b1e36f2e",
      "name": "Materials Testing",
@@ -1178,14 +1119,45 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-08-04T16:00:00.000Z",
      "invites": 14,
-     "bidding": 1,
-     "undecided": 12,
+     "bidding": 0,
+     "undecided": 13,
      "notBidding": 1,
      "viewed": 6,
+     "bidsReceived": 1,
+     "awardedCompany": null
+    },
+    {
+     "id": "6a69198e01e49f73cf948fd6",
+     "name": "Soil Preperation and Seeding",
+     "number": "32-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-04T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
-      "Brainard Excavating"
+      "Harlow Enterprises, Inc."
+     ]
+    },
+    {
+     "id": "6a6b72fd3d66513eda88ed61",
+     "name": "Site Staking",
+     "number": "01-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-04T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 1,
+     "undecided": 0,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Bertsch-Frank & Associates, LLC"
      ]
     },
     {
@@ -1195,15 +1167,33 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-08-04T16:00:00.000Z",
      "invites": 10,
-     "bidding": 2,
-     "undecided": 5,
+     "bidding": 1,
+     "undecided": 6,
      "notBidding": 3,
+     "viewed": 6,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "J & J Electric"
+     ]
+    },
+    {
+     "id": "6a6918f6f9301e246dde4265",
+     "name": "Pavement and Markings",
+     "number": "32-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-04T16:00:00.000Z",
+     "invites": 9,
+     "bidding": 3,
+     "undecided": 4,
+     "notBidding": 2,
      "viewed": 6,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
-      "J & J Electric",
-      "Stelko Electric, Inc"
+      "Traffic Control Specialists, Inc.",
+      "Airmarking Co., Inc.",
+      "E & B Paving, LLC"
      ]
     },
     {
@@ -1213,14 +1203,15 @@
      "state": "PUBLISHED",
      "bidsDueAt": "2026-08-04T16:00:00.000Z",
      "invites": 4,
-     "bidding": 3,
-     "undecided": 1,
+     "bidding": 4,
+     "undecided": 0,
      "notBidding": 0,
      "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
       "Fulfab, Inc.",
+      "Michiana Steel",
       "Kirk Airport Solutions Inc",
       "Erect-A-Tube"
      ]
@@ -1316,33 +1307,92 @@
    "architect": null,
    "value": null,
    "isPublic": false,
-   "packages": 7,
+   "packages": 10,
    "covered": 5,
-   "atRisk": 2,
-   "invites": 35,
+   "atRisk": 5,
+   "invites": 69,
    "bidding": 5,
-   "undecided": 29,
+   "undecided": 62,
    "bidsReceived": 0,
    "pkgs": [
     {
-     "id": "6a70c8f6a3901e03960b137e",
-     "name": "Drywall",
-     "number": "09-02",
+     "id": "6a70c66000fbb51b4c41a0c5",
+     "name": "Electrical",
+     "number": "26-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-08-24T16:00:00.000Z",
-     "invites": 5,
+     "invites": 16,
      "bidding": 0,
-     "undecided": 5,
+     "undecided": 16,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Anglin Electric, Inc",
+      "Wolverine Electrical Contracting",
+      "Ibid County Electric, Inc.",
+      "Electrical Maint & Constr",
+      "Grove Electrical Services Inc",
+      "Koontz-Wagner Services",
+      "Mead & White Electric Co.",
+      "Elevated Power, LLC",
+      "Middlebury Electric, Inc.",
+      "Schwartz Electric, Inc.",
+      "Pemberton-Davis Electric, Inc.",
+      "D&D Electrical Contractors",
+      "Herrman & Goetz Inc.",
+      "Photon Electric, LLC",
+      "L & M Electric, Inc.",
+      "Gaylor Electric, Inc"
+     ]
+    },
+    {
+     "id": "6a70c9c957dc3211de49b436",
+     "name": "HVAC",
+     "number": "23-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 9,
+     "bidding": 0,
+     "undecided": 9,
      "notBidding": 0,
      "viewed": 0,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "Stans Painting & Dec",
-      "TBG Construction, LLC",
-      "Kleckner Interior Systems",
-      "Quality Drywall",
-      "Jack Laurie Floors, LLC."
+      "Circle R Mechancial",
+      "B.C. Mechanical",
+      "Ideal Consolidated, Inc.",
+      "Precision Mechanical Contractors, Inc.",
+      "Herrman & Goetz Inc.",
+      "D.A. Dodd, LLC",
+      "Core Mechanical Services",
+      "Dynamic Mechanical Services, Inc.",
+      "Griffen P & H, LLC"
+     ]
+    },
+    {
+     "id": "6a70bd36c0f7db0056e72ca0",
+     "name": "Site Work & Utilities",
+     "number": "31-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 9,
+     "bidding": 0,
+     "undecided": 8,
+     "notBidding": 1,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "J Corey Excavation",
+      "Ritschard Bros., Inc.",
+      "C & E Excavating, Inc.",
+      "Hoosierland Excavating",
+      "Haskins Underground Inc",
+      "Hill Excavation, Inc.",
+      "Indiana Earth, Inc."
      ]
     },
     {
@@ -1364,6 +1414,27 @@
       "Midwest Painting Co",
       "Prism Painting",
       "Inline Painting LLC"
+     ]
+    },
+    {
+     "id": "6a70c8f6a3901e03960b137e",
+     "name": "Drywall",
+     "number": "09-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 5,
+     "bidding": 0,
+     "undecided": 5,
+     "notBidding": 0,
+     "viewed": 3,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Stans Painting & Dec",
+      "TBG Construction, LLC",
+      "Kleckner Interior Systems",
+      "Quality Drywall",
+      "Jack Laurie Floors, LLC."
      ]
     },
     {
@@ -1401,23 +1472,6 @@
      ]
     },
     {
-     "id": "6a70c4e75f8fdb57b53f776f",
-     "name": "Building Materials",
-     "number": "06-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-24T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 1,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Alpha Building Center"
-     ]
-    },
-    {
      "id": "6a70c2ae041927849e9f2fce",
      "name": "Water Wells",
      "number": "33-01",
@@ -1432,6 +1486,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Peerless Midwest"
+     ]
+    },
+    {
+     "id": "6a70c4e75f8fdb57b53f776f",
+     "name": "Building Materials",
+     "number": "06-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 1,
+     "undecided": 2,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Alpha Building Center"
      ]
     },
     {
@@ -1618,13 +1689,6 @@
    "id": "692d9c992af9fafb126c3ca6",
    "name": "Lagrange County WWTP - Contract A",
    "closedAt": "2026-02-20T16:25:27.203Z",
-   "awarded": "LOST",
-   "value": null
-  },
-  {
-   "id": "694a7bcf2af99be95a043905",
-   "name": "Knox Community Middle School",
-   "closedAt": "2026-02-05T21:55:38.035Z",
    "awarded": "LOST",
    "value": null
   }
