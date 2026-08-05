@@ -222,7 +222,11 @@ export default async function handler(req, res) {
       // 'docs' = where this job's documents live (SharePoint job folder + subfolders). A location,
       // not a decision: it drives no workflow state, gates nothing, and is safe to overwrite. It
       // belongs with the presentation keys, not behind a typed operation.
-      const ALLOWED = ['checklist', 'validation', 'source', 'docs'];   // draft + presentation only
+      /* 'bc' is MIRRORED STATE, not a decision: BuildingConnected owns publication, invitations and
+         bids, and the Desk only reflects what BC says. It is on the allowlist because a mirror that
+         cannot be written is not a mirror — but nothing in the Desk may author it, and the stage it
+         drives (out_to_bid) is derived from it rather than typed by anyone. */
+      const ALLOWED = ['checklist', 'validation', 'source', 'docs', 'bc'];   // draft + presentation + mirrored BC state
       const ALLOWED_CHECKLIST = ['rfis'];                      // drafted RFI content
 
       const offending = Object.keys(incoming).filter(k => DOMAIN_KEYS[k])
