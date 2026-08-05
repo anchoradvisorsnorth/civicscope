@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.49.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.49.0">
-<script src="/ryc-shell/shell.js?v1.49.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.50.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.50.0">
+<script src="/ryc-shell/shell.js?v1.50.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -1756,11 +1756,36 @@ function bcResetCard() {
     <span class="note" style="margin-left:10px">Step 1 of 2 — nothing is created yet</span>`;
 }
 // Hard block: this estimate already has a BC draft — never offer to create another from here.
+/* What BuildingConnected itself reports, mirrored by bc-readback.js. Before this the Desk went
+   blind the moment packages went out — no coverage, no who is bidding, nothing back. */
+function bcMirror() {
+  const bc = (curWF() || {}).bc;
+  if (!bc || !bc.totals) return '';
+  const T = bc.totals, when = String(bc.at || '').slice(0, 16).replace('T', ' ');
+  const rows = (bc.packages || []).map(p => `<tr>
+      <td>${esc(p.name || '—')}</td>
+      <td>${p.published ? '<span class="ck-pill ck-received">published</span>' : '<span class="ck-pill ck-na">draft</span>'}</td>
+      <td class="r">${p.invited || 0}</td><td class="r">${p.viewed || 0}</td>
+      <td class="r">${p.bidding || 0}</td><td class="r">${p.declined || 0}</td>
+      <td class="r"><strong>${p.bids || 0}</strong></td>
+      <td class="r">${p.low != null ? fmtCompact(p.low) : '—'}</td>
+      <td>${p.awarded ? esc(p.awarded) : ''}</td></tr>`).join('');
+  return `<div style="margin-bottom:12px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:baseline;margin-bottom:8px">
+      <strong>${bc.published ? '✓ Published in BuildingConnected' : 'Draft — not published'}</strong>
+      <span class="note">${T.published}/${T.packages} packages · ${T.invited} invited · ${T.bidding} bidding · <strong>${T.bids} bid${T.bids === 1 ? '' : 's'} in</strong>${T.awarded ? ` · ${T.awarded} awarded` : ''}</span>
+      <span class="note" style="margin-left:auto">read ${esc(when)}</span>
+    </div>
+    ${bc.published ? '' : '<div class="note" style="margin-bottom:8px">Nothing has been sent to any subcontractor. Publishing happens in BuildingConnected.</div>'}
+    <div class="opp-scroll"><table><thead><tr><th>Package</th><th>State</th><th class="r">Invited</th>
+      <th class="r">Viewed</th><th class="r">Bidding</th><th class="r">Declined</th><th class="r">Bids</th>
+      <th class="r">Low</th><th>Awarded</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
 function bcLoadedCard() {
   const b = document.getElementById('bcBody');
   if (!b) return;
   const u = (window._bcLoaded && window._bcLoaded.url) || null;
-  b.innerHTML =
+  b.innerHTML = bcMirror() +
     `<div style="font-size:14px;margin-bottom:8px">✓ <strong>Already loaded to BuildingConnected.</strong> A draft project was created from this estimate — to prevent a duplicate, it can't be loaded again from here.</div>`
     + (u ? `<a class="btn-sm" href="${esc(u)}" target="_blank" rel="noopener">Open in BuildingConnected →</a>` : `<span class="note">BC link not recorded on this run — find it in BuildingConnected.</span>`)
     + `<div class="note" style="margin-top:6px">Need a fresh draft after major scope changes? Create it directly in BuildingConnected.</div>`;
@@ -1874,7 +1899,13 @@ function derivedStage(wf) {
   if (wf.submission && wf.submission.amount) return { key: 'submitted', why: 'bid recorded' };
   const q = (typeof quoteState === 'function') ? quoteState() : { n: 0, m: 0 };
   if (q.n > 0) return { key: 'pricing', why: `${q.n} quote${q.n === 1 ? '' : 's'} in` };
-  if (wf.stage === 'out_to_bid' || wf.stage === 'pricing') return { key: wf.stage, why: 'marked out to bid' };
+  /* BC owns publication, so it owns "out to bid" — this was the one stage nobody could derive and
+     therefore the one an estimator had to remember to set. Mirrored by bc-readback.js. */
+  const bc = wf.bc;
+  if (bc && bc.totals && bc.totals.bids > 0) return { key: 'pricing', why: `${bc.totals.bids} bid${bc.totals.bids === 1 ? '' : 's'} in from BuildingConnected` };
+  if (bc && bc.published) return { key: 'out_to_bid', why: 'published in BuildingConnected' };
+  if (wf.stage === 'out_to_bid' || wf.stage === 'pricing') return { key: wf.stage, why: 'marked out to bid by hand' };
+  if (bc && bc.totals) return { key: 'takeoff', why: `${bc.totals.packages} package${bc.totals.packages === 1 ? '' : 's'} drafted in BC, not published` };
   return { key: 'takeoff', why: 'until packages go out' };
 }
 function stageWhy(wf) { return derivedStage(wf).why; }
@@ -2569,8 +2600,12 @@ function renderPursuit() {
   /* The single stage with no fact behind it. Out to bid means "published in BuildingConnected",
      and until the BC read-back exists nothing here can know that — so it is marked, explicitly,
      and labelled as the manual one rather than dressed up as derived. */
-  const canMarkOut = !['submitted', 'won', 'lost', 'pricing'].includes(ds.key);
-  const stageCtl = canMarkOut
+  // Once BC is mirrored it is the authority; the hand-set control would only ever contradict it.
+  const bcKnows = !!(wf.bc && wf.bc.totals);
+  const canMarkOut = !bcKnows && !['submitted', 'won', 'lost', 'pricing'].includes(ds.key);
+  const stageCtl = bcKnows
+    ? `<span class="note">${esc(ds.why)} — BuildingConnected is the source for this, read ${esc(String(wf.bc.at || '').slice(0, 16).replace('T', ' '))}</span>`
+    : canMarkOut
     ? `<button class="btn-sm ghost" onclick="setStage('${ds.key === 'out_to_bid' ? 'takeoff' : 'out_to_bid'}')">`
       + `${ds.key === 'out_to_bid' ? '↩ Back to takeoff' : 'Mark out to bid'}</button>`
       + `<span class="note" style="margin-left:8px">the only stage set by hand — the rest follow the facts you record</span>`
@@ -3966,7 +4001,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.49.0';
+const TOOL_VERSION = 'v1.50.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
