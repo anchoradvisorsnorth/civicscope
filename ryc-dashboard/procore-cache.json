@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-07-27T05:26:01.013Z",
+  "refreshed": "2026-08-05T05:26:02.007Z",
   "jobCount": 53,
   "jobs": [
     {
@@ -17,7 +17,7 @@
       "projectedFinish": "2026-08-21T16:00:00Z",
       "completionDate": "2026-08-31",
       "sqft": null,
-      "pctComplete": 70.3,
+      "pctComplete": 71.9,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -27,14 +27,14 @@
       },
       "submittals": {
         "total": 42,
-        "open": 27
+        "open": 0
       },
       "budget": {
         "original": 19281323.549999997,
         "revised": 20155991.33,
         "committed": 0,
-        "direct": 13030409.2,
-        "projectedCost": 19107993.75,
+        "direct": 13334737.770000001,
+        "projectedCost": 19134698.23,
         "projectedBudget": 20096315.81,
         "projCostSuspect": false
       },
@@ -44,7 +44,7 @@
         "count": 33,
         "subcontracts": 23,
         "purchaseOrders": 10,
-        "committedTotal": 18609101.2,
+        "committedTotal": 18613440.2,
         "originalTotal": 16700848.05,
         "pendingTotal": 0,
         "invoicedTotal": 0,
@@ -54,7 +54,7 @@
             "title": "Orchard Wallen Road - Sitework - Subcontract",
             "vendor": "Flemming Excavating Inc",
             "status": "Approved",
-            "total": 3864263.74,
+            "total": 3868602.74,
             "original": 3495731,
             "invoiced": 0
           },
@@ -349,10 +349,10 @@
         ]
       },
       "changeOrders": {
-        "count": 48,
+        "count": 49,
         "netValue": 798207.5,
         "byType": {
-          "Allowance": 41,
+          "Allowance": 42,
           "Contingency": 1,
           "TBD": 3,
           "Owner Change": 2,
@@ -381,7 +381,7 @@
       "projectedFinish": "2027-01-01",
       "completionDate": "2027-08-01",
       "sqft": null,
-      "pctComplete": 30.2,
+      "pctComplete": 30.7,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -391,14 +391,14 @@
       },
       "submittals": {
         "total": 357,
-        "open": 181
+        "open": 180
       },
       "budget": {
         "original": 16017608.15,
         "revised": 16017608.150000002,
         "committed": 0,
-        "direct": 5454265.52,
-        "projectedCost": 13509052.46,
+        "direct": 5541480.8,
+        "projectedCost": 13517878.46,
         "projectedBudget": 16221550.53,
         "projCostSuspect": false
       },
@@ -408,7 +408,7 @@
         "count": 31,
         "subcontracts": 24,
         "purchaseOrders": 7,
-        "committedTotal": 13181698.18,
+        "committedTotal": 13183398.18,
         "originalTotal": 13629654.58,
         "pendingTotal": 0,
         "invoicedTotal": 0,
@@ -427,7 +427,7 @@
             "title": "Sterling Contracting Subcontract",
             "vendor": "Sterling Contracting, LLC",
             "status": "Approved",
-            "total": 1843815.49,
+            "total": 1845515.49,
             "original": 1857300,
             "invoiced": 0
           },
@@ -695,10 +695,10 @@
         ]
       },
       "changeOrders": {
-        "count": 33,
+        "count": 35,
         "netValue": 217212.38,
         "byType": {
-          "Allowance": 33
+          "Allowance": 35
         }
       },
       "pm": {
@@ -727,13 +727,13 @@
       "projectedFinish": "2027-06-30T21:00:00Z",
       "completionDate": "2027-01-01",
       "sqft": null,
-      "pctComplete": 7.7,
+      "pctComplete": 7.8,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 18,
-        "open": 5
+        "total": 20,
+        "open": 7
       },
       "submittals": {
         "total": 127,
@@ -743,8 +743,8 @@
         "original": 15960965.520000003,
         "revised": 16253605.520000003,
         "committed": 0,
-        "direct": 1334684.0699999998,
-        "projectedCost": 12535943.9,
+        "direct": 1351559.58,
+        "projectedCost": 12546694.41,
         "projectedBudget": 16241375.73,
         "projCostSuspect": false
       },
@@ -754,9 +754,9 @@
         "count": 40,
         "subcontracts": 35,
         "purchaseOrders": 5,
-        "committedTotal": 11545283.54,
-        "originalTotal": 11126512.93,
-        "pendingTotal": 756942.68,
+        "committedTotal": 11701175.39,
+        "originalTotal": 11282404.78,
+        "pendingTotal": 601050.83,
         "invoicedTotal": 0,
         "rows": [
           {
@@ -934,7 +934,7 @@
             "kind": "sub",
             "title": "Monreaux - Subcontract - Gypecrete",
             "vendor": "Ultimate Edge LLC",
-            "status": "Out For Signature",
+            "status": "Approved",
             "total": 108747,
             "original": 108747,
             "invoiced": 0
@@ -1024,7 +1024,7 @@
             "kind": "sub",
             "title": "C-Tec - Monreaux - Subcontract",
             "vendor": "C-Tec Inc",
-            "status": "Out For Signature",
+            "status": "Approved",
             "total": 47144.85,
             "original": 47144.85,
             "invoiced": 0
@@ -1170,8 +1170,8 @@
         "original": 15085716.219999999,
         "revised": 15842068.219999999,
         "committed": 0,
-        "direct": 16439797.09,
-        "projectedCost": 17324452.2,
+        "direct": 16442675.540000003,
+        "projectedCost": 17327330.65,
         "projectedBudget": 16368916.52,
         "projCostSuspect": false
       },
@@ -1610,7 +1610,7 @@
       "projectedFinish": "2026-11-20T13:00:00Z",
       "completionDate": "2026-11-02",
       "sqft": null,
-      "pctComplete": 60.3,
+      "pctComplete": 60.7,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -1620,15 +1620,15 @@
       },
       "submittals": {
         "total": 220,
-        "open": 41
+        "open": 40
       },
       "budget": {
         "original": 12630570.77,
         "revised": 12630570.77,
         "committed": 0,
-        "direct": 8475156.22,
-        "projectedCost": 12014967.69,
-        "projectedBudget": 11561068.46,
+        "direct": 8530520.87,
+        "projectedCost": 12063789.49,
+        "projectedBudget": 11566449.61,
         "projCostSuspect": false
       },
       "contractValue": 14055300,
@@ -1637,7 +1637,7 @@
         "count": 43,
         "subcontracts": 28,
         "purchaseOrders": 15,
-        "committedTotal": 11463426.21,
+        "committedTotal": 11468807.36,
         "originalTotal": 12608083.06,
         "pendingTotal": 0,
         "invoicedTotal": 0,
@@ -1665,7 +1665,7 @@
             "title": "Maddox Industrial Subcontract",
             "vendor": "Maddox Industrial LLC",
             "status": "Approved",
-            "total": 1326271.09,
+            "total": 1331652.24,
             "original": 1302000,
             "invoiced": 0
           },
@@ -2032,10 +2032,10 @@
         ]
       },
       "changeOrders": {
-        "count": 52,
-        "netValue": -1123208.02,
+        "count": 53,
+        "netValue": -1117826.87,
         "byType": {
-          "TBD": 49,
+          "TBD": 50,
           "Allowance": 3
         }
       },
@@ -2061,7 +2061,7 @@
       "projectedFinish": "2026-04-22T21:00:00Z",
       "completionDate": "2025-07-01",
       "sqft": null,
-      "pctComplete": 77.5,
+      "pctComplete": 77.8,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": true,
@@ -2070,15 +2070,15 @@
         "open": 1
       },
       "submittals": {
-        "total": 311,
-        "open": 57
+        "total": 310,
+        "open": 49
       },
       "budget": {
         "original": 10907043.73,
         "revised": 10951924.540000001,
         "committed": 0,
-        "direct": 9271240.049999997,
-        "projectedCost": 10076579.58,
+        "direct": 9309823.919999996,
+        "projectedCost": 10073947.45,
         "projectedBudget": 10966277.61,
         "projCostSuspect": false
       },
@@ -2088,7 +2088,7 @@
         "count": 35,
         "subcontracts": 23,
         "purchaseOrders": 12,
-        "committedTotal": 9230013.88,
+        "committedTotal": 9223793.88,
         "originalTotal": 9238587.8,
         "pendingTotal": 0,
         "invoicedTotal": 0,
@@ -2134,7 +2134,7 @@
             "title": "Gasvoda & Associates, Inc. Subcontract",
             "vendor": "Gasvoda & Associates Inc",
             "status": "Approved",
-            "total": 688965.4,
+            "total": 682745.4,
             "original": 642335,
             "invoiced": 0
           },
@@ -2446,7 +2446,7 @@
       "projectedFinish": "2027-01-15T22:00:00Z",
       "completionDate": "2027-01-31",
       "sqft": null,
-      "pctComplete": 12.6,
+      "pctComplete": 17.1,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -2460,20 +2460,20 @@
       },
       "budget": {
         "original": 7996197.17,
-        "revised": 8158300.17,
+        "revised": 8170876.17,
         "committed": 0,
-        "direct": 1148840.48,
-        "projectedCost": 7331419.8,
-        "projectedBudget": 8122603.42,
+        "direct": 1553623.19,
+        "projectedCost": 7341019.19,
+        "projectedBudget": 8133693.42,
         "projCostSuspect": false
       },
       "contractValue": 9098536,
-      "revisedContract": 9229621.53,
+      "revisedContract": 9242197.53,
       "commitments": {
         "count": 25,
         "subcontracts": 20,
         "purchaseOrders": 5,
-        "committedTotal": 6841605.28,
+        "committedTotal": 6850945.28,
         "originalTotal": 6809334.53,
         "pendingTotal": 292477,
         "invoicedTotal": 0,
@@ -2492,7 +2492,7 @@
             "title": "L&M Subcontract - CTB 2026",
             "vendor": "L & M Electric Inc",
             "status": "Approved",
-            "total": 879219,
+            "total": 888559,
             "original": 809740,
             "invoiced": 0
           },
@@ -2706,11 +2706,11 @@
         ]
       },
       "changeOrders": {
-        "count": 18,
-        "netValue": 123308.25,
+        "count": 19,
+        "netValue": 134398.25,
         "byType": {
+          "Owner Change": 8,
           "Allowance": 10,
-          "Owner Change": 7,
           "TBD": 1
         }
       },
@@ -2740,7 +2740,7 @@
       "projectedFinish": "2027-12-20T22:00:00Z",
       "completionDate": "2027-12-06",
       "sqft": null,
-      "pctComplete": 6.7,
+      "pctComplete": 6.8,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -2749,15 +2749,15 @@
         "open": 5
       },
       "submittals": {
-        "total": 505,
-        "open": 464
+        "total": 507,
+        "open": 452
       },
       "budget": {
         "original": 7730460.510000001,
         "revised": 7730460.510000001,
         "committed": 0,
-        "direct": 575011.11,
-        "projectedCost": 6406104.89,
+        "direct": 576515.5700000001,
+        "projectedCost": 6407609.35,
         "projectedBudget": 7705897.51,
         "projCostSuspect": false
       },
@@ -3524,13 +3524,13 @@
       "projectedFinish": "2026-08-31",
       "completionDate": "2026-08-31",
       "sqft": null,
-      "pctComplete": 44,
+      "pctComplete": 46.6,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 14,
-        "open": 4
+        "open": 1
       },
       "submittals": {
         "total": 74,
@@ -3540,8 +3540,8 @@
         "original": 3552279.87,
         "revised": 3575456.87,
         "committed": 0,
-        "direct": 1747400.5199999998,
-        "projectedCost": 3246989.22,
+        "direct": 1850314.73,
+        "projectedCost": 3325338.43,
         "projectedBudget": 3582135.87,
         "projCostSuspect": false
       },
@@ -3551,7 +3551,7 @@
         "count": 22,
         "subcontracts": 18,
         "purchaseOrders": 4,
-        "committedTotal": 3168944.43,
+        "committedTotal": 3172784.43,
         "originalTotal": 3126620.43,
         "pendingTotal": 0,
         "invoicedTotal": 0,
@@ -3606,7 +3606,7 @@
             "title": "Universal - Michiana Eye Center - Subcontract",
             "vendor": "Universal Services Company LLC",
             "status": "Approved",
-            "total": 166774,
+            "total": 170614,
             "original": 164302,
             "invoiced": 0
           },
@@ -3791,7 +3791,7 @@
       "projectedFinish": "2026-10-03",
       "completionDate": "2026-10-03",
       "sqft": null,
-      "pctComplete": 64.6,
+      "pctComplete": 67.7,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -3807,9 +3807,9 @@
         "original": 3309736.6799999997,
         "revised": 3344962.6799999997,
         "committed": 0,
-        "direct": 2396287.37,
-        "projectedCost": 3265069.96,
-        "projectedBudget": 3530544.66,
+        "direct": 2512300.16,
+        "projectedCost": 3269082.75,
+        "projectedBudget": 3533511.9,
         "projCostSuspect": false
       },
       "contractValue": 3709035,
@@ -4015,12 +4015,12 @@
         ]
       },
       "changeOrders": {
-        "count": 23,
-        "netValue": 143139.98,
+        "count": 24,
+        "netValue": 144587.22,
         "byType": {
+          "Owner Change": 4,
           "Allowance": 19,
-          "Contingency": 1,
-          "Owner Change": 3
+          "Contingency": 1
         }
       },
       "pm": {
@@ -4049,7 +4049,7 @@
       "projectedFinish": "2025-08-08T21:00:00Z",
       "completionDate": "2026-09-28",
       "sqft": 67298,
-      "pctComplete": 76.6,
+      "pctComplete": 80.3,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": true,
@@ -4063,15 +4063,15 @@
       },
       "budget": {
         "original": 3393854.23,
-        "revised": 3473992.2600000007,
+        "revised": 3477515.6100000003,
         "committed": 0,
-        "direct": 2830110.16,
-        "projectedCost": 4650784.89,
-        "projectedBudget": 3444253.15,
+        "direct": 2967488.4299999997,
+        "projectedCost": 4673619.51,
+        "projectedBudget": 3443286.76,
         "projCostSuspect": true
       },
       "contractValue": 3695500,
-      "revisedContract": 3775638.03,
+      "revisedContract": 3778373.88,
       "commitments": {
         "count": 14,
         "subcontracts": 10,
@@ -4245,13 +4245,13 @@
       "projectedFinish": "2026-10-01",
       "completionDate": "2026-10-01",
       "sqft": null,
-      "pctComplete": 60.5,
+      "pctComplete": 60.6,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 32,
-        "open": 3
+        "total": 33,
+        "open": 4
       },
       "submittals": {
         "total": 75,
@@ -4261,8 +4261,8 @@
         "original": 3089475.19,
         "revised": 3089475.19,
         "committed": 0,
-        "direct": 2219165.03,
-        "projectedCost": 3057592.58,
+        "direct": 2223274.13,
+        "projectedCost": 3061701.68,
         "projectedBudget": 3083146.03,
         "projCostSuspect": false
       },
@@ -4449,7 +4449,7 @@
       "projectedFinish": "2025-05-06T21:00:00Z",
       "completionDate": "2024-10-01",
       "sqft": 4500,
-      "pctComplete": 108.2,
+      "pctComplete": 108.3,
       "costOverrun": true,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -4465,8 +4465,8 @@
         "original": 3290493.28,
         "revised": 4099820.9299999997,
         "committed": 0,
-        "direct": 3925951.57,
-        "projectedCost": 7320513.89,
+        "direct": 3929891.57,
+        "projectedCost": 7324453.89,
         "projectedBudget": 4230419.31,
         "projCostSuspect": true
       },
@@ -5119,7 +5119,7 @@
       "projectedFinish": "2026-07-02T21:00:00Z",
       "completionDate": "2026-06-16",
       "sqft": null,
-      "pctComplete": 62.1,
+      "pctComplete": 62.5,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -5135,9 +5135,9 @@
         "original": 2180018.8899999997,
         "revised": 2180548.8899999997,
         "committed": 0,
-        "direct": 1563341.62,
-        "projectedCost": 2003726.21,
-        "projectedBudget": 2162620.33,
+        "direct": 1573810.6600000001,
+        "projectedCost": 2014195.25,
+        "projectedBudget": 2165270.33,
         "projCostSuspect": false
       },
       "contractValue": 2519230,
@@ -5280,10 +5280,10 @@
         ]
       },
       "changeOrders": {
-        "count": 7,
-        "netValue": -16641.04,
+        "count": 8,
+        "netValue": -13991.04,
         "byType": {
-          "TBD": 7
+          "TBD": 8
         }
       },
       "pm": {
@@ -5312,25 +5312,25 @@
       "projectedFinish": "2027-05-18T21:00:00Z",
       "completionDate": "2027-04-06",
       "sqft": null,
-      "pctComplete": 8.2,
+      "pctComplete": 13.1,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 10,
-        "open": 0
+        "total": 11,
+        "open": 1
       },
       "submittals": {
         "total": 142,
-        "open": 74
+        "open": 72
       },
       "budget": {
         "original": 2071633.13,
         "revised": 2072579.5,
         "committed": 0,
-        "direct": 188008.97000000003,
-        "projectedCost": 1648275.81,
-        "projectedBudget": 2076235.46,
+        "direct": 299143.92000000004,
+        "projectedCost": 1652268.87,
+        "projectedBudget": 2114135.79,
         "projCostSuspect": false
       },
       "contractValue": 2280743,
@@ -5339,9 +5339,9 @@
         "count": 29,
         "subcontracts": 25,
         "purchaseOrders": 4,
-        "committedTotal": 1552434.3,
-        "originalTotal": 1547798.25,
-        "pendingTotal": 49370.29,
+        "committedTotal": 1561684.3,
+        "originalTotal": 1557048.25,
+        "pendingTotal": 40120.29,
         "invoicedTotal": 0,
         "rows": [
           {
@@ -5537,7 +5537,7 @@
             "kind": "sub",
             "title": "Abonmarche - White Vet Clinic Subcontract",
             "vendor": "Abonmarche Consultants Inc",
-            "status": "Out For Signature",
+            "status": "Approved",
             "total": 9250,
             "original": 9250,
             "invoiced": 0
@@ -5609,7 +5609,7 @@
       },
       "changeOrders": {
         "count": 11,
-        "netValue": 20310.83,
+        "netValue": 54328.76,
         "byType": {
           "Allowance": 11
         }
@@ -5812,7 +5812,7 @@
       "projectedFinish": "2026-08-19T21:00:00Z",
       "completionDate": "2026-02-24",
       "sqft": 9600,
-      "pctComplete": 48.8,
+      "pctComplete": 55.7,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -5828,8 +5828,8 @@
         "original": 823809.7699999999,
         "revised": 839430.3799999998,
         "committed": 0,
-        "direct": 478065.85,
-        "projectedCost": 607259.42,
+        "direct": 545325.21,
+        "projectedCost": 610405.05,
         "projectedBudget": 829642.79,
         "projCostSuspect": false
       },
@@ -6030,10 +6030,10 @@
       },
       "budget": {
         "original": 775895.84,
-        "revised": 793896.07,
+        "revised": 794111.37,
         "committed": 0,
         "direct": 0,
-        "projectedCost": 628210.34,
+        "projectedCost": 640210.34,
         "projectedBudget": 790970.77,
         "projCostSuspect": false
       },
@@ -6043,7 +6043,7 @@
         "count": 10,
         "subcontracts": 6,
         "purchaseOrders": 4,
-        "committedTotal": 620836,
+        "committedTotal": 632836,
         "originalTotal": 620836,
         "pendingTotal": 3068.41,
         "invoicedTotal": 0,
@@ -6077,20 +6077,20 @@
           },
           {
             "kind": "sub",
+            "title": "Haskins Subcontract - LaCrosse WWTP Improvements",
+            "vendor": "Haskins Underground, Inc.",
+            "status": "Approved",
+            "total": 97000,
+            "original": 85000,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
             "title": "Concrete - Heiman - Subcontract",
             "vendor": "Heiman Construction Inc.",
             "status": "Approved",
             "total": 89100,
             "original": 89100,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Haskins Subcontract - LaCrosse WWTP Improvements",
-            "vendor": "Haskins Underground, Inc.",
-            "status": "Approved",
-            "total": 85000,
-            "original": 85000,
             "invoiced": 0
           },
           {
@@ -6141,10 +6141,10 @@
         ]
       },
       "changeOrders": {
-        "count": 2,
+        "count": 3,
         "netValue": 15074.93,
         "byType": {
-          "TBD": 1,
+          "TBD": 2,
           "Owner Change": 1
         }
       },
@@ -6263,9 +6263,9 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 8.6,
+      "pctComplete": 8.8,
       "costOverrun": false,
-      "commitmentsTracked": false,
+      "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
         "total": 0,
@@ -6279,14 +6279,33 @@
         "original": 449441.63,
         "revised": 449441.63,
         "committed": 0,
-        "direct": 43502.280000000006,
-        "projectedCost": 43502.28,
+        "direct": 44325.170000000006,
+        "projectedCost": 72422.09,
         "projectedBudget": 449441.63,
         "projCostSuspect": false
       },
       "contractValue": 503203,
       "revisedContract": null,
-      "commitments": null,
+      "commitments": {
+        "count": 1,
+        "subcontracts": 0,
+        "purchaseOrders": 1,
+        "committedTotal": 28096.92,
+        "originalTotal": 28096.92,
+        "pendingTotal": 0,
+        "invoicedTotal": 0,
+        "rows": [
+          {
+            "kind": "po",
+            "title": "6517 - Leatherman P.O",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 28096.92,
+            "original": 28096.92,
+            "invoiced": 0
+          }
+        ]
+      },
       "changeOrders": {
         "count": 0,
         "netValue": 0,
@@ -6332,18 +6351,18 @@
         "revised": 382800.95,
         "committed": 0,
         "direct": 33475.62,
-        "projectedCost": 119051.28,
+        "projectedCost": 148356.33,
         "projectedBudget": 382800.95,
         "projCostSuspect": false
       },
       "contractValue": 475650,
       "revisedContract": 475650,
       "commitments": {
-        "count": 8,
+        "count": 9,
         "subcontracts": 6,
-        "purchaseOrders": 2,
-        "committedTotal": 78355.76,
-        "originalTotal": 78355.76,
+        "purchaseOrders": 3,
+        "committedTotal": 107660.81,
+        "originalTotal": 107660.81,
         "pendingTotal": 7219.9,
         "invoicedTotal": 0,
         "rows": [
@@ -6354,6 +6373,15 @@
             "status": "Approved",
             "total": 48111.56,
             "original": 48111.56,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "2016 Leathermans - P.O",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 29305.05,
+            "original": 29305.05,
             "invoiced": 0
           },
           {
@@ -6479,11 +6507,11 @@
       "contractValue": 422165,
       "revisedContract": null,
       "commitments": {
-        "count": 2,
-        "subcontracts": 1,
+        "count": 3,
+        "subcontracts": 2,
         "purchaseOrders": 1,
-        "committedTotal": 34787.6,
-        "originalTotal": 34787.6,
+        "committedTotal": 41966.6,
+        "originalTotal": 41966.6,
         "pendingTotal": 0,
         "invoicedTotal": 0,
         "rows": [
@@ -6503,6 +6531,15 @@
             "status": "Approved",
             "total": 10899,
             "original": 10899,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J&N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 7179,
+            "original": 7179,
             "invoiced": 0
           }
         ]
@@ -6719,7 +6756,7 @@
       "projectedFinish": "2026-10-31",
       "completionDate": "2026-10-31",
       "sqft": null,
-      "pctComplete": 33.6,
+      "pctComplete": 33.7,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -6735,19 +6772,19 @@
         "original": 335173.62,
         "revised": 335173.62,
         "committed": 0,
-        "direct": 135671.87999999998,
-        "projectedCost": 135671.88,
+        "direct": 136213.59,
+        "projectedCost": 143772.59,
         "projectedBudget": 335173.62,
         "projCostSuspect": false
       },
       "contractValue": 403954,
       "revisedContract": 403954.19,
       "commitments": {
-        "count": 3,
-        "subcontracts": 2,
+        "count": 4,
+        "subcontracts": 3,
         "purchaseOrders": 1,
-        "committedTotal": 52837.65,
-        "originalTotal": 52837.65,
+        "committedTotal": 60396.65,
+        "originalTotal": 60396.65,
         "pendingTotal": 0,
         "invoicedTotal": 0,
         "rows": [
@@ -6776,6 +6813,15 @@
             "status": "Approved",
             "total": 10899,
             "original": 10899,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "J&N Stone Subcontract",
+            "vendor": "J & N Stone Inc.",
+            "status": "Approved",
+            "total": 7559,
+            "original": 7559,
             "invoiced": 0
           }
         ]
@@ -6808,7 +6854,7 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 35,
+      "pctComplete": 35.1,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -6824,8 +6870,8 @@
         "original": 313419.69,
         "revised": 313419.69,
         "committed": 0,
-        "direct": 141429.81,
-        "projectedCost": 185107.81,
+        "direct": 141880.11,
+        "projectedCost": 185558.11,
         "projectedBudget": 314169.69,
         "projCostSuspect": false
       },
@@ -6922,7 +6968,7 @@
       "projectedFinish": "2026-10-31",
       "completionDate": "2026-10-31",
       "sqft": null,
-      "pctComplete": 46.6,
+      "pctComplete": 48.1,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -6938,8 +6984,8 @@
         "original": 352783.61,
         "revised": 352783.61,
         "committed": 0,
-        "direct": 183496.88999999998,
-        "projectedCost": 197349.04,
+        "direct": 189409.92,
+        "projectedCost": 203262.07,
         "projectedBudget": 352783.61,
         "projCostSuspect": false
       },
@@ -7291,7 +7337,7 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 79.9,
+      "pctComplete": 81.5,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -7307,8 +7353,8 @@
         "original": 297095.71,
         "revised": 299515.71,
         "committed": 0,
-        "direct": 300279.88,
-        "projectedCost": 377178.58,
+        "direct": 306347.63,
+        "projectedCost": 383246.33,
         "projectedBudget": 299515.71,
         "projCostSuspect": false
       },
@@ -7658,7 +7704,7 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 9.9,
+      "pctComplete": 18.8,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -7674,19 +7720,19 @@
         "original": 314071.83999999997,
         "revised": 314071.83999999997,
         "committed": 0,
-        "direct": 36857.020000000004,
-        "projectedCost": 122288.27,
+        "direct": 70142.74,
+        "projectedCost": 175961.37,
         "projectedBudget": 314071.84,
         "projCostSuspect": false
       },
       "contractValue": 372723,
       "revisedContract": 372723,
       "commitments": {
-        "count": 3,
+        "count": 4,
         "subcontracts": 3,
-        "purchaseOrders": 0,
-        "committedTotal": 33266.25,
-        "originalTotal": 33266.25,
+        "purchaseOrders": 1,
+        "committedTotal": 53653.63,
+        "originalTotal": 53653.63,
         "pendingTotal": 52165,
         "invoicedTotal": 0,
         "rows": [
@@ -7697,6 +7743,15 @@
             "status": "Out For Signature",
             "total": 52165,
             "original": 52165,
+            "invoiced": 0
+          },
+          {
+            "kind": "po",
+            "title": "Leatherman's - P.O",
+            "vendor": "Leatherman Supply Inc.",
+            "status": "Approved",
+            "total": 20387.38,
+            "original": 20387.38,
             "invoiced": 0
           },
           {
@@ -7763,8 +7818,8 @@
         "original": 298048.37000000005,
         "revised": 298048.37000000005,
         "committed": 0,
-        "direct": 167243.39,
-        "projectedCost": 167243.39,
+        "direct": 167145.89,
+        "projectedCost": 167145.89,
         "projectedBudget": 298048.37,
         "projCostSuspect": false
       },
@@ -7981,8 +8036,8 @@
         "original": 297160.4,
         "revised": 297160.4,
         "committed": 0,
-        "direct": 293920.39999999997,
-        "projectedCost": 368182.4,
+        "direct": 293900.49999999994,
+        "projectedCost": 368162.5,
         "projectedBudget": 297160.4,
         "projCostSuspect": false
       },
@@ -8211,8 +8266,8 @@
         "original": 284619.62,
         "revised": 284619.62,
         "committed": 0,
-        "direct": 150986.29000000004,
-        "projectedCost": 181268.29,
+        "direct": 150888.79000000004,
+        "projectedCost": 181170.79,
         "projectedBudget": 284619.62,
         "projCostSuspect": false
       },
@@ -8509,7 +8564,7 @@
       "projectedFinish": "2026-02-05",
       "completionDate": "2026-02-05",
       "sqft": null,
-      "pctComplete": 75.4,
+      "pctComplete": 77.1,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": true,
@@ -8525,8 +8580,8 @@
         "original": 286231.73,
         "revised": 286231.73,
         "committed": 0,
-        "direct": 263098.91000000003,
-        "projectedCost": 268562.91,
+        "direct": 268986.41000000003,
+        "projectedCost": 274450.41,
         "projectedBudget": 286782.53,
         "projCostSuspect": false
       },
@@ -8750,7 +8805,7 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 73.6,
+      "pctComplete": 75.3,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -8766,8 +8821,8 @@
         "original": 281892.42,
         "revised": 281892.42,
         "committed": 0,
-        "direct": 256100.43999999997,
-        "projectedCost": 306722.94,
+        "direct": 261987.93999999997,
+        "projectedCost": 312610.44,
         "projectedBudget": 284367.42,
         "projCostSuspect": false
       },
@@ -9015,8 +9070,8 @@
         "original": 285014.87,
         "revised": 291404.87,
         "committed": 0,
-        "direct": 153998.06,
-        "projectedCost": 192920.41,
+        "direct": 154081.63999999998,
+        "projectedCost": 193003.99,
         "projectedBudget": 285014.87,
         "projCostSuspect": false
       },
@@ -10044,8 +10099,8 @@
         "original": 279288.39,
         "revised": 279288.39,
         "committed": 0,
-        "direct": 263935.68999999994,
-        "projectedCost": 326605.94,
+        "direct": 263885.93999999994,
+        "projectedCost": 326556.19,
         "projectedBudget": 279288.39,
         "projCostSuspect": false
       },
@@ -10267,7 +10322,7 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 83.7,
+      "pctComplete": 83.8,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -10283,8 +10338,8 @@
         "original": 268659.6000000001,
         "revised": 277346.22000000003,
         "committed": 0,
-        "direct": 267786.51,
-        "projectedCost": 331584.53,
+        "direct": 268111.64,
+        "projectedCost": 331909.66,
         "projectedBudget": 278426.6,
         "projCostSuspect": false
       },
@@ -10535,7 +10590,7 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 84.6,
+      "pctComplete": 86.3,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -10551,8 +10606,8 @@
         "original": 269971.29000000004,
         "revised": 269971.29000000004,
         "committed": 0,
-        "direct": 269085.81,
-        "projectedCost": 288080.19,
+        "direct": 274733.61,
+        "projectedCost": 293727.99,
         "projectedBudget": 273282.29,
         "projCostSuspect": false
       },
@@ -10781,8 +10836,8 @@
         "original": 262510.03,
         "revised": 262510.03,
         "committed": 0,
-        "direct": 78918.77,
-        "projectedCost": 201389.37,
+        "direct": 79018.31,
+        "projectedCost": 201715.99,
         "projectedBudget": 278067.03,
         "projCostSuspect": false
       },
@@ -10792,7 +10847,7 @@
         "count": 5,
         "subcontracts": 4,
         "purchaseOrders": 1,
-        "committedTotal": 134133.6,
+        "committedTotal": 136748.6,
         "originalTotal": 134133.6,
         "pendingTotal": 0,
         "invoicedTotal": 0,
@@ -10825,21 +10880,21 @@
             "invoiced": 0
           },
           {
+            "kind": "sub",
+            "title": "Flooring - Avanti Flooring - Subcontract",
+            "vendor": "Avanti Flooring LLC",
+            "status": "Approved",
+            "total": 3115,
+            "original": 500,
+            "invoiced": 0
+          },
+          {
             "kind": "po",
             "title": "ABT Electronics - Purchase Order",
             "vendor": "ABT Electronics, Inc.",
             "status": "Approved",
             "total": 2505.6,
             "original": 2505.6,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Flooring - Avanti Flooring - Subcontract",
-            "vendor": "Avanti Flooring LLC",
-            "status": "Approved",
-            "total": 500,
-            "original": 500,
             "invoiced": 0
           }
         ]
@@ -10876,7 +10931,7 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 71.9,
+      "pctComplete": 73.6,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -10892,8 +10947,8 @@
         "original": 269812.16000000003,
         "revised": 274609.16000000003,
         "committed": 0,
-        "direct": 226168.66999999998,
-        "projectedCost": 256730.67,
+        "direct": 231584.24999999997,
+        "projectedCost": 262146.25,
         "projectedBudget": 272886.31,
         "projCostSuspect": false
       },
@@ -11143,7 +11198,7 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 74.9,
+      "pctComplete": 76.2,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -11159,8 +11214,8 @@
         "original": 292873.61000000004,
         "revised": 292873.61000000004,
         "committed": 0,
-        "direct": 235852.88,
-        "projectedCost": 247119.38,
+        "direct": 239776.6,
+        "projectedCost": 251043.1,
         "projectedBudget": 299469.79,
         "projCostSuspect": false
       },
