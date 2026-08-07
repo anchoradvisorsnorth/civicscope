@@ -129,11 +129,18 @@ async function renderWeek(slug){
   const wk=j.data; if(!wk){document.getElementById('content').innerHTML='<div class="note">Week not found.</div>';return;}
   const revealed=j.revealed;   // server: all locked OR past first kickoff
   const games=wk.games||[];
-  const players=Object.keys(wk.picks||{}).sort();
+  /* IDENTITY (2026-08-07): wk.picks is keyed by PERSON ID, not name. Every entry carries a `name`
+     snapshot, and the week response now ships `roster:[{id,name}]`, so ids resolve to names without
+     a second request. Keys stay ids everywhere; only display goes through nameOf(). */
+  const players=Object.keys(wk.picks||{});
+  const rosterList=j.roster||[];
+  const nameById={}; rosterList.forEach(p=>{nameById[p.id]=p.name;});
+  const nameOf=pid=>(wk.picks&&wk.picks[pid]&&wk.picks[pid].name)||nameById[pid]||pid;
+  players.sort((a,b)=>nameOf(a).localeCompare(nameOf(b)));
   const scores=revealed?await liveScores(games):{};
   const {pts,detail}=revealed?weekPoints(wk,scores):{pts:{},detail:{}};
   const ranked=players.slice().sort((a,b)=>(pts[b]||0)-(pts[a]||0));
-  let roster=[]; try{roster=(await(await fetch(API+'?players=1',{cache:'no-store'})).json()).players.map(p=>p.name);}catch(e){}
+  const roster=rosterList.map(p=>p.name);
   const sel='<select onchange="renderWeek(this.value)">'+weeks.map(w=>'<option value="'+w.slug+'" '+(w.slug===slug?'selected':'')+'>'+esc(w.label||w.slug)+'</option>').join('')+'</select>';
 
   let html='<div class="section-title"><span>'+esc(wk.label||slug)+' — '+games.length+' games'+(wk.slateLocked?' · spreads frozen '+new Date(wk.lockedAt).toLocaleDateString():'')+'</span>'+sel+'</div>';
@@ -142,7 +149,7 @@ async function renderWeek(slug){
     html+='<div class="champ" style="display:block"><div class="ct">🏆 Week winner</div><div class="cn">'+esc(wk.weeklyWinner)+'</div></div>';
   }
   if(!revealed){
-    const lockedIn=players.filter(p=>wk.picks[p].locked);
+    const lockedIn=players.filter(p=>wk.picks[p].locked).map(nameOf);
     const waiting=roster.filter(n=>!lockedIn.includes(n));
     html+='<div class="note">🔒 <b>Picks are hidden until everyone locks in</b> (or first kickoff '+fmtDT(wk.deadline)+', whichever comes first).<br>Locked in: <b>'+
       (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
@@ -151,7 +158,7 @@ async function renderWeek(slug){
       '</tbody></table></div>';
   } else if(players.length){
     html+='<div class="card tblwrap"><table><thead><tr><th>Game · frozen line</th><th>Score</th>'+
-      ranked.map(p=>'<th class="num">'+esc(p)+'</th>').join('')+'</tr></thead><tbody>';
+      ranked.map(p=>'<th class="num">'+esc(nameOf(p))+'</th>').join('')+'</tr></thead><tbody>';
     for(const g of games){
       const sc=scores[g.id];
       const st=!sc?'<span class="gsub">'+fmtDT(g.date)+'</span>':sc.state==='post'?'<span class="final">'+sc.awayScore+'–'+sc.homeScore+' F</span>':sc.state==='in'?'<span class="live">'+sc.awayScore+'–'+sc.homeScore+' · '+esc(sc.detail)+'</span>':'<span class="gsub">'+fmtDT(g.date)+'</span>';
