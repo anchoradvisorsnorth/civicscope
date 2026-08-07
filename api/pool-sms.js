@@ -18,7 +18,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.1.1-inbound';   // title-case multi-word names in the JOIN reply
+const VER = '1.2.0-inbound-diag';   // diagnose/repair inbound routing
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -196,6 +196,54 @@ export default async function handler(req, res) {
         // Echo the URL with the secret masked — enough to confirm it landed, nothing leaked.
         inboundUrl: String(r.body.inbound_request_url || '').replace(/([?&]s=)[^&]*/, '$1<secret>'),
       });
+    }
+
+    /* Inbound went silent on 2026-08-07: a real JOIN never reached us (consent never flipped,
+       endpoint provably alive). The usual cause is a Twilio routing detail rather than the URL —
+       `use_inbound_webhook_on_number` makes the SERVICE defer to the phone number's own webhook,
+       which is unset, so the message lands nowhere. This reports every hop and can repair it. */
+    if (action === 'diagnose_inbound') {
+      const out = { ver: VER };
+      const svc = await tw(`https://messaging.twilio.com/v1/Services/${MSVC}`);
+      out.service = svc.ok ? {
+        friendlyName: svc.body.friendly_name,
+        inboundUrl: String(svc.body.inbound_request_url || '').replace(/([?&]s=)[^&]*/, '$1<secret>') || null,
+        inboundMethod: svc.body.inbound_method || null,
+        // TRUE means the service ignores its own URL and uses the number's — the likely culprit.
+        useInboundWebhookOnNumber: svc.body.use_inbound_webhook_on_number,
+      } : { error: svc.body?.message, status: svc.status };
+
+      const nums = await tw(`https://messaging.twilio.com/v1/Services/${MSVC}/PhoneNumbers`);
+      const list = nums.ok ? (nums.body.phone_numbers || []) : [];
+      out.numbers = [];
+      for (const n of list) {
+        const pn = await tw(`https://api.twilio.com/2010-04-01/Accounts/${ACCT}/IncomingPhoneNumbers/${n.sid}.json`);
+        out.numbers.push({
+          phone: n.phone_number, sid: n.sid,
+          smsUrl: pn.ok ? (pn.body.sms_url || null) : null,
+          smsMethod: pn.ok ? (pn.body.sms_method || null) : null,
+        });
+      }
+
+      if (req.body?.repair) {
+        const secret = process.env.TWILIO_INBOUND_SECRET;
+        const target = `https://app.civicscope.io/api/pool-sms?action=inbound&s=${encodeURIComponent(secret || '')}`;
+        // Belt and braces: point the SERVICE at us AND stop it deferring to the number, then set
+        // the number's own webhook too so either routing path lands here.
+        const fixSvc = await tw(`https://messaging.twilio.com/v1/Services/${MSVC}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ InboundRequestUrl: target, InboundMethod: 'POST', UseInboundWebhookOnNumber: 'false' }),
+        });
+        out.repair = { service: fixSvc.ok, numbers: [] };
+        for (const n of list) {
+          const fixNum = await tw(`https://api.twilio.com/2010-04-01/Accounts/${ACCT}/IncomingPhoneNumbers/${n.sid}.json`, {
+            method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ SmsUrl: target, SmsMethod: 'POST' }),
+          });
+          out.repair.numbers.push({ phone: n.phone_number, ok: fixNum.ok, message: fixNum.ok ? undefined : fixNum.body?.message });
+        }
+      }
+      return res.status(200).json(out);
     }
 
     if (action === 'send_test') {
