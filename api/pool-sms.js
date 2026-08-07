@@ -18,7 +18,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.1.0-inbound';   // mobile-originated opt-in: member texts JOIN, matched on roster mobile
+const VER = '1.1.1-inbound';   // title-case multi-word names in the JOIN reply
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -115,7 +115,10 @@ export default async function handler(req, res) {
             sms_consent_text: `Mobile-originated opt-in. Inbound SMS from ${from}: "${String(req.body.Body || '').slice(0, 200)}"`,
             updated_at: new Date().toISOString(),
           }) });
-        const nm = String(person.name || '').replace(/^(.)(.*)$/, (m, a, b) => a + b.toLowerCase());
+        // Title-case per WORD. Lower-casing everything after the first letter turned "KEITH T1"
+        // into "Keith t1" — rosters are stored upper-case, so names are frequently multi-word.
+        const nm = String(person.name || '').toLowerCase()
+          .replace(/\b([a-z])/g, (m, c) => c.toUpperCase());
         return twiml(`You're in, ${nm}. Your PIN is ${person.pin}. Picks: app.civicscope.io/pool/football/picks — Reply STOP any time to turn texts off.`);
       }
       return twiml('The Pool: reply JOIN to turn on text alerts, STOP to turn them off, HELP for info.');
