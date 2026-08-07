@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-08-06T05:26:05.014Z",
+  "refreshed": "2026-08-07T05:26:02.008Z",
   "jobCount": 53,
   "jobs": [
     {
@@ -34,18 +34,18 @@
         "revised": 20155991.33,
         "committed": 0,
         "direct": 13334737.770000001,
-        "projectedCost": 19134698.23,
+        "projectedCost": 19159898.23,
         "projectedBudget": 20096315.81,
         "projCostSuspect": false
       },
       "contractValue": 18537636,
       "revisedContract": 21120057.78,
       "commitments": {
-        "count": 33,
-        "subcontracts": 23,
+        "count": 34,
+        "subcontracts": 24,
         "purchaseOrders": 10,
-        "committedTotal": 18613440.2,
-        "originalTotal": 16700848.05,
+        "committedTotal": 18638640.2,
+        "originalTotal": 16726048.05,
         "pendingTotal": 0,
         "invoicedTotal": 0,
         "rows": [
@@ -266,6 +266,15 @@
             "invoiced": 0
           },
           {
+            "kind": "sub",
+            "title": "Wallen Road - Concrete Step - Subcontract",
+            "vendor": "Jess Concrete Enterprises",
+            "status": "Approved",
+            "total": 25200,
+            "original": 25200,
+            "invoiced": 0
+          },
+          {
             "kind": "po",
             "title": "KDI - PO Wallen Road",
             "vendor": "Kammerer Dynamics, Inc.",
@@ -381,7 +390,7 @@
       "projectedFinish": "2027-01-01",
       "completionDate": "2027-08-01",
       "sqft": null,
-      "pctComplete": 30.7,
+      "pctComplete": 31.7,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -397,8 +406,8 @@
         "original": 16017608.15,
         "revised": 16017608.150000002,
         "committed": 0,
-        "direct": 5541480.8,
-        "projectedCost": 13517878.46,
+        "direct": 5733501.899999999,
+        "projectedCost": 13519057.31,
         "projectedBudget": 16221550.53,
         "projCostSuspect": false
       },
@@ -1154,7 +1163,7 @@
       "projectedFinish": "2025-10-18T21:00:00Z",
       "completionDate": "2025-08-30",
       "sqft": 56000,
-      "pctComplete": 103,
+      "pctComplete": 103.1,
       "costOverrun": true,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -1170,9 +1179,9 @@
         "original": 15085716.219999999,
         "revised": 15842068.219999999,
         "committed": 0,
-        "direct": 16442878.830000002,
-        "projectedCost": 17327533.94,
-        "projectedBudget": 16368916.52,
+        "direct": 16454974.23,
+        "projectedCost": 17346061.34,
+        "projectedBudget": 16375348.52,
         "projCostSuspect": false
       },
       "contractValue": 15962778,
@@ -1181,7 +1190,7 @@
         "count": 43,
         "subcontracts": 34,
         "purchaseOrders": 9,
-        "committedTotal": 15608927.19,
+        "committedTotal": 15615359.19,
         "originalTotal": 13659494.24,
         "pendingTotal": 10200,
         "invoicedTotal": 0,
@@ -1191,7 +1200,7 @@
             "title": "EJ White- PHM Fieldhouse Subcontract",
             "vendor": "Edward J. White, Inc.",
             "status": "Approved",
-            "total": 2763137.73,
+            "total": 2764704.73,
             "original": 2538595,
             "invoiced": 0
           },
@@ -1512,20 +1521,20 @@
           },
           {
             "kind": "sub",
+            "title": "Slager Restoration - PHM Fieldhouse Subcontract",
+            "vendor": "Slager Restoration & Sealants, Inc.",
+            "status": "Approved",
+            "total": 28165,
+            "original": 10155,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
             "title": "The Insulation Guys - PHM Fieldhouse Subcontract",
             "vendor": "The Insulation Guys LLC",
             "status": "Approved",
             "total": 26999,
             "original": 25799,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
-            "title": "Slager Restoration - PHM Fieldhouse Subcontract",
-            "vendor": "Slager Restoration & Sealants, Inc.",
-            "status": "Approved",
-            "total": 23300,
-            "original": 10155,
             "invoiced": 0
           },
           {
@@ -1576,11 +1585,11 @@
         ]
       },
       "changeOrders": {
-        "count": 124,
-        "netValue": 617267.39,
+        "count": 126,
+        "netValue": 623699.39,
         "byType": {
+          "Allowance": 91,
           "Owner Change": 34,
-          "Allowance": 89,
           "Contingency": 1
         }
       },
@@ -2462,8 +2471,8 @@
         "original": 7996197.17,
         "revised": 8170876.17,
         "committed": 0,
-        "direct": 1556568.5899999999,
-        "projectedCost": 7344708.24,
+        "direct": 1557312.2399999998,
+        "projectedCost": 7292710.74,
         "projectedBudget": 8133693.42,
         "projCostSuspect": false
       },
@@ -2473,9 +2482,9 @@
         "count": 25,
         "subcontracts": 20,
         "purchaseOrders": 5,
-        "committedTotal": 6850945.28,
-        "originalTotal": 6809334.53,
-        "pendingTotal": 292477,
+        "committedTotal": 7043524.78,
+        "originalTotal": 7053911.53,
+        "pendingTotal": 47900,
         "invoicedTotal": 0,
         "rows": [
           {
@@ -2501,7 +2510,7 @@
             "title": "MW Chupp Subcontract - CTB 2026",
             "vendor": "M.W. Chupp, Inc.",
             "status": "Approved",
-            "total": 654800,
+            "total": 658800,
             "original": 663800,
             "invoiced": 0
           },
@@ -2516,20 +2525,20 @@
           },
           {
             "kind": "sub",
-            "title": "Meadowlark Subcontract - CTB 2026",
-            "vendor": "Meadowlark Concrete",
-            "status": "Approved",
-            "total": 491098.8,
-            "original": 483563.8,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
             "title": "Preferred Subcontract - CTB 2026",
             "vendor": "Preferred Inc.",
             "status": "Approved",
             "total": 490501,
             "original": 490501,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Meadowlark Subcontract - CTB 2026",
+            "vendor": "Meadowlark Concrete",
+            "status": "Approved",
+            "total": 490355.3,
+            "original": 483563.8,
             "invoiced": 0
           },
           {
@@ -2570,15 +2579,6 @@
           },
           {
             "kind": "sub",
-            "title": "Havel Subcontract - CTB 2026",
-            "vendor": "Havel",
-            "status": "Out For Signature",
-            "total": 244577,
-            "original": 244577,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
             "title": "Yoder Concrete Subcontract - CTB 2026",
             "vendor": "Yoder Concrete LLC",
             "status": "Approved",
@@ -2593,6 +2593,15 @@
             "status": "Approved",
             "total": 189645,
             "original": 189645,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Havel Subcontract - CTB 2026",
+            "vendor": "Havel",
+            "status": "Approved",
+            "total": 189323,
+            "original": 244577,
             "invoiced": 0
           },
           {
@@ -2706,11 +2715,11 @@
         ]
       },
       "changeOrders": {
-        "count": 19,
+        "count": 20,
         "netValue": 134398.25,
         "byType": {
+          "Allowance": 11,
           "Owner Change": 8,
-          "Allowance": 10,
           "TBD": 1
         }
       },
@@ -2745,8 +2754,8 @@
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 19,
-        "open": 5
+        "total": 20,
+        "open": 6
       },
       "submittals": {
         "total": 507,
@@ -2756,8 +2765,8 @@
         "original": 7730460.510000001,
         "revised": 7730460.510000001,
         "committed": 0,
-        "direct": 578650.19,
-        "projectedCost": 6409743.97,
+        "direct": 579660.19,
+        "projectedCost": 6410753.97,
         "projectedBudget": 7705897.51,
         "projCostSuspect": false
       },
@@ -4250,8 +4259,8 @@
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 33,
-        "open": 3
+        "total": 34,
+        "open": 4
       },
       "submittals": {
         "total": 75,
@@ -5321,7 +5330,7 @@
         "open": 2
       },
       "submittals": {
-        "total": 142,
+        "total": 143,
         "open": 70
       },
       "budget": {
@@ -6854,7 +6863,7 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 35.1,
+      "pctComplete": 35.2,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -6870,8 +6879,8 @@
         "original": 313419.69,
         "revised": 313419.69,
         "committed": 0,
-        "direct": 141880.11,
-        "projectedCost": 185558.11,
+        "direct": 142160.11,
+        "projectedCost": 185838.11,
         "projectedBudget": 314169.69,
         "projCostSuspect": false
       },
@@ -6984,8 +6993,8 @@
         "original": 352783.61,
         "revised": 352783.61,
         "committed": 0,
-        "direct": 189409.92,
-        "projectedCost": 204529.07,
+        "direct": 189306.34,
+        "projectedCost": 204425.49,
         "projectedBudget": 352783.61,
         "projCostSuspect": false
       },
@@ -7362,8 +7371,8 @@
         "original": 297095.71,
         "revised": 299515.71,
         "committed": 0,
-        "direct": 306472.63,
-        "projectedCost": 383371.33,
+        "direct": 306347.63,
+        "projectedCost": 383246.33,
         "projectedBudget": 299515.71,
         "projCostSuspect": false
       },
@@ -7729,8 +7738,8 @@
         "original": 314071.83999999997,
         "revised": 314071.83999999997,
         "committed": 0,
-        "direct": 70142.74,
-        "projectedCost": 175961.37,
+        "direct": 69908.42,
+        "projectedCost": 175727.05,
         "projectedBudget": 314071.84,
         "projCostSuspect": false
       },
@@ -8589,8 +8598,8 @@
         "original": 286231.73,
         "revised": 286231.73,
         "committed": 0,
-        "direct": 269111.41000000003,
-        "projectedCost": 274575.41,
+        "direct": 268986.41000000003,
+        "projectedCost": 274450.41,
         "projectedBudget": 286782.53,
         "projCostSuspect": false
       },
@@ -8814,7 +8823,7 @@
       "projectedFinish": null,
       "completionDate": null,
       "sqft": null,
-      "pctComplete": 75.4,
+      "pctComplete": 75.3,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -8830,8 +8839,8 @@
         "original": 281892.42,
         "revised": 281892.42,
         "committed": 0,
-        "direct": 262112.93999999997,
-        "projectedCost": 312735.44,
+        "direct": 261987.93999999997,
+        "projectedCost": 312610.44,
         "projectedBudget": 284367.42,
         "projCostSuspect": false
       },
@@ -10349,7 +10358,7 @@
         "committed": 0,
         "direct": 268111.64,
         "projectedCost": 331909.66,
-        "projectedBudget": 278426.6,
+        "projectedBudget": 286903.09,
         "projCostSuspect": false
       },
       "contractValue": 319970,
@@ -10564,10 +10573,10 @@
         ]
       },
       "changeOrders": {
-        "count": 4,
-        "netValue": 9430,
+        "count": 5,
+        "netValue": 17906.49,
         "byType": {
-          "TBD": 2,
+          "TBD": 3,
           "Owner Change": 1,
           "Allowance": 1
         }
@@ -11466,7 +11475,7 @@
         "committed": 0,
         "direct": 245192.01000000004,
         "projectedCost": 377146.83,
-        "projectedBudget": 266621.54,
+        "projectedBudget": 272795.3,
         "projCostSuspect": true
       },
       "contractValue": 309770,
@@ -11663,10 +11672,10 @@
         ]
       },
       "changeOrders": {
-        "count": 3,
-        "netValue": 1260,
+        "count": 4,
+        "netValue": 4346.88,
         "byType": {
-          "TBD": 1,
+          "TBD": 2,
           "Owner Change": 2
         }
       },
