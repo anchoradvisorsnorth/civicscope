@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.8.0-phone';   // roster keeps a mobile (identity/contact) - consent still lives in sms-optins
+const VER = '1.9.0-prefs';   // per-member channel prefs (both default ON); SMS still needs consent too
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -263,6 +263,18 @@ export default async function handler(req, res) {
               email: String(p.email || '').slice(0, 80),
               phone: d.length === 11 && d[0] === '1' ? '+' + d : (d.length === 10 ? '+1' + d : ''),
               pin: String(p.pin || Math.floor(1000 + Math.random() * 9000)),
+              /* PREFERENCE, NOT CONSENT — two different things, deliberately kept apart.
+                 Preference answers "which channels does this member want?" and defaults to BOTH
+                 ON (Keith 2026-08-07). Consent answers "may we lawfully text them at all?" and
+                 lives in `sms-optins`, written only by the member's own /pool/sms submission,
+                 where the default is and must remain OFF (that preselected "No text alerts" is
+                 what cleared A2P rejection 30923).
+                 notify.sms = true therefore means "wants texts IF allowed" — it can never create
+                 permission. Both must be true for a text to send. */
+              notify: {
+                email: p?.notify?.email !== false,
+                sms: p?.notify?.sms !== false,
+              },
             };
           }).filter(p => p.name);
           /* A full-replace write to the LIVE roster must not be able to silently shrink it to
@@ -336,7 +348,8 @@ export default async function handler(req, res) {
             const gameRows = wk.games.map(g =>
               `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085">${new Date(g.date).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET</td></tr>`).join('');
             for (const p of players) {
-              if (!p.email) continue;
+              // Channel choice is per member. Email defaults on; a member who turned it off is skipped.
+              if (p.email && p?.notify?.email !== false) {
               const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#101828">
                 <div style="background:linear-gradient(135deg,#0a2240,#14532d);color:#fff;padding:18px 22px;border-radius:10px 10px 0 0">
                   <div style="font-size:20px;font-weight:800">🏈 ${wk.label || slug} slate is LOCKED — make your picks</div>
@@ -356,10 +369,12 @@ export default async function handler(req, res) {
                 body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `🏈 ${wk.label || slug} slate is locked — picks due before first kickoff`, html }),
               });
               if (r.ok) emailed++;
+              }
 
-              // SMS to members who opted in THEMSELVES via /pool/sms. See sendSms above.
+              /* SMS needs BOTH: the member's own consent (sms-optins) AND their channel
+                 preference. Preference alone is never enough — see save_players. */
               const consent = optinFor(p.name);
-              if (consent) {
+              if (consent && p?.notify?.sms !== false) {
                 const when = new Date(wk.deadline).toLocaleString('en-US',
                   { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' });
                 const ok = await sendSms(consent.phone,
