@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.7.2-roster-guard';   // save_players honours slug + refuses to shrink the live roster
+const VER = '1.8.0-phone';   // roster keeps a mobile (identity/contact) - consent still lives in sms-optins
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -250,11 +250,21 @@ export default async function handler(req, res) {
         const rosterTarget = (s) => (String(s || '') === 'sandbox-config' ? 'sandbox-config' : 'config');
         if (action === 'save_players') {
           const target = rosterTarget(req.body.slug);
-          const players = (req.body.players || []).map(p => ({
-            name: String(p.name || '').toUpperCase().slice(0, 20),
-            email: String(p.email || '').slice(0, 80),
-            pin: String(p.pin || Math.floor(1000 + Math.random() * 9000)),
-          })).filter(p => p.name);
+          /* `phone` is CONTACT/IDENTITY, never consent. Keith 2026-08-07: text is becoming the
+             primary login and most use is mobile, so the number belongs on the member record.
+             It is stored here and NOWHERE consulted by sendSms — that reads `sms-optins` only.
+             Storing a number the commissioner typed must never, by itself, cause a text to be
+             sent to it; that is A2P rejection 30923 and it is the reason these are two fields in
+             two different rows. */
+          const players = (req.body.players || []).map(p => {
+            const d = String(p.phone || '').replace(/\D/g, '');
+            return {
+              name: String(p.name || '').toUpperCase().slice(0, 20),
+              email: String(p.email || '').slice(0, 80),
+              phone: d.length === 11 && d[0] === '1' ? '+' + d : (d.length === 10 ? '+1' + d : ''),
+              pin: String(p.pin || Math.floor(1000 + Math.random() * 9000)),
+            };
+          }).filter(p => p.name);
           /* A full-replace write to the LIVE roster must not be able to silently shrink it to
              a test fixture again. Replacing >1 real player with fewer requires an explicit
              confirmShrink — a guard, not a permission system: it only has to survive the
