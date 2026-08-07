@@ -18,7 +18,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.0.1-sms';   // account check demoted to informational (Standard keys 401 by design)
+const VER = '1.1.0-inbound';   // mobile-originated opt-in: member texts JOIN, matched on roster mobile
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -173,6 +173,26 @@ export default async function handler(req, res) {
             note: 'Expected for a Standard API key — not authorized for the Account resource. Not a credential fault.' };
 
       return res.status(200).json(out);
+    }
+
+    /* Points Twilio's inbound webhook at this endpoint. It lives here for the same reason `verify`
+       does: the TWILIO_* vars are Sensitive in Vercel, so they are readable ONLY inside the
+       deployed runtime — a laptop cannot make this call. The secret is composed server-side and
+       never travels in a response. */
+    if (action === 'set_inbound_webhook') {
+      const secret = process.env.TWILIO_INBOUND_SECRET;
+      if (!secret) return res.status(500).json({ error: 'TWILIO_INBOUND_SECRET not set' });
+      const target = `https://app.civicscope.io/api/pool-sms?action=inbound&s=${encodeURIComponent(secret)}`;
+      const form = new URLSearchParams({ InboundRequestUrl: target, InboundMethod: 'POST' });
+      const r = await tw(`https://messaging.twilio.com/v1/Services/${MSVC}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form });
+      if (!r.ok) return res.status(200).json({ set: false, status: r.status, message: r.body?.message });
+      return res.status(200).json({
+        set: true,
+        inboundMethod: r.body.inbound_method,
+        // Echo the URL with the secret masked — enough to confirm it landed, nothing leaked.
+        inboundUrl: String(r.body.inbound_request_url || '').replace(/([?&]s=)[^&]*/, '$1<secret>'),
+      });
     }
 
     if (action === 'send_test') {
