@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.0.0-identity';   // roster from pool_people/pool_memberships; picks keyed by person id
+const VER = '2.1.0-reuse';   // + Add existing, plain-English conflicts, one-time consent -> pool-added notice
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -316,9 +316,12 @@ export default async function handler(req, res) {
            believing it was addressing a sandbox) is a class, not a one-off. */
         if (action === 'save_players') {
           const poolSlug = String(req.body.poolSlug || 'football-2026');
-          const pr = await sb(`pools?slug=eq.${encodeURIComponent(poolSlug)}&select=id`);
+          const pr = await sb(`pools?slug=eq.${encodeURIComponent(poolSlug)}&select=id,name,sport`);
           const pool = pr.ok ? (await pr.json())[0] : null;
           if (!pool) return res.status(404).json({ error: `no pool '${poolSlug}'` });
+          // Who is in the pool BEFORE this write — used to spot genuinely new members below.
+          const beforeRes = await sb(`pool_memberships?pool_id=eq.${pool.id}&select=person_id`);
+          const before = new Set(beforeRes.ok ? (await beforeRes.json()).map(m => m.person_id) : []);
 
           const incoming = (req.body.players || []).map(p => {
             const d = String(p.phone || '').replace(/\D/g, '');
@@ -348,7 +351,36 @@ export default async function handler(req, res) {
             headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
             body: JSON.stringify(incoming),
           });
-          if (!up.ok) return res.status(500).json({ error: 'people upsert failed: ' + (await up.text()).slice(0, 200) });
+          if (!up.ok) {
+            /* Never leak raw Postgres at a commissioner. A 23505 here is not a fault — it is the
+               identity guarantee doing its job, and it has a specific, actionable meaning:
+               PHONE IS UNIQUE BECAUSE IT IS THE IDENTITY KEY. An inbound JOIN carries nothing but
+               the number, so two people sharing one would make the marry-back ambiguous. Say who
+               already owns it and what to do about it. */
+            const raw = await up.text();
+            if (/23505/.test(raw) && /phone/i.test(raw)) {
+              const num = (raw.match(/\(phone\)=\(([^)]+)\)/) || [])[1] || '';
+              let owner = '';
+              if (num) {
+                const o = await sb(`pool_people?phone=eq.${encodeURIComponent(num)}&select=name`);
+                if (o.ok) owner = ((await o.json())[0] || {}).name || '';
+              }
+              return res.status(409).json({
+                error: `${num || 'That mobile'} is already on file for ${owner || 'another member'}.`,
+                hint: owner
+                  ? `A mobile can only belong to one person — it is how a JOIN text is matched back. Use "+ Add existing" to put ${owner} in this pool, or give this new member a different number.`
+                  : 'A mobile can only belong to one person — it is how a JOIN text is matched back.',
+                conflictWith: owner || null,
+              });
+            }
+            if (/23505/.test(raw) && /name_key/i.test(raw)) {
+              return res.status(409).json({
+                error: 'Two members on this roster normalise to the same name.',
+                hint: 'Names must be unique across the whole Pool, not just this competition — that is what keeps history attached to the right person. Use "+ Add existing" to reuse someone who already exists.',
+              });
+            }
+            return res.status(500).json({ error: 'Could not save the roster. Nothing was changed.' });
+          }
           const people = await up.json();
           const keep = people.map(p => p.id);
 
@@ -361,7 +393,50 @@ export default async function handler(req, res) {
               role: p.global_role === 'commissioner' ? 'commissioner' : 'participant',
             }))),
           });
-          return res.status(200).json({ poolSlug, players: await loadRoster('') });
+          /* CONSENT IS PER PERSON AND PERMANENT — never ask twice (Keith 2026-08-07).
+             Once someone has opted in, being added to a LATER pool is not a new consent event; it
+             is a notification. So a newly-added member who already has consent simply gets told
+             they're in, with a link to that pool. Somebody who has never opted in gets nothing —
+             adding them to a pool must never become a backdoor to texting them, which is exactly
+             the forced-consent shape that A2P rejection 30923 was about.
+             This is also why consent lives on pool_people and not on the membership. */
+          const added = people.filter(p => !before.has(p.id));
+          let notified = 0;
+          if (added.length) {
+            const link = pool.sport === 'golf'
+              ? 'app.civicscope.io/pool/golf'
+              : 'app.civicscope.io/pool/football';
+            for (const p of added) {
+              const canText = p.sms_consent === true && p.sms_opted_out !== true
+                           && !!p.phone && p.notify_sms !== false;
+              if (!canText) continue;
+              const ok = await sendSms(p.phone,
+                `The Pool: you're in ${pool.name}. Picks and standings: ${link}\nReply STOP to opt out.`);
+              if (ok) notified++;
+            }
+          }
+          return res.status(200).json({
+            poolSlug, players: await loadRoster(''),
+            addedCount: added.length, notified,
+          });
+        }
+        /* People outlive pools, so adding a participant should usually mean REUSING one — that is
+           the whole point of "a participant may be in multiple pools, past and future". Without
+           this the only way to add someone is to retype them, which collides on the unique name or
+           phone and looks like a bug (it did, 2026-08-07). */
+        if (action === 'list_people') {
+          const poolSlug = String(req.body.poolSlug || 'football-2026');
+          const pr = await sb(`pools?slug=eq.${encodeURIComponent(poolSlug)}&select=id`);
+          const pool = pr.ok ? (await pr.json())[0] : null;
+          const all = await sb('pool_people?select=id,name,phone,email,global_role&order=name');
+          const mem = pool ? await sb(`pool_memberships?pool_id=eq.${pool.id}&select=person_id`) : null;
+          const inPool = new Set(mem && mem.ok ? (await mem.json()).map(m => m.person_id) : []);
+          return res.status(200).json({
+            people: (all.ok ? await all.json() : []).map(p => ({
+              id: p.id, name: p.name, phone: p.phone || '', email: p.email || '',
+              globalRole: p.global_role, inPool: inPool.has(p.id),
+            })),
+          });
         }
         if (action === 'get_players_full') {
           return res.status(200).json({
