@@ -207,7 +207,7 @@ function renderPlayers(){
    sent FROM the pool line to someone who has not opted in is an unsolicited A2P message (rejection
    30923). This keeps it person-to-person, which is both legal and how the group actually talks. */
 function inviteText(p){
-  const nm=p.name?p.name.charAt(0)+p.name.slice(1).toLowerCase():'';
+  const nm=p.name?String(p.name).toLowerCase().replace(/\b([a-z])/g,(m,ch)=>ch.toUpperCase()):'';
   return `${nm?nm+' — ':''}you're in the pool this year. `
     +`To get pick reminders and your PIN by text, text JOIN to (574) 444-0320. `
     +`Optional — everything's always on app.civicscope.io/pool too.`;
