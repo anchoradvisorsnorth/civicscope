@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.6.0-sandbox';   // + sandbox- slugs read roster from sandbox-config
+const VER = '1.7.0-sms';   // slate-lock notify also texts members who opted in via /pool/sms
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -55,6 +55,30 @@ export default async function handler(req, res) {
     return rows.length ? rows[0] : null;          // null = someone else wrote first
   };
   const cleanSlug = (s) => String(s || '').replace(/[^a-z0-9-]/gi, '').slice(0, 30);
+  /* SMS — A2P 10DLC campaign approved 2026-08-05 (CM4c09562b..., use case SOLE_PROPRIETOR).
+     Deliberately rides the SAME notify loop as the email rather than becoming a second
+     notification system: one roster, one trigger, one place where "who gets told" is decided.
+
+     ⚠ CONSENT IS THE WHOLE BALLGAME. Four A2P rejections were about this, the last one
+     (30923) for treating consent as a condition of service. So the gate is strict and
+     positive: a member is texted ONLY if they set smsConsent === true themselves through
+     /pool/sms. Missing flag, falsy flag, or a mobile typed in by the commissioner on someone
+     else's behalf = no text. Never widen this to `if (p.mobile)`. */
+  const sendSms = async (to, body) => {
+    const KS = process.env.TWILIO_API_KEY_SID, KX = process.env.TWILIO_API_KEY_SECRET;
+    const AC = process.env.TWILIO_ACCOUNT_SID, MS = process.env.TWILIO_MESSAGING_SERVICE_SID;
+    if (!KS || !KX || !AC || !MS) return false;
+    if (!/^\+1\d{10}$/.test(String(to || ''))) return false;
+    try {
+      const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${AC}/Messages.json`, {
+        method: 'POST',
+        headers: { Authorization: 'Basic ' + Buffer.from(`${KS}:${KX}`).toString('base64'),
+                   'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ To: to, MessagingServiceSid: MS, Body: String(body).slice(0, 320) }),
+      });
+      return r.ok;
+    } catch { return false; }        // a texting failure must never break the lock or the email
+  };
   /* SANDBOX BOUNDARY (Keith, 2026-08-01: "sandbox this thing for now").
      A competition whose slug starts with `sandbox-` reads its roster from `sandbox-config`,
      never from the live `config` row. That makes test play a genuinely separate world instead
@@ -250,7 +274,7 @@ export default async function handler(req, res) {
           wk.picks = wk.picks || {};
           await putRow(slug, wk);
           // notify players (best-effort; skips players without an email)
-          let emailed = 0;
+          let emailed = 0, texted = 0;
           if (req.body.notify) {
             const cfg = await getRow(rosterSlugFor(slug));
             const players = (cfg?.data?.players) || [];
@@ -278,9 +302,19 @@ export default async function handler(req, res) {
                 body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `🏈 ${wk.label || slug} slate is locked — picks due before first kickoff`, html }),
               });
               if (r.ok) emailed++;
+
+              // SMS to members who opted in THEMSELVES via /pool/sms. See sendSms above.
+              if (p.smsConsent === true && p.mobile) {
+                const when = new Date(wk.deadline).toLocaleString('en-US',
+                  { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' });
+                const ok = await sendSms(p.mobile,
+                  `The Pool: ${wk.label || slug} slate is locked. Picks close ${when} ET. `
+                  + `Your PIN: ${p.pin}. ${base}/picks\nReply STOP to opt out.`);
+                if (ok) texted++;
+              }
             }
           }
-          return res.status(200).json({ slug, locked: true, deadline: wk.deadline, emailed });
+          return res.status(200).json({ slug, locked: true, deadline: wk.deadline, emailed, texted });
         }
         /* THE SERVER DECIDES THE WINNER (Codex finding #3 — Confirmed/High).
            This used to take `weeklyWinner` as free text from the commissioner and the season
