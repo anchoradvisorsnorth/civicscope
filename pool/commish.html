@@ -52,7 +52,7 @@
       <div class="row" style="margin-top:10px">
         <button class="btn gray" onclick="addPlayer()">+ Add player</button>
         <button class="btn gold" onclick="savePlayers()">Save players</button>
-        <span class="muted">PINs auto-generate when blank. Text + Email default ON. A text only sends if that member also opted in at /pool/sms — the Invite button copies that link.</span>
+        <span class="muted">PINs auto-generate when blank. Text + Email default ON. <b>A text only sends once that member texts JOIN to (574) 444-0320 from the mobile you enter here</b> — Invite copies the message for you to send from your own phone.</span>
       </div>
     </div>
   </div>
@@ -169,10 +169,24 @@ let loadedCount=0;   // roster size as last read from the server — see savePla
    returned empty; against the identity model that would silently re-add people to a pool they had
    been removed from, and the 2026 football pool is deliberately down to Keith + Mike for testing.
    An empty roster is a real state and should render as empty. */
-async function loadPlayers(){try{const j=await post({action:'get_players_full',code:code()});
-  players=j.players||[];
-  loadedCount=players.length;renderPlayers();
-  if(!players.length)toast('No participants in this pool yet — add one and Save.',5000);}catch(e){}}
+/* The catch used to swallow everything, so a failed auto-load rendered an EMPTY table that looked
+   exactly like "this pool has no participants". On 2026-08-07 that cost real confusion — a stale
+   code in sessionStorage made the load 403 on page open, the table came up blank, and the roster
+   appeared to have been wiped when nothing had been touched. An empty table must never be able to
+   mean "something went wrong". */
+async function loadPlayers(){
+  try{
+    const j=await post({action:'get_players_full',code:code()});
+    players=j.players||[];
+    loadedCount=players.length;renderPlayers();
+    if(!players.length)toast('No participants in this pool yet — add one and Save.',5000);
+  }catch(e){
+    document.querySelector('#ptable tbody').innerHTML=
+      '<tr><td colspan="6" style="color:#b42318;padding:10px">Could not load the roster — this is NOT an empty pool. '
+      +'Click “Load / refresh” to retry.</td></tr>';
+    toast('Roster failed to load — not empty, just unloaded. Hit Load / refresh.',6000);
+  }
+}
 function addPlayer(){players.push({name:'',phone:'',email:'',pin:''});renderPlayers();}
 /* save_players is a FULL REPLACE, and the API refuses (409) a write that shrinks the live roster
    unless confirmShrink is passed. That guard exists because an automated caller silently wiped the
