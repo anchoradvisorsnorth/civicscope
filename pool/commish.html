@@ -48,11 +48,11 @@
 
   <div class="card"><h2>1 · Players <button class="btn gray" onclick="loadPlayers()">Load / refresh</button></h2>
     <div class="body">
-      <table id="ptable"><thead><tr><th>Name</th><th>Email</th><th>PIN</th><th></th></tr></thead><tbody></tbody></table>
+      <table id="ptable"><thead><tr><th>Name</th><th>Mobile</th><th>Email</th><th>Notify</th><th>PIN</th><th></th></tr></thead><tbody></tbody></table>
       <div class="row" style="margin-top:10px">
         <button class="btn gray" onclick="addPlayer()">+ Add player</button>
         <button class="btn gold" onclick="savePlayers()">Save players</button>
-        <span class="muted">PINs auto-generate when blank. Each guy gets his PIN in the slate-lock email.</span>
+        <span class="muted">PINs auto-generate when blank. Text + Email default ON. A text only sends if that member also opted in at /pool/sms — the Invite button copies that link.</span>
       </div>
     </div>
   </div>
@@ -108,7 +108,20 @@ let players=[], loaded=[], slate=[], slateLocked=false;
 
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function toast(t,ms){const m=document.getElementById('msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(()=>m.style.display='none',ms||3000);}
-function code(){let c=sessionStorage.getItem('fb_code');if(!c){c=prompt('Commissioner code:')||'';sessionStorage.setItem('fb_code',c);}return c;}
+/* Cancelling the prompt (Esc, or clicking outside it) returns null. This used to `|| ''` that
+   into sessionStorage and carry on — so dismissing the box "let you in": the page rendered as if
+   authenticated, then every action 403'd into an empty catch, leaving a dead screen with no
+   explanation. The server was never exposed (it gates every action), but the UI lied about state.
+   Now an empty/cancelled code is never stored, and the caller is told plainly. */
+function code(){
+  let c=sessionStorage.getItem('fb_code');
+  if(!c){
+    const entered=prompt('Commissioner code:');
+    if(entered===null||!entered.trim()){toast('Commissioner code required — reload to try again',5000);throw new Error('no code');}
+    c=entered.trim();sessionStorage.setItem('fb_code',c);
+  }
+  return c;
+}
 async function post(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(r.status===403){sessionStorage.removeItem('fb_code');toast('Wrong code');throw new Error('403');}
   const j=await r.json(); if(!r.ok){toast(j.error||('error '+r.status),4500);throw new Error(j.error);} return j;}
@@ -117,15 +130,36 @@ async function post(body){const r=await fetch(API,{method:'POST',headers:{'Conte
 function renderPlayers(){
   document.querySelector('#ptable tbody').innerHTML=players.map((p,i)=>`
     <tr><td><input value="${esc(p.name)}" style="width:110px" onchange="players[${i}].name=this.value.toUpperCase()"></td>
-    <td><input value="${esc(p.email||'')}" style="width:230px" placeholder="email for notifications" onchange="players[${i}].email=this.value"></td>
+    <td><input value="${esc(p.phone||'')}" style="width:140px" placeholder="mobile" onchange="players[${i}].phone=this.value"></td>
+    <td><input value="${esc(p.email||'')}" style="width:210px" placeholder="email (backup)" onchange="players[${i}].email=this.value"></td>
+    <td style="white-space:nowrap">
+      <label style="font-size:12px;margin-right:8px"><input type="checkbox" ${p.notify?.sms!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{sms:this.checked})"> Text</label>
+      <label style="font-size:12px"><input type="checkbox" ${p.notify?.email!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{email:this.checked})"> Email</label>
+    </td>
     <td><input value="${esc(p.pin||'')}" class="sm" placeholder="auto" onchange="players[${i}].pin=this.value"></td>
-    <td><button class="btn red" onclick="players.splice(${i},1);renderPlayers()">✕</button></td></tr>`).join('');
+    <td><button class="btn" onclick="copyInvite(${i})" title="Copy the sign-up text, then send it from your own phone">Invite</button>
+        <button class="btn red" onclick="players.splice(${i},1);renderPlayers()">✕</button></td></tr>`).join('');
+}
+/* WHY THIS COPIES INSTEAD OF SENDING.
+   An invite texted FROM the pool number to somebody who has not opted in is an unsolicited A2P
+   message — exactly what got campaign #4 rejected (30923, consent treated as a condition) and
+   what carriers filter. The approved registration says members opt themselves in at /pool/sms,
+   and that page IS the consent record. So the commissioner sends the invite from his OWN phone,
+   person to person, and the recipient opts in themselves. Same result, nothing at risk.
+   Do NOT "improve" this into a server-side send. */
+function copyInvite(i){
+  const p=players[i]||{};
+  const msg=`${p.name?p.name.charAt(0)+p.name.slice(1).toLowerCase()+' — ':''}you're in the pool this year. `
+    +`Sign up here (30 seconds, texts are optional): https://app.civicscope.io/pool/sms`;
+  navigator.clipboard.writeText(msg)
+    .then(()=>toast('Invite copied — send it from your own phone ✓',5000))
+    .catch(()=>{window.prompt('Copy this and text it from your phone:',msg);});
 }
 let loadedCount=0;   // roster size as last read from the server — see savePlayers()
 async function loadPlayers(){try{const j=await post({action:'get_players_full',code:code()});players=j.players;
-  if(!players.length)players=['BRAD','BOB','BRANDON','MIKE','MARK','NICK','KEITH'].map(n=>({name:n,email:'',pin:''}));
+  if(!players.length)players=['BRAD','BOB','BRANDON','MIKE','MARK','NICK','KEITH'].map(n=>({name:n,phone:'',email:'',pin:''}));
   loadedCount=players.length;renderPlayers();}catch(e){}}
-function addPlayer(){players.push({name:'',email:'',pin:''});renderPlayers();}
+function addPlayer(){players.push({name:'',phone:'',email:'',pin:''});renderPlayers();}
 /* save_players is a FULL REPLACE, and the API refuses (409) a write that shrinks the live roster
    unless confirmShrink is passed. That guard exists because an automated caller silently wiped the
    real crew on 2026-08-07 — it is NOT meant to stop the commissioner deliberately removing someone
@@ -260,3 +294,6 @@ loadPlayers();listWeeks();renderSlate();
 </script>
 </body>
 </html>
+
+
+
