@@ -50,10 +50,11 @@
     <div class="body">
       <table id="ptable"><thead><tr><th>Name</th><th>Mobile</th><th>Email</th><th>Notify</th><th>PIN</th><th></th></tr></thead><tbody></tbody></table>
       <div class="row" style="margin-top:10px">
-        <button class="btn gray" onclick="addPlayer()">+ Add player</button>
+        <button class="btn gray" onclick="addPlayer()">+ New person</button>
+        <button class="btn gray" onclick="addExisting()" title="Someone already in The Pool — reuse them so their history follows">+ Add existing</button>
         <button class="btn gold" id="savebtn" onclick="savePlayers()">Save players</button>
         <button class="btn gray" id="reloadbtn" onclick="loadPlayers()" title="Re-read the roster from the server, discarding anything unsaved">↻ Reload</button>
-        <span class="muted">PINs auto-generate when blank. Text + Email default ON. <b>A text only sends once that member texts JOIN to (574) 444-0320 from the mobile you enter here</b> — Invite copies the message for you to send from your own phone.</span>
+        <span class="muted">PINs auto-generate when blank. Text + Email default ON. <b>A text only sends once that member texts JOIN to (574) 444-0320 from the mobile you enter here</b> — <b>Text invite</b> opens your Messages app addressed to them. Use <b>+ Add existing</b> for anyone already in The Pool; names and mobiles are unique across every pool.</span>
       </div>
     </div>
   </div>
@@ -125,7 +126,14 @@ function code(){
 }
 async function post(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(r.status===403){sessionStorage.removeItem('fb_code');toast('Wrong code');throw new Error('403');}
-  const j=await r.json(); if(!r.ok){toast(j.error||('error '+r.status),4500);throw new Error(j.error);} return j;}
+  const j=await r.json();
+  if(!r.ok){
+    // Show the hint too — a conflict here is usually actionable ("that mobile belongs to X"), and
+    // the error alone reads like a dead end. Raw driver text must never reach this toast.
+    toast([j.error,j.hint].filter(Boolean).join(' ')||('error '+r.status), 9000);
+    throw new Error(j.error);
+  }
+  return j;}
 
 /* players */
 function renderPlayers(){
@@ -136,10 +144,10 @@ function renderPlayers(){
     <td style="white-space:nowrap">
       <label style="font-size:12px;margin-right:8px"><input type="checkbox" ${p.notify?.sms!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{sms:this.checked});markDirty()"> Text</label>
       <label style="font-size:12px"><input type="checkbox" ${p.notify?.email!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{email:this.checked});markDirty()"> Email</label>
-      <div style="font-size:11px;margin-top:2px;color:${p.canText?'#14532d':'#b42318'}">${p.canText?'✓ will get texts':(p.smsConsent?'no mobile on file':'not opted in — send Invite')}</div>
+      <div style="font-size:11px;margin-top:2px;color:${p.canText?'#14532d':'#b42318'}">${p.canText?'✓ will get texts':(p.smsConsent?'no mobile on file':'not opted in — tap Text invite')}</div>
     </td>
     <td><input value="${esc(p.pin||'')}" class="sm" placeholder="auto" onchange="players[${i}].pin=this.value;markDirty()"></td>
-    <td><button class="btn" onclick="copyInvite(${i})" title="Copy the sign-up text, then send it from your own phone">Invite</button>
+    <td><button class="btn" onclick="copyInvite(${i})" title="Opens your own Messages app, addressed to them, with the invite prefilled">Text invite</button>
         <button class="btn red" onclick="players.splice(${i},1);renderPlayers();markDirty()">✕</button></td></tr>`).join('');
 }
 /* WHY THIS COPIES INSTEAD OF SENDING.
@@ -149,20 +157,35 @@ function renderPlayers(){
    and that page IS the consent record. So the commissioner sends the invite from his OWN phone,
    person to person, and the recipient opts in themselves. Same result, nothing at risk.
    Do NOT "improve" this into a server-side send. */
-function copyInvite(i){
-  const p=players[i]||{};
+/* Keith 2026-08-07: "Invite button is deceptive — it just creates a toast telling the commish to
+   text." Correct: the label promised an action the system performs, and all it did was write to
+   the clipboard invisibly. So it now DOES something — it opens the commissioner's own SMS app,
+   addressed to that participant, with the invite prefilled. One tap, then Send.
+
+   It still has to be sent from the commissioner's phone rather than the pool number: an invite
+   sent FROM the pool line to someone who has not opted in is an unsolicited A2P message (rejection
+   30923). This keeps it person-to-person, which is both legal and how the group actually talks. */
+function inviteText(p){
   const nm=p.name?p.name.charAt(0)+p.name.slice(1).toLowerCase():'';
-  // The ask is "text JOIN to the pool number" — a MOBILE-ORIGINATED opt-in. The member initiates,
-  // so their own inbound message is the consent record. Their mobile must already be on the roster
-  // (that is the join key), which is why the number field sits right next to this button.
-  const msg=`${nm?nm+' — ':''}you're in the pool this year. `
+  return `${nm?nm+' — ':''}you're in the pool this year. `
     +`To get pick reminders and your PIN by text, text JOIN to (574) 444-0320. `
     +`Optional — everything's always on app.civicscope.io/pool too.`;
-  const warn=!p.phone?'\n\n⚠ No mobile on file for this player — add it and Save first, or JOIN will not match them.':'';
-  navigator.clipboard.writeText(msg)
-    .then(()=>toast(p.phone?'Invite copied — send it from your own phone ✓':'Copied, but add their mobile first',6000))
-    .catch(()=>{window.prompt('Copy this and text it from your phone:'+warn,msg);});
-  if(!p.phone)toast('⚠ Add their mobile and Save — JOIN matches on the number',6000);
+}
+function copyInvite(i){
+  const p=players[i]||{};
+  if(!p.phone){
+    toast('Add their mobile and Save first — JOIN matches on that number',6000);
+    return;
+  }
+  const msg=inviteText(p);
+  const digits=String(p.phone).replace(/[^\d+]/g,'');
+  // `sms:<number>?&body=` is the form both iOS and Android accept.
+  const href=`sms:${digits}?&body=${encodeURIComponent(msg)}`;
+  const a=document.createElement('a'); a.href=href; a.style.display='none';
+  document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(),0);
+  // Desktop has no SMS handler, so leave the text somewhere usable rather than doing nothing.
+  if(navigator.clipboard) navigator.clipboard.writeText(msg).catch(()=>{});
+  toast('Opening your Messages app — also copied to your clipboard',5000);
 }
 let loadedCount=0;   // roster size as last read from the server — see savePlayers()
 /* UNSAVED-CHANGES STATE (Keith 2026-08-07: "load/refresh is a confusing button to have when there
@@ -207,6 +230,25 @@ async function loadPlayers(){
   }
 }
 function addPlayer(){players.push({name:'',phone:'',email:'',pin:''});renderPlayers();markDirty();}
+/* Reuse an existing person rather than retyping them. Names and mobiles are unique across the
+   whole Pool — deliberately, since both are identity keys — so retyping someone who already exists
+   is guaranteed to collide. This is the supported way to put a returning player in a new pool, and
+   it is what makes "in multiple pools, past and future" actually work. */
+async function addExisting(){
+  try{
+    const j=await post({action:'list_people',code:code()});
+    const avail=(j.people||[]).filter(p=>!p.inPool && !players.some(x=>String(x.name).toUpperCase()===String(p.name).toUpperCase()));
+    if(!avail.length){toast('Everyone on record is already in this pool.',5000);return;}
+    const menu=avail.map((p,n)=>`${n+1}. ${p.name}${p.phone?' · '+p.phone:''}${p.globalRole!=='participant'?' ('+p.globalRole+')':''}`).join('\n');
+    const pick=window.prompt('Add which existing person?\n\n'+menu+'\n\nEnter a number:');
+    if(!pick)return;
+    const p=avail[parseInt(pick,10)-1];
+    if(!p){toast('No one at that number in the list');return;}
+    players.push({name:p.name,phone:p.phone,email:p.email,pin:''});
+    renderPlayers();markDirty();
+    toast(`${p.name} added — hit Save players to commit`,5000);
+  }catch(e){}
+}
 /* save_players is a FULL REPLACE, and the API refuses (409) a write that shrinks the live roster
    unless confirmShrink is passed. That guard exists because an automated caller silently wiped the
    real crew on 2026-08-07 — it is NOT meant to stop the commissioner deliberately removing someone
@@ -222,7 +264,11 @@ async function savePlayers(){
   }
   try{const j=await post({action:'save_players',code:code(),players,confirmShrink});
     players=j.players;loadedCount=players.length;dirty=false;renderPlayers();paintState();
-    toast('Players saved — PINs assigned ✓');}catch(e){}}
+    // Say whether anyone was actually texted. Silence here reads as "nothing happened", and the
+    // distinction matters: an added member who has never opted in is deliberately NOT messaged.
+    const extra=j.notified?` · ${j.notified} added member${j.notified>1?'s':''} texted a link to this pool`
+      :(j.addedCount?` · ${j.addedCount} added (none opted in to texts yet — use Text invite)`:'');
+    toast('Players saved — PINs assigned ✓'+extra, extra?8000:3000);}catch(e){}}
 
 /* game loading */
 function parseOdds(comp){
