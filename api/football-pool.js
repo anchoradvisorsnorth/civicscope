@@ -376,11 +376,6 @@ export default async function handler(req, res) {
             })),
           });
         }
-        if (action === 'get_players_full') {
-          const target = rosterTarget(req.body.slug);
-          const cfg = await getRow(target);
-          return res.status(200).json({ slug: target, players: (cfg?.data?.players) || [] });
-        }
         if (action === 'save_week') {
           const slug = cleanSlug(req.body.slug);
           if (!slug) return res.status(400).json({ error: 'slug required' });
@@ -539,9 +534,8 @@ export default async function handler(req, res) {
           if (req.body.lock && !complete) {
             return res.status(400).json({ error: `all ${total} games need a pick to lock (you have ${Object.keys(picks).length})` });
           }
-          // Keyed by PERSON ID; 
-ame is a display snapshot so the board reads naturally while the
-          // durable key survives a rename or a roster rebuild.
+          // Keyed by PERSON ID; the stored name is a display snapshot, so the board reads
+            // naturally while the durable key survives a rename or a roster rebuild.
           wk.picks[me.id] = { name: me.name, picks, locked: !!req.body.lock, complete, savedAt: new Date().toISOString() };
 
           // If this lock completes the board, fire the "all in" email once. The guard flag is
