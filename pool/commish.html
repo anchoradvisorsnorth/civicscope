@@ -121,10 +121,27 @@ function renderPlayers(){
     <td><input value="${esc(p.pin||'')}" class="sm" placeholder="auto" onchange="players[${i}].pin=this.value"></td>
     <td><button class="btn red" onclick="players.splice(${i},1);renderPlayers()">✕</button></td></tr>`).join('');
 }
+let loadedCount=0;   // roster size as last read from the server — see savePlayers()
 async function loadPlayers(){try{const j=await post({action:'get_players_full',code:code()});players=j.players;
-  if(!players.length)players=['BRAD','BOB','BRANDON','MIKE','MARK','NICK'].map(n=>({name:n,email:'',pin:''}));renderPlayers();}catch(e){}}
+  if(!players.length)players=['BRAD','BOB','BRANDON','MIKE','MARK','NICK','KEITH'].map(n=>({name:n,email:'',pin:''}));
+  loadedCount=players.length;renderPlayers();}catch(e){}}
 function addPlayer(){players.push({name:'',email:'',pin:''});renderPlayers();}
-async function savePlayers(){try{const j=await post({action:'save_players',code:code(),players});players=j.players;renderPlayers();toast('Players saved — PINs assigned ✓');}catch(e){}}
+/* save_players is a FULL REPLACE, and the API refuses (409) a write that shrinks the live roster
+   unless confirmShrink is passed. That guard exists because an automated caller silently wiped the
+   real crew on 2026-08-07 — it is NOT meant to stop the commissioner deliberately removing someone
+   with the ✕ button. So: detect a genuine shrink, name who is going, confirm once, then pass the
+   flag. Without this the ✕ button just fails with an error Mike cannot act on. */
+async function savePlayers(){
+  const removed=players.length<loadedCount;
+  let confirmShrink=false;
+  if(removed){
+    const n=loadedCount-players.length;
+    if(!confirm(`This removes ${n} player${n>1?'s':''} from the pool (${loadedCount} → ${players.length}).\n\nTheir PIN and pool history stay in past weeks, but they will no longer get notifications or appear on the board.\n\nContinue?`))return;
+    confirmShrink=true;
+  }
+  try{const j=await post({action:'save_players',code:code(),players,confirmShrink});
+    players=j.players;loadedCount=players.length;renderPlayers();
+    toast('Players saved — PINs assigned ✓');}catch(e){}}
 
 /* game loading */
 function parseOdds(comp){
