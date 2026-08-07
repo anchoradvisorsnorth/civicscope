@@ -150,11 +150,18 @@ function renderPlayers(){
    Do NOT "improve" this into a server-side send. */
 function copyInvite(i){
   const p=players[i]||{};
-  const msg=`${p.name?p.name.charAt(0)+p.name.slice(1).toLowerCase()+' — ':''}you're in the pool this year. `
-    +`Sign up here (30 seconds, texts are optional): https://app.civicscope.io/pool/sms`;
+  const nm=p.name?p.name.charAt(0)+p.name.slice(1).toLowerCase():'';
+  // The ask is "text JOIN to the pool number" — a MOBILE-ORIGINATED opt-in. The member initiates,
+  // so their own inbound message is the consent record. Their mobile must already be on the roster
+  // (that is the join key), which is why the number field sits right next to this button.
+  const msg=`${nm?nm+' — ':''}you're in the pool this year. `
+    +`To get pick reminders and your PIN by text, text JOIN to (574) 444-0320. `
+    +`Optional — everything's always on app.civicscope.io/pool too.`;
+  const warn=!p.phone?'\n\n⚠ No mobile on file for this player — add it and Save first, or JOIN will not match them.':'';
   navigator.clipboard.writeText(msg)
-    .then(()=>toast('Invite copied — send it from your own phone ✓',5000))
-    .catch(()=>{window.prompt('Copy this and text it from your phone:',msg);});
+    .then(()=>toast(p.phone?'Invite copied — send it from your own phone ✓':'Copied, but add their mobile first',6000))
+    .catch(()=>{window.prompt('Copy this and text it from your phone:'+warn,msg);});
+  if(!p.phone)toast('⚠ Add their mobile and Save — JOIN matches on the number',6000);
 }
 let loadedCount=0;   // roster size as last read from the server — see savePlayers()
 /* The roster is the pool's MEMBERSHIP now, read from the database — so there is no hardcoded
