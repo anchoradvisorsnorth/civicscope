@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.7.0-sms';   // slate-lock notify also texts members who opted in via /pool/sms
+const VER = '1.7.1-sms';   // consent read from the sms-optins row, NOT the player record
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -279,6 +279,25 @@ export default async function handler(req, res) {
             const cfg = await getRow(rosterSlugFor(slug));
             const players = (cfg?.data?.players) || [];
             const base = `https://app.civicscope.io/pool/football`;
+            /* WHERE CONSENT ACTUALLY LIVES — do not look for it on the player record.
+               `save_players` maps a player down to {name, email, pin} and DROPS anything else,
+               so a `smsConsent`/`mobile` field on the roster can never be true. Consent is
+               written by `sms_optin` into its own `sms-optins` row: an APPEND-ONLY list of
+               {name, phone, smsConsent, consentAt|declinedAt, optedOut}. Because it appends,
+               the same person can appear more than once (opted in, later declined) — so the
+               LAST entry for a name is the current state, and earlier ones must be ignored.
+               Matching is on upper-cased name because the roster upper-cases and the public
+               form does not. */
+            const optinRow = await getRow('sms-optins');
+            const optinLatest = new Map();
+            for (const o of (optinRow?.data?.optins || [])) {
+              optinLatest.set(String(o.name || '').trim().toUpperCase(), o);   // later wins
+            }
+            const optinFor = (playerName) => {
+              const o = optinLatest.get(String(playerName || '').trim().toUpperCase());
+              if (!o || o.smsConsent !== true || o.optedOut === true || !o.phone) return null;
+              return o;
+            };
             const gameRows = wk.games.map(g =>
               `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085">${new Date(g.date).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET</td></tr>`).join('');
             for (const p of players) {
@@ -304,10 +323,11 @@ export default async function handler(req, res) {
               if (r.ok) emailed++;
 
               // SMS to members who opted in THEMSELVES via /pool/sms. See sendSms above.
-              if (p.smsConsent === true && p.mobile) {
+              const consent = optinFor(p.name);
+              if (consent) {
                 const when = new Date(wk.deadline).toLocaleString('en-US',
                   { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' });
-                const ok = await sendSms(p.mobile,
+                const ok = await sendSms(consent.phone,
                   `The Pool: ${wk.label || slug} slate is locked. Picks close ${when} ET. `
                   + `Your PIN: ${p.pin}. ${base}/picks\nReply STOP to opt out.`);
                 if (ok) texted++;
