@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.1.0-reuse';   // + Add existing, plain-English conflicts, one-time consent -> pool-added notice
+const VER = '2.1.1-reuse';   // list_people added to the commissioner action allowlist
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -298,7 +298,7 @@ export default async function handler(req, res) {
       }
 
       // ---- commissioner actions ----
-      if (['save_players', 'get_players_full', 'save_week', 'lock_slate', 'finalize_week'].includes(action)) {
+      if (['save_players', 'get_players_full', 'list_people', 'save_week', 'lock_slate', 'finalize_week'].includes(action)) {
         if (!CODE() || req.body.code !== CODE()) return res.status(403).json({ error: 'bad code' });
 
         /* ⛔ THE SANDBOX BOUNDARY DID NOT COVER THIS ACTION, AND IT COST THE LIVE ROSTER
