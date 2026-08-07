@@ -18,7 +18,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.0.0-sms';
+const VER = '1.0.1-sms';   // account check demoted to informational (Standard keys 401 by design)
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -82,12 +82,22 @@ export default async function handler(req, res) {
         campaigns: comp.map(c => ({ sid: c.sid, status: c.campaign_status, useCase: c.us_app_to_person_usecase })),
       };
 
-      // 4. Account live (not trial) — a trial account silently refuses unverified recipients.
-      const acct = await tw(`https://api.twilio.com/2010-04-01/Accounts/${ACCT}.json`);
-      out.checks.account = { pass: acct.ok && acct.body?.status === 'active',
-        type: acct.body?.type, status: acct.body?.status };
+      // readyToSend is decided by the three checks above. Everything below is INFORMATIONAL.
+      out.readyToSend = ['credentials', 'numberAttached', 'campaign'].every(k => out.checks[k].pass);
 
-      out.readyToSend = Object.values(out.checks).every(c => c.pass);
+      /* 4. Account metadata — INFORMATIONAL ONLY, and expected to fail.
+         A **Standard** API key is deliberately not authorized for the Account resource, so this
+         returns 401. That is the key type working as intended, NOT a credential problem, and it
+         must never gate readyToSend — the first version of this file did, and reported
+         readyToSend:false while all three real checks passed.
+         The thing this was trying to prove (account upgraded, not trial) is better proven by an
+         actual send: a trial account rejects unverified recipients with error 21608. */
+      const acct = await tw(`https://api.twilio.com/2010-04-01/Accounts/${ACCT}.json`);
+      out.accountInfo = acct.ok
+        ? { readable: true, type: acct.body?.type, status: acct.body?.status }
+        : { readable: false, status: acct.status,
+            note: 'Expected for a Standard API key — not authorized for the Account resource. Not a credential fault.' };
+
       return res.status(200).json(out);
     }
 
