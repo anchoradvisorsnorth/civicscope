@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.7.1-sms';   // consent read from the sms-optins row, NOT the player record
+const VER = '1.7.2-roster-guard';   // save_players honours slug + refuses to shrink the live roster
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -239,18 +239,43 @@ export default async function handler(req, res) {
       if (['save_players', 'get_players_full', 'save_week', 'lock_slate', 'finalize_week'].includes(action)) {
         if (!CODE() || req.body.code !== CODE()) return res.status(403).json({ error: 'bad code' });
 
+        /* ⛔ THE SANDBOX BOUNDARY DID NOT COVER THIS ACTION, AND IT COST THE LIVE ROSTER
+           (2026-08-07). `save_players` hard-coded putRow('config') and IGNORED req.body.slug —
+           so a caller passing slug:'sandbox-config', believing it was writing to the sandbox
+           world the rest of this file honours, silently REPLACED the real crew. It did exactly
+           that during SMS verification: seven real players (BOB/BRAD/MARK/MIKE/NICK/KEITH/
+           BRANDON) were overwritten by two test rows, and their PINs — which exist nowhere
+           else, not in the week backups — were destroyed.
+           The write is now addressed explicitly and can only ever hit one of two known rows. */
+        const rosterTarget = (s) => (String(s || '') === 'sandbox-config' ? 'sandbox-config' : 'config');
         if (action === 'save_players') {
+          const target = rosterTarget(req.body.slug);
           const players = (req.body.players || []).map(p => ({
             name: String(p.name || '').toUpperCase().slice(0, 20),
             email: String(p.email || '').slice(0, 80),
             pin: String(p.pin || Math.floor(1000 + Math.random() * 9000)),
           })).filter(p => p.name);
-          await putRow('config', { players });
-          return res.status(200).json({ players });
+          /* A full-replace write to the LIVE roster must not be able to silently shrink it to
+             a test fixture again. Replacing >1 real player with fewer requires an explicit
+             confirmShrink — a guard, not a permission system: it only has to survive the
+             mistake that already happened once. */
+          if (target === 'config' && !req.body.confirmShrink) {
+            const cur = ((await getRow('config'))?.data?.players) || [];
+            if (cur.length > 1 && players.length < cur.length) {
+              return res.status(409).json({
+                error: `refusing to shrink the live roster from ${cur.length} to ${players.length} players`,
+                hint: 'pass confirmShrink:true if that is genuinely intended, or slug:"sandbox-config" to write the sandbox roster',
+                current: cur.map(p => p.name),
+              });
+            }
+          }
+          await putRow(target, { players });
+          return res.status(200).json({ slug: target, players });
         }
         if (action === 'get_players_full') {
-          const cfg = await getRow('config');
-          return res.status(200).json({ players: (cfg?.data?.players) || [] });
+          const target = rosterTarget(req.body.slug);
+          const cfg = await getRow(target);
+          return res.status(200).json({ slug: target, players: (cfg?.data?.players) || [] });
         }
         if (action === 'save_week') {
           const slug = cleanSlug(req.body.slug);
