@@ -46,12 +46,13 @@
 </div></header>
 <main>
 
-  <div class="card"><h2>1 · Players <button class="btn gray" onclick="loadPlayers()">Load / refresh</button></h2>
+  <div class="card"><h2>1 · Players <span id="pstate" style="font-size:12px;font-weight:400;color:#b9c6da"></span></h2>
     <div class="body">
       <table id="ptable"><thead><tr><th>Name</th><th>Mobile</th><th>Email</th><th>Notify</th><th>PIN</th><th></th></tr></thead><tbody></tbody></table>
       <div class="row" style="margin-top:10px">
         <button class="btn gray" onclick="addPlayer()">+ Add player</button>
-        <button class="btn gold" onclick="savePlayers()">Save players</button>
+        <button class="btn gold" id="savebtn" onclick="savePlayers()">Save players</button>
+        <button class="btn gray" id="reloadbtn" onclick="loadPlayers()" title="Re-read the roster from the server, discarding anything unsaved">↻ Reload</button>
         <span class="muted">PINs auto-generate when blank. Text + Email default ON. <b>A text only sends once that member texts JOIN to (574) 444-0320 from the mobile you enter here</b> — Invite copies the message for you to send from your own phone.</span>
       </div>
     </div>
@@ -93,7 +94,7 @@
     </div>
   </div>
 
-  <div class="card"><h2>4 · Existing weeks <button class="btn gray" onclick="listWeeks()">Refresh</button></h2>
+  <div class="card"><h2>4 · Needs your attention <button class="btn gray" onclick="listWeeks()">Refresh</button></h2>
     <div class="body"><div id="weeks" class="muted">—</div></div>
   </div>
 
@@ -129,17 +130,17 @@ async function post(body){const r=await fetch(API,{method:'POST',headers:{'Conte
 /* players */
 function renderPlayers(){
   document.querySelector('#ptable tbody').innerHTML=players.map((p,i)=>`
-    <tr><td><input value="${esc(p.name)}" style="width:110px" onchange="players[${i}].name=this.value.toUpperCase()"></td>
-    <td><input value="${esc(p.phone||'')}" style="width:140px" placeholder="mobile" onchange="players[${i}].phone=this.value"></td>
-    <td><input value="${esc(p.email||'')}" style="width:210px" placeholder="email (backup)" onchange="players[${i}].email=this.value"></td>
+    <tr><td><input value="${esc(p.name)}" style="width:110px" onchange="players[${i}].name=this.value.toUpperCase();markDirty()"></td>
+    <td><input value="${esc(p.phone||'')}" style="width:140px" placeholder="mobile" onchange="players[${i}].phone=this.value;markDirty()"></td>
+    <td><input value="${esc(p.email||'')}" style="width:210px" placeholder="email (backup)" onchange="players[${i}].email=this.value;markDirty()"></td>
     <td style="white-space:nowrap">
-      <label style="font-size:12px;margin-right:8px"><input type="checkbox" ${p.notify?.sms!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{sms:this.checked})"> Text</label>
-      <label style="font-size:12px"><input type="checkbox" ${p.notify?.email!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{email:this.checked})"> Email</label>
+      <label style="font-size:12px;margin-right:8px"><input type="checkbox" ${p.notify?.sms!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{sms:this.checked});markDirty()"> Text</label>
+      <label style="font-size:12px"><input type="checkbox" ${p.notify?.email!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{email:this.checked});markDirty()"> Email</label>
       <div style="font-size:11px;margin-top:2px;color:${p.canText?'#14532d':'#b42318'}">${p.canText?'✓ will get texts':(p.smsConsent?'no mobile on file':'not opted in — send Invite')}</div>
     </td>
-    <td><input value="${esc(p.pin||'')}" class="sm" placeholder="auto" onchange="players[${i}].pin=this.value"></td>
+    <td><input value="${esc(p.pin||'')}" class="sm" placeholder="auto" onchange="players[${i}].pin=this.value;markDirty()"></td>
     <td><button class="btn" onclick="copyInvite(${i})" title="Copy the sign-up text, then send it from your own phone">Invite</button>
-        <button class="btn red" onclick="players.splice(${i},1);renderPlayers()">✕</button></td></tr>`).join('');
+        <button class="btn red" onclick="players.splice(${i},1);renderPlayers();markDirty()">✕</button></td></tr>`).join('');
 }
 /* WHY THIS COPIES INSTEAD OF SENDING.
    An invite texted FROM the pool number to somebody who has not opted in is an unsolicited A2P
@@ -164,6 +165,23 @@ function copyInvite(i){
   if(!p.phone)toast('⚠ Add their mobile and Save — JOIN matches on the number',6000);
 }
 let loadedCount=0;   // roster size as last read from the server — see savePlayers()
+/* UNSAVED-CHANGES STATE (Keith 2026-08-07: "load/refresh is a confusing button to have when there
+   is also a save players button").
+   The two buttons did opposite things with no way to tell which state you were in, and Reload
+   silently threw away whatever had just been typed. Now: edits mark the roster dirty, the state is
+   stated in the header, Save is the only highlighted action while dirty, and Reload asks before
+   discarding. Reload also moved out of the header and next to Save, because the destructive
+   sibling should sit where you can see what it is destroying. */
+let dirty=false;
+function markDirty(){ dirty=true; paintState(); }
+function paintState(){
+  const s=document.getElementById('pstate'); const save=document.getElementById('savebtn');
+  if(!s||!save)return;
+  s.textContent = dirty ? '● unsaved changes' : (loadedCount?'saved':'');
+  s.style.color = dirty ? '#fde68a' : '#b9c6da';
+  save.classList.toggle('gold', dirty); save.classList.toggle('gray', !dirty);
+  save.textContent = dirty ? 'Save players' : 'Saved ✓';
+}
 /* The roster is the pool's MEMBERSHIP now, read from the database — so there is no hardcoded
    fallback list any more. There used to be one ('BRAD','BOB',…) that filled in whenever the load
    returned empty; against the identity model that would silently re-add people to a pool they had
@@ -175,10 +193,11 @@ let loadedCount=0;   // roster size as last read from the server — see savePla
    appeared to have been wiped when nothing had been touched. An empty table must never be able to
    mean "something went wrong". */
 async function loadPlayers(){
+  if(dirty && !confirm('You have unsaved roster changes.\n\nReloading discards them and re-reads the saved roster from the server.\n\nDiscard your changes?'))return;
   try{
     const j=await post({action:'get_players_full',code:code()});
     players=j.players||[];
-    loadedCount=players.length;renderPlayers();
+    loadedCount=players.length;dirty=false;renderPlayers();paintState();
     if(!players.length)toast('No participants in this pool yet — add one and Save.',5000);
   }catch(e){
     document.querySelector('#ptable tbody').innerHTML=
@@ -187,7 +206,7 @@ async function loadPlayers(){
     toast('Roster failed to load — not empty, just unloaded. Hit Load / refresh.',6000);
   }
 }
-function addPlayer(){players.push({name:'',phone:'',email:'',pin:''});renderPlayers();}
+function addPlayer(){players.push({name:'',phone:'',email:'',pin:''});renderPlayers();markDirty();}
 /* save_players is a FULL REPLACE, and the API refuses (409) a write that shrinks the live roster
    unless confirmShrink is passed. That guard exists because an automated caller silently wiped the
    real crew on 2026-08-07 — it is NOT meant to stop the commissioner deliberately removing someone
@@ -202,7 +221,7 @@ async function savePlayers(){
     confirmShrink=true;
   }
   try{const j=await post({action:'save_players',code:code(),players,confirmShrink});
-    players=j.players;loadedCount=players.length;renderPlayers();
+    players=j.players;loadedCount=players.length;dirty=false;renderPlayers();paintState();
     toast('Players saved — PINs assigned ✓');}catch(e){}}
 
 /* game loading */
@@ -295,15 +314,36 @@ async function lockSlate(){
     toast('🔒 Slate locked — deadline '+new Date(j.deadline).toLocaleString()+' · '+j.emailed+' email(s) sent',6000);
   }catch(e){}
 }
+/* Keith 2026-08-07: "I don't think there needs to be an existing weeks section — those are results
+   from previous weeks and should be on the result page, not the commissioner portal."
+   Right about the LISTING, and it is gone: finished weeks now link out to /pool/football instead of
+   being re-listed here. But this block also carries two commissioner-only ACTIONS that have nowhere
+   else to live — `open` (reload a saved draft into the editor) and `finalize` — so deleting it
+   outright would have removed the only way to finish a week. What is left is a work queue: only
+   weeks that still need something done to them. When it is empty, the portal says so and points at
+   the results page. */
 async function listWeeks(){
   const season=document.getElementById('season').value;
-  const rows=await(await fetch(API+'?list='+season,{cache:'no-store'})).json();
-  document.getElementById('weeks').innerHTML=rows.length?rows.map(w=>`
-    <div class="gm"><span class="t">${esc(w.label||w.slug)}</span>
-    <span class="muted">${w.games} games · picked-in: ${w.pickedBy.join(', ')||'none'}</span>
-    <span class="pill ${w.finalized?'done':w.slateLocked?'live':'draft'}">${w.finalized?'final — '+esc(w.weeklyWinner||''):w.slateLocked?'LIVE':'draft'}</span>
-    <button class="btn gray" onclick="openWeek('${w.slug}')">open</button>
-    ${w.slateLocked&&!w.finalized?`<button class="btn gold" onclick="finalizeWeek('${w.slug}')">🏆 finalize</button>`:''}</div>`).join(''):'No weeks yet.';
+  const el=document.getElementById('weeks');
+  try{
+    const all=await(await fetch(API+'?list='+season,{cache:'no-store'})).json();
+    const open=(all||[]).filter(w=>!w.finalized);          // drafts + locked-awaiting-finalize
+    const doneCount=(all||[]).length-open.length;
+    const donePtr=doneCount
+      ? `<div class="muted" style="margin-top:8px">${doneCount} finished week${doneCount>1?'s':''} — standings live on the <a href="/pool/football">results page</a>.</div>`
+      : '';
+    el.innerHTML=(open.length?open.map(w=>`
+      <div class="gm"><span class="t">${esc(w.label||w.slug)}</span>
+      <span class="muted">${w.games} games · picked-in: ${w.pickedBy.join(', ')||'none'}</span>
+      <span class="pill ${w.slateLocked?'live':'draft'}">${w.slateLocked?'LIVE — needs finalizing':'draft'}</span>
+      <button class="btn gray" onclick="openWeek('${w.slug}')">open</button>
+      ${w.slateLocked?`<button class="btn gold" onclick="finalizeWeek('${w.slug}')">🏆 finalize</button>`:''}</div>`).join('')
+      : '<div class="muted">Nothing needs your attention — no drafts, nothing waiting to be finalized.</div>')+donePtr;
+  }catch(e){
+    // Never render "nothing here" when the truth is "the request failed" — that is what made the
+    // roster look wiped earlier today.
+    el.innerHTML='<div style="color:#b42318">Could not load weeks — hit Refresh. This does NOT mean there are none.</div>';
+  }
 }
 async function openWeek(s){
   const j=await(await fetch(API+'?week='+s,{cache:'no-store'})).json();
