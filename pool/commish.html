@@ -37,6 +37,21 @@
   .gm .dt{color:var(--muted);font-size:12px;min-width:130px}
   .msg{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:10px;padding:10px 18px;font-size:14px;display:none;z-index:5}
   .muted{color:var(--muted);font-size:12px}
+  /* Add-existing picker. Was a prompt() with a numbered list you had to type into — fine to build,
+     miserable to use, and unusable one-handed on a phone, which is where most of this happens. */
+  .ovl{position:fixed;inset:0;background:rgba(10,34,64,.55);display:none;z-index:20;align-items:center;justify-content:center;padding:16px}
+  .ovl.on{display:flex}
+  .sheet{background:#fff;border-radius:14px;max-width:460px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden}
+  .sheet h3{margin:0;padding:14px 16px;background:var(--navy);color:#fff;font-size:15px}
+  .sheet .list{overflow:auto;padding:6px 0}
+  .prow{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid #f0f2f5;cursor:pointer}
+  .prow:last-child{border-bottom:none}
+  .prow:hover{background:#f7f9fc}
+  .prow.sel{background:#fffbeb}
+  .prow input{width:20px;height:20px;flex:0 0 auto}
+  .prow .nm{font-weight:700}
+  .prow .meta{font-size:12px;color:var(--muted)}
+  .sheet .foot{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -101,6 +116,32 @@
 
 </main>
 <div class="msg" id="msg"></div>
+
+<div class="ovl" id="invovl" onclick="if(event.target===this)closeInvite()">
+  <div class="sheet">
+    <h3>Send this from your own phone</h3>
+    <div style="padding:14px 16px">
+      <div class="muted" style="margin-bottom:8px">To <b id="invwho"></b></div>
+      <textarea id="invtxt" rows="5" style="width:100%;font-size:13px;padding:10px;border:1px solid var(--line);border-radius:8px" readonly></textarea>
+      <div class="muted" style="margin-top:8px">It has to come from your phone, not the pool number — a text from the pool line to someone who hasn't opted in is unsolicited. They text JOIN back, and that's their consent.</div>
+    </div>
+    <div class="foot">
+      <button class="btn gray" onclick="closeInvite()">Close</button>
+      <button class="btn gold" onclick="copyInviteText()">Copy text</button>
+    </div>
+  </div>
+</div>
+
+<div class="ovl" id="pickovl" onclick="if(event.target===this)closePicker()">
+  <div class="sheet">
+    <h3>Add existing people to this pool</h3>
+    <div class="list" id="picklist"></div>
+    <div class="foot">
+      <button class="btn gray" onclick="closePicker()">Cancel</button>
+      <button class="btn gold" id="pickadd" onclick="confirmPicker()">Add selected</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const API='/api/football-pool';
@@ -171,21 +212,33 @@ function inviteText(p){
     +`To get pick reminders and your PIN by text, text JOIN to (574) 444-0320. `
     +`Optional — everything's always on app.civicscope.io/pool too.`;
 }
+/* An `sms:` link is right on a phone and wrong everywhere else: on desktop Windows it raises a
+   "Pick an app" protocol dialog that does nothing useful. So the handset path fires the link, and
+   the desktop path shows the message to copy — which is what a desktop user can actually act on,
+   because the invite has to be sent from the commissioner's own phone either way. */
+const onPhone=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform));
 function copyInvite(i){
   const p=players[i]||{};
-  if(!p.phone){
-    toast('Add their mobile and Save first — JOIN matches on that number',6000);
-    return;
-  }
+  if(!p.phone){ toast('Add their mobile and Save first — JOIN matches on that number',6000); return; }
   const msg=inviteText(p);
   const digits=String(p.phone).replace(/[^\d+]/g,'');
-  // `sms:<number>?&body=` is the form both iOS and Android accept.
-  const href=`sms:${digits}?&body=${encodeURIComponent(msg)}`;
-  const a=document.createElement('a'); a.href=href; a.style.display='none';
-  document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(),0);
-  // Desktop has no SMS handler, so leave the text somewhere usable rather than doing nothing.
-  if(navigator.clipboard) navigator.clipboard.writeText(msg).catch(()=>{});
-  toast('Opening your Messages app — also copied to your clipboard',5000);
+  if(onPhone()){
+    const a=document.createElement('a');
+    a.href=`sms:${digits}?&body=${encodeURIComponent(msg)}`;   // form both iOS and Android accept
+    a.style.display='none'; document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(),0);
+    return;
+  }
+  document.getElementById('invtxt').value=msg;
+  document.getElementById('invwho').textContent=`${p.name} · ${p.phone}`;
+  document.getElementById('invovl').classList.add('on');
+  setTimeout(()=>{const t=document.getElementById('invtxt');t.focus();t.select();},50);
+}
+function closeInvite(){document.getElementById('invovl').classList.remove('on');}
+function copyInviteText(){
+  const t=document.getElementById('invtxt'); t.select();
+  const done=()=>toast('Copied — send it from your own phone ✓',5000);
+  if(navigator.clipboard) navigator.clipboard.writeText(t.value).then(done).catch(()=>{document.execCommand('copy');done();});
+  else {document.execCommand('copy');done();}
 }
 let loadedCount=0;   // roster size as last read from the server — see savePlayers()
 /* UNSAVED-CHANGES STATE (Keith 2026-08-07: "load/refresh is a confusing button to have when there
@@ -234,20 +287,36 @@ function addPlayer(){players.push({name:'',phone:'',email:'',pin:''});renderPlay
    whole Pool — deliberately, since both are identity keys — so retyping someone who already exists
    is guaranteed to collide. This is the supported way to put a returning player in a new pool, and
    it is what makes "in multiple pools, past and future" actually work. */
+let pickPool=[];
 async function addExisting(){
   try{
     const j=await post({action:'list_people',code:code()});
-    const avail=(j.people||[]).filter(p=>!p.inPool && !players.some(x=>String(x.name).toUpperCase()===String(p.name).toUpperCase()));
-    if(!avail.length){toast('Everyone on record is already in this pool.',5000);return;}
-    const menu=avail.map((p,n)=>`${n+1}. ${p.name}${p.phone?' · '+p.phone:''}${p.globalRole!=='participant'?' ('+p.globalRole+')':''}`).join('\n');
-    const pick=window.prompt('Add which existing person?\n\n'+menu+'\n\nEnter a number:');
-    if(!pick)return;
-    const p=avail[parseInt(pick,10)-1];
-    if(!p){toast('No one at that number in the list');return;}
-    players.push({name:p.name,phone:p.phone,email:p.email,pin:''});
-    renderPlayers();markDirty();
-    toast(`${p.name} added — hit Save players to commit`,5000);
+    pickPool=(j.people||[]).filter(p=>!p.inPool && !players.some(x=>String(x.name).toUpperCase()===String(p.name).toUpperCase()));
+    if(!pickPool.length){toast('Everyone on record is already in this pool.',5000);return;}
+    document.getElementById('picklist').innerHTML=pickPool.map((p,n)=>`
+      <label class="prow" id="prow${n}">
+        <input type="checkbox" value="${n}" onchange="document.getElementById('prow${n}').classList.toggle('sel',this.checked);paintPickBtn()">
+        <span><span class="nm">${esc(p.name)}</span>${p.globalRole!=='participant'?` <span class="meta">(${esc(p.globalRole)})</span>`:''}
+        <div class="meta">${p.phone?esc(p.phone):'no mobile on file'}${p.email?' · '+esc(p.email):''}</div></span>
+      </label>`).join('');
+    paintPickBtn();
+    document.getElementById('pickovl').classList.add('on');
   }catch(e){}
+}
+function pickSelected(){return [...document.querySelectorAll('#picklist input:checked')].map(i=>pickPool[+i.value]);}
+function paintPickBtn(){
+  const n=pickSelected().length;
+  const b=document.getElementById('pickadd');
+  b.textContent=n?`Add ${n} to pool`:'Add selected';
+  b.disabled=!n;
+}
+function closePicker(){document.getElementById('pickovl').classList.remove('on');}
+function confirmPicker(){
+  const sel=pickSelected();
+  if(!sel.length)return;
+  sel.forEach(p=>players.push({name:p.name,phone:p.phone,email:p.email,pin:''}));
+  closePicker();renderPlayers();markDirty();
+  toast(`${sel.length} added — hit Save players to commit`,6000);
 }
 /* save_players is a FULL REPLACE, and the API refuses (409) a write that shrinks the live roster
    unless confirmShrink is passed. That guard exists because an automated caller silently wiped the
