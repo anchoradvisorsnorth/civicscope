@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.9.0-prefs';   // per-member channel prefs (both default ON); SMS still needs consent too
+const VER = '2.0.0-identity';   // roster from pool_people/pool_memberships; picks keyed by person id
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -86,12 +86,51 @@ export default async function handler(req, res) {
      a shared production record and put it back afterwards (the pattern flagged as unsafe in
      the deploy review). Real competitions are untouched by anything sandboxed. */
   const isSandbox = (slug) => String(slug || '').startsWith('sandbox-');
-  const rosterSlugFor = (slug) => (isSandbox(slug) ? 'sandbox-config' : 'config');
+
+  /* ===================== IDENTITY (2026-08-07) =====================
+     The roster is no longer a jsonb blob keyed by NAME. It comes from pool_people joined through
+     pool_memberships, so a person exists independently of any pool and carries their history across
+     pools — see Civicscope/schema_pool_identity.sql for why the name-keyed model had to go.
+     Consent and channel preference now live on the PERSON, which is what removes the silently-wrong
+     join that shipped earlier the same day. */
+  const poolSlugFor = (weekSlug) => (isSandbox(weekSlug) ? 'sandbox-football' : 'football-2026');
+  const loadRoster = async (weekSlug) => {
+    const poolSlug = poolSlugFor(weekSlug);
+    const r = await sb(`pool_memberships?select=role,pools!inner(slug),pool_people!inner(id,name,email,phone,pin,sms_consent,sms_opted_out,notify_sms,notify_email,global_role)&pools.slug=eq.${poolSlug}`);
+    if (!r.ok) return [];
+    return (await r.json()).map(m => ({
+      id: m.pool_people.id,
+      name: m.pool_people.name,
+      email: m.pool_people.email || '',
+      phone: m.pool_people.phone || '',
+      pin: m.pool_people.pin || '',
+      role: m.role,
+      globalRole: m.pool_people.global_role,
+      smsConsent: m.pool_people.sms_consent === true && m.pool_people.sms_opted_out !== true,
+      notifySms: m.pool_people.notify_sms !== false,
+      notifyEmail: m.pool_people.notify_email !== false,
+      // A text requires consent AND preference. Preference alone never creates permission.
+      canText: m.pool_people.sms_consent === true && m.pool_people.sms_opted_out !== true
+               && !!m.pool_people.phone && m.pool_people.notify_sms !== false,
+      wantsEmail: m.pool_people.notify_email !== false,
+    }));
+  };
+  const findPerson = async (nameOrPhone) => {
+    const v = String(nameOrPhone || '').trim();
+    if (!v) return null;
+    const digits = v.replace(/\D/g, '');
+    const q = digits.length >= 10
+      ? `phone=eq.${encodeURIComponent(digits.length === 11 ? '+' + digits : '+1' + digits)}`
+      : `name_key=eq.${encodeURIComponent(v.toUpperCase())}`;
+    const r = await sb(`pool_people?${q}&select=*`);
+    return r.ok ? ((await r.json())[0] || null) : null;
+  };
   const pastDeadline = (wk) => wk.deadline && Date.now() > Date.parse(wk.deadline);
   // All roster players have a locked pick — used ONLY to fire the "all picks are in" email.
+  // Keyed by person id now — a rename can no longer detach someone's entry from their identity.
   const allLocked = (wk, roster) => {
     if (!roster || !roster.length || !wk.picks) return false;
-    return roster.every(p => wk.picks[p.name] && wk.picks[p.name].locked);
+    return roster.every(p => wk.picks[p.id] && wk.picks[p.id].locked);
   };
   /* THE DEADLINE IS THE ONLY THING THAT REVEALS (Codex finding #2 — Confirmed/High).
      This used to also reveal once everyone had locked. The reasoning ("all locked → the
@@ -116,7 +155,11 @@ export default async function handler(req, res) {
   const scoreWeek = (wk, results) => {
     const pts = {}, covers = {};
     for (const g of (wk.games || [])) covers[g.id] = coverOf(g, (results || {})[g.id]);
-    for (const [name, entry] of Object.entries(wk.picks || {})) {
+    /* Entries are keyed by person id; each carries a `name` SNAPSHOT for display. Scores and the
+       weekly winner are reported by name so the board and emails read naturally, while the durable
+       key stays the id. */
+    for (const [pid, entry] of Object.entries(wk.picks || {})) {
+      const name = entry.name || pid;
       let p = 0;
       for (const g of (wk.games || [])) {
         const cov = covers[g.id], side = (entry.picks || {})[g.id];
@@ -178,10 +221,10 @@ export default async function handler(req, res) {
           full: (data.deadline && Date.now() > Date.parse(data.deadline)) ? data : null,
         })));
       }
-      // players roster — names only, never pins/emails
+      // players roster — id + name only, never pins/emails/phones
       if (req.query.players !== undefined) {
-        const cfg = await getRow('config');
-        return res.status(200).json({ players: ((cfg?.data?.players) || []).map(p => ({ name: p.name })) });
+        const roster = await loadRoster(req.query.week || '');
+        return res.status(200).json({ players: roster.map(p => ({ id: p.id, name: p.name })) });
       }
       // one week
       const slug = cleanSlug(req.query.week);
@@ -189,8 +232,7 @@ export default async function handler(req, res) {
       const row = await getRow(slug);
       if (!row) return res.status(200).json({ slug, data: null });
       const wk = row.data;
-      const cfg = await getRow(rosterSlugFor(slug));
-      const roster = (cfg?.data?.players) || [];
+      const roster = await loadRoster(slug);
       const revealed = isRevealed(wk);
       if (!revealed && wk.picks) {
         // pick privacy: until the DEADLINE, only your own picks come back (name+pin);
@@ -199,14 +241,18 @@ export default async function handler(req, res) {
         const pin = String(req.query.pin || '');
         const me = roster.find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
         const masked = {};
-        for (const [player, v] of Object.entries(wk.picks)) {
-          masked[player] = (me && player.toUpperCase() === name)
+        for (const [pid, v] of Object.entries(wk.picks)) {
+          masked[pid] = (me && pid === me.id)
             ? v
-            : { locked: !!v.locked, savedAt: v.savedAt, hidden: true };
+            : { name: v.name, locked: !!v.locked, savedAt: v.savedAt, hidden: true };
         }
         wk.picks = masked;
       }
-      return res.status(200).json({ slug: row.slug, data: wk, revealed, updated_at: row.updated_at });
+      // Roster travels with the week so clients can render names from person ids without a 2nd call.
+      return res.status(200).json({
+        slug: row.slug, data: wk, revealed, updated_at: row.updated_at,
+        roster: roster.map(p => ({ id: p.id, name: p.name })),
+      });
     }
 
     if (req.method === 'POST') {
@@ -225,13 +271,29 @@ export default async function handler(req, res) {
           if (digits.length < 10 || digits.length > 11) return res.status(400).json({ error: 'valid US mobile required for text alerts' });
           phone = digits.length === 11 ? '+' + digits : '+1' + digits;
         }
-        const row = await getRow('sms-optins');
-        const list = (row?.data?.optins) || [];
-        if (list.length >= 100) return res.status(429).json({ error: 'list full' }); // private pool — hard cap kills abuse
-        list.push(optIn
-          ? { name, phone, smsConsent: true, consentAt: new Date().toISOString(), consentText: String(req.body.consentText || '').slice(0, 600), optedOut: false }
-          : { name, phone: null, smsConsent: false, declinedAt: new Date().toISOString() });
-        await putRow('sms-optins', { optins: list });
+        /* Registration now writes THE PERSON (2026-08-07). It used to append to a name-keyed
+           `sms-optins` list, which is precisely the row the notify path failed to join against.
+           One record, one truth: consent, phone and preference all land on pool_people. */
+        const cnt = await sb('pool_people?select=id&limit=101');
+        if (cnt.ok && (await cnt.json()).length > 100) return res.status(429).json({ error: 'list full' });
+        const patch = optIn
+          ? { name, phone, sms_consent: true, sms_opted_out: false,
+              sms_consent_at: new Date().toISOString(),
+              sms_consent_text: String(req.body.consentText || '').slice(0, 600), updated_at: new Date().toISOString() }
+          : { name, sms_consent: false, updated_at: new Date().toISOString() };
+        const up = await sb('pool_people?on_conflict=name_key', {
+          method: 'POST',
+          headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+          body: JSON.stringify(patch),
+        });
+        if (!up.ok) {
+          const t = await up.text();
+          // A phone already claimed by a different person must not silently overwrite them.
+          if (/duplicate key|unique/i.test(t) && /phone/i.test(t)) {
+            return res.status(409).json({ error: 'that mobile number is already registered to someone else' });
+          }
+          return res.status(500).json({ error: 'registration failed' });
+        }
         return res.status(200).json({ ok: true });
       }
 
@@ -247,52 +309,72 @@ export default async function handler(req, res) {
            BRANDON) were overwritten by two test rows, and their PINs — which exist nowhere
            else, not in the week backups — were destroyed.
            The write is now addressed explicitly and can only ever hit one of two known rows. */
-        const rosterTarget = (s) => (String(s || '') === 'sandbox-config' ? 'sandbox-config' : 'config');
+        /* Now writes pool_people + pool_memberships. The `config` blob is dead for reads; the row
+           is left in place until the client pages stop referencing it. The v1.7.2 shrink guard is
+           kept in spirit — removing participants is a membership delete and still needs an explicit
+           confirmShrink, because the mistake it was written for (a caller wiping the roster while
+           believing it was addressing a sandbox) is a class, not a one-off. */
         if (action === 'save_players') {
-          const target = rosterTarget(req.body.slug);
-          /* `phone` is CONTACT/IDENTITY, never consent. Keith 2026-08-07: text is becoming the
-             primary login and most use is mobile, so the number belongs on the member record.
-             It is stored here and NOWHERE consulted by sendSms — that reads `sms-optins` only.
-             Storing a number the commissioner typed must never, by itself, cause a text to be
-             sent to it; that is A2P rejection 30923 and it is the reason these are two fields in
-             two different rows. */
-          const players = (req.body.players || []).map(p => {
+          const poolSlug = String(req.body.poolSlug || 'football-2026');
+          const pr = await sb(`pools?slug=eq.${encodeURIComponent(poolSlug)}&select=id`);
+          const pool = pr.ok ? (await pr.json())[0] : null;
+          if (!pool) return res.status(404).json({ error: `no pool '${poolSlug}'` });
+
+          const incoming = (req.body.players || []).map(p => {
             const d = String(p.phone || '').replace(/\D/g, '');
             return {
               name: String(p.name || '').toUpperCase().slice(0, 20),
-              email: String(p.email || '').slice(0, 80),
-              phone: d.length === 11 && d[0] === '1' ? '+' + d : (d.length === 10 ? '+1' + d : ''),
+              email: String(p.email || '').slice(0, 80) || null,
+              phone: d.length === 11 && d[0] === '1' ? '+' + d : (d.length === 10 ? '+1' + d : null),
               pin: String(p.pin || Math.floor(1000 + Math.random() * 9000)),
-              /* PREFERENCE, NOT CONSENT — two different things, deliberately kept apart.
-                 Preference answers "which channels does this member want?" and defaults to BOTH
-                 ON (Keith 2026-08-07). Consent answers "may we lawfully text them at all?" and
-                 lives in `sms-optins`, written only by the member's own /pool/sms submission,
-                 where the default is and must remain OFF (that preselected "No text alerts" is
-                 what cleared A2P rejection 30923).
-                 notify.sms = true therefore means "wants texts IF allowed" — it can never create
-                 permission. Both must be true for a text to send. */
-              notify: {
-                email: p?.notify?.email !== false,
-                sms: p?.notify?.sms !== false,
-              },
+              notify_email: p?.notify?.email !== false,
+              notify_sms: p?.notify?.sms !== false,
+              updated_at: new Date().toISOString(),
             };
           }).filter(p => p.name);
-          /* A full-replace write to the LIVE roster must not be able to silently shrink it to
-             a test fixture again. Replacing >1 real player with fewer requires an explicit
-             confirmShrink — a guard, not a permission system: it only has to survive the
-             mistake that already happened once. */
-          if (target === 'config' && !req.body.confirmShrink) {
-            const cur = ((await getRow('config'))?.data?.players) || [];
-            if (cur.length > 1 && players.length < cur.length) {
-              return res.status(409).json({
-                error: `refusing to shrink the live roster from ${cur.length} to ${players.length} players`,
-                hint: 'pass confirmShrink:true if that is genuinely intended, or slug:"sandbox-config" to write the sandbox roster',
-                current: cur.map(p => p.name),
-              });
-            }
+
+          const cur = await loadRoster('');
+          if (!req.body.confirmShrink && cur.length > 1 && incoming.length < cur.length) {
+            return res.status(409).json({
+              error: `refusing to shrink ${poolSlug} from ${cur.length} to ${incoming.length} participants`,
+              hint: 'pass confirmShrink:true if that is genuinely intended',
+              current: cur.map(p => p.name),
+            });
           }
-          await putRow(target, { players });
-          return res.status(200).json({ slug: target, players });
+
+          // Upsert the PEOPLE (they outlive any pool), then reconcile this pool's memberships.
+          const up = await sb('pool_people?on_conflict=name_key', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+            body: JSON.stringify(incoming),
+          });
+          if (!up.ok) return res.status(500).json({ error: 'people upsert failed: ' + (await up.text()).slice(0, 200) });
+          const people = await up.json();
+          const keep = people.map(p => p.id);
+
+          await sb(`pool_memberships?pool_id=eq.${pool.id}&person_id=not.in.(${keep.join(',')})`, { method: 'DELETE' });
+          await sb('pool_memberships?on_conflict=pool_id,person_id', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify(people.map(p => ({
+              pool_id: pool.id, person_id: p.id,
+              role: p.global_role === 'commissioner' ? 'commissioner' : 'participant',
+            }))),
+          });
+          return res.status(200).json({ poolSlug, players: await loadRoster('') });
+        }
+        if (action === 'get_players_full') {
+          return res.status(200).json({
+            poolSlug: String(req.body.poolSlug || 'football-2026'),
+            players: (await loadRoster('')).map(p => ({
+              id: p.id, name: p.name, email: p.email, phone: p.phone, pin: p.pin, role: p.role,
+              // Preference (editable by the commissioner) and consent (never editable here) are
+              // reported separately so the UI can show WHY someone will or will not get a text.
+              notify: { sms: p.notifySms, email: p.notifyEmail },
+              smsConsent: p.smsConsent,
+              canText: p.canText,
+            })),
+          });
         }
         if (action === 'get_players_full') {
           const target = rosterTarget(req.body.slug);
@@ -323,33 +405,16 @@ export default async function handler(req, res) {
           // notify players (best-effort; skips players without an email)
           let emailed = 0, texted = 0;
           if (req.body.notify) {
-            const cfg = await getRow(rosterSlugFor(slug));
-            const players = (cfg?.data?.players) || [];
+            /* One source of truth. `canText` already folds consent + not-opted-out + a phone on
+               file + the member's channel preference, all read off the PERSON. The old version
+               looked consent up in a separate name-keyed row and got it silently wrong. */
+            const players = await loadRoster(slug);
             const base = `https://app.civicscope.io/pool/football`;
-            /* WHERE CONSENT ACTUALLY LIVES — do not look for it on the player record.
-               `save_players` maps a player down to {name, email, pin} and DROPS anything else,
-               so a `smsConsent`/`mobile` field on the roster can never be true. Consent is
-               written by `sms_optin` into its own `sms-optins` row: an APPEND-ONLY list of
-               {name, phone, smsConsent, consentAt|declinedAt, optedOut}. Because it appends,
-               the same person can appear more than once (opted in, later declined) — so the
-               LAST entry for a name is the current state, and earlier ones must be ignored.
-               Matching is on upper-cased name because the roster upper-cases and the public
-               form does not. */
-            const optinRow = await getRow('sms-optins');
-            const optinLatest = new Map();
-            for (const o of (optinRow?.data?.optins || [])) {
-              optinLatest.set(String(o.name || '').trim().toUpperCase(), o);   // later wins
-            }
-            const optinFor = (playerName) => {
-              const o = optinLatest.get(String(playerName || '').trim().toUpperCase());
-              if (!o || o.smsConsent !== true || o.optedOut === true || !o.phone) return null;
-              return o;
-            };
             const gameRows = wk.games.map(g =>
               `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085">${new Date(g.date).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET</td></tr>`).join('');
             for (const p of players) {
               // Channel choice is per member. Email defaults on; a member who turned it off is skipped.
-              if (p.email && p?.notify?.email !== false) {
+              if (p.email && p.wantsEmail) {
               const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#101828">
                 <div style="background:linear-gradient(135deg,#0a2240,#14532d);color:#fff;padding:18px 22px;border-radius:10px 10px 0 0">
                   <div style="font-size:20px;font-weight:800">🏈 ${wk.label || slug} slate is LOCKED — make your picks</div>
@@ -371,13 +436,13 @@ export default async function handler(req, res) {
               if (r.ok) emailed++;
               }
 
-              /* SMS needs BOTH: the member's own consent (sms-optins) AND their channel
-                 preference. Preference alone is never enough — see save_players. */
-              const consent = optinFor(p.name);
-              if (consent && p?.notify?.sms !== false) {
+              /* `canText` folds all four conditions read off the PERSON: consent given, not
+                 opted out, a phone on file, and the member's own channel preference. Preference
+                 alone is never enough — it cannot manufacture permission. */
+              if (p.canText) {
                 const when = new Date(wk.deadline).toLocaleString('en-US',
                   { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' });
-                const ok = await sendSms(consent.phone,
+                const ok = await sendSms(p.phone,
                   `The Pool: ${wk.label || slug} slate is locked. Picks close ${when} ET. `
                   + `Your PIN: ${p.pin}. ${base}/picks\nReply STOP to opt out.`);
                 if (ok) texted++;
@@ -430,10 +495,9 @@ export default async function handler(req, res) {
         const slug = cleanSlug(req.body.slug);
         const name = String(req.body.name || '').toUpperCase();
         const pin = String(req.body.pin || '');
-        const cfg = await getRow(rosterSlugFor(slug));
-        const me = ((cfg?.data?.players) || []).find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
+        const roster = await loadRoster(slug);
+        const me = roster.find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
         if (!me) return res.status(403).json({ error: 'bad name or PIN' });
-        const roster = (cfg?.data?.players) || [];
         /* Read → modify → CONDITIONAL write, retried on contention. Only this member's entry
            is touched; if anyone else's save landed in between, the write is rejected and we
            start over from their revision instead of overwriting it. */
@@ -445,7 +509,7 @@ export default async function handler(req, res) {
           if (!wk.slateLocked) return res.status(400).json({ error: 'slate not locked yet' });
           if (pastDeadline(wk)) return res.status(400).json({ error: 'picks closed — first game has kicked off' });
           wk.picks = wk.picks || {};
-          const mine = wk.picks[me.name] || {};
+          const mine = wk.picks[me.id] || {};
           if (mine.locked && !req.body.unlock) return res.status(400).json({ error: 'your picks are locked' });
 
           /* VALIDATE AGAINST THE SLATE (Codex finding #4 — Confirmed/High). Completeness and
@@ -475,7 +539,10 @@ export default async function handler(req, res) {
           if (req.body.lock && !complete) {
             return res.status(400).json({ error: `all ${total} games need a pick to lock (you have ${Object.keys(picks).length})` });
           }
-          wk.picks[me.name] = { picks, locked: !!req.body.lock, complete, savedAt: new Date().toISOString() };
+          // Keyed by PERSON ID; 
+ame is a display snapshot so the board reads naturally while the
+          // durable key survives a rename or a roster rebuild.
+          wk.picks[me.id] = { name: me.name, picks, locked: !!req.body.lock, complete, savedAt: new Date().toISOString() };
 
           // If this lock completes the board, fire the "all in" email once. The guard flag is
           // set BEFORE persisting so a retry can't double-send.
@@ -499,3 +566,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 }
+
+
