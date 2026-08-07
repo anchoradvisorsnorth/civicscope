@@ -47,6 +47,80 @@ export default async function handler(req, res) {
   };
 
   try {
+    /* ============ INBOUND: the member texts IN, and THAT is the consent ============
+       Keith 2026-08-07: Mike texts the invite from his own phone, the member texts JOIN to the pool
+       number, and we marry the inbound number back to a participant.
+
+       WHY THIS SHAPE AND NOT AN OUTBOUND "reply YES" — you cannot text someone to ask permission
+       to text them; that first message is itself unsolicited and is exactly A2P rejection 30923.
+       A MOBILE-ORIGINATED opt-in inverts it: the member initiates, so consent is unambiguous,
+       self-documenting (their own message is the record) and needs no web form.
+
+       THE JOIN KEY IS THE MOBILE ON THE ROSTER. The commissioner types the number in as
+       contact/identity — which by itself never permits a text — and when that same number texts
+       in, the two halves marry: identity from the roster, permission from the member. An unknown
+       number is never guessed at; it is told to ask Mike. */
+    const isInbound = (req.query.action === 'inbound') || (req.body && req.body.From && req.body.Body !== undefined);
+    if (isInbound) {
+      const twiml = (msg) => {
+        res.setHeader('Content-Type', 'text/xml');
+        return res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response>${
+          msg ? `<Message>${String(msg).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</Message>` : ''
+        }</Response>`);
+      };
+      /* Twilio signature validation needs the ACCOUNT AUTH TOKEN, which this app deliberately does
+         not hold (it uses a revocable API key instead). So the webhook URL carries a shared secret
+         instead. Weaker than a signature, honestly stated: worst case someone who learned the URL
+         could forge an opt-in for a number already on the roster. For a seven-person private pool
+         that is an acceptable trade; if this ever grows, add TWILIO_AUTH_TOKEN and validate
+         X-Twilio-Signature properly. */
+      const wantSecret = process.env.TWILIO_INBOUND_SECRET;
+      if (wantSecret && req.query.s !== wantSecret) return res.status(403).send('forbidden');
+
+      const digits = String(req.body.From || '').replace(/\D/g, '');
+      const from = digits.length === 11 && digits[0] === '1' ? '+' + digits : (digits.length === 10 ? '+1' + digits : '');
+      const text = String(req.body.Body || '').trim().toUpperCase();
+      if (!from) return twiml('');
+
+      const sb = async (path, init) => fetch(`${process.env.SUPABASE_URL}/rest/v1/${path}`, {
+        ...init,
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json', ...(init?.headers || {}),
+        },
+      });
+      const found = await sb(`pool_people?phone=eq.${encodeURIComponent(from)}&select=id,name,pin,sms_consent`);
+      const person = found.ok ? (await found.json())[0] : null;
+
+      if (/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/.test(text)) {
+        // Twilio blocks further sends itself; mirror it so our own UI stops claiming they'll be texted.
+        if (person) await sb(`pool_people?id=eq.${person.id}`, { method: 'PATCH',
+          body: JSON.stringify({ sms_opted_out: true, updated_at: new Date().toISOString() }) });
+        return twiml('');   // Twilio sends its own STOP confirmation; a second one is spam.
+      }
+      if (/^HELP$/.test(text)) {
+        return twiml('The Pool: weekly pick reminders, deadlines and results. Reply JOIN to turn texts on, STOP to turn them off. Questions: Mike.');
+      }
+      if (!person) {
+        return twiml('The Pool: this number is not on the roster yet. Ask Mike to add your mobile, then text JOIN again.');
+      }
+      if (/^(JOIN|START|YES|UNSTOP)$/.test(text)) {
+        await sb(`pool_people?id=eq.${person.id}`, { method: 'PATCH',
+          body: JSON.stringify({
+            sms_consent: true, sms_opted_out: false,
+            sms_consent_at: new Date().toISOString(),
+            // The member's OWN inbound message, stored verbatim — the consent record is the
+            // artifact itself, not a checkbox we ticked on their behalf.
+            sms_consent_text: `Mobile-originated opt-in. Inbound SMS from ${from}: "${String(req.body.Body || '').slice(0, 200)}"`,
+            updated_at: new Date().toISOString(),
+          }) });
+        const nm = String(person.name || '').replace(/^(.)(.*)$/, (m, a, b) => a + b.toLowerCase());
+        return twiml(`You're in, ${nm}. Your PIN is ${person.pin}. Picks: app.civicscope.io/pool/football/picks — Reply STOP any time to turn texts off.`);
+      }
+      return twiml('The Pool: reply JOIN to turn on text alerts, STOP to turn them off, HELP for info.');
+    }
+
     const action = req.method === 'POST' ? (req.body?.action || '') : (req.query.action || '');
     const pw     = req.method === 'POST' ? (req.body?.pw || '') : (req.query.pw || '');
     if (!action) return res.status(400).json({ error: 'action required' });
