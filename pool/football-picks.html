@@ -84,7 +84,12 @@ async function enter(){
   if(!slugName){document.getElementById('content').innerHTML='<div class="note">⏳ No open slate right now — either the commissioner hasn\'t locked this week\'s games yet, or the first game already kicked off. Watch the pool at <a href="/pool/football">/pool/football</a>.</div>';return;}
   const j=await(await fetch(API+'?week='+slugName+'&name='+encodeURIComponent(me)+'&pin='+encodeURIComponent(pin),{cache:'no-store'})).json();
   week=j.data;
-  const mine=(week.picks||{})[me];
+  /* IDENTITY (2026-08-07): picks are keyed by PERSON ID, so look my entry up by resolving my name
+     through the roster the week response now ships, rather than indexing by name. Falls back to the
+     entry's own name snapshot if the roster is unavailable. */
+  const myId=((j.roster||[]).find(p=>String(p.name).toUpperCase()===String(me).toUpperCase())||{}).id;
+  const mine=(week.picks||{})[myId]
+          || Object.values(week.picks||{}).find(v=>String(v.name||'').toUpperCase()===String(me).toUpperCase());
   if(mine&&mine.hidden){toast('Wrong PIN for '+me,4000);return;}
   sessionStorage.setItem('fb_me',JSON.stringify({name:me,pin}));
   picks=(mine&&mine.picks)||{};lockedMine=!!(mine&&mine.locked);
