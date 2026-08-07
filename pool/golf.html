@@ -170,8 +170,10 @@ function render(info, meta, final){
     `Live scoring via ESPN. ${meta||''}`;
 }
 
+let poolData=null;   // the pool row's own data — read by load() to detect a closed/final pool
 async function loadPool(){
   const pool=await(await fetch(API+'?slug='+SLUG,{cache:'no-store'})).json();
+  poolData=pool.data||null;
   const parts=pool.data&&pool.data.participants||[];
   POOL_LOCKED=!!(pool.data&&pool.data.locked);
   TEAMS={}; parts.forEach(p=>{if(p.picks&&p.picks.length)TEAMS[p.name]=p.picks;});
@@ -193,9 +195,38 @@ async function load(){
   const err=document.getElementById('err'); err.style.display='none';
   try{
     const havePicks=await loadPool();
-    const r=await fetch(ESPN,{cache:'no-store'}); if(!r.ok) throw new Error('ESPN '+r.status);
+
+    /* A CLOSED POOL IS A RECORD, NOT A LIVE BOARD (Keith 2026-08-07: "it's over, it doesn't need
+       to auto update"). When the row carries `final`, render the recorded result and make NO ESPN
+       call at all. That is what actually fixes this: the page had no stored standings, so every
+       load recomputed money from whatever tournament ESPN was serving — after The Open ended that
+       silently became a different event entirely. Removing the dependency is the fix; pinning the
+       event id below only protects a pool that is still live. */
+    if(poolData && poolData.final){
+      if(timer){ clearInterval(timer); timer=null; }
+      const f=poolData.finalResult||{};
+      document.getElementById('status').innerHTML=
+        `<b>${esc(f.event||'Final')}</b> · Final<br>This pool is closed and no longer updates.`;
+      const err2=document.getElementById('err');
+      err2.style.display='block'; err2.style.background='#f0fdf4'; err2.style.color='#14532d';
+      err2.innerHTML=`🏆 <b>${esc(f.winner||'')}</b> won with <b>$${Number(f.winnerTotal||0).toLocaleString()}</b>`
+        +(f.runnerUp?` — beat ${esc(f.runnerUp)} by $${Number(f.margin||0).toLocaleString()}`:'')
+        +(f.championGolfer?`<br><span style="font-weight:400">Champion: ${esc(f.championGolfer)}</span>`:'')
+        +`<br><span style="font-weight:400;font-size:12px">Result recorded ${esc(f.recordedAt||'')}.</span>`;
+      btn.disabled=true; btn.textContent='Final';
+      return;
+    }
+    /* ⛔ PIN THE EVENT. This used to fetch the bare leaderboard endpoint, which returns whatever
+       tournament is happening NOW, then fall back to `j.events[0]` when the pinned id was not in
+       that list. Once The Open ended, both matches failed and the page silently began scoring the
+       crew's Open picks against a DIFFERENT tournament's live leaderboard — on 2026-08-07 it was
+       showing the Wyndham Championship, with BRAD leading on $698,146 when BOB actually won The
+       Open on $3,654,372. It had been wrong since roughly July 19 and nothing said so.
+       A fallback that silently substitutes a different competition is worse than an error. */
+    const r=await fetch(ESPN+'?event='+EVENT_ID,{cache:'no-store'}); if(!r.ok) throw new Error('ESPN '+r.status);
     const j=await r.json();
-    const ev=(j.events||[]).find(e=>e.id===EVENT_ID)||(j.events||[]).find(e=>/The Open|Open Championship/i.test(e.name))||j.events[0];
+    const ev=(j.events||[]).find(e=>String(e.id)===EVENT_ID);
+    if(!ev) throw new Error('event '+EVENT_ID+' not returned by ESPN — refusing to score against a different tournament');
     const comp=ev.competitions[0];
     if(havePicks){
       const info=compute(comp.competitors);
@@ -203,8 +234,13 @@ async function load(){
       render(info,'',final);
       if(final && timer){ clearInterval(timer); timer=null; }
     }
-    const st=comp.status?.type?.description||''; const when=new Date().toLocaleTimeString();
-    document.getElementById('status').innerHTML=`<b>${esc(ev.name)}</b> · ${esc(st)}<br>Updated ${when} · auto-refresh 90s`;
+    const st=comp.status?.type?.description||'';
+    const isFinal=comp.status?.type?.state==='post';
+    // A finished pool is a RECORD, not a live board. Say so, and stop claiming a refresh cadence
+    // that has already been cancelled above.
+    document.getElementById('status').innerHTML=isFinal
+      ? `<b>${esc(ev.name)}</b> · ${esc(st)}<br>Final result — this pool is closed and no longer updates.`
+      : `<b>${esc(ev.name)}</b> · ${esc(st)}<br>Updated ${new Date().toLocaleTimeString()} · auto-refresh 90s`;
   }catch(e){ err.textContent='Could not refresh: '+e.message+' (showing last data if any).'; err.style.display='block'; }
   finally{ btn.disabled=false; btn.textContent='Refresh'; }
 }
