@@ -1,8 +1,8 @@
 {
- "generated": "2026-08-06T09:30:48.646Z",
+ "generated": "2026-08-07T09:30:49.938Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 128842775,
- "totalCommitted": 137589026,
+ "totalActual": 128863882,
+ "totalCommitted": 138053421,
  "subCount": 636,
  "subs": [
   {
@@ -591,11 +591,11 @@
   {
    "vendorNo": "1178",
    "name": "Beer & Slabaugh  Inc",
-   "actualCost": 2029079,
+   "actualCost": 2029904,
    "actualJobs": 107,
    "committed": 2034297,
    "committedJobs": 2,
-   "variance": 5218,
+   "variance": 4393,
    "jobs": [
     {
      "jobNo": "2304RO04",
@@ -688,6 +688,12 @@
      "committed": 0
     },
     {
+     "jobNo": "2510GP04",
+     "jobName": "Shipshewana WWTP - Project A",
+     "actual": 5636,
+     "committed": 0
+    },
+    {
      "jobNo": "2504CO05",
      "jobName": "Jomar-2025 Build",
      "actual": 5075,
@@ -697,12 +703,6 @@
      "jobNo": "2303GO15",
      "jobName": "Wa-Nee Elem Window Replacement",
      "actual": 5024,
-     "committed": 0
-    },
-    {
-     "jobNo": "2510GP04",
-     "jobName": "Shipshewana WWTP - Project A",
-     "actual": 4811,
      "committed": 0
     },
     {
@@ -4957,11 +4957,11 @@
   {
    "vendorNo": "2096",
    "name": "Leatherman Supply  Inc",
-   "actualCost": 366645,
+   "actualCost": 366145,
    "actualJobs": 29,
    "committed": 322607,
    "committedJobs": 13,
-   "variance": -44038,
+   "variance": -43538,
    "jobs": [
     {
      "jobNo": "2316RO06",
@@ -5062,7 +5062,7 @@
     {
      "jobNo": "2518RO12",
      "jobName": "Greencroft 2029 WPC",
-     "actual": 7571,
+     "actual": 7446,
      "committed": 0
     },
     {
@@ -5078,10 +5078,10 @@
      "committed": 0
     },
     {
-     "jobNo": "2518RO07",
-     "jobName": "Greencroft 2026 WPC",
-     "actual": 535,
-     "committed": 26137
+     "jobNo": "2413CO04",
+     "jobName": "WMC Phase One Cafe and Kitchen",
+     "actual": 496,
+     "committed": 0
     }
    ]
   },
@@ -7915,6 +7915,53 @@
    ]
   },
   {
+   "vendorNo": "3746",
+   "name": "Cherry Creek Builders LLC",
+   "actualCost": 181070,
+   "actualJobs": 6,
+   "committed": 532626,
+   "committedJobs": 2,
+   "variance": 351556,
+   "jobs": [
+    {
+     "jobNo": "2510GP04",
+     "jobName": "Shipshewana WWTP - Project A",
+     "actual": 75172,
+     "committed": 393434
+    },
+    {
+     "jobNo": "2502GO02",
+     "jobName": "Singing Sands Boardwalk Retrof",
+     "actual": 74806,
+     "committed": 0
+    },
+    {
+     "jobNo": "2611CO01",
+     "jobName": "White Vet Clinic Improvements",
+     "actual": 15000,
+     "committed": 139192
+    },
+    {
+     "jobNo": "2419CO02",
+     "jobName": "Beardsley Disc. Ctr. Mddl. Grd",
+     "actual": 11594,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502CO07",
+     "jobName": "Bremen Library-Storm Sewer Rep",
+     "actual": 2255,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502CO06",
+     "jobName": "Bremen Library-Plumbing Repair",
+     "actual": 2243,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "1179",
    "name": "Beldon Interiors  Inc.",
    "actualCost": 180361,
@@ -7974,53 +8021,6 @@
      "jobNo": "2302GP02",
      "jobName": "Fulton County Airport Hangar",
      "actual": 5925,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "3746",
-   "name": "Cherry Creek Builders LLC",
-   "actualCost": 176530,
-   "actualJobs": 6,
-   "committed": 532626,
-   "committedJobs": 2,
-   "variance": 356096,
-   "jobs": [
-    {
-     "jobNo": "2502GO02",
-     "jobName": "Singing Sands Boardwalk Retrof",
-     "actual": 74806,
-     "committed": 0
-    },
-    {
-     "jobNo": "2510GP04",
-     "jobName": "Shipshewana WWTP - Project A",
-     "actual": 70632,
-     "committed": 393434
-    },
-    {
-     "jobNo": "2611CO01",
-     "jobName": "White Vet Clinic Improvements",
-     "actual": 15000,
-     "committed": 139192
-    },
-    {
-     "jobNo": "2419CO02",
-     "jobName": "Beardsley Disc. Ctr. Mddl. Grd",
-     "actual": 11594,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502CO07",
-     "jobName": "Bremen Library-Storm Sewer Rep",
-     "actual": 2255,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502CO06",
-     "jobName": "Bremen Library-Plumbing Repair",
-     "actual": 2243,
      "committed": 0
     }
    ]
@@ -8549,6 +8549,65 @@
    ]
   },
   {
+   "vendorNo": "3697",
+   "name": "Jack Laurie Group",
+   "actualCost": 130084,
+   "actualJobs": 7,
+   "committed": 118804,
+   "committedJobs": 7,
+   "variance": -11280,
+   "jobs": [
+    {
+     "jobNo": "2307GO09",
+     "jobName": "St. Joe County Garages - Combo",
+     "actual": 76865,
+     "committed": 0
+    },
+    {
+     "jobNo": "2515CO02",
+     "jobName": "NPTech - Community Fiber Build",
+     "actual": 17235,
+     "committed": 29660
+    },
+    {
+     "jobNo": "2510GP04",
+     "jobName": "Shipshewana WWTP - Project A",
+     "actual": 14246,
+     "committed": 17289
+    },
+    {
+     "jobNo": "26X004",
+     "jobName": "Ryan Fire Prot - Valpo",
+     "actual": 6255,
+     "committed": 8740
+    },
+    {
+     "jobNo": "2507GO04",
+     "jobName": "PHM Educational Svc Elevator",
+     "actual": 5395,
+     "committed": 5180
+    },
+    {
+     "jobNo": "2504CO01",
+     "jobName": "Aluminum Insights North Add'n",
+     "actual": 5200,
+     "committed": 5200
+    },
+    {
+     "jobNo": "2504GO04",
+     "jobName": "Northern Heights Elementary HV",
+     "actual": 4888,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X012",
+     "jobName": "",
+     "actual": 0,
+     "committed": 52735
+    }
+   ]
+  },
+  {
    "vendorNo": "3254",
    "name": "Borntrager Enterprises Inc",
    "actualCost": 129599,
@@ -8915,65 +8974,6 @@
      "jobName": "",
      "actual": 0,
      "committed": 24435
-    }
-   ]
-  },
-  {
-   "vendorNo": "3697",
-   "name": "Jack Laurie Group",
-   "actualCost": 115838,
-   "actualJobs": 6,
-   "committed": 118804,
-   "committedJobs": 7,
-   "variance": 2966,
-   "jobs": [
-    {
-     "jobNo": "2307GO09",
-     "jobName": "St. Joe County Garages - Combo",
-     "actual": 76865,
-     "committed": 0
-    },
-    {
-     "jobNo": "2515CO02",
-     "jobName": "NPTech - Community Fiber Build",
-     "actual": 17235,
-     "committed": 29660
-    },
-    {
-     "jobNo": "26X004",
-     "jobName": "Ryan Fire Prot - Valpo",
-     "actual": 6255,
-     "committed": 8740
-    },
-    {
-     "jobNo": "2507GO04",
-     "jobName": "PHM Educational Svc Elevator",
-     "actual": 5395,
-     "committed": 5180
-    },
-    {
-     "jobNo": "2504CO01",
-     "jobName": "Aluminum Insights North Add'n",
-     "actual": 5200,
-     "committed": 5200
-    },
-    {
-     "jobNo": "2504GO04",
-     "jobName": "Northern Heights Elementary HV",
-     "actual": 4888,
-     "committed": 0
-    },
-    {
-     "jobNo": "2510GP04",
-     "jobName": "",
-     "actual": 0,
-     "committed": 17289
-    },
-    {
-     "jobNo": "26X012",
-     "jobName": "",
-     "actual": 0,
-     "committed": 52735
     }
    ]
   },
@@ -11847,6 +11847,41 @@
    ]
   },
   {
+   "vendorNo": "149",
+   "name": "SAM, LLC",
+   "actualCost": 49901,
+   "actualJobs": 4,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2504CO04",
+     "jobName": "Transformation Min ELC Design",
+     "actual": 27767,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X009",
+     "jobName": "Wa-Nee Andrews Field Conc",
+     "actual": 15039,
+     "committed": 0
+    },
+    {
+     "jobNo": "2603CO01",
+     "jobName": "Tri-State Forest Frame DA",
+     "actual": 5100,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X019",
+     "jobName": "Transformation Ministries ELC",
+     "actual": 1996,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "3093",
    "name": "TeleData",
    "actualCost": 49381,
@@ -12034,35 +12069,6 @@
      "jobNo": "2415GO03",
      "jobName": "INDOT Roselawn Unit & Salt Bld",
      "actual": 48000,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "149",
-   "name": "SAM, LLC",
-   "actualCost": 47905,
-   "actualJobs": 3,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2504CO04",
-     "jobName": "Transformation Min ELC Design",
-     "actual": 27767,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X009",
-     "jobName": "Wa-Nee Andrews Field Conc",
-     "actual": 15039,
-     "committed": 0
-    },
-    {
-     "jobNo": "2603CO01",
-     "jobName": "Tri-State Forest Frame DA",
-     "actual": 5100,
      "committed": 0
     }
    ]
@@ -14107,15 +14113,15 @@
    "name": "Kropp Fire Protection  Inc.",
    "actualCost": 28843,
    "actualJobs": 1,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
+   "committed": 464395,
+   "committedJobs": 1,
+   "variance": 435552,
    "jobs": [
     {
      "jobNo": "26X005",
      "jobName": "CTB 2026 Addition",
      "actual": 28843,
-     "committed": 0
+     "committed": 464395
     }
    ]
   },
