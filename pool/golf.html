@@ -202,19 +202,23 @@ async function load(){
        load recomputed money from whatever tournament ESPN was serving — after The Open ended that
        silently became a different event entirely. Removing the dependency is the fix; pinning the
        event id below only protects a pool that is still live. */
-    if(poolData && poolData.final){
-      if(timer){ clearInterval(timer); timer=null; }
+    /* A CLOSED POOL IS A RECORD, NOT A LIVE BOARD (Keith 2026-08-07). But "stop updating" is not
+       "show nothing" — my first pass returned here before rendering, which killed the standings and
+       teams tables entirely (caught 2026-08-08). A finished pool should still show the FULL final
+       board; it just must not keep recomputing it against whatever tournament ESPN is serving now.
+       So: no timer, one PINNED fetch of the completed event, render it, done. If ESPN will not
+       serve it, fall back to the recorded headline rather than showing a live-looking blank. */
+    const isFinalPool = !!(poolData && poolData.final);
+    if(isFinalPool && timer){ clearInterval(timer); timer=null; }
+    if(isFinalPool){
       const f=poolData.finalResult||{};
-      document.getElementById('status').innerHTML=
-        `<b>${esc(f.event||'Final')}</b> · Final<br>This pool is closed and no longer updates.`;
-      const err2=document.getElementById('err');
-      err2.style.display='block'; err2.style.background='#f0fdf4'; err2.style.color='#14532d';
-      err2.innerHTML=`🏆 <b>${esc(f.winner||'')}</b> won with <b>$${Number(f.winnerTotal||0).toLocaleString()}</b>`
+      const e2=document.getElementById('err');
+      e2.style.display='block'; e2.style.background='#f0fdf4'; e2.style.color='#14532d'; e2.style.border='1px solid #bbf7d0';
+      e2.innerHTML=`🏆 <b>${esc(f.winner||'')}</b> won with <b>$${Number(f.winnerTotal||0).toLocaleString()}</b>`
         +(f.runnerUp?` — beat ${esc(f.runnerUp)} by $${Number(f.margin||0).toLocaleString()}`:'')
         +(f.championGolfer?`<br><span style="font-weight:400">Champion: ${esc(f.championGolfer)}</span>`:'')
-        +`<br><span style="font-weight:400;font-size:12px">Result recorded ${esc(f.recordedAt||'')}.</span>`;
+        +`<br><span style="font-weight:400;font-size:12px">Result recorded ${esc(f.recordedAt||'')}. Final board below.</span>`;
       btn.disabled=true; btn.textContent='Final';
-      return;
     }
     /* ⛔ PIN THE EVENT. This used to fetch the bare leaderboard endpoint, which returns whatever
        tournament is happening NOW, then fall back to `j.events[0]` when the pinned id was not in
@@ -241,8 +245,21 @@ async function load(){
     document.getElementById('status').innerHTML=isFinal
       ? `<b>${esc(ev.name)}</b> · ${esc(st)}<br>Final result — this pool is closed and no longer updates.`
       : `<b>${esc(ev.name)}</b> · ${esc(st)}<br>Updated ${new Date().toLocaleTimeString()} · auto-refresh 90s`;
-  }catch(e){ err.textContent='Could not refresh: '+e.message+' (showing last data if any).'; err.style.display='block'; }
-  finally{ btn.disabled=false; btn.textContent='Refresh'; }
+  }catch(e){
+    // On a CLOSED pool the recorded headline is already on screen; don't overwrite it with a
+    // refresh error, just note that the archived board could not be redrawn.
+    if(poolData && poolData.final){
+      document.getElementById('status').innerHTML=
+        `<b>${esc((poolData.finalResult||{}).event||'Final')}</b> · Final<br>This pool is closed. Final board unavailable right now.`;
+    } else {
+      err.textContent='Could not refresh: '+e.message+' (showing last data if any).'; err.style.display='block';
+    }
+  }
+  finally{
+    const b=document.getElementById('refresh');
+    if(poolData && poolData.final){ b.disabled=true; b.textContent='Final'; }
+    else { b.disabled=false; b.textContent='Refresh'; }
+  }
 }
 load(); timer=setInterval(load,90000);
 </script>
