@@ -64,12 +64,13 @@
   <div class="card"><h2>1 · Players <span><span id="pstate" style="font-size:12px;font-weight:400;color:#b9c6da;margin-right:10px"></span><button class="btn gray" id="editbtn" onclick="toggleEdit()">&#9998; Edit roster</button></span></h2>
     <div class="body">
       <table id="ptable"><thead><tr><th>Name</th><th>Mobile</th><th>Email</th><th>Notify</th><th>PIN</th><th></th></tr></thead><tbody></tbody></table>
+      <div id="joinbanner" style="display:none;margin-top:12px;padding:12px 14px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a"></div>
       <div class="row" style="margin-top:10px" id="editonly">
         <button class="btn gray" onclick="addPlayer()">+ New person</button>
         <button class="btn gray" onclick="addExisting()" title="Someone already in The Pool — reuse them so their history follows">+ Add existing</button>
         <button class="btn gold" id="savebtn" onclick="savePlayers()">Save players</button>
         <button class="btn gray" id="reloadbtn" onclick="loadPlayers()" title="Re-read the roster from the server, discarding anything unsaved">↻ Reload</button>
-        <span class="muted">PINs auto-generate when blank. Text + Email default ON. <b>A text only sends once that member texts JOIN to (574) 444-0320 from the mobile you enter here</b> — <b>Text invite</b> opens your Messages app addressed to them. Use <b>+ Add existing</b> for anyone already in The Pool; names and mobiles are unique across every pool.</span>
+        <span class="muted">PINs auto-generate when blank — <b>each player can change their own</b> on the picks page. Text + Email default ON. <b>A text only sends once that member texts JOIN to (574) 444-0320 from the mobile you enter here.</b> Use <b>+ Add existing</b> for anyone already in The Pool; names and mobiles are unique across every pool.</span>
       </div>
     </div>
   </div>
@@ -201,7 +202,6 @@ function renderPlayers(){
         <div class="meta">${p.phone?esc(p.phone):'no mobile'}${p.email?' · '+esc(p.email):''} · PIN ${esc(p.pin||'—')}</div></td>
         <td style="text-align:right;white-space:nowrap">
           <span class="pill" style="background:${s.b};color:${s.c}">${s.t}</span>
-          ${!p.canText&&p.phone?`<button class="btn gray" style="margin-left:8px" onclick="copyInvite(${i})">Text invite</button>`:''}
         </td></tr>`;}).join('')
       : '<tr><td class="muted" style="padding:12px">No participants yet — ✎ Edit roster to add someone.</td></tr>';
     return;
@@ -217,8 +217,35 @@ function renderPlayers(){
       <div style="font-size:11px;margin-top:2px;color:${p.canText?'#14532d':'#b42318'}">${p.canText?'✓ will get texts':(p.smsConsent?'no mobile on file':'not opted in — tap Text invite')}</div>
     </td>
     <td><input value="${esc(p.pin||'')}" class="sm" placeholder="auto" onchange="players[${i}].pin=this.value;markDirty()"></td>
-    <td><button class="btn" onclick="copyInvite(${i})" title="Opens your own Messages app, addressed to them, with the invite prefilled">Text invite</button>
-        <button class="btn red" onclick="players.splice(${i},1);renderPlayers();markDirty()">✕</button></td></tr>`).join('');
+    <td><button class="btn red" onclick="players.splice(${i},1);renderPlayers();markDirty()">✕</button></td></tr>`).join('');
+  paintJoinBanner();
+}
+/* Keith 2026-08-08: "text invite button is still stupid — when commish adds new users and saves,
+   there should be a toast that reminds Mike to tell the person to text JOIN."
+   Right on both counts. A per-row button was six weak affordances doing one job badly, and the
+   moment that actually matters is right after saving. The unit of work is ONE message to the group,
+   not six individual invites — so this is a standing banner (always true, always actionable) with
+   a single copy button, reinforced by a toast on save. */
+const POOL_NUMBER='(574) 444-0320';
+function needJoin(){ return players.filter(p=>p.phone&&!p.canText); }
+function noMobile(){ return players.filter(p=>!p.phone); }
+function paintJoinBanner(){
+  const el=document.getElementById('joinbanner'); if(!el)return;
+  const need=needJoin(), nomob=noMobile();
+  if(!need.length&&!nomob.length){el.style.display='none';return;}
+  el.style.display='';
+  el.innerHTML=
+    (need.length?`<div style="font-weight:700;margin-bottom:4px">📣 ${need.length} still need to text <b>JOIN</b> to ${POOL_NUMBER}</div>
+      <div class="muted" style="margin-bottom:8px">${need.map(p=>esc(p.name)).join(', ')} — until they do, they get email only. They must send it themselves; that text is their consent.</div>
+      <button class="btn gold" onclick="copyGroupAsk()">Copy the ask for the group chat</button>`:'')
+    +(nomob.length?`<div class="muted" style="margin-top:${need.length?'10px':'0'}">⚠ No mobile on file for ${nomob.map(p=>esc(p.name)).join(', ')} — JOIN can't match them until you add a number.</div>`:'');
+}
+function copyGroupAsk(){
+  const msg=`Pool sign-up: text JOIN to ${POOL_NUMBER} from your cell to get pick reminders, your PIN and results. `
+    +`Totally optional — everything's always at app.civicscope.io/pool. Reply STOP any time.`;
+  const done=()=>toast('Copied — paste it into the group chat',6000);
+  if(navigator.clipboard) navigator.clipboard.writeText(msg).then(done).catch(()=>window.prompt('Copy this:',msg));
+  else window.prompt('Copy this:',msg);
 }
 /* WHY THIS COPIES INSTEAD OF SENDING.
    An invite texted FROM the pool number to somebody who has not opted in is an unsolicited A2P
@@ -364,9 +391,12 @@ async function savePlayers(){
     players=j.players;loadedCount=players.length;dirty=false;renderPlayers();paintState();
     // Say whether anyone was actually texted. Silence here reads as "nothing happened", and the
     // distinction matters: an added member who has never opted in is deliberately NOT messaged.
-    const extra=j.notified?` · ${j.notified} added member${j.notified>1?'s':''} texted a link to this pool`
-      :(j.addedCount?` · ${j.addedCount} added (none opted in to texts yet — use Text invite)`:'');
-    toast('Players saved — PINs assigned ✓'+extra, extra?8000:3000);}catch(e){}}
+    /* Name the people still to chase, at the moment of saving. "Some members haven't opted in" is
+       useless; "now get NICK P, BOB N to text JOIN to (574) 444-0320" is an instruction. */
+    const need=needJoin();
+    const sent=j.notified?` · ${j.notified} texted a link to this pool`:'';
+    const chase=need.length?` — now get ${need.map(x=>x.name).join(', ')} to text JOIN to ${POOL_NUMBER}`:'';
+    toast('Saved ✓'+sent+chase, (sent||chase)?11000:3000);}catch(e){}}
 
 /* game loading */
 function parseOdds(comp){
