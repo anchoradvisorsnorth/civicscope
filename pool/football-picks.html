@@ -146,7 +146,7 @@ function render(){
       return '<button class="side '+(mine===ab?'on':'')+'" '+(lockedMine?'disabled':'')+' onclick="pick(\''+g.id+'\',\''+ab+'\')">'+esc(ab)+' <span class="lab">'+tag+'</span></button>';
     };
     return '<div class="game"><div class="ghead"><span>'+esc(g.short)+' · '+g.league.toUpperCase()+'</span><span>'+
-      new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET · line: '+esc(g.spreadText)+'</span></div>'+
+      new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET · '+(g.pickem?'<b>PICK &rsquo;EM</b> — straight up':'line: '+esc(g.spreadText))+'</span></div>'+
       '<div class="sides">'+side(g.awayAbbrev)+side(g.homeAbbrev)+'</div></div>';
   }).join('');
   document.getElementById('content').innerHTML=(lockedMine?'<div class="note">🔒 Your picks are locked. Unlock to change them (until first kickoff).</div>':'')+html;
