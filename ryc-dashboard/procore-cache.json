@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-08-07T05:26:02.008Z",
+  "refreshed": "2026-08-08T05:26:03.007Z",
   "jobCount": 53,
   "jobs": [
     {
@@ -2754,8 +2754,8 @@
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 20,
-        "open": 6
+        "total": 22,
+        "open": 8
       },
       "submittals": {
         "total": 507,
@@ -3817,8 +3817,8 @@
         "revised": 3344962.6799999997,
         "committed": 0,
         "direct": 2513004.72,
-        "projectedCost": 3269787.31,
-        "projectedBudget": 3533511.9,
+        "projectedCost": 3250187.31,
+        "projectedBudget": 3512931.9,
         "projCostSuspect": false
       },
       "contractValue": 3709035,
@@ -3827,7 +3827,7 @@
         "count": 21,
         "subcontracts": 15,
         "purchaseOrders": 6,
-        "committedTotal": 3021411.87,
+        "committedTotal": 3001341.87,
         "originalTotal": 2866866.77,
         "pendingTotal": 8245.35,
         "invoicedTotal": 0,
@@ -3897,20 +3897,20 @@
           },
           {
             "kind": "sub",
-            "title": "Clearspring Subcontract - Milford WTP Div A",
-            "vendor": "Clearspring Masonry",
-            "status": "Approved",
-            "total": 100751.09,
-            "original": 80848.39,
-            "invoiced": 0
-          },
-          {
-            "kind": "sub",
             "title": "Prism Subcontract - Milford WTP Div A",
             "vendor": "Prism Painting Company",
             "status": "Approved",
             "total": 89100,
             "original": 69500,
+            "invoiced": 0
+          },
+          {
+            "kind": "sub",
+            "title": "Clearspring Subcontract - Milford WTP Div A",
+            "vendor": "Clearspring Masonry",
+            "status": "Approved",
+            "total": 80681.09,
+            "original": 80848.39,
             "invoiced": 0
           },
           {
@@ -4025,7 +4025,7 @@
       },
       "changeOrders": {
         "count": 24,
-        "netValue": 144587.22,
+        "netValue": 124007.22,
         "byType": {
           "Owner Change": 4,
           "Allowance": 19,
@@ -7620,7 +7620,7 @@
         "revised": 289123.9,
         "committed": 0,
         "direct": 17129.09,
-        "projectedCost": 222504.59,
+        "projectedCost": 226504.59,
         "projectedBudget": 289123.9,
         "projCostSuspect": false
       },
@@ -7692,10 +7692,10 @@
         ]
       },
       "changeOrders": {
-        "count": 2,
+        "count": 3,
         "netValue": -24834,
         "byType": {
-          "TBD": 1,
+          "TBD": 2,
           "Owner Change": 1
         }
       },
