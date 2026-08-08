@@ -18,7 +18,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.2.0-inbound-diag';   // diagnose/repair inbound routing
+const VER = '1.3.0-inbound';   // JOIN reply reflects actual pool membership, not just consent
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -93,6 +93,18 @@ export default async function handler(req, res) {
       const found = await sb(`pool_people?phone=eq.${encodeURIComponent(from)}&select=id,name,pin,sms_consent`);
       const person = found.ok ? (await found.json())[0] : null;
 
+      /* Which pools is this person actually IN? Consent and membership are separate, and the reply
+         has to respect that. Otherwise someone who opts in before being added to a pool is told
+         "You're in" with a picks link, taps it, and isn't on the roster — the message would be
+         lying about the one thing they just acted on. (Real risk 2026-08-08: the crew's numbers
+         were on file and Mike was about to have them text JOIN, while the only pool member was a
+         test row.) */
+      let myPools = [];
+      if (person) {
+        const mp = await sb(`pool_memberships?person_id=eq.${person.id}&select=pools!inner(slug,name,sport,status)`);
+        if (mp.ok) myPools = (await mp.json()).map(m => m.pools).filter(p => p && p.status !== 'closed');
+      }
+
       if (/^(STOP|STOPALL|UNSUBSCRIBE|CANCEL|END|QUIT)$/.test(text)) {
         // Twilio blocks further sends itself; mirror it so our own UI stops claiming they'll be texted.
         if (person) await sb(`pool_people?id=eq.${person.id}`, { method: 'PATCH',
@@ -119,7 +131,15 @@ export default async function handler(req, res) {
         // into "Keith t1" — rosters are stored upper-case, so names are frequently multi-word.
         const nm = String(person.name || '').toLowerCase()
           .replace(/\b([a-z])/g, (m, c) => c.toUpperCase());
-        return twiml(`You're in, ${nm}. Your PIN is ${person.pin}. Picks: app.civicscope.io/pool/football/picks — Reply STOP any time to turn texts off.`);
+        if (!myPools.length) {
+          // Opted in, but not in a pool yet. Confirm the thing they actually did, and promise only
+          // what is true. No PIN and no picks link — both would be dead ends today.
+          return twiml(`Thanks ${nm} — text alerts are ON. You're not in a pool yet; you'll get a text with your PIN and a link the moment you're added. Reply STOP any time to turn texts off.`);
+        }
+        const p0 = myPools[0];
+        const link = p0.sport === 'golf' ? 'app.civicscope.io/pool/golf' : 'app.civicscope.io/pool/football';
+        const which = myPools.length > 1 ? `${myPools.length} pools (incl. ${p0.name})` : p0.name;
+        return twiml(`You're in ${which}, ${nm}. Your PIN is ${person.pin}. Picks: ${link} — Reply STOP any time to turn texts off.`);
       }
       return twiml('The Pool: reply JOIN to turn on text alerts, STOP to turn them off, HELP for info.');
     }
