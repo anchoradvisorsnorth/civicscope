@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.3.0-selfpin';   // players can change their own PIN; join-chase moved to a banner
+const VER = '2.4.0-locknudge';   // Wednesday lock reminder to the commissioner (cron-gated)
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -295,6 +295,60 @@ export default async function handler(req, res) {
           return res.status(500).json({ error: 'registration failed' });
         }
         return res.status(200).json({ ok: true });
+      }
+
+      /* ---- WEDNESDAY LOCK NUDGE (Keith 2026-08-08: "the platform should prompt Mike to lock the
+         picks by Wed") ----
+         Cron-triggered, not client-side: a reminder that only fires when the commissioner happens
+         to have the page open is not a reminder. Cron-secret gated, same posture as every other
+         scheduled job in the stack.
+         It nudges on the two failure modes that actually happen: a week built but never locked, and
+         no week built at all. Silent when there is nothing to chase — a job that pings every week
+         regardless gets ignored, and then the one that matters gets ignored too. */
+      if (action === 'lock_reminder') {
+        if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
+          return res.status(401).json({ error: 'unauthorized' });
+        }
+        const season = new Date().getFullYear();
+        const lr = await sb(`football_pools?slug=like.${season}-*&select=slug,data&order=slug.desc`);
+        const rows = lr.ok ? await lr.json() : [];
+        const weeks = rows.filter(r => /^\d{4}-(w\d+|pre\d+)$/.test(r.slug));
+        const open = weeks.filter(w => !w.data?.finalized);
+        const unlocked = open.filter(w => !w.data?.slateLocked);
+
+        let msg = null;
+        if (unlocked.length) {
+          const w = unlocked[0];
+          const n = (w.data?.games || []).length;
+          msg = `The Pool: ${w.data?.label || w.slug} is built (${n} game${n === 1 ? '' : 's'}) but NOT locked. Lock it so the group can pick: app.civicscope.io/pool/commish`;
+        } else if (!open.length) {
+          msg = `The Pool: no week is built for this week yet. Build and lock the slate at app.civicscope.io/pool/commish`;
+        }
+        if (!msg) return res.status(200).json({ nudged: false, reason: 'a slate is already locked' });
+
+        // Goes to the COMMISSIONER — the person who can actually act on it.
+        const roster = await loadRoster('');
+        const commish = roster.filter(p => p.role === 'commissioner' || p.globalRole === 'commissioner');
+        let texted = 0, emailed = 0;
+        for (const c of commish) {
+          if (c.canText && await sendSms(c.phone, msg + '\nReply STOP to opt out.')) texted++;
+          if (c.email && c.wantsEmail) {
+            const r = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com',
+                to: [c.email], subject: '🏈 Lock the slate — the group is waiting',
+                html: `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:15px;color:#101828">
+                  <p>${msg.replace('The Pool: ', '')}</p>
+                  <p><a href="https://app.civicscope.io/pool/commish" style="background:#c8a24b;color:#1a1300;font-weight:800;padding:11px 20px;border-radius:9px;text-decoration:none">Open the commissioner page</a></p>
+                  <p style="color:#667085;font-size:12px">Locking freezes the spreads and texts everyone their PIN.</p></div>`,
+              }),
+            });
+            if (r.ok) emailed++;
+          }
+        }
+        return res.status(200).json({ nudged: true, msg, commissioners: commish.length, texted, emailed });
       }
 
       // ---- commissioner actions ----
