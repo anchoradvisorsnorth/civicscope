@@ -105,6 +105,14 @@ async function liveScores(games){
 function coverOf(g,sc,requireFinal){
   if(!sc)return null;
   if(requireFinal&&sc.state!=='post')return null;
+  /* PICK 'EM: no spread, scored straight up. Must mirror the server rule in api/football-pool.js
+     exactly — the board and the persisted score are computed in two places, and if they ever
+     disagree the board silently lies about who won the week. */
+  if(g.pickem){
+    if(sc.homeScore==null||sc.awayScore==null)return null;
+    if(sc.homeScore===sc.awayScore)return 'PUSH';
+    return sc.homeScore>sc.awayScore?g.homeAbbrev:g.awayAbbrev;
+  }
   const favHome=g.favAbbrev===g.homeAbbrev;
   const favScore=favHome?sc.homeScore:sc.awayScore, dogScore=favHome?sc.awayScore:sc.homeScore;
   const dog=favHome?g.awayAbbrev:g.homeAbbrev;
@@ -170,7 +178,7 @@ async function renderWeek(slug){
         (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
     }
     html+='<div class="card tblwrap"><table><thead><tr><th>Game</th><th>Kickoff</th><th>Frozen line</th></tr></thead><tbody>'+
-      games.map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td>'+fmtDT(g.date)+'</td><td style="font-weight:800;color:var(--green)">'+esc(g.spreadText)+'</td></tr>').join('')+
+      games.map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td>'+fmtDT(g.date)+'</td><td style="font-weight:800;color:var(--green)">'+esc(g.pickem?'PICK EM':g.spreadText)+'</td></tr>').join('')+
       '</tbody></table></div>';
   } else if(players.length){
     html+='<div class="card tblwrap"><table><thead><tr><th>Game · frozen line</th><th>Score</th>'+
@@ -178,7 +186,7 @@ async function renderWeek(slug){
     for(const g of games){
       const sc=scores[g.id];
       const st=!sc?'<span class="gsub">'+fmtDT(g.date)+'</span>':sc.state==='post'?'<span class="final">'+sc.awayScore+'–'+sc.homeScore+' F</span>':sc.state==='in'?'<span class="live">'+sc.awayScore+'–'+sc.homeScore+' · '+esc(sc.detail)+'</span>':'<span class="gsub">'+fmtDT(g.date)+'</span>';
-      html+='<tr><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(g.spreadText)+' · '+g.league.toUpperCase()+'</div></td><td>'+st+'</td>'+
+      html+='<tr><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(g.pickem?'PICK EM':g.spreadText)+' · '+g.league.toUpperCase()+'</div></td><td>'+st+'</td>'+
         ranked.map(p=>{
           const mypick=(wk.picks[p].picks||{})[g.id]||'—';
           const r=detail[p]?detail[p][g.id]:mypick;
