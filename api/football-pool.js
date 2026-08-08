@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.5.0-pickem';   // pick'em games (no line, straight up) for preseason
+const VER = '2.6.0-signin';   // verify_pin: signing in is its own action, no open week required
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -683,6 +683,26 @@ export default async function handler(req, res) {
         });
         if (!r.ok) return res.status(500).json({ error: 'could not change your PIN' });
         return res.status(200).json({ ok: true });
+      }
+
+      /* ---- player action: prove who you are, with NO week required ----
+         2026-08-08, from Keith's phone. The picks page only ever checked a PIN as a side effect of
+         loading a locked week, so between weeks — which is most of the time, and exactly when
+         someone taps their JOIN link — signing in did nothing at all: no check, no error, no
+         session. Worse, when a week WAS open a wrong PIN was only caught if you already had a
+         picks entry to be masked; a first-time player could type anything, make a full card, and
+         first learn the PIN was wrong when save_picks 403'd at the end.
+         Sign-in is now its own question with its own answer. Returns identity only — never the
+         pin, email or phone. Brute-force exposure is unchanged in kind: save_picks, set_pin and
+         the GET reveal already accept an unthrottled name+pin. A 4-digit unthrottled credential is
+         Codex finding #6 and is answered by phone-first login, not by hiding this endpoint. */
+      if (action === 'verify_pin') {
+        const name = String(req.body.name || '').toUpperCase();
+        const pin = String(req.body.pin || '');
+        const roster = await loadRoster(req.body.slug || '');
+        const me = roster.find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
+        if (!me) return res.status(403).json({ error: 'bad name or PIN' });
+        return res.status(200).json({ ok: true, id: me.id, name: me.name, role: me.role || 'participant' });
       }
 
       // ---- player action ----

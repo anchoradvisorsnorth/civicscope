@@ -50,6 +50,17 @@
     <div style="font-size:12px;color:#667085;margin-top:8px">Your PIN arrives by text when you join, and in the slate-lock email.
       <a href="#" onclick="changePinStandalone();return false" style="color:#0a2240;font-weight:700">Change your PIN</a></div>
   </div>
+  <!-- Signed-in strip. The login card is a QUESTION ("who are you?"); once it is answered the
+       question must go away and be replaced by its answer. Leaving the PIN box on screen after a
+       successful sign-in is what made this page unreadable on a phone (Keith, 2026-08-08). -->
+  <div class="card" id="whoami" style="display:none;align-items:center;gap:10px;flex-wrap:wrap">
+    <div style="flex:1;min-width:150px">
+      <div style="font-size:12px;color:#667085">Signed in as</div>
+      <div style="font-weight:800;font-size:17px" id="whoamiName"></div>
+    </div>
+    <button class="btn gray" onclick="changePin()">Change PIN</button>
+    <button class="btn gray" onclick="signOut()">Not you?</button>
+  </div>
   <div id="content"></div>
 </main>
 <div class="msg" id="msg"></div>
@@ -61,7 +72,7 @@
 
 <script>
 const API='/api/football-pool';
-let me=null,pin=null,week=null,slugName=null,picks={},lockedMine=false;
+let me=null,pin=null,myId=null,week=null,slugName=null,picks={},lockedMine=false;
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 function toast(t,ms){const m=document.getElementById('msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(()=>m.style.display='none',ms||3000);}
 
@@ -78,24 +89,63 @@ async function currentWeek(){
   const live=rows.filter(w=>w.slateLocked&&!w.finalized&&(!w.deadline||Date.now()<Date.parse(w.deadline)));
   return live.length?live[live.length-1].slug:null;
 }
+/* SIGNING IN AND FINDING A SLATE ARE TWO DIFFERENT QUESTIONS — answer them in that order.
+   Until 2026-08-08 this function bailed out at "no open slate" BEFORE the PIN was ever checked,
+   so between weeks the Enter button did nothing observable: no error on a wrong PIN, no session,
+   and the login card left sitting on screen under a note. On a phone that reads as "I signed in
+   but it still wants my PIN" — which was exactly right, because nothing had signed in.
+   And when a week WAS open, a wrong PIN was only caught via the `hidden` mask on an EXISTING
+   entry, so a first-time player could get all the way to save_picks before being rejected. */
 async function enter(){
-  me=document.getElementById('who').value;pin=document.getElementById('pin').value.trim();
-  if(!pin){toast('Enter your PIN');return;}
+  const who=document.getElementById('who').value;
+  const p=document.getElementById('pin').value.trim();
+  if(!who||who==='No players set'||who==='Loading…'){toast('Pick your name first');return;}
+  if(!p){toast('Enter your PIN');return;}
+  let auth;
+  try{
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'verify_pin',name:who,pin:p})});
+    auth=await r.json();
+    if(!r.ok){
+      sessionStorage.removeItem('fb_me');            // a stale saved PIN must not keep re-failing
+      toast(/pin/i.test(auth.error||'')?('Wrong PIN for '+who):(auth.error||'could not sign in'),5000);
+      return;
+    }
+  }catch(e){toast('Could not reach the pool — check signal and try again',5000);return;}
+  me=auth.name;pin=p;myId=auth.id;
+  sessionStorage.setItem('fb_me',JSON.stringify({name:me,pin}));
+  document.getElementById('login').style.display='none';
+  document.getElementById('whoamiName').textContent=me;
+  document.getElementById('whoami').style.display='flex';
+  await loadWeek();
+}
+async function loadWeek(){
   slugName=await currentWeek();
-  if(!slugName){document.getElementById('content').innerHTML='<div class="note">⏳ No open slate right now — either the commissioner hasn\'t locked this week\'s games yet, or the first game already kicked off. Watch the pool at <a href="/pool/football">/pool/football</a>.</div>';return;}
+  if(!slugName){
+    document.getElementById('sub').textContent='No open slate — you are signed in and ready';
+    document.getElementById('bar').style.display='none';
+    document.getElementById('content').innerHTML='<div class="note">⏳ <b>No open slate right now</b> — either the commissioner hasn\'t locked this week\'s games yet, or the first game already kicked off. You\'re signed in; come back when the slate opens and your picks will be waiting. Watch the pool at <a href="/pool/football">/pool/football</a>.</div>';
+    return;
+  }
   const j=await(await fetch(API+'?week='+slugName+'&name='+encodeURIComponent(me)+'&pin='+encodeURIComponent(pin),{cache:'no-store'})).json();
   week=j.data;
-  /* IDENTITY (2026-08-07): picks are keyed by PERSON ID, so look my entry up by resolving my name
-     through the roster the week response now ships, rather than indexing by name. Falls back to the
-     entry's own name snapshot if the roster is unavailable. */
-  const myId=((j.roster||[]).find(p=>String(p.name).toUpperCase()===String(me).toUpperCase())||{}).id;
-  const mine=(week.picks||{})[myId]
+  /* IDENTITY (2026-08-07): picks are keyed by PERSON ID. The id now comes from sign-in; the name
+     lookup stays as a fallback for the case where verify_pin returned before this page's roster. */
+  const id=myId||((j.roster||[]).find(p=>String(p.name).toUpperCase()===String(me).toUpperCase())||{}).id;
+  const mine=(week.picks||{})[id]
           || Object.values(week.picks||{}).find(v=>String(v.name||'').toUpperCase()===String(me).toUpperCase());
-  if(mine&&mine.hidden){toast('Wrong PIN for '+me,4000);return;}
-  sessionStorage.setItem('fb_me',JSON.stringify({name:me,pin}));
   picks=(mine&&mine.picks)||{};lockedMine=!!(mine&&mine.locked);
-  document.getElementById('login').style.display='none';
   render();
+}
+function signOut(){
+  sessionStorage.removeItem('fb_me');
+  me=pin=myId=week=slugName=null;picks={};lockedMine=false;
+  document.getElementById('whoami').style.display='none';
+  document.getElementById('bar').style.display='none';
+  document.getElementById('content').innerHTML='';
+  document.getElementById('pin').value='';
+  document.getElementById('sub').textContent='Winners against the spread · lock before first kickoff';
+  document.getElementById('login').style.display='block';
 }
 /* The PIN is the login, so the player has to own it. Until now only the commissioner could set
    one, which meant the only way to change your credential was to ask him — and he could then read
