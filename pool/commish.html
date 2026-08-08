@@ -86,6 +86,11 @@
         <label>NFL week <input class="sm" id="nflweek" type="number" value="1" min="1" max="18"></label>
         <label>College week <input class="sm" id="cfbweek" type="number" value="1" min="1" max="16"></label>
         <label>Season <input class="sm" id="season" type="number" value="2026"></label>
+        <label>Type <select id="seasontype" onchange="onTypeChange()">
+          <option value="1">Preseason</option>
+          <option value="2" selected>Regular</option>
+          <option value="3">Postseason</option>
+        </select></label>
         <button class="btn gray" onclick="loadGames('nfl')">Load NFL games</button>
         <button class="btn gray" onclick="loadGames('cfb')">Load college games</button>
       </div>
@@ -409,7 +414,11 @@ async function loadGames(league){
   const season=document.getElementById('season').value;
   document.getElementById('loadstat').textContent='Loading '+league.toUpperCase()+' week '+wk+'…';
   try{
-    const url=SB[league]+'?seasontype=2&week='+wk+'&dates='+season+(league==='cfb'?'&groups=80':'');
+    /* Keith 2026-08-08: the crew plays all three PRESEASON weeks as a live shakedown, so the
+       picker has to reach them. ESPN keys this as seasontype — 1 preseason, 2 regular,
+       3 postseason — and it was hardcoded to 2, which is why only the regular season appeared. */
+    const stype=document.getElementById('seasontype').value||'2';
+    const url=SB[league]+'?seasontype='+stype+'&week='+wk+'&dates='+season+(league==='cfb'?'&groups=80':'');
     const j=await(await fetch(url,{cache:'no-store'})).json();
     /* `let`, not `const` — the Monday-exclusion filter below REASSIGNS this. As a const it threw
        "Assignment to constant variable" on every single load, so "Load NFL games" had been dead
@@ -435,6 +444,23 @@ async function loadGames(league){
     viewLeague=league;
     renderLoaded();
   }catch(e){document.getElementById('loadstat').textContent='Load failed: '+e.message;}
+}
+/* Preseason runs weeks 1–4 (incl. the Hall of Fame game) and the regular season 1–18, so the
+   spinner max has to follow the type or it silently blocks a valid week. Also nudges the slug and
+   label toward a preseason naming scheme so the three shakedown weeks don't collide with w01–w18. */
+function onTypeChange(){
+  const t=document.getElementById('seasontype').value;
+  const nfl=document.getElementById('nflweek');
+  nfl.max = t==='1' ? 4 : (t==='3' ? 5 : 18);
+  if(+nfl.value > +nfl.max) nfl.value = nfl.max;
+  const slug=document.getElementById('wkslug'), lab=document.getElementById('wklabel');
+  const season=document.getElementById('season').value;
+  if(t==='1'){
+    slug.placeholder=`${season}-pre1`; lab.placeholder='Preseason 1';
+    document.getElementById('loadstat').textContent='Preseason: spreads are often missing this early — use the manual spread box on any game that loads without one.';
+  } else {
+    slug.placeholder=`${season}-w01`; lab.placeholder='Week 1';
+  }
 }
 let viewLeague='nfl';
 function setLeagueTab(lg){viewLeague=lg;renderLoaded();}
