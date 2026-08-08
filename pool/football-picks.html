@@ -53,7 +53,7 @@
 </main>
 <div class="msg" id="msg"></div>
 <div class="bar" id="bar" style="display:none">
-  <span class="prog" id="prog"></span>
+  <span class="prog" id="prog"></span><button class="btn gray" onclick="changePin()" title="Change your own PIN">PIN</button>
   <button class="btn gray" onclick="save(false)">💾 Save</button>
   <button class="btn gold" id="lockbtn" onclick="save(true)">🔒 Lock picks</button>
 </div>
@@ -95,6 +95,23 @@ async function enter(){
   picks=(mine&&mine.picks)||{};lockedMine=!!(mine&&mine.locked);
   document.getElementById('login').style.display='none';
   render();
+}
+/* The PIN is the login, so the player has to own it. Until now only the commissioner could set
+   one, which meant the only way to change your credential was to ask him — and he could then read
+   it. Authenticates with the CURRENT pin: a change-password flow, not a reset. */
+async function changePin(){
+  const next=window.prompt('New 4-digit PIN for '+me+':');
+  if(next===null)return;
+  try{
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'set_pin',slug:slugName,name:me,pin,newPin:String(next).trim()})});
+    const j=await r.json();
+    if(!r.ok){toast(j.error||'could not change PIN',5000);return;}
+    if(j.unchanged){toast('That is already your PIN');return;}
+    pin=String(next).trim();
+    sessionStorage.setItem('fb_me',JSON.stringify({name:me,pin}));   // stay logged in
+    toast('PIN changed ✓ — use it next time',6000);
+  }catch(e){toast('could not change PIN',4000);}
 }
 function render(){
   document.getElementById('sub').textContent=(week.label||slugName)+' · picks close '+new Date(week.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET';
