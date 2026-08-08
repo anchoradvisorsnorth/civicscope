@@ -178,7 +178,7 @@ async function post(body){const r=await fetch(API,{method:'POST',headers:{'Conte
     // Show the hint too — a conflict here is usually actionable ("that mobile belongs to X"), and
     // the error alone reads like a dead end. Raw driver text must never reach this toast.
     toast([j.error,j.hint].filter(Boolean).join(' ')||('error '+r.status), 9000);
-    throw new Error(j.error);
+    const err=new Error(j.error); err.payload=j; throw err;   // caller may be able to resolve it
   }
   return j;}
 
@@ -401,7 +401,27 @@ async function savePlayers(){
     const need=needJoin();
     const sent=j.notified?` · ${j.notified} texted a link to this pool`:'';
     const chase=need.length?` — now get ${need.map(x=>x.name).join(', ')} to text JOIN to ${POOL_NUMBER}`:'';
-    toast('Saved ✓'+sent+chase, (sent||chase)?11000:3000);}catch(e){}}
+    toast('Saved ✓'+sent+chase, (sent||chase)?11000:3000);
+  }catch(e){
+    /* Keith hit the phone-collision twice (2026-08-08) trying to add himself. The message named the
+       owner and told him to use "+ Add existing" — accurate, and still a dead end, because it made
+       him abandon what he was doing and go find another control. If the number belongs to someone
+       who simply isn't in this pool yet, that is not an error at all: it is the same intent
+       expressed the wrong way. Offer to do it for him. */
+    const c=e&&e.payload&&e.payload.conflictWith;
+    if(!c)return;
+    const dupIdx=players.findIndex(p=>!p.id);      // the hand-typed row that collided
+    if(dupIdx<0)return;
+    if(!confirm(`That mobile belongs to ${c}, who isn't in this pool yet.\n\nAdd ${c} instead of creating a new person?`))return;
+    try{
+      const lp=await post({action:'list_people',code:code()});
+      const person=(lp.people||[]).find(p=>String(p.name).toUpperCase()===String(c).toUpperCase());
+      if(!person){toast(`Could not find ${c}`,5000);return;}
+      players.splice(dupIdx,1,{id:person.id,name:person.name,phone:person.phone,email:person.email,pin:''});
+      renderPlayers();
+      await savePlayers();
+    }catch(_){}
+  }}
 
 /* game loading */
 function parseOdds(comp){
