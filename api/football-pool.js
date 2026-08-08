@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.1.1-reuse';   // list_people added to the commissioner action allowlist
+const VER = '2.2.0-rename';   // existing people updated BY ID, so renaming actually works
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -326,6 +326,7 @@ export default async function handler(req, res) {
           const incoming = (req.body.players || []).map(p => {
             const d = String(p.phone || '').replace(/\D/g, '');
             return {
+              id: p.id || null,          // present for anyone already on the roster — see below
               name: String(p.name || '').toUpperCase().slice(0, 20),
               email: String(p.email || '').slice(0, 80) || null,
               phone: d.length === 11 && d[0] === '1' ? '+' + d : (d.length === 10 ? '+1' + d : null),
@@ -345,12 +346,44 @@ export default async function handler(req, res) {
             });
           }
 
-          // Upsert the PEOPLE (they outlive any pool), then reconcile this pool's memberships.
-          const up = await sb('pool_people?on_conflict=name_key', {
+          /* ⛔ RENAMING WAS IMPOSSIBLE UNTIL 2026-08-08. Everything upserted on `name_key`, so
+             editing someone's name stopped matching their existing row, tried to INSERT a second
+             person, and died on the unique phone — reported as "that mobile is already on file for
+             BRANDON", which is true, unhelpful, and describes the person you were editing.
+             Existing people are now updated BY ID (the client already has it from
+             get_players_full), so a rename is just a rename. Only genuinely new rows — the ones
+             with no id — go through the name_key upsert. */
+          const known = incoming.filter(p => p.id);
+          const fresh = incoming.filter(p => !p.id).map(({ id, ...rest }) => rest);
+          const people = [];
+          for (const p of known) {
+            const { id, ...fields } = p;
+            const r = await sb(`pool_people?id=eq.${id}`, {
+              method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(fields),
+            });
+            if (!r.ok) {
+              const raw = await r.text();
+              if (/23505/.test(raw) && /name_key/i.test(raw)) {
+                return res.status(409).json({
+                  error: `Another member is already called "${p.name}".`,
+                  hint: 'Names are unique across every pool — that is what keeps history attached to the right person. Pick a different one.',
+                });
+              }
+              if (/23505/.test(raw) && /phone/i.test(raw)) {
+                return res.status(409).json({
+                  error: `That mobile already belongs to a different member.`,
+                  hint: 'A mobile can only belong to one person — it is how a JOIN text is matched back.',
+                });
+              }
+              return res.status(500).json({ error: 'Could not save the roster. Nothing was changed.' });
+            }
+            people.push((await r.json())[0]);
+          }
+          const up = fresh.length ? await sb('pool_people?on_conflict=name_key', {
             method: 'POST',
             headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-            body: JSON.stringify(incoming),
-          });
+            body: JSON.stringify(fresh),
+          }) : { ok: true, json: async () => [] };
           if (!up.ok) {
             /* Never leak raw Postgres at a commissioner. A 23505 here is not a fault — it is the
                identity guarantee doing its job, and it has a specific, actionable meaning:
@@ -381,7 +414,8 @@ export default async function handler(req, res) {
             }
             return res.status(500).json({ error: 'Could not save the roster. Nothing was changed.' });
           }
-          const people = await up.json();
+          // `people` already holds the id-updated rows; append the newly-created ones.
+          people.push(...(await up.json()));
           const keep = people.map(p => p.id);
 
           await sb(`pool_memberships?pool_id=eq.${pool.id}&person_id=not.in.(${keep.join(',')})`, { method: 'DELETE' });
