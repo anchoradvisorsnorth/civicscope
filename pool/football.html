@@ -17,7 +17,14 @@
   .status{font-size:12px;color:#b9c6da;text-align:right}
   .btn{background:var(--gold);color:#1a1300;border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;font-size:13px}
   main{max-width:1100px;margin:0 auto;padding:18px 20px 60px}
-  .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:22px 4px 10px;display:flex;justify-content:space-between;align-items:center}
+  .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:22px 4px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .section-title select{max-width:60%}
+  /* On a phone the title and the week picker fought over one row, so "TEST WEEK — NOT A REAL
+     SLATE — 4 GAMES" wrapped into four ragged lines beside the dropdown. Stack them instead. */
+  @media (max-width:560px){
+    .section-title{flex-direction:column;align-items:stretch;gap:8px}
+    .section-title select{max-width:100%;width:100%;padding:10px;font-size:15px}
+  }
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
   table{width:100%;border-collapse:collapse;font-size:13px}
   td,th{padding:8px 12px;text-align:left}
@@ -151,8 +158,17 @@ async function renderWeek(slug){
   if(!revealed){
     const lockedIn=players.filter(p=>wk.picks[p].locked).map(nameOf);
     const waiting=roster.filter(n=>!lockedIn.includes(n));
-    html+='<div class="note">🔒 <b>Picks are hidden until everyone locks in</b> (or first kickoff '+fmtDT(wk.deadline)+', whichever comes first).<br>Locked in: <b>'+
-      (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
+    /* An UNLOCKED week has no deadline, and this interpolated it regardless — producing
+       "first kickoff Invalid Date ET" on the live board (caught on a phone, 2026-08-08). Worse
+       than ugly: it described a draft as though picks were already open, so a player could not
+       tell whether the week had started. A draft now says so, and offers no picks link, because
+       /picks would only tell them there is no open slate. */
+    if(!wk.slateLocked){
+      html+='<div class="note">📝 <b>This week is still a draft.</b> The commissioner hasn\'t locked the slate yet — picks aren\'t open and these spreads can still move. You\'ll get a text and an email the moment it opens.</div>';
+    } else {
+      html+='<div class="note">🔒 <b>Picks are hidden until first kickoff</b>'+(wk.deadline?' ('+fmtDT(wk.deadline)+')':'')+'.<br>Locked in: <b>'+
+        (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
+    }
     html+='<div class="card tblwrap"><table><thead><tr><th>Game</th><th>Kickoff</th><th>Frozen line</th></tr></thead><tbody>'+
       games.map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td>'+fmtDT(g.date)+'</td><td style="font-weight:800;color:var(--green)">'+esc(g.spreadText)+'</td></tr>').join('')+
       '</tbody></table></div>';
