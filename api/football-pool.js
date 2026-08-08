@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.4.0-locknudge';   // Wednesday lock reminder to the commissioner (cron-gated)
+const VER = '2.5.0-pickem';   // pick'em games (no line, straight up) for preseason
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -143,6 +143,14 @@ export default async function handler(req, res) {
      Kept server-side so scoring never depends on what a browser computed. */
   const coverOf = (g, sc) => {
     if (!sc || sc.homeScore == null || sc.awayScore == null) return null;
+    /* PICK 'EM (Keith 2026-08-08: "if there is not line just make it a pick em"). Preseason lines
+       are thin or absent, so a game can be scored straight up: highest score wins, a tie is a push.
+       No spread is involved, which is why `line` stays null and `pickem` is the flag — inferring
+       pick'em from `line === 0` would collide with a real pick'em-priced spread. */
+    if (g.pickem) {
+      if (sc.homeScore === sc.awayScore) return 'PUSH';
+      return sc.homeScore > sc.awayScore ? g.homeAbbrev : g.awayAbbrev;
+    }
     const favHome = g.favAbbrev === g.homeAbbrev;
     const favScore = favHome ? sc.homeScore : sc.awayScore;
     const dogScore = favHome ? sc.awayScore : sc.homeScore;
@@ -553,8 +561,12 @@ export default async function handler(req, res) {
           if (!row) return res.status(404).json({ error: 'week not found' });
           const wk = row.data;
           if (!(wk.games || []).length) return res.status(400).json({ error: 'no games in slate' });
-          const noLine = wk.games.filter(g => g.line == null || !g.favAbbrev);
-          if (noLine.length) return res.status(400).json({ error: 'games missing a spread: ' + noLine.map(g => g.short).join(', ') });
+          // A pick'em game legitimately has no line — only spread games must carry one.
+          const noLine = wk.games.filter(g => !g.pickem && (g.line == null || !g.favAbbrev));
+          if (noLine.length) return res.status(400).json({
+            error: 'these games have no spread and are not marked pick’em: ' + noLine.map(g => g.short).join(', '),
+            hint: 'Set a spread, or tap PK to score it straight up.',
+          });
           wk.slateLocked = true;
           wk.lockedAt = new Date().toISOString();
           wk.deadline = wk.games.map(g => g.date).sort()[0]; // picks close at first kickoff
