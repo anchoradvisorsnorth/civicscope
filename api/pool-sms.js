@@ -18,7 +18,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.3.0-inbound';   // JOIN reply reflects actual pool membership, not just consent
+const VER = '1.4.0-rostercomplete';   // last JOIN nudges the commissioner to lock the slate
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -136,6 +136,38 @@ export default async function handler(req, res) {
           // what is true. No PIN and no picks link — both would be dead ends today.
           return twiml(`Thanks ${nm} — text alerts are ON. You're not in a pool yet; you'll get a text with your PIN and a link the moment you're added. Reply STOP any time to turn texts off.`);
         }
+        /* ROSTER COMPLETE → NUDGE THE COMMISSIONER TO LOCK (Keith 2026-08-08).
+           The moment the LAST member opts in, there is nothing left to wait for — so tell the
+           commissioner to lock the slate rather than leaving him to poll the page.
+           Fires ONCE per pool via `all_joined_notified_at`; without that flag it would re-send
+           every time anyone re-JOINed after a STOP. Only counts members who can actually be
+           reached, which is the same bar the slate-lock notification uses. */
+        for (const pool of myPools) {
+          try {
+            const pr = await sb(`pools?slug=eq.${encodeURIComponent(pool.slug)}&select=id,name,all_joined_notified_at`);
+            const prow = pr.ok ? (await pr.json())[0] : null;
+            if (!prow || prow.all_joined_notified_at) continue;      // already told him
+            const mr = await sb(`pool_memberships?pool_id=eq.${prow.id}&select=role,pool_people!inner(name,phone,sms_consent,sms_opted_out)`);
+            if (!mr.ok) continue;
+            const mem = await mr.json();
+            const joined = m => m.pool_people.sms_consent === true && m.pool_people.sms_opted_out !== true && !!m.pool_people.phone;
+            if (!mem.length || !mem.every(joined)) continue;          // still waiting on someone
+            await sb(`pools?id=eq.${prow.id}`, { method: 'PATCH',
+              body: JSON.stringify({ all_joined_notified_at: new Date().toISOString() }) });
+            const commish = mem.filter(m => m.role === 'commissioner');
+            for (const c of commish) {
+              await fetch(`https://api.twilio.com/2010-04-01/Accounts/${ACCT}/Messages.json`, {
+                method: 'POST',
+                headers: { Authorization: auth, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                  To: c.pool_people.phone, MessagingServiceSid: MSVC,
+                  Body: `The Pool: all ${mem.length} members are signed up for ${prow.name}. Build and LOCK the slate so everyone can pick: app.civicscope.io/pool/commish\nReply STOP to opt out.`,
+                }),
+              });
+            }
+          } catch { /* never let the nudge break the member's own JOIN reply */ }
+        }
+
         const p0 = myPools[0];
         const link = p0.sport === 'golf' ? 'app.civicscope.io/pool/golf' : 'app.civicscope.io/pool/football';
         const which = myPools.length > 1 ? `${myPools.length} pools (incl. ${p0.name})` : p0.name;
