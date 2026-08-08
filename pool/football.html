@@ -94,8 +94,14 @@ async function liveScores(games){
       for(const e of (j.events||[])){
         const c=e.competitions[0];
         const home=c.competitors.find(x=>x.homeAway==='home'),away=c.competitors.find(x=>x.homeAway==='away');
-        out[String(e.id)]={homeScore:Number(home.score||0),awayScore:Number(away.score||0),
+        const sc={homeScore:Number(home.score||0),awayScore:Number(away.score||0),
           state:c.status?.type?.state,detail:c.status?.type?.shortDetail||''};
+        out[String(e.id)]=sc;
+        /* ALSO key by matchup. A slate built by hand (preseason 2026 was, because ESPN's loader
+           could not be reached) carries our own game ids, which will never equal an ESPN event id
+           — so score lookup by id alone would silently find nothing and every game would sit
+           unscored forever with no error. Matchup+league is stable and unique within a week. */
+        out[away.team.abbreviation+'@'+home.team.abbreviation]=sc;
       }
     }catch(e){}
   }
@@ -120,12 +126,13 @@ function coverOf(g,sc,requireFinal){
   if(favScore-dogScore===g.line)return 'PUSH';
   return dog;
 }
+const scoreFor=(g,scores)=>scores[g.id]||scores[g.awayAbbrev+'@'+g.homeAbbrev]||null;
 function weekPoints(wk,scores){
   const pts={},detail={};
   const players=Object.keys(wk.picks||{});
   players.forEach(p=>{pts[p]=0;detail[p]={};});
   for(const g of (wk.games||[])){
-    const cov=coverOf(g,scores[g.id],true);
+    const cov=coverOf(g,scoreFor(g,scores),true);
     for(const p of players){
       const mypick=(wk.picks[p].picks||{})[g.id];
       if(!mypick){detail[p][g.id]='—';continue;}
@@ -184,7 +191,7 @@ async function renderWeek(slug){
     html+='<div class="card tblwrap"><table><thead><tr><th>Game · frozen line</th><th>Score</th>'+
       ranked.map(p=>'<th class="num">'+esc(nameOf(p))+'</th>').join('')+'</tr></thead><tbody>';
     for(const g of games){
-      const sc=scores[g.id];
+      const sc=scoreFor(g,scores);
       const st=!sc?'<span class="gsub">'+fmtDT(g.date)+'</span>':sc.state==='post'?'<span class="final">'+sc.awayScore+'–'+sc.homeScore+' F</span>':sc.state==='in'?'<span class="live">'+sc.awayScore+'–'+sc.homeScore+' · '+esc(sc.detail)+'</span>':'<span class="gsub">'+fmtDT(g.date)+'</span>';
       html+='<tr><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(g.pickem?'PICK EM':g.spreadText)+' · '+g.league.toUpperCase()+'</div></td><td>'+st+'</td>'+
         ranked.map(p=>{
