@@ -108,7 +108,7 @@
     <div class="body">
       <div id="slate"></div>
       <div class="row" style="margin-top:12px">
-        <button class="btn gray" onclick="saveWeek()">💾 Save draft</button>
+        <button class="btn gray" onclick="allPickem()" title="Every game with no spread becomes a straight-up pick">PK all unpriced</button> <button class="btn gray" onclick="saveWeek()">💾 Save draft</button>
         <label style="font-size:13px"><input type="checkbox" id="notify" checked> email the group on lock</label>
         <button class="btn gold" onclick="lockSlate()">🔒 Lock slate (freeze spreads)</button>
       </div>
@@ -512,15 +512,36 @@ function renderSlate(){
     <div class="gm">
       <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}</span></span>
       <span class="dt">${new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})} ET</span>
-      <span class="sp">${g.spreadText?esc(g.spreadText):''}</span>
-      ${slateLocked?'':`<input class="sm" placeholder="e.g. SEA -3.5" value="${g.manual&&g.spreadText?esc(g.spreadText):''}" onchange="manualSpread(${i},this.value)" title="manual spread override">`}
+      <span class="sp">${g.pickem?'<span style="color:#0a2240">PICK &rsquo;EM</span>':(g.spreadText?esc(g.spreadText):'<span style="color:#b42318">no line</span>')}</span>
+      ${slateLocked?'':`<input class="sm" placeholder="e.g. SEA -3.5" value="${g.manual&&g.spreadText&&!g.pickem?esc(g.spreadText):''}" onchange="manualSpread(${i},this.value)" title="manual spread override">`}
+      ${slateLocked?'':`<button class="btn ${g.pickem?'gold':'gray'}" onclick="togglePickem(${i})" title="Score this one straight up — highest score wins, tie is a push">PK</button>`}
       ${slateLocked?'':`<button class="btn red" onclick="slate.splice(${i},1);renderSlate();renderLoaded()">✕</button>`}
     </div>`).join(''):'<div class="muted">No games in the slate yet.</div>';
+}
+/* PICK 'EM (Keith 2026-08-08: "if there is no line just make it a pick em"). Preseason spreads are
+   thin or absent, and lock_slate used to refuse any game without one — which would have blocked the
+   whole preseason shakedown. A pick'em carries NO line and is scored straight up server-side.
+   `pickem` is an explicit flag rather than `line===0`, so it can never be confused with a genuine
+   pick'em-priced spread. */
+function togglePickem(i){
+  const g=slate[i]; if(!g)return;
+  g.pickem=!g.pickem;
+  if(g.pickem){ g.favAbbrev=null; g.line=null; g.spreadText='PK'; g.manual=true; }
+  else { g.spreadText=null; g.manual=false; }
+  renderSlate();
+}
+/* One tap for the common preseason case: every game that came back without a line becomes a
+   pick'em, instead of typing a spread you do not have for eight games in a row. */
+function allPickem(){
+  let n=0;
+  slate.forEach(g=>{ if(!g.pickem && (g.line==null||!g.favAbbrev)){ g.pickem=true; g.favAbbrev=null; g.line=null; g.spreadText='PK'; g.manual=true; n++; } });
+  renderSlate();
+  toast(n?`${n} game${n>1?'s':''} set to pick 'em`:'Every game already has a line or is pick ’em',5000);
 }
 function manualSpread(i,v){
   const m=String(v).trim().match(/^([A-Za-z&\.\-']+)\s+(-?\d+(\.\d+)?)$/);
   if(!m){toast('Format: ABBREV -3.5 (e.g. SEA -3.5)');return;}
-  slate[i].favAbbrev=m[1].toUpperCase();slate[i].line=Math.abs(parseFloat(m[2]));
+  slate[i].pickem=false;slate[i].favAbbrev=m[1].toUpperCase();slate[i].line=Math.abs(parseFloat(m[2]));
   slate[i].spreadText=m[1].toUpperCase()+' '+(parseFloat(m[2])<=0?m[2]:'-'+m[2]);slate[i].manual=true;renderSlate();
 }
 
