@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.2.0-rename';   // existing people updated BY ID, so renaming actually works
+const VER = '2.3.0-selfpin';   // players can change their own PIN; join-chase moved to a banner
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -592,6 +592,31 @@ export default async function handler(req, res) {
               : {}),
           });
         }
+      }
+
+      /* ---- player action: change your OWN pin ----
+         Keith 2026-08-08: "we need to let the player set their pin if that is going to be our
+         authentication method." Correct — a credential only the commissioner can set is not the
+         player's credential, and today the only way to change one is to ask Mike, who can then
+         read it. Authenticates with the CURRENT pin, so this is a change-password flow, not a
+         reset: knowing the old one is the proof. */
+      if (action === 'set_pin') {
+        const name = String(req.body.name || '').toUpperCase();
+        const pin = String(req.body.pin || '');
+        const next = String(req.body.newPin || '').trim();
+        if (!/^\d{4}$/.test(next)) return res.status(400).json({ error: 'new PIN must be exactly 4 digits' });
+        if (/^(\d)\1{3}$/.test(next) || next === '1234' || next === '0000') {
+          return res.status(400).json({ error: 'pick something less guessable than that' });
+        }
+        const roster = await loadRoster(req.body.slug || '');
+        const me = roster.find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
+        if (!me) return res.status(403).json({ error: 'bad name or PIN' });
+        if (next === pin) return res.status(200).json({ ok: true, unchanged: true });
+        const r = await sb(`pool_people?id=eq.${me.id}`, {
+          method: 'PATCH', body: JSON.stringify({ pin: next, updated_at: new Date().toISOString() }),
+        });
+        if (!r.ok) return res.status(500).json({ error: 'could not change your PIN' });
+        return res.status(200).json({ ok: true });
       }
 
       // ---- player action ----
