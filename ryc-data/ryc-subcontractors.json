@@ -1,9 +1,9 @@
 {
- "generated": "2026-08-07T09:30:49.938Z",
+ "generated": "2026-08-08T09:30:45.728Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
  "totalActual": 128863882,
- "totalCommitted": 138053421,
- "subCount": 636,
+ "totalCommitted": 138788499,
+ "subCount": 638,
  "subs": [
   {
    "vendorNo": "3662",
@@ -22227,6 +22227,40 @@
      "jobName": "",
      "actual": 0,
      "committed": 34950
+    }
+   ]
+  },
+  {
+   "vendorNo": "4155",
+   "name": "Preferred Inc - Fort Wayne LLC",
+   "actualCost": 0,
+   "actualJobs": 0,
+   "committed": 490501,
+   "committedJobs": 1,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "26X005",
+     "jobName": "",
+     "actual": 0,
+     "committed": 490501
+    }
+   ]
+  },
+  {
+   "vendorNo": "4156",
+   "name": "Havel",
+   "actualCost": 0,
+   "actualJobs": 0,
+   "committed": 244577,
+   "committedJobs": 1,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "26X005",
+     "jobName": "",
+     "actual": 0,
+     "committed": 244577
     }
    ]
   },
