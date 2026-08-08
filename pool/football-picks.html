@@ -47,7 +47,8 @@
       <input id="pin" inputmode="numeric" placeholder="PIN" style="width:90px">
       <button class="btn gold" onclick="enter()">Enter</button>
     </div>
-    <div style="font-size:12px;color:#667085;margin-top:8px">Your PIN is in the slate-lock email. Lost it? Ask the commissioner.</div>
+    <div style="font-size:12px;color:#667085;margin-top:8px">Your PIN arrives by text when you join, and in the slate-lock email.
+      <a href="#" onclick="changePinStandalone();return false" style="color:#0a2240;font-weight:700">Change your PIN</a></div>
   </div>
   <div id="content"></div>
 </main>
@@ -99,6 +100,27 @@ async function enter(){
 /* The PIN is the login, so the player has to own it. Until now only the commissioner could set
    one, which meant the only way to change your credential was to ask him — and he could then read
    it. Authenticates with the CURRENT pin: a change-password flow, not a reset. */
+/* Changing your PIN must NOT depend on there being an open slate. The in-week button lives in the
+   picks bar, which only renders after you log into a locked week — so between weeks (which is most
+   of the time, and exactly when someone reads their JOIN text and taps the link) there was no way
+   to reach it at all. This entry point works from the login card, any time. */
+async function changePinStandalone(){
+  const who=document.getElementById('who').value;
+  const cur=document.getElementById('pin').value.trim();
+  if(!who){toast('Pick your name first');return;}
+  if(!cur){toast('Enter your CURRENT PIN first, then tap Change your PIN');return;}
+  const next=window.prompt('New 4-digit PIN for '+who+':');
+  if(next===null)return;
+  try{
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'set_pin',name:who,pin:cur,newPin:String(next).trim()})});
+    const j=await r.json();
+    if(!r.ok){toast(j.error||'could not change PIN',6000);return;}
+    if(j.unchanged){toast('That is already your PIN');return;}
+    document.getElementById('pin').value=String(next).trim();
+    toast('PIN changed ✓ — use it from now on',6000);
+  }catch(e){toast('could not change PIN',4000);}
+}
 async function changePin(){
   const next=window.prompt('New 4-digit PIN for '+me+':');
   if(next===null)return;
