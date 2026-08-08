@@ -352,7 +352,11 @@ async function loadGames(league){
   try{
     const url=SB[league]+'?seasontype=2&week='+wk+'&dates='+season+(league==='cfb'?'&groups=80':'');
     const j=await(await fetch(url,{cache:'no-store'})).json();
-    const evs=(j.events||[]).map(e=>{
+    /* `let`, not `const` — the Monday-exclusion filter below REASSIGNS this. As a const it threw
+       "Assignment to constant variable" on every single load, so "Load NFL games" had been dead
+       since that filter was added: the try/catch turned a hard bug into the mild-looking
+       "Load failed: …" line, and nobody read it closely. */
+    let evs=(j.events||[]).map(e=>{
       const c=e.competitions[0];
       const home=c.competitors.find(x=>x.homeAway==='home'), away=c.competitors.find(x=>x.homeAway==='away');
       const odds=parseOdds(c);
