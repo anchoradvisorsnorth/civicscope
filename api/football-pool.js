@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.6.0-signin';   // verify_pin: signing in is its own action, no open week required
+const VER = '2.6.1-preseason-visible';  // verify_pin + ?list= now matches -pre* as well as -w*
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -217,7 +217,17 @@ export default async function handler(req, res) {
       // list all weeks for a season (summaries only — no picks)
       if (req.query.list) {
         const season = String(req.query.list).replace(/\D/g, '');
-        const r = await sb(`football_pools?slug=like.${season}-w*&select=slug,data,updated_at&order=slug.asc`);
+        /* ⛔ `${season}-w*` MADE THE ENTIRE PRESEASON INVISIBLE (found 2026-08-08 chasing Keith's
+           phone screenshot). Preseason weeks are slugged `2026-pre1` — the commish page even
+           offers that placeholder — but this pattern only matched `-w`, so `?list=` returned an
+           EMPTY array while `2026-pre1` sat in the table. Every client reads its weeks from here:
+           the board's week picker, the commissioner's week list, and currentWeek() on the picks
+           page. So the built-and-waiting preseason slate could have been locked by Mike and the
+           picks page would still have said "no open slate right now" — with no error anywhere,
+           because an empty list is a legitimate answer. lock_reminder below already used
+           `${season}-*`; that inconsistency is exactly why the Wednesday nudge could see a week
+           no page could. One pattern, one place. */
+        const r = await sb(`football_pools?slug=like.${season}-*&select=slug,data,updated_at&order=slug.asc`);
         const rows = await r.json();
         return res.status(200).json(rows.map(({ slug, data, updated_at }) => ({
           slug, updated_at,
