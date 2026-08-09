@@ -64,8 +64,10 @@
   <div class="section-title">Season standings — weekly wins</div>
   <div class="card tblwrap" id="season"></div>
   <div style="color:var(--muted);font-size:11.5px;margin-top:18px" id="foot">
-    <b>Scoring:</b> 1 point per correct pick against the frozen spread, ½ point on a push. Weekly winner = most points; ties share the crown.
-    Spreads freeze when the commissioner locks the slate; live scores via ESPN. Picks stay hidden until first kickoff.
+    <b>Scoring:</b> 1 point per correct pick — against the frozen spread, straight up on a pick 'em, or over/under the frozen total.
+    <b>A push is worth nothing.</b> Weekly winner = most games won; ties share the crown.
+    A fixture can appear twice, once against the spread and once as an over/under — they are separate picks and score separately.
+    Lines and totals freeze when the commissioner locks the slate; live scores via ESPN. Picks stay hidden until the deadline.
     Make picks at <a href="/pool/football/picks">/pool/football/picks</a>.
   </div>
 </main>
@@ -114,6 +116,15 @@ function coverOf(g,sc,requireFinal){
   /* PICK 'EM: no spread, scored straight up. Must mirror the server rule in api/football-pool.js
      exactly — the board and the persisted score are computed in two places, and if they ever
      disagree the board silently lies about who won the week. */
+  /* OVER/UNDER: the same fixture can also be offered as a total, as its own slate entry with its
+     own id. Mirrors coverOf() in api/football-pool.js — exactly on the number is a push. */
+  if(g.market==='total'){
+    if(sc.homeScore==null||sc.awayScore==null)return null;
+    const combined=sc.homeScore+sc.awayScore;
+    if(combined>g.total)return 'OVER';
+    if(combined<g.total)return 'UNDER';
+    return 'PUSH';
+  }
   if(g.pickem){
     if(sc.homeScore==null||sc.awayScore==null)return null;
     if(sc.homeScore===sc.awayScore)return 'PUSH';
@@ -126,6 +137,9 @@ function coverOf(g,sc,requireFinal){
   if(favScore-dogScore===g.line)return 'PUSH';
   return dog;
 }
+/* One place decides how a market is written, so a total can never render as an empty spread.
+   A fixture offered both ways appears twice, and the label is what tells them apart. */
+const marketLabel=g=>g.market==='total'?('O/U '+g.total):(g.pickem?'PICK EM':g.spreadText);
 const scoreFor=(g,scores)=>scores[g.id]||scores[g.awayAbbrev+'@'+g.homeAbbrev]||null;
 function weekPoints(wk,scores){
   const pts={},detail={};
@@ -186,7 +200,7 @@ async function renderWeek(slug){
         (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
     }
     html+='<div class="card tblwrap"><table><thead><tr><th>Game</th><th>Kickoff</th><th>Frozen line</th></tr></thead><tbody>'+
-      games.map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td>'+fmtDT(g.date)+'</td><td style="font-weight:800;color:var(--green)">'+esc(g.pickem?'PICK EM':g.spreadText)+'</td></tr>').join('')+
+      games.map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td>'+fmtDT(g.date)+'</td><td style="font-weight:800;color:var(--green)">'+esc(marketLabel(g))+'</td></tr>').join('')+
       '</tbody></table></div>';
   } else if(players.length){
     html+='<div class="card tblwrap"><table><thead><tr><th>Game · frozen line</th><th>Score</th>'+
@@ -194,7 +208,7 @@ async function renderWeek(slug){
     for(const g of games){
       const sc=scoreFor(g,scores);
       const st=!sc?'<span class="gsub">'+fmtDT(g.date)+'</span>':sc.state==='post'?'<span class="final">'+sc.awayScore+'–'+sc.homeScore+' F</span>':sc.state==='in'?'<span class="live">'+sc.awayScore+'–'+sc.homeScore+' · '+esc(sc.detail)+'</span>':'<span class="gsub">'+fmtDT(g.date)+'</span>';
-      html+='<tr><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(g.pickem?'PICK EM':g.spreadText)+' · '+g.league.toUpperCase()+'</div></td><td>'+st+'</td>'+
+      html+='<tr><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div></td><td>'+st+'</td>'+
         ranked.map(p=>{
           const mypick=(wk.picks[p].picks||{})[g.id]||'—';
           const r=detail[p]?detail[p][g.id]:mypick;
