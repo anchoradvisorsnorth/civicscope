@@ -109,10 +109,14 @@
       <div id="slate"></div>
       <div class="row" style="margin-top:12px">
         <button class="btn gray" onclick="allPickem()" title="Every game with no spread becomes a straight-up pick">PK all unpriced</button> <button class="btn gray" onclick="saveWeek()">💾 Save draft</button>
-        <label style="font-size:13px"><input type="checkbox" id="notify" checked> email the group on lock</label>
+        <label style="font-size:13px"><input type="checkbox" id="notify" checked> <b>text + email</b> the group on lock</label>
         <button class="btn gold" onclick="lockSlate()">🔒 Lock slate (freeze spreads)</button>
       </div>
-      <div class="muted" style="margin-top:6px">Locking freezes every spread as shown, sets the pick deadline to the first kickoff, and (if checked) emails every player their PIN + the games.</div>
+      <!-- The checkbox said "email the group on lock" while lock_slate had been sending BOTH an
+           email and an SMS since 2026-08-07 (v1.7.2). A control that under-describes what it does
+           is the same defect as one that over-describes it: the commissioner could not know the
+           text went out, and the toast only ever counted emails. -->
+      <div class="muted" style="margin-top:6px">Locking freezes every spread as shown, sets the pick deadline to the first kickoff, and (if checked) <b>texts and emails every player</b> their PIN, the deadline, the games and their picks link. A member is texted only if they texted JOIN themselves; everyone else gets the email.</div>
     </div>
   </div>
 
@@ -610,12 +614,18 @@ async function saveWeek(){try{await post({action:'save_week',code:code(),slug:sl
   data:{label:document.getElementById('wklabel').value||slug(),games:slate,slateLocked:false}});toast('Draft saved ✓');listWeeks();}catch(e){}}
 async function lockSlate(){
   if(!slate.length){toast('Slate is empty');return;}
-  if(!confirm('Lock the slate? Spreads freeze exactly as shown and '+(document.getElementById('notify').checked?'the group gets emailed':'NO emails go out')+'.'))return;
+  if(!confirm('Lock the slate? Spreads freeze exactly as shown and '+(document.getElementById('notify').checked?'the group gets TEXTED and EMAILED':'NO texts or emails go out')+'.'))return;
   try{
     await post({action:'save_week',code:code(),slug:slug(),data:{label:document.getElementById('wklabel').value||slug(),games:slate}});
     const j=await post({action:'lock_slate',code:code(),slug:slug(),notify:document.getElementById('notify').checked});
     slateLocked=true;renderSlate();listWeeks();
-    toast('🔒 Slate locked — deadline '+new Date(j.deadline).toLocaleString()+' · '+j.emailed+' email(s) sent',6000);
+    /* REPORT BOTH CHANNELS. `lock_slate` has always returned {emailed, texted}; this toast read
+       only `emailed`, so a run where every text failed looked identical to one where they all
+       landed. A count of zero on a channel you asked for is the thing worth seeing. */
+    const dl=new Date(j.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    toast(document.getElementById('notify').checked
+      ? `🔒 Locked — picks due ${dl} ET · ${j.texted} text${j.texted===1?'':'s'} + ${j.emailed} email${j.emailed===1?'':'s'} sent`
+      : `🔒 Locked — picks due ${dl} ET · no notifications sent`, 9000);
   }catch(e){}
 }
 /* Keith 2026-08-07: "I don't think there needs to be an existing weeks section — those are results
