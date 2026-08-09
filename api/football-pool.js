@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.1.0-weeklyclock';  // Thu 09:30 build / Sat 10:00 picks, push=0, lock final, DST-proof reminders
+const VER = '3.2.0-derivedweek';  // week label+slug are derived, not typed; postseason slugs recognised
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -472,7 +472,7 @@ export default async function handler(req, res) {
         const season = new Date().getFullYear();
         const lr = await sb(`football_pools?slug=like.${season}-*&select=slug,data&order=slug.desc`);
         const rows = lr.ok ? await lr.json() : [];
-        const weeks = rows.filter(r => /^\d{4}-(w\d+|pre\d+)$/.test(r.slug));
+        const weeks = rows.filter(r => /^\d{4}-(w\d+|pre\d+|post\d+)$/.test(r.slug));
         const open = weeks.filter(w => !w.data?.finalized);
         const unlocked = open.filter(w => !w.data?.slateLocked);
 
@@ -534,7 +534,7 @@ export default async function handler(req, res) {
         const pr = await sb(`football_pools?slug=like.${season}-*&select=slug,data&order=slug.desc`);
         const prRows = pr.ok ? await pr.json() : [];
         const candidates = prRows
-          .filter(r => /^\d{4}-(w\d+|pre\d+)$/.test(r.slug))
+          .filter(r => /^\d{4}-(w\d+|pre\d+|post\d+)$/.test(r.slug))
           .filter(r => r.data?.slateLocked && !r.data?.finalized && r.data?.deadline)
           .filter(r => Date.parse(r.data.deadline) > Date.now());
         if (!candidates.length) {
