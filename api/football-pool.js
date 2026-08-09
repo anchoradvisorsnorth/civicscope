@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.6.1-preseason-visible';  // verify_pin + ?list= now matches -pre* as well as -w*
+const VER = '2.7.0-testmark';  // a test week's notifications say so, in the message itself
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -590,6 +590,15 @@ export default async function handler(req, res) {
                looked consent up in a separate name-keyed row and got it silently wrong. */
             const players = await loadRoster(slug);
             const base = `https://app.civicscope.io/pool/football`;
+            /* A TEST NOTIFICATION MUST ANNOUNCE ITSELF (2026-08-09). Verifying that lock really
+               texts meant sending Keith a real text — and it read exactly like a live one, so it
+               landed as "I didn't lock anything, why am I being told a slate is locked?" The
+               message is the only thing the recipient sees; a sandbox slug and an isTest flag are
+               invisible from a phone. Any week marked isTest, and every sandbox- slug by
+               construction, now says TEST in the first characters of the SMS and the subject
+               line. Cheap, and it removes a whole class of false alarm. */
+            const isTest = !!wk.isTest || isSandbox(slug);
+            const tag = isTest ? '[TEST — no action needed] ' : '';
             const gameRows = wk.games.map(g =>
               `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085">${new Date(g.date).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET</td></tr>`).join('');
             for (const p of players) {
@@ -611,7 +620,7 @@ export default async function handler(req, res) {
               const r = await fetch('https://api.resend.com/emails', {
                 method: 'POST',
                 headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `🏈 ${wk.label || slug} slate is locked — picks due before first kickoff`, html }),
+                body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `${tag}🏈 ${wk.label || slug} slate is locked — picks due before first kickoff`, html }),
               });
               if (r.ok) emailed++;
               }
@@ -623,7 +632,7 @@ export default async function handler(req, res) {
                 const when = new Date(wk.deadline).toLocaleString('en-US',
                   { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' });
                 const ok = await sendSms(p.phone,
-                  `The Pool: ${wk.label || slug} slate is locked. Picks close ${when} ET. `
+                  `${tag}The Pool: ${wk.label || slug} slate is locked. Picks close ${when} ET. `
                   + `Your PIN: ${p.pin}. ${base}/picks\nReply STOP to opt out.`);
                 if (ok) texted++;
               }
