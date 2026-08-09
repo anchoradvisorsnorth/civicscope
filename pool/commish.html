@@ -79,7 +79,7 @@
     <div class="body">
       <div class="row">
         <label>Week label <input id="wklabel" placeholder="Week 1" style="width:110px"></label>
-        <label>Slug <input id="wkslug" placeholder="2026-w01" style="width:110px"></label>
+        <label>Slug <input id="wkslug" placeholder="2026-w01" style="width:110px" oninput="syncSlateStateForSlug()"></label>
         <span class="muted">slug format: 2026-w01, 2026-w02…</span>
       </div>
       <div class="row">
@@ -122,7 +122,7 @@
            email and an SMS since 2026-08-07 (v1.7.2). A control that under-describes what it does
            is the same defect as one that over-describes it: the commissioner could not know the
            text went out, and the toast only ever counted emails. -->
-      <div class="muted" style="margin-top:6px">Locking freezes every spread as shown, sets the pick deadline to the first kickoff, and (if checked) <b>texts and emails every player</b> their PIN, the deadline, the games and their picks link. A member is texted only if they texted JOIN themselves; everyone else gets the email.</div>
+      <div class="muted" style="margin-top:6px">Locking freezes every spread as shown, sets the pick deadline to <b>Saturday 10:00 AM ET</b> — or to the first kickoff if a game starts before that, which it will in preseason — and (if checked) <b>texts and emails every player</b> their PIN, the deadline, the games and their picks link. A member is texted only if they texted JOIN themselves; everyone else gets the email. <b>You can only lock a week once.</b></div>
     </div>
   </div>
 
@@ -643,13 +643,26 @@ async function saveWeek(){
 async function lockSlate(){
   if(!slate.length){toast('Slate is empty');return;}
   if(!confirm('Lock the slate? Spreads freeze exactly as shown and '+(document.getElementById('notify').checked?'the group gets TEXTED and EMAILED':'NO texts or emails go out')+'.'))return;
+  let j=null;
   try{
     await post({action:'save_week',code:code(),slug:slug(),data:{label:document.getElementById('wklabel').value||slug(),games:slate}});
-    const j=await post({action:'lock_slate',code:code(),slug:slug(),notify:document.getElementById('notify').checked});
+    j=await post({action:'lock_slate',code:code(),slug:slug(),notify:document.getElementById('notify').checked});
     slateLocked=true;
     lockedSummary='Picks close '+new Date(j.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET · '
       +(document.getElementById('notify').checked?`${j.texted} text${j.texted===1?'':'s'} + ${j.emailed} email${j.emailed===1?'':'s'} sent.`:'no notifications sent.');
     renderSlate();listWeeks();
+    // fall through to the toast below
+  }catch(e){
+    // 409 = already locked. That is not an error to shrug at — it means this tab was showing
+    // controls for a week the server considers finished. Correct the screen instead.
+    if(e.payload&&e.payload.deadline!==undefined){
+      slateLocked=true;
+      lockedSummary='Picks close '+new Date(e.payload.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET.';
+      renderSlate();listWeeks();
+    }
+    return;
+  }
+  try{
     /* REPORT BOTH CHANNELS. `lock_slate` has always returned {emailed, texted}; this toast read
        only `emailed`, so a run where every text failed looked identical to one where they all
        landed. A count of zero on a channel you asked for is the thing worth seeing. */
@@ -657,6 +670,7 @@ async function lockSlate(){
     toast(document.getElementById('notify').checked
       ? `🔒 Locked — picks due ${dl} ET · ${j.texted} text${j.texted===1?'':'s'} + ${j.emailed} email${j.emailed===1?'':'s'} sent`
       : `🔒 Locked — picks due ${dl} ET · no notifications sent`, 9000);
+    if(j.note)toast('⚠ '+j.note,12000);
   }catch(e){}
 }
 /* Keith 2026-08-07: "I don't think there needs to be an existing weeks section — those are results
@@ -667,11 +681,30 @@ async function lockSlate(){
    outright would have removed the only way to finish a week. What is left is a work queue: only
    weeks that still need something done to them. When it is empty, the portal says so and points at
    the results page. */
+/* §3 USED TO BELIEVE WHATEVER THE LAST `open` TOLD IT. On a fresh page load `slateLocked` is
+   false, so an already-locked week still showed "PK all unpriced / Save draft / 🔒 Lock slate" —
+   and pressing Lock a second time re-froze the spreads and texted all seven players again.
+   The week list is fetched anyway; use it as the source of truth for whatever slug is in the box,
+   so the controls reflect the SERVER's state rather than this tab's memory. */
+let weekIndex=[];
+function syncSlateStateForSlug(){
+  const s=(document.getElementById('wkslug').value||'').trim();
+  if(!s)return;
+  const row=weekIndex.find(w=>w.slug===s);
+  if(!row)return;
+  if(row.slateLocked&&!slateLocked){
+    slateLocked=true;
+    lockedSummary=row.deadline?('Picks close '+new Date(row.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET.'):'';
+    renderSlate();
+  }
+}
 async function listWeeks(){
   const season=document.getElementById('season').value;
   const el=document.getElementById('weeks');
   try{
     const all=await(await fetch(API+'?list='+season,{cache:'no-store'})).json();
+    weekIndex=all||[];
+    syncSlateStateForSlug();
     const open=(all||[]).filter(w=>!w.finalized);          // drafts + locked-awaiting-finalize
     const doneCount=(all||[]).length-open.length;
     const donePtr=doneCount
@@ -679,7 +712,8 @@ async function listWeeks(){
       : '';
     el.innerHTML=(open.length?open.map(w=>`
       <div class="gm"><span class="t">${esc(w.label||w.slug)}</span>
-      <span class="muted">${w.games} games · picked-in: ${w.pickedBy.join(', ')||'none'}</span>
+      <span class="muted">${w.games} games${w.deadline?' · picks close '+new Date(w.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET':''}<br>
+        locked in: ${esc((w.pickedBy||[]).join(', '))||'nobody yet'}${(w.savedBy||[]).length?' · saved but NOT locked: '+esc(w.savedBy.join(', ')):''}</span>
       <span class="pill ${w.slateLocked?'live':'draft'}">${w.slateLocked?'LIVE — needs finalizing':'draft'}</span>
       <button class="btn gray" onclick="openWeek('${w.slug}')">open</button>
       ${w.slateLocked?`<button class="btn gold" onclick="finalizeWeek('${w.slug}')">🏆 finalize</button>`:''}</div>`).join('')

@@ -137,7 +137,8 @@ function weekPoints(wk,scores){
       const mypick=(wk.picks[p].picks||{})[g.id];
       if(!mypick){detail[p][g.id]='—';continue;}
       if(!cov){detail[p][g.id]=mypick;continue;}
-      if(cov==='PUSH'){pts[p]+=0.5;detail[p][g.id]='P';}
+      // A push scores ZERO (Keith 2026-08-09). Must match scoreWeek() in api/football-pool.js.
+      if(cov==='PUSH'){detail[p][g.id]='P';}
       else if(cov===mypick){pts[p]+=1;detail[p][g.id]='W';}
       else detail[p][g.id]='L';
     }

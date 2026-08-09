@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.8.0-nowipe';  // save_week can no longer erase a slate; test notifications say TEST
+const VER = '3.0.0-weeklyclock';  // Thu 09:30 build / Sat 10:00 picks, push=0, lock is final
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -126,6 +126,72 @@ export default async function handler(req, res) {
     return r.ok ? ((await r.json())[0] || null) : null;
   };
   const pastDeadline = (wk) => wk.deadline && Date.now() > Date.parse(wk.deadline);
+
+  /* ===================== THE WEEKLY CLOCK (Keith 2026-08-09) =====================
+     "Mike will build the slate each week by Thursday at 9:30. Picks are due from players by
+     Saturday morning at 10am EST."
+
+     Two fixed weekly moments, not "whenever the first game happens to kick off":
+       BUILD  — Thursday 09:30 ET   (commissioner nudged 3h before, at 06:30, if not locked)
+       PICKS  — Saturday 10:00 ET   (players nudged 3h before, at 07:00, if not locked in)
+
+     ⚠ ONE HARD SAFETY, AND IT IS NOT NEGOTIABLE: the deadline can never fall AFTER the first
+     kickoff. A fixed Saturday 10:00 works for a Sat/Sun slate; the moment a slate carries a
+     Thursday or Friday game — every preseason week does — a Saturday deadline would let someone
+     pick a game whose result is already known. So the effective deadline is
+     min(Saturday 10:00 ET, first kickoff), and lock_slate REPORTS when the earlier one won so
+     the commissioner is never surprised by a deadline he did not choose.
+
+     ET offset: America/New_York is UTC-4 in football season (EDT through early November) and
+     UTC-5 after. Derived from the date rather than assumed — a hand-assumed offset is exactly
+     what put the hand-built preseason kickoffs an hour out. */
+  const etParts = (d) => {                     // {y,m,day,weekday,hour,minute} in America/New_York
+    const f = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', weekday: 'short', year: 'numeric', month: '2-digit',
+      day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(d).reduce((a, p) => (a[p.type] = p.value, a), {});
+    return { y: +f.year, m: +f.month, day: +f.day, weekday: f.weekday, hour: +f.hour % 24, minute: +f.minute };
+  };
+  // UTC instant for a given ET wall-clock time, found by correcting the guess against the real zone.
+  const etToUtc = (y, m, day, hour, minute) => {
+    let t = Date.UTC(y, m - 1, day, hour, minute);
+    for (let i = 0; i < 3; i++) {
+      const p = etParts(new Date(t));
+      const driftMin = (p.hour * 60 + p.minute) - (hour * 60 + minute)
+        + (p.day !== day ? (p.day > day || p.m > m ? 1440 : -1440) : 0);
+      if (!driftMin) break;
+      t -= driftMin * 60000;
+    }
+    return new Date(t);
+  };
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // The next occurrence of <weekday> at <hh:mm> ET, strictly after `from`.
+  const nextEtWeekday = (from, weekdayName, hh, mm) => {
+    const want = DAYS.indexOf(weekdayName);
+    for (let add = 0; add <= 8; add++) {
+      const probe = new Date(from.getTime() + add * 86400000);
+      const p = etParts(probe);
+      if (DAYS.indexOf(p.weekday) !== want) continue;
+      const t = etToUtc(p.y, p.m, p.day, hh, mm);
+      if (t > from) return t;
+    }
+    return null;
+  };
+  const PICKS_DAY = 'Sat', PICKS_HH = 10, PICKS_MM = 0;      // picks due Saturday 10:00 ET
+  const BUILD_DAY = 'Thu', BUILD_HH = 9, BUILD_MM = 30;      // slate built by Thursday 09:30 ET
+  /* The week's pick deadline: the Saturday 10:00 ET the group plays to, pulled earlier if any
+     game on the slate kicks off before it. Returns the reason so callers can say why. */
+  const deadlineFor = (games, now = new Date()) => {
+    const kicks = (games || []).map(g => Date.parse(g.date)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+    const firstKick = kicks.length ? new Date(kicks[0]) : null;
+    // Anchor on the slate itself when we have it: the Saturday belonging to these games, not to
+    // whenever the lock button happened to be pressed.
+    const anchor = firstKick ? new Date(Math.min(firstKick.getTime(), now.getTime()) - 1000) : now;
+    const sat = nextEtWeekday(anchor, PICKS_DAY, PICKS_HH, PICKS_MM);
+    if (!firstKick) return { deadline: sat, reason: 'schedule', firstKick: null };
+    if (sat && sat < firstKick) return { deadline: sat, reason: 'schedule', firstKick };
+    return { deadline: firstKick, reason: 'kickoff', firstKick };
+  };
   // All roster players have a locked pick — used ONLY to fire the "all picks are in" email.
   // Keyed by person id now — a rename can no longer detach someone's entry from their identity.
   const allLocked = (wk, roster) => {
@@ -159,7 +225,11 @@ export default async function handler(req, res) {
     if (favScore - dogScore === g.line) return 'PUSH';
     return dog;
   };
-  // 1 point a cover, 0.5 a push, 0 a loss — computed from FROZEN picks + FROZEN lines.
+  /* SCORING (Keith 2026-08-09): "Winner is the one who wins the most games against the spread.
+     Ties are worth zero points." So a push scores **0**, not the half point it used to — the
+     weekly total is simply how many games you won outright against the number. Changed here AND
+     in pool/football.html's weekPoints(); the rule lives in two places by design (persisted score
+     vs live board) and they must move together or the board lies about who won. */
   const scoreWeek = (wk, results) => {
     const pts = {}, covers = {};
     for (const g of (wk.games || [])) covers[g.id] = coverOf(g, (results || {})[g.id]);
@@ -172,7 +242,7 @@ export default async function handler(req, res) {
       for (const g of (wk.games || [])) {
         const cov = covers[g.id], side = (entry.picks || {})[g.id];
         if (!cov || !side) continue;
-        if (cov === 'PUSH') p += 0.5;
+        if (cov === 'PUSH') continue;              // a tie against the number is worth nothing
         else if (cov === side) p += 1;
       }
       pts[name] = p;
@@ -182,10 +252,19 @@ export default async function handler(req, res) {
     return { points: pts, covers, winner: winners.length > 1 ? 'TIE: ' + winners.join(', ') : (winners[0] || null) };
   };
 
-  // Email the group that all picks are in and the board is live. Best-effort; SMS added later.
+  /* Tell the GROUP that everyone is locked in — text and email, on the same channel rules as
+     every other notification (Keith 2026-08-09: "notify the group when everyone has saved and
+     locked"). It used to be email-only, and the list of names was the raw picks keys, which
+     since the identity migration are UUIDs. */
   async function notifyAllLocked(wk, slug, roster) {
-    const picked = Object.keys(wk.picks || {});
+    const picked = Object.values(wk.picks || {}).map(v => v.name).filter(Boolean);
     const rows = picked.sort().map(n => `<tr><td style="padding:3px 12px 3px 0;font-weight:700">${n}</td><td style="padding:3px 0;color:#475467">locked</td></tr>`).join('');
+    const tag = (wk.isTest || isSandbox(slug)) ? '[TEST — no action needed] ' : '';
+    const sms = `${tag}The Pool: everyone is locked in for ${wk.label || slug}. `
+      + `Picks reveal at the deadline, then the board scores live: app.civicscope.io/pool/football`;
+    for (const p of roster) {
+      if (p.canText) { try { await sendSms(p.phone, sms + '\nReply STOP to opt out.'); } catch (e) { /* best-effort */ } }
+    }
     const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#101828">
       <div style="background:linear-gradient(135deg,#0a2240,#14532d);color:#fff;padding:18px 22px;border-radius:10px 10px 0 0">
         <div style="font-size:20px;font-weight:800">🏈 All picks are in — ${wk.label || slug} is locked</div>
@@ -199,15 +278,60 @@ export default async function handler(req, res) {
         <div style="font-size:12px;color:#667085">Picks reveal at kickoff, then live scoring against the spread all weekend. Good luck.</div>
       </div></div>`;
     for (const p of roster) {
-      if (!p.email) continue;
+      if (!p.email || !p.wantsEmail) continue;
       try {
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `🏈 All picks are in — ${wk.label || slug} is locked`, html }),
+          body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `${tag}🏈 All picks are in — ${wk.label || slug} is locked`, html }),
         });
       } catch (e) { /* best-effort */ }
     }
+  }
+
+  /* THE WINNER IS NEWS — tell the group (Keith 2026-08-09: "notify the group when a winner is
+     established"). Fired from finalize_week, off the SAME derived result that gets persisted, so
+     the message can never disagree with the board. */
+  async function notifyWinner(wk, slug, roster, scored) {
+    const tag = (wk.isTest || isSandbox(slug)) ? '[TEST — no action needed] ' : '';
+    const label = wk.label || slug;
+    const board = Object.entries(scored.points || {}).sort((a, b) => b[1] - a[1]);
+    const top = board.length ? board[0][1] : 0;
+    const headline = String(scored.winner || '').startsWith('TIE:')
+      ? `${scored.winner.replace('TIE: ', '')} tie for the win`
+      : `${scored.winner} wins ${label}`;
+    const sms = `${tag}The Pool: ${headline} — ${top} game${top === 1 ? '' : 's'} against the spread. `
+      + `Full board: app.civicscope.io/pool/football`;
+    const rows = board.map(([n, p], i) =>
+      `<tr><td style="padding:4px 14px 4px 0;color:#98a2b3">${i + 1}</td>`
+      + `<td style="padding:4px 14px 4px 0;font-weight:${i === 0 ? 800 : 600}">${n}</td>`
+      + `<td style="padding:4px 0;font-weight:800">${p}</td></tr>`).join('');
+    const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#101828">
+      <div style="background:linear-gradient(135deg,#0a2240,#14532d);color:#fff;padding:18px 22px;border-radius:10px 10px 0 0">
+        <div style="font-size:20px;font-weight:800">🏆 ${headline}</div>
+        <div style="font-size:13px;color:#b9c6da;margin-top:3px">${label} is final — most games won against the spread. A push is worth nothing.</div>
+      </div>
+      <div style="border:1px solid #e4e7ec;border-top:none;border-radius:0 0 10px 10px;padding:18px 22px;background:#fff">
+        <table style="font-size:14px;border-collapse:collapse;margin-bottom:12px">${rows}</table>
+        <div style="text-align:center;margin:8px 0">
+          <a href="https://app.civicscope.io/pool/football" style="display:inline-block;background:#c8a24b;color:#1a1300;font-weight:800;font-size:16px;padding:12px 24px;border-radius:10px;text-decoration:none">See the full board →</a>
+        </div>
+      </div></div>`;
+    let texted = 0, emailed = 0;
+    for (const p of roster) {
+      if (p.canText) { try { if (await sendSms(p.phone, sms + '\nReply STOP to opt out.')) texted++; } catch (e) { /* best-effort */ } }
+      if (p.email && p.wantsEmail) {
+        try {
+          const r = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `${tag}🏆 ${headline}`, html }),
+          });
+          if (r.ok) emailed++;
+        } catch (e) { /* best-effort */ }
+      }
+    }
+    return { texted, emailed };
   }
 
   try {
@@ -234,7 +358,11 @@ export default async function handler(req, res) {
           label: data.label, slateLocked: !!data.slateLocked, deadline: data.deadline || null,
           finalized: !!data.finalized, weeklyWinner: data.weeklyWinner || null,
           games: (data.games || []).length,
-          pickedBy: Object.entries(data.picks || {}).filter(([, v]) => v.locked).map(([k]) => k),
+          /* NAMES, NOT IDS. Since picks became person-keyed (2026-08-07) this returned raw UUIDs,
+             so the commissioner's queue read "picked-in: 3160542a-0a31-44a3-…". Every entry
+             already carries a display-name snapshot for exactly this reason — use it. */
+          pickedBy: Object.entries(data.picks || {}).filter(([, v]) => v.locked).map(([k, v]) => v.name || k),
+          savedBy: Object.entries(data.picks || {}).filter(([, v]) => !v.locked).map(([k, v]) => v.name || k),
           // full detail (incl. picks + results) only when the pick window is closed
           full: (data.deadline && Date.now() > Date.parse(data.deadline)) ? data : null,
         })));
@@ -334,13 +462,17 @@ export default async function handler(req, res) {
         const open = weeks.filter(w => !w.data?.finalized);
         const unlocked = open.filter(w => !w.data?.slateLocked);
 
+        /* Retimed 2026-08-09 to 3 hours before the BUILD deadline (Thursday 09:30 ET), per Keith:
+           "remind Mike 3 hours before slate is due via text if he has not already locked." The
+           copy names the deadline, because a nudge that does not say when something is due is
+           just noise. */
         let msg = null;
         if (unlocked.length) {
           const w = unlocked[0];
           const n = (w.data?.games || []).length;
-          msg = `The Pool: ${w.data?.label || w.slug} is built (${n} game${n === 1 ? '' : 's'}) but NOT locked. Lock it so the group can pick: app.civicscope.io/pool/commish`;
+          msg = `The Pool: ${w.data?.label || w.slug} is built (${n} game${n === 1 ? '' : 's'}) but NOT locked — it is due by 9:30 this morning. Lock it so the group can pick: app.civicscope.io/pool/commish`;
         } else if (!open.length) {
-          msg = `The Pool: no week is built for this week yet. Build and lock the slate at app.civicscope.io/pool/commish`;
+          msg = `The Pool: no week is built yet and the slate is due by 9:30 this morning. Build and lock it at app.civicscope.io/pool/commish`;
         }
         if (!msg) return res.status(200).json({ nudged: false, reason: 'a slate is already locked' });
 
@@ -367,6 +499,71 @@ export default async function handler(req, res) {
           }
         }
         return res.status(200).json({ nudged: true, msg, commissioners: commish.length, texted, emailed });
+      }
+
+      /* ---- PICKS REMINDER (Keith 2026-08-09: "remind players to make picks 3 hours before the
+         Saturday deadline if they have not already") ----
+         Cron-triggered Saturday 07:00 ET. Chases ONLY the people who have not locked in, by name,
+         and is silent when there is nobody to chase — the same discipline as the lock nudge: a
+         message that arrives every week regardless teaches the group to ignore the one that
+         matters. A player who has saved a draft but not locked IS chased, because an unlocked
+         draft is not a submitted card in the new flow. */
+      if (action === 'picks_reminder') {
+        if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
+          return res.status(401).json({ error: 'unauthorized' });
+        }
+        const season = new Date().getFullYear();
+        const pr = await sb(`football_pools?slug=like.${season}-*&select=slug,data&order=slug.desc`);
+        const prRows = pr.ok ? await pr.json() : [];
+        const candidates = prRows
+          .filter(r => /^\d{4}-(w\d+|pre\d+)$/.test(r.slug))
+          .filter(r => r.data?.slateLocked && !r.data?.finalized && r.data?.deadline)
+          .filter(r => Date.parse(r.data.deadline) > Date.now());
+        if (!candidates.length) {
+          return res.status(200).json({ nudged: false, reason: 'no locked week with a live deadline' });
+        }
+        // The one closing soonest is the one being played.
+        candidates.sort((a, b) => Date.parse(a.data.deadline) - Date.parse(b.data.deadline));
+        const wkRow = candidates[0], wk = wkRow.data;
+        const roster = await loadRoster(wkRow.slug);
+        const outstanding = roster.filter(p => !(wk.picks || {})[p.id]?.locked);
+        if (!outstanding.length) {
+          return res.status(200).json({ nudged: false, reason: 'everyone is already locked in', slug: wkRow.slug });
+        }
+        const when = new Date(wk.deadline).toLocaleString('en-US',
+          { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' });
+        const tag = (wk.isTest || isSandbox(wkRow.slug)) ? '[TEST — no action needed] ' : '';
+        let texted = 0, emailed = 0;
+        for (const p of outstanding) {
+          const started = (wk.picks || {})[p.id];
+          const line = started
+            ? `your picks are SAVED but not locked in — lock them before ${when} ET or they don't count`
+            : `you haven't made your picks yet — they're due ${when} ET`;
+          if (p.canText) {
+            if (await sendSms(p.phone, `${tag}The Pool: ${p.name.split(' ')[0]}, ${line}. `
+              + `Your PIN: ${p.pin}. app.civicscope.io/pool/football/picks\nReply STOP to opt out.`)) texted++;
+          }
+          if (p.email && p.wantsEmail) {
+            const r = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com',
+                to: [p.email], subject: `${tag}⏰ ${wk.label || wkRow.slug} — picks due ${when} ET`,
+                html: `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:15px;color:#101828">
+                  <p>${p.name.split(' ')[0]}, ${line}.</p>
+                  <p>Your PIN: <b>${p.pin}</b></p>
+                  <p><a href="https://app.civicscope.io/pool/football/picks" style="background:#c8a24b;color:#1a1300;font-weight:800;padding:11px 20px;border-radius:9px;text-decoration:none">Make your picks</a></p>
+                  <p style="color:#667085;font-size:12px">Locking is final — save without locking if you want to keep editing until the deadline.</p></div>`,
+              }),
+            });
+            if (r.ok) emailed++;
+          }
+        }
+        return res.status(200).json({
+          nudged: true, slug: wkRow.slug, deadline: wk.deadline,
+          outstanding: outstanding.map(p => p.name), texted, emailed,
+        });
       }
 
       // ---- commissioner actions ----
@@ -588,6 +785,20 @@ export default async function handler(req, res) {
           const row = await getRow(slug);
           if (!row) return res.status(404).json({ error: 'week not found' });
           const wk = row.data;
+          /* ⛔ LOCKING TWICE RE-TEXTS THE WHOLE GROUP (Keith 2026-08-09: "we need to fix allowing
+             the commissioner to have the lock slate freeze button available after he has done
+             that for the week"). The button stayed live because §3 only knows the slate is locked
+             once the week has been OPENED — on a fresh page it reads unlocked. But the real cost
+             was here: a second lock re-froze the spreads, recomputed the deadline and sent every
+             player a second "slate is locked, here is your PIN" text. Refuse it. */
+          if (wk.slateLocked && !req.body.relock) {
+            return res.status(409).json({
+              error: `${wk.label || slug} is already locked`,
+              hint: 'Locking again would re-freeze the spreads and text everyone a second time. Open the week to view it, or finalize it once every game is final.',
+              deadline: wk.deadline || null,
+              lockedAt: wk.lockedAt || null,
+            });
+          }
           if (!(wk.games || []).length) return res.status(400).json({ error: 'no games in slate' });
           // A pick'em game legitimately has no line — only spread games must carry one.
           const noLine = wk.games.filter(g => !g.pickem && (g.line == null || !g.favAbbrev));
@@ -597,7 +808,12 @@ export default async function handler(req, res) {
           });
           wk.slateLocked = true;
           wk.lockedAt = new Date().toISOString();
-          wk.deadline = wk.games.map(g => g.date).sort()[0]; // picks close at first kickoff
+          /* Picks close Saturday 10:00 ET — unless a game kicks off before that, in which case
+             the earlier kickoff wins. See deadlineFor(). Both the value and WHY are stored, so
+             the pages and the reminder job never have to re-derive it. */
+          const dl = deadlineFor(wk.games);
+          wk.deadline = dl.deadline.toISOString();
+          wk.deadlineReason = dl.reason;                      // 'schedule' | 'kickoff'
           wk.picks = wk.picks || {};
           await putRow(slug, wk);
           // notify players (best-effort; skips players without an email)
@@ -656,7 +872,15 @@ export default async function handler(req, res) {
               }
             }
           }
-          return res.status(200).json({ slug, locked: true, deadline: wk.deadline, emailed, texted });
+          return res.status(200).json({
+            slug, locked: true, deadline: wk.deadline, deadlineReason: wk.deadlineReason, emailed, texted,
+            /* Say it out loud when the Saturday cadence did NOT apply. A commissioner who expects
+               "picks due Saturday 10am" and gets Thursday evening needs to be told which game
+               pulled it in, not left to notice later. */
+            ...(wk.deadlineReason === 'kickoff' ? {
+              note: `picks close at first kickoff (${(wk.games || []).slice().sort((a, b) => Date.parse(a.date) - Date.parse(b.date))[0]?.short || 'first game'}), which is EARLIER than the usual Saturday 10:00 ET`,
+            } : {}),
+          });
         }
         /* THE SERVER DECIDES THE WINNER (Codex finding #3 — Confirmed/High).
            This used to take `weeklyWinner` as free text from the commissioner and the season
@@ -687,9 +911,16 @@ export default async function handler(req, res) {
           wk.finalized = true;
           wk.finalizedAt = new Date().toISOString();
           wk.scoringVersion = VER;
+          /* Guarded like the all-locked notice: the flag is set BEFORE the write, so re-running
+             finalize (to correct a score, say) never re-announces the same winner to seven
+             phones. A deliberate re-announce is `notify: true`. */
+          const announce = (!wk.notifiedWinner || req.body.notify === true);
+          if (announce) wk.notifiedWinner = true;
           await putRow(slug, wk);
+          let told = { texted: 0, emailed: 0 };
+          if (announce) told = await notifyWinner(wk, slug, await loadRoster(slug), scored);
           return res.status(200).json({
-            slug, finalized: true, weeklyWinner: wk.weeklyWinner, points: scored.points,
+            slug, finalized: true, weeklyWinner: wk.weeklyWinner, points: scored.points, announced: announce, ...told,
             ...(claimed && claimed !== scored.winner
               ? { note: `ignored the submitted winner "${claimed}" — the frozen picks and lines score to "${scored.winner}"` }
               : {}),
@@ -759,10 +990,21 @@ export default async function handler(req, res) {
           if (!row) return res.status(404).json({ error: 'week not found' });
           const wk = row.data;
           if (!wk.slateLocked) return res.status(400).json({ error: 'slate not locked yet' });
-          if (pastDeadline(wk)) return res.status(400).json({ error: 'picks closed — first game has kicked off' });
+          if (pastDeadline(wk)) return res.status(400).json({ error: 'picks are closed for this week' });
           wk.picks = wk.picks || {};
           const mine = wk.picks[me.id] || {};
-          if (mine.locked && !req.body.unlock) return res.status(400).json({ error: 'your picks are locked' });
+          /* ⛔ LOCKING IS FINAL (Keith 2026-08-09): "they can save — meaning they can edit before
+             the deadline — or save and lock in one swoop, in which case they cannot."
+             So there is no unlock path any more, for anyone. This also retires the reason the
+             all-locked reveal had to be removed (Codex #2): a lock that can be undone is not a
+             lock, and it was the undo that made an early reveal exploitable. A player who wants
+             to keep editing simply saves without locking. */
+          if (mine.locked) {
+            return res.status(400).json({
+              error: 'your picks are locked in and cannot be changed',
+              hint: 'Locking is final. Save without locking if you want to keep editing until the deadline.',
+            });
+          }
 
           /* VALIDATE AGAINST THE SLATE (Codex finding #4 — Confirmed/High). Completeness and
              legality used to be enforced only by the browser's lock button, so the API would
