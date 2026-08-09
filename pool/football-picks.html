@@ -32,6 +32,16 @@
   .prog{font-size:13px;font-weight:700;color:var(--muted)}
   .msg{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:10px;padding:10px 18px;font-size:14px;display:none;z-index:5}
   .note{background:#fffaf0;border:1px solid #e7c84b;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px}
+  /* DEADLINE BANNER (Keith 2026-08-09: "the picks page should clearly stipulate that picks are due
+     by a given time"). The close time was only in 12px grey subhead text in the header — the one
+     fact that decides whether your card counts, rendered smaller than the game rows. */
+  .dl{border-radius:12px;padding:12px 16px;margin-bottom:12px;border:1px solid;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .dl .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;opacity:.75}
+  .dl .v{font-size:17px;font-weight:800;margin-top:2px}
+  .dl .cd{font-size:13px;font-weight:700;white-space:nowrap}
+  .dl.ok{background:#f0f6ff;border-color:#b8d4ff;color:#0a2240}
+  .dl.soon{background:#fff7ed;border-color:#fdba74;color:#7c2d12}
+  .dl.shut{background:#fef3f2;border-color:#fda29b;color:#7a271a}
 </style>
 </head>
 <body>
@@ -185,21 +195,50 @@ async function changePin(){
     toast('PIN changed ✓ — use it next time',6000);
   }catch(e){toast('could not change PIN',4000);}
 }
+/* THE DEADLINE IS THE MOST IMPORTANT FACT ON THIS PAGE and it was 12px grey text in the header.
+   Stated plainly at the top of the card list, in full ("Fri, Aug 14 · 7:00 PM ET"), with a live
+   countdown, and it changes colour as it closes: blue → amber inside 6h → red once shut. A member
+   who opens this on a phone should never have to work out whether they still have time. */
+function deadlineBanner(){
+  const el=document.getElementById('deadline');
+  if(!el)return;
+  if(!week||!week.deadline){el.style.display='none';return;}
+  const ms=Date.parse(week.deadline)-Date.now();
+  const when=new Date(week.deadline).toLocaleString('en-US',
+    {timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  let cls='ok',cd='';
+  if(ms<=0){cls='shut';cd='CLOSED';}
+  else{
+    const h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000),d=Math.floor(h/24);
+    cd=d>=1?(d+'d '+(h-d*24)+'h left'):(h>=1?(h+'h '+m+'m left'):(m+'m left'));
+    if(ms<6*3600000)cls='soon';
+  }
+  el.style.display='flex';
+  el.className='dl '+cls;
+  el.innerHTML='<div><div class="k">'+(ms<=0?'Picks are closed':'All picks due by')+'</div><div class="v">'+esc(when)+' ET</div></div>'
+    +'<div class="cd">'+cd+'</div>';
+}
+setInterval(deadlineBanner,30000);
 function render(){
   document.getElementById('sub').textContent=(week.label||slugName)+' · picks close '+new Date(week.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET';
   document.getElementById('bar').style.display='flex';
   document.getElementById('lockbtn').textContent=lockedMine?'🔓 Unlock':'🔒 Lock picks';
   const html=(week.games||[]).map(g=>{
     const mine=picks[g.id];
+    /* PICK 'EM HAS NO LINE, so the old `('+'+g.line)` rendered a literal "+null" under every team
+       on a preseason slate — 16 games of it. A pick'em is scored straight up, so the side carries
+       no number at all. */
     const side=(ab)=>{
-      const fav=g.favAbbrev===ab, tag=fav?('−'+g.line):('+'+g.line);
+      const tag=g.pickem?'straight up':(g.favAbbrev===ab?('−'+g.line):('+'+g.line));
       return '<button class="side '+(mine===ab?'on':'')+'" '+(lockedMine?'disabled':'')+' onclick="pick(\''+g.id+'\',\''+ab+'\')">'+esc(ab)+' <span class="lab">'+tag+'</span></button>';
     };
     return '<div class="game"><div class="ghead"><span>'+esc(g.short)+' · '+g.league.toUpperCase()+'</span><span>'+
       new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET · '+(g.pickem?'<b>PICK &rsquo;EM</b> — straight up':'line: '+esc(g.spreadText))+'</span></div>'+
       '<div class="sides">'+side(g.awayAbbrev)+side(g.homeAbbrev)+'</div></div>';
   }).join('');
-  document.getElementById('content').innerHTML=(lockedMine?'<div class="note">🔒 Your picks are locked. Unlock to change them (until first kickoff).</div>':'')+html;
+  document.getElementById('content').innerHTML='<div class="dl" id="deadline" style="display:none"></div>'
+    +(lockedMine?'<div class="note">🔒 Your picks are locked. Unlock to change them (until first kickoff).</div>':'')+html;
+  deadlineBanner();
   document.getElementById('prog').textContent=Object.keys(picks).length+'/'+(week.games||[]).length+' picked';
 }
 function pick(id,ab){if(lockedMine)return;picks[id]=ab;render();}
