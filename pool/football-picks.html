@@ -264,6 +264,17 @@ function render(){
       const tag=g.pickem?'straight up':(g.favAbbrev===ab?('−'+g.line):('+'+g.line));
       return '<button class="side '+(mine===ab?'on':'')+'" '+(lockedMine?'disabled':'')+' onclick="pick(\''+g.id+'\',\''+ab+'\')">'+esc(ab)+' <span class="lab">'+tag+'</span></button>';
     };
+    /* OVER/UNDER entries are picked OVER or UNDER, not by team — and the same fixture may also be
+       on the slate against the spread, as a separate card. The header says which one you are
+       looking at so the two are never confused. */
+    const ouSide=(w)=>
+      '<button class="side '+(mine===w?'on':'')+'" '+(lockedMine?'disabled':'')+' onclick="pick(\''+g.id+'\',\''+w+'\')">'+w
+      +' <span class="lab">'+(w==='OVER'?'more than ':'less than ')+g.total+'</span></button>';
+    if(g.market==='total'){
+      return '<div class="game"><div class="ghead"><span>'+esc(g.short)+' · OVER/UNDER</span><span>'+
+        new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET · total: <b>'+g.total+'</b></span></div>'+
+        '<div class="sides">'+ouSide('OVER')+ouSide('UNDER')+'</div></div>';
+    }
     return '<div class="game"><div class="ghead"><span>'+esc(g.short)+' · '+g.league.toUpperCase()+'</span><span>'+
       new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET · '+(g.pickem?'<b>PICK &rsquo;EM</b> — straight up':'line: '+esc(g.spreadText))+'</span></div>'+
       '<div class="sides">'+side(g.awayAbbrev)+side(g.homeAbbrev)+'</div></div>';

@@ -441,9 +441,13 @@ async function savePlayers(){
 
 /* game loading */
 function parseOdds(comp){
-  const o=(comp.odds||[])[0]; if(!o||!o.details||o.details==='EVEN')return null;
-  const m=String(o.details).match(/^([A-Z&\.\-']+)\s+(-?\d+(\.\d+)?)/i); if(!m)return null;
-  return {favAbbrev:m[1].toUpperCase(),line:Math.abs(parseFloat(m[2])),spreadText:o.details};
+  const o=(comp.odds||[])[0]; if(!o)return null;
+  // The total comes back separately from the spread and is often present when the spread is not.
+  const ou=(o.overUnder!=null&&isFinite(+o.overUnder))?+o.overUnder:null;
+  if(!o.details||o.details==='EVEN')return ou==null?null:{favAbbrev:null,line:null,spreadText:null,overUnder:ou};
+  const m=String(o.details).match(/^([A-Z&\.\-']+)\s+(-?\d+(\.\d+)?)/i);
+  if(!m)return ou==null?null:{favAbbrev:null,line:null,spreadText:null,overUnder:ou};
+  return {favAbbrev:m[1].toUpperCase(),line:Math.abs(parseFloat(m[2])),spreadText:o.details,overUnder:ou};
 }
 /* ⛔ ESPN'S PRESEASON WEEK NUMBERS ARE NOT THE POOL'S (Keith found this 2026-08-09).
    Asking for preseason week 1 returned ONE game — CAR vs ARI, Thu 8/6 — because ESPN counts the
@@ -502,7 +506,8 @@ async function loadGames(league){
       const odds=parseOdds(c);
       return {id:String(e.id),league,date:e.date,name:e.name,short:e.shortName,
         homeAbbrev:home.team.abbreviation,awayAbbrev:away.team.abbreviation,
-        favAbbrev:odds?odds.favAbbrev:null,line:odds?odds.line:null,spreadText:odds?odds.spreadText:null,manual:false};
+        favAbbrev:odds?odds.favAbbrev:null,line:odds?odds.line:null,spreadText:odds?odds.spreadText:null,
+        overUnder:odds?odds.overUnder:null,manual:false};
     });
     // Weekly competition runs Tue–Sun — the group never bets Monday games. Gate them out.
     // Evaluate day-of-week in EASTERN time: night games cross the UTC date line (Sun-night ET
@@ -585,18 +590,43 @@ function renderLoaded(){
   tn.className='btn '+(viewLeague==='nfl'?'gold':'gray');tc.className='btn '+(viewLeague==='cfb'?'gold':'gray');
   const q=(document.getElementById('gfilter').value||'').trim().toLowerCase();
   const show=loaded.filter(g=>g.league===viewLeague&&(!q||(g.name+' '+g.short).toLowerCase().includes(q)));
+  /* TWO MARKETS PER FIXTURE (Keith 2026-08-09: "at times Mike wants to offer a game based on
+     over-under not the line — a game can be available in the slate as both against the line and
+     over-under"). So each loaded game gets two independent add buttons. The over/under entry is a
+     separate slate row with its own id (`<id>#ou`), so both can be picked and both score. */
   document.getElementById('gamelist').innerHTML=(show.length?show:[]).map(g=>`
     <div class="gm">
       <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}</span></span>
       <span class="dt">${new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} ET</span>
-      <span class="sp">${g.spreadText?esc(g.spreadText):'<span style="color:#b42318">no line</span>'}</span>
-      <button class="btn ${inSlate.has(g.id)?'gray':'gold'}" onclick="toggleGame('${g.id}')">${inSlate.has(g.id)?'✓ in slate':'＋'}</button>
+      <span class="sp">${g.spreadText?esc(g.spreadText):'<span style="color:#b42318">no line</span>'}${g.overUnder!=null?' <span class="muted">· O/U '+g.overUnder+'</span>':''}</span>
+      <button class="btn ${inSlate.has(g.id)?'gray':'gold'}" onclick="toggleGame('${g.id}')" title="Add against the spread">${inSlate.has(g.id)?'✓ spread':'＋ spread'}</button>
+      <button class="btn ${inSlate.has(g.id+'#ou')?'gray':'gold'}" onclick="toggleTotal('${g.id}')" title="Add as an over/under — a separate pick from the spread">${inSlate.has(g.id+'#ou')?'✓ O/U':'＋ O/U'}</button>
     </div>`).join('')||('<div style="padding:16px;color:var(--muted);font-size:13px">'+(loaded.some(g=>g.league===viewLeague)?'No team matches that filter.':'Nothing loaded for this league yet — use the Load buttons above.')+'</div>');
 }
 function toggleGame(id){
   const i=slate.findIndex(g=>g.id===id);
-  if(i>-1)slate.splice(i,1); else{const g=loaded.find(x=>x.id===id); if(g)slate.push({...g});}
+  if(i>-1)slate.splice(i,1); else{const g=loaded.find(x=>x.id===id); if(g)slate.push({...g,market:'spread'});}
   renderSlate();renderLoaded();
+}
+/* The over/under entry is a full slate row of its own, not a flag on the spread row — that is what
+   lets a fixture be offered BOTH ways and scored twice. Its id carries a `#ou` suffix so the two
+   can never collide; score lookup falls back to the matchup, which both rows share, so the
+   duplicate id costs nothing. */
+function toggleTotal(id){
+  const oid=id+'#ou';
+  const i=slate.findIndex(g=>g.id===oid);
+  if(i>-1){slate.splice(i,1);renderSlate();renderLoaded();return;}
+  const g=loaded.find(x=>x.id===id); if(!g)return;
+  slate.push({...g,id:oid,market:'total',pickem:false,favAbbrev:null,line:null,
+    total:(g.overUnder!=null?g.overUnder:null),
+    spreadText:(g.overUnder!=null?('O/U '+g.overUnder):null),manual:g.overUnder==null});
+  renderSlate();renderLoaded();
+  if(g.overUnder==null)toast('ESPN gave no total for that game — type the number in the O/U box.',7000);
+}
+function manualTotal(i,v){
+  const n=parseFloat(String(v).trim());
+  if(!isFinite(n)||n<=0){toast('Enter the total as a number, e.g. 44.5');return;}
+  slate[i].total=n;slate[i].spreadText='O/U '+n;slate[i].manual=true;renderSlate();
 }
 let lockedSummary='';
 function renderSlate(){
@@ -612,15 +642,22 @@ function renderSlate(){
       +(lockedSummary?' '+lockedSummary:'')
       +' Follow it on the <a href="/pool/football">pool board</a>. Finalize it from §4 once every game is final.';
   }
-  document.getElementById('slate').innerHTML=slate.length?slate.map((g,i)=>`
+  document.getElementById('slate').innerHTML=slate.length?slate.map((g,i)=>{
+    const isTotal=g.market==='total';
+    const label=isTotal
+      ? (g.total!=null?'<span style="color:#0a2240">O/U '+g.total+'</span>':'<span style="color:#b42318">no total set</span>')
+      : (g.pickem?'<span style="color:#0a2240">PICK &rsquo;EM</span>':(g.spreadText?esc(g.spreadText):'<span style="color:#b42318">no line</span>'));
+    return `
     <div class="gm">
-      <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}</span></span>
+      <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}${isTotal?' · OVER/UNDER':''}</span></span>
       <span class="dt">${new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})} ET</span>
-      <span class="sp">${g.pickem?'<span style="color:#0a2240">PICK &rsquo;EM</span>':(g.spreadText?esc(g.spreadText):'<span style="color:#b42318">no line</span>')}</span>
-      ${slateLocked?'':`<input class="sm" placeholder="e.g. SEA -3.5" value="${g.manual&&g.spreadText&&!g.pickem?esc(g.spreadText):''}" onchange="manualSpread(${i},this.value)" title="manual spread override">`}
-      ${slateLocked?'':`<button class="btn ${g.pickem?'gold':'gray'}" onclick="togglePickem(${i})" title="Score this one straight up — highest score wins, tie is a push">PK</button>`}
+      <span class="sp">${label}</span>
+      ${slateLocked?'':(isTotal
+        ? `<input class="sm" placeholder="e.g. 44.5" value="${g.total!=null?g.total:''}" onchange="manualTotal(${i},this.value)" title="the total — over or under this number">`
+        : `<input class="sm" placeholder="e.g. SEA -3.5" value="${g.manual&&g.spreadText&&!g.pickem?esc(g.spreadText):''}" onchange="manualSpread(${i},this.value)" title="manual spread override">`)}
+      ${slateLocked||isTotal?'':`<button class="btn ${g.pickem?'gold':'gray'}" onclick="togglePickem(${i})" title="Score this one straight up — highest score wins, tie is a push">PK</button>`}
       ${slateLocked?'':`<button class="btn red" onclick="slate.splice(${i},1);renderSlate();renderLoaded()">✕</button>`}
-    </div>`).join(''):'<div class="muted">No games in the slate yet.</div>';
+    </div>`;}).join(''):'<div class="muted">No games in the slate yet.</div>';
 }
 /* PICK 'EM (Keith 2026-08-08: "if there is no line just make it a pick em"). Preseason spreads are
    thin or absent, and lock_slate used to refuse any game without one — which would have blocked the
@@ -638,7 +675,8 @@ function togglePickem(i){
    pick'em, instead of typing a spread you do not have for eight games in a row. */
 function allPickem(){
   let n=0;
-  slate.forEach(g=>{ if(!g.pickem && (g.line==null||!g.favAbbrev)){ g.pickem=true; g.favAbbrev=null; g.line=null; g.spreadText='PK'; g.manual=true; n++; } });
+  // Never touches an over/under entry — a total has no spread to be missing.
+  slate.forEach(g=>{ if(g.market!=='total' && !g.pickem && (g.line==null||!g.favAbbrev)){ g.pickem=true; g.favAbbrev=null; g.line=null; g.spreadText='PK'; g.manual=true; n++; } });
   renderSlate();
   toast(n?`${n} game${n>1?'s':''} set to pick 'em`:'Every game already has a line or is pick ’em',5000);
 }

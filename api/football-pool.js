@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.2.0-derivedweek';  // week label+slug are derived, not typed; postseason slugs recognised
+const VER = '3.3.0-overunder';  // a fixture can be offered against the spread AND as a total
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -209,6 +209,18 @@ export default async function handler(req, res) {
      Kept server-side so scoring never depends on what a browser computed. */
   const coverOf = (g, sc) => {
     if (!sc || sc.homeScore == null || sc.awayScore == null) return null;
+    /* OVER/UNDER (Keith 2026-08-09: "at times Mike wants to offer a game based on over-under not
+       the line — a game can be available in the slate as both against the line and over-under").
+       A total is a SECOND, INDEPENDENT entry for the same fixture: same teams, same kickoff, its
+       own id (`<id>#ou`), its own market, its own point. The sides are OVER and UNDER rather than
+       two team abbreviations, and exactly on the number is a push — same as landing on a spread.
+       Must mirror coverOf() in pool/football.html exactly. */
+    if (g.market === 'total') {
+      const combined = sc.homeScore + sc.awayScore;
+      if (combined > g.total) return 'OVER';
+      if (combined < g.total) return 'UNDER';
+      return 'PUSH';
+    }
     /* PICK 'EM (Keith 2026-08-08: "if there is not line just make it a pick em"). Preseason lines
        are thin or absent, so a game can be scored straight up: highest score wins, a tie is a push.
        No spread is involved, which is why `line` stays null and `pickem` is the flag — inferring
@@ -230,9 +242,20 @@ export default async function handler(req, res) {
      weekly total is simply how many games you won outright against the number. Changed here AND
      in pool/football.html's weekPoints(); the rule lives in two places by design (persisted score
      vs live board) and they must move together or the board lies about who won. */
+  /* Resolve a game's final score by id, then by the BASE id (an over/under entry is `<id>#ou`),
+     then by matchup — the same three-way lookup the board uses. Without the base-id and matchup
+     fallbacks a total would sit unscored forever with no error, which is exactly the failure the
+     hand-built preseason slate hit in August. */
+  const resultFor = (g, results) => {
+    const r = results || {};
+    return r[g.id]
+      || r[String(g.id).split('#')[0]]
+      || r[`${g.awayAbbrev}@${g.homeAbbrev}`]
+      || null;
+  };
   const scoreWeek = (wk, results) => {
     const pts = {}, covers = {};
-    for (const g of (wk.games || [])) covers[g.id] = coverOf(g, (results || {})[g.id]);
+    for (const g of (wk.games || [])) covers[g.id] = coverOf(g, resultFor(g, results));
     /* Entries are keyed by person id; each carries a `name` SNAPSHOT for display. Scores and the
        weekly winner are reported by name so the board and emails read naturally, while the durable
        key stays the id. */
@@ -818,11 +841,27 @@ export default async function handler(req, res) {
             });
           }
           if (!(wk.games || []).length) return res.status(400).json({ error: 'no games in slate' });
-          // A pick'em game legitimately has no line — only spread games must carry one.
-          const noLine = wk.games.filter(g => !g.pickem && (g.line == null || !g.favAbbrev));
+          /* Every game must carry a scoreable market: a spread, a pick'em, or a total. */
+          const noTotal = wk.games.filter(g => g.market === 'total' && !(typeof g.total === 'number' && isFinite(g.total)));
+          if (noTotal.length) return res.status(400).json({
+            error: 'these over/under games have no number set: ' + noTotal.map(g => g.short).join(', '),
+            hint: 'Type the total (e.g. 44.5) in the O/U box, or remove the entry.',
+          });
+          const noLine = wk.games.filter(g => g.market !== 'total' && !g.pickem && (g.line == null || !g.favAbbrev));
           if (noLine.length) return res.status(400).json({
             error: 'these games have no spread and are not marked pick’em: ' + noLine.map(g => g.short).join(', '),
             hint: 'Set a spread, or tap PK to score it straight up.',
+          });
+          /* Two entries for the same fixture is the POINT (spread + total), but two entries for
+             the same MARKET is a mistake that would double-count one result. */
+          const seen = new Set(), dupes = [];
+          for (const g of wk.games) {
+            const k = `${g.awayAbbrev}@${g.homeAbbrev}|${g.market === 'total' ? 'total' : 'spread'}`;
+            if (seen.has(k)) dupes.push(g.short); else seen.add(k);
+          }
+          if (dupes.length) return res.status(400).json({
+            error: 'the same game is on the slate twice for the same market: ' + dupes.join(', '),
+            hint: 'A fixture can appear once against the spread AND once as an over/under — but not twice for either.',
           });
           wk.slateLocked = true;
           wk.lockedAt = new Date().toISOString();
@@ -1036,14 +1075,18 @@ export default async function handler(req, res) {
             const g = byId.get(String(gid));
             if (!g) continue;                                    // not on this slate — ignore
             const s = String(side).toUpperCase().slice(0, 6);
-            if (s !== String(g.homeAbbrev).toUpperCase() && s !== String(g.awayAbbrev).toUpperCase()) {
+            // An over/under entry is picked OVER or UNDER; a spread entry, one of the two teams.
+            const legal = g.market === 'total'
+              ? (s === 'OVER' || s === 'UNDER')
+              : (s === String(g.homeAbbrev).toUpperCase() || s === String(g.awayAbbrev).toUpperCase());
+            if (!legal) {
               badSides.push(`${g.short || gid}: "${side}"`);
               continue;
             }
             picks[gid] = s;
           }
           if (badSides.length) {
-            return res.status(400).json({ error: `pick must be one of the two teams in the game — ${badSides.join('; ')}` });
+            return res.status(400).json({ error: `each pick must be one of the two teams, or OVER/UNDER on a total — ${badSides.join('; ')}` });
           }
           const total = (wk.games || []).length;
           const complete = Object.keys(picks).length === total;
