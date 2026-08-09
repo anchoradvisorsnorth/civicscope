@@ -51,7 +51,7 @@
 </style>
 </head>
 <body>
-<div style="background:#08192e;font-family:-apple-system,'Segoe UI',Arial,sans-serif;font-size:13px;padding:8px 18px;display:flex;gap:18px;align-items:center"><a href="/pool" style="color:#fff;font-weight:800;text-decoration:none">🏆 The Pool</a><a href="/pool/golf" style="color:#b9c6da;text-decoration:none">Golf</a><a href="/pool/football" style="color:#b9c6da;text-decoration:none">Football</a></div>
+<div style="background:#08192e;font-family:-apple-system,'Segoe UI',Arial,sans-serif;font-size:13px;padding:8px 18px;display:flex;gap:18px;align-items:center"><a href="/pool" style="color:#fff;font-weight:800;text-decoration:none">🏆 The Pool</a><a href="/pool/golf" style="color:#b9c6da;text-decoration:none">Golf</a><a href="/pool/football" style="color:#b9c6da;text-decoration:none">Football</a><a href="/pool/live" style="color:#c8a24b;font-weight:700;text-decoration:none">Live</a></div>
 <header><div class="wrap htop">
   <h1>🏈 The Football Pool<span class="sub">Winners against the spread · weekly champion</span></h1>
   <div>
@@ -72,93 +72,16 @@
   </div>
 </main>
 
+<script src="/pool/scoring.js"></script>
 <script>
 const API='/api/football-pool';
-const SB={nfl:'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
-          cfb:'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard'};
 let weeks=[],viewSlug=null;
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const fmtDT=d=>new Date(d).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET';
 
-function datesParam(games){
-  const ds=games.map(g=>new Date(g.date));
-  const f=d=>d.toISOString().slice(0,10).replace(/-/g,'');
-  const min=new Date(Math.min(...ds)),max=new Date(Math.max(...ds));
-  min.setDate(min.getDate()-1);max.setDate(max.getDate()+2);
-  return f(min)+'-'+f(max);
-}
-async function liveScores(games){
-  const out={};
-  for(const lg of ['nfl','cfb']){
-    if(!games.some(g=>g.league===lg))continue;
-    try{
-      const j=await(await fetch(SB[lg]+'?dates='+datesParam(games.filter(g=>g.league===lg))+(lg==='cfb'?'&groups=80':''),{cache:'no-store'})).json();
-      for(const e of (j.events||[])){
-        const c=e.competitions[0];
-        const home=c.competitors.find(x=>x.homeAway==='home'),away=c.competitors.find(x=>x.homeAway==='away');
-        const sc={homeScore:Number(home.score||0),awayScore:Number(away.score||0),
-          state:c.status?.type?.state,detail:c.status?.type?.shortDetail||''};
-        out[String(e.id)]=sc;
-        /* ALSO key by matchup. A slate built by hand (preseason 2026 was, because ESPN's loader
-           could not be reached) carries our own game ids, which will never equal an ESPN event id
-           — so score lookup by id alone would silently find nothing and every game would sit
-           unscored forever with no error. Matchup+league is stable and unique within a week. */
-        out[away.team.abbreviation+'@'+home.team.abbreviation]=sc;
-      }
-    }catch(e){}
-  }
-  return out;
-}
-// cover result vs the FROZEN line: returns abbrev of covering side, 'PUSH', or null (not final)
-function coverOf(g,sc,requireFinal){
-  if(!sc)return null;
-  if(requireFinal&&sc.state!=='post')return null;
-  /* PICK 'EM: no spread, scored straight up. Must mirror the server rule in api/football-pool.js
-     exactly — the board and the persisted score are computed in two places, and if they ever
-     disagree the board silently lies about who won the week. */
-  /* OVER/UNDER: the same fixture can also be offered as a total, as its own slate entry with its
-     own id. Mirrors coverOf() in api/football-pool.js — exactly on the number is a push. */
-  if(g.market==='total'){
-    if(sc.homeScore==null||sc.awayScore==null)return null;
-    const combined=sc.homeScore+sc.awayScore;
-    if(combined>g.total)return 'OVER';
-    if(combined<g.total)return 'UNDER';
-    return 'PUSH';
-  }
-  if(g.pickem){
-    if(sc.homeScore==null||sc.awayScore==null)return null;
-    if(sc.homeScore===sc.awayScore)return 'PUSH';
-    return sc.homeScore>sc.awayScore?g.homeAbbrev:g.awayAbbrev;
-  }
-  const favHome=g.favAbbrev===g.homeAbbrev;
-  const favScore=favHome?sc.homeScore:sc.awayScore, dogScore=favHome?sc.awayScore:sc.homeScore;
-  const dog=favHome?g.awayAbbrev:g.homeAbbrev;
-  if(favScore-dogScore>g.line)return g.favAbbrev;
-  if(favScore-dogScore===g.line)return 'PUSH';
-  return dog;
-}
-/* One place decides how a market is written, so a total can never render as an empty spread.
-   A fixture offered both ways appears twice, and the label is what tells them apart. */
-const marketLabel=g=>g.market==='total'?('O/U '+g.total):(g.pickem?'PICK EM':g.spreadText);
-const scoreFor=(g,scores)=>scores[g.id]||scores[g.awayAbbrev+'@'+g.homeAbbrev]||null;
-function weekPoints(wk,scores){
-  const pts={},detail={};
-  const players=Object.keys(wk.picks||{});
-  players.forEach(p=>{pts[p]=0;detail[p]={};});
-  for(const g of (wk.games||[])){
-    const cov=coverOf(g,scoreFor(g,scores),true);
-    for(const p of players){
-      const mypick=(wk.picks[p].picks||{})[g.id];
-      if(!mypick){detail[p][g.id]='—';continue;}
-      if(!cov){detail[p][g.id]=mypick;continue;}
-      // A push scores ZERO (Keith 2026-08-09). Must match scoreWeek() in api/football-pool.js.
-      if(cov==='PUSH'){detail[p][g.id]='P';}
-      else if(cov===mypick){pts[p]+=1;detail[p][g.id]='W';}
-      else detail[p][g.id]='L';
-    }
-  }
-  return {pts,detail};
-}
+/* Scoring, market labels and the ESPN live-score fetch now live in ONE place shared with the
+   bookmarkable live tracker — /pool/scoring.js. A third copy of the cover rule was exactly the
+   drift this codebase has been warning about. Mirror any change in api/football-pool.js. */
 
 async function renderWeek(slug){
   viewSlug=slug;
