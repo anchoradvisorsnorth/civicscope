@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '2.7.0-testmark';  // a test week's notifications say so, in the message itself
+const VER = '2.8.0-nowipe';  // save_week can no longer erase a slate; test notifications say TEST
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -562,8 +562,26 @@ export default async function handler(req, res) {
           if (!slug) return res.status(400).json({ error: 'slug required' });
           const existing = (await getRow(slug))?.data || {};
           const data = { ...existing, ...req.body.data };
+          /* ⛔ A SAVE MUST NOT BE ABLE TO DESTROY A SLATE (2026-08-09).
+             `2026-pre1` — 16 hand-built preseason games — was replaced with `games: []` by a
+             single "Save draft" click from a commissioner page whose in-memory slate was empty
+             (a reloaded tab, a second tab, a slug typed before the week was opened). The write
+             was perfectly valid, returned 200, and there is no undo: the games existed only in
+             that row. Same family as the 2026-08-07 roster overwrite, and the same answer —
+             a full replace that SHRINKS a shared record has to be asked for explicitly.
+             An empty save is refused with the count it would have destroyed; `confirmWipe: true`
+             is the deliberate path (clearing a week you actually mean to clear). */
+          const hadGames = Array.isArray(existing.games) ? existing.games.length : 0;
+          const nowGames = Array.isArray(data.games) ? data.games.length : 0;
+          if (hadGames > 0 && nowGames === 0 && !req.body.confirmWipe) {
+            return res.status(409).json({
+              error: `refusing to erase ${hadGames} game${hadGames === 1 ? '' : 's'} from ${slug}`,
+              hint: 'The editor is empty but this week has a slate saved. Open the week first (§4 "Needs your attention" → open), or pass confirmWipe to clear it deliberately.',
+              games: hadGames,
+            });
+          }
           await putRow(slug, data);
-          return res.status(200).json({ slug, ok: true });
+          return res.status(200).json({ slug, ok: true, games: nowGames });
         }
         if (action === 'lock_slate') {
           const slug = cleanSlug(req.body.slug);

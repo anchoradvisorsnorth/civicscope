@@ -107,7 +107,13 @@
   <div class="card"><h2>3 · The slate <span id="slatestat" class="pill draft">draft</span></h2>
     <div class="body">
       <div id="slate"></div>
-      <div class="row" style="margin-top:12px">
+      <!-- LOCKED IS A STATE, NOT A TOAST (Keith 2026-08-09: "the lock button stays on the screen
+           which is confusing"). The Lock button used to sit there unchanged after a successful
+           lock — and identically after a REFUSED one — so the screen looked the same whether the
+           slate was locked, empty, or had just failed to save. The controls now follow the state:
+           locked replaces them with a plain statement of what happened. -->
+      <div id="lockedbanner" style="display:none;margin-top:12px;padding:12px 14px;border-radius:10px;background:#ecfdf3;border:1px solid #a6f4c5;font-size:14px"></div>
+      <div class="row" style="margin-top:12px" id="slateactions">
         <button class="btn gray" onclick="allPickem()" title="Every game with no spread becomes a straight-up pick">PK all unpriced</button> <button class="btn gray" onclick="saveWeek()">💾 Save draft</button>
         <label style="font-size:13px"><input type="checkbox" id="notify" checked> <b>text + email</b> the group on lock</label>
         <button class="btn gold" onclick="lockSlate()">🔒 Lock slate (freeze spreads)</button>
@@ -568,9 +574,20 @@ function toggleGame(id){
   if(i>-1)slate.splice(i,1); else{const g=loaded.find(x=>x.id===id); if(g)slate.push({...g});}
   renderSlate();renderLoaded();
 }
+let lockedSummary='';
 function renderSlate(){
   document.getElementById('slatestat').className='pill '+(slateLocked?'live':'draft');
   document.getElementById('slatestat').textContent=slateLocked?'LOCKED':'draft';
+  /* The controls follow the state. A locked slate no longer shows "Save draft" and a Lock button
+     you cannot use — it shows what happened, who was told, and where to watch it. */
+  const acts=document.getElementById('slateactions'), ban=document.getElementById('lockedbanner');
+  if(acts&&ban){
+    acts.style.display=slateLocked?'none':'flex';
+    ban.style.display=slateLocked?'block':'none';
+    if(slateLocked)ban.innerHTML='🔒 <b>This slate is locked.</b> Spreads are frozen and picks are open.'
+      +(lockedSummary?' '+lockedSummary:'')
+      +' Follow it on the <a href="/pool/football">pool board</a>. Finalize it from §4 once every game is final.';
+  }
   document.getElementById('slate').innerHTML=slate.length?slate.map((g,i)=>`
     <div class="gm">
       <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}</span></span>
@@ -610,15 +627,29 @@ function manualSpread(i,v){
 
 /* save / lock / list */
 function slug(){const s=document.getElementById('wkslug').value.trim();if(!s){toast('Set a slug (2026-w01)');throw new Error('no slug');}return s;}
-async function saveWeek(){try{await post({action:'save_week',code:code(),slug:slug(),
-  data:{label:document.getElementById('wklabel').value||slug(),games:slate,slateLocked:false}});toast('Draft saved ✓');listWeeks();}catch(e){}}
+/* ⛔ SAVING AN EMPTY EDITOR OVER A REAL SLATE (2026-08-09). This wrote `games: []` straight over
+   `2026-pre1` and its 16 games, from one click, with no warning and no undo — the editor is empty
+   on every fresh page load, while the slug box may be filled from a placeholder-looking value or a
+   second tab. Two guards now: nothing empty is ever sent from here, and the server refuses the
+   erase independently (409) so a stale tab or a script cannot do it either. */
+async function saveWeek(){
+  if(!slate.length){
+    toast('The editor is empty — nothing to save. Open the week in §4 "Needs your attention" to edit its slate, or load games first.',8000);
+    return;
+  }
+  try{await post({action:'save_week',code:code(),slug:slug(),
+    data:{label:document.getElementById('wklabel').value||slug(),games:slate,slateLocked:false}});
+    toast('Draft saved ✓ — '+slate.length+' game'+(slate.length===1?'':'s'));listWeeks();}catch(e){}}
 async function lockSlate(){
   if(!slate.length){toast('Slate is empty');return;}
   if(!confirm('Lock the slate? Spreads freeze exactly as shown and '+(document.getElementById('notify').checked?'the group gets TEXTED and EMAILED':'NO texts or emails go out')+'.'))return;
   try{
     await post({action:'save_week',code:code(),slug:slug(),data:{label:document.getElementById('wklabel').value||slug(),games:slate}});
     const j=await post({action:'lock_slate',code:code(),slug:slug(),notify:document.getElementById('notify').checked});
-    slateLocked=true;renderSlate();listWeeks();
+    slateLocked=true;
+    lockedSummary='Picks close '+new Date(j.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET · '
+      +(document.getElementById('notify').checked?`${j.texted} text${j.texted===1?'':'s'} + ${j.emailed} email${j.emailed===1?'':'s'} sent.`:'no notifications sent.');
+    renderSlate();listWeeks();
     /* REPORT BOTH CHANNELS. `lock_slate` has always returned {emailed, texted}; this toast read
        only `emailed`, so a run where every text failed looked identical to one where they all
        landed. A count of zero on a channel you asked for is the thing worth seeing. */

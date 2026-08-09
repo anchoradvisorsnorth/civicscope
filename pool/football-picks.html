@@ -92,12 +92,37 @@ async function boot(){
   const saved=JSON.parse(sessionStorage.getItem('fb_me')||'null');
   if(saved){document.getElementById('who').value=saved.name;document.getElementById('pin').value=saved.pin;enter();}
 }
+let weekRows=[];
 async function currentWeek(){
   const season=new Date().getFullYear();
   let rows=await(await fetch(API+'?list='+season,{cache:'no-store'})).json();
   if(!rows.length&&new Date().getMonth()<2) rows=await(await fetch(API+'?list='+(season-1),{cache:'no-store'})).json();
+  weekRows=rows||[];                                   // kept so the empty state can say WHY
   const live=rows.filter(w=>w.slateLocked&&!w.finalized&&(!w.deadline||Date.now()<Date.parse(w.deadline)));
   return live.length?live[live.length-1].slug:null;
+}
+/* "No open slate" was the wrong words for every case it covered (Keith 2026-08-09, after following
+   a link straight into it). It is jargon, it sounds like a fault, and it says nothing about which
+   of three completely different situations you are in: the commissioner is still building the
+   week · he built it but has not locked it · the week locked and the deadline has already passed.
+   Say which one, and say what happens next. */
+function noSlateMessage(){
+  const drafts=weekRows.filter(w=>!w.slateLocked&&!w.finalized);
+  const closed=weekRows.filter(w=>w.slateLocked&&!w.finalized&&w.deadline&&Date.now()>=Date.parse(w.deadline));
+  if(closed.length){
+    const w=closed[closed.length-1];
+    return {sub:'Picks are closed for '+(w.label||w.slug),
+      html:'<div class="dl shut"><div><div class="k">Picks are closed</div><div class="v">'+esc(w.label||w.slug)+'</div></div>'
+        +'<div class="cd">'+new Date(w.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET</div></div>'
+        +'<div class="note">The first game has kicked off, so this week\'s card is final. Follow it live on the <a href="/pool/football">pool board</a>.</div>'};
+  }
+  if(drafts.length){
+    const w=drafts[drafts.length-1];
+    return {sub:(w.label||w.slug)+' — not locked yet',
+      html:'<div class="note">🛠 <b>'+esc(w.label||w.slug)+' is still being built.</b> Picks open the moment the commissioner locks the slate — you\'ll get a text and an email with your PIN and a link straight back here. <b>Nothing for you to do right now.</b><br><br>You\'re signed in, so that link will drop you straight onto your card.</div>'};
+  }
+  return {sub:'No week is open yet — you are signed in and ready',
+    html:'<div class="note">⏳ <b>No week has been set up yet.</b> Picks open when the commissioner builds and locks a slate; you\'ll get a text and an email the moment that happens. <b>Nothing for you to do right now.</b><br><br>Meanwhile the pool lives at <a href="/pool/football">/pool/football</a>.</div>'};
 }
 /* SIGNING IN AND FINDING A SLATE ARE TWO DIFFERENT QUESTIONS — answer them in that order.
    Until 2026-08-08 this function bailed out at "no open slate" BEFORE the PIN was ever checked,
@@ -132,9 +157,10 @@ async function enter(){
 async function loadWeek(){
   slugName=await currentWeek();
   if(!slugName){
-    document.getElementById('sub').textContent='No open slate — you are signed in and ready';
+    const m=noSlateMessage();
+    document.getElementById('sub').textContent=m.sub;
     document.getElementById('bar').style.display='none';
-    document.getElementById('content').innerHTML='<div class="note">⏳ <b>No open slate right now</b> — either the commissioner hasn\'t locked this week\'s games yet, or the first game already kicked off. You\'re signed in; come back when the slate opens and your picks will be waiting. Watch the pool at <a href="/pool/football">/pool/football</a>.</div>';
+    document.getElementById('content').innerHTML=m.html;
     return;
   }
   const j=await(await fetch(API+'?week='+slugName+'&name='+encodeURIComponent(me)+'&pin='+encodeURIComponent(pin),{cache:'no-store'})).json();
