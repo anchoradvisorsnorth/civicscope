@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.0.0-weeklyclock';  // Thu 09:30 build / Sat 10:00 picks, push=0, lock is final
+const VER = '3.1.0-weeklyclock';  // Thu 09:30 build / Sat 10:00 picks, push=0, lock final, DST-proof reminders
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -451,9 +451,23 @@ export default async function handler(req, res) {
          It nudges on the two failure modes that actually happen: a week built but never locked, and
          no week built at all. Silent when there is nothing to chase — a job that pings every week
          regardless gets ignored, and then the one that matters gets ignored too. */
+      /* ⏰ THE ET WINDOW IS CHECKED HERE, NOT IN CRON. The VM runs UTC, so `30 10 * * 4` is
+         06:30 ET in summer and 05:30 ET after the November clock change — a reminder that
+         silently drifts an hour is the same class of bug as the hand-converted kickoff times.
+         Cron fires at BOTH candidate UTC hours and this guard lets exactly one through, so the
+         schedule is correct on both sides of DST with nothing to remember. `force:true` is for
+         verification. */
+      const etWindow = (weekday, hour) => {
+        const p = etParts(new Date());
+        return p.weekday === weekday && p.hour === hour;
+      };
       if (action === 'lock_reminder') {
         if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
           return res.status(401).json({ error: 'unauthorized' });
+        }
+        // Slate is due Thursday 09:30 ET → nudge at 06:30 ET, three hours out.
+        if (!req.body.force && !etWindow('Thu', 6)) {
+          return res.status(200).json({ nudged: false, reason: 'outside the Thu 06:30 ET window' });
         }
         const season = new Date().getFullYear();
         const lr = await sb(`football_pools?slug=like.${season}-*&select=slug,data&order=slug.desc`);
@@ -511,6 +525,10 @@ export default async function handler(req, res) {
       if (action === 'picks_reminder') {
         if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
           return res.status(401).json({ error: 'unauthorized' });
+        }
+        // Picks are due Saturday 10:00 ET → nudge at 07:00 ET, three hours out.
+        if (!req.body.force && !etWindow('Sat', 7)) {
+          return res.status(200).json({ nudged: false, reason: 'outside the Sat 07:00 ET window' });
         }
         const season = new Date().getFullYear();
         const pr = await sb(`football_pools?slug=like.${season}-*&select=slug,data&order=slug.desc`);
