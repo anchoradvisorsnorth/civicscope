@@ -955,7 +955,13 @@ export default async function handler(req, res) {
           if (!results || !Object.keys(results).length) {
             return res.status(400).json({ error: 'final scores required to finalize' });
           }
-          const missing = (wk.games || []).filter(g => !results[g.id] || results[g.id].homeScore == null || results[g.id].awayScore == null);
+          /* Resolve through the SAME three-way lookup the scoring uses. Checking `results[g.id]`
+             directly meant an over/under entry (`<id>#ou`) always looked unscored, so a slate
+             carrying both markets could never be finalized at all. */
+          const missing = (wk.games || []).filter(g => {
+            const sc = resultFor(g, results);
+            return !sc || sc.homeScore == null || sc.awayScore == null;
+          });
           if (missing.length) {
             return res.status(400).json({ error: `not every game has a final score (${missing.map(g => g.short || g.id).join(', ')})` });
           }
