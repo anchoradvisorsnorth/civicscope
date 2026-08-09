@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>The Pool — Live</title>
+<!-- BOOKMARK THIS ONE (Keith 2026-08-09: "we'll need a live tracker for players based on games
+     ending from Thursday to Sunday night. Something simple they can bookmark").
+     The full board is a wide table built for a laptop; this is the phone answer to the only
+     question anyone asks between Thursday night and Sunday night: where do I stand, and what is
+     still live? It refreshes itself, needs no sign-in, and scores through /pool/scoring.js — the
+     same rules the board and the server use, not a third copy. -->
+<style>
+  :root{--navy:#0a2240;--green:#14532d;--gold:#c8a24b;--line:#e4e7ec;--muted:#667085;--bg:#f4f6f9;--card:#fff;--win:#157347;--red:#b42318;--push:#b45309}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#101828}
+  header{background:linear-gradient(135deg,var(--navy),var(--green));color:#fff;padding:16px 18px}
+  .wrap{max-width:620px;margin:0 auto}
+  h1{margin:0;font-size:19px;display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+  h1 .sub{display:block;width:100%;font-size:12px;font-weight:400;color:#b9c6da;margin-top:4px}
+  main{max-width:620px;margin:0 auto;padding:14px 14px 60px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px}
+  .ch{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);padding:12px 14px 8px}
+  .row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid #f0f2f5}
+  .rank{width:22px;font-weight:800;color:#98a2b3;font-variant-numeric:tabular-nums}
+  .who{flex:1;font-weight:700;min-width:0}
+  .who small{display:block;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:2px}
+  .pts{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--navy)}
+  .lead{background:linear-gradient(90deg,#fffaf0,#fff)}
+  .lead .pts{color:#8a6d1f}
+  .g{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid #f0f2f5;font-size:13px}
+  .g .m{flex:1;min-width:0}
+  .g .m b{display:block}
+  .g .m span{font-size:11.5px;color:var(--muted)}
+  .g .sc{font-variant-numeric:tabular-nums;font-weight:700;text-align:right;white-space:nowrap}
+  .g .st{font-size:11px;font-weight:800;width:52px;text-align:right}
+  .st.post{color:var(--win)} .st.in{color:var(--red)} .st.pre{color:var(--muted)}
+  .note{background:#fffaf0;border:1px solid #e7c84b;border-radius:12px;padding:14px;font-size:13.5px;margin-bottom:14px}
+  .dl{border-radius:12px;padding:12px 14px;margin-bottom:14px;border:1px solid;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .dl .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;opacity:.75}
+  .dl .v{font-size:16px;font-weight:800;margin-top:2px}
+  .dl.ok{background:#f0f6ff;border-color:#b8d4ff;color:#0a2240}
+  .dl.shut{background:#ecfdf3;border-color:#a6f4c5;color:#054f31}
+  .foot{color:var(--muted);font-size:11.5px;margin-top:16px;line-height:1.55}
+  a{color:var(--navy)}
+</style>
+</head>
+<body>
+<div style="background:#08192e;font-family:-apple-system,'Segoe UI',Arial,sans-serif;font-size:13px;padding:8px 18px;display:flex;gap:18px;align-items:center"><a href="/pool" style="color:#fff;font-weight:800;text-decoration:none">🏆 The Pool</a><a href="/pool/football" style="color:#b9c6da;text-decoration:none">Full board</a><a href="/pool/football/picks" style="color:#b9c6da;text-decoration:none">My picks</a></div>
+<header><div class="wrap">
+  <h1><span>🏈 Live</span><span id="clock" style="font-size:11px;font-weight:400;color:#b9c6da"></span>
+    <span class="sub" id="sub">Loading…</span></h1>
+</div></header>
+<main>
+  <div id="content"><div class="note">Loading the pool…</div></div>
+  <div class="foot">
+    1 point per correct pick — against the frozen spread, straight up on a pick 'em, or over/under the frozen total.
+    <b>A push is worth nothing.</b> Most games won takes the week. A fixture offered both against the spread and as an
+    over/under counts as two separate picks. Scores update automatically about every minute while games are on.
+  </div>
+</main>
+
+<script src="/pool/scoring.js"></script>
+<script>
+const API='/api/football-pool';
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const fmtDT=d=>new Date(d).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET';
+let timer=null;
+
+/* Which week to show: the one being played. Prefer a locked, unfinalized week; fall back to the
+   most recent finalized one so the page still answers "who won" on a Monday rather than going
+   blank — a tracker that shows nothing looks broken, and an empty screen is the least useful
+   honest answer there is. */
+async function currentWeek(){
+  const season=new Date().getFullYear();
+  let rows=await(await fetch(API+'?list='+season,{cache:'no-store'})).json();
+  if((!rows||!rows.length)&&new Date().getMonth()<2) rows=await(await fetch(API+'?list='+(season-1),{cache:'no-store'})).json();
+  rows=rows||[];
+  const live=rows.filter(w=>w.slateLocked&&!w.finalized);
+  if(live.length)return live[live.length-1];
+  const done=rows.filter(w=>w.finalized);
+  if(done.length)return done[done.length-1];
+  return rows.length?rows[rows.length-1]:null;
+}
+
+function deadlineBar(wk){
+  if(!wk.deadline)return '';
+  const shut=Date.now()>=Date.parse(wk.deadline);
+  const when=new Date(wk.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  if(shut)return '<div class="dl shut"><div><div class="k">Picks are in</div><div class="v">Everything below is live</div></div></div>';
+  const ms=Date.parse(wk.deadline)-Date.now();
+  const h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000),d=Math.floor(h/24);
+  const cd=d>=1?(d+'d '+(h-d*24)+'h left'):(h>=1?(h+'h '+m+'m left'):(m+'m left'));
+  return '<div class="dl ok"><div><div class="k">Picks due</div><div class="v">'+esc(when)+' ET</div></div><div style="font-weight:700;font-size:13px">'+cd+'</div></div>';
+}
+
+async function load(){
+  const meta=await currentWeek();
+  if(!meta){
+    document.getElementById('sub').textContent='No week yet';
+    document.getElementById('content').innerHTML='<div class="note">⏳ <b>No week is running yet.</b> This page comes alive the moment the commissioner locks a slate — bookmark it now and it will be waiting.</div>';
+    return;
+  }
+  const j=await(await fetch(API+'?week='+meta.slug,{cache:'no-store'})).json();
+  const wk=j.data;
+  if(!wk){document.getElementById('content').innerHTML='<div class="note">Could not load that week — this does NOT mean there isn\'t one. Pull to refresh.</div>';return;}
+  const games=wk.games||[];
+  document.getElementById('sub').textContent=(wk.label||meta.slug)+' · '+games.length+' pick'+(games.length===1?'':'s');
+
+  let html=deadlineBar(wk);
+
+  /* BEFORE THE DEADLINE THERE IS NOTHING TO RANK, and showing a table of zeroes would imply
+     everyone is losing. Show readiness instead — who is locked in, who is not — which is the only
+     thing that is actually true yet. Selections stay hidden; the server does not send them. */
+  if(!j.revealed){
+    const entries=Object.values(wk.picks||{});
+    const locked=entries.filter(e=>e.locked).map(e=>e.name).filter(Boolean).sort();
+    html+='<div class="card"><div class="ch">Locked in — '+locked.length+'</div>'
+      +(locked.length?locked.map(n=>'<div class="row"><div class="who">'+esc(n)+'</div><div style="color:var(--win);font-weight:800;font-size:12px">✓ IN</div></div>').join('')
+        :'<div class="row"><div class="who" style="font-weight:400;color:var(--muted)">Nobody yet.</div></div>')
+      +'</div>';
+    html+='<div class="card"><div class="ch">This week\'s card</div>'+games.map(g=>
+      '<div class="g"><div class="m"><b>'+esc(g.short)+'</b><span>'+fmtDT(g.date)+' · '+g.league.toUpperCase()+'</span></div>'
+      +'<div class="sc">'+esc(marketLabel(g))+'</div></div>').join('')+'</div>';
+    html+='<div class="note">🔒 Everyone\'s picks stay hidden until the deadline. Standings appear here the moment it passes, then update on their own as games finish. <a href="/pool/football/picks">Make or check your picks →</a></div>';
+    document.getElementById('content').innerHTML=html;
+    return;
+  }
+
+  const scores=await liveScores(games);
+  const {pts,detail}=weekPoints(wk,scores);
+  const nameOf={};
+  Object.entries(wk.picks||{}).forEach(([id,e])=>{nameOf[id]=e.name||id;});
+  const board=Object.keys(pts).sort((a,b)=>pts[b]-pts[a]||String(nameOf[a]).localeCompare(String(nameOf[b])));
+  const finalCount=games.filter(g=>{const sc=scoreFor(g,scores);return sc&&sc.state==='post';}).length;
+  const top=board.length?pts[board[0]]:0;
+
+  html+='<div class="card"><div class="ch">Standings · '+finalCount+' of '+games.length+' final</div>'
+    +board.map((id,i)=>{
+      const d=detail[id]||{};
+      const w=Object.values(d).filter(v=>v==='W').length;
+      const l=Object.values(d).filter(v=>v==='L').length;
+      const p=Object.values(d).filter(v=>v==='P').length;
+      const openN=games.length-w-l-p;
+      return '<div class="row'+(pts[id]===top&&top>0?' lead':'')+'">'
+        +'<div class="rank">'+(i+1)+'</div>'
+        +'<div class="who">'+esc(nameOf[id])
+        +'<small>'+w+'W · '+l+'L'+(p?' · '+p+'P':'')+(openN>0?' · '+openN+' still to play':'')+'</small></div>'
+        +'<div class="pts">'+pts[id]+'</div></div>';
+    }).join('')+'</div>';
+
+  html+='<div class="card"><div class="ch">Games</div>'+games.map(g=>{
+    const sc=scoreFor(g,scores);
+    const cov=coverOf(g,sc,true);
+    const state=sc?sc.state:'pre';
+    const stTxt=state==='post'?'FINAL':(state==='in'?(sc.detail||'LIVE'):fmtDT(g.date));
+    const stCls=state==='post'?'post':(state==='in'?'in':'pre');
+    return '<div class="g"><div class="m"><b>'+esc(g.short)+'</b><span>'+esc(marketLabel(g))
+      +(cov?' · '+(cov==='PUSH'?'push':esc(cov)+' wins it'):'')+'</span></div>'
+      +'<div class="sc">'+(sc?(esc(g.awayAbbrev)+' '+sc.awayScore+' — '+esc(g.homeAbbrev)+' '+sc.homeScore):'&nbsp;')+'</div>'
+      +'<div class="st '+stCls+'">'+esc(stTxt)+'</div></div>';
+  }).join('')+'</div>';
+
+  if(wk.finalized&&wk.weeklyWinner){
+    html='<div class="dl shut"><div><div class="k">Final</div><div class="v">🏆 '+esc(wk.weeklyWinner)+'</div></div></div>'+html;
+  }
+  document.getElementById('content').innerHTML=html;
+}
+
+function tick(){
+  document.getElementById('clock').textContent='updated '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+}
+async function refresh(){ try{ await load(); tick(); }catch(e){ /* keep the last good screen up */ } }
+refresh();
+// Poll while the tab is being looked at; stop when it isn't, so a phone left open all weekend
+// doesn't sit hammering ESPN in the background.
+setInterval(()=>{ if(!document.hidden) refresh(); },60000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refresh(); });
+</script>
+</body>
+</html>

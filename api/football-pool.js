@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.3.0-overunder';  // a fixture can be offered against the spread AND as a total
+const VER = '3.4.0-livetracker';  // a fixture can be offered against the spread AND as a total
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -284,7 +284,7 @@ export default async function handler(req, res) {
     const rows = picked.sort().map(n => `<tr><td style="padding:3px 12px 3px 0;font-weight:700">${n}</td><td style="padding:3px 0;color:#475467">locked</td></tr>`).join('');
     const tag = (wk.isTest || isSandbox(slug)) ? '[TEST — no action needed] ' : '';
     const sms = `${tag}The Pool: everyone is locked in for ${wk.label || slug}. `
-      + `Picks reveal at the deadline, then the board scores live: app.civicscope.io/pool/football`;
+      + `Follow it live all weekend: app.civicscope.io/pool/live`;
     for (const p of roster) {
       if (p.canText) { try { await sendSms(p.phone, sms + '\nReply STOP to opt out.'); } catch (e) { /* best-effort */ } }
     }
@@ -924,7 +924,7 @@ export default async function handler(req, res) {
                   { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' });
                 const ok = await sendSms(p.phone,
                   `${tag}The Pool: ${wk.label || slug} slate is locked. Picks close ${when} ET. `
-                  + `Your PIN: ${p.pin}. ${base}/picks\nReply STOP to opt out.`);
+                  + `Your PIN: ${p.pin}. ${base}/picks\nLive all weekend: app.civicscope.io/pool/live\nReply STOP to opt out.`);
                 if (ok) texted++;
               }
             }
