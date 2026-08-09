@@ -429,6 +429,33 @@ function parseOdds(comp){
   const m=String(o.details).match(/^([A-Z&\.\-']+)\s+(-?\d+(\.\d+)?)/i); if(!m)return null;
   return {favAbbrev:m[1].toUpperCase(),line:Math.abs(parseFloat(m[2])),spreadText:o.details};
 }
+/* ⛔ ESPN'S PRESEASON WEEK NUMBERS ARE NOT THE POOL'S (Keith found this 2026-08-09).
+   Asking for preseason week 1 returned ONE game — CAR vs ARI, Thu 8/6 — because ESPN counts the
+   Hall of Fame Game as preseason week 1, so "Preseason Week 1" (Aug 13–15, 16 games) is its week 2
+   and each real preseason week sits one above its own name. Nothing errored: a wrong week is a
+   perfectly valid request that returns a perfectly valid, wrong slate. Lock that and the deadline,
+   the games and the whole shakedown are a different weekend's football.
+
+   The fix does NOT hardcode "+1". ESPN ships its own calendar in every scoreboard response —
+   labelled entries ("Hall of Fame Weekend" = 1, "Preseason Week 1" = 2 …) — so we RESOLVE the
+   week by label and only fall back to the offset if that calendar is missing, saying so when we
+   do. Same class of bug as the golf board scoring against whatever tournament ESPN had on: never
+   let a third party's indexing quietly stand in for ours. */
+function resolveEspnWeek(j,stype,poolWk){
+  try{
+    const cal=((j.leagues||[])[0]||{}).calendar||[];
+    const grp=cal.find(c=>String(c.value)===String(stype));
+    const entries=(grp&&grp.entries)||[];
+    if(!entries.length)return null;
+    const want=+poolWk;
+    const hit=entries.find(e=>{
+      const lab=String(e.label||e.alternateLabel||'');
+      if(stype==='1'&&want===0)return /hall of fame/i.test(lab);
+      return new RegExp('(^|\\s)week\\s*'+want+'\\s*$','i').test(lab);
+    });
+    return hit?{week:String(hit.value),label:String(hit.label||hit.alternateLabel||'')}:null;
+  }catch(e){return null;}
+}
 async function loadGames(league){
   const wk=document.getElementById(league==='nfl'?'nflweek':'cfbweek').value;
   const season=document.getElementById('season').value;
@@ -438,8 +465,17 @@ async function loadGames(league){
        picker has to reach them. ESPN keys this as seasontype — 1 preseason, 2 regular,
        3 postseason — and it was hardcoded to 2, which is why only the regular season appeared. */
     const stype=document.getElementById('seasontype').value||'2';
-    const url=SB[league]+'?seasontype='+stype+'&week='+wk+'&dates='+season+(league==='cfb'?'&groups=80':'');
-    const j=await(await fetch(url,{cache:'no-store'})).json();
+    // First guess = the standard scheme (preseason shifted by the HOF game). Usually right, so this
+    // is one request; if ESPN's calendar disagrees we refetch at the week IT names.
+    const guess=(stype==='1'&&league==='nfl')?String(+wk===0?1:+wk+1):String(wk);
+    const espnUrl=w=>SB[league]+'?seasontype='+stype+'&week='+w+'&dates='+season+(league==='cfb'?'&groups=80':'');
+    let j=await(await fetch(espnUrl(guess),{cache:'no-store'})).json();
+    let askedWeek=guess, espnLabel=null, derived=false;
+    const r=resolveEspnWeek(j,stype,wk);
+    if(r){
+      derived=true; espnLabel=r.label;
+      if(r.week!==askedWeek){ askedWeek=r.week; j=await(await fetch(espnUrl(askedWeek),{cache:'no-store'})).json(); }
+    }
     /* `let`, not `const` — the Monday-exclusion filter below REASSIGNS this. As a const it threw
        "Assignment to constant variable" on every single load, so "Load NFL games" had been dead
        since that filter was added: the try/catch turned a hard bug into the mild-looking
@@ -464,31 +500,43 @@ async function loadGames(league){
        what the commissioner needs to know is WHAT WAS ASKED FOR, so he can tell a wrong week from
        a wrong season type from ESPN simply not carrying it. */
     const tname={'1':'preseason','2':'regular season','3':'postseason'}[stype]||'season';
+    /* SAY WHICH WEEK ESPN ACTUALLY SERVED, and the dates it covers. The whole failure was a wrong
+       slate that looked completely normal, so the status line now states the mapping out loud
+       ("ESPN wk 2 — Preseason Week 1") and prints the date span. A commissioner who reads
+       "Aug 13–15" knows instantly whether he is about to lock the right weekend. */
+    const dfmt=d=>new Date(d).toLocaleDateString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric'});
+    const dates=evs.map(g=>+new Date(g.date)).sort((a,b)=>a-b);
+    const span=dates.length?(dfmt(dates[0])+(dfmt(dates[0])!==dfmt(dates[dates.length-1])?'–'+dfmt(dates[dates.length-1]):'')):'';
+    const asked=`${tname} week ${wk}`+(askedWeek!==String(wk)||espnLabel
+      ? ` <span class="muted">(ESPN wk ${askedWeek}${espnLabel?' — '+esc(espnLabel):''}${derived?'':', offset assumed — ESPN sent no calendar'})</span>` : '');
     if(!evs.length){
       document.getElementById('loadstat').innerHTML=
-        `<b style="color:#b42318">ESPN returned no ${league.toUpperCase()} games</b> for ${tname} week ${wk}, ${season}`
+        `<b style="color:#b42318">ESPN returned no ${league.toUpperCase()} games</b> for ${asked}, ${season}`
         +(before?` (${before} came back but all were Monday games, which this pool excludes)`:'')
         +`. Check the week number and Type, or try an adjacent week.`;
     } else {
-      document.getElementById('loadstat').textContent=evs.length+' '+league.toUpperCase()+' '+tname+' games loaded ('+evs.filter(g=>g.line!=null).length+' with live spreads'+(evs.filter(g=>g.line==null).length?', '+evs.filter(g=>g.line==null).length+' unpriced — use PK':'')+')'+(dropped?' · '+dropped+' Monday game'+(dropped>1?'s':'')+' excluded (Tue–Sun only)':'')+'.';
+      document.getElementById('loadstat').innerHTML=evs.length+' '+league.toUpperCase()+' '+asked+' games loaded'+(span?' · <b>'+span+'</b>':'')+' ('+evs.filter(g=>g.line!=null).length+' with live spreads'+(evs.filter(g=>g.line==null).length?', '+evs.filter(g=>g.line==null).length+' unpriced — use PK':'')+')'+(dropped?' · '+dropped+' Monday game'+(dropped>1?'s':'')+' excluded (Tue–Sun only)':'')+'.';
     }
     viewLeague=league;
     renderLoaded();
   }catch(e){document.getElementById('loadstat').textContent='Load failed: '+e.message;}
 }
-/* Preseason runs weeks 1–4 (incl. the Hall of Fame game) and the regular season 1–18, so the
-   spinner max has to follow the type or it silently blocks a valid week. Also nudges the slug and
-   label toward a preseason naming scheme so the three shakedown weeks don't collide with w01–w18. */
+/* The NFL preseason the crew plays is weeks 1–3; the Hall of Fame game is 0 here, NOT 1, because
+   this box holds the POOL's week number and loadGames() translates it to ESPN's. It used to allow
+   1–4 (ESPN's own range) with no translation, which is exactly how "preseason week 1" served the
+   Hall of Fame game. Regular season 1–18, postseason 1–5. */
 function onTypeChange(){
   const t=document.getElementById('seasontype').value;
   const nfl=document.getElementById('nflweek');
-  nfl.max = t==='1' ? 4 : (t==='3' ? 5 : 18);
+  nfl.min = t==='1' ? 0 : 1;
+  nfl.max = t==='1' ? 3 : (t==='3' ? 5 : 18);
   if(+nfl.value > +nfl.max) nfl.value = nfl.max;
+  if(+nfl.value < +nfl.min) nfl.value = nfl.min;
   const slug=document.getElementById('wkslug'), lab=document.getElementById('wklabel');
   const season=document.getElementById('season').value;
   if(t==='1'){
     slug.placeholder=`${season}-pre1`; lab.placeholder='Preseason 1';
-    document.getElementById('loadstat').textContent='Preseason: spreads are often missing this early — use the manual spread box on any game that loads without one.';
+    document.getElementById('loadstat').innerHTML='Preseason weeks are <b>1–3</b> as the pool counts them (0 = the Hall of Fame game). ESPN numbers them one higher — that is translated for you, and the line above the games will name the week it served. Spreads are thin this early: use <b>PK all unpriced</b> or the manual spread box.';
   } else {
     slug.placeholder=`${season}-w01`; lab.placeholder='Week 1';
   }
