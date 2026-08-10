@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-09T09:30:08.555Z",
+ "generatedAt": "2026-08-10T09:30:08.357Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -557,8 +557,8 @@
      ]
     },
     {
-     "id": "6a022cf0c3591c68c7a3215e",
-     "name": "HVAC",
+     "id": "6a022caf49173aca7fff7637",
+     "name": "Plumbing",
      "number": null,
      "state": "PUBLISHED",
      "bidsDueAt": "2026-05-25T16:00:00.000Z",
@@ -574,8 +574,8 @@
      ]
     },
     {
-     "id": "6a022caf49173aca7fff7637",
-     "name": "Plumbing",
+     "id": "6a022cf0c3591c68c7a3215e",
+     "name": "HVAC",
      "number": null,
      "state": "PUBLISHED",
      "bidsDueAt": "2026-05-25T16:00:00.000Z",
@@ -1287,27 +1287,6 @@
      ]
     },
     {
-     "id": "6a70c8f6a3901e03960b137e",
-     "name": "Drywall",
-     "number": "09-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-24T16:00:00.000Z",
-     "invites": 5,
-     "bidding": 0,
-     "undecided": 5,
-     "notBidding": 0,
-     "viewed": 3,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Stans Painting & Dec",
-      "TBG Construction, LLC",
-      "Kleckner Interior Systems",
-      "Quality Drywall",
-      "Jack Laurie Floors, LLC."
-     ]
-    },
-    {
      "id": "6a70c7d439073b77550fa503",
      "name": "Painting & HP Coatings",
      "number": "09-01",
@@ -1326,6 +1305,27 @@
       "Midwest Painting Co",
       "Prism Painting",
       "Inline Painting LLC"
+     ]
+    },
+    {
+     "id": "6a70c8f6a3901e03960b137e",
+     "name": "Drywall",
+     "number": "09-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 5,
+     "bidding": 0,
+     "undecided": 5,
+     "notBidding": 0,
+     "viewed": 3,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Stans Painting & Dec",
+      "TBG Construction, LLC",
+      "Kleckner Interior Systems",
+      "Quality Drywall",
+      "Jack Laurie Floors, LLC."
      ]
     },
     {
