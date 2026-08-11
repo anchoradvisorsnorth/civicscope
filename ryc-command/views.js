@@ -2907,3 +2907,307 @@ function renderPMLoad(){
     +"<div class=\"panel\"><h3>Per-PM detail</h3><div class=\"sub\">Sparkline = annual billed 2021&rarr;2026 &middot; active job counts and $ under management are core-tier, Foundation job status A</div>"+pmTable+caveats+"</div>";
   pmBindTips(view);
 }
+
+/* ===================== INVOICES — PM daily reconciliation (2026-08-11) ==============
+   Replaces a manila folder and a four-field rubber stamp. The screen's job is to make the
+   things paper cannot do unmissable: a duplicate, a document that arrived incomplete, a
+   vendor's own reprint marker, a receipt that was already paid on a card.
+
+   THE SILO: /api/ryc-invoices derives the PM from the CREDENTIAL. There is no `pm` parameter
+   this page can send to widen its own scope, so a PM sees exactly one queue by construction
+   rather than by filtering. Only a front-office credential resolves to scope 'all'. */
+var INV_URL = "/api/ryc-invoices";
+var _inv = { who:null, rows:[], codes:null, pm:null, open:null, busy:false };
+
+function invLinkKey(){ return (new URLSearchParams(location.search)).get("k"); }
+function invPost(action, body){
+  var b = Object.assign({}, body || {}, { action: action });
+  var k = invLinkKey();
+  if(k) b.k = k;                       // the emailed one-click link IS the credential
+  else b.code = RYCAuth.gate();
+  return fetch(INV_URL, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(b) })
+    .then(function(r){ return r.text().then(function(t){
+      var d = null; try { d = JSON.parse(t); } catch(e){}
+      if(!r.ok || d === null) return { ok:false, status:r.status, error:(d&&d.error)||("HTTP "+r.status) };
+      return { ok:true, data:d };
+    }); })
+    .catch(function(e){ return { ok:false, error:(e&&e.message)||"network error" }; });
+}
+
+/* Findings are RANKED, not listed: a $55,927.77 exact duplicate and an available early-pay
+   discount are not the same kind of news and must not look alike. */
+var INV_FLAG = {
+  duplicate_exact:{ t:"Duplicate", c:"m-r" },
+  duplicate_suspected:{ t:"Possible duplicate", c:"m-a" },
+  vendor_marked_duplicate:{ t:"Vendor marked DUPLICATE", c:"m-r" },
+  pages_missing:{ t:"Pages missing", c:"m-r" },
+  not_ap_suspected:{ t:"Already paid?", c:"m-r" },
+  stale_invoice:{ t:"Stale", c:"m-a" },
+  job_unassigned:{ t:"No job", c:"m-a" },
+  unrouted:{ t:"Unrouted", c:"m-a" },
+  discount_available:{ t:"Discount", c:"m-m" }
+};
+var INV_STATE = { "new":"Needs job", ready:"To review", needs_info:"Held", approved:"Approved",
+  rejected:"Rejected", not_ap:"Not payable", duplicate:"Duplicate" };
+
+function invFlagPills(fl){
+  return (fl||[]).map(function(f){
+    var m = INV_FLAG[f.code] || { t:f.code, c:"m-m" }, done = !!f.resolved_at;
+    var tip = (f.detail||"") + (done ? " — dismissed: " + (f.resolved_note||"") : "");
+    return '<span class="pill ' + (done ? "m-m" : m.c) + '" title="' + esc(tip) + '">'
+      + (done ? "&#10003; " : "") + esc(m.t) + '</span>';
+  }).join(" ");
+}
+function invArg(s){ return JSON.stringify(String(s)).replace(/"/g, "&quot;"); }
+
+function renderInvoices(){
+  var v = document.getElementById("view");
+  v.innerHTML = '<div class="panel"><div class="sub">Loading your batch&hellip;</div></div>';
+  invPost("whoami", {}).then(function(r){
+    if(!r.ok){
+      v.innerHTML = '<div class="panel"><div class="h">Invoices</div>'
+        + '<div class="warn-banner">' + esc(r.error||"Unavailable") + '</div></div>';
+      return;
+    }
+    _inv.who = r.data; _inv.pm = r.data.pm || null;
+    if(!_inv.codes) invPost("cost_codes", {}).then(function(c){ if(c.ok) _inv.codes = c.data.codes || []; });
+    invLoad();
+  });
+}
+function invLoad(){
+  var body = { days:30 };
+  if(_inv.who && _inv.who.scope === "all" && _inv.pm) body.pm = _inv.pm;
+  return invPost("queue", body).then(function(r){
+    var v = document.getElementById("view");
+    if(!r.ok){
+      v.innerHTML = '<div class="panel"><div class="h">Invoices</div>'
+        + '<div class="warn-banner">' + esc(r.error) + '</div></div>';
+      return;
+    }
+    _inv.rows = r.data.rows || [];
+    invPaint(r.data.summary || {});
+  });
+}
+function invOutstanding(){
+  return _inv.rows.filter(function(r){ return r.review_state === "new" || r.review_state === "ready"; }).length;
+}
+function invPaint(sum){
+  var v = document.getElementById("view"), who = _inv.who || {};
+  var h = "";
+
+  /* Identity is stated plainly rather than implied. A forwarded link is a forwarded
+     credential, and a screen that approves money must not overstate what it knows. */
+  h += '<div class="panel"><div class="h">'
+    + (who.scope === "pm" ? esc(who.pm) + " &mdash; today&rsquo;s batch" : "Invoice register &mdash; front office")
+    + '</div><div class="sub">'
+    + (who.scope === "pm"
+        ? "You are signed in by " + (who.via === "link" ? "an emailed link" : "your access code")
+          + ". Per-user sign-in is not live yet, so approvals are recorded as <b>attributed but unverified</b> until it is."
+        : "Front-office scope &mdash; every desk. Pick a PM to work a specific queue.")
+    + '</div>';
+  if(who.scope === "all"){
+    h += '<div style="margin-top:8px">'
+      + (who.pms||[]).map(function(p){
+          return '<button class="pfill" onclick="invSetPm(' + invArg(p) + ')">' + esc(p) + '</button>';
+        }).join(" ")
+      + ' <button class="pfill" onclick="invSetPm(null)">All desks</button></div>';
+  }
+  h += '</div>';
+
+  var flagged = _inv.rows.filter(function(r){ return Number(r.open_high) > 0; });
+  var todo = _inv.rows.filter(function(r){
+    return (r.review_state === "new" || r.review_state === "ready") && Number(r.open_high) === 0; });
+  var done = _inv.rows.filter(function(r){
+    return r.review_state !== "new" && r.review_state !== "ready"; });
+  var val = _inv.rows.reduce(function(a,r){ return a + (Number(r.amount)||0); }, 0);
+
+  h += '<div class="panel"><div class="h">' + _inv.rows.length + ' documents &middot; ' + fmt(val) + '</div>'
+    + '<div class="sub">' + (sum.outstanding||0) + ' still to review &middot; '
+    + (flagged.length
+        ? '<b class="m-r">' + flagged.length + ' need a decision before they can be approved</b>'
+        : "nothing flagged")
+    + '</div></div>';
+
+  if(flagged.length) h += invSection("Stop and look", flagged,
+    "Approval is blocked on these until each finding is dismissed with a reason. This is the check a manila folder could not perform.");
+  if(todo.length) h += invSection("To review", todo, null);
+  if(done.length) h += invSection("Done", done, null);
+  if(!_inv.rows.length) h += '<div class="panel"><div class="sub">Nothing in the register for this period.</div></div>';
+
+  if(_inv.pm && _inv.rows.length){
+    h += '<div class="panel"><div class="h">Send the batch back</div>'
+      + '<div class="sub">The digital equivalent of walking the folder up the hall &mdash; except it says what was decided and what is still open.</div>'
+      + '<div style="margin-top:8px"><button class="pfill" onclick="invCloseBatch()">Summary to front office</button></div>'
+      + '<div id="invSummary"></div></div>';
+  }
+  v.innerHTML = h;
+}
+function invSection(title, rows, note){
+  var h = '<div class="panel"><div class="h">' + esc(title) + '</div>'
+    + (note ? '<div class="sub">' + esc(note) + '</div>' : "")
+    + '<table class="tbl"><thead><tr><th>Vendor</th><th>Invoice</th><th>Date</th><th class="r">Amount</th>'
+    + '<th>Job</th><th>Coding</th><th>State</th><th></th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    var fl = (r.flags||[]).filter(function(f){ return !f.resolved_at; });
+    h += '<tr><td><b>' + esc(r.vendor_name||"&mdash;") + '</b>'
+      + (fl.length ? '<div style="margin-top:3px">' + invFlagPills(fl) + '</div>' : "")
+      + '</td>'
+      + '<td>' + esc(r.invoice_no||"&mdash;") + '<div class="sub">' + esc(r.doc_type||"") + '</div></td>'
+      + '<td class="sub">' + (r.invoice_date ? fmtDate(r.invoice_date) : "&mdash;") + '</td>'
+      + '<td class="r">' + fmt(Number(r.amount)||0) + '</td>'
+      + '<td>' + (r.job_no ? esc(r.job_no) : '<span class="m-a">unassigned</span>')
+      + '<div class="sub" title="as the vendor printed it">' + esc(r.job_text||"") + '</div></td>'
+      + '<td class="sub">' + [r.cost_month, r.cost_code, r.mat_or_sub].filter(Boolean).map(esc).join(" &middot; ")
+      + ((r.lines && r.lines.length) ? ' <span class="pill m-m">split ' + r.lines.length + '</span>' : "") + '</td>'
+      + '<td class="sub">' + esc(INV_STATE[r.review_state] || r.review_state) + '</td>'
+      + '<td>' + invDocBtn(r) + ' <button class="pfill" onclick="invOpen(' + invArg(r.id) + ')">Work it</button></td></tr>';
+    if(_inv.open === r.id) h += '<tr><td colspan="8">' + invDetailHtml(r) + '</td></tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+/* The page image, one click away and NOT a modal — a PM comparing two near-identical invoices
+   must be able to leave the scan open while working the row. */
+function invDocBtn(r){
+  if(!r.document_uri) return "";
+  var u = r.document_uri + (r.page_from ? ("#page=" + r.page_from) : "");
+  return '<a class="pfill" target="_blank" rel="noopener" href="' + esc(u) + '">View</a>';
+}
+function invSetPm(p){ _inv.pm = p; _inv.open = null; invLoad(); }
+function invOpen(id){
+  _inv.open = (_inv.open === id) ? null : id;
+  invPaint({ outstanding: invOutstanding() });
+}
+
+function invDetailHtml(r){
+  var open = (r.flags||[]).filter(function(f){ return !f.resolved_at; });
+  var h = '<div class="panel" style="margin:0">';
+  if(open.length){
+    h += '<div class="h">Findings</div>';
+    open.forEach(function(f){
+      var m = INV_FLAG[f.code] || { t:f.code };
+      h += '<div style="margin:6px 0"><b>' + esc(m.t) + '</b> &mdash; <span class="sub">' + esc(f.detail||"") + '</span>'
+        + '<div style="margin-top:4px"><input id="fx-' + esc(f.code) + "-" + esc(r.id)
+        + '" placeholder="Why is this OK to proceed? (required)" style="width:55%"> '
+        + '<button class="pfill" onclick="invResolve(' + invArg(r.id) + "," + invArg(f.code) + "," + r.version
+        + ')">Dismiss with reason</button></div></div>';
+    });
+  }
+  h += '<div class="h" style="margin-top:8px">Job &amp; coding</div><div style="margin:6px 0">'
+    + '<input id="job-' + esc(r.id) + '" placeholder="Job number" value="' + esc(r.job_no||"") + '" style="width:150px"> '
+    + '<input id="mon-' + esc(r.id) + '" placeholder="YYYY-MM" value="' + esc(r.cost_month||"") + '" style="width:100px"> '
+    + invCodeSelect(r) + ' '
+    + '<select id="ms-' + esc(r.id) + '"><option value="">Mat / Sub&hellip;</option>'
+    + '<option value="mat"' + (r.mat_or_sub === "mat" ? " selected" : "") + '>Material</option>'
+    + '<option value="sub"' + (r.mat_or_sub === "sub" ? " selected" : "") + '>Sub</option></select> '
+    + '<button class="pfill" onclick="invSave(' + invArg(r.id) + "," + r.version + ')">Save coding</button>'
+    + '<div class="sub" style="margin-top:4px">A job set by hand is remembered &mdash; the next invoice from this vendor printing the same job text classifies itself.</div></div>';
+
+  h += '<div class="h" style="margin-top:8px">Decision</div><div style="margin:6px 0">'
+    + '<input id="note-' + esc(r.id) + '" placeholder="Note (optional)" style="width:40%"> '
+    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'approved'," + r.version + ')">Approve</button> '
+    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'needs_info'," + r.version + ')">Hold</button> '
+    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'duplicate'," + r.version + ')">Duplicate</button> '
+    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'not_ap'," + r.version + ')">Not payable</button> '
+    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'rejected'," + r.version + ')">Reject</button>'
+    + ((r.review_state !== "new" && r.review_state !== "ready")
+        ? ' <button class="pfill" onclick="invReview(' + invArg(r.id) + ",'reopen'," + r.version + ')">Reopen</button>' : "")
+    + '</div>';
+  if(r.reviewed_by){
+    h += '<div class="sub">' + esc(r.reviewed_by) + ' &middot; ' + (r.reviewed_at ? fmtDate(r.reviewed_at) : "")
+      + ' &middot; <b>unverified identity</b> (per-user sign-in not live)</div>';
+  }
+  h += '<div id="inv-err-' + esc(r.id) + '" class="sub"></div></div>';
+  return h;
+}
+/* RYC's OWN vocabulary, grouped by division — 280 codes the estimators already use.
+   Falls back to a free-text box if the list could not be fetched, so a picker outage never
+   blocks a PM from coding an invoice. */
+function invCodeSelect(r){
+  if(!_inv.codes || !_inv.codes.length){
+    return '<input id="cc-' + esc(r.id) + '" placeholder="Cost code" value="' + esc(r.cost_code||"") + '" style="width:150px">';
+  }
+  var byDiv = {}, order = [];
+  _inv.codes.forEach(function(c){
+    if(!byDiv[c.division]){ byDiv[c.division] = { n:c.division_name, l:[] }; order.push(c.division); }
+    byDiv[c.division].l.push(c);
+  });
+  var h = '<select id="cc-' + esc(r.id) + '"><option value="">Cost code&hellip;</option>';
+  order.forEach(function(d){
+    h += '<optgroup label="' + esc(d + " " + (byDiv[d].n||"")) + '">';
+    byDiv[d].l.forEach(function(c){
+      h += '<option value="' + esc(c.code) + '"' + (r.cost_code === c.code ? " selected" : "") + '>'
+        + esc(c.code + " " + (c.description||"")) + '</option>';
+    });
+    h += '</optgroup>';
+  });
+  return h + '</select>';
+}
+function invErr(id, msg){
+  var e = document.getElementById("inv-err-" + id);
+  if(e) e.innerHTML = '<span class="m-r">' + esc(msg) + '</span>';
+}
+function invAfter(id, r){
+  _inv.busy = false;
+  if(!r.ok || (r.data && r.data.error)){ invErr(id, (r.data && r.data.error) || r.error || "Failed"); return; }
+  invLoad();
+}
+function invSave(id, ver){
+  if(_inv.busy) return;
+  _inv.busy = true;
+  var job = (document.getElementById("job-" + id)||{}).value || "";
+  var mon = (document.getElementById("mon-" + id)||{}).value || "";
+  var cc  = (document.getElementById("cc-" + id)||{}).value || "";
+  var ms  = (document.getElementById("ms-" + id)||{}).value || "";
+  var first = job.trim()
+    ? invPost("assign", { id:id, job_no:job.trim(), source:"manual", version:ver })
+    : Promise.resolve({ ok:true, data:{ version:ver } });
+  first.then(function(a){
+    if(!a.ok || (a.data && a.data.error)){ invAfter(id, a); return; }
+    // assign bumped the version; carry it forward rather than re-reading and racing
+    var nv = (a.data && a.data.version) || ver;
+    return invPost("code", { id:id, month:mon||null, cost_code:cc||null, mat_or_sub:ms||null, version:nv })
+      .then(function(b){ invAfter(id, b); });
+  });
+}
+function invResolve(id, code, ver){
+  if(_inv.busy) return;
+  var el = document.getElementById("fx-" + code + "-" + id);
+  var note = el ? el.value.trim() : "";
+  if(note.length < 3){
+    invErr(id, "A reason is required — an unexplained dismissal is the paper process again.");
+    return;
+  }
+  _inv.busy = true;
+  invPost("resolve_flag", { id:id, code:code, note:note, version:ver }).then(function(r){ invAfter(id, r); });
+}
+function invReview(id, decision, ver){
+  if(_inv.busy) return;
+  _inv.busy = true;
+  var note = (document.getElementById("note-" + id)||{}).value || null;
+  invPost("review", { id:id, decision:decision, note:note, version:ver }).then(function(r){ invAfter(id, r); });
+}
+function invCloseBatch(){
+  var el = document.getElementById("invSummary");
+  if(!el) return;
+  el.innerHTML = '<div class="sub">Building summary&hellip;</div>';
+  invPost("close_batch", {}).then(function(r){
+    if(!r.ok || !r.data || r.data.error){
+      el.innerHTML = '<div class="sub m-r">' + esc((r.data && r.data.error) || r.error) + '</div>';
+      return;
+    }
+    var s = r.data.summary || {};
+    var held = (Number(s.needs_info)||0) + (Number(s.duplicate)||0) + (Number(s.not_ap)||0);
+    el.innerHTML = '<table class="tbl" style="margin-top:8px"><tbody>'
+      + '<tr><td>Approved</td><td class="r">' + (s.approved||0) + '</td><td class="r">' + fmt(Number(s.approved_value)||0) + '</td></tr>'
+      + '<tr><td>Held / duplicate / not payable</td><td class="r">' + held + '</td><td class="r">' + fmt(Number(s.held_value)||0) + '</td></tr>'
+      + '<tr><td>Rejected</td><td class="r">' + (s.rejected||0) + '</td><td class="r">&mdash;</td></tr>'
+      + '<tr><td><b>Still open</b></td><td class="r"><b>' + (s.outstanding||0) + '</b></td><td class="r">&mdash;</td></tr>'
+      + '</tbody></table>'
+      + '<div class="sub" style="margin-top:6px">'
+      + (Number(s.outstanding) > 0
+          ? '<b class="m-a">' + s.outstanding + ' document(s) are still unreviewed</b> — the summary says so rather than implying the batch is finished.'
+          : "Every document in this batch has a decision.")
+      + '</div>';
+  });
+}
