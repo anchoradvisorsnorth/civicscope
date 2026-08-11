@@ -116,6 +116,15 @@ brand_statement, brand_values (jsonb array)
 - /ryc/command → ryc-command/index.html (NEW 2026-07-07 — RYC Command Center v2, the FundView-style operating-cockpit rebuild of the RYC dashboard; parallel beta route, legacy /ryc/dashboard untouched until cutover. See RYC CLAUDE.md + memory project_ryc_command_center_overhaul.)
 - /ryc/estimate → ryc-estimate/index.html (NEW 2026-06-28 — RYC Estimating Assist: plan-set → Claude Vision takeoff → estimate grounded in RYC Foundation history; gate ryc2026. Part of the GC estimating-intelligence product, RYC = tenant #1. Calibration in progress; next is the unit-cost library. See RYC CLAUDE.md + memory project_civicscope_gc_estimating_intelligence.)
 - **/pool — "The Pool" unified hub (2026-07-19).** All friends'-pool pages (hidden personal, not a CivicScope product) merged under `pool/`: hub `index.html` + `golf.html`/`golf-picks.html` + `football.html`/`football-picks.html`/`commish.html` + **`live.html` (NEW 2026-08-09 — `/pool/live`, the bookmarkable phone-first live tracker)** + **`scoring.js` (NEW — the ONE client-side copy of the pool scoring rules, loaded by both `football.html` and `live.html`; mirror any change in `api/football-pool.js` and nowhere else)** + `sms.html` (A2P opt-in form → `sms_optin` action) + `privacy.html`/`terms.html` (A2P legal). Old `/golf*` + `/football*` URLs **301-redirect** (vercel.json; old file paths = meta-refresh stubs). APIs unchanged: [api/golf-pool.js](api/golf-pool.js) (`GOLF_POOL_CODE`) + [api/football-pool.js](api/football-pool.js) (`FOOTBALL_POOL_CODE`; `GET ?ver=1` returns its `VER` const — bump every edit + curl-verify live after deploy). Pool emails: `reply_to keith@anchoradvisorsnorth.com` on every send (pool@ has no mailbox — replies bounced before 7/19). **Full state/conventions live in `Cowork\Pools\CLAUDE.md` — read it before ANY pool work** (golf history incl. The Open final BOB, football demo state, no-odds rule, Twilio SMS status).
+- **/invoices — RYC Invoices, the AP register (NEW 2026-08-11).** Third RYC workspace in the
+  shared shell (`ryc-invoices/`), alongside `/ryc/estimate` and `/ryc/command`. `/invoices`,
+  `/invoices/:path*` and `/ryc/invoices` all rewrite to `ryc-invoices/index.html`. Deliberately
+  NOT a Command page — Command reports on the business, this is where a PM does a job daily.
+  Backed by `api/ryc-invoices.js` + `schema_ryc_invoices.sql`. Per-PM access via `?c=<code>`
+  (`RYC_INVOICE_PMS`) or a signed `?k=` link (`RYC_INVOICE_LINK_SECRET`); the server derives the
+  PM from the credential and there is no `pm` parameter a browser can send. Scans live in the
+  PRIVATE Supabase bucket `ryc-invoice-scans`, served as 15-minute signed URLs. Full detail:
+  **RYC CLAUDE.md**.
 - /admin, /qa are literal rewrites
 - :slug wildcard LAST
 
@@ -168,6 +177,15 @@ unauthenticated surface is a guard and the real path writes/sends/charges. The l
 **inconclusive → exit 50, never verified**. A 405 method guard is not evidence the changed code
 works — a handler can break behind an intact guard. Adding an API to the manifest without a
 registry entry also yields inconclusive, by design.
+
+**The API contract registry supports POST contracts (added 2026-08-11).** Several handlers —
+every RYC one — are POST-only, so a GET-only probe could never do better than `noSafeContract`
+and an RYC API deploy could never reach exit 0. A POST contract is allowed under the same rule as
+a GET one: **read-only, costs nothing, exercises the handler's real path** — not a bounce off a
+guard. `api/ryc-invoices.js` uses `{action:"cost_codes"}`, a pure read of RYC's cost-code table.
+Credentials still never appear in the file: a contract needing one reads it from the environment
+(`RYC_ESTIMATE_PASSWORD`, see `infra/env-var-inventory.md`) and reports **CANNOT RUN ->
+inconclusive** when absent, never a silent skip.
 
 **Routing asserts destinations, not just "a redirect happened":** `/pro`→`/`, `/golf`→`/pool/golf`,
 `/football`→`/pool/football`, `/ryc/dashboard`→`/ryc/command`, each with its exact 301 status,
@@ -254,6 +272,16 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 - **A COMMA-SEPARATED `-Paths` STRING PASSED THROUGH `PUSH_CIVICSCOPE.bat` IS SPLIT BY cmd.exe (found 2026-08-09).** PowerShell only quotes an argument containing spaces, so `"a.html,b.html"` arrives unquoted and cmd treats the comma as an argument separator: only the first file was declared, and the deploy *message* landed in `-VerifyProfile` ("Unknown verification profile …"). **For a multi-file scope, call `push_civicscope.ps1` directly** rather than through the .bat.
 - **Gate expectations are part of the contract — update them deliberately, never relax them.** The 2026-08-09 scoring change (a push scores 0, not ½) was caught by `verify-pool-integrity.js` on the first deploy attempt, exactly as designed. The right response was to change the asserted numbers *with the reason recorded*, not to soften the assertion. Same run, a second gate failure was **my test data**, not the code (a half-point total can never land on the number) — the gate distinguishing those two is the whole value of it.
 - **The pool-integrity gate SKIPPED on every deploy from 2026-08-07 to 2026-08-08 — fixed, but read the lesson.** It exits **3 = "could not verify"** without `FOOTBALL_POOL_CODE`/`GOLF_POOL_CODE`, which were on no machine, so `push_civicscope.ps1` recorded SKIP and the deploy still reported cleanly. **A gate that skips is indistinguishable from a gate that passes in a summary line.** Both are now Windows User env vars (`infra/env-var-inventory.md`) and the verifier was rebuilt for the identity schema — 29/29. **Audit the other gates for the same shape:** any gate whose "cannot run" path is a soft skip needs the deploy result to *name* it, not just count it.
+- **RYC Invoices — `ryc-invoices/` is PUBLIC-repo-safe by design, keep it that way.** RYC's 280
+  cost codes are served from Supabase (`ryc_cost_codes`) rather than shipped as an asset, because
+  this repo is public. ⚠ **Pre-existing and unresolved:** `ryc-estimate/lineitem-probe.html` and
+  the two `ryc-*-benchmarks.json` files DO carry RYC line codes / sub pricing in this public repo.
+  Decide deliberately whether that is acceptable or move them behind the API too.
+- **Schema files are versioned NOWHERE.** `schema_ryc_*.sql` (including the fact-write kernel and
+  the new `schema_ryc_invoices.sql`) are not in the deploy manifest, not in the GitHub repo, and
+  `Civicscope/**` is gitignored in Cowork — so the DDL defining production lives only on Keith's
+  disk. Not fixed by adding them to the manifest (public repo; the invoice schema's comments carry
+  RYC control failures and dollar figures). Needs a deliberate home.
 - **Fable review R1 — work the 19 leads (KEITH, ½ day)** — every lead ever captured sits at `contacted=false`, incl. four live .gov hand-raisers from Jun 22–30 (names/towns in the Fable review doc — deliberately NOT in this public-repo file). Triage all 19, reply to the warm ones, mark `contacted`. Then wire "N uncontacted leads" into the daily digest / Monday email so the loop can't silently stall again. Cheapest calibration of the 30-day plan.
 - **Fable review R2 — 30-day school-BOT plan Week 1** — ~50-district target list (agenda/BoardDocs mining tech already proven), Triage Memo template, outreach sequence. The schools wedge has ZERO organic pull (4 runs ever, ~all internal) — founder-led outreach is the only test. Plan: `work product/CivicScope_School_BOT_Pivot_30Day_Plan.md`, graded B+ in the Fable review.
 - **Fable review R6 — infra repeat-run variance** — two identical watermain runs 43s apart returned $1.05M–$1.55M vs $1.85M–$2.75M (±76% midpoint; municipal + schools were deterministic across repeats). Add a repeat-run stability probe to the QA harness; consider prompt grounding discipline.
