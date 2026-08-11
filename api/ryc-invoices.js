@@ -324,8 +324,12 @@ export default async function handler(req, res) {
 
     if (action === 'resolve_flag') {
       const reviewer = who.scope === 'pm' ? who.pm : (body.reviewer || 'front office');
+      // `flag_code`, NOT `code`: `code` is the CREDENTIAL field read by identify(), so naming
+      // the finding `code` meant the client's own credential overwrote it and this action
+      // could never resolve anything. Caught by an end-to-end test, not by a unit test —
+      // both halves looked correct in isolation.
       const out = await rpc('ryc_resolve_invoice_flag', {
-        p_id: body.id, p_code: String(body.code || ''), p_note: body.note || null,
+        p_id: body.id, p_code: String(body.flag_code || ''), p_note: body.note || null,
         p_reviewer: reviewer,
         p_expected_version: body.version ?? null, p_request_id: rid, p_actor: actor,
       });

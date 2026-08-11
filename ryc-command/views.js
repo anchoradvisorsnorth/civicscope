@@ -3179,7 +3179,8 @@ function invResolve(id, code, ver){
     return;
   }
   _inv.busy = true;
-  invPost("resolve_flag", { id:id, code:code, note:note, version:ver }).then(function(r){ invAfter(id, r); });
+  // flag_code, never `code` — invPost puts the CREDENTIAL in `code`, which would clobber it.
+  invPost("resolve_flag", { id:id, flag_code:code, note:note, version:ver }).then(function(r){ invAfter(id, r); });
 }
 function invReview(id, decision, ver){
   if(_inv.busy) return;
