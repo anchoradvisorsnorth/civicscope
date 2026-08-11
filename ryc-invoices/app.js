@@ -10,7 +10,10 @@
    server-side, which resolves to exactly one PM. A link session is strictly NARROWER than a
    code session — and now it lands in a tool rather than inside the whole operations cockpit,
    which is the other half of why this moved out of Command. */
-function invLinkEntry(){ return !!(new URLSearchParams(location.search)).get("k"); }
+function invLinkEntry(){
+  var q = new URLSearchParams(location.search);
+  return !!(q.get("k") || q.get("c"));
+}
 
 function showApp(){
   document.getElementById("gate").style.display = "none";
@@ -38,6 +41,8 @@ function init(){
       onLock: function(){ sessionStorage.removeItem("ryc_inv_auth"); location.reload(); }
     });
   }
+  // Never store a URL-borne credential in the session: the address IS the credential, so a
+  // shared machine does not silently inherit the last PM who used it.
   document.getElementById("view-ctx").innerHTML =
     "AP invoice register (written here) &middot; every decision is an audited fact "
     + "&middot; identity unverified until per-user sign-in";
