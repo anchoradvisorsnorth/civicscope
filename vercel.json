@@ -79,6 +79,18 @@
       ]
     },
     {
+      "source": "/invoices",
+      "destination": "/ryc-invoices/index.html"
+    },
+    {
+      "source": "/invoices/:path*",
+      "destination": "/ryc-invoices/index.html"
+    },
+    {
+      "source": "/ryc/invoices",
+      "destination": "/ryc-invoices/index.html"
+    },
+    {
       "source": "/try/:slug",
       "destination": "/api/try?slug=:slug"
     },
