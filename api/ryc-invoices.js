@@ -326,6 +326,30 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, stored: true, pages });
     }
 
+    /* ---------- job names ---------------------------------------------------------------
+       "2510GP04" is not what anyone calls that job. Command resolves names from its Procore
+       feed, but the tool deliberately does not load that whole feed just to decorate a header
+       — so the server hands back the one thing it needs: a number → name map. Small payload,
+       one call, and it degrades to bare numbers rather than failing. */
+    if (action === 'jobs') {
+      const origin = process.env.RYC_DATA_ORIGIN || 'https://app.civicscope.io';
+      try {
+        const r = await fetch(`${origin}/ryc-data/procore-cache.json`, {
+          headers: { 'User-Agent': 'ryc-invoices/1.0' }, signal: AbortSignal.timeout(15000),
+        });
+        if (!r.ok) return res.status(200).json({ ok: true, names: {} });
+        const cache = await r.json();
+        const names = {};
+        for (const j of (cache.jobs || [])) {
+          const n = String(j.projectNumber || '').trim();
+          if (n && j.name) names[n] = j.name;
+        }
+        return res.status(200).json({ ok: true, names, asOf: cache.refreshed || null });
+      } catch {
+        return res.status(200).json({ ok: true, names: {} });
+      }
+    }
+
     /* ---------- budget lines for a job ------------------------------------------------
        The number a PM currently opens Procore to read: how much is left on the line they are
        about to code an invoice against.
