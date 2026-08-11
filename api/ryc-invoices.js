@@ -38,6 +38,10 @@ const READ_ENABLED = process.env.RYC_INVOICE_READ_DISABLED !== '1';
 
 // Images: same bounds api/claude.js learned the hard way on 2026-08-02 — one rendered page is
 // 70-220KB of base64, so a flat text-shaped cap 413s every real batch.
+// Private bucket holding the scanned pages. Never public: these documents carry vendor
+// pricing, subcontract values and lien waivers. Reads go out as short-lived signed URLs.
+const SCAN_BUCKET = 'ryc-invoice-scans';
+
 const MAX_IMAGES = 16;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 
@@ -425,7 +429,45 @@ export default async function handler(req, res) {
       if (bytes > MAX_IMAGE_BYTES) {
         return res.status(413).json({ error: `Pages total ${Math.round(bytes / 1024)}KB, over the ${MAX_IMAGE_BYTES / 1024}KB limit.` });
       }
+      /* STORE THE SCAN AS PART OF READING IT. The reader is the only moment the pages are
+         ever in hand, so storing them here is what makes View work with no separate step and
+         no manual upload. Pass batch_id (and page_offset for a chunked batch) and the pages
+         land in the private bucket at <batch_id>/pNN.jpg, the batch is marked `storage:`, and
+         the returned page numbers are already in BATCH coordinates — so the caller registers
+         what it gets back without doing arithmetic. */
+      const batchId = String(body.batch_id || '').trim();
+      const offset = Math.max(parseInt(body.page_offset, 10) || 0, 0);
+      let stored = 0;
+      if (batchId) {
+        for (let i = 0; i < images.length; i++) {
+          const n = offset + i + 1;
+          const key = `${batchId}/p${String(n).padStart(2, '0')}.jpg`;
+          const up = await fetch(`${SB_URL}/storage/v1/object/${SCAN_BUCKET}/${key}`, {
+            method: 'POST',
+            headers: {
+              apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`,
+              'Content-Type': images[i].media_type || 'image/jpeg', 'x-upsert': 'true',
+            },
+            body: Buffer.from(String(images[i].data || ''), 'base64'),
+          });
+          if (up.ok) stored++;
+        }
+        // Mark the batch as carrying a stored scan. Idempotent; a re-read just re-marks it.
+        await sb(`ryc_invoice_batches?id=eq.${batchId}`, {
+          method: 'PATCH', headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ document_uri: `storage:${SCAN_BUCKET}/${batchId}` }),
+        });
+      }
+
       const out = await readPages(images);
+      if (out.status === 200 && offset) {
+        // Shift chunk-relative page numbers into batch coordinates so the caller never has to.
+        for (const d of out.body.documents) {
+          if (d.page_from) d.page_from += offset;
+          if (d.page_to) d.page_to += offset;
+        }
+      }
+      if (out.status === 200) out.body.stored_pages = stored;
       return res.status(out.status).json(out.body);
     }
 

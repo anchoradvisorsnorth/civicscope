@@ -3052,6 +3052,8 @@ function invPaint(){
   }
   h += '</div>';
 
+  if(who.scope === "all") h += invIntakePanel();
+
   if(!rows.length){
     v.innerHTML = h + '<div class="panel"><div class="sub">Nothing in the register for this period.</div></div>';
     return;
@@ -3302,5 +3304,84 @@ function invCloseBatch(){
           ? '<b class="m-a">' + s.outstanding + ' still unreviewed</b> — the summary says so rather than implying the batch is finished.'
           : "Every document in this batch has a decision.")
       + '</div>';
+  });
+}
+
+/* ===================== INTAKE — front office drops the day's scan ===================
+   Everything below exists so nobody has to run a script. Drop the scanned PDF (or the page
+   images), and the page does the whole chain: open a batch, chunk it under the endpoint's
+   16-page / 4MB bound, read each chunk, STORE the pages so View works, and register what
+   came back. Page numbers come back already in batch coordinates — the server does that. */
+function invIntakePanel(){
+  return '<div class="panel"><div class="h">New batch</div>'
+    + '<div class="sub">Drop today\'s scan. Pages are read, stored and registered in one go; '
+    + 'anything the reader is unsure of arrives flagged rather than silently guessed.</div>'
+    + '<div style="margin-top:8px">'
+    + '<input type="file" id="invFile" accept="application/pdf,image/*" multiple> '
+    + '<input id="invRecd" type="date" value="' + esc(new Date().toISOString().slice(0,10)) + '"> '
+    + '<button class="pfill" id="invGoBtn" onclick="invIntakeRun()">Read &amp; register</button>'
+    + '</div><div id="invIntakeLog" class="sub" style="margin-top:8px"></div></div>';
+}
+function invLog(msg){
+  var el=document.getElementById("invIntakeLog");
+  if(el) el.innerHTML += (el.innerHTML?"<br>":"") + msg;
+}
+/* PDF -> page images, in the browser, via the pdf.js build Chrome already ships? No — there is
+   none. So a PDF is rejected with a clear instruction rather than half-working: images are what
+   the endpoint reads, and pretending otherwise would fail at the worst moment. */
+function invIntakeRun(){
+  var f=document.getElementById("invFile"), btn=document.getElementById("invGoBtn");
+  var files=f&&f.files?Array.prototype.slice.call(f.files):[];
+  if(!files.length){ invLog('<span class="m-r">Choose the scanned pages first.</span>'); return; }
+  var pdf=files.filter(function(x){ return /pdf$/i.test(x.type)||/\.pdf$/i.test(x.name); });
+  if(pdf.length){
+    invLog('<span class="m-r">PDF received — export it to page images (JPG/PNG) and drop those. '
+      + 'The reader works on page images; converting in the browser would be a second thing to trust.</span>');
+    return;
+  }
+  files.sort(function(a,b){ return a.name.localeCompare(b.name, undefined, {numeric:true}); });
+  btn.disabled=true;
+  invLog(files.length+" page(s) — starting");
+
+  var recd=(document.getElementById("invRecd")||{}).value||null;
+  var CHUNK=12;                      // under the 16-page bound with headroom for size
+  var readAll=[];
+
+  invPost("open_batch",{received_date:recd,source:"scan",page_count:files.length,
+      label:"Scan "+(recd||"")}).then(function(b){
+    if(!b.ok||!b.data||!b.data.batch){ invLog('<span class="m-r">Could not open a batch.</span>'); btn.disabled=false; return; }
+    var batchId=b.data.batch.id;
+    invLog("batch opened");
+
+    function toB64(file){
+      return new Promise(function(res,rej){
+        var fr=new FileReader();
+        fr.onload=function(){ var s=String(fr.result); res(s.slice(s.indexOf(",")+1)); };
+        fr.onerror=rej; fr.readAsDataURL(file);
+      });
+    }
+    function chunk(i){
+      if(i>=files.length){
+        invLog("registering "+readAll.length+" document(s)…");
+        return invPost("register",{batch_id:batchId,documents:readAll}).then(function(r){
+          if(!r.ok||!r.data||r.data.error){ invLog('<span class="m-r">'+esc((r.data&&r.data.error)||r.error)+'</span>'); btn.disabled=false; return; }
+          invLog("<b>registered "+r.data.registered+" · "+r.data.flagged+" flagged</b>");
+          btn.disabled=false; invLoad();
+        });
+      }
+      var slice=files.slice(i,i+CHUNK);
+      invLog("reading pages "+(i+1)+"-"+(i+slice.length)+"…");
+      return Promise.all(slice.map(toB64)).then(function(b64s){
+        var images=b64s.map(function(d,j){ return {media_type:slice[j].type||"image/jpeg",data:d}; });
+        return invPost("read",{images:images,batch_id:batchId,page_offset:i});
+      }).then(function(r){
+        if(!r.ok||!r.data||r.data.error){ invLog('<span class="m-r">'+esc((r.data&&r.data.error)||r.error)+'</span>'); btn.disabled=false; return; }
+        var docs=r.data.documents||[];
+        docs.forEach(function(d){ d.received_date=recd; readAll.push(d); });
+        invLog("  → "+docs.length+" document(s), "+(r.data.stored_pages||0)+" page(s) stored");
+        return chunk(i+CHUNK);
+      });
+    }
+    return chunk(0);
   });
 }
