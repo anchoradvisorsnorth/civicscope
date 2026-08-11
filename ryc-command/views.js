@@ -3168,12 +3168,42 @@ function invRowHtml(r){
   return h;
 }
 
-/* The scan, one click away and NOT a modal — a PM comparing two near-identical invoices must
-   be able to leave it open while working the row. */
+/* THE SCAN. Opens the actual page image in a new tab — the browser's own viewer — not a link
+   to wherever the file happens to live. The bytes sit in a PRIVATE bucket; this asks the server
+   for a 15-minute signed URL, so a scan is never on a guessable public path and a stale tab
+   stops working on its own.
+
+   The window is opened FIRST and navigated after the URL arrives: opening it inside the fetch
+   callback is an async popup and browsers block it. A multi-page document opens page 1 and
+   offers the rest inline rather than spraying tabs. */
 function invDocBtn(r){
-  if(!r.document_uri) return "";
-  var u = r.document_uri + (r.page_from ? ("#page=" + r.page_from) : "");
-  return '<a class="pfill" target="_blank" rel="noopener" href="' + esc(u) + '">View</a>';
+  return '<button class="pfill" onclick="invViewDoc(' + invArg(r.id) + ')">View</button>'
+    + '<span id="pg-' + esc(r.id) + '"></span>';
+}
+function invViewDoc(id){
+  var w = window.open("", "_blank");           // opened synchronously — not blocked
+  invPost("pages", { id:id }).then(function(r){
+    var el = document.getElementById("pg-" + id);
+    if(!r.ok || !r.data || r.data.error){
+      if(w) w.close();
+      if(el) el.innerHTML = ' <span class="sub m-r">' + esc((r.data&&r.data.error)||r.error||"unavailable") + '</span>';
+      return;
+    }
+    if(!r.data.stored){
+      // No stored scan — fall back to whatever link the batch does carry, honestly labelled.
+      if(r.data.uri){ if(w) w.location = r.data.uri; }
+      else { if(w) w.close(); if(el) el.innerHTML = ' <span class="sub">no scan stored</span>'; }
+      return;
+    }
+    var pages = r.data.pages || [];
+    if(!pages.length){ if(w) w.close(); if(el) el.innerHTML = ' <span class="sub">no pages</span>'; return; }
+    if(w) w.location = pages[0].url;
+    if(el && pages.length > 1){
+      el.innerHTML = ' ' + pages.slice(1).map(function(p){
+        return '<a class="pfill" target="_blank" rel="noopener" href="' + esc(p.url) + '">p' + p.page + '</a>';
+      }).join(" ");
+    }
+  });
 }
 function invSetPm(p){ _inv.pm = p; invLoad(); }
 

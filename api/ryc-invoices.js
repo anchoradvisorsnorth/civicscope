@@ -273,6 +273,55 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, codes: await r.json() });
     }
 
+    /* ---------- the scan itself ------------------------------------------------
+       Returns SHORT-LIVED SIGNED URLs for the pages of one document, so clicking View opens
+       the actual invoice in the browser's own image viewer.
+
+       The bucket is PRIVATE and these are RYC financial documents — vendor pricing, subcontract
+       values, a notarized lien waiver. So the bytes are never public and never proxied through
+       a guessable path: the caller must already hold a valid credential to get a URL at all,
+       and the URL expires. `document_uri` on the batch carries a `storage:<bucket>/<prefix>`
+       marker rather than a link, so a batch whose scans live somewhere else (SharePoint, Drive)
+       can still carry a plain URL and this action simply declines. */
+    if (action === 'pages') {
+      const r = await sb(`ryc_invoices?id=eq.${encodeURIComponent(String(body.id || ''))}`
+        + `&company_id=eq.ryc&select=page_from,page_to,batch_id,assigned_pm`);
+      if (!r.ok) return res.status(502).json({ error: 'Could not read the document.' });
+      const rows = await r.json();
+      if (!rows.length) return res.status(404).json({ error: 'Document not found.' });
+      const inv = rows[0];
+      // A PM may only open scans from their own queue.
+      if (who.scope === 'pm' && inv.assigned_pm !== who.pm) {
+        return res.status(404).json({ error: 'Document not found.' });
+      }
+      const br = await sb(`ryc_invoice_batches?id=eq.${inv.batch_id}&select=document_uri`);
+      const batch = br.ok ? (await br.json())[0] : null;
+      const uri = batch && batch.document_uri;
+      const m = /^storage:([^/]+)\/(.+)$/.exec(uri || '');
+      if (!m) {
+        return res.status(200).json({ ok: true, stored: false, uri: uri || null,
+          note: 'This batch has no stored scan; its document_uri is a plain link.' });
+      }
+      const [, bucket, prefix] = m;
+      const from = inv.page_from || 1, to = inv.page_to || inv.page_from || 1;
+      const paths = [];
+      for (let p = from; p <= to; p++) paths.push(`${prefix}/p${String(p).padStart(2, '0')}.jpg`);
+
+      const sign = await fetch(`${SB_URL}/storage/v1/object/sign/${bucket}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+        body: JSON.stringify({ expiresIn: 900, paths }),   // 15 minutes
+      });
+      if (!sign.ok) return res.status(502).json({ error: `Could not sign the scan (${sign.status}).` });
+      const signed = await sign.json();
+      const pages = (Array.isArray(signed) ? signed : []).map((s, i) => ({
+        page: from + i,
+        url: s.signedURL ? `${SB_URL}/storage/v1${s.signedURL}` : null,
+        error: s.error || null,
+      })).filter(p => p.url);
+      return res.status(200).json({ ok: true, stored: true, pages });
+    }
+
     /* ---------- the queue: "my batch for the day" ---------- */
     if (action === 'queue') {
       const days = Math.min(Math.max(parseInt(body.days, 10) || 30, 1), 365);
