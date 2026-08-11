@@ -326,6 +326,56 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, stored: true, pages });
     }
 
+    /* ---------- budget lines for a job ------------------------------------------------
+       The number a PM currently opens Procore to read: how much is left on the line they are
+       about to code an invoice against.
+
+       WHICH FIGURE IS "LEFT" IS A CHOICE, so it is named and switchable rather than baked in.
+       Keith 2026-08-11: `over_under` — Procore's OWN projected over/under, carried verbatim
+       from the nightly so the tool shows the same number that appears on the PM's screen
+       rather than a lookalike derived a slightly different way. `uncommitted` is the other
+       reading (revised − committed − direct: not yet reserved or spent) and differs materially
+       on a job with work committed but not yet invoiced. Set RYC_BUDGET_REMAINING to switch;
+       the response always says which one it used, so a number can never be misread. */
+    if (action === 'budget') {
+      const jobNo = String(body.job_no || '').trim();
+      if (!jobNo) return res.status(400).json({ error: 'job_no is required.' });
+      const basis = process.env.RYC_BUDGET_REMAINING === 'uncommitted' ? 'uncommitted' : 'over_under';
+
+      const origin = process.env.RYC_DATA_ORIGIN || 'https://app.civicscope.io';
+      let cache = null;
+      try {
+        const r = await fetch(`${origin}/ryc-data/procore-cache.json`, {
+          headers: { 'User-Agent': 'ryc-invoices/1.0' },
+          signal: AbortSignal.timeout(15000),
+        });
+        if (r.ok) cache = await r.json();
+      } catch { /* fall through to unavailable */ }
+
+      // Unavailable is never zero. A missing feed must not render as "nothing left in the
+      // budget" — that would be an alarming number manufactured from an outage.
+      if (!cache || !Array.isArray(cache.jobs)) {
+        return res.status(200).json({ ok: true, available: false,
+          reason: 'The Procore budget feed could not be read just now.' });
+      }
+      const job = cache.jobs.find(j => String(j.projectNumber || '').trim() === jobNo);
+      const lines = (job && job.budget && Array.isArray(job.budget.lines)) ? job.budget.lines : null;
+      if (!lines) {
+        return res.status(200).json({ ok: true, available: false, asOf: cache.refreshed || null,
+          reason: 'This job has no budget lines in the current Procore pull.' });
+      }
+      const out = lines.map(l => ({
+        code: l.code, name: l.name, division: l.division,
+        revised: l.revised, committed: l.committed, direct: l.direct,
+        projectedCost: l.projectedCost,
+        remaining: basis === 'uncommitted'
+          ? Math.round(((l.revised || 0) - (l.committed || 0) - (l.direct || 0)) * 100) / 100
+          : (l.overUnder || 0),
+      }));
+      return res.status(200).json({ ok: true, available: true, basis, job_no: jobNo,
+        asOf: cache.refreshed || null, lines: out });
+    }
+
     /* ---------- the queue: "my batch for the day" ---------- */
     if (action === 'queue') {
       const days = Math.min(Math.max(parseInt(body.days, 10) || 30, 1), 365);
