@@ -288,7 +288,8 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 - **JBK-mention decision** — 3 live surfaces (for-schools, schools tool, infra tool) still name JBK Development despite the 2026-07-06 stay-neutral decision. Sweep for true neutrality or own deliberately — current state is drift.
 - ⏸️ **Groundwork (newsletter) — PAUSED / on hold (2026-06-11)** — entire backlog frozen (Resend send wiring, VM cron, PDF fallback for Mishawaka packets, Cost Lens integration, project-tracker dedup). Detail preserved in the **Groundwork — Architecture** section. Separate product from the Municipal Agenda Notifier — do not merge.
 - **Facebook Ads pixel** — create a CivicScope-specific Meta Pixel in Business Manager (separate from MTP/AAN pixel). Implementation plan at `Civicscope/FB_AD_IMPLEMENTATION_PLAN.md`.
-- **Move daily digest cron to VM** — Vercel Hobby cron is unreliable (missed April 9-10 digests). Move to VM cron as a `curl` trigger, same pattern as bookmarks pipeline.
+- **Move daily digest cron to VM** — Vercel cron is unreliable (missed April 9-10 digests). Move to VM cron as a `curl` trigger, same pattern as bookmarks pipeline. **Less urgent since 2026-08-11:** the digest now reports a *named ET calendar day*, so a missed day is no longer lost — re-send it with `POST /api/digest?date=YYYY-MM-DD`. Under the old rolling window a late cron silently dropped the uncovered hours forever.
+- **`CRON_SECRET` on CivicScope's Vercel is far too short for what it guards** (observed 2026-08-11 while wiring the digest gate — the value and its length are recorded in `infra/env-var-inventory.md`, deliberately not in this public repo). It protects an endpoint that sends mail and, since the `?dry=1` addition, answers with activity counts. Rotating it is a one-liner and cannot break the schedule — Vercel injects the same variable into its own cron call. **Not done unilaterally: it is a live credential change.**
 - ⏸️ **GC public white-label — PARKED (Fable review 2026-07-08)** — one demo tenant (acme) in 4 months; the real GC product lives at /ryc/estimate and is proving itself there. Revisit RYC-as-public-tenant only if a paying second tenant materializes.
 - **CivicScope restructure — loose ends (June 6)** — add version comments to the Schools + Infra tool footers; sweep the inert `.timeline-tease`/`.tease-*` dead CSS from the 3 tools; final end-to-end harness tire-kick of Schools + Infra (Municipal confirmed). The `Segment Hub Pages` table near the top still lists Infrastructure as "coming soon" — update that row when convenient.
 
@@ -297,6 +298,29 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 ---
 
 ## Key Learnings
+- **A REPORT CAN COUNT CORRECTLY AND STILL LIE — the daily digest, fixed 2026-08-11.** It queried
+  `created_at >= now - 24h` and then headlined the email with **today's** date. The cron fires at
+  7am ET, so the window was 7am yesterday → 7am today: almost entirely *yesterday*, sent under
+  *today's* name. Every run made during business hours landed in the **next** morning's email,
+  while the email carrying the date it happened said **"Quiet day"** — Aug 3, Aug 5 and Aug 7 each
+  had 2 runs and each got a "Quiet day" email bearing its own date. **Nothing was miscounted;
+  every run was reported exactly once**, which is precisely why it survived five months and why
+  every "is the digest broken?" check that counted rows said no. The bug was in the *label*, and
+  it inverted the only signal the email exists to carry. **When a report and reality disagree,
+  check what the report claims to be about before checking its arithmetic.**
+  Fixed to a named ET calendar day, `[00:00, 24:00)` in `America/Indiana/Indianapolis`, measured
+  per-instant so the DST days are genuinely 23h and 25h. A named day is also **idempotent** —
+  `?date=YYYY-MM-DD` re-sends a missed day, where a sliding window lost the uncovered hours
+  permanently.
+- **A "quiet day" email that cannot tell "nobody came" from "everybody who came failed" is a
+  blind spot, not a status.** Same fix: the digest now counts sessions and separates likely-bot
+  from human, and a day with human visitors and zero completed runs is reported as **a drop-off**,
+  not as quiet. Aug 8 had 5 human sessions and 0 runs and read as "quiet".
+- **Two projects, one variable name.** The digest gate first failed 401 because `CRON_SECRET` on
+  Keith's machine is **CRM's** secret; CivicScope's lives only in its own Vercel project. The
+  verification contract reads **`CS_CRON_SECRET`** (Windows User env var, added 2026-08-11) so an
+  absent credential is *inconclusive* rather than a permanent false red. Never point a gate at a
+  variable name another project already owns.
 - Cloudflare Email Address Obfuscation rewrites mailto: links at CDN layer — workaround is data-cfEmail="" on anchor. Moot since JBK CTA removed in v1.9.0.
 - **A cap on `api/claude.js` MUST be tested with a multi-page IMAGE payload.** The abuse ceiling added 2026-08-02 capped every request at 200KB based on an audit of *text* prompts (~25KB). One rendered plan page is 70–220KB of base64 and the RYC takeoff deliberately batches to 3MB/10 pages, so the flat cap 413'd every multi-page vision request — the RYC plan-set takeoff (the product's core function) and the new-pursuit document reader. **Single-page requests slipped under it, so every quick test passed.** Fixed `82e66dc`: text and images bounded separately (200KB text · 4MB / 16 images), and both refusals report the measured numbers instead of a bare "Request too large". The three vertical smoke tests did NOT catch this — they are text-only.
 - api/claude.js is a **prompt** passthrough — never inject/rewrite prompt content server-side. It DOES (added 2026-06-23, after the Anthropic 529 "elevated error rate" outage) add **transport resilience**: bounded retry-with-backoff on 429/5xx/529, then an **OpenAI-compatible fallback** that translates the Anthropic-shaped request → OpenAI and the reply back into Anthropic's `{content:[{text}]}` shape (no tool change). Fallback is OFF until `OPENAI_API_KEY` is set in Vercel; model via `OPENAI_FALLBACK_MODEL` (default `gpt-4o` — NOT Codex, a code model). Text-only requests only (GC image/doc uploads skip fallback). Retry/transport changes here are allowed; prompt passthrough is the invariant.
