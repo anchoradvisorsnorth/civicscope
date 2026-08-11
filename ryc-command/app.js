@@ -89,19 +89,11 @@ function refreshProcore(btn){
    the two workspaces cannot drift into two different navigations.
    The Estimating Desk cross-link is gone from the rail: the workspace switcher IS that link,
    and having both was the duplicate entry Codex flagged. */
-/* True for a session that entered on a signed invoice link rather than the workspace code.
-   Read live from the address (not cached) so it cannot outlive the token in the URL. */
-function invLinkSession(){ return typeof invLinkEntry==="function" && invLinkEntry(); }
 function renderNav(){
   if(typeof RYCShell==="undefined") return;
   var groups=[], byGrp={};
-  var linkOnly=invLinkSession();
   NAV.forEach(function(n){
     if(n.key==="deskLink") return;               // the switcher covers this
-    // A signed invoice link is a credential for ONE destination. Rendering the full rail
-    // would hand a PM the whole operating cockpit — Billing, Margin, the Executive Brief —
-    // off a link that was only ever meant to open their own invoice queue.
-    if(linkOnly && n.key!=="invoices") return;
     var g=n.grp||"";
     if(!byGrp[g]){ byGrp[g]={label:g,items:[]}; groups.push(byGrp[g]); }
     byGrp[g].items.push({key:n.key,label:n.label,icon:n.ic});
@@ -313,9 +305,6 @@ function routeCmd(){
     var jm=h.match(/^job\/(.+)$/);
     history.replaceState({},"",jm?CMD_BASE+"/jobs/"+jm[1]:cmdUrl(isCmdView(k)?k:CMD_HOME));
   }
-  // A link session is pinned to its one destination even if an address is typed or a stale
-  // history entry is popped — the rail already hides everything else, and this closes the gap.
-  if(invLinkSession()) return setViewSilent("invoices");
   var route=parseCmdPath(location.pathname);
   if(!route){
     var parts=location.pathname.replace(/\/+$/,"").split("/").filter(Boolean);
@@ -335,9 +324,6 @@ function viewCtx(){
   if(currentView==="forecast") return "Buildr (BD's system of record) · pulled live · loaded "+loaded;
   if(currentView==="estimating") return "BuildingConnected (read-only, daily pull) · this pull "+((bcData&&ageTxt(bcData.generatedAt))||"…");
   if(currentView==="ai") return "Answered from the reconciled sources every other page reads · read-only";
-  // The invoice register is WRITTEN here — it is not a view onto Procore or Foundation, and the
-  // provenance line must not imply it is. It is the only Command destination that authors facts.
-  if(currentView==="invoices") return "AP invoice register (written here) · every decision is an audited fact · identity unverified until per-user sign-in";
   if(currentView==="pmload") return "Foundation billing/cost history (full job record, 2021&rarr;) · pull "+((pmHistData&&ageTxt(pmHistData.generatedAt))||"&hellip;");
   if(currentView==="subs") return "Foundation actual-by-vendor + PO_Sub subcontracts (2023&rarr; jobs) · nightly VM rollup · this pull "+((subsData&&ageTxt(subsData.generated))||"&hellip;");
   if(currentView==="completed") return "Foundation completed record (2023&rarr;, pegged at completion) + Procore enrichment · rebuilt nightly · this pull "+((portfolioData&&ageTxt(portfolioData.generated))||"&hellip;");
@@ -348,7 +334,7 @@ function viewCtx(){
 function renderView(){
   if(_cmdState) return paintCmdState();         // bad address — don't paint a working screen over it
   if(_jobPage) return paintJobPage();           // a job address is a destination, not a transient paint
-  var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",invoices:"Invoices",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Bid Board",brief:"Executive Brief",trust:"Definitions & Sources",integrations:"Integrations & Sync",ai:"Ask R. Yoder"};
+  var titles={command:"Overview",portfolio:"Portfolio",billing:"Billing & Cash",woh:"Work on Hand",margin:"Margin & Risk",subs:"Subcontractors",completed:"Completed",pmload:"PM Load",forecast:"Revenue Forecast",estimating:"Bid Board",brief:"Executive Brief",trust:"Definitions & Sources",integrations:"Integrations & Sync",ai:"Ask R. Yoder"};
   document.getElementById("view-title").textContent=titles[currentView]||"Overview";
   document.getElementById("view-ctx").innerHTML=viewCtx();
   var view=document.getElementById("view");
@@ -362,7 +348,6 @@ function renderView(){
   if(currentView==="woh"){ renderWOH(); return; }
   if(currentView==="margin"){ renderMargin(); return; }
   if(currentView==="subs"){ renderSubs(); return; }
-  if(currentView==="invoices"){ renderInvoices(); return; }
   if(currentView==="completed"){ renderCompleted(); return; }
   if(currentView==="pmload"){ renderPMLoad(); return; }
   if(currentView==="forecast"){ renderForecast(); return; }
@@ -383,25 +368,5 @@ function init(){
   // alongside the feeds, and deliberately NOT awaited: routing must not wait on it.
   loadData().then(function(){ loadJobIds(); routeCmd(); });
 }
-/* ===== SIGNED-LINK ENTRY (2026-08-11) ==================================================
-   A PM arriving from their invoice email carries a signed token in `?k=`. Without this they
-   would hit the shared workspace code first — which defeats the entire point of the emailed
-   link and would mean handing every PM the code that opens all of Command.
-
-   Letting the token past this screen is NOT a weakening. This gate has never been a security
-   boundary: RYCAuth.gate() is a constant in a PUBLIC repo, and the real check has always been
-   server-side. The token is verified by HMAC in /api/ryc-invoices and resolves to exactly one
-   PM, so a link-entered session is strictly NARROWER than a code-entered one — it can only
-   reach that PM's own queue.
-
-   Scoped deliberately to /command/invoices. A token must not become a side door into Billing,
-   Margin or the Executive Brief, so any other address still asks for the code. */
-function invLinkEntry(){
-  var k=(new URLSearchParams(location.search)).get("k");
-  if(!k) return false;
-  var parts=location.pathname.replace(/\/+$/,"").split("/").filter(Boolean);
-  return parts[0]==="command" && parts[1]==="invoices" && parts.length===2;
-}
 if(sessionStorage.getItem("ryc_cmd_auth")==="1"){ showApp(); }
-else if(invLinkEntry()){ showApp(); }   // deliberately NOT stored: the token is the credential
 else { setTimeout(function(){ document.getElementById("gate-input").focus(); },100); }

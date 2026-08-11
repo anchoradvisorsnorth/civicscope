@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R. Yoder — Invoices</title>
+<link rel="icon" href="/ryc-data/RYC_Shield_Orange.png">
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.0.0">
+<link rel="stylesheet" href="/ryc-command/command.css?v1.0.0">
+<script src="/ryc-shell/shell.js?v1.0.0"></script>
+</head>
+<body>
+
+<!-- INVOICES IS ITS OWN WORKSPACE, not a Command page (Keith, 2026-08-11: "it's a tool like
+     the estimator"). It was briefly a rail item under Command, which was wrong: Command is a
+     leadership cockpit that REPORTS on the business, and this is an operator tool where a PM
+     DOES a job every morning. Different audience, different session, different mood — and a
+     PM arriving on an emailed link should land in a tool, not inside the whole cockpit. -->
+
+<div id="gate">
+  <div class="card">
+    <img src="/ryc-data/RYC_Shield_Orange.png" alt="RYC">
+    <h1>R. Yoder</h1>
+    <p>Invoices — daily reconciliation</p>
+    <input id="gate-input" type="password" placeholder="Access code" autocomplete="off">
+    <div class="err" id="gate-err"></div>
+    <button id="gate-btn">Enter</button>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <div class="ryc-shell">
+    <aside class="ryc-side" id="ryc-side"></aside>
+    <main class="content ryc-main light">
+      <div class="topbar">
+        <div><h2 id="view-title">Invoices</h2><div class="ctx" id="view-ctx"></div></div>
+      </div>
+      <div class="view" id="view"></div>
+    </main>
+  </div>
+</div>
+
+<script src="/ryc-invoices/invoices.js?v1.0.0"></script>
+<script src="/ryc-invoices/app.js?v1.0.0"></script>
+</body>
+</html>

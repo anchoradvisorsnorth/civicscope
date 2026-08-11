@@ -30,8 +30,12 @@
   var WORKSPACES = {
     desk:    { label: 'Estimating Desk', mode: 'Preconstruction', href: '/desk/pursuits' },
     command: { label: 'Command',         mode: 'Operations',      href: '/command/command' },
+    // Invoices is a TOOL, not a Command page (Keith, 2026-08-11). Command reports on the
+    // business; this is where a PM does a job every morning. Different audience, different
+    // session — so it gets its own workspace rather than a rail item inside the cockpit.
+    invoices:{ label: 'Invoices',        mode: 'Accounts payable', href: '/invoices' },
   };
-  var ORDER = ['desk', 'command'];
+  var ORDER = ['desk', 'command', 'invoices'];
 
   var state = { workspace: null, groups: [], active: null, onSelect: null, onLock: null };
 

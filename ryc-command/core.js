@@ -15,10 +15,6 @@ var NAV = [
   { key:"woh",      label:"Work on Hand",   ic:"&#128202;", grp:"Jobs" },
   { key:"margin",   label:"Margin & Risk",  ic:"&#128201;", grp:"Jobs" },
   { key:"subs",     label:"Subcontractors", ic:"&#128296;", grp:"Jobs" },
-  /* Invoices sits under Jobs, not Admin: reconciling the day's mail is a PM's job-cost task,
-     not administration. It is the first Command destination whose audience is the PM rather
-     than leadership. */
-  { key:"invoices", label:"Invoices",       ic:"&#129534;", grp:"Jobs" },
   { key:"completed",label:"Completed",      ic:"&#127942;", grp:"Jobs" },
   { key:"forecast", label:"Forecast",       ic:"&#128200;", grp:"Plan & People" },
   { key:"pmload",   label:"PM Load",        ic:"&#128119;", grp:"Plan & People" },
