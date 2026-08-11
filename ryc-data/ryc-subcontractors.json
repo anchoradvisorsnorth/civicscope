@@ -1,9 +1,9 @@
 {
- "generated": "2026-08-10T09:30:48.238Z",
+ "generated": "2026-08-11T09:30:51.987Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 128863882,
- "totalCommitted": 138788499,
- "subCount": 638,
+ "totalActual": 128912646,
+ "totalCommitted": 138821399,
+ "subCount": 639,
  "subs": [
   {
    "vendorNo": "3662",
@@ -1965,6 +1965,65 @@
    ]
   },
   {
+   "vendorNo": "1423",
+   "name": "Core Mechanical Services Inc",
+   "actualCost": 967172,
+   "actualJobs": 8,
+   "committed": 850955,
+   "committedJobs": 4,
+   "variance": -116217,
+   "jobs": [
+    {
+     "jobNo": "2402GO02",
+     "jobName": "Mishawaka HS West Gym & Common",
+     "actual": 382243,
+     "committed": 381997
+    },
+    {
+     "jobNo": "2502GP07",
+     "jobName": "So Bend-South Well Field WTP",
+     "actual": 172545,
+     "committed": 161200
+    },
+    {
+     "jobNo": "2402GP08",
+     "jobName": "Logansport Airport Hanger",
+     "actual": 158471,
+     "committed": 158328
+    },
+    {
+     "jobNo": "2507GP03",
+     "jobName": "Milford Water Utility Imp. Div",
+     "actual": 147661,
+     "committed": 149430
+    },
+    {
+     "jobNo": "2302GP02",
+     "jobName": "Fulton County Airport Hangar",
+     "actual": 73771,
+     "committed": 0
+    },
+    {
+     "jobNo": "2302GO10",
+     "jobName": "Center Lake Trail Reconstructi",
+     "actual": 17132,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502CO06",
+     "jobName": "Bremen Library-Plumbing Repair",
+     "actual": 14625,
+     "committed": 0
+    },
+    {
+     "jobNo": "2407CO06",
+     "jobName": "ABC Elkhart - Phase 1",
+     "actual": 725,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "3040",
    "name": "Jaguar Construction",
    "actualCost": 966629,
@@ -2025,65 +2084,6 @@
      "jobName": "White Vet Clinic Improvements",
      "actual": 133227,
      "committed": 154777
-    }
-   ]
-  },
-  {
-   "vendorNo": "1423",
-   "name": "Core Mechanical Services Inc",
-   "actualCost": 957172,
-   "actualJobs": 8,
-   "committed": 850955,
-   "committedJobs": 4,
-   "variance": -106217,
-   "jobs": [
-    {
-     "jobNo": "2402GO02",
-     "jobName": "Mishawaka HS West Gym & Common",
-     "actual": 382243,
-     "committed": 381997
-    },
-    {
-     "jobNo": "2502GP07",
-     "jobName": "So Bend-South Well Field WTP",
-     "actual": 162545,
-     "committed": 161200
-    },
-    {
-     "jobNo": "2402GP08",
-     "jobName": "Logansport Airport Hanger",
-     "actual": 158471,
-     "committed": 158328
-    },
-    {
-     "jobNo": "2507GP03",
-     "jobName": "Milford Water Utility Imp. Div",
-     "actual": 147661,
-     "committed": 149430
-    },
-    {
-     "jobNo": "2302GP02",
-     "jobName": "Fulton County Airport Hangar",
-     "actual": 73771,
-     "committed": 0
-    },
-    {
-     "jobNo": "2302GO10",
-     "jobName": "Center Lake Trail Reconstructi",
-     "actual": 17132,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502CO06",
-     "jobName": "Bremen Library-Plumbing Repair",
-     "actual": 14625,
-     "committed": 0
-    },
-    {
-     "jobNo": "2407CO06",
-     "jobName": "ABC Elkhart - Phase 1",
-     "actual": 725,
-     "committed": 0
     }
    ]
   },
@@ -4828,6 +4828,23 @@
    ]
   },
   {
+   "vendorNo": "4104",
+   "name": "Meadow Lark Concrete LLC",
+   "actualCost": 394560,
+   "actualJobs": 1,
+   "committed": 483564,
+   "committedJobs": 1,
+   "variance": 89004,
+   "jobs": [
+    {
+     "jobNo": "26X005",
+     "jobName": "CTB 2026 Addition",
+     "actual": 394560,
+     "committed": 483564
+    }
+   ]
+  },
+  {
    "vendorNo": "3637",
    "name": "Brown & Brown",
    "actualCost": 389634,
@@ -5082,23 +5099,6 @@
      "jobName": "WMC Phase One Cafe and Kitchen",
      "actual": 496,
      "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "4104",
-   "name": "Meadow Lark Concrete LLC",
-   "actualCost": 364040,
-   "actualJobs": 1,
-   "committed": 483564,
-   "committedJobs": 1,
-   "variance": 119524,
-   "jobs": [
-    {
-     "jobNo": "26X005",
-     "jobName": "CTB 2026 Addition",
-     "actual": 364040,
-     "committed": 483564
     }
    ]
   },
@@ -8647,9 +8647,9 @@
    "name": "Abonmarche Consultants Inc",
    "actualCost": 129186,
    "actualJobs": 13,
-   "committed": 82150,
-   "committedJobs": 4,
-   "variance": -47036,
+   "committed": 109650,
+   "committedJobs": 5,
+   "variance": -19536,
    "jobs": [
     {
      "jobNo": "2304RO04",
@@ -8685,7 +8685,7 @@
      "jobNo": "26X015",
      "jobName": "Alum Ins South Building Add",
      "actual": 7500,
-     "committed": 0
+     "committed": 27500
     },
     {
      "jobNo": "2611CO01",
@@ -9130,9 +9130,9 @@
    "name": "Alt & Witzig Engineering  Inc.",
    "actualCost": 111560,
    "actualJobs": 13,
-   "committed": 177998,
-   "committedJobs": 8,
-   "variance": 66438,
+   "committed": 183398,
+   "committedJobs": 9,
+   "variance": 71838,
    "jobs": [
     {
      "jobNo": "2402GP09",
@@ -9217,6 +9217,12 @@
      "jobName": "",
      "actual": 0,
      "committed": 8653
+    },
+    {
+     "jobNo": "26X015",
+     "jobName": "",
+     "actual": 0,
+     "committed": 5400
     }
    ]
   },
@@ -11760,6 +11766,83 @@
    ]
   },
   {
+   "vendorNo": "2951",
+   "name": "Weaver Consultants Group LLC",
+   "actualCost": 52797,
+   "actualJobs": 11,
+   "committed": 10000,
+   "committedJobs": 1,
+   "variance": -42797,
+   "jobs": [
+    {
+     "jobNo": "2310GO07",
+     "jobName": "Elkhart Co. Parks Restroom Ren",
+     "actual": 15428,
+     "committed": 0
+    },
+    {
+     "jobNo": "2503CO03",
+     "jobName": "Biggby Design - Precon",
+     "actual": 7386,
+     "committed": 0
+    },
+    {
+     "jobNo": "2407GO07",
+     "jobName": "St Joe Cnty Salt Storage Bldg",
+     "actual": 7114,
+     "committed": 10000
+    },
+    {
+     "jobNo": "2307GO08",
+     "jobName": "So. Bend Fire Station No. 8",
+     "actual": 6122,
+     "committed": 0
+    },
+    {
+     "jobNo": "2307GO09",
+     "jobName": "St. Joe County Garages - Combo",
+     "actual": 5889,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X005",
+     "jobName": "CTB 2026 Addition",
+     "actual": 3713,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GO03",
+     "jobName": "Byers Softball Complex Improve",
+     "actual": 2778,
+     "committed": 0
+    },
+    {
+     "jobNo": "2504CO05",
+     "jobName": "Jomar-2025 Build",
+     "actual": 1834,
+     "committed": 0
+    },
+    {
+     "jobNo": "2313GO09",
+     "jobName": "SB Airport Carwash",
+     "actual": 1767,
+     "committed": 0
+    },
+    {
+     "jobNo": "2504CO01",
+     "jobName": "Aluminum Insights North Add'n",
+     "actual": 474,
+     "committed": 0
+    },
+    {
+     "jobNo": "2302GP02",
+     "jobName": "Fulton County Airport Hangar",
+     "actual": 293,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "1454",
    "name": "Custom Design Laminates  Inc.",
    "actualCost": 52349,
@@ -11913,83 +11996,6 @@
      "jobName": "",
      "actual": 0,
      "committed": 2867
-    }
-   ]
-  },
-  {
-   "vendorNo": "2951",
-   "name": "Weaver Consultants Group LLC",
-   "actualCost": 49177,
-   "actualJobs": 11,
-   "committed": 10000,
-   "committedJobs": 1,
-   "variance": -39177,
-   "jobs": [
-    {
-     "jobNo": "2310GO07",
-     "jobName": "Elkhart Co. Parks Restroom Ren",
-     "actual": 15428,
-     "committed": 0
-    },
-    {
-     "jobNo": "2503CO03",
-     "jobName": "Biggby Design - Precon",
-     "actual": 7386,
-     "committed": 0
-    },
-    {
-     "jobNo": "2407GO07",
-     "jobName": "St Joe Cnty Salt Storage Bldg",
-     "actual": 7114,
-     "committed": 10000
-    },
-    {
-     "jobNo": "2307GO08",
-     "jobName": "So. Bend Fire Station No. 8",
-     "actual": 6122,
-     "committed": 0
-    },
-    {
-     "jobNo": "2307GO09",
-     "jobName": "St. Joe County Garages - Combo",
-     "actual": 5889,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GO03",
-     "jobName": "Byers Softball Complex Improve",
-     "actual": 2778,
-     "committed": 0
-    },
-    {
-     "jobNo": "2504CO05",
-     "jobName": "Jomar-2025 Build",
-     "actual": 1834,
-     "committed": 0
-    },
-    {
-     "jobNo": "2313GO09",
-     "jobName": "SB Airport Carwash",
-     "actual": 1767,
-     "committed": 0
-    },
-    {
-     "jobNo": "2504CO01",
-     "jobName": "Aluminum Insights North Add'n",
-     "actual": 474,
-     "committed": 0
-    },
-    {
-     "jobNo": "2302GP02",
-     "jobName": "Fulton County Airport Hangar",
-     "actual": 293,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X005",
-     "jobName": "CTB 2026 Addition",
-     "actual": 93,
-     "committed": 0
     }
    ]
   },
@@ -12440,6 +12446,29 @@
    ]
   },
   {
+   "vendorNo": "2793",
+   "name": "The Cincinnati Insurance Co",
+   "actualCost": 45997,
+   "actualJobs": 2,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2510GP04",
+     "jobName": "Shipshewana WWTP - Project A",
+     "actual": 43600,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X016",
+     "jobName": "Wanatah WWTP Improvements",
+     "actual": 2397,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "1370",
    "name": "City of Nappanee",
    "actualCost": 45929,
@@ -12586,23 +12615,6 @@
      "jobNo": "2416RO11",
      "jobName": "Laidig Kitchen Reno",
      "actual": 6856,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "2793",
-   "name": "The Cincinnati Insurance Co",
-   "actualCost": 43600,
-   "actualJobs": 1,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2510GP04",
-     "jobName": "Shipshewana WWTP - Project A",
-     "actual": 43600,
      "committed": 0
     }
    ]
@@ -17054,6 +17066,23 @@
    ]
   },
   {
+   "vendorNo": "3248",
+   "name": "EPIC Insurance Midwest",
+   "actualCost": 8935,
+   "actualJobs": 1,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "26X016",
+     "jobName": "Wanatah WWTP Improvements",
+     "actual": 8935,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "2254",
    "name": "Midwest Painting Company",
    "actualCost": 8585,
@@ -17192,23 +17221,6 @@
      "jobNo": "2403RO01",
      "jobName": "Raasch Renovation",
      "actual": 7920,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "3248",
-   "name": "EPIC Insurance Midwest",
-   "actualCost": 7908,
-   "actualJobs": 1,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "26X016",
-     "jobName": "Wanatah WWTP Improvements",
-     "actual": 7908,
      "committed": 0
     }
    ]
@@ -20307,6 +20319,23 @@
    ]
   },
   {
+   "vendorNo": "4152",
+   "name": "Dilts Port A John Rental Inc",
+   "actualCost": 1200,
+   "actualJobs": 1,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2502GP10",
+     "jobName": "Ashley WWTP Improvements",
+     "actual": 1200,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "3912",
    "name": "Ultra Incorporated",
    "actualCost": 1179,
@@ -20325,7 +20354,7 @@
   },
   {
    "vendorNo": "2850",
-   "name": "Tractor Supply Credit-PAYONLIN",
+   "name": "Tractor Supply Credit",
    "actualCost": 1157,
    "actualJobs": 9,
    "committed": 0,
