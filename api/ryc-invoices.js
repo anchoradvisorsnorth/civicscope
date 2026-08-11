@@ -383,10 +383,18 @@ export default async function handler(req, res) {
           reason: 'The Procore budget feed could not be read just now.' });
       }
       const job = cache.jobs.find(j => String(j.projectNumber || '').trim() === jobNo);
-      const lines = (job && job.budget && Array.isArray(job.budget.lines)) ? job.budget.lines : null;
-      if (!lines) {
+      const bud = (job && job.budget) || null;
+      const lines = (bud && Array.isArray(bud.lines)) ? bud.lines : null;
+      /* ONLY the ERP budget view. Probed 2026-08-11: for Div 1-01-001.L the standard
+         budget_line_items endpoint reports projected_over_under = 0.00 while the ERP view —
+         the one on the PM's screen — reports 84,466.33. Showing a PM a number that disagrees
+         with what Procore shows them is worse than showing nothing, so an unstamped or
+         differently-sourced payload is treated as unavailable rather than displayed. */
+      if (!lines || bud.linesSource !== 'erp_detail_rows') {
         return res.status(200).json({ ok: true, available: false, asOf: cache.refreshed || null,
-          reason: 'This job has no budget lines in the current Procore pull.' });
+          reason: lines
+            ? 'Budget lines in this pull are not from the ERP view a PM reads — not shown.'
+            : 'This job has no budget lines in the current Procore pull.' });
       }
       const out = lines.map(l => ({
         code: l.code, name: l.name, division: l.division,
