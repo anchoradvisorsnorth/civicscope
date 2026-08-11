@@ -2908,16 +2908,24 @@ function renderPMLoad(){
   pmBindTips(view);
 }
 
+
 /* ===================== INVOICES — PM daily reconciliation (2026-08-11) ==============
-   Replaces a manila folder and a four-field rubber stamp. The screen's job is to make the
-   things paper cannot do unmissable: a duplicate, a document that arrived incomplete, a
-   vendor's own reprint marker, a receipt that was already paid on a card.
+   Replaces a manila folder and a four-field rubber stamp.
+
+   REBUILT after Keith worked a real batch (2026-08-11). The first cut put every decision
+   behind a "Work it" button that expanded a panel below the row, and listed documents in one
+   flat table. Both were wrong for the actual job:
+     · A PM reconciling a day's mail is doing the SAME action seventeen times. Making each one
+       cost a click to open and a click to close turns a two-minute task into a chore.
+     · The folder is one PM's day across a handful of jobs. GROUPING BY JOB is how the work is
+       actually thought about — "what hit Shipshewana today" — not vendor by vendor.
+   So: grouped by job, every control inline on the row, and one-click Investigate for anything
+   a PM wants to come back to rather than reason about now.
 
    THE SILO: /api/ryc-invoices derives the PM from the CREDENTIAL. There is no `pm` parameter
-   this page can send to widen its own scope, so a PM sees exactly one queue by construction
-   rather than by filtering. Only a front-office credential resolves to scope 'all'. */
+   this page can send to widen its own scope. Only a front-office credential is scope 'all'. */
 var INV_URL = "/api/ryc-invoices";
-var _inv = { who:null, rows:[], codes:null, pm:null, open:null, busy:false };
+var _inv = { who:null, rows:[], codes:null, pm:null, busy:false, showDone:false };
 
 function invLinkKey(){ return (new URLSearchParams(location.search)).get("k"); }
 function invPost(action, body){
@@ -2936,34 +2944,32 @@ function invPost(action, body){
 }
 
 /* Findings are RANKED, not listed: a $55,927.77 exact duplicate and an available early-pay
-   discount are not the same kind of news and must not look alike. */
+   discount are not the same kind of news and must not look alike. `hard` findings are the
+   ones that block approval until cleared. */
 var INV_FLAG = {
-  duplicate_exact:{ t:"Duplicate", c:"m-r" },
-  duplicate_suspected:{ t:"Possible duplicate", c:"m-a" },
-  vendor_marked_duplicate:{ t:"Vendor marked DUPLICATE", c:"m-r" },
-  pages_missing:{ t:"Pages missing", c:"m-r" },
-  not_ap_suspected:{ t:"Already paid?", c:"m-r" },
-  stale_invoice:{ t:"Stale", c:"m-a" },
-  job_unassigned:{ t:"No job", c:"m-a" },
-  unrouted:{ t:"Unrouted", c:"m-a" },
-  discount_available:{ t:"Discount", c:"m-m" }
+  duplicate_exact:        { t:"Duplicate",        c:"m-r", hard:true  },
+  vendor_marked_duplicate:{ t:"Vendor: DUPLICATE",c:"m-r", hard:true  },
+  pages_missing:          { t:"Pages missing",    c:"m-r", hard:true  },
+  not_ap_suspected:       { t:"Already paid?",    c:"m-r", hard:true  },
+  duplicate_suspected:    { t:"Possible dup",     c:"m-a" },
+  stale_invoice:          { t:"Stale",            c:"m-a" },
+  job_unassigned:         { t:"No job",           c:"m-a" },
+  unrouted:               { t:"Unrouted",         c:"m-a" },
+  discount_available:     { t:"Discount",         c:"m-m" }
 };
-var INV_STATE = { "new":"Needs job", ready:"To review", needs_info:"Held", approved:"Approved",
+var INV_STATE = { "new":"", ready:"", needs_info:"Investigating", approved:"Approved",
   rejected:"Rejected", not_ap:"Not payable", duplicate:"Duplicate" };
 
-function invFlagPills(fl){
-  return (fl||[]).map(function(f){
-    var m = INV_FLAG[f.code] || { t:f.code, c:"m-m" }, done = !!f.resolved_at;
-    var tip = (f.detail||"") + (done ? " — dismissed: " + (f.resolved_note||"") : "");
-    return '<span class="pill ' + (done ? "m-m" : m.c) + '" title="' + esc(tip) + '">'
-      + (done ? "&#10003; " : "") + esc(m.t) + '</span>';
-  }).join(" ");
-}
 function invArg(s){ return JSON.stringify(String(s)).replace(/"/g, "&quot;"); }
+function invOpenFlags(r){ return (r.flags||[]).filter(function(f){ return !f.resolved_at; }); }
+function invHardFlags(r){
+  return invOpenFlags(r).filter(function(f){ var m=INV_FLAG[f.code]; return m && m.hard; });
+}
+function invDone(r){ return r.review_state!=="new" && r.review_state!=="ready"; }
 
 function renderInvoices(){
   var v = document.getElementById("view");
-  v.innerHTML = '<div class="panel"><div class="sub">Loading your batch&hellip;</div></div>';
+  v.innerHTML = '<div class="panel"><div class="sub">Loading&hellip;</div></div>';
   invPost("whoami", {}).then(function(r){
     if(!r.ok){
       v.innerHTML = '<div class="panel"><div class="h">Invoices</div>'
@@ -2971,7 +2977,9 @@ function renderInvoices(){
       return;
     }
     _inv.who = r.data; _inv.pm = r.data.pm || null;
-    if(!_inv.codes) invPost("cost_codes", {}).then(function(c){ if(c.ok) _inv.codes = c.data.codes || []; });
+    if(!_inv.codes) invPost("cost_codes", {}).then(function(c){
+      if(c.ok){ _inv.codes = c.data.codes || []; invPaint(); }
+    });
     invLoad();
   });
 }
@@ -2986,25 +2994,54 @@ function invLoad(){
       return;
     }
     _inv.rows = r.data.rows || [];
-    invPaint(r.data.summary || {});
+    invPaint();
   });
 }
-function invOutstanding(){
-  return _inv.rows.filter(function(r){ return r.review_state === "new" || r.review_state === "ready"; }).length;
-}
-function invPaint(sum){
-  var v = document.getElementById("view"), who = _inv.who || {};
-  var h = "";
 
-  /* Identity is stated plainly rather than implied. A forwarded link is a forwarded
-     credential, and a screen that approves money must not overstate what it knows. */
-  h += '<div class="panel"><div class="h">'
-    + (who.scope === "pm" ? esc(who.pm) + " &mdash; today&rsquo;s batch" : "Invoice register &mdash; front office")
-    + '</div><div class="sub">'
+/* ---- grouping: BY JOB, because that is how the day is actually thought about ---- */
+function invGroups(rows){
+  var by = {}, order = [];
+  rows.forEach(function(r){
+    var k = r.job_no || " none";
+    if(!by[k]){ by[k] = { job:r.job_no, rows:[], total:0, open:0, hard:0 }; order.push(k); }
+    by[k].rows.push(r);
+    by[k].total += Number(r.amount) || 0;
+    if(!invDone(r)) by[k].open++;
+    if(invHardFlags(r).length) by[k].hard++;
+  });
+  // unassigned last — it is a worklist, not a job
+  order.sort(function(a,b){
+    if(a === " none") return 1;
+    if(b === " none") return -1;
+    return by[b].total - by[a].total;
+  });
+  return order.map(function(k){ return by[k]; });
+}
+// job number -> the name Command already knows, so the header reads like a job not a code
+function invJobName(no){
+  if(!no) return null;
+  var j = (typeof jobByNo === "function") ? jobByNo(no) : null;
+  return j ? (j.name || null) : null;
+}
+
+function invPaint(){
+  var v = document.getElementById("view"), who = _inv.who || {};
+  var rows = _inv.rows;
+  var open = rows.filter(function(r){ return !invDone(r); });
+  var done = rows.filter(invDone);
+  var hard = open.filter(function(r){ return invHardFlags(r).length; });
+  var val  = open.reduce(function(a,r){ return a + (Number(r.amount)||0); }, 0);
+
+  var h = '<div class="panel"><div class="h">'
+    + (who.scope === "pm" ? esc(who.pm) : (_inv.pm ? esc(_inv.pm) : "All desks"))
+    + ' &middot; ' + open.length + ' to review &middot; ' + fmt(val) + '</div>'
+    + '<div class="sub">'
+    + (hard.length ? '<b class="m-r">' + hard.length + ' need a look before they can be approved</b> &middot; ' : '')
+    + done.length + ' done'
     + (who.scope === "pm"
-        ? "You are signed in by " + (who.via === "link" ? "an emailed link" : "your access code")
-          + ". Per-user sign-in is not live yet, so approvals are recorded as <b>attributed but unverified</b> until it is."
-        : "Front-office scope &mdash; every desk. Pick a PM to work a specific queue.")
+        ? ' &middot; signed in by ' + (who.via === "link" ? "an emailed link" : "your access code")
+          + '; approvals are recorded as attributed but <b>unverified</b> until per-user sign-in'
+        : ' &middot; front-office scope')
     + '</div>';
   if(who.scope === "all"){
     h += '<div style="margin-top:8px">'
@@ -3015,124 +3052,143 @@ function invPaint(sum){
   }
   h += '</div>';
 
-  var flagged = _inv.rows.filter(function(r){ return Number(r.open_high) > 0; });
-  var todo = _inv.rows.filter(function(r){
-    return (r.review_state === "new" || r.review_state === "ready") && Number(r.open_high) === 0; });
-  var done = _inv.rows.filter(function(r){
-    return r.review_state !== "new" && r.review_state !== "ready"; });
-  var val = _inv.rows.reduce(function(a,r){ return a + (Number(r.amount)||0); }, 0);
+  if(!rows.length){
+    v.innerHTML = h + '<div class="panel"><div class="sub">Nothing in the register for this period.</div></div>';
+    return;
+  }
 
-  h += '<div class="panel"><div class="h">' + _inv.rows.length + ' documents &middot; ' + fmt(val) + '</div>'
-    + '<div class="sub">' + (sum.outstanding||0) + ' still to review &middot; '
-    + (flagged.length
-        ? '<b class="m-r">' + flagged.length + ' need a decision before they can be approved</b>'
-        : "nothing flagged")
-    + '</div></div>';
+  invGroups(open).forEach(function(g){ h += invJobPanel(g); });
 
-  if(flagged.length) h += invSection("Stop and look", flagged,
-    "Approval is blocked on these until each finding is dismissed with a reason. This is the check a manila folder could not perform.");
-  if(todo.length) h += invSection("To review", todo, null);
-  if(done.length) h += invSection("Done", done, null);
-  if(!_inv.rows.length) h += '<div class="panel"><div class="sub">Nothing in the register for this period.</div></div>';
+  if(done.length){
+    h += '<div class="panel"><div class="h">Done &middot; ' + done.length + '</div>'
+      + '<div style="margin-bottom:6px"><button class="pfill" onclick="invToggleDone()">'
+      + (_inv.showDone ? "Hide" : "Show") + '</button></div>';
+    if(_inv.showDone){
+      h += '<table class="tbl"><tbody>';
+      done.forEach(function(r){
+        h += '<tr><td><b>' + esc(r.vendor_name||"") + '</b> <span class="sub">' + esc(r.invoice_no||"") + '</span></td>'
+          + '<td class="r">' + fmt(Number(r.amount)||0) + '</td>'
+          + '<td class="sub">' + esc(INV_STATE[r.review_state]||r.review_state)
+          + (r.reviewed_by ? ' &middot; ' + esc(r.reviewed_by) : '') + '</td>'
+          + '<td>' + invDocBtn(r)
+          + ' <button class="pfill" onclick="invReview(' + invArg(r.id) + ",'reopen'," + r.version + ')">Reopen</button></td></tr>';
+      });
+      h += '</tbody></table>';
+    }
+    h += '</div>';
+  }
 
-  if(_inv.pm && _inv.rows.length){
+  if(_inv.pm){
     h += '<div class="panel"><div class="h">Send the batch back</div>'
-      + '<div class="sub">The digital equivalent of walking the folder up the hall &mdash; except it says what was decided and what is still open.</div>'
+      + '<div class="sub">Says what was decided and what is still open &mdash; the folder never could.</div>'
       + '<div style="margin-top:8px"><button class="pfill" onclick="invCloseBatch()">Summary to front office</button></div>'
       + '<div id="invSummary"></div></div>';
   }
   v.innerHTML = h;
 }
-function invSection(title, rows, note){
-  var h = '<div class="panel"><div class="h">' + esc(title) + '</div>'
-    + (note ? '<div class="sub">' + esc(note) + '</div>' : "")
-    + '<table class="tbl"><thead><tr><th>Vendor</th><th>Invoice</th><th>Date</th><th class="r">Amount</th>'
-    + '<th>Job</th><th>Coding</th><th>State</th><th></th></tr></thead><tbody>';
-  rows.forEach(function(r){
-    var fl = (r.flags||[]).filter(function(f){ return !f.resolved_at; });
-    h += '<tr><td><b>' + esc(r.vendor_name||"&mdash;") + '</b>'
-      + (fl.length ? '<div style="margin-top:3px">' + invFlagPills(fl) + '</div>' : "")
-      + '</td>'
-      + '<td>' + esc(r.invoice_no||"&mdash;") + '<div class="sub">' + esc(r.doc_type||"") + '</div></td>'
-      + '<td class="sub">' + (r.invoice_date ? fmtDate(r.invoice_date) : "&mdash;") + '</td>'
-      + '<td class="r">' + fmt(Number(r.amount)||0) + '</td>'
-      + '<td>' + (r.job_no ? esc(r.job_no) : '<span class="m-a">unassigned</span>')
-      + '<div class="sub" title="as the vendor printed it">' + esc(r.job_text||"") + '</div></td>'
-      + '<td class="sub">' + [r.cost_month, r.cost_code, r.mat_or_sub].filter(Boolean).map(esc).join(" &middot; ")
-      + ((r.lines && r.lines.length) ? ' <span class="pill m-m">split ' + r.lines.length + '</span>' : "") + '</td>'
-      + '<td class="sub">' + esc(INV_STATE[r.review_state] || r.review_state) + '</td>'
-      + '<td>' + invDocBtn(r) + ' <button class="pfill" onclick="invOpen(' + invArg(r.id) + ')">Work it</button></td></tr>';
-    if(_inv.open === r.id) h += '<tr><td colspan="8">' + invDetailHtml(r) + '</td></tr>';
-  });
+function invToggleDone(){ _inv.showDone = !_inv.showDone; invPaint(); }
+
+function invJobPanel(g){
+  var name = invJobName(g.job);
+  var title = g.job
+    ? esc(g.job) + (name ? ' &middot; ' + esc(name) : '')
+    : 'No job yet';
+  var h = '<div class="panel"><div class="h">' + title
+    + ' <span class="sub" style="font-weight:400">&middot; ' + g.rows.length + ' &middot; ' + fmt(g.total) + '</span></div>';
+  if(!g.job){
+    h += '<div class="sub">Nothing on these documents said which job. Type a job number and it is '
+      + 'remembered &mdash; the next invoice from that vendor printing the same text classifies itself.</div>';
+  }
+  h += '<table class="tbl"><tbody>';
+  g.rows.forEach(function(r){ h += invRowHtml(r); });
   return h + '</tbody></table></div>';
 }
-/* The page image, one click away and NOT a modal — a PM comparing two near-identical invoices
-   must be able to leave the scan open while working the row. */
+
+/* ONE ROW = ONE LINE OF WORK. Coding and decision are both here; nothing to expand. */
+function invRowHtml(r){
+  var hard = invHardFlags(r);
+  var pills = invOpenFlags(r).map(function(f){
+    var m = INV_FLAG[f.code] || { t:f.code, c:"m-m" };
+    return '<span class="pill ' + m.c + '" title="' + esc(f.detail||"") + '">' + esc(m.t) + '</span>';
+  }).join(" ");
+
+  var h = '<tr><td style="vertical-align:top;min-width:190px">'
+    + '<b>' + esc(r.vendor_name||"&mdash;") + '</b>'
+    + '<div class="sub">' + esc(r.invoice_no||"") + ' &middot; '
+    + (r.invoice_date ? fmtDate(r.invoice_date) : "&mdash;")
+    + (r.doc_type && r.doc_type !== "invoice" ? ' &middot; ' + esc(r.doc_type) : '') + '</div>'
+    + (pills ? '<div style="margin-top:3px">' + pills + '</div>' : '')
+    + '</td>'
+    + '<td class="r" style="vertical-align:top;white-space:nowrap"><b>' + fmt(Number(r.amount)||0) + '</b></td>'
+    + '<td style="vertical-align:top">';
+
+  // ---- inline coding ----
+  h += '<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">';
+  if(!r.job_no){
+    h += '<input id="job-' + esc(r.id) + '" placeholder="Job no" value="" style="width:110px" '
+      + 'title="' + esc(r.job_text||"nothing printed") + '">';
+  }
+  h += invCodeSelect(r)
+    + '<select id="ms-' + esc(r.id) + '" style="width:92px"><option value="">Mat/Sub</option>'
+    + '<option value="mat"' + (r.mat_or_sub === "mat" ? " selected" : "") + '>Material</option>'
+    + '<option value="sub"' + (r.mat_or_sub === "sub" ? " selected" : "") + '>Sub</option></select>'
+    + '<button class="pfill" onclick="invSave(' + invArg(r.id) + "," + r.version + ')">Save</button>'
+    + '</div>';
+
+  // ---- clearing a blocker, inline and one click ----
+  if(hard.length){
+    h += '<div style="margin-top:5px">';
+    hard.forEach(function(f){
+      var m = INV_FLAG[f.code] || { t:f.code };
+      // duplicate_exact keeps its required reason. It is the $55,927.77 case and the entire
+      // reason this module exists; an unexplained dismissal there is the paper process again.
+      // Everything else clears in one click, with the who/when still recorded.
+      if(f.code === "duplicate_exact"){
+        h += '<input id="fx-' + esc(f.code) + "-" + esc(r.id) + '" placeholder="Why is this OK? (required)" style="width:250px"> ';
+      }
+      h += '<button class="pfill" onclick="invResolve(' + invArg(r.id) + "," + invArg(f.code) + "," + r.version
+        + ')">Clear &ldquo;' + esc(m.t) + '&rdquo;</button> ';
+    });
+    h += '</div>';
+  }
+  h += '</td>';
+
+  // ---- inline decision ----
+  h += '<td style="vertical-align:top;white-space:nowrap">'
+    + (hard.length
+        ? '<span class="sub m-r" title="Clear the finding first">Approve blocked</span> '
+        : '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'approved'," + r.version + ')">Approve</button> ')
+    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'needs_info'," + r.version + ')" '
+    + 'title="Park it and come back — nothing is approved and the batch summary reports it as open">Investigate</button> '
+    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'duplicate'," + r.version + ')">Dup</button> '
+    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'not_ap'," + r.version + ')">Not payable</button> '
+    + invDocBtn(r)
+    + '<div id="inv-err-' + esc(r.id) + '" class="sub"></div>'
+    + '</td></tr>';
+  return h;
+}
+
+/* The scan, one click away and NOT a modal — a PM comparing two near-identical invoices must
+   be able to leave it open while working the row. */
 function invDocBtn(r){
   if(!r.document_uri) return "";
   var u = r.document_uri + (r.page_from ? ("#page=" + r.page_from) : "");
   return '<a class="pfill" target="_blank" rel="noopener" href="' + esc(u) + '">View</a>';
 }
-function invSetPm(p){ _inv.pm = p; _inv.open = null; invLoad(); }
-function invOpen(id){
-  _inv.open = (_inv.open === id) ? null : id;
-  invPaint({ outstanding: invOutstanding() });
-}
+function invSetPm(p){ _inv.pm = p; invLoad(); }
 
-function invDetailHtml(r){
-  var open = (r.flags||[]).filter(function(f){ return !f.resolved_at; });
-  var h = '<div class="panel" style="margin:0">';
-  if(open.length){
-    h += '<div class="h">Findings</div>';
-    open.forEach(function(f){
-      var m = INV_FLAG[f.code] || { t:f.code };
-      h += '<div style="margin:6px 0"><b>' + esc(m.t) + '</b> &mdash; <span class="sub">' + esc(f.detail||"") + '</span>'
-        + '<div style="margin-top:4px"><input id="fx-' + esc(f.code) + "-" + esc(r.id)
-        + '" placeholder="Why is this OK to proceed? (required)" style="width:55%"> '
-        + '<button class="pfill" onclick="invResolve(' + invArg(r.id) + "," + invArg(f.code) + "," + r.version
-        + ')">Dismiss with reason</button></div></div>';
-    });
-  }
-  h += '<div class="h" style="margin-top:8px">Job &amp; coding</div><div style="margin:6px 0">'
-    + '<input id="job-' + esc(r.id) + '" placeholder="Job number" value="' + esc(r.job_no||"") + '" style="width:150px"> '
-    + '<input id="mon-' + esc(r.id) + '" placeholder="YYYY-MM" value="' + esc(r.cost_month||"") + '" style="width:100px"> '
-    + invCodeSelect(r) + ' '
-    + '<select id="ms-' + esc(r.id) + '"><option value="">Mat / Sub&hellip;</option>'
-    + '<option value="mat"' + (r.mat_or_sub === "mat" ? " selected" : "") + '>Material</option>'
-    + '<option value="sub"' + (r.mat_or_sub === "sub" ? " selected" : "") + '>Sub</option></select> '
-    + '<button class="pfill" onclick="invSave(' + invArg(r.id) + "," + r.version + ')">Save coding</button>'
-    + '<div class="sub" style="margin-top:4px">A job set by hand is remembered &mdash; the next invoice from this vendor printing the same job text classifies itself.</div></div>';
-
-  h += '<div class="h" style="margin-top:8px">Decision</div><div style="margin:6px 0">'
-    + '<input id="note-' + esc(r.id) + '" placeholder="Note (optional)" style="width:40%"> '
-    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'approved'," + r.version + ')">Approve</button> '
-    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'needs_info'," + r.version + ')">Hold</button> '
-    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'duplicate'," + r.version + ')">Duplicate</button> '
-    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'not_ap'," + r.version + ')">Not payable</button> '
-    + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'rejected'," + r.version + ')">Reject</button>'
-    + ((r.review_state !== "new" && r.review_state !== "ready")
-        ? ' <button class="pfill" onclick="invReview(' + invArg(r.id) + ",'reopen'," + r.version + ')">Reopen</button>' : "")
-    + '</div>';
-  if(r.reviewed_by){
-    h += '<div class="sub">' + esc(r.reviewed_by) + ' &middot; ' + (r.reviewed_at ? fmtDate(r.reviewed_at) : "")
-      + ' &middot; <b>unverified identity</b> (per-user sign-in not live)</div>';
-  }
-  h += '<div id="inv-err-' + esc(r.id) + '" class="sub"></div></div>';
-  return h;
-}
-/* RYC's OWN vocabulary, grouped by division — 280 codes the estimators already use.
-   Falls back to a free-text box if the list could not be fetched, so a picker outage never
-   blocks a PM from coding an invoice. */
+/* RYC's OWN vocabulary, grouped by division — 280 codes the estimators already use. Falls back
+   to a free-text box if the list could not be fetched, so a picker outage never blocks coding. */
 function invCodeSelect(r){
   if(!_inv.codes || !_inv.codes.length){
-    return '<input id="cc-' + esc(r.id) + '" placeholder="Cost code" value="' + esc(r.cost_code||"") + '" style="width:150px">';
+    return '<input id="cc-' + esc(r.id) + '" placeholder="Cost code" value="' + esc(r.cost_code||"") + '" style="width:130px">';
   }
   var byDiv = {}, order = [];
   _inv.codes.forEach(function(c){
     if(!byDiv[c.division]){ byDiv[c.division] = { n:c.division_name, l:[] }; order.push(c.division); }
     byDiv[c.division].l.push(c);
   });
-  var h = '<select id="cc-' + esc(r.id) + '"><option value="">Cost code&hellip;</option>';
+  var h = '<select id="cc-' + esc(r.id) + '" style="width:200px"><option value="">Cost code&hellip;</option>';
   order.forEach(function(d){
     h += '<optgroup label="' + esc(d + " " + (byDiv[d].n||"")) + '">';
     byDiv[d].l.forEach(function(c){
@@ -3152,41 +3208,47 @@ function invAfter(id, r){
   if(!r.ok || (r.data && r.data.error)){ invErr(id, (r.data && r.data.error) || r.error || "Failed"); return; }
   invLoad();
 }
+/* The month is DERIVED from the received date rather than typed. It was a field on the rubber
+   stamp because paper cannot derive anything; asking a PM to type it 17 times is the folder
+   with extra steps. Editable later if a period ever needs overriding. */
+function invMonthFor(r){
+  var d = r.cost_month || (r.received_date || r.invoice_date || "");
+  return d ? String(d).slice(0, 7) : null;
+}
 function invSave(id, ver){
   if(_inv.busy) return;
   _inv.busy = true;
-  var job = (document.getElementById("job-" + id)||{}).value || "";
-  var mon = (document.getElementById("mon-" + id)||{}).value || "";
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0] || {};
+  var jobEl = document.getElementById("job-" + id);
+  var job = jobEl ? (jobEl.value || "").trim() : "";
   var cc  = (document.getElementById("cc-" + id)||{}).value || "";
   var ms  = (document.getElementById("ms-" + id)||{}).value || "";
-  var first = job.trim()
-    ? invPost("assign", { id:id, job_no:job.trim(), source:"manual", version:ver })
+  var first = job
+    ? invPost("assign", { id:id, job_no:job, source:"manual", version:ver })
     : Promise.resolve({ ok:true, data:{ version:ver } });
   first.then(function(a){
     if(!a.ok || (a.data && a.data.error)){ invAfter(id, a); return; }
-    // assign bumped the version; carry it forward rather than re-reading and racing
-    var nv = (a.data && a.data.version) || ver;
-    return invPost("code", { id:id, month:mon||null, cost_code:cc||null, mat_or_sub:ms||null, version:nv })
-      .then(function(b){ invAfter(id, b); });
+    var nv = (a.data && a.data.version) || ver;   // assign bumped it; carry it forward
+    return invPost("code", { id:id, month:invMonthFor(r), cost_code:cc||null,
+      mat_or_sub:ms||null, version:nv }).then(function(b){ invAfter(id, b); });
   });
 }
 function invResolve(id, code, ver){
   if(_inv.busy) return;
-  var el = document.getElementById("fx-" + code + "-" + id);
-  var note = el ? el.value.trim() : "";
-  if(note.length < 3){
-    invErr(id, "A reason is required — an unexplained dismissal is the paper process again.");
+  var el = document.getElementById("fx-" + code + "-" + id);   // only duplicate_exact has one
+  var note = el ? el.value.trim() : "Reviewed on screen and cleared.";
+  if(el && note.length < 3){
+    invErr(id, "A reason is required to clear a duplicate — that is the one finding worth typing for.");
     return;
   }
   _inv.busy = true;
-  // flag_code, never `code` — invPost puts the CREDENTIAL in `code`, which would clobber it.
-  invPost("resolve_flag", { id:id, flag_code:code, note:note, version:ver }).then(function(r){ invAfter(id, r); });
+  invPost("resolve_flag", { id:id, flag_code:code, note:note, version:ver })
+    .then(function(r){ invAfter(id, r); });
 }
 function invReview(id, decision, ver){
   if(_inv.busy) return;
   _inv.busy = true;
-  var note = (document.getElementById("note-" + id)||{}).value || null;
-  invPost("review", { id:id, decision:decision, note:note, version:ver }).then(function(r){ invAfter(id, r); });
+  invPost("review", { id:id, decision:decision, version:ver }).then(function(r){ invAfter(id, r); });
 }
 function invCloseBatch(){
   var el = document.getElementById("invSummary");
@@ -3207,7 +3269,7 @@ function invCloseBatch(){
       + '</tbody></table>'
       + '<div class="sub" style="margin-top:6px">'
       + (Number(s.outstanding) > 0
-          ? '<b class="m-a">' + s.outstanding + ' document(s) are still unreviewed</b> — the summary says so rather than implying the batch is finished.'
+          ? '<b class="m-a">' + s.outstanding + ' still unreviewed</b> — the summary says so rather than implying the batch is finished.'
           : "Every document in this batch has a decision.")
       + '</div>';
   });
