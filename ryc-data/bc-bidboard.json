@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-11T09:30:09.245Z",
+ "generatedAt": "2026-08-12T09:30:09.219Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -44,23 +44,6 @@
      ]
     },
     {
-     "id": "69a7158c18d056078e1fb9bf",
-     "name": "Demolition",
-     "number": "02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 1,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Michiana Recycling and Disposal"
-     ]
-    },
-    {
      "id": "69a71a7957b080769f6b0957",
      "name": "Awnings",
      "number": "06-02",
@@ -75,6 +58,23 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "BH Awning"
+     ]
+    },
+    {
+     "id": "69a7158c18d056078e1fb9bf",
+     "name": "Demolition",
+     "number": "02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Michiana Recycling and Disposal"
      ]
     },
     {
@@ -605,20 +605,6 @@
      "awardedCompany": null
     },
     {
-     "id": "6a022160e2751b37f7554aa8",
-     "name": "Building Insulation",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "6a02212e44826dba5a600a30",
      "name": "PEMB Insulation",
      "number": null,
@@ -634,6 +620,20 @@
      "biddingSubs": [
       "Silvercote"
      ]
+    },
+    {
+     "id": "6a022160e2751b37f7554aa8",
+     "name": "Building Insulation",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a022a285e266905149cee3c",
@@ -907,7 +907,7 @@
    "atRisk": 6,
    "invites": 148,
    "bidding": 6,
-   "undecided": 114,
+   "undecided": 107,
    "bidsReceived": 1,
    "pkgs": [
     {
@@ -918,15 +918,14 @@
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
      "invites": 37,
      "bidding": 0,
-     "undecided": 37,
-     "notBidding": 0,
-     "viewed": 2,
+     "undecided": 33,
+     "notBidding": 4,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
       "Pajay Excavating",
       "Pavey Excavating",
-      "Indiana Earth, Inc.",
       "Jackson - Merkey Contractors, Inc.",
       "CD Hughes",
       "Precise Excavating, Inc.",
@@ -941,14 +940,15 @@
       "Ron Meyer & Associates Excavating",
       "Peters Construction Co.",
       "Parrish Excavating, Inc",
-      "Balkema Excavating, Inc.",
       "Balkema Construction",
       "Burkholder Excavating",
       "Oetman Excavating",
-      "B & Z Company, Inc.",
       "Velting Contractors, Inc.",
-      "H & K Excavating, LLC",
-      "Keiser Excavating"
+      "Keiser Excavating",
+      "Weick Bros, Inc.",
+      "Hollerbach Excavating",
+      "Morris Excavating Inc",
+      "Kalin Construction Co Inc"
      ]
     },
     {
@@ -959,9 +959,9 @@
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
      "invites": 28,
      "bidding": 0,
-     "undecided": 21,
-     "notBidding": 7,
-     "viewed": 9,
+     "undecided": 20,
+     "notBidding": 8,
+     "viewed": 10,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -973,7 +973,6 @@
       "Electrical Maint & Constr",
       "Ibid County Electric, Inc.",
       "Buist Electric, Inc.",
-      "Byler Electric, Inc.",
       "Allied Electric, LLC",
       "Parkway Electric & Communications LLC",
       "Beaudoin Electrical Construction, Inc.",
@@ -996,16 +995,15 @@
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
      "invites": 13,
      "bidding": 0,
-     "undecided": 7,
-     "notBidding": 6,
-     "viewed": 4,
+     "undecided": 6,
+     "notBidding": 7,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
       "Pro Services Inc",
       "Proservices Inc",
       "R. W. LaPine, Inc.",
-      "Mall City Mechanical, Inc.",
       "TC Mechanical",
       "B.C. Mechanical",
       "Griffen P & H, LLC"
@@ -1095,8 +1093,8 @@
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
      "invites": 9,
      "bidding": 1,
-     "undecided": 6,
-     "notBidding": 2,
+     "undecided": 5,
+     "notBidding": 3,
      "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
@@ -1179,7 +1177,7 @@
    "atRisk": 8,
    "invites": 85,
    "bidding": 9,
-   "undecided": 70,
+   "undecided": 69,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -1247,7 +1245,7 @@
      "bidding": 0,
      "undecided": 8,
      "notBidding": 1,
-     "viewed": 3,
+     "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1281,6 +1279,26 @@
      ]
     },
     {
+     "id": "6a70c8f6a3901e03960b137e",
+     "name": "Drywall",
+     "number": "09-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 5,
+     "bidding": 0,
+     "undecided": 4,
+     "notBidding": 1,
+     "viewed": 3,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Stans Painting & Dec",
+      "Kleckner Interior Systems",
+      "Quality Drywall",
+      "Jack Laurie Floors, LLC."
+     ]
+    },
+    {
      "id": "6a70c7d439073b77550fa503",
      "name": "Painting & HP Coatings",
      "number": "09-01",
@@ -1299,27 +1317,6 @@
       "Midwest Painting Co",
       "Prism Painting",
       "Inline Painting LLC"
-     ]
-    },
-    {
-     "id": "6a70c8f6a3901e03960b137e",
-     "name": "Drywall",
-     "number": "09-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-24T16:00:00.000Z",
-     "invites": 5,
-     "bidding": 0,
-     "undecided": 5,
-     "notBidding": 0,
-     "viewed": 3,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Stans Painting & Dec",
-      "TBG Construction, LLC",
-      "Kleckner Interior Systems",
-      "Quality Drywall",
-      "Jack Laurie Floors, LLC."
      ]
     },
     {
@@ -1435,7 +1432,7 @@
      "bidding": 2,
      "undecided": 11,
      "notBidding": 0,
-     "viewed": 6,
+     "viewed": 7,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1480,11 +1477,11 @@
    "value": null,
    "isPublic": false,
    "packages": 10,
-   "covered": 2,
-   "atRisk": 8,
+   "covered": 4,
+   "atRisk": 6,
    "invites": 199,
-   "bidding": 2,
-   "undecided": 188,
+   "bidding": 7,
+   "undecided": 174,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -1495,9 +1492,9 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 74,
      "bidding": 0,
-     "undecided": 73,
-     "notBidding": 1,
-     "viewed": 4,
+     "undecided": 70,
+     "notBidding": 4,
+     "viewed": 8,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1529,47 +1526,6 @@
      ]
     },
     {
-     "id": "6a736be00b0b972200c8d53b",
-     "name": "Electrical",
-     "number": "26-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-01T15:00:00.000Z",
-     "invites": 45,
-     "bidding": 0,
-     "undecided": 43,
-     "notBidding": 2,
-     "viewed": 3,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Banta Electric Contractors, Inc.",
-      "Allstar Contracting Inc",
-      "Midwestern Electric LLC.",
-      "Swift Air Mechanical, LLC bda Hammans Electric ",
-      "Reliant Electric Solar LLC",
-      "Koontz-Wagner Services",
-      "Summit Electrical Company, LLC",
-      "Sargent Electric Company",
-      "Edwards Electrical & Mechanical",
-      "Nugent Electric, Inc.",
-      "Branch Electric",
-      "E&R Electric, Inc.",
-      "West Electric, Inc.",
-      "SETCO Electric Llc",
-      "Gleam Electrical LLC",
-      "Payne Electric CO.",
-      "Complete Electrical & Communications, Inc. ",
-      "Ridgeline Electrical Industries",
-      "Ferrer Mechanical Services Inc.",
-      "ElectriSource Inc",
-      "ERMCO, Inc.",
-      "Shambaugh & Son, LP",
-      "MW Electric LLC",
-      "David Electric Service LLC",
-      "James Babcock, Inc."
-     ]
-    },
-    {
      "id": "6a736be00b0b97199fc8d539",
      "name": "Plumbing & HVAC",
      "number": "22-01 & 23-01",
@@ -1577,9 +1533,9 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 24,
      "bidding": 0,
-     "undecided": 22,
-     "notBidding": 2,
-     "viewed": 3,
+     "undecided": 21,
+     "notBidding": 3,
+     "viewed": 6,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1603,7 +1559,6 @@
       "TPC Mechanical Contractors, LLC",
       "Mccurdy Mechanical",
       "Mission Mechanical",
-      "Ferrer Mechanical Services Inc.",
       "Benchmark Mechanical, Inc."
      ]
     },
@@ -1617,7 +1572,7 @@
      "bidding": 0,
      "undecided": 11,
      "notBidding": 1,
-     "viewed": 1,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1642,41 +1597,18 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 7,
      "bidding": 0,
-     "undecided": 7,
-     "notBidding": 0,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Shield Industrial Painting & Lining",
-      "Dave Cole Decorators, Inc.",
-      "BlasTek",
-      "Redox Coating Consultants",
-      "Dean Baughman Industrial Services",
-      "Prism Painting",
-      "Preferred Inc."
-     ]
-    },
-    {
-     "id": "6a736be00b0b97122ec8d533",
-     "name": "Metal Fabrications",
-     "number": "05-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-01T15:00:00.000Z",
-     "invites": 7,
-     "bidding": 0,
      "undecided": 6,
      "notBidding": 1,
      "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "Koomler & Sons",
-      "MAK Steel Services",
-      "Kammerer Dynamics",
-      "HME, Inc",
-      "Stephens Machine, Inc.",
-      "Weber Steel"
+      "Shield Industrial Painting & Lining",
+      "BlasTek",
+      "Redox Coating Consultants",
+      "Dean Baughman Industrial Services",
+      "Prism Painting",
+      "Preferred Inc."
      ]
     },
     {
@@ -1719,20 +1651,20 @@
      ]
     },
     {
-     "id": "6a7a3b75e838b1b1dabb1c42",
-     "name": "Directional Boring",
-     "number": "33-01",
+     "id": "6a736be00b0b972200c8d53b",
+     "name": "Electrical",
+     "number": "26-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
-     "invites": 11,
+     "invites": 45,
      "bidding": 1,
-     "undecided": 10,
-     "notBidding": 0,
-     "viewed": 1,
+     "undecided": 39,
+     "notBidding": 5,
+     "viewed": 11,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
-      "Berry It LLC"
+      "Stelko Electric, Inc"
      ]
     },
     {
@@ -1743,13 +1675,50 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 11,
      "bidding": 1,
-     "undecided": 9,
-     "notBidding": 1,
-     "viewed": 3,
+     "undecided": 8,
+     "notBidding": 2,
+     "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
       "Sterling Contracting"
+     ]
+    },
+    {
+     "id": "6a736be00b0b97122ec8d533",
+     "name": "Metal Fabrications",
+     "number": "05-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-01T15:00:00.000Z",
+     "invites": 7,
+     "bidding": 2,
+     "undecided": 4,
+     "notBidding": 1,
+     "viewed": 5,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "MAK Steel Services",
+      "Stephens Machine, Inc."
+     ]
+    },
+    {
+     "id": "6a7a3b75e838b1b1dabb1c42",
+     "name": "Directional Boring",
+     "number": "33-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-01T15:00:00.000Z",
+     "invites": 11,
+     "bidding": 3,
+     "undecided": 8,
+     "notBidding": 0,
+     "viewed": 4,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "S & S Directional Boring, Ltd.",
+      "Berry It LLC",
+      "Daystar Directional Drilling Inc."
      ]
     }
    ]
