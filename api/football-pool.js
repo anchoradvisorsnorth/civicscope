@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.7.0-forcefinalize';  // finalize_week can read the finals itself — the commissioner's job ends at the lock
+const VER = '3.8.0-allinreceipt';  // the all-picks-in notice counts what it sent, releases a dead latch, and can be re-sent
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -288,14 +288,27 @@ export default async function handler(req, res) {
      every other notification (Keith 2026-08-09: "notify the group when everyone has saved and
      locked"). It used to be email-only, and the list of names was the raw picks keys, which
      since the identity migration are UUIDs. */
+  /* ⛔ THIS FUNCTION COULD FAIL COMPLETELY AND LEAVE NO TRACE (fixed 2026-08-13).
+     It sent, counted nothing, returned nothing, and swallowed every error — while `save_picks`
+     latched `notifiedAllLocked = true` BEFORE calling it. So "the group was told" and "every
+     message failed" were byte-identical afterwards, and the latch meant it could never be retried.
+     That is not hypothetical: on 2026-08-09 the all-picks-in notice fired at 23:02 from a build
+     whose notifyAllLocked was EMAIL-ONLY (the SMS loop landed at 23:07, five minutes later), so
+     Keith and Mike got the email and no text — and the week is permanently flagged as notified.
+     Nothing recorded that, and nothing could have.
+     Now it counts both channels and hands the numbers back, `save_picks` persists them on the week,
+     and a notice that reached NOBODY releases the latch so it can be sent again. Same shape as
+     lock_slate, which has always returned {emailed, texted} — this is that lesson applied to the
+     one notification that did not have it. */
   async function notifyAllLocked(wk, slug, roster) {
+    let texted = 0, emailed = 0;
     const picked = Object.values(wk.picks || {}).map(v => v.name).filter(Boolean);
     const rows = picked.sort().map(n => `<tr><td style="padding:3px 12px 3px 0;font-weight:700">${n}</td><td style="padding:3px 0;color:#475467">locked</td></tr>`).join('');
     const tag = (wk.isTest || isSandbox(slug)) ? '[TEST — no action needed] ' : '';
     const sms = `${tag}The Pool: everyone is locked in for ${wk.label || slug} — all picks are `
       + `now visible. See who took what: app.civicscope.io/pool/football`;
     for (const p of roster) {
-      if (p.canText) { try { await sendSms(p.phone, sms + '\nReply STOP to opt out.'); } catch (e) { /* best-effort */ } }
+      if (p.canText) { try { if (await sendSms(p.phone, sms + '\nReply STOP to opt out.')) texted++; } catch (e) { /* best-effort */ } }
     }
     const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#101828">
       <div style="background:linear-gradient(135deg,#0a2240,#14532d);color:#fff;padding:18px 22px;border-radius:10px 10px 0 0">
@@ -312,13 +325,15 @@ export default async function handler(req, res) {
     for (const p of roster) {
       if (!p.email || !p.wantsEmail) continue;
       try {
-        await fetch('https://api.resend.com/emails', {
+        const r = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
           body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `${tag}🏈 All picks are in — ${wk.label || slug} is locked`, html }),
         });
+        if (r.ok) emailed++;
       } catch (e) { /* best-effort */ }
     }
+    return { texted, emailed };
   }
 
   /* THE WINNER IS NEWS — tell the group (Keith 2026-08-09: "notify the group when a winner is
@@ -695,7 +710,7 @@ export default async function handler(req, res) {
       }
 
       // ---- commissioner actions ----
-      if (['save_players', 'get_players_full', 'list_people', 'save_week', 'lock_slate', 'finalize_week'].includes(action)) {
+      if (['save_players', 'get_players_full', 'list_people', 'save_week', 'lock_slate', 'finalize_week', 'notify_all_locked'].includes(action)) {
         if (!CODE() || req.body.code !== CODE()) return res.status(403).json({ error: 'bad code' });
 
         /* ⛔ THE SANDBOX BOUNDARY DID NOT COVER THIS ACTION, AND IT COST THE LIVE ROSTER
@@ -1033,6 +1048,32 @@ export default async function handler(req, res) {
            frozen picks and the frozen lines; a client-supplied winner is ignored and reported
            back if it disagrees. Scores are PERSISTED so the board no longer depends on ESPN
            keeping the history around. */
+        /* RE-SEND THE ALL-PICKS-IN NOTICE. The trigger is a one-shot on the last player's lock, so
+           a notice that failed — or that fired from a build which could not yet send it, as on
+           2026-08-09 — has no second chance: nobody locks twice. This is that second chance, and
+           it is the ONLY way to recover one. Refuses unless the board is genuinely open (everyone
+           locked, or the deadline has passed), because the message states that every card is now
+           visible; sending it early would be false AND would leak that picks are readable when
+           they are not. Reports both channel counts rather than claiming success. */
+        if (action === 'notify_all_locked') {
+          const slug = cleanSlug(req.body.slug);
+          const row = await getRow(slug);
+          if (!row) return res.status(404).json({ error: 'week not found' });
+          const wk = row.data;
+          const roster = await loadRoster(slug);
+          if (!isRevealed(wk, roster)) {
+            return res.status(400).json({
+              error: 'the board is not open yet — not everyone is locked in and the deadline has not passed',
+              hint: 'this notice tells the group every card is visible; it must not go out before that is true',
+            });
+          }
+          const told = await notifyAllLocked(wk, slug, roster);
+          wk.notifiedAllLocked = true;
+          wk.allLockedNotice = { ...told, at: new Date().toISOString(), manual: true };
+          await putRow(slug, wk);
+          return res.status(200).json({ slug, ...told, reachable: roster.filter(p => p.canText).length });
+        }
+
         if (action === 'finalize_week') {
           const slug = cleanSlug(req.body.slug);
           const row = await getRow(slug);
@@ -1287,8 +1328,23 @@ export default async function handler(req, res) {
           saved = await putRowCAS(slug, wk, row.updated_at);
         }
         if (!saved) return res.status(409).json({ error: 'another save landed at the same moment — try again' });
-        if (fireNotify) await notifyAllLocked(saved.data, slug, roster);
-        return res.status(200).json({ ok: true, locked: !!req.body.lock, count: Object.keys(picks).length, allLocked: fireNotify });
+        let told = null;
+        if (fireNotify) {
+          told = await notifyAllLocked(saved.data, slug, roster);
+          /* Record what actually went out, and RELEASE THE LATCH if nothing did. The pre-latch
+             stops two concurrent locks both announcing; it must not turn a total failure into a
+             permanent one. A best-effort write — the player's picks are already safely saved and
+             must never be risked for a bookkeeping update. */
+          try {
+            const after = await getRow(slug);
+            if (after && after.data) {
+              after.data.allLockedNotice = { ...told, at: new Date().toISOString() };
+              if (!told.texted && !told.emailed) after.data.notifiedAllLocked = false;
+              await putRow(slug, after.data);
+            }
+          } catch (e) { /* the picks are saved; this is bookkeeping */ }
+        }
+        return res.status(200).json({ ok: true, locked: !!req.body.lock, count: Object.keys(picks).length, allLocked: fireNotify, ...(told ? { told } : {}) });
       }
 
       return res.status(400).json({ error: 'unknown action' });
