@@ -352,6 +352,30 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, stored: true, pages });
     }
 
+    /* Job number -> the PM who owns it, straight off the Procore feed (51 of 53 jobs carry one,
+       and the names match the desks exactly: Troy Jennings, Logan Moore, Erik Parcell). This is
+       what makes routing automatic without a classifier: the invoice's job is already resolved at
+       REGISTER time by ryc_invoice_job_hints — (vendor, printed job text) -> job number, learned
+       only from a PM's own correction — so the remaining step is a lookup, not a guess.
+       Returns an empty map on any failure: no suggestion is a fine outcome, a wrong one is not. */
+    async function jobPmMap() {
+      const origin = process.env.RYC_DATA_ORIGIN || 'https://app.civicscope.io';
+      try {
+        const r = await fetch(`${origin}/ryc-data/procore-cache.json`, {
+          headers: { 'User-Agent': 'ryc-invoices/1.0' }, signal: AbortSignal.timeout(15000),
+        });
+        if (!r.ok) return {};
+        const cache = await r.json();
+        const map = {};
+        for (const j of (cache.jobs || [])) {
+          const no = String(j.projectNumber || '').trim();
+          const pm = j.pm && j.pm.name ? String(j.pm.name).trim() : '';
+          if (no && pm) map[no] = pm;
+        }
+        return map;
+      } catch { return {}; }
+    }
+
     /* ---------- job names ---------------------------------------------------------------
        "2510GP04" is not what anyone calls that job. Command resolves names from its Procore
        feed, but the tool deliberately does not load that whole feed just to decorate a header
@@ -456,13 +480,31 @@ export default async function handler(req, res) {
           }
         } catch { /* leave the rows as they are */ }
       }
+      /* ROUTING SUGGESTION — front office only, and only for what has not been pushed yet.
+         A PM never sees this: their queue is what was sent to them, and offering them a
+         "suggested desk" would invite them to hand work sideways, which is the front office's
+         call. Derived per request so a corrected hint or a PM change in Procore is reflected
+         immediately rather than at whatever time a stored value was written. */
+      let unrouted = 0;
+      if (who.scope === 'all') {
+        const pending = rows.filter(r => !r.assigned_pm);
+        if (pending.length) {
+          const pmByJob = await jobPmMap();
+          for (const r of pending) {
+            const s = r.job_no ? pmByJob[String(r.job_no).trim()] : null;
+            if (s) { r.suggested_pm = s; r.suggested_via = 'job'; }
+            else { r.suggested_pm = null; r.suggested_via = r.job_no ? 'job has no PM in Procore' : 'no job resolved'; }
+          }
+        }
+        unrouted = pending.length;
+      }
       // Summary computed here rather than in the view, so the count a PM sees and the count the
       // front office sees come from one place.
       const openHigh = rows.filter(r => Number(r.open_high) > 0).length;
       const outstanding = rows.filter(r => r.review_state === 'new' || r.review_state === 'ready').length;
       return res.status(200).json({
         ok: true, scope: who.scope, pm, rows,
-        summary: { documents: rows.length, outstanding, flagged: openHigh },
+        summary: { documents: rows.length, outstanding, flagged: openHigh, unrouted },
       });
     }
 

@@ -263,6 +263,9 @@ function invPaint(){
   h += '</div>';
 
   if(who.scope === "all") h += invIntakePanel();
+  // Above the desks on purpose: what has not been routed is the front office's actual job, and
+  // it is the one thing that stops moving if nobody looks at it.
+  if(who.scope === "all") h += invRoutingPanel();
 
   if(!rows.length){
     v.innerHTML = h + '<div class="panel"><div class="sub">Nothing in the register for this period.</div></div>';
@@ -352,6 +355,72 @@ function invFilingHtml(r){
   }
   if(r.review_state === "approved") return '<span class="m-m">approved &mdash; waiting to be filed</span>';
   return "";
+}
+
+/* THE FRONT-OFFICE ROUTING QUEUE (Keith, 2026-08-12).
+   "A user from the front office logs in ... their role is to review and route where needed —
+   then push to the individual PM queue."
+
+   So an invoice has two homes, and `assigned_pm` is the boundary between them: no PM means it is
+   still in the front-office pool; a PM means it is on that desk. Pushing is not a new concept —
+   it is `assign`, which already sets the PM, clears the `unrouted` finding and records who did
+   it. What is new is that the row arrives with the answer already worked out.
+
+   Nothing here is auto-pushed. The system proposes, a person releases: routing a payable to the
+   wrong desk is how an invoice sits unlooked-at for a fortnight, and the classifier's own
+   confidence is not worth that. Accepting the proposal is one click; overriding it is two. */
+function invRoutingPanel(){
+  var who = _inv.who || {};
+  if(who.scope !== "all") return "";
+  var pending = _inv.rows.filter(function(r){ return !r.assigned_pm && !invDone(r); });
+  if(!pending.length) return "";
+
+  var h = '<div class="panel"><div class="h">Needs routing &middot; ' + pending.length
+    + ' &middot; ' + fmt(pending.reduce(function(a,r){ return a + (Number(r.amount)||0); }, 0)) + '</div>'
+    + '<div class="sub">Arrived and not yet on anyone&rsquo;s desk. The job is resolved from what the '
+    + 'vendor printed, and the desk follows from the job &mdash; check it and push.</div>'
+    + '<table class="tbl"><tbody>';
+
+  pending.forEach(function(r){
+    var pms = who.pms || [];
+    var sel = '<select id="rt-' + esc(r.id) + '" style="width:150px">'
+      + '<option value="">Choose a desk&hellip;</option>'
+      + pms.map(function(p){
+          return '<option value="' + esc(p) + '"' + (r.suggested_pm === p ? " selected" : "") + '>' + esc(p) + '</option>';
+        }).join("")
+      + '</select>';
+    h += '<tr><td style="vertical-align:top;min-width:180px"><b>' + esc(r.vendor_name || "&mdash;") + '</b>'
+      + '<div class="sub">' + esc(r.invoice_no || "") + '</div></td>'
+      + '<td class="r" style="vertical-align:top;white-space:nowrap"><b>' + fmt(Number(r.amount) || 0) + '</b></td>'
+      + '<td style="vertical-align:top">'
+      + (r.job_no
+          ? '<span class="sub">' + esc(r.job_no) + (invJobName(r.job_no) ? ' &middot; ' + esc(invJobName(r.job_no)) : '') + '</span>'
+          : '<span class="m-a">no job &mdash; the vendor printed &ldquo;' + esc(r.job_text || "nothing") + '&rdquo;</span>')
+      + '<div style="margin-top:4px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">' + sel
+      + '<button class="pfill" onclick="invPushToPm(' + invArg(r.id) + ',' + r.version + ')">Push to desk</button>'
+      + '</div>'
+      + '<div id="inv-err-' + esc(r.id) + '" class="sub" style="margin-top:3px"></div>'
+      + '<div class="sub" style="margin-top:3px">'
+      + (r.suggested_pm
+          ? 'Suggested: <b>' + esc(r.suggested_pm) + '</b> &mdash; the PM on this job in Procore'
+          : '<span class="m-a">No suggestion &mdash; ' + esc(r.suggested_via || "could not resolve") + '</span>')
+      + '</div></td></tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+/* Push = assign. Deliberately the SAME typed, audited operation a PM correction uses, so the
+   fact trail does not distinguish "the front office routed it" from "someone fixed it" by having
+   two different write paths — only by the actor already recorded on the event. */
+function invPushToPm(id, ver){
+  if(_inv.busy) return;
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0] || {};
+  var pm = (document.getElementById("rt-" + id) || {}).value || "";
+  if(!pm){ invErr(id, "Choose a desk before pushing."); return; }
+  if(!r.job_no && !confirm("This invoice has no job yet.\n\nPush it to " + pm + " anyway? They will have to set the job themselves.")) return;
+  _inv.busy = true;
+  invPost("assign", { id: id, job_no: r.job_no || null, assigned_pm: pm, source: "manual", version: ver })
+    .then(function(x){ invAfter(id, x); });
 }
 
 /* ONE ROW = ONE LINE OF WORK. Coding and decision are both here; nothing to expand. */
