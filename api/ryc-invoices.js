@@ -597,6 +597,17 @@ export default async function handler(req, res) {
       for (const [no, f] of Object.entries(fnd)) {
         if (seen.has(no)) continue;
         const pm = f.pm;
+        /* THE NAME SHIPS EVEN THOUGH THE JOB DOES NOT (2026-08-13). `names` was built from the
+           Procore cache alone while `pm` was already Procore-or-Foundation, so a Foundation-only
+           job arrived on a desk correctly and then rendered as a bare number: Ken's card read
+           `26X004 · 2 · $25,499` with no name, which reads as *the tool does not know this job*
+           when in fact it knew the job, the PM and the customer. Keith, on that card: *"are the
+           two under kens name not with a project - i dont see a project name."*
+           This adds ONLY the name. These jobs stay out of `jobs`, so they remain absent from the
+           picklist for the reason recorded above — a name on a card a PM is already looking at is
+           not the same thing as an option to pick out of hundreds. Guarded on a real description
+           so a blank one can never render as `26X004 · 26X004`. */
+        if (f.desc) names[no] = f.desc;
         foundationOnly.push({ no, name: f.desc || no, pm, pm_source: 'foundation',
           pm_procore: null, pm_foundation: pm, active: false, in_procore: false });
       }
