@@ -167,26 +167,45 @@ function invHardFlags(r){
 }
 function invDone(r){ return r.review_state!=="new" && r.review_state!=="ready"; }
 
+/* The two reference tables both screens need: the job list (Inbound's picker AND the PM board's
+   headers) and RYC's cost codes. Loaded once per session and shared — Inbound used to render its
+   job picker EMPTY when it was opened first, because the list was only ever fetched by the PM
+   board's own render path. `repaint` is passed in because the two screens paint differently. */
+function invEnsureRefs(repaint){
+  if(!_inv.codes && !_inv._codesLoading){
+    _inv._codesLoading = true;
+    invPost("cost_codes", {}).then(function(c){
+      _inv._codesLoading = false;
+      if(c.ok){ _inv.codes = c.data.codes || []; if(repaint) repaint(); }
+    });
+  }
+  if(!_inv.jobs.length && !_inv._jobsLoading){
+    _inv._jobsLoading = true;
+    return invPost("jobs", {}).then(function(j){
+      _inv._jobsLoading = false;
+      if(j.ok && j.data && j.data.names){
+        _jobNames = j.data.names;
+        _inv.jobs = (j.data.jobs || []);      // active jobs + the PM each one implies
+      }
+      if(repaint) repaint();
+    });
+  }
+  return Promise.resolve();
+}
+
 function renderInvoices(){
   var v = document.getElementById("view");
   v.innerHTML = '<div class="panel"><div class="sub">Loading&hellip;</div></div>';
-  invPost("whoami", {}).then(function(r){
+  // whoami is resolved once at boot (app.js routes on it); don't pay for it twice.
+  var whoami = _inv.who ? Promise.resolve({ ok:true, data:_inv.who }) : invPost("whoami", {});
+  whoami.then(function(r){
     if(!r.ok){
       v.innerHTML = '<div class="panel"><div class="h">Invoices</div>'
         + '<div class="warn-banner">' + esc(r.error||"Unavailable") + '</div></div>';
       return;
     }
-    _inv.who = r.data; _inv.pm = r.data.pm || null;
-    if(!_inv.codes) invPost("cost_codes", {}).then(function(c){
-      if(c.ok){ _inv.codes = c.data.codes || []; invPaint(); }
-    });
-    invPost("jobs", {}).then(function(j){
-      if(j.ok && j.data && j.data.names){
-        _jobNames = j.data.names;
-        _inv.jobs = (j.data.jobs || []);      // active jobs + the PM each one implies
-        invPaint();
-      }
-    });
+    _inv.who = r.data; _inv.pm = _inv.pm || r.data.pm || null;
+    invEnsureRefs(invPaint);
     invLoad();
   });
 }
@@ -291,12 +310,54 @@ function invPaint(){
   // it is the one thing that stops moving if nobody looks at it.
   if(who.scope === "all") h += invRoutingPanel();
 
-  if(!rows.length){
+  /* ALL DESKS IS A ROSTER, NOT A PILE (Keith, 2026-08-13). Viewing everyone at once used to
+     render one flat run of job panels, so "2415GO03 · INDOT Roselawn" sat above "2515CO02 ·
+     NPTech" with nothing on screen saying they belong to different people — the front office
+     could see the work but not whose it was.
+     Every desk gets its own section, in the same order as the chips above, INCLUDING the ones with
+     nothing in them: a PM with no outstanding approvals is a fact worth stating, and an absent
+     section reads as "not loaded yet" rather than "nothing to do". */
+  if(who.scope === "all" && !_inv.pm){
+    var _all = (who.pms || []).slice();
+    open.concat(done).forEach(function(r){
+      if(r.assigned_pm && _all.indexOf(r.assigned_pm) < 0) _all.push(r.assigned_pm);
+    });
+    _all.sort();
+    if(!_all.length){
+      h += '<div class="panel"><div class="sub">No desks are configured yet.</div></div>';
+    }
+    _all.forEach(function(p){
+      var mine = open.filter(function(r){ return r.assigned_pm === p; });
+      var mval = mine.reduce(function(a,r){ return a + (Number(r.amount)||0); }, 0);
+      var mdone = done.filter(function(r){ return r.assigned_pm === p; }).length;
+      h += '<div class="panel" style="padding-bottom:4px"><div class="h">' + esc(p)
+        + (mine.length
+            ? ' <span class="sub" style="font-weight:400">&middot; ' + mine.length
+              + ' to review &middot; ' + fmt(mval) + '</span>'
+            : '')
+        + '</div>';
+      if(!mine.length){
+        h += '<div class="sub">No outstanding invoice approvals needed'
+          + (mdone ? ' &mdash; ' + mdone + ' already done this period' : '') + '.</div>';
+      }
+      h += '</div>';
+      invGroups(mine).forEach(function(g){ h += invJobPanel(g); });
+    });
+    // Anything released with no PM on it would otherwise be invisible on this screen.
+    var orphans = open.filter(function(r){ return !r.assigned_pm; });
+    if(orphans.length){
+      h += '<div class="panel" style="padding-bottom:4px"><div class="h">No desk '
+        + '<span class="sub" style="font-weight:400">&middot; ' + orphans.length + '</span></div>'
+        + '<div class="sub">Released without a PM on it. Assign a desk in Inbound before it is '
+        + 'released, or reassign it here.</div></div>';
+      invGroups(orphans).forEach(function(g){ h += invJobPanel(g); });
+    }
+  } else if(!rows.length){
     v.innerHTML = h + '<div class="panel"><div class="sub">Nothing in the register for this period.</div></div>';
     return;
+  } else {
+    invGroups(open).forEach(function(g){ h += invJobPanel(g); });
   }
-
-  invGroups(open).forEach(function(g){ h += invJobPanel(g); });
 
   if(done.length){
     h += '<div class="panel"><div class="h">Done &middot; ' + done.length + '</div>'
@@ -407,6 +468,9 @@ function renderInbound(){
   document.getElementById("view-ctx").innerHTML =
     "Everything that has arrived and not yet been sent to a desk";
   v.innerHTML = '<div class="panel"><div class="sub">Loading the inbound queue&hellip;</div></div>';
+  // The job picker on every row comes from this list; without it the front office gets a screen
+  // full of empty dropdowns and no way to place anything.
+  invEnsureRefs(function(){ if(_inb.rows.length) invPaintInbound(); });
   invInboundPost("inbound_queue", { days: 90 }).then(function(r){
     if(!r.ok || !r.data || r.data.error){
       v.innerHTML = '<div class="panel"><div class="sub m-r">'
@@ -434,6 +498,7 @@ function invPaintInbound(){
     + ' &middot; ' + fmt(s.value || 0) + '</div>'
     + '<div class="sub">'
     + '<b>' + (s.staged || 0) + '</b> placed by the system &middot; '
+    + ((s.no_desk || 0) ? '<b class="m-a">' + s.no_desk + '</b> have a job but no desk &middot; ' : '')
     + '<b class="' + ((s.unplaced || 0) ? 'm-a' : '') + '">' + (s.unplaced || 0) + '</b> need you'
     + ((s.flagged || 0) ? ' &middot; <b class="m-r">' + s.flagged + ' flagged</b>' : '')
     + '</div>'
@@ -479,12 +544,20 @@ function invPaintInbound(){
       + '</select>'
       // Putting a wrong guess back to "needs a human" has to be possible, or the only way to
       // correct it is to pick a different job you are also unsure about.
-      + (r.staged_pm ? ' <button class="pfill" onclick="invClearStage(' + invArg(r.id) + ')">clear</button>' : '');
+      + ((r.staged_pm || r.staged_job_no)
+          ? ' <button class="pfill" onclick="invClearStage(' + invArg(r.id) + ')">clear</button>' : '');
 
+    /* THREE STATES, NOT TWO. A job the system identified but whose DESK it does not know is not
+       the same as an invoice it could not read at all — the first needs one click, the second
+       needs somebody to look at the document. Collapsing them into "not placed" is what made
+       2513CO04 Helix Orchard (no PM in Procore) look like an unreadable invoice. */
     var why;
     if(r.staged_pm){
-      why = '<span class="m-g">' + esc(r.staged_job_no || "") + '</span> <span class="sub">'
+      why = '<span class="m-g">' + esc(r.staged_pm) + '</span> <span class="sub">'
         + esc(r.staged_note || (r.staged_source === "manual" ? "set by hand" : "")) + '</span>';
+    } else if(r.staged_job_no){
+      why = '<span class="m-a">no desk</span> <span class="sub">'
+        + esc(r.staged_note || (r.staged_job_no + " has no PM in Procore")) + '</span>';
     } else {
       why = '<span class="m-a">not placed</span> <span class="sub">'
         + esc(r.staged_note || "") + (r.job_text

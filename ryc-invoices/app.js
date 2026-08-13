@@ -34,8 +34,8 @@ function init(){
   if(typeof RYCShell !== "undefined"){
     RYCShell.mount({
       workspace: "invoices",
-      version: "v1.0.0",
-      active: "invoices",
+      version: "v1.1.0",
+      active: "inbound",
       /* TWO destinations, because they are two different people's work (Keith, 2026-08-13).
          Inbound is the front office: everything that has arrived and not yet been sent to a desk.
          Daily batch is a PM's own queue. Grouping the unplaced invoices as a "No job yet" section
@@ -58,7 +58,19 @@ function init(){
   document.getElementById("view-ctx").innerHTML =
     "AP invoice register (written here) &middot; every decision is an audited fact "
     + "&middot; identity unverified until per-user sign-in";
-  renderInvoices();
+
+  /* WHERE THE URL LANDS YOU IS DECIDED BY WHO IS ASKING (Keith, 2026-08-13).
+     /ryc/invoices opened on Inbound-second and PM-Desks-first, which is backwards for the person
+     who lives in this tool: the front office's whole job is the arrivals queue, and a PM only ever
+     wants their own desk. Asking the server rather than guessing from the URL means an admin code
+     in ?c= still lands on Inbound, and an emailed ?k= link still lands on that PM's desk. */
+  invPost("whoami", {}).then(function(r){
+    var who = (r && r.ok && r.data) ? r.data : null;
+    if(who){ _inv.who = who; _inv.pm = who.pm || null; }
+    var pm = who && who.scope === "pm";
+    if(typeof RYCShell !== "undefined") RYCShell.setActive(pm ? "invoices" : "inbound");
+    if(pm) renderInvoices(); else renderInbound();
+  });
 }
 
 if(sessionStorage.getItem("ryc_inv_auth") === "1"){ showApp(); }

@@ -257,7 +257,147 @@ async function readPages(images) {
   return { status: 200, body: { documents: parsed.documents } };
 }
 
-/* ===================== handler ===================================================== */
+/* ===================== STAGING: READ THE JOB OFF THE INVOICE =======================
+   Keith, 2026-08-13: "the way the system will know is reading the invoice and looking for the
+   job name" — and "job name tells you who the PM is".
+
+   So the primary signal is `job_text`: what the VENDOR PRINTED. Measured on the first real
+   mailbox pull, 9 of 13 invoices carry one. Vendor billing history is a fallback, not the
+   method — a vendor who has always billed one job can bill a new one tomorrow, and treating
+   history as truth would confidently misfile exactly the invoices nobody re-checks.
+
+   ⛔ IT REFUSES RATHER THAN GUESSES — but refusing something obvious is its own failure.
+   The first cut required 2+ distinctive words and a clear winner, which was too blunt in both
+   directions and left every one of the first 16 real emailed invoices unplaced. What it
+   actually got wrong (measured against the live 53-job feed, 2026-08-13):
+
+     · "WAKARUSA" was refused for matching one word — but exactly ONE job in the feed carries
+       that word. A word that belongs to a single job IS a clear winner; the reason the old
+       rule looked safe is that it was written against a hypothetical feed with three Wakarusa
+       jobs in it, not the one RYC has.
+     · "Ashley WWTP" and "helix orchard" both matched two words cleanly. Nothing ran.
+     · "Shipshe Waste Water" — the vendor's own abbreviation for Shipshewana — scored zero,
+       because tokens were compared only for equality.
+     · Digits were thrown away, and 24 of the 53 active jobs are Greencroft units distinguished
+       by NOTHING BUT their number ("Greencroft 2026 WPC" vs "Greencroft 2021 WPC").
+     · A printed JOB NUMBER — the least ambiguous signal there is — was not looked at at all.
+
+   So the rule is now about DISTINCTIVENESS rather than word count. A word unique to one job is
+   evidence; a word twenty jobs share is not, however many of them you stack up. The traps that
+   motivated the old rule still refuse, and there is a regression sweep proving it:
+   "South Bend" → too weak (this is the Monreaux trap), "WWTP" / "PHM" / "Greencroft WPC" →
+   shared words only, and every one of the 53 job names resolves to its own job. */
+const JOB_FILLER = new Set(['the','of','and','a','an','at','in','on','for','llc','inc','co',
+  'corp','project','projects','phase','rebid','bid','new','addition','renovation','reno',
+  'improvements','improvement','building','bldg','construction','center','centre','north',
+  'south','east','west','no','site','work','works','replacement','upgrade','upgrades',
+  'remodel','expansion','town','city','county','school','corporation','unit']);
+/* Numbers are KEPT — see the Greencroft note above. */
+const jobTokens = (s) => new Set(String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
+  .split(/\s+/).filter(w => w.length > 2 && !JOB_FILLER.has(w)));
+const jobNoKey = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+const MIN_LONE = 6;      // a lone matching word must be long enough to not be a coincidence
+const PREFIX_MIN = 5;    // "Shipshe" is an abbreviation; "New" is not
+const PREFIX_RATIO = 0.6;
+
+/* Which jobs own each word. A word owned by exactly one job is what "distinctive" means here —
+   measured against the feed RYC actually has, not assumed. */
+function tokenIndex(jobs) {
+  const idx = new Map();
+  for (const j of jobs) for (const t of jobTokens(j.name)) {
+    if (!idx.has(t)) idx.set(t, new Set());
+    idx.get(t).add(j.no);
+  }
+  return idx;
+}
+
+/* An invoice writes "Shipshe" for Shipshewana. A real abbreviation keeps most of the word,
+   which is exactly what separates it from a coincidental compound: "waste" is a 50% prefix of
+   "wastewater" and means something else entirely. */
+function matchedTokens(want, have) {
+  const hits = [];
+  for (const w of want) {
+    if (have.has(w)) { hits.push(w); continue; }
+    for (const h of have) {
+      const [short, long] = w.length <= h.length ? [w, h] : [h, w];
+      if (short.length < PREFIX_MIN) continue;
+      if (!long.startsWith(short)) continue;
+      if (short.length / long.length < PREFIX_RATIO) continue;
+      hits.push(h); break;
+    }
+  }
+  return hits;
+}
+
+/* job_text -> a job, or null WITH A REASON. The reason is not decoration: "nothing was printed"
+   and "two jobs match equally" call for completely different actions from the front office. */
+function matchJob(jobText, jobs, idx) {
+  const raw = String(jobText || '');
+
+  /* A PRINTED JOB NUMBER beats every heuristic — it is the thing itself, not a resemblance.
+     Candidates are checked against the feed's OWN numbers rather than a guessed pattern, so a
+     ZIP code or a vendor's order number cannot short-circuit the name match below. */
+  const byNo = new Map(jobs.map(j => [jobNoKey(j.no), j]));
+  let orphanNo = null;
+  for (const w of (raw.toUpperCase().match(/[A-Z0-9][A-Z0-9-]{3,}/g) || [])) {
+    const k = jobNoKey(w);
+    if (k.length < 5) continue;
+    const hit = byNo.get(k);
+    if (hit) return { job: hit, hits: [w], conf: 0.95, why: `job number ${hit.no} is printed on the invoice` };
+    if (/[A-Z]/.test(k) && /[0-9]/.test(k)) orphanNo = orphanNo || w;   // job-number SHAPE, unknown
+  }
+  const noJob = (why) => ({ job: null, why: orphanNo
+    ? `the invoice prints job ${orphanNo}, which is not in the Procore feed` : why });
+
+  const want = jobTokens(raw);
+  if (!want.size) return noJob('nothing distinctive printed');
+
+  const scored = [];
+  for (const j of jobs) {
+    const hits = matchedTokens(want, jobTokens(j.name));
+    if (!hits.length) continue;
+    let distinct = 0, longest = 0;
+    for (const h of hits) {
+      const owners = idx.get(h);
+      if (owners && owners.size === 1) { distinct++; longest = Math.max(longest, h.length); }
+    }
+    scored.push({ job: j, hits, distinct, longest, total: hits.length });
+  }
+  if (!scored.length) return noJob('no job resembles what the invoice printed');
+
+  scored.sort((a, b) => (b.distinct - a.distinct) || (b.total - a.total) || (b.longest - a.longest));
+  const best = scored[0], next = scored[1] || null;
+  const same = (s) => s.distinct === best.distinct && s.total === best.total && s.longest === best.longest;
+  const say = (h) => `"${h}"`;
+
+  if (best.distinct > 0) {
+    if (next && same(next)) {
+      return { job: null, why: `${scored.filter(same).length} jobs match ${best.hits.map(say).join(' + ')} equally well` };
+    }
+    if (best.total === 1 && best.longest < MIN_LONE) {
+      return { job: null, why: `only the short word ${say(best.hits[0])} matched "${best.job.name}" — too weak to place` };
+    }
+    return { job: best.job, hits: best.hits,
+      conf: best.distinct >= 2 ? 0.90 : (best.total >= 2 ? 0.80 : 0.65),
+      why: `matched ${best.hits.map(say).join(' + ')} to ${best.job.name}` };
+  }
+
+  /* No word is unique to one job — but one job can still win outright on how much of what the
+     invoice printed it accounts for. This is the Greencroft case: every word is shared and only
+     the combination identifies the unit. */
+  if (best.total >= 2 && (!next || next.total < best.total)) {
+    return { job: best.job, hits: best.hits, conf: 0.70,
+      why: `matched ${best.hits.map(say).join(' + ')} to ${best.job.name}` };
+  }
+  return { job: null, why: `only shared words matched (${best.hits.map(say).join(', ')}) — too weak to place` };
+}
+
+/* Exported for the regression harness (scripts/verify-ryc-invoice-matcher.mjs). Not a route.
+   The matcher is the one piece of this module with real logic and no I/O, so it is the one
+   piece that can be tested exhaustively against the live job feed without touching production. */
+export const __matcher = { matchJob, tokenIndex, jobTokens, jobNoKey };
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   if (!SB_URL || !SB_KEY) return res.status(500).json({ error: 'Server misconfigured' });
@@ -393,51 +533,6 @@ export default async function handler(req, res) {
         }
         return map;
       } catch { return {}; }
-    }
-
-    /* ===================== STAGING: READ THE JOB OFF THE INVOICE =======================
-       Keith, 2026-08-13: "the way the system will know is reading the invoice and looking for the
-       job name" — and "job name tells you who the PM is".
-
-       So the primary signal is `job_text`: what the VENDOR PRINTED. Measured on the first real
-       mailbox pull, 9 of 13 invoices carry one. Vendor billing history is a fallback, not the
-       method — a vendor who has always billed one job can bill a new one tomorrow, and treating
-       history as truth would confidently misfile exactly the invoices nobody re-checks.
-
-       ⛔ IT REFUSES RATHER THAN GUESSES. "WAKARUSA" overlaps ONE distinctive word with
-       "Wakarusa WTP" — and also with Wakarusa Pickleball Courts and Wakarusa Water Treatment
-       Plant. That is the shape that once matched two different South Bend jobs to Monreaux. A
-       match needs 2+ distinctive words and a clear winner; anything less is left for a human,
-       which is the entire point of the front office's screen. */
-    const JOB_FILLER = new Set(['the','of','and','a','an','at','in','on','for','llc','inc','co',
-      'corp','project','projects','phase','rebid','bid','new','addition','renovation','reno',
-      'improvements','improvement','building','bldg','construction','center','centre','north',
-      'south','east','west','no','site','work','works','replacement','upgrade','upgrades',
-      'remodel','expansion','town','city','county','school','corporation','unit']);
-    const jobTokens = (s) => new Set(String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/).filter(w => w.length > 2 && !JOB_FILLER.has(w) && !/^\d+$/.test(w)));
-
-    /* job_text -> a job number, or null with a reason. Never a guess. */
-    function matchJob(jobText, jobs) {
-      const want = jobTokens(jobText);
-      if (!want.size) return { job: null, why: 'nothing distinctive printed' };
-      const scored = [];
-      for (const j of jobs) {
-        const have = jobTokens(j.name);
-        let overlap = 0;
-        for (const w of want) if (have.has(w)) overlap++;
-        if (overlap) scored.push({ overlap, job: j });
-      }
-      if (!scored.length) return { job: null, why: 'no job resembles what the invoice printed' };
-      scored.sort((a, b) => b.overlap - a.overlap);
-      const best = scored[0];
-      if (best.overlap < 2) {
-        return { job: null, why: `only 1 distinctive word matched "${best.job.name}" — too weak` };
-      }
-      if (scored.filter(s => s.overlap === best.overlap).length > 1) {
-        return { job: null, why: `${scored.filter(s => s.overlap === best.overlap).length} jobs match equally` };
-      }
-      return { job: best.job, overlap: best.overlap };
     }
 
     /* ---------- job names ---------------------------------------------------------------
@@ -670,21 +765,46 @@ export default async function handler(req, res) {
         summary: {
           documents: rows.length,
           staged: rows.filter(r => r.staged_pm).length,
-          unplaced: rows.filter(r => !r.staged_pm).length,
+          // A job identified but no desk to send it to — one click from ready, and a different
+          // problem from an invoice nothing could be read off.
+          no_desk: rows.filter(r => !r.staged_pm && r.staged_job_no).length,
+          unplaced: rows.filter(r => !r.staged_pm && !r.staged_job_no).length,
           flagged: rows.filter(r => Number(r.open_high) > 0).length,
           value: rows.reduce((a, r) => a + (Number(r.amount) || 0), 0),
         },
       });
     }
 
-    /* Resolve what can be resolved, and say plainly what could not. Runs on demand (and after an
-       ingest) so the front office opens a screen that is already mostly answered. */
-    if (action === 'stage_inbound') {
-      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+    /* ===== THE STAGING PASS ============================================================
+       Resolve what can be resolved, and RECORD plainly what could not.
+
+       It runs ON ARRIVAL (at the end of `register`, which is what the mailbox ingest calls) and
+       not only when somebody presses a button. Keith's motion is "the invoice hits the ap inbox,
+       AUTO MOVES to the queue where the SYSTEM STAGES IT" — a screen that reads "0 placed by the
+       system" because nothing ever tried is indistinguishable, to the person looking at it, from a
+       system that tried and could not, and it puts the front office back to doing all of it.
+
+       Two more things it does deliberately:
+       · A JOB WITH NO DESK IS STILL WORTH RECORDING. 2513CO04 Helix Orchard has no PM in the
+         Procore feed, and two of the first 16 invoices belong to it. Refusing to stage the job
+         because the desk is unknown threw away the half we DID know and made the front office
+         find the job by hand. Now the job is staged and the desk is left open; release still
+         holds anything with no desk, so nothing lands nowhere.
+       · THE REASON IS WRITTEN DOWN. `staged_note` carries the refusal, so the screen can say
+         "only shared words matched" or "the invoice prints job 26X004, which is not in the
+         Procore feed" instead of leaving a blank the front office has to re-derive per invoice. */
+    async function stagingPass(opts) {
+      const force = !!(opts && opts.force);
       const q = await rpc('ryc_inbound_queue', { p_days: 90 });
-      if (q.status !== 200) return res.status(q.status).json(q.body);
-      const rows = (Array.isArray(q.body) ? q.body : []).filter(r => !r.staged_pm);
-      if (!rows.length) return res.status(200).json({ ok: true, staged: 0, unplaced: 0, note: 'nothing waiting to be staged' });
+      if (q.status !== 200) return { error: (q.body && q.body.error) || 'could not read the inbound queue' };
+      const all = Array.isArray(q.body) ? q.body : [];
+      /* A PERSON'S ANSWER IS NEVER OVERWRITTEN — not even by an explicit re-run. Otherwise the
+         front office corrects a wrong guess, presses "Re-read and place", and the machine puts its
+         own guess straight back. Everything else is fair game on a re-run: that is the point of
+         re-reading after a hint is taught or a job gains a PM in Procore. */
+      const rows = all.filter(r => r.staged_source !== 'manual'
+        && (force || (!r.staged_pm && !r.staged_job_no)));
+      if (!rows.length) return { staged: 0, unplaced: 0, note: 'nothing waiting to be staged' };
 
       // The job list and each job's PM come from the same Procore feed Command reads.
       const origin = process.env.RYC_DATA_ORIGIN || 'https://app.civicscope.io';
@@ -702,26 +822,63 @@ export default async function handler(req, res) {
           })).filter(j => j.no && j.name);
         }
       } catch { /* no feed -> nothing is staged, which is honest */ }
-      if (!jobs.length) return res.status(200).json({ ok: true, staged: 0, unplaced: rows.length,
-        note: 'the Procore job feed could not be read — nothing staged rather than guessed' });
+      if (!jobs.length) {
+        return { staged: 0, unplaced: rows.length,
+          note: 'the Procore job feed could not be read — nothing staged rather than guessed' };
+      }
+      const idx = tokenIndex(jobs);
+      const byNo = new Map(jobs.map(j => [j.no, j]));
 
       const staged = [], unplaced = [];
       for (const r of rows) {
-        const m = matchJob(r.job_text, jobs);
-        if (!m.job) { unplaced.push({ id: r.id, vendor: r.vendor_name, job_text: r.job_text, why: m.why }); continue; }
-        if (!m.job.pm) { unplaced.push({ id: r.id, vendor: r.vendor_name, job_text: r.job_text,
-          why: `matched ${m.job.no} but that job has no PM in Procore` }); continue; }
+        /* A job resolved at REGISTER time — from ryc_invoice_job_hints, the alias a PM taught
+           once — is already a human's answer. Re-deriving it from the printed text would be
+           strictly worse than using it. */
+        const known = r.job_no ? byNo.get(String(r.job_no).trim()) : null;
+        const m = known
+          ? { job: known, conf: 1.0, why: `job ${known.no} was already resolved on this invoice`, source: 'hint' }
+          : { ...matchJob(r.job_text, jobs, idx), source: 'job_text' };
+
+        if (!m.job) {
+          // Record WHY, once. Rewriting an unchanged note every pass would churn the version and
+          // bury the real history under identical events.
+          if (r.staged_note !== m.why) {
+            await rpc('ryc_stage_invoice', {
+              p_id: r.id, p_staged_pm: null, p_staged_job_no: null,
+              p_source: 'none', p_confidence: null, p_note: m.why,
+              p_expected_version: r.version, p_request_id: `${rid}:why:${r.id}`, p_actor: actor,
+            });
+          }
+          unplaced.push({ id: r.id, vendor: r.vendor_name, job_text: r.job_text, why: m.why });
+          continue;
+        }
+
+        const note = m.job.pm ? m.why
+          : `${m.why} — that job has no PM in Procore, so pick a desk`;
         const s = await rpc('ryc_stage_invoice', {
-          p_id: r.id, p_staged_pm: m.job.pm, p_staged_job_no: m.job.no,
-          p_source: 'job_text', p_confidence: Math.min(0.5 + 0.15 * m.overlap, 0.95),
-          p_note: `matched "${r.job_text}" to ${m.job.name}`,
+          p_id: r.id, p_staged_pm: m.job.pm || null, p_staged_job_no: m.job.no,
+          p_source: m.source, p_confidence: m.conf, p_note: note,
           p_expected_version: r.version, p_request_id: `${rid}:${r.id}`, p_actor: actor,
         });
-        if (s.status === 200) staged.push({ id: r.id, vendor: r.vendor_name, job: m.job.no, pm: m.job.pm });
-        else unplaced.push({ id: r.id, vendor: r.vendor_name, why: (s.body && s.body.error) || 'stage failed' });
+        if (s.status !== 200) {
+          unplaced.push({ id: r.id, vendor: r.vendor_name, why: (s.body && s.body.error) || 'stage failed' });
+        } else if (m.job.pm) {
+          staged.push({ id: r.id, vendor: r.vendor_name, job: m.job.no, pm: m.job.pm, why: m.why });
+        } else {
+          // The job is known, the desk is not. It is NOT placed — release would hold it anyway.
+          unplaced.push({ id: r.id, vendor: r.vendor_name, job: m.job.no, why: note });
+        }
       }
-      return res.status(200).json({ ok: true, staged: staged.length, unplaced: unplaced.length,
-        staged_rows: staged, unplaced_rows: unplaced });
+      return { staged: staged.length, unplaced: unplaced.length, staged_rows: staged, unplaced_rows: unplaced };
+    }
+
+    if (action === 'stage_inbound') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      // The button means "look again" — a hint was taught, or a job gained a PM in Procore — so it
+      // re-reads everything that has not yet been released, including the system's own guesses.
+      const out = await stagingPass({ force: body.force !== false });
+      if (out.error) return res.status(502).json({ error: out.error });
+      return res.status(200).json({ ok: true, ...out });
     }
 
     /* The front office's correction. THEY PICK A JOB; the desk follows from it — a PM chosen by
@@ -945,9 +1102,23 @@ export default async function handler(req, res) {
           : { ok: false, error: out.body.error, index: i });
       }
       const flagged = results.filter(r => r.ok && Array.isArray(r.flags) && r.flags.length).length;
+
+      /* STAGE ON ARRIVAL. This is the "auto moves to the queue where the system stages it" half of
+         the motion — the mailbox ingest calls `register`, so this is the moment the front office's
+         screen either answers itself or records why it could not. It never fails the registration:
+         the invoices are already in the register and a staging problem must not look like an
+         intake problem. */
+      let placement = null;
+      try {
+        const p = await stagingPass({ force: false });
+        placement = p.error ? { error: p.error } : { staged: p.staged, unplaced: p.unplaced, note: p.note || null };
+      } catch (e) {
+        placement = { error: (e && e.message) || 'staging failed' };
+      }
+
       return res.status(200).json({
         ok: true, registered: results.filter(r => r.ok).length,
-        failed: results.filter(r => !r.ok).length, flagged, results,
+        failed: results.filter(r => !r.ok).length, flagged, results, placement,
       });
     }
 
