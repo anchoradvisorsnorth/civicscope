@@ -104,6 +104,17 @@ function identify(body) {
   const admin = process.env.RYC_INVOICE_ADMIN_CODE;
   if (admin && safeEqual(code, admin)) return { scope: 'all', via: 'admin' };
 
+  /* THE FILING WORKER. A machine, not a person — it holds its own token and is confined to the
+     two filing actions (see the gate in the handler). It is deliberately NOT scope 'all': the
+     filer has no business reading a PM's queue, minting links or closing a batch, and giving a
+     long-lived unattended credential front-office scope would be the widest thing in this
+     module. Its fact events record actor.type='service', so a filing is never mistaken in the
+     audit trail for something a human did. */
+  const filer = process.env.RYC_INVOICE_FILER_TOKEN;
+  if (filer && safeEqual(code, filer)) {
+    return { scope: 'service', service: 'invoice-filer', via: 'service_token' };
+  }
+
   const dir = pmDirectory();
   for (const [c, rec] of Object.entries(dir)) {
     if (safeEqual(code, c) && rec && rec.pm) return { scope: 'pm', pm: rec.pm, via: 'code' };
@@ -149,12 +160,15 @@ const reqId = (body) => String(body.request_id || '').slice(0, 80)
 
 // The actor recorded on every fact event. `shared_gate` stays honest about what the credential
 // actually proves; the display name is what the reviewer CLAIMED to be.
-const actorFor = (who) => ({
-  type: 'shared_gate',
-  display: who.scope === 'pm' ? who.pm : 'front office',
-  capability: who.scope === 'pm' ? 'invoice_review' : 'invoice_admin',
-  channel: 'command',
-});
+const actorFor = (who) => (who.scope === 'service'
+  ? { type: 'service', service_id: who.service, display: who.service,
+      capability: 'invoice_file', channel: 'service' }
+  : {
+      type: 'shared_gate',
+      display: who.scope === 'pm' ? who.pm : 'front office',
+      capability: who.scope === 'pm' ? 'invoice_review' : 'invoice_admin',
+      channel: 'command',
+    });
 
 /* ===================== the reader ==================================================
    Extracts the register fields off scanned pages. Anthropic only and NOT through
@@ -251,7 +265,19 @@ export default async function handler(req, res) {
 
   // A PM may only ever act within their own name. This is the one line that makes the module
   // a silo rather than a filter — everything downstream reads `pm`, never body.pm.
-  const pm = who.scope === 'pm' ? who.pm : (body.pm ? String(body.pm).slice(0, 120) : null);
+  const pm = (who.scope === 'pm') ? who.pm
+    : (who.scope === 'service') ? null
+    : (body.pm ? String(body.pm).slice(0, 120) : null);
+
+  /* Two-way gate. The filer may call NOTHING except the two filing actions, and nobody else may
+     call those — a browser credential must never be able to assert that a document was filed. */
+  const FILING_ACTIONS = new Set(['filing_queue', 'mark_filed']);
+  if (who.scope === 'service' && !FILING_ACTIONS.has(action)) {
+    return res.status(403).json({ error: 'The filing worker may only call the filing actions.' });
+  }
+  if (FILING_ACTIONS.has(action) && who.scope !== 'service') {
+    return res.status(403).json({ error: 'Filing actions require the filing service token.' });
+  }
 
   try {
     /* ---------- who am I (the page boots from this) ---------- */
@@ -414,6 +440,22 @@ export default async function handler(req, res) {
       const out = await rpc('ryc_invoice_queue', { p_pm: pm, p_days: days });
       if (out.status !== 200) return res.status(out.status).json(out.body);
       const rows = Array.isArray(out.body) ? out.body : [];
+      // Filing state lives on columns added after ryc_invoice_queue()'s explicit column list was
+      // written. Read them alongside and merge rather than altering a function three other call
+      // sites depend on. A failure here must not blank the queue — filing status is decoration
+      // on a screen whose job is reviewing invoices.
+      if (rows.length) {
+        try {
+          const ids = rows.map(r => r.id).filter(Boolean);
+          const fr = await sb('ryc_invoices?company_id=eq.ryc'
+            + `&id=in.(${ids.join(',')})`
+            + '&select=id,file_state,filed_name,filed_url,filed_at,filed_intended_folder,file_error');
+          if (fr.ok) {
+            const byId = new Map((await fr.json()).map(x => [x.id, x]));
+            for (const r of rows) Object.assign(r, byId.get(r.id) || {});
+          }
+        } catch { /* leave the rows as they are */ }
+      }
       // Summary computed here rather than in the view, so the count a PM sees and the count the
       // front office sees come from one place.
       const openHigh = rows.filter(r => Number(r.open_high) > 0).length;
@@ -422,6 +464,67 @@ export default async function handler(req, res) {
         ok: true, scope: who.scope, pm, rows,
         summary: { documents: rows.length, outstanding, flagged: openHigh },
       });
+    }
+
+    /* ---------- the filing worker (service token only) -------------------------------
+       The VM holds the delegated SharePoint credential; Vercel does not and should not. So the
+       split is: this endpoint decides WHAT is eligible and records WHAT HAPPENED, and the worker
+       on keith-agent-01 does the stamping and the upload. Same shape as procore-refresh and
+       bc-readback — the machine with the credential does the external work. */
+    if (action === 'filing_queue') {
+      const limit = Math.min(Math.max(parseInt(body.limit, 10) || 25, 1), 200);
+      const out = await rpc('ryc_invoice_filing_queue', {
+        p_limit: limit,
+        p_max_attempts: Math.min(Math.max(parseInt(body.max_attempts, 10) || 4, 1), 20),
+      });
+      if (out.status !== 200) return res.status(out.status).json(out.body);
+      const rows = Array.isArray(out.body) ? out.body : [];
+
+      /* Sign the scan pages HERE. The worker then never needs the Supabase service key — it
+         holds one narrow token and receives short-lived URLs for exactly the pages of exactly
+         the documents it was handed. The bucket stays private. */
+      for (const r of rows) {
+        r.pages = [];
+        const m = /^storage:([^/]+)\/(.+)$/.exec(r.document_uri || '');
+        if (!m) { r.pages_note = 'this batch has no stored scan'; continue; }
+        const [, bucket, prefix] = m;
+        const from = r.page_from || 1, to = r.page_to || r.page_from || 1;
+        const paths = [];
+        for (let p = from; p <= to; p++) paths.push(`${prefix}/p${String(p).padStart(2, '0')}.jpg`);
+        try {
+          const sign = await fetch(`${SB_URL}/storage/v1/object/sign/${bucket}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+            body: JSON.stringify({ expiresIn: 1800, paths }),
+          });
+          if (sign.ok) {
+            const signed = await sign.json();
+            r.pages = (Array.isArray(signed) ? signed : [])
+              .map((s, i) => ({ page: from + i, url: s.signedURL ? `${SB_URL}/storage/v1${s.signedURL}` : null }))
+              .filter(p => p.url);
+          } else {
+            r.pages_note = `could not sign the scan (${sign.status})`;
+          }
+        } catch { r.pages_note = 'could not sign the scan'; }
+      }
+      return res.status(200).json({ ok: true, count: rows.length, rows });
+    }
+
+    if (action === 'mark_filed') {
+      const state = String(body.state || '');
+      const out = await rpc('ryc_mark_invoice_filed', {
+        p_id: body.id,
+        p_state: state,
+        p_name: body.name || null,
+        p_path: body.path || null,
+        p_url: body.url || null,
+        p_intended_folder: body.intended_folder || null,
+        p_error: body.error || null,
+        p_expected_version: body.version == null ? null : parseInt(body.version, 10),
+        p_request_id: rid,
+        p_actor: actor,
+      });
+      return res.status(out.status).json(out.body);
     }
 
     /* ---------- PM actions ---------- */
