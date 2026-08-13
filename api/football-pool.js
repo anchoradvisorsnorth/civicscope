@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.4.0-livetracker';  // a fixture can be offered against the spread AND as a total
+const VER = '3.5.0-revealonlocked';  // a fixture can be offered against the spread AND as a total
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -198,12 +198,21 @@ export default async function handler(req, res) {
     if (!roster || !roster.length || !wk.picks) return false;
     return roster.every(p => wk.picks[p.id] && wk.picks[p.id].locked);
   };
-  /* THE DEADLINE IS THE ONLY THING THAT REVEALS (Codex finding #2 — Confirmed/High).
-     This used to also reveal once everyone had locked. The reasoning ("all locked → the
-     competitive reason to hide picks is gone") only holds if a lock is FINAL — and it isn't,
-     there is a supported unlock path. So the last player to lock could read everyone else's
-     card, unlock, and revise. Mike confirmed 2026-08-01 he does not need the early board. */
-  const isRevealed = (wk) => pastDeadline(wk);
+  /* REVEAL = EVERYONE LOCKED, OR THE DEADLINE — whichever comes first (Keith, 2026-08-12).
+     The weekly motion he set: build → lock the slate → everyone is notified to pick → and once
+     ALL players have picked, everyone is notified and the picks become viewable.
+
+     History matters here, because this is a reversal. Codex #2 removed the all-locked reveal on
+     sound reasoning: a lock could be UNDONE, so the last player to lock could read everyone
+     else's card, unlock, and revise. That was true then. The unlock path was deleted on
+     2026-08-09 — `save_picks` 403s a locked entry and no client offers the button — and the
+     comment there already records that this "retires the reason the all-locked reveal had to be
+     removed". The precondition is gone, so the restriction goes with it.
+
+     ⛔ LOCKED, never merely SAVED. A saved card stays editable until the deadline; revealing on
+     "saved" would hand back the exact exploit Codex #2 closed. `allLocked` requires every roster
+     member to have `locked: true`, so one unlocked card keeps the whole board masked. */
+  const isRevealed = (wk, roster) => pastDeadline(wk) || allLocked(wk, roster);
 
   /* Cover vs the FROZEN line — identical rule to the board's coverOf() and the sim's cover().
      Kept server-side so scoring never depends on what a browser computed. */
@@ -283,15 +292,15 @@ export default async function handler(req, res) {
     const picked = Object.values(wk.picks || {}).map(v => v.name).filter(Boolean);
     const rows = picked.sort().map(n => `<tr><td style="padding:3px 12px 3px 0;font-weight:700">${n}</td><td style="padding:3px 0;color:#475467">locked</td></tr>`).join('');
     const tag = (wk.isTest || isSandbox(slug)) ? '[TEST — no action needed] ' : '';
-    const sms = `${tag}The Pool: everyone is locked in for ${wk.label || slug}. `
-      + `Follow it live all weekend: app.civicscope.io/pool/live`;
+    const sms = `${tag}The Pool: everyone is locked in for ${wk.label || slug} — all picks are `
+      + `now visible. See who took what: app.civicscope.io/pool/football`;
     for (const p of roster) {
       if (p.canText) { try { await sendSms(p.phone, sms + '\nReply STOP to opt out.'); } catch (e) { /* best-effort */ } }
     }
     const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#101828">
       <div style="background:linear-gradient(135deg,#0a2240,#14532d);color:#fff;padding:18px 22px;border-radius:10px 10px 0 0">
         <div style="font-size:20px;font-weight:800">🏈 All picks are in — ${wk.label || slug} is locked</div>
-        <div style="font-size:13px;color:#b9c6da;margin-top:3px">Everyone is locked in. Picks stay hidden until kickoff, then the board goes live.</div>
+        <div style="font-size:13px;color:#b9c6da;margin-top:3px">Everyone is locked in, so every card is now visible on the board.</div>
       </div>
       <div style="border:1px solid #e4e7ec;border-top:none;border-radius:0 0 10px 10px;padding:18px 22px;background:#fff">
         <table style="font-size:13px;border-collapse:collapse;margin-bottom:12px">${rows}</table>
@@ -376,6 +385,10 @@ export default async function handler(req, res) {
            no page could. One pattern, one place. */
         const r = await sb(`football_pools?slug=like.${season}-*&select=slug,data,updated_at&order=slug.asc`);
         const rows = await r.json();
+        /* One roster for the whole list: loadRoster() resolves the POOL from the week slug, and
+           every week of a season belongs to one pool. Loaded once so `full` can apply the same
+           reveal rule as the single-week GET rather than a second, quietly different one. */
+        const listRoster = rows.length ? await loadRoster(rows[0].slug) : [];
         return res.status(200).json(rows.map(({ slug, data, updated_at }) => ({
           slug, updated_at,
           label: data.label, slateLocked: !!data.slateLocked, deadline: data.deadline || null,
@@ -386,8 +399,9 @@ export default async function handler(req, res) {
              already carries a display-name snapshot for exactly this reason — use it. */
           pickedBy: Object.entries(data.picks || {}).filter(([, v]) => v.locked).map(([k, v]) => v.name || k),
           savedBy: Object.entries(data.picks || {}).filter(([, v]) => !v.locked).map(([k, v]) => v.name || k),
-          // full detail (incl. picks + results) only when the pick window is closed
-          full: (data.deadline && Date.now() > Date.parse(data.deadline)) ? data : null,
+          // full detail (incl. picks + results) only once the board is revealed — same rule as
+          // the single-week GET: everyone locked in, or the deadline passed.
+          full: isRevealed(data, listRoster) ? data : null,
         })));
       }
       // players roster — id + name only, never pins/emails/phones
@@ -402,10 +416,10 @@ export default async function handler(req, res) {
       if (!row) return res.status(200).json({ slug, data: null });
       const wk = row.data;
       const roster = await loadRoster(slug);
-      const revealed = isRevealed(wk);
+      const revealed = isRevealed(wk, roster);
       if (!revealed && wk.picks) {
-        // pick privacy: until the DEADLINE, only your own picks come back (name+pin);
-        // everyone else shows locked-status only. Locking no longer reveals anything.
+        // pick privacy: until everyone is locked in (or the deadline passes), only your own
+        // picks come back (name+pin); everyone else shows locked-status only.
         const name = String(req.query.name || '').toUpperCase();
         const pin = String(req.query.pin || '');
         const me = roster.find(p => p.name.toUpperCase() === name && String(p.pin) === pin);

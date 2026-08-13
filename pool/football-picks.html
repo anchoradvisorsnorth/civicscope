@@ -281,7 +281,7 @@ function render(){
   }).join('');
   document.getElementById('content').innerHTML='<div class="dl" id="deadline" style="display:none"></div>'
     +(lockedMine
-      ? '<div class="note">🔒 <b>Your picks are locked in.</b> Locking is final — these are your picks for the week. They stay hidden from everyone until the deadline, then the board goes live.</div>'
+      ? '<div class="note">🔒 <b>Your picks are locked in.</b> Locking is final — these are your picks for the week. They stay hidden until the last player locks in (or the deadline passes); then everyone\'s card opens at once and the board goes live.</div>'
       : '<div class="note">💾 <b>Save</b> keeps your card editable right up to the deadline. <b>Save &amp; lock</b> submits it for good — you cannot change it afterwards. An unlocked card still counts at the deadline, but you\'ll be chased about it.</div>')
     +html;
   deadlineBanner();

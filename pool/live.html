@@ -123,7 +123,7 @@ async function load(){
     html+='<div class="card"><div class="ch">This week\'s card</div>'+games.map(g=>
       '<div class="g"><div class="m"><b>'+esc(g.short)+'</b><span>'+fmtDT(g.date)+' · '+g.league.toUpperCase()+'</span></div>'
       +'<div class="sc">'+esc(marketLabel(g))+'</div></div>').join('')+'</div>';
-    html+='<div class="note">🔒 Everyone\'s picks stay hidden until the deadline. Standings appear here the moment it passes, then update on their own as games finish. <a href="/pool/football/picks">Make or check your picks →</a></div>';
+    html+='<div class="note">🔒 Everyone\'s picks open as soon as the last player locks in — or at the deadline if someone hasn\'t. Standings appear here the moment that happens, then update on their own as games finish. <a href="/pool/football/picks">Make or check your picks →</a></div>';
     document.getElementById('content').innerHTML=html;
     return;
   }
