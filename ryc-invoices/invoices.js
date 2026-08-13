@@ -569,18 +569,22 @@ function invPaintInbound(){
        the same as an invoice it could not read at all — the first needs one click, the second
        needs somebody to look at the document. Collapsing them into "not placed" is what made
        2513CO04 Helix Orchard (no PM in Procore) look like an unreadable invoice. */
-    var why;
+    var why, note;
+    // The state and the reason are two different things and must not run together as one
+    // sentence — "not placed no job resembles what the invoice printed" reads as a typo.
+    var tail = function(s){ return s ? ' <span class="sub">&middot; ' + s + '</span>' : ''; };
     if(r.staged_pm){
-      why = '<span class="m-g">' + esc(r.staged_pm) + '</span> <span class="sub">'
-        + esc(r.staged_note || (r.staged_source === "manual" ? "set by hand" : "")) + '</span>';
+      note = esc(r.staged_note || (r.staged_source === "manual" ? "set by hand" : ""));
+      why = '<span class="m-g">' + esc(r.staged_pm) + '</span>' + tail(note);
     } else if(r.staged_job_no){
-      why = '<span class="m-a">no desk</span> <span class="sub">'
-        + esc(r.staged_note || (r.staged_job_no + " has no PM in Procore")) + '</span>';
+      note = esc(r.staged_note || (r.staged_job_no + " has no PM in Procore"));
+      why = '<span class="m-a">no desk</span>' + tail(note);
     } else {
-      why = '<span class="m-a">not placed</span> <span class="sub">'
-        + esc(r.staged_note || "") + (r.job_text
-            ? ' &mdash; the invoice says &ldquo;' + esc(r.job_text) + '&rdquo;'
-            : ' &mdash; no job printed on it') + '</span>';
+      note = esc(r.staged_note || "")
+        + (r.job_text
+            ? (r.staged_note ? ' &mdash; ' : '') + 'the invoice says &ldquo;' + esc(r.job_text) + '&rdquo;'
+            : (r.staged_note ? '' : 'no job printed on it'));
+      why = '<span class="m-a">not placed</span>' + tail(note);
     }
 
     h += '<tr>'
