@@ -855,6 +855,17 @@ export default async function handler(req, res) {
 
         const note = m.job.pm ? m.why
           : `${m.why} — that job has no PM in Procore, so pick a desk`;
+
+        /* Re-reading is not re-writing. "Look again" on a queue the system already answered
+           correctly must be a no-op, or every press bumps the version and buries the real
+           history under a run of identical events. */
+        if (r.staged_job_no === m.job.no && (r.staged_pm || null) === (m.job.pm || null)
+            && r.staged_note === note) {
+          if (m.job.pm) staged.push({ id: r.id, vendor: r.vendor_name, job: m.job.no, pm: m.job.pm, why: m.why, unchanged: true });
+          else unplaced.push({ id: r.id, vendor: r.vendor_name, job: m.job.no, why: note, unchanged: true });
+          continue;
+        }
+
         const s = await rpc('ryc_stage_invoice', {
           p_id: r.id, p_staged_pm: m.job.pm || null, p_staged_job_no: m.job.no,
           p_source: m.source, p_confidence: m.conf, p_note: note,
