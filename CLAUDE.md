@@ -306,6 +306,24 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 - **A best-effort catch that counts nothing is a silent-failure generator — audit the pool's SMS sends (found 2026-08-13).** The pool's "all picks are in" notice sent nothing to anyone on 2026-08-09 and left **no trace at all**: it swallowed every error, counted nothing, returned nothing, and the caller latched its "already notified" flag *before* calling it — so a total failure and a clean run were byte-identical, and the one-shot could never retry. It was only provable four days later by adding a read-only Twilio message log. Fixed for that path (`3.8.0-allinreceipt`), but **`notifyLock`, `notifyWinner` and both reminders still swallow individual send failures** — anything that does not report a per-channel count can fail the same way. Detail in `Pools/CLAUDE.md`.
 - **Gate expectations are part of the contract — update them deliberately, never relax them.** The 2026-08-09 scoring change (a push scores 0, not ½) was caught by `verify-pool-integrity.js` on the first deploy attempt, exactly as designed. The right response was to change the asserted numbers *with the reason recorded*, not to soften the assertion. Same run, a second gate failure was **my test data**, not the code (a half-point total can never land on the number) — the gate distinguishing those two is the whole value of it.
 - **The pool-integrity gate SKIPPED on every deploy from 2026-08-07 to 2026-08-08 — fixed, but read the lesson.** It exits **3 = "could not verify"** without `FOOTBALL_POOL_CODE`/`GOLF_POOL_CODE`, which were on no machine, so `push_civicscope.ps1` recorded SKIP and the deploy still reported cleanly. **A gate that skips is indistinguishable from a gate that passes in a summary line.** Both are now Windows User env vars (`infra/env-var-inventory.md`) and the verifier was rebuilt for the identity schema — 29/29. **Audit the other gates for the same shape:** any gate whose "cannot run" path is a soft skip needs the deploy result to *name* it, not just count it.
+- **A LOGIC GATE FOR THE AP MATCHER — `scripts/verify-ryc-invoice-matcher.mjs` (NEW 2026-08-13).**
+  The invoices matcher decides which desk an invoice is routed to, and it fails silently in BOTH
+  directions: too strict and every invoice reads "not placed" (the real state that morning — 0 of
+  16 placed, including "Ashley WWTP"); too loose and it names a confident wrong desk. Neither
+  shows up in a smoke test. The harness asserts **85 outcomes against the LIVE Procore +
+  Foundation feeds** — the traps that must refuse, the signals that must place, and a sweep where
+  all 53 job names must resolve to their own job — and emits `MATCHER-COMPLETE` or exits 2. Exit 3
+  = could not verify (feed unreadable), never a false red. It required exporting `__matcher` from
+  `api/ryc-invoices.js`; the matcher is the one piece of that module with real logic and no I/O,
+  so it is the one piece that can be tested exhaustively without touching production.
+  ⚠ **`.mjs`, not `.js`** — `Civicscope/package.json` has no `"type": "module"`, so an ESM gate
+  script here must carry the extension or it dies at `import`.
+- **`-AllowUndeclared` is the normal case in this tree, not an alarm.** Six deploys this session
+  each refused at exit 10 first, because `memory/context/infrastructure.md` and
+  `ryc-estimate/ryc-sub-pricing-benchmarks.json` differ from production — the latter is the VM's
+  own weekly benchmark push, i.e. expected drift, not another session's work. The flag ships ONLY
+  the declared files; the blast-radius report still names what it left alone, which is the part
+  worth reading.
 - **RYC Invoices — `ryc-invoices/` is PUBLIC-repo-safe by design, keep it that way.** RYC's 280
   cost codes are served from Supabase (`ryc_cost_codes`) rather than shipped as an asset, because
   this repo is public. ⚠ **Pre-existing and unresolved:** `ryc-estimate/lineitem-probe.html` and
