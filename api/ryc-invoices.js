@@ -615,7 +615,11 @@ export default async function handler(req, res) {
       try {
         const dir = await jobDirectory();
         const map = {};
-        for (const j of dir.jobs) if (j.pm) map[j.no] = j.pm;
+        /* Foundation-only jobs are INCLUDED here even though they are not in the picklist.
+           The staging pass can already place one from a printed number (26X004 "Ryan Fire Prot -
+           Valpo"), and a map that refused the same job number would mean the machine could route
+           an invoice a person was then forbidden to confirm or correct. */
+        for (const j of [...dir.jobs, ...(dir.foundationOnly || [])]) if (j.pm) map[j.no] = j.pm;
         return map;
       } catch { return {}; }
     }
@@ -972,8 +976,8 @@ export default async function handler(req, res) {
         pm = map[jobNo] || null;
         if (!pm) {
           return res.status(409).json({
-            error: `Job ${jobNo} has no PM in the Procore feed, so there is no desk to send it to. `
-              + 'Pick another job, or set the PM in Procore first.',
+            error: `Job ${jobNo} has no PM in Procore or Foundation, so there is no desk to send `
+              + 'it to. Pick another job, or set the PM in Procore first.',
           });
         }
         note = note || `desk follows job ${jobNo}`;
