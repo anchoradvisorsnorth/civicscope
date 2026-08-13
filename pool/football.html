@@ -67,7 +67,7 @@
     <b>Scoring:</b> 1 point per correct pick — against the frozen spread, straight up on a pick 'em, or over/under the frozen total.
     <b>A push is worth nothing.</b> Weekly winner = most games won; ties share the crown.
     A fixture can appear twice, once against the spread and once as an over/under — they are separate picks and score separately.
-    Lines and totals freeze when the commissioner locks the slate; live scores via ESPN. Picks stay hidden until the deadline.
+    Lines and totals freeze when the commissioner locks the slate; live scores via ESPN. Picks stay hidden until everyone has locked in — or the deadline, whichever comes first.
     Make picks at <a href="/pool/football/picks">/pool/football/picks</a>.
   </div>
 </main>
@@ -119,7 +119,7 @@ async function renderWeek(slug){
     if(!wk.slateLocked){
       html+='<div class="note">📝 <b>This week is still a draft.</b> The commissioner hasn\'t locked the slate yet — picks aren\'t open and these spreads can still move. You\'ll get a text and an email the moment it opens.</div>';
     } else {
-      html+='<div class="note">🔒 <b>Picks are hidden until first kickoff</b>'+(wk.deadline?' ('+fmtDT(wk.deadline)+')':'')+'.<br>Locked in: <b>'+
+      html+='<div class="note">🔒 <b>Picks open the moment everyone is locked in</b>'+(wk.deadline?' — or at the deadline ('+fmtDT(wk.deadline)+') if someone hasn\'t': '')+'.<br>Locked in: <b>'+
         (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
     }
     html+='<div class="card tblwrap"><table><thead><tr><th>Game</th><th>Kickoff</th><th>Frozen line</th></tr></thead><tbody>'+
