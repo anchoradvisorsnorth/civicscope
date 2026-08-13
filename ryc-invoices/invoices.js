@@ -323,6 +323,37 @@ function invJobPanel(g){
   return h + '</tbody></table></div>';
 }
 
+/* WHERE THE DOCUMENT WENT. The register's job does not end at "approved" — the invoice still
+   has to reach the job folder, which is the step the front office currently does by hand after
+   scanning the stamped paper. Filing runs on the VM (it holds the SharePoint credential), so
+   this row reports an outcome it did not itself perform.
+
+   It lands in `Invoice Desk` staging, NOT the live job folder (Keith, 2026-08-12), so the line
+   also names the folder it belongs in — that is the front office's remaining move, and having
+   to re-derive it per invoice would just move the manual work rather than remove it. */
+function invFilingHtml(r){
+  var st = r.file_state;
+  if(st === "filed"){
+    return '<span class="m-g">Filed</span> '
+      + (r.filed_url ? '<a href="' + esc(r.filed_url) + '" target="_blank" rel="noopener">open</a> ' : '')
+      + '<span class="sub">in Invoice Desk'
+      + (r.filed_intended_folder ? ' &middot; move to &ldquo;' + esc(r.filed_intended_folder) + '&rdquo;' : '')
+      + '</span>';
+  }
+  if(st === "failed"){
+    return '<span class="m-r">Filing failed</span> <span class="sub">'
+      + esc(r.file_error || "no reason recorded") + ' &mdash; it will be retried</span>';
+  }
+  if(st === "skipped"){
+    // Not a failure: the worker declined deliberately and said why (usually that it could not
+    // identify the job folder with enough confidence to file into it).
+    return '<span class="m-a">Not filed</span> <span class="sub">'
+      + esc(r.file_error || "no reason recorded") + '</span>';
+  }
+  if(r.review_state === "approved") return '<span class="m-m">approved &mdash; waiting to be filed</span>';
+  return "";
+}
+
 /* ONE ROW = ONE LINE OF WORK. Coding and decision are both here; nothing to expand. */
 function invRowHtml(r){
   var hard = invHardFlags(r);
@@ -354,7 +385,9 @@ function invRowHtml(r){
     + '<option value="sub"' + (r.mat_or_sub === "sub" ? " selected" : "") + '>Sub</option></select>'
     + '<button class="pfill" onclick="invSave(' + invArg(r.id) + "," + r.version + ')">Save</button>'
     + '</div>'
-    + '<div id="rem-' + esc(r.id) + '" class="sub" style="margin-top:3px">' + invRemainingHtml(r) + '</div>';
+    + '<div id="rem-' + esc(r.id) + '" class="sub" style="margin-top:3px">' + invRemainingHtml(r) + '</div>'
+    + (function(){ var f = invFilingHtml(r);
+        return f ? '<div class="sub" style="margin-top:3px">' + f + '</div>' : ''; })();
 
   // ---- clearing a blocker, inline and one click ----
   if(hard.length){
