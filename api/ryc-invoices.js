@@ -480,6 +480,23 @@ export default async function handler(req, res) {
       if (out.status !== 200) return res.status(out.status).json(out.body);
       const rows = Array.isArray(out.body) ? out.body : [];
 
+      /* WHAT A PREVIOUS ATTEMPT ALREADY DID. Without this the worker recomputes a name, and
+         build_filename's collision-avoidance renames around the file the worker itself uploaded
+         — producing a second copy of one invoice instead of converging. Proven 2026-08-12 by the
+         crash-recovery test. Carried on the row so the retry lands on the SAME path and 409s. */
+      if (rows.length) {
+        try {
+          const ids = rows.map(r => r.id).filter(Boolean);
+          const pr = await sb('ryc_invoices?company_id=eq.ryc'
+            + `&id=in.(${ids.join(',')})`
+            + '&select=id,filed_name,filed_path,filed_url');
+          if (pr.ok) {
+            const byId = new Map((await pr.json()).map(x => [x.id, x]));
+            for (const r of rows) Object.assign(r, byId.get(r.id) || {});
+          }
+        } catch { /* the worker falls back to computing a name */ }
+      }
+
       /* Sign the scan pages HERE. The worker then never needs the Supabase service key — it
          holds one narrow token and receives short-lived URLs for exactly the pages of exactly
          the documents it was handed. The bucket stays private. */
