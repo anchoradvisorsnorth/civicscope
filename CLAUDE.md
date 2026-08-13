@@ -132,6 +132,27 @@ brand_statement, brand_values (jsonb array)
 
 ---
 
+## Schema Changes (Supabase)
+**Data goes through the service-role REST API. SCHEMA goes through versioned migrations** —
+`Civicscope\migrations\NNN_name.sql` plus a required `NNN_name.verify.sql`, applied by
+`node scripts/db-migrate.js apply`. Dry run is the default; the migration, its verification
+assertion and the ledger row commit as ONE transaction, so a failed verify rolls the change back
+instead of leaving a half-true schema live. Full contract:
+[`migrations/README.md`](migrations/README.md).
+
+**Do not ask Keith to paste SQL into the Supabase SQL editor.** The wrapper authenticates itself
+from protected storage and refuses to run unless the API confirms it is pointed at the CivicScope
+production project — by reference, name and health — before doing anything. (The reference itself
+is not written here: this repo is PUBLIC, and infrastructure identifiers belong in
+`infra/env-var-inventory.md`, not in a public git history.) Root `CLAUDE.md` § Execution
+Discipline → 10 is canonical.
+
+⚠ **The 15 legacy `schema_*.sql` files in this folder are NOT in git** — `Cowork/.gitignore`
+ignores `Civicscope/**` with narrow re-includes, so the DDL defining production has no history,
+no diff and no undo. New work goes in `migrations/`; whether to re-include
+`Civicscope/migrations/**` and `Civicscope/scripts/db-migrate.js` (both secret-free by inspection)
+is a one-line decision for Keith.
+
 ## Deploy Workflow
 1. Edit files locally in Cowork\Civicscope\
 2. Run PUSH_CIVICSCOPE.bat `<comma,separated,paths>` `["message"]` — scope is REQUIRED
