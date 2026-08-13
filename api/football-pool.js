@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.5.0-revealonlocked';  // a fixture can be offered against the spread AND as a total
+const VER = '3.6.0-autofinalize';  // a fixture can be offered against the spread AND as a total
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -364,6 +364,79 @@ export default async function handler(req, res) {
       }
     }
     return { texted, emailed };
+  }
+
+  /* THE FINALIZE SEQUENCE, IN ONE PLACE. `finalize_week` (commissioner, scores in the body) and
+     `auto_finalize` (cron, scores fetched here) must produce identical outcomes — this file has
+     already been bitten twice by a rule living in two places (scoreWeek vs the board's
+     weekPoints, server vs client pick'em), so the third copy does not get written. */
+  async function applyFinalize(slug, wk, results, forceAnnounce) {
+    const scored = scoreWeek(wk, results);
+    wk.results = results;
+    wk.scores = scored.points;                 // persisted — survives ESPN dropping history
+    wk.covers = scored.covers;
+    wk.weeklyWinner = scored.winner;           // derived, never supplied
+    wk.finalized = true;
+    wk.finalizedAt = new Date().toISOString();
+    wk.scoringVersion = VER;
+    /* The flag is set BEFORE the write, so re-running finalize (to correct a score, say) never
+       re-announces the same winner to seven phones. A deliberate re-announce is `notify: true`. */
+    const announce = (!wk.notifiedWinner || forceAnnounce === true);
+    if (announce) wk.notifiedWinner = true;
+    await putRow(slug, wk);
+    let told = { texted: 0, emailed: 0 };
+    if (announce) told = await notifyWinner(wk, slug, await loadRoster(slug), scored);
+    return { scored, announce, told };
+  }
+
+  /* Final scores, read SERVER-SIDE. The browser uses site.api.espn.com, which 403s every request
+     from our network — that block is why finalize was a button. site.web.api.espn.com answers the
+     same paths with the same shape from the VM and from here. Parsing mirrors pool/scoring.js
+     liveScores() exactly, including the matchup key: a hand-built slate carries our own ids
+     (`pre1-DET-CIN`) which can never equal an ESPN event id, so id-only lookup would leave every
+     game silently unscored. */
+  const SB_SERVER = {
+    nfl: 'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
+    cfb: 'https://site.web.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
+  };
+  const datesSpan = (games) => {
+    const ds = games.map(g => new Date(g.date)).filter(d => !isNaN(d));
+    if (!ds.length) return null;
+    const f = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
+    const min = new Date(Math.min(...ds)), max = new Date(Math.max(...ds));
+    min.setDate(min.getDate() - 1); max.setDate(max.getDate() + 2);
+    return f(min) + '-' + f(max);
+  };
+  async function fetchFinals(games) {
+    const out = {};
+    const notes = [];
+    for (const lg of ['nfl', 'cfb']) {
+      const mine = (games || []).filter(g => g.league === lg);
+      if (!mine.length) continue;
+      const span = datesSpan(mine);
+      if (!span) continue;
+      const url = `${SB_SERVER[lg]}?dates=${span}${lg === 'cfb' ? '&groups=80' : ''}`;
+      try {
+        const r = await fetch(url, { headers: { 'User-Agent': 'the-pool/1.0' } });
+        if (!r.ok) { notes.push(`${lg}: HTTP ${r.status}`); continue; }
+        const j = await r.json();
+        for (const e of (j.events || [])) {
+          const c = (e.competitions || [])[0];
+          if (!c) continue;
+          const home = (c.competitors || []).find(x => x.homeAway === 'home');
+          const away = (c.competitors || []).find(x => x.homeAway === 'away');
+          if (!home || !away) continue;
+          const sc = {
+            homeScore: Number(home.score || 0), awayScore: Number(away.score || 0),
+            state: c.status && c.status.type ? c.status.type.state : undefined,
+            detail: (c.status && c.status.type && c.status.type.shortDetail) || '',
+          };
+          out[String(e.id)] = sc;
+          out[`${away.team.abbreviation}@${home.team.abbreviation}`] = sc;
+        }
+      } catch (e) { notes.push(`${lg}: ${e.message}`); }
+    }
+    return { scores: out, notes };
   }
 
   try {
@@ -979,23 +1052,8 @@ export default async function handler(req, res) {
           if (missing.length) {
             return res.status(400).json({ error: `not every game has a final score (${missing.map(g => g.short || g.id).join(', ')})` });
           }
-          const scored = scoreWeek(wk, results);
           const claimed = req.body.weeklyWinner || null;
-          wk.results = results;
-          wk.scores = scored.points;                 // persisted — survives ESPN dropping history
-          wk.covers = scored.covers;
-          wk.weeklyWinner = scored.winner;           // derived, never supplied
-          wk.finalized = true;
-          wk.finalizedAt = new Date().toISOString();
-          wk.scoringVersion = VER;
-          /* Guarded like the all-locked notice: the flag is set BEFORE the write, so re-running
-             finalize (to correct a score, say) never re-announces the same winner to seven
-             phones. A deliberate re-announce is `notify: true`. */
-          const announce = (!wk.notifiedWinner || req.body.notify === true);
-          if (announce) wk.notifiedWinner = true;
-          await putRow(slug, wk);
-          let told = { texted: 0, emailed: 0 };
-          if (announce) told = await notifyWinner(wk, slug, await loadRoster(slug), scored);
+          const { scored, announce, told } = await applyFinalize(slug, wk, results, req.body.notify === true);
           return res.status(200).json({
             slug, finalized: true, weeklyWinner: wk.weeklyWinner, points: scored.points, announced: announce, ...told,
             ...(claimed && claimed !== scored.winner
@@ -1003,6 +1061,46 @@ export default async function handler(req, res) {
               : {}),
           });
         }
+      }
+
+      /* ---- AUTO-FINALIZE (cron) — the commissioner's week ends at the lock -------------
+         Finds every locked, unfinalized week whose deadline has passed, reads the finals itself,
+         and finalizes any week where EVERY game is complete. Silent otherwise: a week with a game
+         still in progress is not an error, it is simply not finished, and a job that reports a
+         problem every hour teaches everyone to ignore it.
+         Same cron gate as the two reminder actions. It cannot be driven from a browser, and it
+         accepts no scores and no winner from the caller — see fetchFinals(). */
+      if (action === 'auto_finalize') {
+        if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
+          return res.status(403).json({ error: 'forbidden' });
+        }
+        const season = String(req.body.season || new Date().getFullYear());
+        const r = await sb(`football_pools?slug=like.${season}-*&select=slug,data&order=slug.asc`);
+        const rows = (await r.json()) || [];
+        const due = rows.filter(x => x.data && x.data.slateLocked && !x.data.finalized
+          && x.data.deadline && Date.parse(x.data.deadline) < Date.now());
+        if (!due.length) return res.status(200).json({ finalized: [], reason: 'no locked week past its deadline is awaiting finalizing' });
+
+        const done = [], waiting = [];
+        for (const row of due) {
+          const wk = row.data;
+          const { scores, notes } = await fetchFinals(wk.games || []);
+          /* EVERY game must be complete. A partially-final week must not score — the winner would
+             be computed off games that have not happened. `state === 'post'` is ESPN's own
+             completion flag; resultFor() does the id -> base-id -> matchup resolution so an
+             over/under entry finds its fixture's score. */
+          const unfinished = (wk.games || []).filter(g => {
+            const sc = resultFor(g, scores);
+            return !sc || sc.state !== 'post' || sc.homeScore == null || sc.awayScore == null;
+          });
+          if (unfinished.length) {
+            waiting.push({ slug: row.slug, remaining: unfinished.map(g => g.short || g.id), notes });
+            continue;
+          }
+          const { scored, announce, told } = await applyFinalize(row.slug, wk, scores, false);
+          done.push({ slug: row.slug, weeklyWinner: scored.winner, announced: announce, ...told });
+        }
+        return res.status(200).json({ finalized: done, waiting });
       }
 
       /* ---- player action: change your OWN pin ----
