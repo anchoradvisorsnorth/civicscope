@@ -47,11 +47,68 @@ function invLoadBudget(job){
     return _inv.budget[job];
   });
 }
-function invBudgetLine(job, code){
+/* TWO NOTATIONS FOR ONE CODE (fixed 2026-08-12). RYC writes `01-002 Site Superintendent` and
+   that is what `ryc_invoices.cost_code` stores; Procore's ERP budget view calls the same thing
+   `Div 1-01-002` and splits it into six cost types (.BUR .E .L .M .O .S). When the ERP lines
+   went live the picker began offering the Procore spelling against a column holding the RYC
+   spelling, so every already-coded invoice rendered as uncoded ("no budget line for 01-001")
+   and Approve correctly refused it. The stored vocabulary stays RYC's; the ERP line is DERIVED. */
+function invBaseCode(code){
+  if(!code) return "";
+  var m = /^\s*Div\s+\d+-(\d{2}-\d{3})(?:\.([A-Z]+))?\s*$/i.exec(String(code));
+  if(m) return m[1];
+  m = /^\s*(\d{2}-\d{3})(?:\.([A-Z]+))?\s*$/.exec(String(code));
+  return m ? m[1] : String(code).trim();
+}
+/* "Circle Mat or Sub" is not bookkeeping — it picks the budget line. A material invoice hits
+   the .M line and a subcontract hits .S, and one can be healthy while the other is blown. Those
+   are the only two a vendor invoice can land on: .L/.E/.O/.BUR are RYC's own labour, equipment,
+   other and burden, which nobody bills us for. */
+function invLineSuffix(ms){
+  return ms === "sub" ? "S" : (ms === "mat" ? "M" : null);
+}
+function invMsFor(id, r){
+  var el = document.getElementById("ms-" + id);
+  return (el && el.value) || (r && r.mat_or_sub) || "";
+}
+/* Resolve RYC code + Mat/Sub -> the ERP line. Returns null when that specific combination has
+   no line on this job, which is a real answer worth showing, not a reason to fall back to a
+   different line and quietly report someone else's remaining balance. */
+function invBudgetLine(job, code, ms){
   var b=_inv.budget[job];
   if(!b || !b.available || !code) return null;
-  for(var i=0;i<b.lines.length;i++) if(b.lines[i].code===code) return b.lines[i];
-  return null;
+  var base = invBaseCode(code), suffix = invLineSuffix(ms);
+  var i, exact = null;
+  for(i=0;i<b.lines.length;i++){
+    var l = b.lines[i];
+    if(invBaseCode(l.code) !== base) continue;
+    if(suffix && new RegExp("\\." + suffix + "$", "i").test(String(l.code))) exact = l;
+    // Legacy rows coded during the one day the picker offered Procore's spelling directly.
+    if(!suffix && String(l.code) === String(code)) exact = l;
+  }
+  // Deliberately NO "first line with this base" fallback. Without Mat/Sub the code alone does
+  // not identify a line — .BUR would answer first and report burden's balance as if it were the
+  // material balance. A wrong number here is worse than no number: it is the exact figure the
+  // PM is deciding against.
+  return exact;
+}
+/* The distinct RYC codes this job actually has budget on, in code order, with the name taken
+   from RYC's own catalog rather than Procore's (which is blank on these rows). */
+function invJobCodes(job){
+  var b=_inv.budget[job];
+  if(!b || !b.available || !b.lines.length) return [];
+  var seen = {}, out = [];
+  b.lines.forEach(function(l){
+    var base = invBaseCode(l.code);
+    if(!base || seen[base]) return;
+    seen[base] = 1;
+    var name = "";
+    if(_inv.codes) for(var i=0;i<_inv.codes.length;i++)
+      if(_inv.codes[i].code === base){ name = _inv.codes[i].description || ""; break; }
+    out.push({ code: base, name: name });
+  });
+  out.sort(function(a,b2){ return a.code < b2.code ? -1 : (a.code > b2.code ? 1 : 0); });
+  return out;
 }
 /* The remaining figure, named. "Remaining" alone would be ambiguous — over/under and
    uncommitted are different numbers — so the label always says which basis is in play. */
@@ -290,8 +347,9 @@ function invRowHtml(r){
     h += '<input id="job-' + esc(r.id) + '" placeholder="Job no" value="" style="width:110px" '
       + 'title="' + esc(r.job_text||"nothing printed") + '">';
   }
-  h += invCodeSelect(r)
-    + '<select id="ms-' + esc(r.id) + '" style="width:92px"><option value="">Mat/Sub</option>'
+  h += '<span id="cccell-' + esc(r.id) + '">' + invCodeSelect(r) + '</span>'
+    + '<select id="ms-' + esc(r.id) + '" style="width:92px" '
+    + 'onchange="invRepaintCode(' + invArg(r.id) + ')"><option value="">Mat/Sub</option>'
     + '<option value="mat"' + (r.mat_or_sub === "mat" ? " selected" : "") + '>Material</option>'
     + '<option value="sub"' + (r.mat_or_sub === "sub" ? " selected" : "") + '>Sub</option></select>'
     + '<button class="pfill" onclick="invSave(' + invArg(r.id) + "," + r.version + ')">Save</button>'
@@ -378,12 +436,21 @@ function invCodeSelect(r){
      irrelevant to any one job. The catalog remains the fallback when the budget is unavailable
      or the job has no lines, so a Procore outage never blocks coding. */
   var b = r.job_no ? _inv.budget[r.job_no] : null;
-  if(b && b.available && b.lines.length){
+  var jobCodes = r.job_no ? invJobCodes(r.job_no) : [];
+  if(b && b.available && jobCodes.length){
+    /* Values are RYC codes, so an invoice coded `01-001` before the ERP lines existed still
+       shows as coded. The remaining figure follows Mat/Sub, so the row re-reads when either
+       control changes. */
+    var ms = invMsFor(r.id, r);
     var h = '<select id="cc-' + esc(r.id) + '" style="width:250px" '
       + 'onchange="invPaintRemaining(' + invArg(r.id) + ')"><option value="">Cost code&hellip;</option>';
-    b.lines.forEach(function(l){
-      h += '<option value="' + esc(l.code) + '"' + (r.cost_code===l.code ? " selected" : "") + '>'
-        + esc(l.code + (l.name ? " " + l.name : "")) + ' &mdash; ' + esc(fmt(l.remaining)) + ' left</option>';
+    jobCodes.forEach(function(c){
+      var l = invBudgetLine(r.job_no, c.code, ms);
+      var tail = l ? ' &mdash; ' + esc(fmt(l.remaining)) + ' left'
+                   : (invLineSuffix(ms) ? ' &mdash; no ' + (ms==="sub"?"Sub":"Material") + ' line' : '');
+      h += '<option value="' + esc(c.code) + '"'
+        + (invBaseCode(r.cost_code)===c.code ? " selected" : "") + '>'
+        + esc(c.code + (c.name ? " " + c.name : "")) + tail + '</option>';
     });
     return h + '</select>';
   }
@@ -416,8 +483,14 @@ function invRemainingHtml(r){
   var sel = document.getElementById("cc-" + r.id);
   var code = (sel && sel.value) || r.cost_code;
   if(!code) return "";
-  var l = invBudgetLine(r.job_no, code);
-  if(!l) return '<span class="m-m">no budget line for ' + esc(code) + '</span>';
+  var ms = invMsFor(r.id, r);
+  var l = invBudgetLine(r.job_no, code, ms);
+  if(!l){
+    if(!invLineSuffix(ms))
+      return '<span class="m-m">pick Material or Sub to see the line</span>';
+    return '<span class="m-m">no ' + (ms==="sub"?"Sub":"Material") + ' budget line for '
+      + esc(invBaseCode(code)) + ' on this job</span>';
+  }
   var amt = Number(r.amount) || 0, after = (l.remaining || 0) - amt;
   var cls = after < 0 ? "m-r" : (after < amt ? "m-a" : "");
   return '<span class="' + cls + '">' + fmt(l.remaining) + ' left &rarr; ' + fmt(after)
@@ -475,10 +548,44 @@ function invResolve(id, code, ver){
   invPost("resolve_flag", { id:id, flag_code:code, note:note, version:ver })
     .then(function(r){ invAfter(id, r); });
 }
+/* Mat/Sub changes which budget line the code resolves to, so the whole cell is re-rendered
+   (keeping the current selection) rather than just the remaining figure. */
+function invRepaintCode(id){
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0];
+  if(!r) return;
+  var sel = document.getElementById("cc-" + id);
+  var keep = sel ? sel.value : "";
+  var cell = document.getElementById("cccell-" + id);
+  if(cell){
+    cell.innerHTML = invCodeSelect(r);
+    var s2 = document.getElementById("cc-" + id);
+    if(s2 && keep) s2.value = keep;
+  }
+  invPaintRemaining(id);
+}
+/* APPROVE MUST NOT IGNORE WHAT IS ON THE SCREEN. The cost-code and Mat/Sub controls are local
+   state until Save is pressed, and Approve reads the server — so a PM who picked a code and hit
+   Approve was told "This invoice has no cost code", which is true of the database and plainly
+   false of the screen. Flush pending coding first, then review. */
 function invReview(id, decision, ver){
   if(_inv.busy) return;
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0] || {};
+  var cc = (document.getElementById("cc-" + id)||{}).value || "";
+  var ms = (document.getElementById("ms-" + id)||{}).value || "";
+  var dirty = (cc && cc !== (r.cost_code || "")) || (ms && ms !== (r.mat_or_sub || ""));
+  if(decision === "approved" && dirty){
+    _inv.busy = true;
+    invPost("code", { id:id, month:invMonthFor(r), cost_code:cc||null,
+                      mat_or_sub:ms||null, version:ver }).then(function(c){
+      if(!c.ok || (c.data && c.data.error)){ invAfter(id, c); return; }
+      var nv = (c.data && c.data.version) || ver;
+      return invPost("review", { id:id, decision:decision, version:nv })
+        .then(function(x){ invAfter(id, x); });
+    });
+    return;
+  }
   _inv.busy = true;
-  invPost("review", { id:id, decision:decision, version:ver }).then(function(r){ invAfter(id, r); });
+  invPost("review", { id:id, decision:decision, version:ver }).then(function(r2){ invAfter(id, r2); });
 }
 function invCloseBatch(){
   var el = document.getElementById("invSummary");
