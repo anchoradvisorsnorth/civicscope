@@ -42,7 +42,7 @@ function init(){
          inside the PM view put the front office's job inside somebody else's screen. */
       groups: [{ label:"", items:[
         { key:"inbound",  label:"Inbound",     icon:"&#128229;" },
-        { key:"invoices", label:"Daily batch", icon:"&#129534;" },
+        { key:"invoices", label:"PM Desks",    icon:"&#129534;" },
       ] }],
       /* setActive is not automatic — the rail keeps whatever `active` was mounted with, which is
          why clicking Inbound left "Daily batch" highlighted. */

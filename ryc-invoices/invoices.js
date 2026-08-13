@@ -241,15 +241,20 @@ function invJobName(no){
 function invPaint(){
   var v = document.getElementById("view"), who = _inv.who || {};
   var _t = document.getElementById("view-title");
-  if(_t) _t.textContent = (who.scope === "pm" ? "Your batch" : "Daily batch");
+  if(_t) _t.textContent = (who.scope === "pm" ? "Your desk" : "PM Desks");
   var rows = _inv.rows;
   var open = rows.filter(function(r){ return !invDone(r); });
   var done = rows.filter(invDone);
   var hard = open.filter(function(r){ return invHardFlags(r).length; });
   var val  = open.reduce(function(a,r){ return a + (Number(r.amount)||0); }, 0);
 
+  /* SAY WHOSE DESK THIS IS. The header used to print a bare name, which reads as a title
+     rather than a selection — with several desks to switch between, "Logan Moore" alone does not
+     tell you that you are LOOKING at Logan's desk rather than at everyone's. */
+  var _viewing = (who.scope === "pm") ? esc(who.pm)
+    : (_inv.pm ? esc(_inv.pm) + '&rsquo;s desk' : 'All desks');
   var h = '<div class="panel"><div class="h">'
-    + (who.scope === "pm" ? esc(who.pm) : (_inv.pm ? esc(_inv.pm) : "All desks"))
+    + _viewing
     + ' &middot; ' + open.length + ' to review &middot; ' + fmt(val) + '</div>'
     + '<div class="sub">'
     + (hard.length ? '<b class="m-r">' + hard.length + ' need a look before they can be approved</b> &middot; ' : '')
@@ -268,11 +273,14 @@ function invPaint(){
     var _desks = (who.pms || []).slice();
     rows.forEach(function(r){ if(r.assigned_pm && _desks.indexOf(r.assigned_pm) < 0) _desks.push(r.assigned_pm); });
     _desks.sort();
-    h += '<div style="margin-top:8px">'
+    // The selected chip carries `.on` — without it every desk looked identical and nothing on
+    // screen said which one you were in.
+    h += '<div style="margin-top:8px"><span class="sub" style="margin-right:6px">Desk:</span>'
       + _desks.map(function(p){
-          return '<button class="pfill" onclick="invSetPm(' + invArg(p) + ')">' + esc(p) + '</button>';
+          return '<button class="pfill' + (_inv.pm === p ? ' on' : '') + '" onclick="invSetPm('
+            + invArg(p) + ')">' + esc(p) + '</button>';
         }).join(" ")
-      + ' <button class="pfill" onclick="invSetPm(null)">All desks</button></div>';
+      + ' <button class="pfill' + (_inv.pm ? '' : ' on') + '" onclick="invSetPm(null)">All desks</button></div>';
   }
   h += '</div>';
 
