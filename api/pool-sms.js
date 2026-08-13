@@ -18,7 +18,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '1.4.0-rostercomplete';   // last JOIN nudges the commissioner to lock the slate
+const VER = '1.5.0-msglog';   // read-only Twilio message log — a swallowed send is now answerable
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -181,6 +181,31 @@ export default async function handler(req, res) {
     if (!action) return res.status(400).json({ error: 'action required' });
     if (pw !== CODE()) return res.status(403).json({ error: 'commissioner code required' });
     if (missing.length) return res.status(500).json({ error: 'missing env vars', missing });
+
+    /* ---- WHAT DID WE ACTUALLY SEND? (added 2026-08-13) ------------------------------------
+       Every SMS send in api/football-pool.js is wrapped in a best-effort catch that swallows the
+       error, and notifyAllLocked() counts nothing and returns nothing — so "the group was texted"
+       and "every
+       text failed" produce byte-identical evidence: none. Keith asked whether the all-picks-in
+       text reached him and Mike, and there was no way to answer it from here, because the
+       TWILIO_* vars are Sensitive in Vercel and unreadable from a laptop.
+       Read-only: it lists what Twilio says it sent, and writes nothing. Bodies are truncated
+       because a pool text carries a player's PIN. */
+    if (action === 'recent_messages') {
+      const limit = Math.min(Math.max(parseInt(req.body?.limit || req.query.limit || 25, 10) || 25, 1), 100);
+      const to = String(req.body?.to || req.query.to || '').trim();
+      const qs = `PageSize=${limit}&From=${encodeURIComponent(FROM)}` + (to ? `&To=${encodeURIComponent(to)}` : '');
+      const r = await tw(`https://api.twilio.com/2010-04-01/Accounts/${ACCT}/Messages.json?${qs}`);
+      if (!r.ok) return res.status(200).json({ ver: VER, ok: false, status: r.status, twilio: r.body });
+      return res.status(200).json({
+        ver: VER, ok: true, from: FROM, count: (r.body?.messages || []).length,
+        messages: (r.body?.messages || []).map(m => ({
+          sid: m.sid, to: m.to, sent: m.date_sent || m.date_created, status: m.status,
+          errorCode: m.error_code, errorMessage: m.error_message,
+          body: String(m.body || '').slice(0, 70),
+        })),
+      });
+    }
 
     if (action === 'verify') {
       const out = { ver: VER, checks: {} };
