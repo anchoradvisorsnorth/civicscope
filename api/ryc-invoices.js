@@ -420,12 +420,80 @@ function resolveJobPmSource(procorePm, foundationPm) {
   return foundationPm ? 'foundation' : (procorePm ? 'procore' : null);
 }
 
+/* ===== ONE PAYABLE, NOT THREE — THE SUPPORTING-DOCUMENT SPLIT ========================
+   ⛔ FOUND 2026-08-13. HRP Construction arrived on 2402GP09 as THREE rows of $145,300.60 on Ken
+   Wright's desk — same batch, same vendor, same amount, same date, differing only by `doc_type`:
+   `invoice`, `pay_application`, `lien_waiver`. It is ONE payable that arrived as a package, and
+   the register turned each document in the package into money someone could approve. The desk
+   overstated by $290,601.20. The same shape had already been caught by hand that morning on a
+   M. W. Chupp pay-application package, so it is a class, not an incident.
+
+   `doc_type` was being read correctly by the reader all along and NOTHING CONSUMED IT.
+
+   TWO RULES, and the line between them is "certain" vs "inferred":
+     · NEVER_PAYABLE — true by what the document IS, regardless of anything else in the batch.
+     · the pay-application pair — an invoice and a pay application from the same vendor for the
+       same amount in the same batch are one payable billed twice over. A G702 IS the billing
+       document on a subcontract, so a LONE pay_application stays payable; it is only supporting
+       when the invoice it restates is sitting next to it.
+
+   ⚠ NOTHING IS DROPPED, EVER. A supporting document is still registered, still stored, still
+   filed with the job — it is marked `not_ap` with the reason, which is a state a human can
+   reverse from the desk. A dropped payable is invisible; a duplicate is merely wrong on a screen.
+   Anything not covered here — `unknown` included — stays payable and goes to a person. */
+const NEVER_PAYABLE = {
+  lien_waiver:  'a lien waiver is a release against payment, not a bill',
+  packing_slip: 'a packing slip is a delivery record, not a bill',
+  statement:    'a statement summarises invoices already registered — paying it pays them twice',
+  receipt:      'a receipt is proof of a payment already made',
+};
+
+/* Vendor names arrive as printed: "HRP Construction" and "HRP Construction Inc." are one vendor.
+   Deliberately blunt — this only has to hold WITHIN one batch, where the alternative to a match
+   is leaving a known duplicate on a desk. */
+function vendorKey(name) {
+  return String(name || '').toLowerCase()
+    .replace(/[.,]/g, ' ')
+    .replace(/\b(inc|llc|ltd|co|corp|company|incorporated)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+const amountKey = (a) => (Number.isFinite(Number(a)) ? Math.round(Number(a) * 100) : null);
+
+/* Pure. Takes the batch's rows, returns only those that should NOT stand as payables.
+   No I/O, so scripts/verify-ryc-invoice-matcher.mjs asserts it directly. */
+function supportingDocuments(rows) {
+  const out = [];
+  const invoiceKeys = new Set();
+  for (const r of rows) {
+    if (r.doc_type === 'invoice') {
+      const ak = amountKey(r.amount);
+      if (ak !== null) invoiceKeys.add(`${vendorKey(r.vendor_name)}|${ak}`);
+    }
+  }
+  for (const r of rows) {
+    if (NEVER_PAYABLE[r.doc_type]) {
+      out.push({ id: r.id, version: r.version, doc_type: r.doc_type, reason: NEVER_PAYABLE[r.doc_type] });
+      continue;
+    }
+    if (r.doc_type === 'pay_application') {
+      const ak = amountKey(r.amount);
+      if (ak !== null && invoiceKeys.has(`${vendorKey(r.vendor_name)}|${ak}`)) {
+        out.push({ id: r.id, version: r.version, doc_type: r.doc_type,
+          reason: 'the same vendor\'s invoice for this exact amount is in this batch — one payable, billed twice' });
+      }
+    }
+  }
+  return out;
+}
+
 /* Exported for the regression harness (scripts/verify-ryc-invoice-matcher.mjs). Not a route.
-   The matcher and the desk rule are the two pieces of this module with real logic and no I/O,
-   so they are the pieces that can be tested exhaustively against the live feeds without
-   touching production. */
+   The matcher, the desk rule and the payable classifier are the pieces of this module with real
+   logic and no I/O, so they are the pieces that can be tested exhaustively without touching
+   production. */
 export const __matcher = { matchJob, tokenIndex, jobTokens, jobNoKey };
 export const __pm = { resolveJobPm, resolveJobPmSource };
+export const __payable = { supportingDocuments, vendorKey, NEVER_PAYABLE };
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
@@ -1224,6 +1292,18 @@ export default async function handler(req, res) {
       const docs = Array.isArray(body.documents) ? body.documents : [];
       if (!docs.length) return res.status(400).json({ error: 'No documents supplied.' });
       if (!body.batch_id) return res.status(400).json({ error: 'batch_id is required.' });
+
+      /* Snapshot the batch BEFORE registering so the supporting-document pass below can act on
+         exactly the rows THIS call created. `ryc_register_invoice` predates the migration wrapper
+         and its return shape is not something to assume; an id diff needs no assumption and is
+         replay-safe — a retried registration creates nothing new, so it re-marks nothing, and a
+         row a human has since restored to payable is never touched again. */
+      const preexisting = new Set();
+      try {
+        const r0 = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${body.batch_id}&select=id`);
+        if (r0.ok) for (const x of await r0.json()) preexisting.add(x.id);
+      } catch { /* an empty set is the safe default: the pass below simply does less */ }
+
       const results = [];
       for (let i = 0; i < docs.length; i++) {
         // Per-document request id, derived from the batch id — so a retried batch registration
@@ -1237,6 +1317,37 @@ export default async function handler(req, res) {
           : { ok: false, error: out.body.error, index: i });
       }
       const flagged = results.filter(r => r.ok && Array.isArray(r.flags) && r.flags.length).length;
+
+      /* THE PACKAGE PASS. Marks this batch's supporting documents `not_ap` so one payable that
+         arrived as invoice + pay application + lien waiver stands as ONE amount on a desk instead
+         of three. Runs through `ryc_review_invoice` like any other decision, so it lands in the
+         fact-event trail as a machine decision with its reason — never a silent PATCH, and always
+         reversible from the desk. It must never fail the registration: the invoices are in the
+         register either way, and a classification problem is not an intake problem. */
+      let supporting = null;
+      try {
+        const rn = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${body.batch_id}`
+          + '&select=id,version,doc_type,amount,vendor_name,review_state');
+        if (rn.ok) {
+          const fresh = (await rn.json()).filter(r => !preexisting.has(r.id));
+          const marks = supportingDocuments(fresh)
+            // A human decision already on the row outranks this pass, always.
+            .filter(m => { const r = fresh.find(x => x.id === m.id); return r && (r.review_state === 'new' || r.review_state === 'ready'); });
+          const done = [];
+          for (const m of marks) {
+            const out = await rpc('ryc_review_invoice', {
+              p_id: m.id, p_decision: 'not_ap', p_reviewer: 'system',
+              p_note: `Supporting document (${m.doc_type}) — ${m.reason}. Registered and filed; not a payable. Reverse from the desk if this is wrong.`,
+              p_duplicate_of: null, p_identity_verified: false,
+              p_expected_version: m.version, p_request_id: `${rid}:sup:${m.id}`, p_actor: actor,
+            });
+            if (out.status === 200) done.push({ id: m.id, doc_type: m.doc_type, reason: m.reason });
+          }
+          supporting = { marked: done.length, of: fresh.length, documents: done };
+        }
+      } catch (e) {
+        supporting = { error: (e && e.message) || 'supporting-document pass failed' };
+      }
 
       /* STAGE ON ARRIVAL. This is the "auto moves to the queue where the system stages it" half of
          the motion — the mailbox ingest calls `register`, so this is the moment the front office's
@@ -1253,7 +1364,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true, registered: results.filter(r => r.ok).length,
-        failed: results.filter(r => !r.ok).length, flagged, results, placement,
+        failed: results.filter(r => !r.ok).length, flagged, results, placement, supporting,
       });
     }
 
