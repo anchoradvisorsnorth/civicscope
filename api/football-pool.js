@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.6.0-autofinalize';  // a fixture can be offered against the spread AND as a total
+const VER = '3.6.1-autofinalize';  // a fixture can be offered against the spread AND as a total
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1079,6 +1079,36 @@ export default async function handler(req, res) {
         const rows = (await r.json()) || [];
         const due = rows.filter(x => x.data && x.data.slateLocked && !x.data.finalized
           && x.data.deadline && Date.parse(x.data.deadline) < Date.now());
+
+        /* READ-ONLY PROBE. Whether THIS runtime can reach ESPN is the single assumption the whole
+           feature rests on, and a run that finds nothing due never exercises it — so the first
+           real test would be the night it matters. `probe:true` reports what fetchFinals() sees
+           for the latest locked week and writes NOTHING. */
+        if (req.body.probe === true) {
+          const target = rows.filter(x => x.data && x.data.slateLocked)
+            .sort((a, b) => (a.slug < b.slug ? 1 : -1))[0] || rows[rows.length - 1];
+          if (!target) return res.status(200).json({ probe: true, reason: 'no weeks exist' });
+          const games = target.data.games || [];
+          const found = await fetchFinals(games);
+          return res.status(200).json({
+            probe: true,
+            slug: target.slug,
+            games: games.length,
+            reachedEspn: Object.keys(found.scores).length > 0,
+            scoreKeys: Object.keys(found.scores).length,
+            fetchNotes: found.notes,
+            perGame: games.map((g) => {
+              const sc = resultFor(g, found.scores);
+              return {
+                game: g.short || g.id,
+                league: g.league,
+                state: sc ? sc.state || null : null,
+                score: sc ? String(sc.awayScore) + '-' + String(sc.homeScore) : null,
+              };
+            }),
+          });
+        }
+
         if (!due.length) return res.status(200).json({ finalized: [], reason: 'no locked week past its deadline is awaiting finalizing' });
 
         const done = [], waiting = [];
