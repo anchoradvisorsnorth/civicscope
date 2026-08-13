@@ -460,7 +460,10 @@ function invPaintInbound(){
           return '<option value="' + esc(j.no) + '"' + (on ? " selected" : "") + '>'
             + esc(j.no + ' · ' + j.name) + (j.pm ? '' : '  (no PM)') + '</option>';
         }).join("")
-      + '</select>';
+      + '</select>'
+      // Putting a wrong guess back to "needs a human" has to be possible, or the only way to
+      // correct it is to pick a different job you are also unsure about.
+      + (r.staged_pm ? ' <button class="pfill" onclick="invClearStage(' + invArg(r.id) + ')">clear</button>' : '');
 
     var why;
     if(r.staged_pm){
@@ -515,6 +518,22 @@ function invStageOne(id){
       var m = document.getElementById("inb-msg");
       if(!x.ok || (x.data && x.data.error)){
         if(m) m.innerHTML = '<span class="m-r">' + esc((x.data && x.data.error) || "Could not stage that.") + '</span>';
+        return;
+      }
+      renderInbound();
+    });
+}
+
+function invClearStage(id){
+  if(_inb.busy) return;
+  var r = _inb.rows.filter(function(x){ return x.id === id; })[0] || {};
+  _inb.busy = true;
+  invInboundPost("stage", { id:id, clear:true, source:"manual", version:r.version })
+    .then(function(x){
+      _inb.busy = false;
+      var m = document.getElementById("inb-msg");
+      if(!x.ok || (x.data && x.data.error)){
+        if(m) m.innerHTML = '<span class="m-r">' + esc((x.data && x.data.error) || "Could not clear that.") + '</span>';
         return;
       }
       renderInbound();

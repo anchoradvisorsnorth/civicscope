@@ -744,7 +744,12 @@ export default async function handler(req, res) {
         }
         note = note || `desk follows job ${jobNo}`;
       }
-      if (!jobNo && !pm) {
+      /* UN-STAGING IS A REAL ACTION. Without it a wrong guess is unfixable except by choosing a
+         different wrong job: the front office could never put an invoice back to "needs a human",
+         which is exactly what they should do when they are not sure. Explicit, so it can never
+         happen by an empty form submitting itself. */
+      if (body.clear === true) { pm = null; note = note || 'cleared — back to unplaced'; }
+      else if (!jobNo && !pm) {
         return res.status(400).json({ error: 'Pick a job (or a desk) before staging.' });
       }
       const out = await rpc('ryc_stage_invoice', {
