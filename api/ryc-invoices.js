@@ -115,6 +115,14 @@ function identify(body) {
     return { scope: 'service', service: 'invoice-filer', via: 'service_token' };
   }
 
+  /* THE MAILBOX INGEST. Separate token from the filer on purpose: they run at different times,
+     touch different things, and a single "service" credential that could both intake and file
+     would be the widest key in the module. Each is confined to its own action set below. */
+  const ingest = process.env.RYC_INVOICE_INGEST_TOKEN;
+  if (ingest && safeEqual(code, ingest)) {
+    return { scope: 'service', service: 'invoice-ingest', via: 'service_token' };
+  }
+
   const dir = pmDirectory();
   for (const [c, rec] of Object.entries(dir)) {
     if (safeEqual(code, c) && rec && rec.pm) return { scope: 'pm', pm: rec.pm, via: 'code' };
@@ -269,15 +277,26 @@ export default async function handler(req, res) {
     : (who.scope === 'service') ? null
     : (body.pm ? String(body.pm).slice(0, 120) : null);
 
-  /* Two-way gate. The filer may call NOTHING except the two filing actions, and nobody else may
-     call those — a browser credential must never be able to assert that a document was filed. */
-  const FILING_ACTIONS = new Set(['filing_queue', 'mark_filed']);
-  if (who.scope === 'service' && !FILING_ACTIONS.has(action)) {
-    return res.status(403).json({ error: 'The filing worker may only call the filing actions.' });
+  /* Two-way gate, now per SERVICE. Each machine credential may call exactly its own actions and
+     nothing else, and the filing actions remain unreachable from any browser credential — a page
+     must never be able to assert that a document was filed. */
+  const SERVICE_ACTIONS = {
+    'invoice-filer': new Set(['filing_queue', 'mark_filed']),
+    'invoice-ingest': new Set(['open_batch', 'read', 'register']),
+  };
+  const FILING_ACTIONS = SERVICE_ACTIONS['invoice-filer'];
+  if (who.scope === 'service') {
+    const allowed = SERVICE_ACTIONS[who.service] || new Set();
+    if (!allowed.has(action)) {
+      return res.status(403).json({ error: `The ${who.service} service may not call this action.` });
+    }
   }
   if (FILING_ACTIONS.has(action) && who.scope !== 'service') {
     return res.status(403).json({ error: 'Filing actions require the filing service token.' });
   }
+  // The intake pipeline is front office OR the ingest service — nothing else.
+  const canIntake = who.scope === 'all'
+    || (who.scope === 'service' && who.service === 'invoice-ingest');
 
   try {
     /* ---------- who am I (the page boots from this) ---------- */
@@ -645,22 +664,46 @@ export default async function handler(req, res) {
 
     /* ---------- intake (front office scope only) ---------- */
     if (action === 'open_batch') {
-      if (who.scope !== 'all') return res.status(403).json({ error: 'Front office only.' });
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+
+      /* ONE EMAIL, ONE BATCH, EVER. The ingest is a poll, so it will see the same message again
+         on the next run and after any partial failure. `source_message_id` carries the mail
+         system's own immutable id and a partial unique index refuses the second insert, so
+         re-ingesting is a no-op rather than the duplicate this whole module exists to catch.
+         Checked here first so the normal path returns the existing batch instead of an error. */
+      const msgId = String(body.source_message_id || '').trim() || null;
+      if (msgId) {
+        const ex = await sb(`ryc_invoice_batches?company_id=eq.ryc`
+          + `&source_message_id=eq.${encodeURIComponent(msgId)}&select=*`);
+        if (ex.ok) {
+          const found = await ex.json();
+          if (found.length) return res.status(200).json({ ok: true, batch: found[0], already: true });
+        }
+      }
+
       const r = await sb('ryc_invoice_batches', {
         method: 'POST', headers: { Prefer: 'return=representation' },
         body: JSON.stringify({
           received_date: body.received_date || new Date().toISOString().slice(0, 10),
           source: body.source || 'manual', label: body.label || null,
           page_count: body.page_count || 0, document_uri: body.document_uri || null,
+          ...(msgId ? { source_message_id: msgId } : {}),
         }),
       });
+      if (r.status === 409) {
+        // lost a race with a concurrent run — the other one won, which is the correct outcome
+        const ex = await sb(`ryc_invoice_batches?company_id=eq.ryc`
+          + `&source_message_id=eq.${encodeURIComponent(msgId || '')}&select=*`);
+        const found = ex.ok ? await ex.json() : [];
+        if (found.length) return res.status(200).json({ ok: true, batch: found[0], already: true });
+      }
       if (!r.ok) return res.status(502).json({ error: `Could not open batch (${r.status}).` });
       const rows = await r.json();
       return res.status(200).json({ ok: true, batch: rows[0] });
     }
 
     if (action === 'read') {
-      if (who.scope !== 'all') return res.status(403).json({ error: 'Front office only.' });
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
       if (!READ_ENABLED) {
         return res.status(503).json({ error: 'The document reader is switched off on this deployment.' });
       }
@@ -716,7 +759,7 @@ export default async function handler(req, res) {
     }
 
     if (action === 'register') {
-      if (who.scope !== 'all') return res.status(403).json({ error: 'Front office only.' });
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
       const docs = Array.isArray(body.documents) ? body.documents : [];
       if (!docs.length) return res.status(400).json({ error: 'No documents supplied.' });
       if (!body.batch_id) return res.status(400).json({ error: 'batch_id is required.' });
