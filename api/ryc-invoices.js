@@ -332,13 +332,20 @@ function matchedTokens(want, have) {
 
 /* job_text -> a job, or null WITH A REASON. The reason is not decoration: "nothing was printed"
    and "two jobs match equally" call for completely different actions from the front office. */
-function matchJob(jobText, jobs, idx) {
+function matchJob(jobText, jobs, idx, numberOnly) {
   const raw = String(jobText || '');
 
   /* A PRINTED JOB NUMBER beats every heuristic — it is the thing itself, not a resemblance.
      Candidates are checked against the feed's OWN numbers rather than a guessed pattern, so a
-     ZIP code or a vendor's order number cannot short-circuit the name match below. */
-  const byNo = new Map(jobs.map(j => [jobNoKey(j.no), j]));
+     ZIP code or a vendor's order number cannot short-circuit the name match below.
+
+     `numberOnly` carries jobs that exist in Foundation but NOT in the active Procore feed — 46 of
+     them. They are reachable by an EXACTLY PRINTED NUMBER and by nothing else, deliberately: an
+     invoice printing "26X004" is unambiguous evidence, whereas letting those names into the token
+     matcher would put "TEST JOB - Project HQ", "Nate Yoder Driveway" and
+     "Brad - Misc Work at Residence" into the candidate pool — and an Alpha invoice whose job field
+     reads "Brad Yoder" would match the last of those confidently and wrongly. */
+  const byNo = new Map([...(numberOnly || []), ...jobs].map(j => [jobNoKey(j.no), j]));
   let orphanNo = null;
   for (const w of (raw.toUpperCase().match(/[A-Z0-9][A-Z0-9-]{3,}/g) || [])) {
     const k = jobNoKey(w);
@@ -544,7 +551,7 @@ export default async function handler(req, res) {
         const out = {};
         for (const [no, f] of Object.entries((body && body.jobs) || {})) {
           const pm = f && f.pmName ? String(f.pmName).trim() : '';
-          if (pm) out[String(no).trim()] = pm;
+          if (pm) out[String(no).trim()] = { pm, desc: (f.description || '').trim() };
         }
         return out;
       } catch { return {}; }
@@ -563,12 +570,14 @@ export default async function handler(req, res) {
       ]);
       const jobs = [];
       const names = {};
+      const seen = new Set();
       for (const j of ((cache && cache.jobs) || [])) {
         const no = String(j.projectNumber || '').trim();
         if (!no || !j.name) continue;
         names[no] = j.name;
+        seen.add(no);
         const procorePm = j.pm && j.pm.name ? String(j.pm.name).trim() : null;
-        const foundationPm = fnd[no] || null;
+        const foundationPm = fnd[no] ? fnd[no].pm : null;
         jobs.push({
           no, name: j.name, active: j.active !== false,
           pm: procorePm || foundationPm || null,
@@ -577,8 +586,23 @@ export default async function handler(req, res) {
           pm_procore: procorePm, pm_foundation: foundationPm,
         });
       }
+
+      /* JOBS FOUNDATION KNOWS AND PROCORE DOES NOT — 46 of them, and an invoice arrived for one.
+         `26X004` printed on an Alpha Building Center invoice is "Ryan Fire Prot - Valpo", a real
+         RYC job owned by Ken Wright; the tool could only say "not in the Procore feed", which
+         reads as *that number is wrong* rather than *that job is not in the feed I read*. They
+         are returned SEPARATELY and are never in the picklist: the same list holds warranty work,
+         three test jobs and two PMs' own driveways. */
+      const foundationOnly = [];
+      for (const [no, f] of Object.entries(fnd)) {
+        if (seen.has(no)) continue;
+        const pm = f.pm;
+        foundationOnly.push({ no, name: f.desc || no, pm, pm_source: 'foundation',
+          pm_procore: null, pm_foundation: pm, active: false, in_procore: false });
+      }
+
       jobs.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-      return { jobs, names, asOf: (cache && cache.refreshed) || null,
+      return { jobs, foundationOnly, names, asOf: (cache && cache.refreshed) || null,
         foundation_read: Object.keys(fnd).length > 0 };
     }
 
@@ -858,9 +882,11 @@ export default async function handler(req, res) {
          Command uses (Foundation first, Procore second). It used to read the Procore cache
          directly here, which is how a third of the portfolio got staged to a desk RYC's
          accounting system does not consider the owner. */
-      let jobs = [];
+      let jobs = [], foundationOnly = [];
       try {
-        jobs = (await jobDirectory()).jobs;
+        const dir = await jobDirectory();
+        jobs = dir.jobs;
+        foundationOnly = dir.foundationOnly || [];
       } catch { /* no feed -> nothing is staged, which is honest */ }
       if (!jobs.length) {
         return { staged: 0, unplaced: rows.length,
@@ -877,7 +903,7 @@ export default async function handler(req, res) {
         const known = r.job_no ? byNo.get(String(r.job_no).trim()) : null;
         const m = known
           ? { job: known, conf: 1.0, why: `job ${known.no} was already resolved on this invoice`, source: 'hint' }
-          : { ...matchJob(r.job_text, jobs, idx), source: 'job_text' };
+          : { ...matchJob(r.job_text, jobs, idx, foundationOnly), source: 'job_text' };
 
         if (!m.job) {
           // Record WHY, once. Rewriting an unchanged note every pass would churn the version and
