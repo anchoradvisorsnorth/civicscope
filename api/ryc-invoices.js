@@ -511,26 +511,86 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, stored: true, pages });
     }
 
-    /* Job number -> the PM who owns it, straight off the Procore feed (51 of 53 jobs carry one,
-       and the names match the desks exactly: Troy Jennings, Logan Moore, Erik Parcell). This is
-       what makes routing automatic without a classifier: the invoice's job is already resolved at
-       REGISTER time by ryc_invoice_job_hints — (vendor, printed job text) -> job number, learned
-       only from a PM's own correction — so the remaining step is a lookup, not a guess.
-       Returns an empty map on any failure: no suggestion is a fine outcome, a wrong one is not. */
-    async function jobPmMap() {
-      const origin = process.env.RYC_DATA_ORIGIN || 'https://app.civicscope.io';
+    /* ===== WHO OWNS A JOB — FOUNDATION FIRST, PROCORE SECOND ============================
+       ⛔ THIS MODULE READ ONLY PROCORE AND WAS WRONG ON A THIRD OF THE PORTFOLIO (2026-08-13).
+       Keith, looking at Helix Orchard reading "no desk" in Inbound while Command showed John
+       Emmons on the same job: *"Helix absolutely has a desk and therefore a PM."* He was right.
+       Command has ALWAYS resolved it as `foundation.pmName || procore.pm.name`
+       (`ryc-command/core.js` → `pmName()`), because **Foundation is RYC's accounting system and
+       the PM of record for job cost**; Procore's PM field is the fallback. This module was built
+       on the fallback alone.
+
+       Measured against the live feeds the moment it was found: Foundation answers 2 jobs Procore
+       leaves blank (Helix Orchard, Huntertown) — and **DISAGREES WITH PROCORE ON 17 OF 53 ACTIVE
+       JOBS**. So this was never a two-invoice edge case: a third of the portfolio was being routed
+       to a desk that RYC's own accounting system does not consider the owner, while Command
+       displayed the other answer on the next screen over.
+
+       One rule, stated once, matching Command's expression exactly — a second implementation is
+       how the two drift apart again. Foundation is fetched from CRM (same endpoint Command
+       loads); if it cannot be read, Procore still answers and the source is reported as such
+       rather than silently degrading. */
+    const FOUNDATION_URL = (process.env.RYC_CRM_ORIGIN || 'https://crm.jbkdevelopment.com')
+      + '/api/ryc-foundation';
+
+    async function foundationPms() {
       try {
-        const r = await fetch(`${origin}/ryc-data/procore-cache.json`, {
+        const r = await fetch(FOUNDATION_URL, {
           headers: { 'User-Agent': 'ryc-invoices/1.0' }, signal: AbortSignal.timeout(15000),
         });
         if (!r.ok) return {};
-        const cache = await r.json();
-        const map = {};
-        for (const j of (cache.jobs || [])) {
-          const no = String(j.projectNumber || '').trim();
-          const pm = j.pm && j.pm.name ? String(j.pm.name).trim() : '';
-          if (no && pm) map[no] = pm;
+        const body = await r.json();
+        const out = {};
+        for (const [no, f] of Object.entries((body && body.jobs) || {})) {
+          const pm = f && f.pmName ? String(f.pmName).trim() : '';
+          if (pm) out[String(no).trim()] = pm;
         }
+        return out;
+      } catch { return {}; }
+    }
+
+    /* The one place a job number becomes a name, a desk and the reason that desk was chosen.
+       ACTIVE only for the picklist — an inbound invoice for a closed job is an exception a human
+       should look at, not an option to pick by accident out of hundreds. */
+    async function jobDirectory() {
+      const origin = process.env.RYC_DATA_ORIGIN || 'https://app.civicscope.io';
+      const [cache, fnd] = await Promise.all([
+        fetch(`${origin}/ryc-data/procore-cache.json`, {
+          headers: { 'User-Agent': 'ryc-invoices/1.0' }, signal: AbortSignal.timeout(15000),
+        }).then(r => (r.ok ? r.json() : null)).catch(() => null),
+        foundationPms(),
+      ]);
+      const jobs = [];
+      const names = {};
+      for (const j of ((cache && cache.jobs) || [])) {
+        const no = String(j.projectNumber || '').trim();
+        if (!no || !j.name) continue;
+        names[no] = j.name;
+        const procorePm = j.pm && j.pm.name ? String(j.pm.name).trim() : null;
+        const foundationPm = fnd[no] || null;
+        jobs.push({
+          no, name: j.name, active: j.active !== false,
+          pm: foundationPm || procorePm || null,
+          pm_source: foundationPm ? 'foundation' : (procorePm ? 'procore' : null),
+          // Kept so a disagreement is visible rather than silently resolved. 17 of 53 disagree.
+          pm_procore: procorePm, pm_foundation: foundationPm,
+        });
+      }
+      jobs.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+      return { jobs, names, asOf: (cache && cache.refreshed) || null,
+        foundation_read: Object.keys(fnd).length > 0 };
+    }
+
+    /* Job number -> the PM whose desk it is. This is what makes routing automatic without a
+       classifier: the invoice's job is already resolved at REGISTER time by
+       ryc_invoice_job_hints — (vendor, printed job text) -> job number, learned only from a PM's
+       own correction — so the remaining step is a lookup, not a guess.
+       Returns an empty map on total failure: no suggestion is a fine outcome, a wrong one is not. */
+    async function jobPmMap() {
+      try {
+        const dir = await jobDirectory();
+        const map = {};
+        for (const j of dir.jobs) if (j.pm) map[j.no] = j.pm;
         return map;
       } catch { return {}; }
     }
@@ -541,28 +601,15 @@ export default async function handler(req, res) {
        — so the server hands back the one thing it needs: a number → name map. Small payload,
        one call, and it degrades to bare numbers rather than failing. */
     if (action === 'jobs') {
-      const origin = process.env.RYC_DATA_ORIGIN || 'https://app.civicscope.io';
       try {
-        const r = await fetch(`${origin}/ryc-data/procore-cache.json`, {
-          headers: { 'User-Agent': 'ryc-invoices/1.0' }, signal: AbortSignal.timeout(15000),
+        const dir = await jobDirectory();
+        return res.status(200).json({
+          ok: true, names: dir.names, asOf: dir.asOf, foundation_read: dir.foundation_read,
+          jobs: dir.jobs.filter(j => j.active).map(j => ({
+            no: j.no, name: j.name, pm: j.pm, pm_source: j.pm_source,
+            pm_procore: j.pm_procore, pm_foundation: j.pm_foundation,
+          })),
         });
-        if (!r.ok) return res.status(200).json({ ok: true, names: {}, jobs: [] });
-        const cache = await r.json();
-        const names = {};
-        /* The picklist the front office chooses from, and the PM each job implies. ACTIVE only —
-           an inbound invoice for a closed job is an exception a human should look at, not an
-           option to pick by accident from a list of hundreds. */
-        const jobs = [];
-        for (const j of (cache.jobs || [])) {
-          const n = String(j.projectNumber || '').trim();
-          if (!n || !j.name) continue;
-          names[n] = j.name;
-          if (j.active !== false) {
-            jobs.push({ no: n, name: j.name, pm: (j.pm && j.pm.name) ? String(j.pm.name).trim() : null });
-          }
-        }
-        jobs.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-        return res.status(200).json({ ok: true, names, jobs, asOf: cache.refreshed || null });
       } catch {
         return res.status(200).json({ ok: true, names: {}, jobs: [] });
       }
@@ -806,21 +853,13 @@ export default async function handler(req, res) {
         && (force || (!r.staged_pm && !r.staged_job_no)));
       if (!rows.length) return { staged: 0, unplaced: 0, note: 'nothing waiting to be staged' };
 
-      // The job list and each job's PM come from the same Procore feed Command reads.
-      const origin = process.env.RYC_DATA_ORIGIN || 'https://app.civicscope.io';
+      /* The job list and each job's desk come from `jobDirectory()` — the SAME resolution
+         Command uses (Foundation first, Procore second). It used to read the Procore cache
+         directly here, which is how a third of the portfolio got staged to a desk RYC's
+         accounting system does not consider the owner. */
       let jobs = [];
       try {
-        const r = await fetch(`${origin}/ryc-data/procore-cache.json`, {
-          headers: { 'User-Agent': 'ryc-invoices/1.0' }, signal: AbortSignal.timeout(15000),
-        });
-        if (r.ok) {
-          const cache = await r.json();
-          jobs = (cache.jobs || []).map(j => ({
-            no: String(j.projectNumber || '').trim(),
-            name: String(j.name || ''),
-            pm: j.pm && j.pm.name ? String(j.pm.name).trim() : null,
-          })).filter(j => j.no && j.name);
-        }
+        jobs = (await jobDirectory()).jobs;
       } catch { /* no feed -> nothing is staged, which is honest */ }
       if (!jobs.length) {
         return { staged: 0, unplaced: rows.length,
