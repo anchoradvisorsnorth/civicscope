@@ -400,10 +400,32 @@ function matchJob(jobText, jobs, idx, numberOnly) {
   return { job: null, why: `only shared words matched (${best.hits.map(say).join(', ')}) — too weak to place` };
 }
 
+/* ===== WHOSE DESK — THE ONE EXPRESSION OF THE RULE ON THIS SIDE ======================
+   Lifted out of `jobDirectory()` and made module-level 2026-08-13 for one reason: the harness
+   that is supposed to protect this rule had **re-implemented it** (`procorePm || foundationPm`,
+   the pre-reversal order) instead of calling it, so it asserted its own copy and passed 85/85
+   both before and after the rule was reversed. A test that re-derives the thing it guards
+   guards nothing.
+
+   MUST STAY IDENTICAL TO `ryc-command/core.js` → `pmName()`:
+       (job.foundation && job.foundation.pmName) || (job.pm && job.pm.name) || null
+   Foundation is the desk of record (`ryc_foundation_latest.pmName`, the Supabase table Command
+   reads); Procore fills the blanks. `scripts/verify-ryc-invoice-matcher.mjs` asserts both halves
+   of that sentence — that this function agrees with Command's rule on every job, and that
+   Command's rule still reads the way this comment says it does. */
+function resolveJobPm(procorePm, foundationPm) {
+  return foundationPm || procorePm || null;
+}
+function resolveJobPmSource(procorePm, foundationPm) {
+  return foundationPm ? 'foundation' : (procorePm ? 'procore' : null);
+}
+
 /* Exported for the regression harness (scripts/verify-ryc-invoice-matcher.mjs). Not a route.
-   The matcher is the one piece of this module with real logic and no I/O, so it is the one
-   piece that can be tested exhaustively against the live job feed without touching production. */
+   The matcher and the desk rule are the two pieces of this module with real logic and no I/O,
+   so they are the pieces that can be tested exhaustively against the live feeds without
+   touching production. */
 export const __matcher = { matchJob, tokenIndex, jobTokens, jobNoKey };
+export const __pm = { resolveJobPm, resolveJobPmSource };
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
@@ -600,11 +622,9 @@ export default async function handler(req, res) {
         const foundationPm = fnd[no] ? fnd[no].pm : null;
         jobs.push({
           no, name: j.name, active: j.active !== false,
-          // IDENTICAL to ryc-command/core.js:49 `pmName()`. If that line ever changes, change
-          // this one in the same commit — two products naming different PMs for the same job is
-          // the bug this pair of lines exists to prevent.
-          pm: foundationPm || procorePm || null,
-          pm_source: foundationPm ? 'foundation' : (procorePm ? 'procore' : null),
+          // The rule lives in ONE place — resolveJobPm() above, which the harness calls too.
+          pm: resolveJobPm(procorePm, foundationPm),
+          pm_source: resolveJobPmSource(procorePm, foundationPm),
           // Kept so a disagreement is visible rather than silently resolved. 17 of 53 disagree.
           pm_procore: procorePm, pm_foundation: foundationPm,
         });
