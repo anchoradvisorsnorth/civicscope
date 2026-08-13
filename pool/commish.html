@@ -580,8 +580,30 @@ function weekIdent(){
   if(t==='3') return {slug:`${season}-post${n}`, label:`Postseason Week ${n}`};
   return {slug:`${season}-w${String(n).padStart(2,'0')}`, label:`Week ${n}`};
 }
+/* ⛔ THE EDITOR'S CONTENTS BELONG TO A WEEK, AND MUST NOT FOLLOW YOU TO ANOTHER ONE
+   (found 2026-08-13 by driving the live page). Changing the week controls repainted the identity
+   and reset the locked state but left `slate` untouched — so switching off the locked
+   Preseason Week 1 left ITS THREE GAMES sitting in the editor, editable, under the heading
+   "Week 1 · 2026-w01 · not built yet". One "Save draft" would have written the preseason slate
+   into a brand-new regular-season week. The 2026-08-09 wipe guard cannot catch this: it refuses a
+   save that SHRINKS an existing slate to zero, and this is a full slate copied onto a name that
+   has nothing to shrink.
+   Same lesson as the roster overwrite and the slate wipe before it, in its third costume: every
+   write to a shared record must state which world it is in. So the editor now carries the week it
+   was filled from, and a move to a different week empties it. */
+let slateSlug=null;
+const VALID_SLUG=/^\d{4}-(w\d+|pre\d+|post\d+)$/;
+function bindSlateToWeek(){ const s=weekIdent().slug; if(VALID_SLUG.test(s))slateSlug=s; }
 function onWeekIdentChange(){
   const {slug,label}=weekIdent();
+  /* Only a VALID slug counts as a move. Half-typed values (`202-w01` while retyping the season)
+     are not a different week and must never cost the commissioner a loaded slate. */
+  if(VALID_SLUG.test(slug)&&slateSlug&&slateSlug!==slug&&slate.length){
+    const from=slateSlug;
+    slate=[]; slateSlug=null;
+    toast(`Editor cleared — those games belonged to ${from}, not ${slug}.`,7000);
+    if(typeof renderLoaded==='function')renderLoaded();
+  }
   document.getElementById('wkslug').value=slug;
   document.getElementById('wklabel').value=label;
   document.getElementById('wkident').textContent=`${label} · ${slug}`;
@@ -629,6 +651,7 @@ function renderLoaded(){
 function toggleGame(id){
   const i=slate.findIndex(g=>g.id===id);
   if(i>-1)slate.splice(i,1); else{const g=loaded.find(x=>x.id===id); if(g)slate.push({...g,market:'spread'});}
+  bindSlateToWeek();
   renderSlate();renderLoaded();
 }
 /* The over/under entry is a full slate row of its own, not a flag on the spread row — that is what
@@ -643,6 +666,7 @@ function toggleTotal(id){
   slate.push({...g,id:oid,market:'total',pickem:false,favAbbrev:null,line:null,
     total:(g.overUnder!=null?g.overUnder:null),
     spreadText:(g.overUnder!=null?('O/U '+g.overUnder):null),manual:g.overUnder==null});
+  bindSlateToWeek();
   renderSlate();renderLoaded();
   if(g.overUnder==null)toast('ESPN gave no total for that game — type the number in the O/U box.',7000);
 }
@@ -755,6 +779,7 @@ async function saveWeek(){
   }
   try{await post({action:'save_week',code:code(),slug:slug(),
     data:{label:document.getElementById('wklabel').value||slug(),games:slate,slateLocked:false}});
+    bindSlateToWeek();
     toast('Draft saved ✓ — '+slate.length+' game'+(slate.length===1?'':'s'));listWeeks();}catch(e){}}
 async function lockSlate(){
   if(!slate.length){toast('Slate is empty');return;}
@@ -888,6 +913,7 @@ async function openWeek(s,quiet){
   if(!j.data)return false;
   setControlsFromSlug(s);
   slate=j.data.games||[];
+  slateSlug=s;                       // these games belong to THIS week, and to no other
   slateLocked=!!j.data.slateLocked;
   weekState=j.data.finalized?'done':(slateLocked?'locked':'draft');
   // Opening a week is a deliberate move to THAT week — the builder follows it rather than
