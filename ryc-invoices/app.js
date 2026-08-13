@@ -36,8 +36,15 @@ function init(){
       workspace: "invoices",
       version: "v1.0.0",
       active: "invoices",
-      groups: [{ label:"", items:[{ key:"invoices", label:"Daily batch", icon:"&#129534;" }] }],
-      onSelect: function(){ renderInvoices(); },
+      /* TWO destinations, because they are two different people's work (Keith, 2026-08-13).
+         Inbound is the front office: everything that has arrived and not yet been sent to a desk.
+         Daily batch is a PM's own queue. Grouping the unplaced invoices as a "No job yet" section
+         inside the PM view put the front office's job inside somebody else's screen. */
+      groups: [{ label:"", items:[
+        { key:"inbound",  label:"Inbound",     icon:"&#128229;" },
+        { key:"invoices", label:"Daily batch", icon:"&#129534;" },
+      ] }],
+      onSelect: function(key){ if(key === "inbound") renderInbound(); else renderInvoices(); },
       onLock: function(){ sessionStorage.removeItem("ryc_inv_auth"); location.reload(); }
     });
   }

@@ -357,6 +357,184 @@ function invFilingHtml(r){
   return "";
 }
 
+/* ===================== THE INBOUND QUEUE — ITS OWN SCREEN =========================
+   Keith, 2026-08-13, describing the real motion:
+     "the invoice hits the ap inbox, auto moves to the queue where the system stages it, trying to
+      find its job and relative PM, at some point in the day the front office will review, manually
+      assign the ones where the system was unable, then release the batch, which will [appear] on
+      the pm's page for review."
+
+   So this is a DESTINATION, not a panel. The previous version put the unplaced invoices in a
+   section inside the PM-facing board, which buried one person's whole job inside another's screen.
+
+   The system stages from what the invoice PRINTS — the job name — and the job tells us the PM.
+   Where it could not place one, it says WHY rather than leaving a blank, because "only 1
+   distinctive word matched" and "nothing printed" call for completely different actions.
+
+   Nothing here reaches a PM until Release. */
+var _inb = { rows: [], summary: {}, busy: false, sel: {} };
+
+function invInboundPost(action, body){ return invPost(action, body || {}); }
+
+function renderInbound(){
+  var v = document.getElementById("view");
+  document.getElementById("view-ctx").innerHTML =
+    "Inbound &middot; everything that has arrived and not yet been sent to a desk";
+  v.innerHTML = '<div class="panel"><div class="sub">Loading the inbound queue&hellip;</div></div>';
+  invInboundPost("inbound_queue", { days: 90 }).then(function(r){
+    if(!r.ok || !r.data || r.data.error){
+      v.innerHTML = '<div class="panel"><div class="sub m-r">'
+        + esc((r.data && r.data.error) || r.error || "Could not load the inbound queue.")
+        + '</div></div>';
+      return;
+    }
+    _inb.rows = r.data.rows || [];
+    _inb.summary = r.data.summary || {};
+    _inb.sel = {};
+    // Default the batch to everything the system already placed — that is the common action
+    // ("release the batch"), and the unplaced ones are deliberately NOT pre-selected.
+    _inb.rows.forEach(function(x){ if(x.staged_pm) _inb.sel[x.id] = true; });
+    invPaintInbound();
+  });
+}
+
+function invPaintInbound(){
+  var v = document.getElementById("view"), s = _inb.summary;
+  var pms = (_inv.who && _inv.who.pms) || [];
+  var chosen = _inb.rows.filter(function(x){ return _inb.sel[x.id]; });
+  var releasable = chosen.filter(function(x){ return !!x.staged_pm; });
+
+  var h = '<div class="panel"><div class="h">Inbound &middot; ' + (s.documents || 0)
+    + ' &middot; ' + fmt(s.value || 0) + '</div>'
+    + '<div class="sub">'
+    + '<b>' + (s.staged || 0) + '</b> placed by the system &middot; '
+    + '<b class="' + ((s.unplaced || 0) ? 'm-a' : '') + '">' + (s.unplaced || 0) + '</b> need you'
+    + ((s.flagged || 0) ? ' &middot; <b class="m-r">' + s.flagged + ' flagged</b>' : '')
+    + '</div>'
+    + '<div style="margin-top:8px">'
+    + '<button class="pfill" onclick="invStageInbound()">Re-read and place</button> '
+    + '<button class="pfill" onclick="invReleaseBatch()"'
+    + (releasable.length ? '' : ' disabled')
+    + '>Release ' + releasable.length + ' to their desks</button>'
+    + (chosen.length > releasable.length
+        ? ' <span class="sub m-a">' + (chosen.length - releasable.length)
+          + ' selected have no desk and will be held back</span>' : '')
+    + '</div>'
+    + '<div id="inb-msg" class="sub" style="margin-top:6px"></div></div>';
+
+  if(!_inb.rows.length){
+    v.innerHTML = h + '<div class="panel"><div class="sub">Nothing waiting. Anything that arrives '
+      + 'in ap@ appears here on its own.</div></div>';
+    return;
+  }
+
+  // Unplaced first: that is the actual work on this screen.
+  var order = _inb.rows.slice().sort(function(a,b){
+    return (a.staged_pm ? 1 : 0) - (b.staged_pm ? 1 : 0);
+  });
+
+  h += '<div class="panel"><table class="tbl"><tbody>';
+  order.forEach(function(r){
+    var sel = '<select id="ib-' + esc(r.id) + '" style="width:150px" '
+      + 'onchange="invStageOne(' + invArg(r.id) + ')">'
+      + '<option value="">Choose a desk&hellip;</option>'
+      + pms.map(function(p){
+          return '<option value="' + esc(p) + '"' + (r.staged_pm === p ? " selected" : "") + '>'
+            + esc(p) + '</option>';
+        }).join("")
+      + '</select>';
+
+    var why;
+    if(r.staged_pm){
+      why = '<span class="m-g">' + esc(r.staged_job_no || "") + '</span> <span class="sub">'
+        + esc(r.staged_note || (r.staged_source === "manual" ? "set by hand" : "")) + '</span>';
+    } else {
+      why = '<span class="m-a">not placed</span> <span class="sub">'
+        + esc(r.staged_note || "") + (r.job_text
+            ? ' &mdash; the invoice says &ldquo;' + esc(r.job_text) + '&rdquo;'
+            : ' &mdash; no job printed on it') + '</span>';
+    }
+
+    h += '<tr>'
+      + '<td style="vertical-align:top;width:24px"><input type="checkbox" id="cb-' + esc(r.id) + '"'
+      + (_inb.sel[r.id] ? " checked" : "") + ' onchange="invToggleSel(' + invArg(r.id) + ')"></td>'
+      + '<td style="vertical-align:top;min-width:180px"><b>' + esc(r.vendor_name || "&mdash;") + '</b>'
+      + '<div class="sub">' + esc(r.invoice_no || "") + ' &middot; ' + esc(r.received_date || "")
+      + (r.doc_type && r.doc_type !== "invoice" ? ' &middot; ' + esc(r.doc_type) : '') + '</div></td>'
+      + '<td class="r" style="vertical-align:top;white-space:nowrap"><b>'
+      + (r.amount == null ? '&mdash;' : fmt(Number(r.amount))) + '</b></td>'
+      + '<td style="vertical-align:top">' + sel
+      + '<div class="sub" style="margin-top:3px">' + why + '</div></td>'
+      + '</tr>';
+  });
+  v.innerHTML = h + '</tbody></table></div>';
+}
+
+function invToggleSel(id){
+  _inb.sel[id] = !!(document.getElementById("cb-" + id) || {}).checked;
+  invPaintInbound();
+}
+
+/* The front office's correction. Staging is NOT releasing — this records the intended desk and
+   the invoice stays on this screen until the batch goes. */
+function invStageOne(id){
+  if(_inb.busy) return;
+  var r = _inb.rows.filter(function(x){ return x.id === id; })[0] || {};
+  var pm = (document.getElementById("ib-" + id) || {}).value || "";
+  _inb.busy = true;
+  invInboundPost("stage", { id:id, staged_pm:pm || null, job_no:r.staged_job_no || r.job_no || null,
+                            source:"manual", version:r.version })
+    .then(function(x){
+      _inb.busy = false;
+      var m = document.getElementById("inb-msg");
+      if(!x.ok || (x.data && x.data.error)){
+        if(m) m.innerHTML = '<span class="m-r">' + esc((x.data && x.data.error) || "Could not stage that.") + '</span>';
+        return;
+      }
+      renderInbound();
+    });
+}
+
+function invStageInbound(){
+  if(_inb.busy) return;
+  _inb.busy = true;
+  var m = document.getElementById("inb-msg");
+  if(m) m.textContent = "Reading the job name off each invoice\u2026";
+  invInboundPost("stage_inbound", {}).then(function(x){
+    _inb.busy = false;
+    if(!x.ok || (x.data && x.data.error)){
+      if(m) m.innerHTML = '<span class="m-r">' + esc((x.data && x.data.error) || "Could not stage.") + '</span>';
+      return;
+    }
+    renderInbound();
+  });
+}
+
+/* RELEASE THE BATCH — the moment this work becomes a PM's. Anything without a desk is held back
+   by the server and reported, never swept along to land nowhere. */
+function invReleaseBatch(){
+  if(_inb.busy) return;
+  var ids = Object.keys(_inb.sel).filter(function(k){ return _inb.sel[k]; });
+  var withDesk = _inb.rows.filter(function(x){ return _inb.sel[x.id] && x.staged_pm; });
+  if(!withDesk.length) return;
+  if(!confirm("Release " + withDesk.length + " invoice(s) to their desks?\n\n"
+      + "They appear on each PM's page for review. Anything without a desk stays here.")) return;
+  _inb.busy = true;
+  var m = document.getElementById("inb-msg");
+  if(m) m.textContent = "Releasing\u2026";
+  invInboundPost("release", { ids: ids }).then(function(x){
+    _inb.busy = false;
+    if(!x.ok || (x.data && x.data.error)){
+      if(m) m.innerHTML = '<span class="m-r">' + esc((x.data && x.data.error) || "Release failed.") + '</span>';
+      return;
+    }
+    var d = x.data;
+    if(m) m.innerHTML = '<span class="m-g">Released ' + d.released + '</span>'
+      + (d.held ? ' <span class="m-a">&middot; ' + d.held + ' held back (no desk)</span>' : '');
+    setTimeout(renderInbound, 900);
+  });
+}
+
 /* THE FRONT-OFFICE ROUTING QUEUE (Keith, 2026-08-12).
    "A user from the front office logs in ... their role is to review and route where needed —
    then push to the individual PM queue."
