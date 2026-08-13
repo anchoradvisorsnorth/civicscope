@@ -395,6 +395,51 @@ export default async function handler(req, res) {
       } catch { return {}; }
     }
 
+    /* ===================== STAGING: READ THE JOB OFF THE INVOICE =======================
+       Keith, 2026-08-13: "the way the system will know is reading the invoice and looking for the
+       job name" — and "job name tells you who the PM is".
+
+       So the primary signal is `job_text`: what the VENDOR PRINTED. Measured on the first real
+       mailbox pull, 9 of 13 invoices carry one. Vendor billing history is a fallback, not the
+       method — a vendor who has always billed one job can bill a new one tomorrow, and treating
+       history as truth would confidently misfile exactly the invoices nobody re-checks.
+
+       ⛔ IT REFUSES RATHER THAN GUESSES. "WAKARUSA" overlaps ONE distinctive word with
+       "Wakarusa WTP" — and also with Wakarusa Pickleball Courts and Wakarusa Water Treatment
+       Plant. That is the shape that once matched two different South Bend jobs to Monreaux. A
+       match needs 2+ distinctive words and a clear winner; anything less is left for a human,
+       which is the entire point of the front office's screen. */
+    const JOB_FILLER = new Set(['the','of','and','a','an','at','in','on','for','llc','inc','co',
+      'corp','project','projects','phase','rebid','bid','new','addition','renovation','reno',
+      'improvements','improvement','building','bldg','construction','center','centre','north',
+      'south','east','west','no','site','work','works','replacement','upgrade','upgrades',
+      'remodel','expansion','town','city','county','school','corporation','unit']);
+    const jobTokens = (s) => new Set(String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/).filter(w => w.length > 2 && !JOB_FILLER.has(w) && !/^\d+$/.test(w)));
+
+    /* job_text -> a job number, or null with a reason. Never a guess. */
+    function matchJob(jobText, jobs) {
+      const want = jobTokens(jobText);
+      if (!want.size) return { job: null, why: 'nothing distinctive printed' };
+      const scored = [];
+      for (const j of jobs) {
+        const have = jobTokens(j.name);
+        let overlap = 0;
+        for (const w of want) if (have.has(w)) overlap++;
+        if (overlap) scored.push({ overlap, job: j });
+      }
+      if (!scored.length) return { job: null, why: 'no job resembles what the invoice printed' };
+      scored.sort((a, b) => b.overlap - a.overlap);
+      const best = scored[0];
+      if (best.overlap < 2) {
+        return { job: null, why: `only 1 distinctive word matched "${best.job.name}" — too weak` };
+      }
+      if (scored.filter(s => s.overlap === best.overlap).length > 1) {
+        return { job: null, why: `${scored.filter(s => s.overlap === best.overlap).length} jobs match equally` };
+      }
+      return { job: best.job, overlap: best.overlap };
+    }
+
     /* ---------- job names ---------------------------------------------------------------
        "2510GP04" is not what anyone calls that job. Command resolves names from its Procore
        feed, but the tool deliberately does not load that whole feed just to decorate a header
@@ -601,6 +646,95 @@ export default async function handler(req, res) {
         p_expected_version: body.version == null ? null : parseInt(body.version, 10),
         p_request_id: rid,
         p_actor: actor,
+      });
+      return res.status(out.status).json(out.body);
+    }
+
+    /* ---------- THE INBOUND QUEUE (front office's own screen) ---------- */
+    if (action === 'inbound_queue') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const out = await rpc('ryc_inbound_queue', { p_days: Math.min(Math.max(parseInt(body.days, 10) || 60, 1), 365) });
+      if (out.status !== 200) return res.status(out.status).json(out.body);
+      const rows = Array.isArray(out.body) ? out.body : [];
+      return res.status(200).json({
+        ok: true, rows,
+        summary: {
+          documents: rows.length,
+          staged: rows.filter(r => r.staged_pm).length,
+          unplaced: rows.filter(r => !r.staged_pm).length,
+          flagged: rows.filter(r => Number(r.open_high) > 0).length,
+          value: rows.reduce((a, r) => a + (Number(r.amount) || 0), 0),
+        },
+      });
+    }
+
+    /* Resolve what can be resolved, and say plainly what could not. Runs on demand (and after an
+       ingest) so the front office opens a screen that is already mostly answered. */
+    if (action === 'stage_inbound') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const q = await rpc('ryc_inbound_queue', { p_days: 90 });
+      if (q.status !== 200) return res.status(q.status).json(q.body);
+      const rows = (Array.isArray(q.body) ? q.body : []).filter(r => !r.staged_pm);
+      if (!rows.length) return res.status(200).json({ ok: true, staged: 0, unplaced: 0, note: 'nothing waiting to be staged' });
+
+      // The job list and each job's PM come from the same Procore feed Command reads.
+      const origin = process.env.RYC_DATA_ORIGIN || 'https://app.civicscope.io';
+      let jobs = [];
+      try {
+        const r = await fetch(`${origin}/ryc-data/procore-cache.json`, {
+          headers: { 'User-Agent': 'ryc-invoices/1.0' }, signal: AbortSignal.timeout(15000),
+        });
+        if (r.ok) {
+          const cache = await r.json();
+          jobs = (cache.jobs || []).map(j => ({
+            no: String(j.projectNumber || '').trim(),
+            name: String(j.name || ''),
+            pm: j.pm && j.pm.name ? String(j.pm.name).trim() : null,
+          })).filter(j => j.no && j.name);
+        }
+      } catch { /* no feed -> nothing is staged, which is honest */ }
+      if (!jobs.length) return res.status(200).json({ ok: true, staged: 0, unplaced: rows.length,
+        note: 'the Procore job feed could not be read — nothing staged rather than guessed' });
+
+      const staged = [], unplaced = [];
+      for (const r of rows) {
+        const m = matchJob(r.job_text, jobs);
+        if (!m.job) { unplaced.push({ id: r.id, vendor: r.vendor_name, job_text: r.job_text, why: m.why }); continue; }
+        if (!m.job.pm) { unplaced.push({ id: r.id, vendor: r.vendor_name, job_text: r.job_text,
+          why: `matched ${m.job.no} but that job has no PM in Procore` }); continue; }
+        const s = await rpc('ryc_stage_invoice', {
+          p_id: r.id, p_staged_pm: m.job.pm, p_staged_job_no: m.job.no,
+          p_source: 'job_text', p_confidence: Math.min(0.5 + 0.15 * m.overlap, 0.95),
+          p_note: `matched "${r.job_text}" to ${m.job.name}`,
+          p_expected_version: r.version, p_request_id: `${rid}:${r.id}`, p_actor: actor,
+        });
+        if (s.status === 200) staged.push({ id: r.id, vendor: r.vendor_name, job: m.job.no, pm: m.job.pm });
+        else unplaced.push({ id: r.id, vendor: r.vendor_name, why: (s.body && s.body.error) || 'stage failed' });
+      }
+      return res.status(200).json({ ok: true, staged: staged.length, unplaced: unplaced.length,
+        staged_rows: staged, unplaced_rows: unplaced });
+    }
+
+    /* The front office's correction — records an intended desk WITHOUT releasing it. */
+    if (action === 'stage') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const out = await rpc('ryc_stage_invoice', {
+        p_id: body.id, p_staged_pm: body.staged_pm || null, p_staged_job_no: body.job_no || null,
+        p_source: body.source || 'manual', p_confidence: body.confidence ?? 1.0,
+        p_note: body.note || null,
+        p_expected_version: body.version ?? null, p_request_id: rid, p_actor: actor,
+      });
+      return res.status(out.status).json(out.body);
+    }
+
+    /* RELEASE THE BATCH — the act that puts work on a PM's page. */
+    if (action === 'release') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const ids = Array.isArray(body.ids) ? body.ids.filter(Boolean) : [];
+      if (!ids.length) return res.status(400).json({ error: 'No invoices selected to release.' });
+      const out = await rpc('ryc_release_invoices', {
+        p_ids: ids, p_released_by: (who.scope === 'pm' ? who.pm : 'front office'),
+        p_request_id: rid, p_actor: actor,
       });
       return res.status(out.status).json(out.body);
     }
