@@ -518,26 +518,46 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, stored: true, pages });
     }
 
-    /* ===== WHO OWNS A JOB — PROCORE WINS, FOUNDATION FILLS THE BLANKS ===================
-       ⛔ THIS MODULE READ PROCORE ALONE AND CALLED A JOB DESKLESS WHEN PROCORE WAS SIMPLY BLANK
-       (2026-08-13). Keith, on Helix Orchard reading "no desk" in Inbound while Command showed
-       John Emmons on the same job: *"Helix absolutely has a desk and therefore a PM."* Correct —
-       Foundation had the answer all along and nothing here was asking it.
+    /* ===== WHO OWNS A JOB — ONE RULE, AND IT IS COMMAND'S =============================
+       ⛔ SETTLED 2026-08-13 (third pass). Keith, on new Wakarusa invoices landing on Logan Moore
+       again: *"I know that COMMAND WAS BUILT ON PROCORE PROJECT MANAGER — WE SHOULD BE USING THE
+       SAME TABLE IN SUPABASE FOR SOMETHING LIKE THIS."*
 
-       ⚠ THE TWO SOURCES DISAGREE ON 17 OF 53 ACTIVE JOBS, and that is a business question, not a
-       merge strategy. **KEITH DECIDED 2026-08-13: PROCORE WINS.** Procore is where the PM works
-       the job day to day, so it is authoritative for whose desk an invoice belongs on; Foundation
-       is consulted ONLY where Procore has no answer — which is exactly the Helix case (Procore
-       blank, Foundation "John Emmons") and Huntertown. Where both answer, Procore's answer stands
-       even when Foundation disagrees.
+       The instruction is right and the premise it rests on is not, so both are recorded. **Command
+       does not read Procore's project manager.** It has exactly ONE PM derivation —
+       `ryc-command/core.js:49` — and it is Foundation first:
 
-       ⚠ COMMAND RESOLVES THIS THE OTHER WAY ROUND — `foundation.pmName || procore.pm.name`
-       (`ryc-command/core.js` → `pmName()`). So on those 17 jobs Command and this tool will name
-       different PMs, deliberately and knowingly. Aligning Command is a separate decision: its PM
-       feeds PM Load, Margin & Risk and AR-by-PM, which are leadership-facing.
+           function pmName(job){ return (job.foundation && job.foundation.pmName)
+                                     || (job.pm && job.pm.name) || null; }
 
-       Foundation is fetched from CRM (the same endpoint Command loads). If it cannot be read,
-       Procore still answers and `pm_source` says so, rather than silently degrading. */
+       Every PM label in Command flows through it: PM Load, Margin & Risk, AR-by-PM, the job
+       drawers, the WOH F-lines. So the PM Keith reads on Command is `ryc_foundation_latest.pmName`
+       — a Supabase table, served by `crm.jbkdevelopment.com/api/ryc-foundation`, which is the SAME
+       endpoint this module already fetches. The two tools were never reading different tables.
+       They differed on ONE LINE of precedence, and that line is now identical to Command's.
+
+       WHY FOUNDATION AND NOT PROCORE, in the data rather than in the argument — across the 53
+       active jobs:
+         Procore `pm.name`  Logan Moore 33 (titled PROJECT ENGINEER) · Erik Parcell 15 · Troy
+                            Jennings 2 · Chris Crothers 1 (PE) · blank 2
+         Foundation pmName  Logan Moore 28 · Erik Parcell 7 · Bill Emmons 5 · Troy Jennings 4 ·
+                            Ken Wright 4 · John Emmons 3 · Brad Yoder 1
+       Procore's PM field carries a project ENGINEER on 34 of 53 jobs and puts three names on all
+       53 — it is the project-record administrator, not the desk. Foundation spreads the work across
+       the real seven-PM roster and agrees with every PM fact recorded in RYC/CLAUDE.md.
+
+       ⚠ THIS REVERSES "PROCORE WINS" (decided earlier the same day, twice). It is reversed on
+       Keith's own instruction to match Command, and the record above is why. Procore is still
+       consulted — it fills the blanks, which is what fixed Helix Orchard. Do not re-litigate.
+
+       Foundation is fetched from CRM. If it cannot be read, Procore still answers and `pm_source`
+       says so, rather than silently degrading.
+
+       ⛔ THE ORIGINAL BUG, KEPT FOR THE RECORD: this module read PROCORE ALONE and called a job
+       deskless when Procore was simply blank (2026-08-13). Keith, on Helix Orchard reading "no
+       desk" in Inbound while Command showed John Emmons on the same job: *"Helix absolutely has a
+       desk and therefore a PM."* Correct — Foundation had the answer all along and nothing here
+       was asking it. That is still what the fallback below fixes. */
     const FOUNDATION_URL = (process.env.RYC_CRM_ORIGIN || 'https://crm.jbkdevelopment.com')
       + '/api/ryc-foundation';
 
@@ -580,8 +600,11 @@ export default async function handler(req, res) {
         const foundationPm = fnd[no] ? fnd[no].pm : null;
         jobs.push({
           no, name: j.name, active: j.active !== false,
-          pm: procorePm || foundationPm || null,
-          pm_source: procorePm ? 'procore' : (foundationPm ? 'foundation' : null),
+          // IDENTICAL to ryc-command/core.js:49 `pmName()`. If that line ever changes, change
+          // this one in the same commit — two products naming different PMs for the same job is
+          // the bug this pair of lines exists to prevent.
+          pm: foundationPm || procorePm || null,
+          pm_source: foundationPm ? 'foundation' : (procorePm ? 'procore' : null),
           // Kept so a disagreement is visible rather than silently resolved. 17 of 53 disagree.
           pm_procore: procorePm, pm_foundation: foundationPm,
         });
