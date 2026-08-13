@@ -27,7 +27,7 @@ function jobByNo(no){ var n=_jobNames[no]; return n ? { name:n } : null; }
    THE SILO: /api/ryc-invoices derives the PM from the CREDENTIAL. There is no `pm` parameter
    this page can send to widen its own scope. Only a front-office credential is scope 'all'. */
 var INV_URL = "/api/ryc-invoices";
-var _inv = { who:null, rows:[], codes:null, pm:null, busy:false, showDone:false,
+var _inv = { who:null, rows:[], codes:null, pm:null, busy:false, showDone:false, jobs:[],
              budget:{}, budgetBasis:null, budgetAsOf:null };
 
 /* Budget lines for a job, fetched once per job and cached for the session. This is the number
@@ -181,7 +181,11 @@ function renderInvoices(){
       if(c.ok){ _inv.codes = c.data.codes || []; invPaint(); }
     });
     invPost("jobs", {}).then(function(j){
-      if(j.ok && j.data && j.data.names){ _jobNames = j.data.names; invPaint(); }
+      if(j.ok && j.data && j.data.names){
+        _jobNames = j.data.names;
+        _inv.jobs = (j.data.jobs || []);      // active jobs + the PM each one implies
+        invPaint();
+      }
     });
     invLoad();
   });
@@ -236,6 +240,8 @@ function invJobName(no){
 
 function invPaint(){
   var v = document.getElementById("view"), who = _inv.who || {};
+  var _t = document.getElementById("view-title");
+  if(_t) _t.textContent = (who.scope === "pm" ? "Your batch" : "Daily batch");
   var rows = _inv.rows;
   var open = rows.filter(function(r){ return !invDone(r); });
   var done = rows.filter(invDone);
@@ -262,7 +268,9 @@ function invPaint(){
   }
   h += '</div>';
 
-  if(who.scope === "all") h += invIntakePanel();
+  // The drop zone lives on Inbound now (that is where things arrive); a PM's board is for
+  // reviewing what was sent to them, not for taking delivery.
+
   // Above the desks on purpose: what has not been routed is the front office's actual job, and
   // it is the one thing that stops moving if nobody looks at it.
   if(who.scope === "all") h += invRoutingPanel();
@@ -378,8 +386,10 @@ function invInboundPost(action, body){ return invPost(action, body || {}); }
 
 function renderInbound(){
   var v = document.getElementById("view");
+  var ti = document.getElementById("view-title");
+  if(ti) ti.textContent = "Inbound";
   document.getElementById("view-ctx").innerHTML =
-    "Inbound &middot; everything that has arrived and not yet been sent to a desk";
+    "Everything that has arrived and not yet been sent to a desk";
   v.innerHTML = '<div class="panel"><div class="sub">Loading the inbound queue&hellip;</div></div>';
   invInboundPost("inbound_queue", { days: 90 }).then(function(r){
     if(!r.ok || !r.data || r.data.error){
@@ -422,6 +432,9 @@ function invPaintInbound(){
     + '</div>'
     + '<div id="inb-msg" class="sub" style="margin-top:6px"></div></div>';
 
+  // Scanning a paper batch still has to work — mail is not the only way an invoice arrives.
+  h += invIntakePanel();
+
   if(!_inb.rows.length){
     v.innerHTML = h + '<div class="panel"><div class="sub">Nothing waiting. Anything that arrives '
       + 'in ap@ appears here on its own.</div></div>';
@@ -435,12 +448,17 @@ function invPaintInbound(){
 
   h += '<div class="panel"><table class="tbl"><tbody>';
   order.forEach(function(r){
-    var sel = '<select id="ib-' + esc(r.id) + '" style="width:150px" '
+    /* A JOB, not a desk. The front office knows which job an invoice belongs to; which PM that
+       implies is a lookup the Procore feed already does, and a desk picked by hand goes stale the
+       moment a job is reassigned. */
+    var jobs = _inv.jobs || [];
+    var sel = '<select id="ib-' + esc(r.id) + '" style="width:230px" '
       + 'onchange="invStageOne(' + invArg(r.id) + ')">'
-      + '<option value="">Choose a desk&hellip;</option>'
-      + pms.map(function(p){
-          return '<option value="' + esc(p) + '"' + (r.staged_pm === p ? " selected" : "") + '>'
-            + esc(p) + '</option>';
+      + '<option value="">Choose a job&hellip;</option>'
+      + jobs.map(function(j){
+          var on = (r.staged_job_no === j.no);
+          return '<option value="' + esc(j.no) + '"' + (on ? " selected" : "") + '>'
+            + esc(j.no + ' · ' + j.name) + (j.pm ? '' : '  (no PM)') + '</option>';
         }).join("")
       + '</select>';
 
@@ -458,9 +476,17 @@ function invPaintInbound(){
     h += '<tr>'
       + '<td style="vertical-align:top;width:24px"><input type="checkbox" id="cb-' + esc(r.id) + '"'
       + (_inb.sel[r.id] ? " checked" : "") + ' onchange="invToggleSel(' + invArg(r.id) + ')"></td>'
-      + '<td style="vertical-align:top;min-width:180px"><b>' + esc(r.vendor_name || "&mdash;") + '</b>'
-      + '<div class="sub">' + esc(r.invoice_no || "") + ' &middot; ' + esc(r.received_date || "")
-      + (r.doc_type && r.doc_type !== "invoice" ? ' &middot; ' + esc(r.doc_type) : '') + '</div></td>'
+      // The grey line was an unlabelled invoice number and date — readable only if you already
+      // knew what it was. Label it, and give the front office the same View the PM has: they are
+      // the ones deciding where this goes, and the job is often only legible on the document.
+      + '<td style="vertical-align:top;min-width:200px"><b>' + esc(r.vendor_name || "&mdash;") + '</b>'
+      + '<div class="sub">'
+      + (r.invoice_no ? 'Invoice ' + esc(r.invoice_no) : '<span class="m-a">no invoice number</span>')
+      + ' &middot; received ' + esc(r.received_date || "&mdash;")
+      + (r.doc_type && r.doc_type !== "invoice" ? ' &middot; <b>' + esc(r.doc_type) + '</b>' : '')
+      + '</div>'
+      + '<div style="margin-top:3px"><button class="pfill" onclick="invViewDoc(' + invArg(r.id) + ')">View</button>'
+      + '<span id="pg-' + esc(r.id) + '"></span></div></td>'
       + '<td class="r" style="vertical-align:top;white-space:nowrap"><b>'
       + (r.amount == null ? '&mdash;' : fmt(Number(r.amount))) + '</b></td>'
       + '<td style="vertical-align:top">' + sel
@@ -480,10 +506,10 @@ function invToggleSel(id){
 function invStageOne(id){
   if(_inb.busy) return;
   var r = _inb.rows.filter(function(x){ return x.id === id; })[0] || {};
-  var pm = (document.getElementById("ib-" + id) || {}).value || "";
+  var jobNo = (document.getElementById("ib-" + id) || {}).value || "";
+  if(!jobNo) return;
   _inb.busy = true;
-  invInboundPost("stage", { id:id, staged_pm:pm || null, job_no:r.staged_job_no || r.job_no || null,
-                            source:"manual", version:r.version })
+  invInboundPost("stage", { id:id, job_no:jobNo, source:"manual", version:r.version })
     .then(function(x){
       _inb.busy = false;
       var m = document.getElementById("inb-msg");

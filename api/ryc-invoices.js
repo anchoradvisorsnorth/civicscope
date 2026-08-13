@@ -451,16 +451,25 @@ export default async function handler(req, res) {
         const r = await fetch(`${origin}/ryc-data/procore-cache.json`, {
           headers: { 'User-Agent': 'ryc-invoices/1.0' }, signal: AbortSignal.timeout(15000),
         });
-        if (!r.ok) return res.status(200).json({ ok: true, names: {} });
+        if (!r.ok) return res.status(200).json({ ok: true, names: {}, jobs: [] });
         const cache = await r.json();
         const names = {};
+        /* The picklist the front office chooses from, and the PM each job implies. ACTIVE only —
+           an inbound invoice for a closed job is an exception a human should look at, not an
+           option to pick by accident from a list of hundreds. */
+        const jobs = [];
         for (const j of (cache.jobs || [])) {
           const n = String(j.projectNumber || '').trim();
-          if (n && j.name) names[n] = j.name;
+          if (!n || !j.name) continue;
+          names[n] = j.name;
+          if (j.active !== false) {
+            jobs.push({ no: n, name: j.name, pm: (j.pm && j.pm.name) ? String(j.pm.name).trim() : null });
+          }
         }
-        return res.status(200).json({ ok: true, names, asOf: cache.refreshed || null });
+        jobs.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+        return res.status(200).json({ ok: true, names, jobs, asOf: cache.refreshed || null });
       } catch {
-        return res.status(200).json({ ok: true, names: {} });
+        return res.status(200).json({ ok: true, names: {}, jobs: [] });
       }
     }
 
@@ -715,15 +724,36 @@ export default async function handler(req, res) {
         staged_rows: staged, unplaced_rows: unplaced });
     }
 
-    /* The front office's correction — records an intended desk WITHOUT releasing it. */
+    /* The front office's correction. THEY PICK A JOB; the desk follows from it — a PM chosen by
+       hand goes stale the moment Procore reassigns the job, and asking someone to remember which
+       PM owns which of 53 jobs is work the feed already does. An explicit staged_pm is still
+       honoured for the rare case where the two genuinely differ. */
     if (action === 'stage') {
       if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const jobNo = String(body.job_no || '').trim();
+      let pm = body.staged_pm || null;
+      let note = body.note || null;
+      if (jobNo && !pm) {
+        const map = await jobPmMap();
+        pm = map[jobNo] || null;
+        if (!pm) {
+          return res.status(409).json({
+            error: `Job ${jobNo} has no PM in the Procore feed, so there is no desk to send it to. `
+              + 'Pick another job, or set the PM in Procore first.',
+          });
+        }
+        note = note || `desk follows job ${jobNo}`;
+      }
+      if (!jobNo && !pm) {
+        return res.status(400).json({ error: 'Pick a job (or a desk) before staging.' });
+      }
       const out = await rpc('ryc_stage_invoice', {
-        p_id: body.id, p_staged_pm: body.staged_pm || null, p_staged_job_no: body.job_no || null,
+        p_id: body.id, p_staged_pm: pm, p_staged_job_no: jobNo || null,
         p_source: body.source || 'manual', p_confidence: body.confidence ?? 1.0,
-        p_note: body.note || null,
+        p_note: note,
         p_expected_version: body.version ?? null, p_request_id: rid, p_actor: actor,
       });
+      if (out.status === 200) out.body = { ...out.body, staged_pm: pm, staged_job_no: jobNo || null };
       return res.status(out.status).json(out.body);
     }
 

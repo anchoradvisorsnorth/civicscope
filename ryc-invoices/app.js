@@ -44,7 +44,12 @@ function init(){
         { key:"inbound",  label:"Inbound",     icon:"&#128229;" },
         { key:"invoices", label:"Daily batch", icon:"&#129534;" },
       ] }],
-      onSelect: function(key){ if(key === "inbound") renderInbound(); else renderInvoices(); },
+      /* setActive is not automatic — the rail keeps whatever `active` was mounted with, which is
+         why clicking Inbound left "Daily batch" highlighted. */
+      onSelect: function(key){
+        RYCShell.setActive(key);
+        if(key === "inbound") renderInbound(); else renderInvoices();
+      },
       onLock: function(){ sessionStorage.removeItem("ryc_inv_auth"); location.reload(); }
     });
   }
