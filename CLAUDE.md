@@ -298,11 +298,15 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
   this repo is public. ⚠ **Pre-existing and unresolved:** `ryc-estimate/lineitem-probe.html` and
   the two `ryc-*-benchmarks.json` files DO carry RYC line codes / sub pricing in this public repo.
   Decide deliberately whether that is acceptable or move them behind the API too.
-- **Schema files are versioned NOWHERE.** `schema_ryc_*.sql` (including the fact-write kernel and
-  the new `schema_ryc_invoices.sql`) are not in the deploy manifest, not in the GitHub repo, and
-  `Civicscope/**` is gitignored in Cowork — so the DDL defining production lives only on Keith's
-  disk. Not fixed by adding them to the manifest (public repo; the invoice schema's comments carry
-  RYC control failures and dollar figures). Needs a deliberate home.
+- **Schema files are versioned NOWHERE — PARTLY FIXED 2026-08-12.** New schema work now goes
+  through `migrations/` and IS versioned: `Civicscope/migrations/*.sql` + `scripts/db-migrate.js`
+  are narrowly re-included in Cowork's `.gitignore` (local-only repo, and verified absent from
+  `push_civicscope.ps1`'s manifest, so they cannot reach this public repo). **The 15 legacy
+  `schema_*.sql` files are still untracked** — the DDL defining production has no history, no diff
+  and no undo. Inventory (not applied, just recorded): `migrations/LEGACY_INVENTORY.md`. Bringing
+  them under version control is a separate decision: they are large and some carry RYC control
+  failures and dollar figures in their comments. ⚠ `schema_ryc_slice2e.sql` is still headed
+  `STATUS: STAGED — NOT APPLIED`.
 - **Fable review R1 — work the 19 leads (KEITH, ½ day)** — every lead ever captured sits at `contacted=false`, incl. four live .gov hand-raisers from Jun 22–30 (names/towns in the Fable review doc — deliberately NOT in this public-repo file). Triage all 19, reply to the warm ones, mark `contacted`. Then wire "N uncontacted leads" into the daily digest / Monday email so the loop can't silently stall again. Cheapest calibration of the 30-day plan.
 - **Fable review R2 — 30-day school-BOT plan Week 1** — ~50-district target list (agenda/BoardDocs mining tech already proven), Triage Memo template, outreach sequence. The schools wedge has ZERO organic pull (4 runs ever, ~all internal) — founder-led outreach is the only test. Plan: `work product/CivicScope_School_BOT_Pivot_30Day_Plan.md`, graded B+ in the Fable review.
 - **Fable review R6 — infra repeat-run variance** — two identical watermain runs 43s apart returned $1.05M–$1.55M vs $1.85M–$2.75M (±76% midpoint; municipal + schools were deterministic across repeats). Add a repeat-run stability probe to the QA harness; consider prompt grounding discipline.
