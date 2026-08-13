@@ -260,8 +260,16 @@ function invPaint(){
         : ' &middot; front-office scope')
     + '</div>';
   if(who.scope === "all"){
+    /* Desks come from the DATA as well as the credential map. Procore is the authority on who
+       owns a job — Chris Crothers appeared there without ever being in RYC_INVOICE_PMS — so a
+       chip list built only from the credential map silently hides a desk that has real invoices
+       on it. Union, sorted, de-duplicated. A PM still needs a code to sign in; that is a separate
+       thing from whether their desk is visible to the front office. */
+    var _desks = (who.pms || []).slice();
+    rows.forEach(function(r){ if(r.assigned_pm && _desks.indexOf(r.assigned_pm) < 0) _desks.push(r.assigned_pm); });
+    _desks.sort();
     h += '<div style="margin-top:8px">'
-      + (who.pms||[]).map(function(p){
+      + _desks.map(function(p){
           return '<button class="pfill" onclick="invSetPm(' + invArg(p) + ')">' + esc(p) + '</button>';
         }).join(" ")
       + ' <button class="pfill" onclick="invSetPm(null)">All desks</button></div>';
