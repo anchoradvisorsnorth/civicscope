@@ -141,7 +141,9 @@
            email and an SMS since 2026-08-07 (v1.7.2). A control that under-describes what it does
            is the same defect as one that over-describes it: the commissioner could not know the
            text went out, and the toast only ever counted emails. -->
-      <div class="muted" style="margin-top:6px">Locking freezes every spread as shown, sets the pick deadline to <b>Saturday 10:00 AM ET</b> — or to the first kickoff if a game starts before that, which it will in preseason — and (if checked) <b>texts and emails every player</b> their PIN, the deadline, the games and their picks link. A member is texted only if they texted JOIN themselves; everyone else gets the email. <b>You can only lock a week once.</b></div>
+      <!-- This paragraph explains the Save/Lock controls, so it has to disappear with them. Left
+           visible under a locked week it describes an action the page is no longer offering. -->
+      <div class="muted" style="margin-top:6px" id="slatehelp">Locking freezes every spread as shown, sets the pick deadline to <b>Saturday 10:00 AM ET</b> — or to the first kickoff if a game starts before that, which it will in preseason — and (if checked) <b>texts and emails every player</b> their PIN, the deadline, the games and their picks link. A member is texted only if they texted JOIN themselves; everyone else gets the email. <b>You can only lock a week once.</b></div>
     </div>
   </div>
 
@@ -688,6 +690,8 @@ function renderSlate(){
   /* The controls follow the state. A locked slate no longer shows "Save draft" and a Lock button
      you cannot use — it shows what happened, who was told, and where to watch it. */
   const acts=document.getElementById('slateactions'), ban=document.getElementById('lockedbanner');
+  const help=document.getElementById('slatehelp');
+  if(help)help.style.display=slateLocked?'none':'block';
   if(acts&&ban){
     acts.style.display=slateLocked?'none':'flex';
     ban.style.display=slateLocked?'block':'none';
