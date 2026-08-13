@@ -83,6 +83,15 @@
            name, and it follows from the season, the type and the week number. It was also the
            mechanism behind the day's worst bug — a slug typed into a tab whose editor was empty
            addressed a real week and erased it. Derived and read-only, that is unreachable. -->
+      <!-- A LOCKED WEEK HAS NOTHING TO BUILD (Keith 2026-08-13: the page opened on an empty
+           Regular-Week-1 form while Preseason Week 1 was locked and live, so §3 offered Save and
+           Lock for a week that does not exist). Building is now a deliberate act you ask for,
+           rather than the state the page happens to boot into. -->
+      <div id="builderlocked" style="display:none;padding:12px 14px;border-radius:10px;background:#f7f9fc;border:1px solid var(--line);font-size:14px">
+        <span id="builderlockedtxt"></span>
+        <button class="btn gray" style="margin-left:10px" onclick="showBuilder()">Build a different week</button>
+      </div>
+      <div id="builderbody">
       <div class="row">
         <span class="muted">This week</span>
         <span id="wkident" style="font-weight:800;font-size:15px;color:var(--navy)">—</span>
@@ -107,10 +116,14 @@
         <input id="gfilter" placeholder="Filter by team…" style="flex:1;min-width:160px" oninput="renderLoaded()">
       </div>
       <div id="gamelist" style="max-height:60vh;overflow:auto;margin-top:8px;border:1px solid var(--line);border-radius:10px"></div>
+      </div>
     </div>
   </div>
 
-  <div class="card"><h2>3 · The slate <span id="slatestat" class="pill draft">draft</span></h2>
+  <!-- THE PANEL NAMES ITS WEEK. The identity lived only in §2's #wkident, two cards up, so §3
+       could show "draft / No games in the slate yet" for 2026-w01 while 2026-pre1 sat locked and
+       live, and nothing on the panel said which week it was answering about. -->
+  <div class="card"><h2><span>3 · <span id="slatewk">The slate</span></span> <span id="slatestat" class="pill draft">draft</span></h2>
     <div class="body">
       <div id="slate"></div>
       <!-- LOCKED IS A STATE, NOT A TOAST (Keith 2026-08-09: "the lock button stays on the screen
@@ -132,7 +145,9 @@
     </div>
   </div>
 
-  <div class="card"><h2>4 · Needs your attention <button class="btn gray" onclick="listWeeks()">Refresh</button></h2>
+  <!-- "Needs your attention" was wrong the moment auto-finalize shipped (2026-08-12): the only row
+       it ever holds after a lock needs nothing from the commissioner. It is a status panel now. -->
+  <div class="card"><h2>4 · This week <button class="btn gray" onclick="listWeeks()">Refresh</button></h2>
     <div class="body"><div id="weeks" class="muted">—</div></div>
   </div>
 
@@ -170,6 +185,13 @@ const API='/api/football-pool';
 const SB={nfl:'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
           cfb:'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard'};
 let players=[], loaded=[], slate=[], slateLocked=false;
+/* THE FOUR STATES A WEEK CAN BE IN, FROM THE SERVER'S POINT OF VIEW. `slateLocked` alone could not
+   tell "this week is an unlocked draft" from "no week exists under this name at all" — both
+   rendered as an empty draft editor with a live Lock button, which is how the page came up showing
+   2026-w01 while 2026-pre1 was locked and live. `new` is the state that was missing. */
+let weekState='unknown';   // unknown | new | draft | locked | done
+let weekIndexLoaded=false; // "we have not asked the server yet" is not the same as "it isn't there"
+let builderOpen=false; // the commissioner asked to build, even though a locked week is on screen
 
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function toast(t,ms){const m=document.getElementById('msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(()=>m.style.display='none',ms||3000);}
@@ -564,8 +586,9 @@ function onWeekIdentChange(){
   document.getElementById('wklabel').value=label;
   document.getElementById('wkident').textContent=`${label} · ${slug}`;
   // A different week means this editor's contents belong to a different week. Reset the locked
-  // state so §3 can never show one week's status over another week's slate.
-  slateLocked=false; lockedSummary=''; renderSlate();
+  // state so §3 can never show one week's status over another week's slate. The STATE goes back to
+  // unknown too — carrying the last week's verdict into a new slug is the same class of lie.
+  slateLocked=false; lockedSummary=''; weekState='unknown'; renderSlate();
   syncSlateStateForSlug();
 }
 function onTypeChange(){
@@ -630,17 +653,39 @@ function manualTotal(i,v){
 }
 let lockedSummary='';
 function renderSlate(){
-  document.getElementById('slatestat').className='pill '+(slateLocked?'live':'draft');
-  document.getElementById('slatestat').textContent=slateLocked?'LOCKED':'draft';
+  const {slug,label}=weekIdent();
+  /* Name the week this panel is talking about, every time it paints. */
+  const wkEl=document.getElementById('slatewk');
+  if(wkEl)wkEl.textContent=`${label} · ${slug}`;
+  const PILL={unknown:['draft','…'],new:['draft','not built yet'],draft:['draft','draft'],locked:['live','LOCKED'],done:['done','finished']};
+  const [cls,txt]=PILL[weekState]||PILL.draft;
+  document.getElementById('slatestat').className='pill '+cls;
+  document.getElementById('slatestat').textContent=txt;
   /* The controls follow the state. A locked slate no longer shows "Save draft" and a Lock button
      you cannot use — it shows what happened, who was told, and where to watch it. */
   const acts=document.getElementById('slateactions'), ban=document.getElementById('lockedbanner');
   if(acts&&ban){
     acts.style.display=slateLocked?'none':'flex';
     ban.style.display=slateLocked?'block':'none';
-    if(slateLocked)ban.innerHTML='🔒 <b>This slate is locked.</b> Spreads are frozen and picks are open.'
-      +(lockedSummary?' '+lockedSummary:'')
-      +' Follow it on the <a href="/pool/football">pool board</a>. Finalize it from §4 once every game is final.';
+    /* ⛔ "Finalize it from §4 once every game is final" was instructions for a step that no longer
+       exists (auto-finalize shipped 2026-08-12) and a button that 400'd when pressed. Say what
+       actually happens next instead — the commissioner's week ends here. */
+    if(slateLocked)ban.innerHTML=(weekState==='done'
+        ?'🏆 <b>This week is finished.</b> '
+        :'🔒 <b>This slate is locked. Your job on this week is done.</b> Spreads are frozen and picks are open. ')
+      +(lockedSummary?lockedSummary+' ':'')
+      +(weekState==='done'?'':'Scoring is automatic — the winner is posted and texted within the hour after the last game ends. ')
+      +'Follow it on the <a href="/pool/football">pool board</a> or the <a href="/pool/live">live tracker</a>.';
+  }
+  /* §2 has nothing to offer a locked week. Collapse it to one line rather than leaving a full
+     week-builder open above a slate that cannot change. */
+  const bl=document.getElementById('builderlocked'), bb=document.getElementById('builderbody');
+  if(bl&&bb){
+    const collapse=slateLocked&&!builderOpen;
+    bl.style.display=collapse?'block':'none';
+    bb.style.display=collapse?'none':'block';
+    if(collapse)document.getElementById('builderlockedtxt').innerHTML=
+      `<b>${esc(label)}</b> is locked and live — there is nothing to build.`;
   }
   document.getElementById('slate').innerHTML=slate.length?slate.map((g,i)=>{
     const isTotal=g.market==='total';
@@ -657,8 +702,17 @@ function renderSlate(){
         : `<input class="sm" placeholder="e.g. SEA -3.5" value="${g.manual&&g.spreadText&&!g.pickem?esc(g.spreadText):''}" onchange="manualSpread(${i},this.value)" title="manual spread override">`)}
       ${slateLocked||isTotal?'':`<button class="btn ${g.pickem?'gold':'gray'}" onclick="togglePickem(${i})" title="Score this one straight up — highest score wins, tie is a push">PK</button>`}
       ${slateLocked?'':`<button class="btn red" onclick="slate.splice(${i},1);renderSlate();renderLoaded()">✕</button>`}
-    </div>`;}).join(''):'<div class="muted">No games in the slate yet.</div>';
+    </div>`;}).join(''):(weekState==='unknown'
+      ? '<div class="muted">Reading the week list…</div>'
+      : weekState==='new'
+      /* An empty editor addressing a week that does not exist is NOT a draft of anything. Saying
+         so is the difference between "Mike's locked slate has vanished" and "you are looking at a
+         week nobody has built." */
+      ? `<div class="muted">Nothing is saved under <b>${esc(slug)}</b> yet — this would be a <b>new</b> week. To work on a week that already exists, open it from §4 below.</div>`
+      : '<div class="muted">No games in the slate yet.</div>');
 }
+/* Asked for explicitly, so a locked week can still be left behind to build the next one. */
+function showBuilder(){builderOpen=true;renderSlate();}
 /* PICK 'EM (Keith 2026-08-08: "if there is no line just make it a pick em"). Preseason spreads are
    thin or absent, and lock_slate used to refuse any game without one — which would have blocked the
    whole preseason shakedown. A pick'em carries NO line and is scored straight up server-side.
@@ -696,7 +750,7 @@ function slug(){const s=weekIdent().slug;if(!/^\d{4}-(w\d+|pre\d+|post\d+)$/.tes
    erase independently (409) so a stale tab or a script cannot do it either. */
 async function saveWeek(){
   if(!slate.length){
-    toast('The editor is empty — nothing to save. Open the week in §4 "Needs your attention" to edit its slate, or load games first.',8000);
+    toast('The editor is empty — nothing to save. Open the week from §4 "This week" to edit its slate, or load games first.',8000);
     return;
   }
   try{await post({action:'save_week',code:code(),slug:slug(),
@@ -749,16 +803,30 @@ async function lockSlate(){
    The week list is fetched anyway; use it as the source of truth for whatever slug is in the box,
    so the controls reflect the SERVER's state rather than this tab's memory. */
 let weekIndex=[];
+/* ⛔ THE 2026-08-09 VERSION OF THIS ONLY CORRECTED A MATCH, AND SILENTLY GAVE UP ON A MISS
+   (`if(!row)return`). The page boots on season 2026 / type REGULAR / week 1 → `2026-w01`, and the
+   only week that has ever existed this season is `2026-pre1` — so the miss was the normal case,
+   not the edge case. §3 kept its default paint (draft pill, empty editor, live Save + Lock) for a
+   week nobody had built, while Mike's locked slate sat one card below in §4. Nothing was broken in
+   the data; the panel was answering about a different week and never said which.
+   Now every branch is assigned, including the miss, and nothing is asserted before the server has
+   actually been asked. */
 function syncSlateStateForSlug(){
+  if(!weekIndexLoaded)return;                       // "not asked yet" must never render as "not there"
   const s=weekIdent().slug;
   if(!s)return;
   const row=weekIndex.find(w=>w.slug===s);
-  if(!row)return;
-  if(row.slateLocked&&!slateLocked){
-    slateLocked=true;
-    lockedSummary=row.deadline?('Picks close '+new Date(row.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET.'):'';
-    renderSlate();
+  const was={state:weekState,locked:slateLocked};
+  if(!row){ weekState='new'; slateLocked=false; lockedSummary=''; }
+  else if(row.finalized){ weekState='done'; slateLocked=true; }
+  else if(row.slateLocked){ weekState='locked'; slateLocked=true; }
+  else { weekState='draft'; slateLocked=false; lockedSummary=''; }
+  if(slateLocked&&!was.locked){
+    lockedSummary=row&&row.deadline?('Picks closed '+new Date(row.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET.'):'';
+    if(row&&row.deadline&&Date.parse(row.deadline)>Date.now())
+      lockedSummary=lockedSummary.replace('Picks closed','Picks close');
   }
+  if(weekState!==was.state||slateLocked!==was.locked)renderSlate();
 }
 async function listWeeks(){
   const season=document.getElementById('season').value;
@@ -766,20 +834,31 @@ async function listWeeks(){
   try{
     const all=await(await fetch(API+'?list='+season,{cache:'no-store'})).json();
     weekIndex=all||[];
+    weekIndexLoaded=true;
     syncSlateStateForSlug();
-    const open=(all||[]).filter(w=>!w.finalized);          // drafts + locked-awaiting-finalize
+    const open=(all||[]).filter(w=>!w.finalized);          // drafts + locked weeks scoring themselves
     const doneCount=(all||[]).length-open.length;
     const donePtr=doneCount
       ? `<div class="muted" style="margin-top:8px">${doneCount} finished week${doneCount>1?'s':''} — standings live on the <a href="/pool/football">results page</a>.</div>`
       : '';
-    el.innerHTML=(open.length?open.map(w=>`
+    el.innerHTML=(open.length?open.map(w=>{
+      /* ⛔ THE 🏆 FINALIZE BUTTON IS GONE (2026-08-13). Auto-finalize shipped 2026-08-12 — the VM
+         reads the finals hourly, derives the winner from the frozen picks and lines, persists the
+         scores and sends the announcement. The button beneath this row asked the commissioner to
+         prompt-type a winner the server had ignored since the Codex #3 fix, then posted with no
+         scores and 400'd on "final scores required to finalize" — a step that did not exist,
+         demanding an input that was discarded, failing with a message that blamed the user.
+         What is left is a STATUS. */
+      const late=w.slateLocked&&w.deadline&&(Date.now()-Date.parse(w.deadline))>12*3600*1000;
+      return `
       <div class="gm"><span class="t">${esc(w.label||w.slug)}</span>
       <span class="muted">${w.games} games${w.deadline?' · picks close '+new Date(w.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET':''}<br>
         locked in: ${esc((w.pickedBy||[]).join(', '))||'nobody yet'}${(w.savedBy||[]).length?' · saved but NOT locked: '+esc(w.savedBy.join(', ')):''}</span>
-      <span class="pill ${w.slateLocked?'live':'draft'}">${w.slateLocked?'LIVE — needs finalizing':'draft'}</span>
+      <span class="pill ${w.slateLocked?'live':'draft'}">${w.slateLocked?'LIVE — scoring itself':'draft'}</span>
       <button class="btn gray" onclick="openWeek('${w.slug}')">open</button>
-      ${w.slateLocked?`<button class="btn gold" onclick="finalizeWeek('${w.slug}')">🏆 finalize</button>`:''}</div>`).join('')
-      : '<div class="muted">Nothing needs your attention — no drafts, nothing waiting to be finalized.</div>')+donePtr;
+      ${late?`<button class="btn gold" onclick="forceFinalize('${w.slug}')" title="Only needed if a final score never posted">score it now</button>`:''}</div>`;}).join('')
+      +(open.some(w=>w.slateLocked)?'<div class="muted" style="margin-top:8px">A locked week needs nothing from you. The winner is scored and announced automatically within the hour after the last game ends.</div>':'')
+      : '<div class="muted">No week is open — nothing to build and nothing running.</div>')+donePtr;
   }catch(e){
     // Never render "nothing here" when the truth is "the request failed" — that is what made the
     // roster look wiped earlier today.
@@ -804,22 +883,55 @@ function setControlsFromSlug(s){
   document.getElementById('wkident').textContent=`${label} · ${slug}`;
   return true;
 }
-async function openWeek(s){
+async function openWeek(s,quiet){
   const j=await(await fetch(API+'?week='+s,{cache:'no-store'})).json();
-  if(!j.data)return;
+  if(!j.data)return false;
   setControlsFromSlug(s);
   slate=j.data.games||[];
   slateLocked=!!j.data.slateLocked;
-  lockedSummary=j.data.deadline?('Picks close '+new Date(j.data.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET.'):'';
+  weekState=j.data.finalized?'done':(slateLocked?'locked':'draft');
+  // Opening a week is a deliberate move to THAT week — the builder follows it rather than
+  // staying open over a slate that cannot be edited.
+  builderOpen=!slateLocked;
+  const closed=j.data.deadline&&Date.parse(j.data.deadline)<Date.now();
+  lockedSummary=j.data.deadline?((closed?'Picks closed ':'Picks close ')+new Date(j.data.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET.'):'';
   renderSlate();
-  toast('Loaded '+(j.data.label||s)+(slateLocked?' — LOCKED, view only':' — draft, editable'));
+  if(!quiet)toast('Loaded '+(j.data.label||s)+(slateLocked?' — LOCKED, view only':' — draft, editable'));
+  return true;
 }
-async function finalizeWeek(s){
-  const w=prompt('Weekly winner (name, or "TIE: A, B") — check the points at /football first:');
-  if(!w)return;
-  try{await post({action:'finalize_week',code:code(),slug:s,weeklyWinner:w.toUpperCase()});toast('Week finalized — '+w.toUpperCase()+' 🏆');listWeeks();}catch(e){}
+/* THE ONE MANUAL PATH LEFT, AND IT IS AN EXCEPTION — hidden until a locked week is more than 12
+   hours past its deadline and still unscored, which only happens if a final score never posted.
+   No winner prompt: the server derives the winner from the frozen picks and lines and ignores
+   anything a client claims (Codex #3). No scores in the body either — the browser cannot reach
+   ESPN from our network, so `fetch:true` has the server read the finals the same way the hourly
+   job does. If a game is genuinely still in progress this refuses and says which. */
+async function forceFinalize(s){
+  if(!confirm('Score '+s+' now?\n\nNormally this happens by itself within an hour of the last game. Only use this if a final score never posted.'))return;
+  try{
+    const j=await post({action:'finalize_week',code:code(),slug:s,fetch:true});
+    toast('Scored — '+j.weeklyWinner+' 🏆'+(j.announced?` · ${j.texted} text${j.texted===1?'':'s'} + ${j.emailed} email${j.emailed===1?'':'s'} sent`:' · already announced, nobody re-texted'),9000);
+    listWeeks();
+  }catch(e){}
 }
-onWeekIdentChange();loadPlayers();listWeeks();renderSlate();
+/* BOOT ORDER MATTERS. The week list has to land before §3 can know what it is looking at, and the
+   page must open on the state of the pool rather than on whatever slug the default controls spell
+   (season 2026 / Regular / week 1 → `2026-w01`, a week that has never existed). */
+async function boot(){
+  onWeekIdentChange();
+  loadPlayers();
+  renderSlate();
+  await listWeeks();
+  if(!weekIndexLoaded)return;                       // list failed; §4 already says so
+  const open=weekIndex.filter(w=>!w.finalized);
+  /* One unfinished week is the normal case and there is no ambiguity about which one matters.
+     With several, prefer the single locked one; if that is still ambiguous, leave the controls
+     alone rather than guessing — §4 lists them all and `open` is one tap. */
+  const target=open.length===1?open[0]:(open.filter(w=>w.slateLocked).length===1?open.filter(w=>w.slateLocked)[0]:null);
+  if(target)await openWeek(target.slug,true);
+  else builderOpen=true;                            // nothing to show: the builder IS the page
+  renderSlate();
+}
+boot();
 /* Keith 2026-08-08: "will it change when they JOIN? I don't think so." It didn't — the roster was
    fetched once and never again, so a page left open while six people text in showed a frozen
    picture and quietly contradicted the database. Now it re-reads every 30s.

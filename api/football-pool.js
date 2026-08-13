@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.6.1-autofinalize';  // a fixture can be offered against the spread AND as a total
+const VER = '3.7.0-forcefinalize';  // finalize_week can read the finals itself — the commissioner's job ends at the lock
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1038,9 +1038,39 @@ export default async function handler(req, res) {
           const row = await getRow(slug);
           if (!row) return res.status(404).json({ error: 'week not found' });
           const wk = row.data;
-          const results = req.body.results || wk.results;
+          /* ⛔ THIS ACTION COULD NOT BE CALLED FROM THE COMMISSIONER PAGE AT ALL (found 2026-08-13).
+             commish.html posted `finalize_week` with a prompted winner and NO `results`, and no
+             week has ever carried `wk.results` before it is finalized — so the 🏆 button 400'd
+             every time it was pressed, on "final scores required to finalize", which reads as
+             though the commissioner failed to supply something he was never asked for.
+             The scores were never his to supply: the browser cannot reach ESPN from our network,
+             which is the whole reason fetchFinals() runs server-side. `fetch:true` lets the one
+             remaining manual path read them the same way auto_finalize does — same host, same
+             parser, same completeness rule — so the escape hatch and the cron cannot disagree
+             about what "final" means. A caller-supplied `results` still works, unchanged. */
+          let results = req.body.results || wk.results;
+          let fetchNotes = null;
+          if (req.body.fetch === true) {
+            const got = await fetchFinals(wk.games || []);
+            results = got.scores;
+            fetchNotes = got.notes;
+            const unfinished = (wk.games || []).filter(g => {
+              const sc = resultFor(g, results);
+              return !sc || sc.state !== 'post' || sc.homeScore == null || sc.awayScore == null;
+            });
+            if (unfinished.length) {
+              return res.status(400).json({
+                error: `not every game is final yet: ${unfinished.map(g => g.short || g.id).join(', ')}`,
+                hint: 'the hourly auto-finalizer will score this week as soon as the last game ends — there is nothing to do',
+                notes: fetchNotes,
+              });
+            }
+          }
           if (!results || !Object.keys(results).length) {
-            return res.status(400).json({ error: 'final scores required to finalize' });
+            return res.status(400).json({
+              error: 'final scores required to finalize',
+              hint: 'pass fetch:true to have the server read the finals from ESPN itself',
+            });
           }
           /* Resolve through the SAME three-way lookup the scoring uses. Checking `results[g.id]`
              directly meant an over/under entry (`<id>#ou`) always looked unscored, so a slate
@@ -1056,6 +1086,7 @@ export default async function handler(req, res) {
           const { scored, announce, told } = await applyFinalize(slug, wk, results, req.body.notify === true);
           return res.status(200).json({
             slug, finalized: true, weeklyWinner: wk.weeklyWinner, points: scored.points, announced: announce, ...told,
+            ...(fetchNotes && fetchNotes.length ? { notes: fetchNotes } : {}),
             ...(claimed && claimed !== scored.winner
               ? { note: `ignored the submitted winner "${claimed}" — the frozen picks and lines score to "${scored.winner}"` }
               : {}),
