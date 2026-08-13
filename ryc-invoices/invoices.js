@@ -261,6 +261,13 @@ function invPaint(){
   var v = document.getElementById("view"), who = _inv.who || {};
   var _t = document.getElementById("view-title");
   if(_t) _t.textContent = (who.scope === "pm" ? "Your desk" : "PM Desks");
+  /* Each screen owns its own context line. Inbound sets one when it paints, and before this the
+     PM board set none — so switching Inbound → PM Desks left "Everything that has arrived and not
+     yet been sent to a desk" sitting above a board of released invoices. */
+  var _c = document.getElementById("view-ctx");
+  if(_c) _c.innerHTML = (who.scope === "pm")
+    ? "Invoices released to your desk &middot; every decision is written the moment you click it"
+    : "Every desk, and what each one still owes a decision on";
   var rows = _inv.rows;
   var open = rows.filter(function(r){ return !invDone(r); });
   var done = rows.filter(invDone);
@@ -328,28 +335,16 @@ function invPaint(){
     }
     _all.forEach(function(p){
       var mine = open.filter(function(r){ return r.assigned_pm === p; });
-      var mval = mine.reduce(function(a,r){ return a + (Number(r.amount)||0); }, 0);
       var mdone = done.filter(function(r){ return r.assigned_pm === p; }).length;
-      h += '<div class="panel" style="padding-bottom:4px"><div class="h">' + esc(p)
-        + (mine.length
-            ? ' <span class="sub" style="font-weight:400">&middot; ' + mine.length
-              + ' to review &middot; ' + fmt(mval) + '</span>'
-            : '')
-        + '</div>';
-      if(!mine.length){
-        h += '<div class="sub">No outstanding invoice approvals needed'
-          + (mdone ? ' &mdash; ' + mdone + ' already done this period' : '') + '.</div>';
-      }
-      h += '</div>';
+      h += invDeskHeading(p, mine, mdone
+        ? mdone + ' already done this period' : null);
       invGroups(mine).forEach(function(g){ h += invJobPanel(g); });
     });
     // Anything released with no PM on it would otherwise be invisible on this screen.
     var orphans = open.filter(function(r){ return !r.assigned_pm; });
     if(orphans.length){
-      h += '<div class="panel" style="padding-bottom:4px"><div class="h">No desk '
-        + '<span class="sub" style="font-weight:400">&middot; ' + orphans.length + '</span></div>'
-        + '<div class="sub">Released without a PM on it. Assign a desk in Inbound before it is '
-        + 'released, or reassign it here.</div></div>';
+      h += invDeskHeading("No desk", orphans, null,
+        'Released without a PM on it. Assign a desk in Inbound before releasing, or reassign here.');
       invGroups(orphans).forEach(function(g){ h += invJobPanel(g); });
     }
   } else if(!rows.length){
@@ -394,6 +389,29 @@ function invPaint(){
   v.innerHTML = h;
 }
 function invToggleDone(){ _inv.showDone = !_inv.showDone; invPaint(); }
+
+/* A DESK TITLE MUST OWN WHAT FOLLOWS IT. Rendered as a panel it came out the same size, weight
+   and colour as the job panel beneath it, with equal space above and below — so "Chris Crothers"
+   read as a sibling of "2515CO02 · NPTech Community Fiber" rather than as the person whose desk
+   it is. It is a heading: bigger, tied to the group below by spacing, and not a card. */
+function invDeskHeading(name, openRows, doneNote, emptyNote){
+  var val = openRows.reduce(function(a,r){ return a + (Number(r.amount)||0); }, 0);
+  var h = '<div style="margin:26px 0 8px 2px">'
+    + '<div style="font-size:17px;font-weight:700;letter-spacing:-0.01em">' + esc(name)
+    + (openRows.length
+        ? ' <span class="sub" style="font-weight:400;font-size:13px">&middot; ' + openRows.length
+          + ' to review &middot; ' + fmt(val) + '</span>'
+        : '')
+    + '</div>';
+  if(!openRows.length){
+    h += '<div class="sub" style="margin-top:2px">'
+      + esc(emptyNote || "No outstanding invoice approvals needed")
+      + (doneNote ? ' &mdash; ' + esc(doneNote) : '') + '</div>';
+  } else if(emptyNote){
+    h += '<div class="sub" style="margin-top:2px">' + esc(emptyNote) + '</div>';
+  }
+  return h + '</div>';
+}
 
 function invJobPanel(g){
   var name = invJobName(g.job);
