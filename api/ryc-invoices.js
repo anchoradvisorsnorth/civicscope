@@ -444,8 +444,23 @@ function resolveJobPmSource(procorePm, foundationPm) {
 const NEVER_PAYABLE = {
   lien_waiver:  'a lien waiver is a release against payment, not a bill',
   packing_slip: 'a packing slip is a delivery record, not a bill',
-  statement:    'a statement summarises invoices already registered — paying it pays them twice',
   receipt:      'a receipt is proof of a payment already made',
+};
+
+/* ⛔ `statement` WAS IN THE LIST ABOVE AND HAD TO COME OUT (2026-08-14). It looked obviously
+   right — a vendor statement summarises invoices already registered, so paying it pays them
+   twice. Then the 2026-08-13 PM paper batch produced a **NIPSCO utility bill**, which the reader
+   correctly typed `statement` (the document says "Statement Date" and nothing else), carrying
+   "Current Charges Due by 08/28/2026 $1,978.50" with the prior balance already paid off. **For a
+   utility the statement IS the bill** — there is no other invoice, and demoting it would have
+   dropped a real $1,978.50 payable out of sight.
+   So `statement` is now conditional in exactly the way `pay_application` already was: supporting
+   ONLY when the same vendor's invoice is sitting in the same batch. A lone statement stays
+   payable and goes to a person. Same principle both times — a document type alone is not enough
+   to prove something is not a bill; the batch has to show you the bill it duplicates. */
+const PAIRED_ONLY = {
+  pay_application: 'the same vendor\'s invoice for this exact amount is in this batch — one payable, billed twice',
+  statement:       'the same vendor\'s invoice for this exact amount is in this batch — a statement of it, not a second bill',
 };
 
 /* Vendor names arrive as printed: "HRP Construction" and "HRP Construction Inc." are one vendor.
@@ -476,11 +491,11 @@ function supportingDocuments(rows) {
       out.push({ id: r.id, version: r.version, doc_type: r.doc_type, reason: NEVER_PAYABLE[r.doc_type] });
       continue;
     }
-    if (r.doc_type === 'pay_application') {
+    if (PAIRED_ONLY[r.doc_type]) {
       const ak = amountKey(r.amount);
       if (ak !== null && invoiceKeys.has(`${vendorKey(r.vendor_name)}|${ak}`)) {
         out.push({ id: r.id, version: r.version, doc_type: r.doc_type,
-          reason: 'the same vendor\'s invoice for this exact amount is in this batch — one payable, billed twice' });
+          reason: PAIRED_ONLY[r.doc_type] });
       }
     }
   }
