@@ -49,7 +49,9 @@ function renderBatch(){
     + '<div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'
     + '<input type="file" id="batchFile" accept="application/pdf">'
     + '<label class="sub">Folder <input id="batchFolder" value="' + esc(batchSuggestFolder()) + '" style="width:180px"></label>'
-    + '<label class="sub">Received <input id="batchRecd" type="date" value="' + esc(new Date().toISOString().slice(0,10)) + '"></label>'
+    /* Each file is named by the RECEIVED stamp read off its own page; this is only the fallback
+       for a document whose stamp is missing or illegible, so it says so. */
+    + '<label class="sub">If no stamp <input id="batchRecd" type="date" value="' + esc(new Date().toISOString().slice(0,10)) + '"></label>'
     + '<button class="pfill" id="batchGo" onclick="batchStart()">Start</button>'
     + '</div>'
     + '<div id="batchErr" class="sub m-r" style="margin-top:6px"></div></div>'
@@ -184,6 +186,10 @@ function batchPaint(){
       + (f.pages_back||0) + ' pages &middot; ' + fmt(f.total||0) + '</b></div>'
       + '<div class="sub">Verified by downloading every file back out of SharePoint — not by trusting '
       + 'the upload’s own 201s.</div>'
+      + (f.no_stamp
+          ? '<div class="sub m-a">' + f.no_stamp + ' file(s) had no readable RECEIVED stamp and were '
+            + 'named with the batch date.</div>'
+          : '')
       + '<div style="margin-top:10px"><a class="pfill" href="' + esc(j.folder_url||"#") + '" target="_blank" '
       + 'rel="noopener" style="text-decoration:none;padding:7px 12px">Open the SharePoint folder</a></div>';
     if(f.documents && f.documents.length){
@@ -222,7 +228,14 @@ function batchConfirmPanel(j){
       + '<td>' + batchVendorCell(d, i)
       + '<div class="sub">' + esc(d.doc_type || "")
       + (d.invoice_no ? " &middot; " + esc(d.invoice_no) : "")
-      + (d.job_text ? " &middot; " + esc(String(d.job_text).slice(0,32)) : "") + '</div></td>'
+      + (d.job_text ? " &middot; " + esc(String(d.job_text).slice(0,32)) : "") + '</div>'
+      /* THE FILENAME'S DATE. It is the office's own RECEIVED stamp, per document — a stack
+         routinely spans days. Where no stamp could be read, say so here rather than let the
+         batch default go into a filename silently. */
+      + (d.received_stamp
+          ? '<div class="sub">stamped ' + esc(d.received_stamp) + '</div>'
+          : '<div class="sub m-a">no RECEIVED stamp read — will file under the batch date</div>')
+      + '</td>'
       + '<td class="r" style="width:110px">' + fmt(d.amount || 0) + '</td></tr>';
   });
   var total = docs.reduce(function(a,d){ return a + (Number(d.amount)||0); }, 0);
@@ -332,7 +345,10 @@ function batchConfirm(){
   var manifest = docs.map(function(d){
     return { page_from:d.page_from, page_to:d.page_to, vendor_name:d.vendor_name,
              vendor_canonical:d.vendor_canonical || null,
-             amount:Number(d.amount)||0, invoice_no:d.invoice_no || null };
+             amount:Number(d.amount)||0, invoice_no:d.invoice_no || null,
+             // The office's RECEIVED stamp — this is the date the file is named by. Null falls
+             // back to the batch date, and the confirm screen has already said which rows those are.
+             received_stamp:d.received_stamp || null };
   });
   invPost("batch_confirm", { id:j.id, manifest:manifest }).then(function(r){
     btn.disabled = false;

@@ -199,6 +199,7 @@ Each document:
   "vendor_name": <who is billing US>,
   "invoice_no": <as printed>,
   "invoice_date": "YYYY-MM-DD" | null,
+  "received_stamp": <the date in the RECEIVED stamp the office inks onto the paper, "YYYY-MM-DD"; null if there is no stamp or it is not legible>,
   "amount": <number; NEGATIVE for a credit memo>,
   "terms": <e.g. "Net 30"> | null,
   "due_date": "YYYY-MM-DD" | null,
@@ -214,6 +215,9 @@ Each document:
 RULES
 - Copy what is printed. Never infer, correct or normalise a vendor's job name — four spellings
   of one job is a fact the register needs to see.
+- received_stamp is the RUBBER STAMP, usually blue or red and often rotated, reading RECEIVED with
+  a date (e.g. "RECEIVED AUG 10 2026"). It is NOT the invoice date, the due date, the service
+  date, or any date the vendor printed. Only read it off an actual stamp; null if there is none.
 - A credit memo / "Jobsite Pickup Request" with parenthesised figures is NEGATIVE.
 - A customer-copy credit-card slip is "receipt" — it is already paid, not a payable.
 - Set vendor_marked_dup only for a DOCUMENT marker, never for the word appearing in line items.
