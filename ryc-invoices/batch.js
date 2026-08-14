@@ -219,7 +219,14 @@ function batchConfirmPanel(j){
     h += '<tr><td style="width:26px"><input type="checkbox" ' + (_batch.sel[i] ? "checked " : "")
       + 'onchange="batchSel(' + i + ',this.checked)"></td>'
       + '<td class="sub" style="width:74px">' + esc(span) + '</td>'
-      + '<td>' + esc(d.vendor_name || "—")
+      + '<td>' + esc(d.vendor_canonical || d.vendor_name || "—")
+      /* Show the rename and its evidence. The name on the letterhead is not the name the front
+         office files under, and a silent substitution is the kind of thing that is discovered
+         six months later in a folder listing. */
+      + (d.vendor_canonical && d.vendor_canonical !== d.vendor_name
+          ? '<div class="sub">filed as this &middot; read as “' + esc(d.vendor_name) + '”'
+            + (d.vendor_filed_count ? ' &middot; ' + d.vendor_filed_count + ' in the archive' : '') + '</div>'
+          : '')
       + '<div class="sub">' + esc(d.doc_type || "")
       + (d.invoice_no ? " &middot; " + esc(d.invoice_no) : "")
       + (d.job_text ? " &middot; " + esc(String(d.job_text).slice(0,32)) : "") + '</div></td>'
