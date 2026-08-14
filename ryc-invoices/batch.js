@@ -27,7 +27,7 @@
      · M. W. Chupp 13841 — one $43,875 payable read as three.
    So the bar runs the whole chain and stops on ONE screen. Merging is one click. */
 
-var _batch = { id:null, job:null, timer:null, sel:{} };
+var _batch = { id:null, job:null, timer:null, sel:{}, recent:[] };
 
 function batchStop(){ if(_batch.timer){ clearInterval(_batch.timer); _batch.timer = null; } }
 
@@ -39,7 +39,7 @@ function batchSuggestFolder(){
 
 function renderBatch(){
   batchStop();
-  _batch = { id:null, job:null, timer:null, sel:{} };
+  _batch = { id:null, job:null, timer:null, sel:{}, recent:[] };
   var v = document.getElementById("view");
   v.innerHTML =
     '<div class="panel"><div class="h">Batch process</div>'
@@ -62,11 +62,16 @@ function renderBatch(){
 function batchLoadRecent(){
   invPost("batch_status", {}).then(function(r){
     var el = document.getElementById("batchRecent");
-    if(!el || !r.ok || !r.data.jobs || !r.data.jobs.length) return;
+    if(!r.ok || !r.data.jobs) return;
+    _batch.recent = r.data.jobs;              // the twin check in the confirm panel reads this
+    if(!el || !r.data.jobs.length) return;
     var h = '<div class="panel"><div class="h">Recent batches</div><table class="t"><tbody>';
     r.data.jobs.forEach(function(j){
       h += '<tr><td>' + esc(j.folder) + '<div class="sub">' + esc(j.filename) + '</div></td>'
-        + '<td class="sub">' + esc(j.status)
+        + '<td class="sub">'
+        + (j.status === "proposed"
+            ? '<b style="color:#b7791f">' + BATCH_LABEL.proposed + '</b>'
+            : esc(BATCH_LABEL[j.status] || j.status))
         + (j.error ? ' <span class="m-r">' + esc(String(j.error).slice(0,70)) + '</span>' : '') + '</td>'
         + '<td class="r">'
         + (j.folder_url ? '<a href="' + esc(j.folder_url) + '" target="_blank" rel="noopener">Open folder</a> ' : '')
@@ -159,13 +164,29 @@ function batchPct(j){
   return 0;
 }
 
+/* ⛔ A JOB THAT IS WAITING FOR A PERSON MUST NOT LOOK LIKE A JOB THAT IS RUNNING.
+   Keith, 2026-08-14, on a batch that finished reading at 15:22 and sat until 18:29: *"if I click
+   view it shows in progress — it was started a few hours ago."* It was not in progress; it was
+   done and waiting for him. But `proposed` painted the same moving orange bar at 62% as
+   `reading`, so the one state that REQUIRES a human read as the one state that requires nothing.
+   The pause is the whole design of this tool; if the pause is invisible the tool is broken. */
 function batchBar(j){
-  var failed = j.status === "failed", pct = failed ? 100 : batchPct(j);
-  var col = failed ? "#c0392b" : (j.status === "filed" ? "#2e7d32" : "#d2601a");
+  var failed = j.status === "failed";
+  var waiting = j.status === "proposed";
+  var pct = failed || waiting ? 100 : batchPct(j);
+  var col = failed ? "#c0392b" : (j.status === "filed" ? "#2e7d32" : (waiting ? "#b7791f" : "#d2601a"));
   return '<div style="background:#e9ecef;border-radius:6px;height:10px;overflow:hidden;margin:8px 0">'
     + '<div style="height:100%;width:' + pct + '%;background:' + col + ';transition:width .4s ease"></div></div>'
-    + '<div class="sub">' + esc(j.phase_note || j.status) + (failed ? "" : " &middot; " + pct + "%") + '</div>';
+    + (waiting
+        ? '<div><b style="color:#b7791f">Waiting for you.</b> Reading finished &mdash; confirm the '
+          + 'documents below, then it files. Nothing happens until you do.</div>'
+        : '<div class="sub">' + esc(j.phase_note || j.status) + (failed ? "" : " &middot; " + pct + "%") + '</div>');
 }
+
+/* The same distinction in the list: "proposed" is a state name, not an instruction. */
+var BATCH_LABEL = { "new":"waiting for the file", uploaded:"queued", rendering:"working",
+  reading:"reading", proposed:"WAITING FOR YOU", confirmed:"queued for filing",
+  filing:"filing", filed:"filed", failed:"stopped" };
 
 function batchPaint(){
   var j = _batch.job, el = document.getElementById("batchLive");
@@ -211,8 +232,20 @@ function batchPaint(){
 function batchConfirmPanel(j){
   var docs = j.proposed || [];
   var cov = batchCoverage(docs, j.page_count || 0);
+  /* The folder is unique per live job, but the SCAN is not — start the same PDF twice and you get
+     two live jobs that will each file the whole batch into a folder of its own. The uniqueness
+     index cannot catch that (the folders differ, which is the point of it), so say it here. */
+  var twins = (_batch.recent || []).filter(function(o){
+    return o.id !== j.id && o.filename === j.filename
+      && ["new","uploaded","rendering","reading","proposed","confirmed","filing"].indexOf(o.status) >= 0;
+  });
   var h = '<div class="panel"><div class="h">Confirm the documents &middot; '
     + docs.length + ' of ' + (j.page_count||0) + ' pages</div>'
+    + (twins.length
+        ? '<div class="m-r" style="margin-bottom:6px"><b>' + esc(j.filename) + ' is already running as '
+          + twins.map(function(o){ return '“' + esc(o.folder) + '”'; }).join(", ")
+          + '.</b> Filing both puts this same stack in two folders — cancel the one you do not want.</div>'
+        : '')
     + '<div class="sub">Every page must belong to exactly one document. Tick two or more rows and '
     + '<b>Merge</b> where the reader has split one payable — a "Continued" page, a supporting-detail '
     + 'page, or a pay application scanned with its own lien waiver. The first ticked row is kept.</div>'
