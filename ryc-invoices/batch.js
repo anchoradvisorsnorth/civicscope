@@ -68,7 +68,12 @@ function batchLoadRecent(){
         + (j.error ? ' <span class="m-r">' + esc(String(j.error).slice(0,70)) + '</span>' : '') + '</td>'
         + '<td class="r">'
         + (j.folder_url ? '<a href="' + esc(j.folder_url) + '" target="_blank" rel="noopener">Open folder</a> ' : '')
-        + '<button class="pfill" onclick="batchWatch(' + invArg(j.id) + ')">View</button></td></tr>';
+        + '<button class="pfill" onclick="batchWatch(' + invArg(j.id) + ')">View</button>'
+        /* A job that never got its file holds its folder name — the uniqueness rule stops two
+           live jobs aiming at one SharePoint folder. Without this the name is stuck. */
+        + (["new","uploaded","proposed","failed"].indexOf(j.status) >= 0
+            ? ' <button class="pfill" onclick="batchCancel(' + invArg(j.id) + ')">Cancel</button>' : '')
+        + '</td></tr>';
     });
     el.innerHTML = h + '</tbody></table></div>';
   });
@@ -226,6 +231,14 @@ function batchConfirmPanel(j){
     + '<div style="margin-top:10px"><button class="pfill" id="batchFileBtn" onclick="batchConfirm()">'
     + 'File to SharePoint</button> <span id="batchConfErr" class="sub m-r"></span></div></div>';
   return h;
+}
+
+function batchCancel(id){
+  invPost("batch_cancel", { id:id }).then(function(r){
+    if(!r.ok){ var e = document.getElementById("batchErr"); if(e) e.textContent = r.error || "Could not cancel."; return; }
+    if(_batch.id === id){ batchStop(); _batch.job = null; document.getElementById("batchLive").innerHTML = ""; }
+    batchLoadRecent();
+  });
 }
 
 function batchSel(i, on){ _batch.sel[i] = on; }

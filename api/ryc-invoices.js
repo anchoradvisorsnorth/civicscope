@@ -1039,6 +1039,26 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, job: rows[0] });
     }
 
+    /* A job that never received its file — the browser tab closed mid-upload, the network went —
+       sits in `new` forever AND holds its folder name, because the uniqueness index deliberately
+       stops two live jobs aiming at one SharePoint folder. Without this the only way to reuse that
+       name is a database edit. Found the honest way: it happened during this feature's own first
+       end-to-end test. Refuses once filing has started — that is not a state a button may abandon. */
+    if (action === 'batch_cancel') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const id = String(body.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'id is required.' });
+      const r = await sb(`ryc_batch_jobs?id=eq.${id}&status=in.(new,uploaded,proposed,failed)`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ status: 'failed', error: 'cancelled', phase_note: 'cancelled',
+          updated_at: new Date().toISOString() }),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not cancel.' });
+      const rows = await r.json();
+      if (!rows.length) return res.status(409).json({ error: 'That batch is already filing or filed.' });
+      return res.status(200).json({ ok: true, job: rows[0] });
+    }
+
     /* ---- the worker's two actions. Service token only (see SERVICE_ACTIONS). ---- */
     if (action === 'batch_claim') {
       /* Claim by PATCHing a row that is still in a claimable state, and let PostgREST return
@@ -1055,7 +1075,26 @@ export default async function handler(req, res) {
       });
       if (!r.ok) return res.status(502).json({ error: 'claim failed' });
       const rows = await r.json();
-      return res.status(200).json({ ok: true, job: rows[0] || null });
+      const job = rows[0] || null;
+
+      /* HAND THE WORKER A SIGNED URL, NOT A KEY. The scan is in a private bucket and stays there;
+         the worker gets a 30-minute read link for one object and never holds a Supabase
+         credential. That is one fewer secret on the VM than the obvious design, and it is the
+         same thing the `pages` action already does for the browser. */
+      if (job && job.source_path) {
+        try {
+          const sign = await fetch(`${SB_URL}/storage/v1/object/sign/${SCAN_BUCKET}/${job.source_path}`, {
+            method: 'POST',
+            headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expiresIn: 1800 }),
+          });
+          if (sign.ok) {
+            const s = await sign.json();
+            if (s.signedURL) job.source_url = `${SB_URL}/storage/v1${s.signedURL}`;
+          }
+        } catch { /* the worker reports "no readable source" rather than half-running */ }
+      }
+      return res.status(200).json({ ok: true, job });
     }
 
     if (action === 'batch_progress') {
