@@ -34,21 +34,28 @@ function init(){
   if(typeof RYCShell !== "undefined"){
     RYCShell.mount({
       workspace: "invoices",
-      version: "v1.1.0",
+      version: "v1.2.0",
       active: "inbound",
       /* TWO destinations, because they are two different people's work (Keith, 2026-08-13).
          Inbound is the front office: everything that has arrived and not yet been sent to a desk.
          Daily batch is a PM's own queue. Grouping the unplaced invoices as a "No job yet" section
          inside the PM view put the front office's job inside somebody else's screen. */
+      /* THREE now. Batch process is a THIRD kind of work, not a variant of Inbound: those are
+         invoices arriving by email that must reach a PM's desk, this is a stack of paper the
+         front office has ALREADY worked, which never enters the register and goes straight to
+         the archive. Putting it inside Inbound would imply the register is involved. */
       groups: [{ label:"", items:[
-        { key:"inbound",  label:"Inbound",     icon:"&#128229;" },
-        { key:"invoices", label:"PM Desks",    icon:"&#129534;" },
+        { key:"inbound",  label:"Inbound",       icon:"&#128229;" },
+        { key:"invoices", label:"PM Desks",      icon:"&#129534;" },
+        { key:"batch",    label:"Batch process", icon:"&#128196;" },
       ] }],
       /* setActive is not automatic — the rail keeps whatever `active` was mounted with, which is
          why clicking Inbound left "Daily batch" highlighted. */
       onSelect: function(key){
         RYCShell.setActive(key);
-        if(key === "inbound") renderInbound(); else renderInvoices();
+        if(key === "inbound") renderInbound();
+        else if(key === "batch") renderBatch();
+        else renderInvoices();
       },
       onLock: function(){ sessionStorage.removeItem("ryc_inv_auth"); location.reload(); }
     });

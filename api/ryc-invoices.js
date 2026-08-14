@@ -533,7 +533,10 @@ export default async function handler(req, res) {
      nothing else, and the filing actions remain unreachable from any browser credential — a page
      must never be able to assert that a document was filed. */
   const SERVICE_ACTIONS = {
-    'invoice-filer': new Set(['filing_queue', 'mark_filed']),
+    /* The batch worker is the FILER because it ends in the same place: a delegated SharePoint
+       upload. It is not given `register` — a paper batch was worked on paper and never enters
+       the register, which is the whole distinction between this and file_approved_invoices.py. */
+    'invoice-filer': new Set(['filing_queue', 'mark_filed', 'batch_claim', 'batch_progress']),
     'invoice-ingest': new Set(['open_batch', 'read', 'register']),
   };
   const FILING_ACTIONS = SERVICE_ACTIONS['invoice-filer'];
@@ -887,6 +890,192 @@ export default async function handler(req, res) {
         ok: true, scope: who.scope, pm, rows,
         summary: { documents: rows.length, outstanding, flagged: openHigh, unrouted },
       });
+    }
+
+    /* ===================== BATCH PROCESS =============================================
+       The paper-batch pipeline as a button. A scan of invoices the front office already worked
+       ON PAPER goes in; one named PDF per payable, filed to a dated SharePoint folder, comes out.
+
+       WHY IT IS A JOB AND NOT A REQUEST. None of the work can happen here. Rendering needs
+       pymupdf, the filed vendor spellings need the 2,968-invoice archive index, and the upload
+       needs the delegated SharePoint credential — all three live on keith-agent-01, and that
+       credential deliberately does not exist on Vercel. So this endpoint owns the STATE and the
+       VM owns the WORK, exactly as the filing worker already does.
+
+       WHY THE BROWSER UPLOADS STRAIGHT TO STORAGE. Vercel caps a request body at ~4.5MB and a
+       44-page colour scan is 6MB+. Posting the PDF through here would fail on the real input and
+       work on every test. So `batch_start` mints a SIGNED UPLOAD URL and the file never touches
+       this function.
+
+       WHY IT STOPS IN THE MIDDLE. `proposed` is what the reader saw; `manifest` is what a person
+       confirmed. Only the second is ever filed. Three real batches say why: a billed-to-date
+       summary line read as a $4,444.75 payable that does not exist, one invoice split into a
+       $0.00 document and a $1,917.30 one, and a $63,450.50 pay application filed alongside its
+       own lien waiver as two payables. */
+    const BATCH_STATES = ['new', 'uploaded', 'rendering', 'reading', 'proposed',
+      'confirmed', 'filing', 'filed', 'failed'];
+
+    if (action === 'batch_start') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const filename = String(body.filename || '').trim();
+      if (!filename) return res.status(400).json({ error: 'filename is required.' });
+      /* The folder is a real path segment in SharePoint. Refuse anything that could climb out of
+         the staging root rather than sanitising it silently — the operator should see the name
+         they are going to get. */
+      const folder = String(body.folder || '').trim();
+      if (!folder) return res.status(400).json({ error: 'A destination folder name is required.' });
+      if (!/^[A-Za-z0-9 ._-]{1,80}$/.test(folder)) {
+        return res.status(400).json({ error: 'Folder name: letters, numbers, spaces, dot, dash and underscore only.' });
+      }
+
+      const ins = await sb('ryc_batch_jobs', {
+        method: 'POST', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          company_id: 'ryc', filename, folder,
+          received_date: body.received_date || null,
+          status: 'new', phase_note: 'waiting for the file',
+        }),
+      });
+      if (ins.status === 409) {
+        return res.status(409).json({ error: `A batch is already in flight for folder "${folder}". Finish or cancel it first.` });
+      }
+      if (!ins.ok) return res.status(502).json({ error: `Could not open a batch job (${ins.status}).` });
+      const job = (await ins.json())[0];
+
+      const path = `batches/${job.id}/source.pdf`;
+      const sign = await fetch(`${SB_URL}/storage/v1/object/upload/sign/${SCAN_BUCKET}/${path}`, {
+        method: 'POST',
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!sign.ok) {
+        await sb(`ryc_batch_jobs?id=eq.${job.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ status: 'failed', error: `could not mint an upload URL (${sign.status})` }) });
+        return res.status(502).json({ error: `Could not prepare the upload (${sign.status}).` });
+      }
+      const signed = await sign.json();
+      await sb(`ryc_batch_jobs?id=eq.${job.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ source_path: path }) });
+      return res.status(200).json({ ok: true, job: { ...job, source_path: path },
+        upload_url: `${SB_URL}/storage/v1${signed.url}` });
+    }
+
+    if (action === 'batch_uploaded') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const r = await sb(`ryc_batch_jobs?id=eq.${String(body.id || '')}&status=eq.new`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ status: 'uploaded', phase_note: 'queued for the worker', updated_at: new Date().toISOString() }),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not mark the upload complete.' });
+      const rows = await r.json();
+      if (!rows.length) return res.status(409).json({ error: 'That job is not waiting for a file.' });
+      return res.status(200).json({ ok: true, job: rows[0] });
+    }
+
+    if (action === 'batch_status') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const id = String(body.id || '').trim();
+      const q = id
+        ? `ryc_batch_jobs?company_id=eq.ryc&id=eq.${id}&select=*`
+        : 'ryc_batch_jobs?company_id=eq.ryc&select=id,filename,folder,status,phase_note,page_count,pages_read,folder_url,error,created_at&order=created_at.desc&limit=8';
+      const r = await sb(q);
+      if (!r.ok) return res.status(502).json({ error: 'Could not read the batch.' });
+      const rows = await r.json();
+      return res.status(200).json(id ? { ok: true, job: rows[0] || null } : { ok: true, jobs: rows });
+    }
+
+    if (action === 'batch_confirm') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const id = String(body.id || '').trim();
+      const manifest = Array.isArray(body.manifest) ? body.manifest : null;
+      if (!id || !manifest || !manifest.length) {
+        return res.status(400).json({ error: 'A job id and a non-empty manifest are required.' });
+      }
+      /* COVERAGE IS CHECKED HERE TOO, not only in the VM script. A page claimed twice is a
+         payable filed twice; a page claimed by nothing is a payable that vanishes between the
+         scanner and the archive, and neither is detectable afterwards because the batch PDF gets
+         deleted. The client also checks, so this is the second of two — the one a browser cannot
+         skip by posting directly. */
+      const cur = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${id}&select=page_count,status`);
+      const job = cur.ok ? (await cur.json())[0] : null;
+      if (!job) return res.status(404).json({ error: 'No such batch.' });
+      if (job.status !== 'proposed') {
+        return res.status(409).json({ error: `That batch is "${job.status}" — only a proposed batch can be confirmed.` });
+      }
+      const seen = new Map();
+      for (const d of manifest) {
+        const a = parseInt(d.page_from, 10), b = parseInt(d.page_to, 10);
+        if (!Number.isFinite(a) || !Number.isFinite(b) || a < 1 || b < a) {
+          return res.status(400).json({ error: `Bad page range: ${JSON.stringify(d.page_from)}-${JSON.stringify(d.page_to)}.` });
+        }
+        if (job.page_count && b > job.page_count) {
+          return res.status(400).json({ error: `Page ${b} is past the end of a ${job.page_count}-page scan.` });
+        }
+        for (let p = a; p <= b; p++) {
+          if (seen.has(p)) return res.status(400).json({ error: `Page ${p} is claimed by two documents.` });
+          seen.set(p, true);
+        }
+        if (!String(d.vendor_canonical || d.vendor_name || '').trim()) {
+          return res.status(400).json({ error: `A document covering p${a}-${b} has no vendor name.` });
+        }
+        if (!Number.isFinite(Number(d.amount))) {
+          return res.status(400).json({ error: `A document covering p${a}-${b} has no amount.` });
+        }
+      }
+      if (job.page_count) {
+        const missing = [];
+        for (let p = 1; p <= job.page_count; p++) if (!seen.has(p)) missing.push(p);
+        if (missing.length) return res.status(400).json({ error: `Pages claimed by no document: ${missing.join(', ')}.` });
+      }
+      const r = await sb(`ryc_batch_jobs?id=eq.${id}&status=eq.proposed`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ manifest, status: 'confirmed',
+          phase_note: `${manifest.length} document(s) confirmed — queued for filing`,
+          updated_at: new Date().toISOString() }),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not confirm the batch.' });
+      const rows = await r.json();
+      if (!rows.length) return res.status(409).json({ error: 'That batch moved on before the confirmation landed.' });
+      return res.status(200).json({ ok: true, job: rows[0] });
+    }
+
+    /* ---- the worker's two actions. Service token only (see SERVICE_ACTIONS). ---- */
+    if (action === 'batch_claim') {
+      /* Claim by PATCHing a row that is still in a claimable state, and let PostgREST return
+         what it actually changed. Two workers racing therefore cannot both win: the second one
+         matches zero rows. A stale lease is visible in `claimed_at` rather than invented here —
+         a worker that dies leaves a row a human can see, not one that silently re-runs. */
+      const want = String(body.state || '') === 'confirmed' ? 'confirmed' : 'uploaded';
+      const next = want === 'confirmed' ? 'filing' : 'rendering';
+      const r = await sb(`ryc_batch_jobs?company_id=eq.ryc&status=eq.${want}&order=created_at.asc&limit=1`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ status: next, claimed_at: new Date().toISOString(),
+          phase_note: next === 'filing' ? 'filing to SharePoint' : 'rendering pages',
+          updated_at: new Date().toISOString() }),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'claim failed' });
+      const rows = await r.json();
+      return res.status(200).json({ ok: true, job: rows[0] || null });
+    }
+
+    if (action === 'batch_progress') {
+      const id = String(body.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'id is required.' });
+      const patch = { updated_at: new Date().toISOString() };
+      if (body.status) {
+        if (!BATCH_STATES.includes(String(body.status))) {
+          return res.status(400).json({ error: `Unknown state ${body.status}.` });
+        }
+        patch.status = body.status;
+      }
+      for (const k of ['phase_note', 'page_count', 'pages_read', 'proposed', 'filed', 'folder_url', 'error']) {
+        if (body[k] !== undefined) patch[k] = body[k];
+      }
+      const r = await sb(`ryc_batch_jobs?id=eq.${id}`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'progress update failed' });
+      return res.status(200).json({ ok: true, job: (await r.json())[0] || null });
     }
 
     /* ---------- the filing worker (service token only) -------------------------------
