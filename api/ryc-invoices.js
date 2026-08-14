@@ -1044,8 +1044,16 @@ export default async function handler(req, res) {
         if (!String(d.vendor_canonical || d.vendor_name || '').trim()) {
           return res.status(400).json({ error: `A document covering p${a}-${b} has no vendor name.` });
         }
-        if (!Number.isFinite(Number(d.amount))) {
-          return res.status(400).json({ error: `A document covering p${a}-${b} has no amount.` });
+        /* `Number(null)` is 0 and `Number.isFinite(0)` is true, so a null amount used to sail
+           through and file as `Vendor  0.00  date.pdf` — a payable-shaped file for a document the
+           reader could not read at all. Caught on the first real batch: p17 came back `unknown`
+           with a null amount, and it is a continuation page that belongs merged into p16. Require
+           the number to actually be there. */
+        if (d.amount === null || d.amount === undefined || d.amount === ''
+            || !Number.isFinite(Number(d.amount))) {
+          return res.status(400).json({
+            error: `The document on p${a}-${b} has no amount — merge it into the document it `
+              + 'continues, or give it one.' });
         }
       }
       if (job.page_count) {

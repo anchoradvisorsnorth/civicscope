@@ -236,7 +236,13 @@ function batchConfirmPanel(j){
           ? '<div class="sub">stamped ' + esc(d.received_stamp) + '</div>'
           : '<div class="sub m-a">no RECEIVED stamp read — will file under the batch date</div>')
       + '</td>'
-      + '<td class="r" style="width:110px">' + fmt(d.amount || 0) + '</td></tr>';
+      /* A row the reader could not price is almost always a continuation page. Say so loudly —
+         it cannot be filed, and the fix is to merge it into the document above it. */
+      + '<td class="r" style="width:110px">'
+      + (d.amount === null || d.amount === undefined || d.amount === ""
+          ? '<span class="m-r">no amount</span>'
+          : fmt(d.amount))
+      + '</td></tr>';
   });
   var total = docs.reduce(function(a,d){ return a + (Number(d.amount)||0); }, 0);
   h += '</tbody></table>'
