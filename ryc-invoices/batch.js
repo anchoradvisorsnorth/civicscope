@@ -219,14 +219,7 @@ function batchConfirmPanel(j){
     h += '<tr><td style="width:26px"><input type="checkbox" ' + (_batch.sel[i] ? "checked " : "")
       + 'onchange="batchSel(' + i + ',this.checked)"></td>'
       + '<td class="sub" style="width:74px">' + esc(span) + '</td>'
-      + '<td>' + esc(d.vendor_canonical || d.vendor_name || "—")
-      /* Show the rename and its evidence. The name on the letterhead is not the name the front
-         office files under, and a silent substitution is the kind of thing that is discovered
-         six months later in a folder listing. */
-      + (d.vendor_canonical && d.vendor_canonical !== d.vendor_name
-          ? '<div class="sub">filed as this &middot; read as “' + esc(d.vendor_name) + '”'
-            + (d.vendor_filed_count ? ' &middot; ' + d.vendor_filed_count + ' in the archive' : '') + '</div>'
-          : '')
+      + '<td>' + batchVendorCell(d, i)
       + '<div class="sub">' + esc(d.doc_type || "")
       + (d.invoice_no ? " &middot; " + esc(d.invoice_no) : "")
       + (d.job_text ? " &middot; " + esc(String(d.job_text).slice(0,32)) : "") + '</div></td>'
@@ -246,6 +239,44 @@ function batchCancel(id){
     if(_batch.id === id){ batchStop(); _batch.job = null; document.getElementById("batchLive").innerHTML = ""; }
     batchLoadRecent();
   });
+}
+
+/* THE FILED NAME IS A JUDGEMENT, SO IT IS A CONTROL AND NOT A LABEL.
+   The archive keeps "Big C" (34 filed) and "Big C Lumber" (8) as SEPARATE vendors, and "Alpha"
+   (87), "Alpha Bldg" (252) and "Alpha Bldg Ctr" (1) as three more — deliberately, because merging
+   spellings is a confirmed human decision and an unconfirmed near-match would rename a vendor on
+   a guess. So the server offers the related clusters with their counts and the operator picks;
+   the default is the exact-key match, or the printed name when the archive has never seen them. */
+function batchVendorCell(d, i){
+  var chosen = d.vendor_canonical || d.vendor_name || "";
+  var opts = d.vendor_options || [];
+  var h = "";
+  if(opts.length > 1 || (opts.length === 1 && opts[0].spelling !== d.vendor_name)){
+    h += '<select onchange="batchVendorPick(' + i + ',this.value)" style="max-width:230px">';
+    var seen = {};
+    opts.forEach(function(o){
+      seen[o.spelling] = 1;
+      h += '<option value="' + esc(o.spelling) + '"' + (o.spelling === chosen ? " selected" : "") + '>'
+        + esc(o.spelling) + ' — ' + o.count + ' filed</option>';
+    });
+    if(!seen[d.vendor_name]){
+      h += '<option value="' + esc(d.vendor_name || "") + '"' + (chosen === d.vendor_name ? " selected" : "") + '>'
+        + esc(d.vendor_name || "—") + ' — as printed</option>';
+    }
+    h += '</select>';
+  } else {
+    h += esc(chosen || "—");
+    if(!opts.length) h += ' <span class="sub">new vendor — filed as printed</span>';
+  }
+  if(chosen !== d.vendor_name){
+    h += '<div class="sub">read off the document as “' + esc(d.vendor_name || "") + '”</div>';
+  }
+  return h;
+}
+
+function batchVendorPick(i, spelling){
+  var docs = (_batch.job && _batch.job.proposed) || [];
+  if(docs[i]) docs[i].vendor_canonical = spelling;
 }
 
 function batchSel(i, on){ _batch.sel[i] = on; }
