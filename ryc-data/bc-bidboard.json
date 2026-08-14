@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-13T09:30:09.400Z",
+ "generatedAt": "2026-08-14T09:30:10.156Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -44,23 +44,6 @@
      ]
     },
     {
-     "id": "69a71a7957b080769f6b0957",
-     "name": "Awnings",
-     "number": "06-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 1,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "BH Awning"
-     ]
-    },
-    {
      "id": "69a7158c18d056078e1fb9bf",
      "name": "Demolition",
      "number": "02",
@@ -75,6 +58,23 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "Michiana Recycling and Disposal"
+     ]
+    },
+    {
+     "id": "69a71a7957b080769f6b0957",
+     "name": "Awnings",
+     "number": "06-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "BH Awning"
      ]
     },
     {
@@ -241,6 +241,23 @@
      ]
     },
     {
+     "id": "69a70f671e2ea8632c1dbb80",
+     "name": "Flooring",
+     "number": "09",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Carpet Service Outlet"
+     ]
+    },
+    {
      "id": "69a70f671e2ea832d11dbb85",
      "name": "Fire Protection",
      "number": "21",
@@ -256,23 +273,6 @@
      "biddingSubs": [
       "F.E. Moran, Inc.",
       "Ryan Fireprotection Inc."
-     ]
-    },
-    {
-     "id": "69a70f671e2ea8632c1dbb80",
-     "name": "Flooring",
-     "number": "09",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Carpet Service Outlet"
      ]
     },
     {
@@ -540,23 +540,6 @@
      "awardedCompany": null
     },
     {
-     "id": "6a022cf0c3591c68c7a3215e",
-     "name": "HVAC",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Dynamic Mechanical Services, Inc."
-     ]
-    },
-    {
      "id": "6a022d0bae28a07b4d475101",
      "name": "Electrical",
      "number": null,
@@ -576,6 +559,23 @@
     {
      "id": "6a022caf49173aca7fff7637",
      "name": "Plumbing",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Dynamic Mechanical Services, Inc."
+     ]
+    },
+    {
+     "id": "6a022cf0c3591c68c7a3215e",
+     "name": "HVAC",
      "number": null,
      "state": "PUBLISHED",
      "bidsDueAt": "2026-05-25T16:00:00.000Z",
@@ -902,12 +902,12 @@
    "architect": null,
    "value": null,
    "isPublic": false,
-   "packages": 14,
-   "covered": 6,
-   "atRisk": 8,
-   "invites": 175,
-   "bidding": 9,
-   "undecided": 126,
+   "packages": 15,
+   "covered": 8,
+   "atRisk": 7,
+   "invites": 177,
+   "bidding": 12,
+   "undecided": 114,
    "bidsReceived": 1,
    "pkgs": [
     {
@@ -918,8 +918,8 @@
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
      "invites": 37,
      "bidding": 0,
-     "undecided": 32,
-     "notBidding": 5,
+     "undecided": 25,
+     "notBidding": 12,
      "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
@@ -927,8 +927,6 @@
       "Pajay Excavating",
       "Jackson - Merkey Contractors, Inc.",
       "CD Hughes",
-      "Precise Excavating, Inc.",
-      "USA Earthworks",
       "Iron Horse Excavation LLC",
       "Leavitt & Starck Excavating, Inc.",
       "Central Excavation LLC",
@@ -941,49 +939,16 @@
       "Parrish Excavating, Inc",
       "Balkema Construction",
       "Burkholder Excavating",
-      "Oetman Excavating",
       "Velting Contractors, Inc.",
       "Keiser Excavating",
       "Weick Bros, Inc.",
       "Hollerbach Excavating",
       "Morris Excavating Inc",
       "Kalin Construction Co Inc",
-      "Balkema Sitework & Development"
-     ]
-    },
-    {
-     "id": "6a736f79e8a5e7b22f9f4cf9",
-     "name": "Electrical",
-     "number": "26-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-17T16:00:00.000Z",
-     "invites": 28,
-     "bidding": 0,
-     "undecided": 19,
-     "notBidding": 9,
-     "viewed": 12,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Great Lakes Electrical Maintenance LLC",
-      "XL Industrial Services, Inc. ",
-      "Linear Electric, Inc.",
-      "Mead & White Electric Co.",
-      "Electrical Maint & Constr",
-      "Ibid County Electric, Inc.",
-      "Buist Electric, Inc.",
-      "Allied Electric, LLC",
-      "Parkway Electric & Communications LLC",
-      "Beaudoin Electrical Construction, Inc.",
-      "KEI Electrical Construction and Maintenance",
-      "DVT Electric Inc.",
-      "Windemuller Electric",
-      "Shouldicebrothers Electric",
-      "Hi-Tech Electric Company",
-      "Wolverine Electrical Contracting",
-      "Quantum Electrical Contractors, Inc.",
-      "Martell Electric, LLC",
-      "G & D Electric, Inc."
+      "Lounsbury Excavating, Inc.",
+      "LE Barber, Inc.",
+      "James E Fulton",
+      "Hoffman Bros., Inc."
      ]
     },
     {
@@ -1030,29 +995,6 @@
      ]
     },
     {
-     "id": "6a7c9cccc57d0a763a373920",
-     "name": "Monorail Hoist System",
-     "number": "41-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-17T16:00:00.000Z",
-     "invites": 7,
-     "bidding": 0,
-     "undecided": 7,
-     "notBidding": 0,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Dearborn Overhead Crane",
-      "Lee Industrial Contracting",
-      "Wolverine Crane & Service, Inc.",
-      "Star Crane & Hoist,  Inc.",
-      "Lift Solutions Holdings, LLC",
-      "Industrial Installations Inc.",
-      "Hoosier Crane Service Company"
-     ]
-    },
-    {
      "id": "6a7c8e9516d8ab17fce69029",
      "name": "Masonry",
      "number": "04-01",
@@ -1060,13 +1002,12 @@
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
      "invites": 6,
      "bidding": 0,
-     "undecided": 6,
-     "notBidding": 0,
+     "undecided": 5,
+     "notBidding": 1,
      "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "Bosker Brick Company",
       "Jesse Adams & Son Masonry LLC",
       "Wines and Sons Masonry",
       "Austin Masonry",
@@ -1096,6 +1037,23 @@
      ]
     },
     {
+     "id": "6a7db4ab580bc543ab04a27d",
+     "name": "Access Hatches",
+     "number": "08-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-17T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "EJ USA, Inc"
+     ]
+    },
+    {
      "id": "6a736f79e8a5e763669f4d01",
      "name": "Process Instrumentation, Controls, SCADA",
      "number": "40-03",
@@ -1109,6 +1067,23 @@
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
+      "Windemuller Electric"
+     ]
+    },
+    {
+     "id": "6a736f79e8a5e7b22f9f4cf9",
+     "name": "Electrical",
+     "number": "26-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-17T16:00:00.000Z",
+     "invites": 29,
+     "bidding": 1,
+     "undecided": 18,
+     "notBidding": 10,
+     "viewed": 12,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
       "Windemuller Electric"
      ]
     },
@@ -1130,6 +1105,23 @@
      ]
     },
     {
+     "id": "6a7c9cccc57d0a763a373920",
+     "name": "Monorail Hoist System",
+     "number": "41-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-17T16:00:00.000Z",
+     "invites": 7,
+     "bidding": 1,
+     "undecided": 5,
+     "notBidding": 1,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Lift Solutions Holdings, LLC"
+     ]
+    },
+    {
      "id": "6a736f79e8a5e742d69f4cfa",
      "name": "High Performance Coatings",
      "number": "09-01",
@@ -1147,24 +1139,6 @@
      ]
     },
     {
-     "id": "6a736f79e8a5e7b5759f4cfb",
-     "name": "Process Equipment & Valves",
-     "number": "40-02, 41-01, 43-01 & 46-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-17T16:00:00.000Z",
-     "invites": 19,
-     "bidding": 2,
-     "undecided": 10,
-     "notBidding": 7,
-     "viewed": 13,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Waterworks Systems & Equipment Inc.",
-      "Kennedy Industries"
-     ]
-    },
-    {
      "id": "6a736f79e8a5e72c449f4cf5",
      "name": "Concrete, Grout, Concrete Infill",
      "number": "03-01",
@@ -1172,9 +1146,9 @@
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
      "invites": 14,
      "bidding": 2,
-     "undecided": 12,
-     "notBidding": 0,
-     "viewed": 4,
+     "undecided": 11,
+     "notBidding": 1,
+     "viewed": 6,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1216,6 +1190,25 @@
       "Newman Garage Doors & Openers",
       "Industrial Door of Northern Indiana LLC"
      ]
+    },
+    {
+     "id": "6a736f79e8a5e7b5759f4cfb",
+     "name": "Process Equipment & Valves",
+     "number": "40-02, 41-01, 43-01 & 46-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-17T16:00:00.000Z",
+     "invites": 19,
+     "bidding": 3,
+     "undecided": 9,
+     "notBidding": 7,
+     "viewed": 13,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "JGM Valve Corporation",
+      "Waterworks Systems & Equipment Inc.",
+      "Kennedy Industries"
+     ]
     }
    ]
   },
@@ -1235,45 +1228,13 @@
    "value": null,
    "isPublic": false,
    "packages": 15,
-   "covered": 8,
-   "atRisk": 7,
+   "covered": 9,
+   "atRisk": 6,
    "invites": 96,
-   "bidding": 11,
-   "undecided": 75,
+   "bidding": 12,
+   "undecided": 71,
    "bidsReceived": 0,
    "pkgs": [
-    {
-     "id": "6a70c66000fbb51b4c41a0c5",
-     "name": "Electrical",
-     "number": "26-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-24T16:00:00.000Z",
-     "invites": 17,
-     "bidding": 0,
-     "undecided": 16,
-     "notBidding": 1,
-     "viewed": 7,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "CBS Service LLC",
-      "Anglin Electric, Inc",
-      "Wolverine Electrical Contracting",
-      "Ibid County Electric, Inc.",
-      "Electrical Maint & Constr",
-      "Grove Electrical Services Inc",
-      "Koontz-Wagner Services",
-      "Mead & White Electric Co.",
-      "Elevated Power, LLC",
-      "Middlebury Electric, Inc.",
-      "Schwartz Electric, Inc.",
-      "Pemberton-Davis Electric, Inc.",
-      "D&D Electrical Contractors",
-      "Herrman & Goetz Inc.",
-      "L & M Electric, Inc.",
-      "Gaylor Electric, Inc"
-     ]
-    },
     {
      "id": "6a70bd36c0f7db0056e72ca0",
      "name": "Site Work & Utilities",
@@ -1402,6 +1363,23 @@
      ]
     },
     {
+     "id": "6a70c66000fbb51b4c41a0c5",
+     "name": "Electrical",
+     "number": "26-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 17,
+     "bidding": 1,
+     "undecided": 14,
+     "notBidding": 2,
+     "viewed": 8,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "D&D Electrical Contractors"
+     ]
+    },
+    {
      "id": "6a74ce7e8c6dda8122f48ecd",
      "name": "Survey Staking",
      "number": "01-01",
@@ -1409,8 +1387,8 @@
      "bidsDueAt": "2026-08-24T16:00:00.000Z",
      "invites": 8,
      "bidding": 1,
-     "undecided": 6,
-     "notBidding": 1,
+     "undecided": 5,
+     "notBidding": 2,
      "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
@@ -1443,9 +1421,9 @@
      "bidsDueAt": "2026-08-24T16:00:00.000Z",
      "invites": 4,
      "bidding": 1,
-     "undecided": 3,
-     "notBidding": 0,
-     "viewed": 1,
+     "undecided": 2,
+     "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1562,7 +1540,7 @@
    "atRisk": 5,
    "invites": 199,
    "bidding": 9,
-   "undecided": 169,
+   "undecided": 167,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -1652,7 +1630,7 @@
      "bidding": 0,
      "undecided": 11,
      "notBidding": 1,
-     "viewed": 3,
+     "viewed": 4,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1753,8 +1731,8 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 45,
      "bidding": 2,
-     "undecided": 38,
-     "notBidding": 5,
+     "undecided": 36,
+     "notBidding": 7,
      "viewed": 12,
      "bidsReceived": 0,
      "awardedCompany": null,
@@ -1773,7 +1751,7 @@
      "bidding": 2,
      "undecided": 3,
      "notBidding": 2,
-     "viewed": 6,
+     "viewed": 7,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
