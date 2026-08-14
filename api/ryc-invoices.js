@@ -565,6 +565,16 @@ export default async function handler(req, res) {
   const canIntake = who.scope === 'all'
     || (who.scope === 'service' && who.service === 'invoice-ingest');
 
+  /* The READER is a narrower question than "may you run intake", and it needs its own answer.
+     `read` turns page images into proposed fields; it writes no invoice and creates no payable.
+     The front office uses it from Inbound and the batch worker uses it from the VM.
+     Deliberately NOT `who.service === 'invoice-ingest' || who.service === 'invoice-filer'` —
+     SERVICE_ACTIONS above already decides which machines may call `read`, and naming them again
+     here is a second copy of one rule that can drift from the first. It already did: adding the
+     batch worker to the allowlist left this gate still saying "ingest only", so the worker was
+     authorised and refused in the same request. */
+  const canRead = who.scope === 'all' || who.scope === 'service';
+
   try {
     /* ---------- who am I (the page boots from this) ---------- */
     if (action === 'whoami') {
@@ -1487,7 +1497,7 @@ export default async function handler(req, res) {
     }
 
     if (action === 'read') {
-      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      if (!canRead) return res.status(403).json({ error: 'Front office only.' });
       if (!READ_ENABLED) {
         return res.status(503).json({ error: 'The document reader is switched off on this deployment.' });
       }
