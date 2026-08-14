@@ -534,20 +534,32 @@ export default async function handler(req, res) {
      must never be able to assert that a document was filed. */
   const SERVICE_ACTIONS = {
     /* The batch worker is the FILER because it ends in the same place: a delegated SharePoint
-       upload. It is not given `register` — a paper batch was worked on paper and never enters
-       the register, which is the whole distinction between this and file_approved_invoices.py. */
-    'invoice-filer': new Set(['filing_queue', 'mark_filed', 'batch_claim', 'batch_progress']),
+       upload. It is NOT given `register` or `open_batch` — a paper batch was worked on paper and
+       never enters the register, which is the whole distinction between this and
+       file_approved_invoices.py.
+       `read` is granted here rather than handing the worker the INGEST token as well. Both routes
+       let it OCR a page; only one of them also lets it write invoices into the register. The
+       narrower grant is the one that cannot create a payable. */
+    'invoice-filer': new Set(['filing_queue', 'mark_filed', 'read',
+      'batch_claim', 'batch_progress']),
     'invoice-ingest': new Set(['open_batch', 'read', 'register']),
   };
-  const FILING_ACTIONS = SERVICE_ACTIONS['invoice-filer'];
+  /* ⚠ THESE TWO SETS ARE DIFFERENT QUESTIONS AND MUST NOT BE DERIVED FROM EACH OTHER.
+     SERVICE_ACTIONS answers "may this machine call it"; MACHINE_ONLY answers "is a browser
+     forbidden". FILING_ACTIONS used to be an alias of the filer's allowlist, which coupled them:
+     granting the batch worker `read` would silently have BANNED THE BROWSER from `read` and
+     broken Inbound's intake — caught in this feature's own end-to-end test, one deploy before it
+     would have shipped. A page must never be able to assert that a document was filed; a page
+     must still be able to read a page image. */
+  const MACHINE_ONLY = new Set(['filing_queue', 'mark_filed', 'batch_claim', 'batch_progress']);
   if (who.scope === 'service') {
     const allowed = SERVICE_ACTIONS[who.service] || new Set();
     if (!allowed.has(action)) {
       return res.status(403).json({ error: `The ${who.service} service may not call this action.` });
     }
   }
-  if (FILING_ACTIONS.has(action) && who.scope !== 'service') {
-    return res.status(403).json({ error: 'Filing actions require the filing service token.' });
+  if (MACHINE_ONLY.has(action) && who.scope !== 'service') {
+    return res.status(403).json({ error: 'That action requires a service token.' });
   }
   // The intake pipeline is front office OR the ingest service — nothing else.
   const canIntake = who.scope === 'all'
