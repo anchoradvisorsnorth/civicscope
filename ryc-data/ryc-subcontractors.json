@@ -1,7 +1,7 @@
 {
- "generated": "2026-08-14T09:30:46.397Z",
+ "generated": "2026-08-15T09:30:46.887Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 129140012,
+ "totalActual": 129326198,
  "totalCommitted": 141559546,
  "subCount": 641,
  "subs": [
@@ -3918,6 +3918,23 @@
    ]
   },
   {
+   "vendorNo": "3834",
+   "name": "JNJ Construction",
+   "actualCost": 570000,
+   "actualJobs": 1,
+   "committed": 666600,
+   "committedJobs": 1,
+   "variance": 96600,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 570000,
+     "committed": 666600
+    }
+   ]
+  },
+  {
    "vendorNo": "3373",
    "name": "Kuhn Specialty Flooring",
    "actualCost": 547860,
@@ -4224,23 +4241,6 @@
      "jobName": "Helix Orchard Wallen Road",
      "actual": 487979,
      "committed": 888000
-    }
-   ]
-  },
-  {
-   "vendorNo": "3834",
-   "name": "JNJ Construction",
-   "actualCost": 487500,
-   "actualJobs": 1,
-   "committed": 666600,
-   "committedJobs": 1,
-   "variance": 179100,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 487500,
-     "committed": 666600
     }
    ]
   },
@@ -4882,11 +4882,11 @@
   {
    "vendorNo": "2584",
    "name": "Ryan Fire Protection",
-   "actualCost": 388053,
-   "actualJobs": 6,
+   "actualCost": 389381,
+   "actualJobs": 7,
    "committed": 538687,
    "committedJobs": 3,
-   "variance": 150634,
+   "variance": 149306,
    "jobs": [
     {
      "jobNo": "2504CO01",
@@ -4922,6 +4922,12 @@
      "jobNo": "2404CO09",
      "jobName": "Honeyville Metal Office Renova",
      "actual": 1750,
+     "committed": 0
+    },
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 1328,
      "committed": 0
     }
    ]
@@ -6437,6 +6443,59 @@
    ]
   },
   {
+   "vendorNo": "3475",
+   "name": "Bojrab Landscape ManagementLLC",
+   "actualCost": 259047,
+   "actualJobs": 4,
+   "committed": 247273,
+   "committedJobs": 6,
+   "variance": -11774,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 212101,
+     "committed": 101970
+    },
+    {
+     "jobNo": "2302GO10",
+     "jobName": "Center Lake Trail Reconstructi",
+     "actual": 17965,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GO06",
+     "jobName": "Wabash Pickleball Courts",
+     "actual": 14645,
+     "committed": 14645
+    },
+    {
+     "jobNo": "2402GP09",
+     "jobName": "Wakarusa WTP",
+     "actual": 14336,
+     "committed": 28673
+    },
+    {
+     "jobNo": "2413CO08",
+     "jobName": "",
+     "actual": 0,
+     "committed": 68700
+    },
+    {
+     "jobNo": "2515CO01",
+     "jobName": "",
+     "actual": 0,
+     "committed": 11125
+    },
+    {
+     "jobNo": "2611CO01",
+     "jobName": "",
+     "actual": 0,
+     "committed": 22160
+    }
+   ]
+  },
+  {
    "vendorNo": "2916",
    "name": "VFP Fire Systems",
    "actualCost": 258901,
@@ -7217,59 +7276,6 @@
    ]
   },
   {
-   "vendorNo": "3475",
-   "name": "Bojrab Landscape ManagementLLC",
-   "actualCost": 220382,
-   "actualJobs": 4,
-   "committed": 247273,
-   "committedJobs": 6,
-   "variance": 26891,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 173436,
-     "committed": 101970
-    },
-    {
-     "jobNo": "2302GO10",
-     "jobName": "Center Lake Trail Reconstructi",
-     "actual": 17965,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GO06",
-     "jobName": "Wabash Pickleball Courts",
-     "actual": 14645,
-     "committed": 14645
-    },
-    {
-     "jobNo": "2402GP09",
-     "jobName": "Wakarusa WTP",
-     "actual": 14336,
-     "committed": 28673
-    },
-    {
-     "jobNo": "2413CO08",
-     "jobName": "",
-     "actual": 0,
-     "committed": 68700
-    },
-    {
-     "jobNo": "2515CO01",
-     "jobName": "",
-     "actual": 0,
-     "committed": 11125
-    },
-    {
-     "jobNo": "2611CO01",
-     "jobName": "",
-     "actual": 0,
-     "committed": 22160
-    }
-   ]
-  },
-  {
    "vendorNo": "1479",
    "name": "Dancer Concrete Design LLC",
    "actualCost": 210005,
@@ -7573,6 +7579,23 @@
      "jobName": "R. Yoder 2025 2nd Floor Addtn",
      "actual": 3027,
      "committed": 0
+    }
+   ]
+  },
+  {
+   "vendorNo": "3814",
+   "name": "31 Diesel Truck & Wrecker",
+   "actualCost": 201800,
+   "actualJobs": 1,
+   "committed": 395500,
+   "committedJobs": 1,
+   "variance": 193700,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 201800,
+     "committed": 395500
     }
    ]
   },
@@ -8368,23 +8391,6 @@
      "jobName": "White Vet Clinic Improvements",
      "actual": 1400,
      "committed": 3246
-    }
-   ]
-  },
-  {
-   "vendorNo": "3814",
-   "name": "31 Diesel Truck & Wrecker",
-   "actualCost": 155500,
-   "actualJobs": 1,
-   "committed": 395500,
-   "committedJobs": 1,
-   "variance": 240000,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 155500,
-     "committed": 395500
     }
    ]
   },
@@ -11642,6 +11648,23 @@
    ]
   },
   {
+   "vendorNo": "3830",
+   "name": "Miller Land Surveying Inc",
+   "actualCost": 59263,
+   "actualJobs": 1,
+   "committed": 44620,
+   "committedJobs": 1,
+   "variance": -14643,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 59263,
+     "committed": 44620
+    }
+   ]
+  },
+  {
    "vendorNo": "3944",
    "name": "Michels Construction Inc",
    "actualCost": 59200,
@@ -11655,23 +11678,6 @@
      "jobName": "Huntertown Wastewater Treatmen",
      "actual": 59200,
      "committed": 59200
-    }
-   ]
-  },
-  {
-   "vendorNo": "3830",
-   "name": "Miller Land Surveying Inc",
-   "actualCost": 58063,
-   "actualJobs": 1,
-   "committed": 44620,
-   "committedJobs": 1,
-   "variance": -13443,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 58063,
-     "committed": 44620
     }
    ]
   },
@@ -13409,6 +13415,41 @@
    ]
   },
   {
+   "vendorNo": "3904",
+   "name": "United Dumpsters LLC",
+   "actualCost": 35129,
+   "actualJobs": 4,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 28066,
+     "committed": 0
+    },
+    {
+     "jobNo": "2515CO01",
+     "jobName": "Huntertown Wastewater Treatmen",
+     "actual": 5074,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP09",
+     "jobName": "Coldwater WRRF Upgrades Phase1",
+     "actual": 1639,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP10",
+     "jobName": "Ashley WWTP Improvements",
+     "actual": 350,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "2755",
    "name": "Sunbelt Rentals",
    "actualCost": 34830,
@@ -13832,41 +13873,6 @@
      "jobNo": "2413CO08",
      "jobName": "The Monreaux Apartments",
      "actual": 1573,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "3904",
-   "name": "United Dumpsters LLC",
-   "actualCost": 31626,
-   "actualJobs": 4,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 24563,
-     "committed": 0
-    },
-    {
-     "jobNo": "2515CO01",
-     "jobName": "Huntertown Wastewater Treatmen",
-     "actual": 5074,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP09",
-     "jobName": "Coldwater WRRF Upgrades Phase1",
-     "actual": 1639,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP10",
-     "jobName": "Ashley WWTP Improvements",
-     "actual": 350,
      "committed": 0
     }
    ]
@@ -16503,6 +16509,23 @@
    ]
   },
   {
+   "vendorNo": "3840",
+   "name": "Salsbury Industries Inc",
+   "actualCost": 11690,
+   "actualJobs": 1,
+   "committed": 41090,
+   "committedJobs": 1,
+   "variance": 29400,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 11690,
+     "committed": 41090
+    }
+   ]
+  },
+  {
    "vendorNo": "4138",
    "name": "Raynor Door Authority of",
    "actualCost": 11669,
@@ -18162,6 +18185,23 @@
    ]
   },
   {
+   "vendorNo": "4121",
+   "name": "Dakotah Pressure Wash Systems",
+   "actualCost": 5300,
+   "actualJobs": 1,
+   "committed": 3000,
+   "committedJobs": 1,
+   "variance": -2300,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 5300,
+     "committed": 3000
+    }
+   ]
+  },
+  {
    "vendorNo": "2719",
    "name": "State Barricading  Inc.",
    "actualCost": 5289,
@@ -18466,23 +18506,6 @@
      "jobName": "Honeyville Metal Office Renova",
      "actual": 4328,
      "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "4121",
-   "name": "Dakotah Pressure Wash Systems",
-   "actualCost": 4300,
-   "actualJobs": 1,
-   "committed": 3000,
-   "committedJobs": 1,
-   "variance": -1300,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 4300,
-     "committed": 3000
     }
    ]
   },
@@ -21478,23 +21501,6 @@
      "jobName": "",
      "actual": 0,
      "committed": 2230
-    }
-   ]
-  },
-  {
-   "vendorNo": "3840",
-   "name": "Salsbury Industries Inc",
-   "actualCost": 0,
-   "actualJobs": 0,
-   "committed": 41090,
-   "committedJobs": 1,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "",
-     "actual": 0,
-     "committed": 41090
     }
    ]
   },
