@@ -777,8 +777,38 @@ function slug(){const s=weekIdent().slug;if(!/^\d{4}-(w\d+|pre\d+|post\d+)$/.tes
    second tab. Two guards now: nothing empty is ever sent from here, and the server refuses the
    erase independently (409) so a stale tab or a script cannot do it either. */
 async function saveWeek(){
+  /* ⛔ THE GUARD MADE EMPTYING A SLATE IMPOSSIBLE (Keith, 2026-08-16: built 4 games for
+     `2026-pre2`, saved, removed one, saved fine — "then tried to delete the remaining three and
+     got stuck"). 4→3 was allowed and 3→0 was refused, so §3 read "No games in the slate yet"
+     while §4 read "3 games": two truths for one week, and no way out but reopening it.
+
+     The 08-09 guard was written for an editor that is empty because NOTHING WAS EVER LOADED — a
+     reloaded tab, a second tab, a slug typed before the week was opened. It could not tell that
+     from a commissioner who deliberately deleted every row. `slateSlug` already knows the
+     difference: it is the week the editor was filled from, and it is null on a fresh page. So the
+     accidental case is refused exactly as before, and the deliberate one is ASKED FOR — the same
+     shape as the roster's `confirmShrink`. The server has always had the `confirmWipe` door; the
+     client simply never knocked on it. */
+  const target=slug();
   if(!slate.length){
-    toast('The editor is empty — nothing to save. Open the week from §4 "This week" to edit its slate, or load games first.',8000);
+    if(slateSlug!==target){
+      toast('The editor is empty — nothing to save. Open the week from §4 "This week" to edit its slate, or load games first.',8000);
+      return;
+    }
+    /* `confirmWipe` bypasses the server's own refusal, so it must never be sent on a guess about
+       what is there. If §4 has not answered yet, `unknown` is its own state — say so and stop,
+       rather than treating "we have not asked" as "there is nothing". */
+    if(!weekIndexLoaded){toast('Hold on — §4 has not loaded yet, so I cannot say what is saved under '+target+'. Hit Refresh in §4 and try again.',8000);return;}
+    const wk=(weekIndex||[]).find(function(w){return w.slug===target;});
+    const had=wk?(wk.games||0):0;
+    if(!had){toast('Nothing is saved under '+target+' yet, and the editor is empty.',6000);return;}
+    if(!confirm('Clear the slate for '+target+'?\n\nThis deletes all '+had+' saved game'
+      +(had===1?'':'s')+' from that week.\n\nThere is no undo.'))return;
+    try{
+      await post({action:'save_week',code:code(),slug:target,confirmWipe:true,
+        data:{label:document.getElementById('wklabel').value||target,games:[],slateLocked:false}});
+      toast('Slate cleared — '+target+' now has no games.',6000);listWeeks();
+    }catch(e){}
     return;
   }
   try{await post({action:'save_week',code:code(),slug:slug(),
