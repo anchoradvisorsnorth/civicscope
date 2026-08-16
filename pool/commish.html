@@ -30,11 +30,35 @@
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
   .pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700}
   .pill.live{background:#dcfce7;color:#14532d}.pill.draft{background:#fef9c3;color:#854d0e}.pill.done{background:#e0e7ff;color:#3730a3}
-  .gm{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #f0f2f5;font-size:13px}
+  /* ⛔ THE SLATE ROWS DID NOT LINE UP (Keith 2026-08-16: "the UI view on this is a little wonky
+     for the commissioner"). `.gm` was flex + space-between, so the GAME NAME — the one variable
+     -width cell — pushed every column after it to a different x on every row: the kickoff, the
+     spread and the input each landed somewhere new depending on how long the matchup text was,
+     and an OVER/UNDER row (which carries the extra "· OVER/UNDER" tag and no PK button) threw it
+     furthest out. `min-width` was setting a floor, not an alignment. A real grid with named
+     areas fixes it, and gives the PK slot a cell that stays empty on a total so the ✕ column
+     never moves. */
+  .gm{display:grid;align-items:center;gap:6px 10px;padding:9px 10px;border-bottom:1px solid #f0f2f5;font-size:13px;
+      grid-template-columns:minmax(0,1fr) 118px 92px 96px auto auto;
+      grid-template-areas:"t dt sp ctl pk rm"}
+  .gm.lk{grid-template-columns:minmax(0,1fr) 118px 92px;grid-template-areas:"t dt sp"}
   .gm:last-child{border-bottom:none}
-  .gm .t{font-weight:600}
-  .gm .sp{font-weight:800;color:var(--green);min-width:80px;text-align:right}
-  .gm .dt{color:var(--muted);font-size:12px;min-width:130px}
+  .gm .t{grid-area:t;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gm .dt{grid-area:dt;color:var(--muted);font-size:12px;white-space:nowrap}
+  .gm .sp{grid-area:sp;font-weight:800;color:var(--green);text-align:right;white-space:nowrap}
+  .gm .ctl{grid-area:ctl}
+  .gm .ctl input.sm{width:100%}
+  .gm .pk{grid-area:pk;justify-self:center}
+  .gm .rm{grid-area:rm;justify-self:end}
+  /* The commissioner builds slates one-handed on a phone. Six columns cannot survive that, so the
+     row becomes three lines: what the game is, when and at what number, then the controls. */
+  @media(max-width:760px){
+    .gm{grid-template-columns:minmax(0,1fr) auto auto;
+        grid-template-areas:"t t rm" "dt sp sp" "ctl ctl pk";padding:11px 10px}
+    .gm.lk{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"t t" "dt sp"}
+    .gm .t{white-space:normal}
+    .gm .sp{text-align:right}
+  }
   .msg{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:10px;padding:10px 18px;font-size:14px;display:none;z-index:5}
   .muted{color:var(--muted);font-size:12px}
   /* Add-existing picker. Was a prompt() with a numbered list you had to type into — fine to build,
@@ -415,7 +439,11 @@ function closePicker(){document.getElementById('pickovl').classList.remove('on')
 function confirmPicker(){
   const sel=pickSelected();
   if(!sel.length)return;
-  sel.forEach(p=>players.push({name:p.name,phone:p.phone,email:p.email,pin:''}));
+  /* ⛔ CARRY THE ID. This pushed name/phone/email and no `id`, so someone who ALREADY EXISTS was
+     sent to the server as a brand-new person and matched back by name — the upsert path that used
+     to reroll their PIN. "+ Add existing" means "this exact person", and the picker already has
+     their id from list_people; dropping it here was the whole reason it behaved like a new row. */
+  sel.forEach(p=>players.push({id:p.id,name:p.name,phone:p.phone,email:p.email,pin:''}));
   closePicker();renderPlayers();markDirty();
   toast(`${sel.length} added — hit Save players to commit`,6000);
 }
@@ -720,16 +748,20 @@ function renderSlate(){
     const label=isTotal
       ? (g.total!=null?'<span style="color:#0a2240">O/U '+g.total+'</span>':'<span style="color:#b42318">no total set</span>')
       : (g.pickem?'<span style="color:#0a2240">PICK &rsquo;EM</span>':(g.spreadText?esc(g.spreadText):'<span style="color:#b42318">no line</span>'));
+    /* Every unlocked row emits the SAME six cells. A total has no pick'em, so its PK cell is
+       rendered EMPTY rather than omitted — otherwise the ✕ slides one column left and the row
+       stops lining up with the spreads above it, which is exactly what looked wonky. */
     return `
-    <div class="gm">
+    <div class="gm${slateLocked?' lk':''}">
       <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}${isTotal?' · OVER/UNDER':''}</span></span>
       <span class="dt">${new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})} ET</span>
       <span class="sp">${label}</span>
-      ${slateLocked?'':(isTotal
+      ${slateLocked?'':`<span class="ctl">${isTotal
         ? `<input class="sm" placeholder="e.g. 44.5" value="${g.total!=null?g.total:''}" onchange="manualTotal(${i},this.value)" title="the total — over or under this number">`
-        : `<input class="sm" placeholder="e.g. SEA -3.5" value="${g.manual&&g.spreadText&&!g.pickem?esc(g.spreadText):''}" onchange="manualSpread(${i},this.value)" title="manual spread override">`)}
-      ${slateLocked||isTotal?'':`<button class="btn ${g.pickem?'gold':'gray'}" onclick="togglePickem(${i})" title="Score this one straight up — highest score wins, tie is a push">PK</button>`}
-      ${slateLocked?'':`<button class="btn red" onclick="slate.splice(${i},1);renderSlate();renderLoaded()">✕</button>`}
+        : `<input class="sm" placeholder="e.g. SEA -3.5" value="${g.manual&&g.spreadText&&!g.pickem?esc(g.spreadText):''}" onchange="manualSpread(${i},this.value)" title="manual spread override">`}</span>`}
+      ${slateLocked?'':`<span class="pk">${isTotal?''
+        :`<button class="btn ${g.pickem?'gold':'gray'}" onclick="togglePickem(${i})" title="Score this one straight up — highest score wins, tie is a push">PK</button>`}</span>`}
+      ${slateLocked?'':`<span class="rm"><button class="btn red" onclick="slate.splice(${i},1);renderSlate();renderLoaded()">✕</button></span>`}
     </div>`;}).join(''):(weekState==='unknown'
       ? '<div class="muted">Reading the week list…</div>'
       : weekState==='new'
