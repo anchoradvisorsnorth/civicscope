@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.8.0-allinreceipt';  // the all-picks-in notice counts what it sent, releases a dead latch, and can be re-sent
+const VER = '3.9.0-keepthepin';    // a PIN the member already holds is never reissued by a save
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -742,12 +742,42 @@ export default async function handler(req, res) {
               name: String(p.name || '').toUpperCase().slice(0, 20),
               email: String(p.email || '').slice(0, 80) || null,
               phone: d.length === 11 && d[0] === '1' ? '+' + d : (d.length === 10 ? '+1' + d : null),
-              pin: String(p.pin || Math.floor(1000 + Math.random() * 9000)),
+              pin: String(p.pin || ''),          // '' means "not supplied" — resolved below
               notify_email: p?.notify?.email !== false,
               notify_sms: p?.notify?.sms !== false,
               updated_at: new Date().toISOString(),
             };
           }).filter(p => p.name);
+
+          /* ⛔ A BLANK PIN BOX USED TO REROLL A PIN THE MEMBER ALREADY HAD (Keith, 2026-08-16,
+             re-adding BOB N). This line was `pin: String(p.pin || <random>)`, and a row typed by
+             hand — or added by "+ Add existing", which sent no id — carried an empty PIN box. It
+             then went through `pool_people?on_conflict=name_key` with `resolution=merge-duplicates`,
+             so the freshly minted number was written straight over the real one. Bob's PIN 4169
+             was texted to him on 2026-08-08 when he sent JOIN; the next save would have changed it
+             underneath him, silently, and his existing text would have stopped working.
+
+             A PIN is a CREDENTIAL THE MEMBER ALREADY HOLDS. It may only be minted for a person who
+             does not exist yet. So: look up everyone this save touches, by id, by name_key and by
+             phone — the same three handles the rest of this module matches people on — and keep
+             what is on file. Only a genuinely unknown person gets a new number. */
+          /* The whole table, deliberately — it holds the seven people in this crew and would hold
+             tens at any plausible size. Filtering would mean interpolating names into a PostgREST
+             `or=(...)`, and a member called "BOB N, JR" would break the query or silently match
+             nothing, which fails in the direction that rerolls a PIN. Cheap and total beats clever
+             and fragile here. */
+          const seenPeople = await sb('pool_people?select=id,name_key,phone,pin');
+          const known4 = seenPeople.ok ? await seenPeople.json() : [];
+          const pinById = new Map(known4.map(r => [r.id, r.pin]));
+          const pinByKey = new Map(known4.map(r => [r.name_key, r.pin]));
+          const pinByPhone = new Map(known4.filter(r => r.phone).map(r => [r.phone, r.pin]));
+          for (const p of incoming) {
+            if (p.pin) continue;                                     // typed deliberately — honour it
+            const held = (p.id && pinById.get(p.id))
+              || pinByKey.get(p.name)
+              || (p.phone && pinByPhone.get(p.phone));
+            p.pin = String(held || Math.floor(1000 + Math.random() * 9000));
+          }
 
           const cur = await loadRoster('');
           if (!req.body.confirmShrink && cur.length > 1 && incoming.length < cur.length) {
