@@ -1,29 +1,29 @@
 {
- "generatedAt": "2026-08-10T10:12:52.391Z",
+ "generatedAt": "2026-08-17T10:12:45.533Z",
  "source": "BuildingConnected (Autodesk APS)",
  "projects": 284,
- "bids": 2669,
- "subs": 568,
- "cleanBidTotal": 339289717,
+ "bids": 2648,
+ "subs": 558,
+ "cleanBidTotal": 334001972,
  "trades": [
   {
    "trade": "Concrete",
-   "n": 203,
-   "subs": 41,
-   "projects": 104,
-   "p25": 33629,
-   "median": 72480,
-   "p75": 163000,
+   "n": 194,
+   "subs": 35,
+   "projects": 103,
+   "p25": 35275,
+   "median": 80728,
+   "p75": 168106,
    "min": 106,
    "max": 2038000,
    "medPctOfProject": null,
    "pctN": 17,
    "byClass": {
     "building": {
-     "n": 163,
-     "p25": 34412,
-     "median": 72480,
-     "p75": 168106
+     "n": 154,
+     "p25": 35275,
+     "median": 81510,
+     "p75": 170950
     },
     "education": {
      "n": 33,
@@ -41,31 +41,31 @@
   },
   {
    "trade": "Doors / Frames / Hardware",
-   "n": 196,
-   "subs": 24,
+   "n": 192,
+   "subs": 23,
    "projects": 116,
-   "p25": 11000,
-   "median": 27322,
+   "p25": 11200,
+   "median": 27553,
    "p75": 65900,
    "min": 300,
    "max": 2004719,
    "medPctOfProject": null,
-   "pctN": 18,
+   "pctN": 19,
    "byClass": {
     "building": {
-     "n": 140,
-     "p25": 11700,
-     "median": 25900,
-     "p75": 65800
+     "n": 138,
+     "p25": 11200,
+     "median": 25500,
+     "p75": 60134
     },
     "education": {
-     "n": 42,
-     "p25": 14000,
-     "median": 37500,
+     "n": 41,
+     "p25": 18700,
+     "median": 43450,
      "p75": 108095
     },
     "water_wastewater": {
-     "n": 14,
+     "n": 13,
      "p25": 5700,
      "median": 22800,
      "p75": 46226
@@ -73,29 +73,62 @@
    }
   },
   {
+   "trade": "Electrical",
+   "n": 190,
+   "subs": 53,
+   "projects": 121,
+   "p25": 20478,
+   "median": 89582,
+   "p75": 253750,
+   "min": 650,
+   "max": 8099516,
+   "medPctOfProject": null,
+   "pctN": 15,
+   "byClass": {
+    "building": {
+     "n": 124,
+     "p25": 20145,
+     "median": 80300,
+     "p75": 238366
+    },
+    "education": {
+     "n": 35,
+     "p25": 34900,
+     "median": 110800,
+     "p75": 261690
+    },
+    "water_wastewater": {
+     "n": 31,
+     "p25": 18400,
+     "median": 89595,
+     "p75": 625000
+    }
+   }
+  },
+  {
    "trade": "Flooring",
-   "n": 192,
+   "n": 185,
    "subs": 33,
-   "projects": 92,
-   "p25": 12983,
-   "median": 49874,
-   "p75": 122102,
+   "projects": 91,
+   "p25": 11877,
+   "median": 42687,
+   "p75": 108769,
    "min": 250,
    "max": 1224498,
    "medPctOfProject": 2.5,
    "pctN": 32,
    "byClass": {
     "building": {
-     "n": 135,
-     "p25": 12983,
-     "median": 42935,
-     "p75": 131815
+     "n": 130,
+     "p25": 11877,
+     "median": 37949,
+     "p75": 106764
     },
     "education": {
-     "n": 56,
-     "p25": 12817,
-     "median": 66645,
-     "p75": 119581
+     "n": 54,
+     "p25": 11500,
+     "median": 61466,
+     "p75": 116228
     },
     "water_wastewater": {
      "n": 1,
@@ -106,45 +139,12 @@
    }
   },
   {
-   "trade": "Electrical",
-   "n": 188,
-   "subs": 53,
-   "projects": 121,
-   "p25": 20145,
-   "median": 89595,
-   "p75": 261690,
-   "min": 650,
-   "max": 8099516,
-   "medPctOfProject": null,
-   "pctN": 15,
-   "byClass": {
-    "building": {
-     "n": 122,
-     "p25": 18980,
-     "median": 80300,
-     "p75": 248450
-    },
-    "education": {
-     "n": 34,
-     "p25": 34900,
-     "median": 138900,
-     "p75": 261690
-    },
-    "water_wastewater": {
-     "n": 32,
-     "p25": 19140,
-     "median": 150869,
-     "p75": 685000
-    }
-   }
-  },
-  {
    "trade": "Rough / Wood Framing & Carpentry",
-   "n": 153,
-   "subs": 52,
-   "projects": 85,
-   "p25": 8555,
-   "median": 31370,
+   "n": 156,
+   "subs": 50,
+   "projects": 87,
+   "p25": 8639,
+   "median": 30827,
    "p75": 85529,
    "min": 670,
    "max": 3280000,
@@ -152,13 +152,13 @@
    "pctN": 23,
    "byClass": {
     "building": {
-     "n": 115,
+     "n": 117,
      "p25": 10253,
-     "median": 37297,
+     "median": 32972,
      "p75": 85529
     },
     "education": {
-     "n": 33,
+     "n": 34,
      "p25": 3331,
      "median": 25865,
      "p75": 75333
@@ -173,19 +173,19 @@
   },
   {
    "trade": "Masonry",
-   "n": 121,
+   "n": 120,
    "subs": 27,
-   "projects": 73,
+   "projects": 72,
    "p25": 21975,
-   "median": 83602,
-   "p75": 212100,
+   "median": 89243,
+   "p75": 221725,
    "min": 650,
    "max": 3588800,
    "medPctOfProject": null,
    "pctN": 14,
    "byClass": {
     "building": {
-     "n": 90,
+     "n": 89,
      "p25": 13581,
      "median": 76444,
      "p75": 264900
@@ -205,11 +205,44 @@
    }
   },
   {
+   "trade": "Overhead / Coiling / Sectional Doors",
+   "n": 111,
+   "subs": 10,
+   "projects": 54,
+   "p25": 10260,
+   "median": 34500,
+   "p75": 55768,
+   "min": 1554,
+   "max": 495000,
+   "medPctOfProject": null,
+   "pctN": 5,
+   "byClass": {
+    "building": {
+     "n": 73,
+     "p25": 11000,
+     "median": 34800,
+     "p75": 57400
+    },
+    "education": {
+     "n": 16,
+     "p25": 8820,
+     "median": 39079,
+     "p75": 43595
+    },
+    "water_wastewater": {
+     "n": 22,
+     "p25": 9660,
+     "median": 31605,
+     "p75": 40494
+    }
+   }
+  },
+  {
    "trade": "Asphalt / Paving",
-   "n": 110,
+   "n": 109,
    "subs": 32,
-   "projects": 62,
-   "p25": 28125,
+   "projects": 61,
+   "p25": 29500,
    "median": 56920,
    "p75": 123145,
    "min": 750,
@@ -218,10 +251,10 @@
    "pctN": 11,
    "byClass": {
     "building": {
-     "n": 89,
-     "p25": 29500,
-     "median": 53825,
-     "p75": 120890
+     "n": 88,
+     "p25": 29900,
+     "median": 55966,
+     "p75": 123145
     },
     "education": {
      "n": 8,
@@ -238,78 +271,45 @@
    }
   },
   {
-   "trade": "Overhead / Coiling / Sectional Doors",
-   "n": 109,
-   "subs": 10,
-   "projects": 54,
-   "p25": 10260,
-   "median": 31605,
-   "p75": 50900,
-   "min": 1554,
-   "max": 495000,
-   "medPctOfProject": null,
-   "pctN": 5,
-   "byClass": {
-    "building": {
-     "n": 70,
-     "p25": 10261,
-     "median": 34583,
-     "p75": 57400
-    },
-    "education": {
-     "n": 16,
-     "p25": 8820,
-     "median": 39079,
-     "p75": 43595
-    },
-    "water_wastewater": {
-     "n": 23,
-     "p25": 9660,
-     "median": 27000,
-     "p75": 40494
-    }
-   }
-  },
-  {
    "trade": "Painting / Coatings",
-   "n": 109,
-   "subs": 20,
-   "projects": 86,
+   "n": 104,
+   "subs": 19,
+   "projects": 83,
    "p25": 9995,
-   "median": 24549,
-   "p75": 52945,
+   "median": 24113,
+   "p75": 52522,
    "min": 640,
    "max": 928116,
    "medPctOfProject": null,
    "pctN": 11,
    "byClass": {
     "building": {
-     "n": 78,
+     "n": 76,
      "p25": 9980,
-     "median": 24549,
-     "p75": 52522
+     "median": 24113,
+     "p75": 52414
     },
     "education": {
-     "n": 21,
-     "p25": 12135,
-     "median": 35505,
-     "p75": 66511
+     "n": 20,
+     "p25": 13318,
+     "median": 47373,
+     "p75": 101750
     },
     "water_wastewater": {
-     "n": 10,
+     "n": 8,
      "p25": 11277,
-     "median": 21200,
-     "p75": 29560
+     "median": 18806,
+     "p75": 21977
     }
    }
   },
   {
    "trade": "Insulation",
-   "n": 101,
+   "n": 102,
    "subs": 8,
    "projects": 59,
-   "p25": 5853,
-   "median": 12350,
+   "p25": 6000,
+   "median": 13000,
    "p75": 36513,
    "min": 517,
    "max": 890744,
@@ -317,10 +317,10 @@
    "pctN": 7,
    "byClass": {
     "building": {
-     "n": 70,
+     "n": 71,
      "p25": 5853,
-     "median": 12900,
-     "p75": 37902
+     "median": 14220,
+     "p75": 45000
     },
     "education": {
      "n": 21,
@@ -338,22 +338,22 @@
   },
   {
    "trade": "Windows / Storefront / Glazing",
-   "n": 90,
+   "n": 89,
    "subs": 31,
-   "projects": 44,
+   "projects": 43,
    "p25": 7682,
-   "median": 13764,
-   "p75": 30985,
+   "median": 12932,
+   "p75": 27677,
    "min": 925,
    "max": 1076242,
    "medPctOfProject": null,
    "pctN": 7,
    "byClass": {
     "building": {
-     "n": 74,
+     "n": 73,
      "p25": 7906,
-     "median": 15462,
-     "p75": 36100
+     "median": 13764,
+     "p75": 30985
     },
     "education": {
      "n": 15,
@@ -404,22 +404,22 @@
   },
   {
    "trade": "Earthwork / Sitework",
-   "n": 58,
-   "subs": 20,
-   "projects": 44,
-   "p25": 31830,
-   "median": 85911,
-   "p75": 137790,
+   "n": 60,
+   "subs": 21,
+   "projects": 45,
+   "p25": 34000,
+   "median": 88373,
+   "p75": 149771,
    "min": 720,
    "max": 3488000,
    "medPctOfProject": null,
    "pctN": 1,
    "byClass": {
     "building": {
-     "n": 45,
+     "n": 47,
      "p25": 31830,
-     "median": 73352,
-     "p75": 122032
+     "median": 74070,
+     "p75": 126225
     },
     "education": {
      "n": 9,
@@ -432,39 +432,6 @@
      "p25": 1350,
      "median": 99094,
      "p75": 3488000
-    }
-   }
-  },
-  {
-   "trade": "Materials Testing / Geotech",
-   "n": 54,
-   "subs": 12,
-   "projects": 39,
-   "p25": 10000,
-   "median": 14000,
-   "p75": 29625,
-   "min": 3000,
-   "max": 185380,
-   "medPctOfProject": null,
-   "pctN": 1,
-   "byClass": {
-    "building": {
-     "n": 34,
-     "p25": 8376,
-     "median": 14000,
-     "p75": 29500
-    },
-    "education": {
-     "n": 1,
-     "p25": 69373,
-     "median": 69373,
-     "p75": 69373
-    },
-    "water_wastewater": {
-     "n": 19,
-     "p25": 10900,
-     "median": 14905,
-     "p75": 30000
     }
    }
   },
@@ -496,23 +463,56 @@
    }
   },
   {
+   "trade": "Materials Testing / Geotech",
+   "n": 53,
+   "subs": 13,
+   "projects": 38,
+   "p25": 10000,
+   "median": 14000,
+   "p75": 29500,
+   "min": 3000,
+   "max": 185380,
+   "medPctOfProject": null,
+   "pctN": 1,
+   "byClass": {
+    "building": {
+     "n": 34,
+     "p25": 8376,
+     "median": 14000,
+     "p75": 29500
+    },
+    "education": {
+     "n": 1,
+     "p25": 69373,
+     "median": 69373,
+     "p75": 69373
+    },
+    "water_wastewater": {
+     "n": 18,
+     "p25": 10900,
+     "median": 14905,
+     "p75": 26750
+    }
+   }
+  },
+  {
    "trade": "Toilet Partitions & Accessories",
-   "n": 50,
-   "subs": 10,
-   "projects": 37,
-   "p25": 1871,
-   "median": 6279,
-   "p75": 21709,
+   "n": 53,
+   "subs": 11,
+   "projects": 39,
+   "p25": 1657,
+   "median": 4755,
+   "p75": 19536,
    "min": 425,
    "max": 205782,
    "medPctOfProject": null,
    "pctN": 8,
    "byClass": {
     "building": {
-     "n": 38,
-     "p25": 1657,
-     "median": 4755,
-     "p75": 10422
+     "n": 41,
+     "p25": 1504,
+     "median": 4340,
+     "p75": 9593
     },
     "education": {
      "n": 11,
@@ -562,6 +562,33 @@
    }
   },
   {
+   "trade": "Metal Panels / Siding / Roof",
+   "n": 49,
+   "subs": 12,
+   "projects": 25,
+   "p25": 28134,
+   "median": 56344,
+   "p75": 177550,
+   "min": 4253,
+   "max": 792380,
+   "medPctOfProject": null,
+   "pctN": 3,
+   "byClass": {
+    "building": {
+     "n": 40,
+     "p25": 28134,
+     "median": 54717,
+     "p75": 177550
+    },
+    "education": {
+     "n": 9,
+     "p25": 38890,
+     "median": 59194,
+     "p75": 237241
+    }
+   }
+  },
+  {
    "trade": "Fencing & Gates",
    "n": 48,
    "subs": 18,
@@ -596,55 +623,28 @@
   },
   {
    "trade": "Specialties (flagpoles, bollards, mats, lockers)",
-   "n": 46,
-   "subs": 17,
+   "n": 45,
+   "subs": 15,
    "projects": 24,
-   "p25": 5999,
-   "median": 8828,
-   "p75": 13580,
+   "p25": 5848,
+   "median": 7985,
+   "p75": 11755,
    "min": 750,
    "max": 219235,
    "medPctOfProject": null,
    "pctN": 5,
    "byClass": {
     "building": {
-     "n": 38,
+     "n": 36,
      "p25": 5999,
-     "median": 10879,
+     "median": 10850,
      "p75": 14820
     },
     "education": {
-     "n": 8,
-     "p25": 6547,
-     "median": 7500,
-     "p75": 8510
-    }
-   }
-  },
-  {
-   "trade": "Metal Panels / Siding / Roof",
-   "n": 46,
-   "subs": 12,
-   "projects": 24,
-   "p25": 29119,
-   "median": 59710,
-   "p75": 180505,
-   "min": 4253,
-   "max": 792380,
-   "medPctOfProject": null,
-   "pctN": 3,
-   "byClass": {
-    "building": {
-     "n": 38,
-     "p25": 29119,
-     "median": 59710,
-     "p75": 177550
-    },
-    "education": {
-     "n": 8,
-     "p25": 38890,
-     "median": 96450,
-     "p75": 421380
+     "n": 9,
+     "p25": 5575,
+     "median": 7060,
+     "p75": 7985
     }
    }
   },
@@ -653,8 +653,8 @@
    "n": 43,
    "subs": 19,
    "projects": 26,
-   "p25": 24900,
-   "median": 63674,
+   "p25": 20629,
+   "median": 62000,
    "p75": 126000,
    "min": 5200,
    "max": 495600,
@@ -663,8 +663,8 @@
    "byClass": {
     "building": {
      "n": 37,
-     "p25": 20629,
-     "median": 63674,
+     "p25": 19929,
+     "median": 56944,
      "p75": 126000
     },
     "education": {
@@ -676,12 +676,45 @@
    }
   },
   {
+   "trade": "Site Staking / Layout",
+   "n": 42,
+   "subs": 10,
+   "projects": 29,
+   "p25": 4500,
+   "median": 9080,
+   "p75": 22050,
+   "min": 2200,
+   "max": 68800,
+   "medPctOfProject": null,
+   "pctN": 4,
+   "byClass": {
+    "building": {
+     "n": 33,
+     "p25": 6140,
+     "median": 9950,
+     "p75": 22270
+    },
+    "education": {
+     "n": 3,
+     "p25": 4500,
+     "median": 5500,
+     "p75": 8800
+    },
+    "water_wastewater": {
+     "n": 6,
+     "p25": 3600,
+     "median": 9080,
+     "p75": 22050
+    }
+   }
+  },
+  {
    "trade": "Waterproofing / Caulk / Sealants",
    "n": 42,
    "subs": 12,
    "projects": 25,
-   "p25": 9800,
-   "median": 22500,
+   "p25": 10000,
+   "median": 25400,
    "p75": 64092,
    "min": 2400,
    "max": 356000,
@@ -690,8 +723,8 @@
    "byClass": {
     "building": {
      "n": 28,
-     "p25": 9800,
-     "median": 25400,
+     "p25": 10880,
+     "median": 30000,
      "p75": 64092
     },
     "education": {
@@ -709,45 +742,66 @@
    }
   },
   {
-   "trade": "Site Staking / Layout",
-   "n": 41,
-   "subs": 10,
+   "trade": "Final Cleaning",
+   "n": 38,
+   "subs": 13,
    "projects": 28,
-   "p25": 4500,
-   "median": 8800,
-   "p75": 22050,
-   "min": 2200,
-   "max": 68800,
+   "p25": 3151,
+   "median": 7438,
+   "p75": 39000,
+   "min": 700,
+   "max": 239500,
    "medPctOfProject": null,
-   "pctN": 4,
+   "pctN": 2,
    "byClass": {
     "building": {
-     "n": 32,
-     "p25": 6140,
-     "median": 9950,
-     "p75": 22960
+     "n": 25,
+     "p25": 2577,
+     "median": 7438,
+     "p75": 30000
     },
     "education": {
-     "n": 3,
-     "p25": 4500,
-     "median": 5500,
-     "p75": 8800
+     "n": 13,
+     "p25": 5199,
+     "median": 7250,
+     "p75": 39000
+    }
+   }
+  },
+  {
+   "trade": "Fire Protection / Sprinkler",
+   "n": 38,
+   "subs": 10,
+   "projects": 22,
+   "p25": 15480,
+   "median": 56400,
+   "p75": 146500,
+   "min": 2800,
+   "max": 548000,
+   "medPctOfProject": null,
+   "pctN": 6,
+   "byClass": {
+    "building": {
+     "n": 27,
+     "p25": 39800,
+     "median": 98890,
+     "p75": 146500
     },
-    "water_wastewater": {
-     "n": 6,
-     "p25": 3600,
-     "median": 9080,
-     "p75": 22050
+    "education": {
+     "n": 11,
+     "p25": 14500,
+     "median": 17201,
+     "p75": 356554
     }
    }
   },
   {
    "trade": "Landscaping / Seeding",
-   "n": 40,
+   "n": 37,
    "subs": 16,
-   "projects": 26,
-   "p25": 13841,
-   "median": 30324,
+   "projects": 24,
+   "p25": 13670,
+   "median": 25200,
    "p75": 75945,
    "min": 5476,
    "max": 185000,
@@ -755,10 +809,10 @@
    "pctN": 1,
    "byClass": {
     "building": {
-     "n": 35,
+     "n": 32,
      "p25": 16370,
-     "median": 32018,
-     "p75": 77406
+     "median": 46231,
+     "p75": 79975
     },
     "education": {
      "n": 1,
@@ -775,73 +829,13 @@
    }
   },
   {
-   "trade": "Final Cleaning",
-   "n": 39,
-   "subs": 15,
-   "projects": 29,
-   "p25": 3460,
-   "median": 7438,
-   "p75": 39097,
-   "min": 700,
-   "max": 239500,
-   "medPctOfProject": null,
-   "pctN": 2,
-   "byClass": {
-    "building": {
-     "n": 26,
-     "p25": 2577,
-     "median": 7438,
-     "p75": 30000
-    },
-    "education": {
-     "n": 12,
-     "p25": 6700,
-     "median": 21194,
-     "p75": 39097
-    },
-    "water_wastewater": {
-     "n": 1,
-     "p25": 90340,
-     "median": 90340,
-     "p75": 90340
-    }
-   }
-  },
-  {
-   "trade": "Fire Protection / Sprinkler",
-   "n": 36,
-   "subs": 10,
-   "projects": 21,
-   "p25": 15480,
-   "median": 52600,
-   "p75": 150000,
-   "min": 2800,
-   "max": 548000,
-   "medPctOfProject": null,
-   "pctN": 6,
-   "byClass": {
-    "building": {
-     "n": 25,
-     "p25": 39800,
-     "median": 56400,
-     "p75": 135700
-    },
-    "education": {
-     "n": 11,
-     "p25": 14500,
-     "median": 17201,
-     "p75": 356554
-    }
-   }
-  },
-  {
    "trade": "Drywall / Gypsum",
-   "n": 34,
+   "n": 32,
    "subs": 9,
-   "projects": 27,
-   "p25": 8299,
-   "median": 31141,
-   "p75": 68725,
+   "projects": 26,
+   "p25": 11034,
+   "median": 37535,
+   "p75": 98945,
    "min": 263,
    "max": 1021914,
    "medPctOfProject": null,
@@ -860,9 +854,9 @@
      "p75": 55251
     },
     "water_wastewater": {
-     "n": 4,
-     "p25": 8725,
-     "median": 18041,
+     "n": 2,
+     "p25": 18041,
+     "median": 42325,
      "p75": 42325
     }
    }
@@ -955,23 +949,50 @@
    }
   },
   {
+   "trade": "Gutters / Downspouts",
+   "n": 17,
+   "subs": 7,
+   "projects": 10,
+   "p25": 1675,
+   "median": 1875,
+   "p75": 3328,
+   "min": 620,
+   "max": 88152,
+   "medPctOfProject": null,
+   "pctN": 0,
+   "byClass": {
+    "building": {
+     "n": 14,
+     "p25": 1675,
+     "median": 2636,
+     "p75": 5152
+    },
+    "water_wastewater": {
+     "n": 3,
+     "p25": 1458,
+     "median": 1875,
+     "p75": 3030
+    }
+   }
+  },
+  {
    "trade": "Metal Building / PEMB",
-   "n": 19,
+   "n": 16,
    "subs": 12,
-   "projects": 11,
+   "projects": 10,
    "p25": 86127,
-   "median": 168900,
-   "p75": 524000,
+   "median": 146250,
+   "p75": 238643,
    "min": 67849,
    "max": 1021979,
    "medPctOfProject": null,
    "pctN": 0,
    "byClass": {
     "building": {
-     "n": 13,
-     "p25": 111088,
-     "median": 172250,
-     "p75": 524000
+     "n": 10,
+     "p25": 78200,
+     "median": 168900,
+     "p75": 180300
     },
     "education": {
      "n": 3,
@@ -1011,33 +1032,6 @@
      "p25": 2294,
      "median": 2398,
      "p75": 2448
-    }
-   }
-  },
-  {
-   "trade": "Gutters / Downspouts",
-   "n": 14,
-   "subs": 6,
-   "projects": 9,
-   "p25": 1692,
-   "median": 2775,
-   "p75": 5152,
-   "min": 1458,
-   "max": 88152,
-   "medPctOfProject": null,
-   "pctN": 0,
-   "byClass": {
-    "building": {
-     "n": 11,
-     "p25": 1692,
-     "median": 2775,
-     "p75": 5349
-    },
-    "water_wastewater": {
-     "n": 3,
-     "p25": 1458,
-     "median": 1875,
-     "p75": 3030
     }
    }
   },
@@ -1091,21 +1085,21 @@
   },
   {
    "trade": "Siding / Exterior Cladding",
-   "n": 12,
+   "n": 13,
    "subs": 8,
-   "projects": 9,
-   "p25": 37733,
-   "median": 125830,
-   "p75": 143250,
+   "projects": 10,
+   "p25": 25400,
+   "median": 66200,
+   "p75": 140998,
    "min": 3132,
    "max": 1430842,
    "medPctOfProject": null,
    "pctN": 0,
    "byClass": {
     "building": {
-     "n": 10,
-     "p25": 47710,
-     "median": 140998,
+     "n": 11,
+     "p25": 25400,
+     "median": 125830,
      "p75": 143250
     },
     "water_wastewater": {
@@ -1301,22 +1295,22 @@
   },
   {
    "trade": "Firestopping",
-   "n": 1,
+   "n": 2,
    "subs": 1,
-   "projects": 1,
+   "projects": 2,
    "p25": 8000,
-   "median": 8000,
-   "p75": 8000,
+   "median": 8087,
+   "p75": 8087,
    "min": 8000,
-   "max": 8000,
+   "max": 8087,
    "medPctOfProject": null,
    "pctN": 0,
    "byClass": {
     "building": {
-     "n": 1,
+     "n": 2,
      "p25": 8000,
-     "median": 8000,
-     "p75": 8000
+     "median": 8087,
+     "p75": 8087
     }
    }
   }
