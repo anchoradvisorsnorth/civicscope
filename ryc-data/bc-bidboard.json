@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-16T09:30:09.766Z",
+ "generatedAt": "2026-08-17T09:30:10.165Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -44,23 +44,6 @@
      ]
     },
     {
-     "id": "69a71a7957b080769f6b0957",
-     "name": "Awnings",
-     "number": "06-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 1,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "BH Awning"
-     ]
-    },
-    {
      "id": "69a7158c18d056078e1fb9bf",
      "name": "Demolition",
      "number": "02",
@@ -75,6 +58,23 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "Michiana Recycling and Disposal"
+     ]
+    },
+    {
+     "id": "69a71a7957b080769f6b0957",
+     "name": "Awnings",
+     "number": "06-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "BH Awning"
      ]
     },
     {
@@ -540,23 +540,6 @@
      ]
     },
     {
-     "id": "6a022cf0c3591c68c7a3215e",
-     "name": "HVAC",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Dynamic Mechanical Services, Inc."
-     ]
-    },
-    {
      "id": "6a022d0bae28a07b4d475101",
      "name": "Electrical",
      "number": null,
@@ -571,6 +554,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "D&D Electrical Contractors"
+     ]
+    },
+    {
+     "id": "6a022cf0c3591c68c7a3215e",
+     "name": "HVAC",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Dynamic Mechanical Services, Inc."
      ]
     },
     {
@@ -605,6 +605,20 @@
      "awardedCompany": null
     },
     {
+     "id": "6a022160e2751b37f7554aa8",
+     "name": "Building Insulation",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
+    },
+    {
      "id": "6a02212e44826dba5a600a30",
      "name": "PEMB Insulation",
      "number": null,
@@ -620,20 +634,6 @@
      "biddingSubs": [
       "Silvercote"
      ]
-    },
-    {
-     "id": "6a022160e2751b37f7554aa8",
-     "name": "Building Insulation",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
     },
     {
      "id": "6a022a285e266905149cee3c",
@@ -1228,11 +1228,11 @@
    "value": null,
    "isPublic": false,
    "packages": 15,
-   "covered": 10,
-   "atRisk": 5,
+   "covered": 11,
+   "atRisk": 4,
    "invites": 96,
-   "bidding": 13,
-   "undecided": 68,
+   "bidding": 14,
+   "undecided": 67,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -1257,26 +1257,6 @@
       "D.A. Dodd, LLC",
       "Core Mechanical Services",
       "Griffen P & H, LLC"
-     ]
-    },
-    {
-     "id": "6a74cece7fa69a3565091373",
-     "name": "Materials Testing",
-     "number": "01-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-24T16:00:00.000Z",
-     "invites": 5,
-     "bidding": 0,
-     "undecided": 4,
-     "notBidding": 1,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Terracon Consultants, Inc.",
-      "Construction Field Services LLC",
-      "ALT & Witzig Engineering, Inc.",
-      "Patriot Engineering and Environmental, Inc."
      ]
     },
     {
@@ -1384,6 +1364,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Falk-Pli Engineering & Surveying, Inc."
+     ]
+    },
+    {
+     "id": "6a74cece7fa69a3565091373",
+     "name": "Materials Testing",
+     "number": "01-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 5,
+     "bidding": 1,
+     "undecided": 3,
+     "notBidding": 1,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Construction Field Services LLC"
      ]
     },
     {
@@ -1529,8 +1526,8 @@
    "covered": 5,
    "atRisk": 6,
    "invites": 201,
-   "bidding": 10,
-   "undecided": 164,
+   "bidding": 11,
+   "undecided": 162,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -1541,9 +1538,9 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 74,
      "bidding": 0,
-     "undecided": 68,
-     "notBidding": 6,
-     "viewed": 12,
+     "undecided": 67,
+     "notBidding": 7,
+     "viewed": 13,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1750,25 +1747,6 @@
      ]
     },
     {
-     "id": "6a736be00b0b972200c8d53b",
-     "name": "Electrical",
-     "number": "26-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-01T15:00:00.000Z",
-     "invites": 45,
-     "bidding": 3,
-     "undecided": 34,
-     "notBidding": 8,
-     "viewed": 12,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Electric Plus, Inc.",
-      "Brand Electric Inc.",
-      "Stelko Electric, Inc"
-     ]
-    },
-    {
      "id": "6a7a3b75e838b1b1dabb1c42",
      "name": "Directional Boring",
      "number": "33-01",
@@ -1785,6 +1763,26 @@
       "S & S Directional Boring, Ltd.",
       "Berry It LLC",
       "Daystar Directional Drilling Inc."
+     ]
+    },
+    {
+     "id": "6a736be00b0b972200c8d53b",
+     "name": "Electrical",
+     "number": "26-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-01T15:00:00.000Z",
+     "invites": 45,
+     "bidding": 4,
+     "undecided": 33,
+     "notBidding": 8,
+     "viewed": 12,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Reliant Electric Solar LLC",
+      "Electric Plus, Inc.",
+      "Brand Electric Inc.",
+      "Stelko Electric, Inc"
      ]
     }
    ]
@@ -1809,7 +1807,7 @@
    "atRisk": 15,
    "invites": 221,
    "bidding": 10,
-   "undecided": 201,
+   "undecided": 200,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -2174,7 +2172,7 @@
      "bidding": 1,
      "undecided": 24,
      "notBidding": 1,
-     "viewed": 7,
+     "viewed": 8,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2274,8 +2272,8 @@
      "bidsDueAt": "2026-09-02T16:00:00.000Z",
      "invites": 4,
      "bidding": 1,
-     "undecided": 3,
-     "notBidding": 0,
+     "undecided": 2,
+     "notBidding": 1,
      "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
