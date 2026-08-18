@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-17T09:30:10.165Z",
+ "generatedAt": "2026-08-18T09:30:10.612Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -44,23 +44,6 @@
      ]
     },
     {
-     "id": "69a7158c18d056078e1fb9bf",
-     "name": "Demolition",
-     "number": "02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 1,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Michiana Recycling and Disposal"
-     ]
-    },
-    {
      "id": "69a71a7957b080769f6b0957",
      "name": "Awnings",
      "number": "06-02",
@@ -75,6 +58,23 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "BH Awning"
+     ]
+    },
+    {
+     "id": "69a7158c18d056078e1fb9bf",
+     "name": "Demolition",
+     "number": "02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Michiana Recycling and Disposal"
      ]
     },
     {
@@ -223,24 +223,6 @@
      ]
     },
     {
-     "id": "69a70f671e2ea8f73a1dbb7d",
-     "name": "Wood Framing",
-     "number": "06",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 2,
-     "undecided": 0,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Jenks Carpentry Inc.",
-      "Big C Lumber"
-     ]
-    },
-    {
      "id": "69a70f671e2ea8632c1dbb80",
      "name": "Flooring",
      "number": "09",
@@ -273,6 +255,24 @@
      "biddingSubs": [
       "F.E. Moran, Inc.",
       "Ryan Fireprotection Inc."
+     ]
+    },
+    {
+     "id": "69a70f671e2ea8f73a1dbb7d",
+     "name": "Wood Framing",
+     "number": "06",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 2,
+     "undecided": 0,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Jenks Carpentry Inc.",
+      "Big C Lumber"
      ]
     },
     {
@@ -540,23 +540,6 @@
      ]
     },
     {
-     "id": "6a022d0bae28a07b4d475101",
-     "name": "Electrical",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "D&D Electrical Contractors"
-     ]
-    },
-    {
      "id": "6a022cf0c3591c68c7a3215e",
      "name": "HVAC",
      "number": null,
@@ -571,6 +554,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Dynamic Mechanical Services, Inc."
+     ]
+    },
+    {
+     "id": "6a022d0bae28a07b4d475101",
+     "name": "Electrical",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "D&D Electrical Contractors"
      ]
     },
     {
@@ -903,12 +903,12 @@
    "value": null,
    "isPublic": false,
    "packages": 15,
-   "covered": 8,
-   "atRisk": 7,
-   "invites": 177,
-   "bidding": 13,
-   "undecided": 109,
-   "bidsReceived": 1,
+   "covered": 12,
+   "atRisk": 3,
+   "invites": 179,
+   "bidding": 18,
+   "undecided": 101,
+   "bidsReceived": 4,
    "pkgs": [
     {
      "id": "6a736f79e8a5e7b4459f4cf7",
@@ -918,13 +918,12 @@
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
      "invites": 37,
      "bidding": 0,
-     "undecided": 25,
-     "notBidding": 12,
-     "viewed": 4,
+     "undecided": 24,
+     "notBidding": 13,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "Pajay Excavating",
       "Jackson - Merkey Contractors, Inc.",
       "CD Hughes",
       "Iron Horse Excavation LLC",
@@ -952,82 +951,20 @@
      ]
     },
     {
-     "id": "6a73a486ad31ff4f48b6103b",
-     "name": "HVAC",
-     "number": "23-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-17T16:00:00.000Z",
-     "invites": 13,
-     "bidding": 0,
-     "undecided": 3,
-     "notBidding": 10,
-     "viewed": 6,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "TC Mechanical",
-      "B.C. Mechanical",
-      "Griffen P & H, LLC"
-     ]
-    },
-    {
-     "id": "6a738214c0113181ab57b619",
-     "name": "Concrete Surface Restoration",
-     "number": "03-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-17T16:00:00.000Z",
-     "invites": 9,
-     "bidding": 0,
-     "undecided": 7,
-     "notBidding": 2,
-     "viewed": 4,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Cyrus Masonry And Restoration Inc.",
-      "Concrete Restoration Maintenance",
-      "RAM Construction Services of Michigan, Inc. ",
-      "Lacy Construction Group, Inc. DBA The NEW Group",
-      "Robert Haines Co., Inc.",
-      "Accurate Concrete Co",
-      "GS Restoration Service"
-     ]
-    },
-    {
-     "id": "6a7c8e9516d8ab17fce69029",
-     "name": "Masonry",
-     "number": "04-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-17T16:00:00.000Z",
-     "invites": 6,
-     "bidding": 0,
-     "undecided": 5,
-     "notBidding": 1,
-     "viewed": 3,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Jesse Adams & Son Masonry LLC",
-      "Wines and Sons Masonry",
-      "Austin Masonry",
-      "McLaughlin Masonry",
-      "Tony's Stone Brick and Block LLC"
-     ]
-    },
-    {
      "id": "6a73a39efa407ca94d91a2e6",
      "name": "Misc. Metals",
      "number": "05-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
-     "invites": 6,
+     "invites": 7,
      "bidding": 0,
-     "undecided": 5,
+     "undecided": 6,
      "notBidding": 1,
      "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
+      "HME, Inc",
       "Valley Steel Fabricators LLC",
       "Fab N Weld",
       "Westshore Service",
@@ -1053,38 +990,32 @@
      ]
     },
     {
-     "id": "6a736f79e8a5e763669f4d01",
-     "name": "Process Instrumentation, Controls, SCADA",
-     "number": "40-03",
+     "id": "6a73a486ad31ff4f48b6103b",
+     "name": "HVAC",
+     "number": "23-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
-     "invites": 1,
+     "invites": 14,
      "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Windemuller Electric"
-     ]
+     "undecided": 4,
+     "notBidding": 10,
+     "viewed": 7,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
-     "id": "6a736f79e8a5e7b22f9f4cf9",
-     "name": "Electrical",
-     "number": "26-01",
+     "id": "6a738214c0113181ab57b619",
+     "name": "Concrete Surface Restoration",
+     "number": "03-02",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
-     "invites": 29,
-     "bidding": 1,
-     "undecided": 17,
-     "notBidding": 11,
-     "viewed": 14,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Windemuller Electric"
-     ]
+     "invites": 9,
+     "bidding": 0,
+     "undecided": 7,
+     "notBidding": 2,
+     "viewed": 4,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a736f79e8a5e729be9f4d00",
@@ -1101,23 +1032,6 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Maddox Industrial LLC"
-     ]
-    },
-    {
-     "id": "6a7c9cccc57d0a763a373920",
-     "name": "Monorail Hoist System",
-     "number": "41-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-17T16:00:00.000Z",
-     "invites": 7,
-     "bidding": 1,
-     "undecided": 5,
-     "notBidding": 1,
-     "viewed": 3,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Lift Solutions Holdings, LLC"
      ]
     },
     {
@@ -1138,6 +1052,41 @@
      ]
     },
     {
+     "id": "6a736f79e8a5e763669f4d01",
+     "name": "Process Instrumentation, Controls, SCADA",
+     "number": "40-03",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-17T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 1,
+     "undecided": 0,
+     "notBidding": 0,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Windemuller Electric"
+     ]
+    },
+    {
+     "id": "6a736f79e8a5e7b22f9f4cf9",
+     "name": "Electrical",
+     "number": "26-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-17T16:00:00.000Z",
+     "invites": 29,
+     "bidding": 2,
+     "undecided": 15,
+     "notBidding": 12,
+     "viewed": 14,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Mead & White Electric Co.",
+      "Windemuller Electric"
+     ]
+    },
+    {
      "id": "6a736f79e8a5e72c449f4cf5",
      "name": "Concrete, Grout, Concrete Infill",
      "number": "03-01",
@@ -1145,8 +1094,8 @@
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
      "invites": 14,
      "bidding": 2,
-     "undecided": 9,
-     "notBidding": 3,
+     "undecided": 8,
+     "notBidding": 4,
      "viewed": 6,
      "bidsReceived": 0,
      "awardedCompany": null,
@@ -1191,15 +1140,50 @@
      ]
     },
     {
+     "id": "6a7c9cccc57d0a763a373920",
+     "name": "Monorail Hoist System",
+     "number": "41-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-17T16:00:00.000Z",
+     "invites": 7,
+     "bidding": 2,
+     "undecided": 4,
+     "notBidding": 1,
+     "viewed": 3,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Dearborn Overhead Crane",
+      "Lift Solutions Holdings, LLC"
+     ]
+    },
+    {
+     "id": "6a7c8e9516d8ab17fce69029",
+     "name": "Masonry",
+     "number": "04-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-17T16:00:00.000Z",
+     "invites": 6,
+     "bidding": 1,
+     "undecided": 4,
+     "notBidding": 1,
+     "viewed": 3,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Austin Masonry"
+     ]
+    },
+    {
      "id": "6a736f79e8a5e7b5759f4cfb",
      "name": "Process Equipment & Valves",
      "number": "40-02, 41-01, 43-01 & 46-01",
      "state": "PUBLISHED",
      "bidsDueAt": "2026-08-17T16:00:00.000Z",
      "invites": 19,
-     "bidding": 4,
-     "undecided": 9,
-     "notBidding": 6,
+     "bidding": 5,
+     "undecided": 6,
+     "notBidding": 8,
      "viewed": 13,
      "bidsReceived": 0,
      "awardedCompany": null,
@@ -1207,6 +1191,7 @@
       "JGM Valve Corporation",
       "Environmental Sales Inc",
       "Waterworks Systems & Equipment Inc.",
+      "Hamlett Environmental",
       "Kennedy Industries"
      ]
     }
@@ -1231,8 +1216,8 @@
    "covered": 11,
    "atRisk": 4,
    "invites": 96,
-   "bidding": 14,
-   "undecided": 67,
+   "bidding": 15,
+   "undecided": 66,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -1401,23 +1386,6 @@
      ]
     },
     {
-     "id": "6a7ca1a94dd84a79a7cfbb7e",
-     "name": "Fences & Gates",
-     "number": "32-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-24T16:00:00.000Z",
-     "invites": 4,
-     "bidding": 1,
-     "undecided": 2,
-     "notBidding": 1,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Custom Fence Co."
-     ]
-    },
-    {
      "id": "6a70c61c25bd11ce3266c1ef",
      "name": "Concrete",
      "number": "03-01",
@@ -1432,23 +1400,6 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Jess Concrete INC"
-     ]
-    },
-    {
-     "id": "6a70c5763046fb65ecbe600b",
-     "name": "Masonry",
-     "number": "04-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-24T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 1,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Tony's Stone Brick and Block LLC"
      ]
     },
     {
@@ -1469,6 +1420,23 @@
      ]
     },
     {
+     "id": "6a70c5763046fb65ecbe600b",
+     "name": "Masonry",
+     "number": "04-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 1,
+     "undecided": 2,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Tony's Stone Brick and Block LLC"
+     ]
+    },
+    {
      "id": "6a70c71ec3b5eee4914153bc",
      "name": "FRP Doors & Hardware",
      "number": "08-01",
@@ -1484,6 +1452,24 @@
      "biddingSubs": [
       "Midwest Glass & Mirror",
       "Central Indiana Hardware"
+     ]
+    },
+    {
+     "id": "6a7ca1a94dd84a79a7cfbb7e",
+     "name": "Fences & Gates",
+     "number": "32-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 4,
+     "bidding": 2,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 3,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Mike's Fencing",
+      "Custom Fence Co."
      ]
     },
     {
@@ -1527,7 +1513,7 @@
    "atRisk": 6,
    "invites": 201,
    "bidding": 11,
-   "undecided": 162,
+   "undecided": 158,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -1538,8 +1524,8 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 74,
      "bidding": 0,
-     "undecided": 67,
-     "notBidding": 7,
+     "undecided": 66,
+     "notBidding": 8,
      "viewed": 13,
      "bidsReceived": 0,
      "awardedCompany": null,
@@ -1579,9 +1565,9 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 24,
      "bidding": 0,
-     "undecided": 20,
-     "notBidding": 4,
-     "viewed": 6,
+     "undecided": 19,
+     "notBidding": 5,
+     "viewed": 7,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1593,7 +1579,6 @@
       "RPMechanical LLC",
       "A A Huber & Sons, Inc.",
       "Premier Mechanical, Inc.",
-      "TP Mechanical Contractors - Indianapolis",
       "Lehmans Mechanical - Anderson",
       "Greiner Brothers Inc.",
       "Sexson Mechanical Company LLC",
@@ -1642,14 +1627,13 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 7,
      "bidding": 0,
-     "undecided": 6,
-     "notBidding": 1,
+     "undecided": 5,
+     "notBidding": 2,
      "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
       "Shield Industrial Painting & Lining",
-      "BlasTek",
       "Redox Coating Consultants",
       "Dean Baughman Industrial Services",
       "Prism Painting",
@@ -1684,13 +1668,12 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 2,
      "bidding": 0,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 0,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 1,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
-      "BMWC CONSTRUCTORS, INC. ",
       "Maddox Industrial LLC"
      ]
     },
@@ -1756,7 +1739,7 @@
      "bidding": 3,
      "undecided": 7,
      "notBidding": 1,
-     "viewed": 6,
+     "viewed": 7,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1802,12 +1785,12 @@
    "architect": null,
    "value": null,
    "isPublic": false,
-   "packages": 24,
-   "covered": 9,
-   "atRisk": 15,
-   "invites": 221,
-   "bidding": 10,
-   "undecided": 200,
+   "packages": 26,
+   "covered": 10,
+   "atRisk": 16,
+   "invites": 228,
+   "bidding": 11,
+   "undecided": 202,
    "bidsReceived": 0,
    "pkgs": [
     {
@@ -1954,15 +1937,14 @@
      "bidsDueAt": "2026-09-02T16:00:00.000Z",
      "invites": 7,
      "bidding": 0,
-     "undecided": 7,
-     "notBidding": 0,
-     "viewed": 1,
+     "undecided": 6,
+     "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
       "Arnt Asphalt Sealing, Inc.",
       "Hasty’s Asphalt & Seal Coating",
-      "Milestone Contractors, L.P.",
       "Phend & Brown, Inc.",
       "Rieth-Riley Construction Co., Inc.",
       "Niblock Excavating & Asphalt",
@@ -1993,29 +1975,6 @@
      ]
     },
     {
-     "id": "6a7cbabf1944301c6895b7d7",
-     "name": "Resilient Flooring",
-     "number": "09-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-02T16:00:00.000Z",
-     "invites": 7,
-     "bidding": 0,
-     "undecided": 7,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Diverzify, LLC",
-      "J Lane Flooring & Design Inc. ",
-      "Interior Finishes Inc.",
-      "Midwest TILE & Interiors Inc",
-      "Carpet Service Outlet",
-      "Superior Flooring",
-      "Jack Laurie Floors, LLC."
-     ]
-    },
-    {
      "id": "6a7cb8092b2972250bf011a9",
      "name": "Abatement",
      "number": "02-01",
@@ -2038,6 +1997,27 @@
      ]
     },
     {
+     "id": "6a832a39967955695a64ae03",
+     "name": "Architectural Woodwork",
+     "number": "06-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-02T16:00:00.000Z",
+     "invites": 6,
+     "bidding": 0,
+     "undecided": 5,
+     "notBidding": 1,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Focal Point Cabinetry, Inc.",
+      "Custom Millwork and Display",
+      "One Source Fabrication",
+      "Key Millwork",
+      "LUE Manufacturing"
+     ]
+    },
+    {
      "id": "6a7cba4898ff839fb620a77a",
      "name": "Acoustical Ceilings",
      "number": "09-01 ",
@@ -2047,7 +2027,7 @@
      "bidding": 0,
      "undecided": 6,
      "notBidding": 0,
-     "viewed": 2,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -2163,6 +2143,23 @@
      ]
     },
     {
+     "id": "6a83297403762ddc08c8a9bc",
+     "name": "Wire Mesh Partitions",
+     "number": "10-06",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-02T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "International Precast, Inc."
+     ]
+    },
+    {
      "id": "6a7cbf5683fd14e8a178600f",
      "name": "Electrical",
      "number": "24-01",
@@ -2172,7 +2169,7 @@
      "bidding": 1,
      "undecided": 24,
      "notBidding": 1,
-     "viewed": 8,
+     "viewed": 10,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2187,8 +2184,8 @@
      "bidsDueAt": "2026-09-02T16:00:00.000Z",
      "invites": 14,
      "bidding": 1,
-     "undecided": 13,
-     "notBidding": 0,
+     "undecided": 12,
+     "notBidding": 1,
      "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
@@ -2206,7 +2203,7 @@
      "bidding": 1,
      "undecided": 9,
      "notBidding": 0,
-     "viewed": 4,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2245,6 +2242,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Tony's Stone Brick and Block LLC"
+     ]
+    },
+    {
+     "id": "6a7cbabf1944301c6895b7d7",
+     "name": "Resilient Flooring",
+     "number": "09-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-02T16:00:00.000Z",
+     "invites": 7,
+     "bidding": 1,
+     "undecided": 6,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Superior Flooring"
      ]
     },
     {
@@ -2289,9 +2303,9 @@
      "bidsDueAt": "2026-09-02T16:00:00.000Z",
      "invites": 3,
      "bidding": 1,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 1,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
