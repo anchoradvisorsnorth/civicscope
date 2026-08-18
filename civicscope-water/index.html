@@ -237,21 +237,45 @@ $('btnWho').onclick = async () => {
   S.op = { id, pin, name:op.name, initials:op.initials }; save();
   $('whoChip').textContent = op.initials; $('whoChip').classList.remove('hide');
   $('scrWho').classList.add('hide'); $('app').classList.remove('hide');
-  await refreshRound();
+  // Land on the screen the link asked for, not always the round.
+  showTab(location.hash.slice(1) || 'round', { push: false });
 };
 
-document.querySelectorAll('nav.tabs button').forEach(b=>{
-  b.onclick = () => {
-    document.querySelectorAll('nav.tabs button').forEach(x=>x.setAttribute('aria-current', x===b));
-    S.tab = b.dataset.tab;
-    $('tabRound').classList.toggle('hide', S.tab!=='round');
-    $('tabEntry').classList.add('hide');
-    $('tabDist').classList.toggle('hide', S.tab!=='dist');
-    $('tabBook').classList.toggle('hide', S.tab!=='book');
-    if(S.tab==='book') paintBook();
-    if(S.tab==='round') refreshRound();
-  };
+// ---- screen ↔ URL -----------------------------------------------------------------------------
+// The app had no routing at all: four screens, one address, no history entries. Two consequences,
+// both felt in the field rather than in the data (state itself is safe in localStorage):
+//
+//   1. THE BACK GESTURE EXITED THE WHOLE APP. On a phone, back is reflexive — with nothing on the
+//      history stack, one swipe mid-round left the plant log entirely.
+//   2. NOTHING WAS LINKABLE. "Look at the records for this month" could not be sent to anyone,
+//      which is exactly what the OIC needs when reviewing what an operator entered.
+//
+// The tab now lives in the URL hash (`/water#book`). Hash rather than pushState deliberately: it
+// needs no server rewrite, so it cannot break the single `/water` route or the deploy's routing
+// gate, and it works identically on the deployment URL and the production alias.
+const TABS = ['round', 'dist', 'book'];
+
+function showTab(tab, { push = true } = {}) {
+  if (!TABS.includes(tab)) tab = 'round';
+  S.tab = tab;
+  document.querySelectorAll('nav.tabs button')
+    .forEach(x => x.setAttribute('aria-current', x.dataset.tab === tab));
+  $('tabRound').classList.toggle('hide', tab !== 'round');
+  $('tabEntry').classList.add('hide');
+  $('tabDist').classList.toggle('hide', tab !== 'dist');
+  $('tabBook').classList.toggle('hide', tab !== 'book');
+  if (push && location.hash.slice(1) !== tab) location.hash = tab;
+  if (tab === 'book') paintBook();
+  if (tab === 'round') refreshRound();
+}
+
+document.querySelectorAll('nav.tabs button').forEach(b => {
+  b.onclick = () => showTab(b.dataset.tab);
 });
+
+// Back/forward — including the phone's back gesture — now move between screens instead of
+// leaving the app. `push:false` so restoring a screen does not add another history entry.
+window.addEventListener('hashchange', () => showTab(location.hash.slice(1), { push: false }));
 
 // ---- the round --------------------------------------------------------------------------------
 async function refreshRound(){
@@ -500,7 +524,9 @@ if(S.wssn && S.code){
       if(!still) return;
       $('whoChip').textContent = S.op.initials; $('whoChip').classList.remove('hide');
       $('scrWho').classList.add('hide'); $('scrUnlock').classList.add('hide'); $('app').classList.remove('hide');
-      refreshRound();
+      // Honour a linked screen (/water#book) instead of always landing on the round. This is
+      // what makes a screen sendable — the OIC can point an operator at the records directly.
+      showTab(location.hash.slice(1) || 'round', { push: false });
     }, 120);
   }
 }
