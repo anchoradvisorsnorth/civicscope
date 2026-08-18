@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<!-- civicscope-village v1.0.0 | 2026-08-18 — a village's front door: one address, every product -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Village Hub — CivicScope</title>
+<meta name="description" content="The Village's CivicScope tools in one place.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/civicscope.css">
+<style>
+  /* Layout only — every colour and typeface comes from civicscope.css tokens.
+     Built for one reader: the village manager, often on a tablet, often standing up. */
+  body { background: var(--cream); color: var(--ink); font-family: var(--font-body); }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 56px 24px 80px; }
+
+  header.masthead { margin-bottom: 40px; }
+  .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+             color: var(--muted); margin-bottom: 12px; }
+  h1 { font-family: var(--font-display); font-weight: 600;
+       font-size: clamp(30px, 6vw, 44px); line-height: 1.12; margin: 0 0 12px; }
+  .sub { color: var(--ink-light); font-size: 17px; line-height: 1.55; margin: 0; }
+  .sub a { color: var(--accent); }
+
+  /* Product cards — the whole point of the page */
+  .cards { display: grid; gap: 16px; margin: 8px 0 0; }
+  a.card {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--white); border: 1px solid var(--rule); border-radius: var(--radius-md);
+    padding: 26px 28px; box-shadow: var(--shadow-sm);
+    transition: border-color var(--ease), box-shadow var(--ease), transform var(--ease);
+  }
+  a.card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .card .row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+  .card h2 { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+  .card p { font-size: 15px; line-height: 1.6; color: var(--ink-light); margin: 0 0 14px; }
+  .card .meta { font-size: 13px; color: var(--muted); }
+  .card .go { font-size: 14px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+
+  /* Sign-in: described honestly, not mocked up as a working control. */
+  .signin { margin-top: 34px; border: 1px dashed var(--rule); border-radius: var(--radius-md);
+            padding: 16px 18px; background: transparent; }
+  .signin h3 { font-size: 14px; font-weight: 600; margin: 0 0 5px; color: var(--ink-light); }
+  .signin p { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin: 0; }
+
+  footer.foot { margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--rule);
+                font-size: 13px; line-height: 1.6; color: var(--muted); }
+  footer.foot a { color: var(--muted); text-decoration: underline; }
+
+  .status { color: var(--muted); font-size: 15px; }
+  .err { background: #fef2f2; border-left: 2px solid #dc2626; padding: 13px 16px;
+         font-size: 14px; color: var(--ink-light); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+
+  @media (max-width: 620px) {
+    .wrap { padding: 36px 18px 56px; }
+    a.card { padding: 22px 20px; }
+    .card .row { flex-direction: column; gap: 6px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">CivicScope</div>
+    <h1 id="title">Loading…</h1>
+    <p class="sub" id="sub"></p>
+  </header>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="signin">
+    <h3>Signing in</h3>
+    <p>These tools are open on this link for now. Google sign-in is coming, so each person sees
+       only the tools they work with and every plant entry is signed by whoever took it.</p>
+  </div>
+
+  <footer class="foot" id="foot"></footer>
+
+</div>
+
+<script>
+// The village comes from the path (/centreville), exactly as the ask tool does — one page serves
+// every village, and village #2 is a rewrite line plus a muni_tenants row.
+const SLUG = (location.pathname.replace(/^\/+|\/+$/g, '').split('/')[0] || '').toLowerCase();
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+function fail(msg) { $('cards').innerHTML = '<div class="err">' + esc(msg) + '</div>'; }
+
+/** One product card. `meta` is the honest one-line state of that product today. */
+function card(href, name, blurb, meta) {
+  return '<a class="card" href="' + esc(href) + '">'
+    + '<div class="row"><h2>' + esc(name) + '</h2><span class="go">Open →</span></div>'
+    + '<p>' + blurb + '</p>'
+    + '<div class="meta">' + meta + '</div>'
+    + '</a>';
+}
+
+async function boot() {
+  if (!SLUG) { fail('No village specified in the address.'); return; }
+  $('cards').innerHTML = '<div class="status">Loading…</div>';
+
+  let d;
+  try {
+    const r = await fetch('/api/muni-ask?tenant=' + encodeURIComponent(SLUG));
+    d = await r.json();
+    if (!r.ok) { fail(d.error || 'Could not load this village.'); return; }
+  } catch { fail('Could not reach CivicScope. Please try again.'); return; }
+
+  const t = d.tenant, c = d.corpus || {};
+  const short = t.short_label || t.label;
+
+  document.title = short + ' — CivicScope';
+  $('title').textContent = short;
+  $('sub').innerHTML = 'Your CivicScope tools, in one place.'
+    + (t.site_url ? ' <a href="' + esc(t.site_url) + '" target="_blank" rel="noopener">Village website ↗</a>' : '');
+
+  const cards = [];
+
+  // ── Ask <Village> ────────────────────────────────────────────────────────────────────
+  // Named for the village because that is what it is — the village's own documents, not a
+  // general legal search. Only offered when the corpus is actually answering.
+  if (t.active) {
+    cards.push(card(
+      '/' + SLUG + '/ask',
+      'Ask ' + short,
+      'Ask a question in plain English and get an answer drawn from the Village’s own ordinances '
+        + 'and zoning rules — with a link to the source document every time.',
+      '<strong>' + (c.documents || 0) + '</strong> documents indexed'
+        + (c.passages ? ' · ' + c.passages.toLocaleString() + ' searchable passages' : '')
+        + (c.transcribed ? ' · ' + c.transcribed + ' transcribed from scans' : '')
+    ));
+  }
+
+  // ── Well Sampler ─────────────────────────────────────────────────────────────────────
+  // Shown only when this village actually has a supply on the platform (muni_tenants.water_wssn),
+  // so the hub never offers a plant log to a village with no plant.
+  if (t.water_wssn) {
+    cards.push(card(
+      '/water',
+      'Well Sampler',
+      'Record the daily round at the plant — wells, doses, tank levels and distribution samples — '
+        + 'and generate the monthly EGLE report from what was actually recorded.',
+      'Water supply <strong>WSSN ' + esc(t.water_wssn) + '</strong> · needs your plant access code and PIN'
+    ));
+  }
+
+  if (!cards.length) {
+    fail('No tools are switched on for this village yet.');
+    return;
+  }
+  $('cards').innerHTML = cards.join('');
+
+  $('foot').innerHTML = 'CivicScope builds these from the Village’s own records. '
+    + 'Answers and reports are working tools, not legal advice or a filed submission — '
+    + 'check anything that matters against the source document.';
+}
+
+boot();
+</script>
+</body>
+</html>

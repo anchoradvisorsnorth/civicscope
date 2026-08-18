@@ -16,6 +16,8 @@
   header.masthead { border-bottom: 1px solid var(--rule); padding-bottom: 24px; margin-bottom: 40px; }
   .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
              margin-bottom: 10px; }
+  .eyebrow a { color: var(--muted); text-decoration: none; }
+  .eyebrow a:hover { color: var(--accent); }
   h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 5vw, 40px);
        line-height: 1.15; margin: 0 0 10px; }
   .blurb { color: var(--ink-light); font-size: 17px; line-height: 1.55; margin: 0; }
@@ -102,7 +104,7 @@
 <div class="wrap">
 
   <header class="masthead">
-    <div class="eyebrow">CivicScope</div>
+    <div class="eyebrow" id="crumb">CivicScope</div>
     <h1 id="title">Loading…</h1>
     <p class="blurb" id="blurb"></p>
   </header>
@@ -156,8 +158,12 @@ async function boot() {
     if (!r.ok) { fail(d.error || 'Could not load this municipality.'); return; }
   } catch { fail('Could not reach the document library.'); return; }
 
-  document.title = 'Ask ' + d.tenant.short_label + ' — CivicScope';
-  $('title').textContent = 'Ask ' + (d.tenant.short_label || d.tenant.label);
+  const short = d.tenant.short_label || d.tenant.label;
+  document.title = 'Ask ' + short + ' — CivicScope';
+  $('title').textContent = 'Ask ' + short;
+  // Back to the village hub. Michelle runs the office and the water plant; the hub is the one
+  // address she has to remember.
+  $('crumb').innerHTML = '<a href="/' + encodeURIComponent(SLUG) + '">← ' + esc(short) + '</a>';
   $('blurb').innerHTML = esc(d.tenant.blurb || '')
     + (d.tenant.site_url ? ' <a href="' + esc(d.tenant.site_url) + '" target="_blank" rel="noopener">Village website ↗</a>' : '');
 
