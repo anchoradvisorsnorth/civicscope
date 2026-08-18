@@ -1,7 +1,7 @@
 {
- "generated": "2026-08-17T09:30:48.399Z",
+ "generated": "2026-08-18T09:30:48.975Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 129326198,
+ "totalActual": 129338716,
  "totalCommitted": 141559546,
  "subCount": 641,
  "subs": [
@@ -12645,6 +12645,41 @@
    ]
   },
   {
+   "vendorNo": "3403",
+   "name": "Patriot Engineering and Enviro",
+   "actualCost": 44207,
+   "actualJobs": 4,
+   "committed": 39711,
+   "committedJobs": 3,
+   "variance": -4496,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 24360,
+     "committed": 26500
+    },
+    {
+     "jobNo": "2507GP03",
+     "jobName": "Milford Water Utility Imp. Div",
+     "actual": 8440,
+     "committed": 7921
+    },
+    {
+     "jobNo": "2611CO01",
+     "jobName": "White Vet Clinic Improvements",
+     "actual": 7221,
+     "committed": 5290
+    },
+    {
+     "jobNo": "2502GO06",
+     "jobName": "Wabash Pickleball Courts",
+     "actual": 4186,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "1835",
    "name": "Hoosier Hardwood Floors  Inc.",
    "actualCost": 44066,
@@ -13039,41 +13074,6 @@
      "jobName": "372 Wellfield Dr. (Lot 82A)",
      "actual": 5973,
      "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "3403",
-   "name": "Patriot Engineering and Enviro",
-   "actualCost": 39396,
-   "actualJobs": 4,
-   "committed": 39711,
-   "committedJobs": 3,
-   "variance": 315,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 24360,
-     "committed": 26500
-    },
-    {
-     "jobNo": "2507GP03",
-     "jobName": "Milford Water Utility Imp. Div",
-     "actual": 8440,
-     "committed": 7921
-    },
-    {
-     "jobNo": "2502GO06",
-     "jobName": "Wabash Pickleball Courts",
-     "actual": 4186,
-     "committed": 0
-    },
-    {
-     "jobNo": "2611CO01",
-     "jobName": "White Vet Clinic Improvements",
-     "actual": 2410,
-     "committed": 5290
     }
    ]
   },
@@ -13617,6 +13617,107 @@
      "jobName": "Ceres-Rochester",
      "actual": 34200,
      "committed": 32000
+    }
+   ]
+  },
+  {
+   "vendorNo": "2358",
+   "name": "NIPSCO",
+   "actualCost": 33190,
+   "actualJobs": 15,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2611CO01",
+     "jobName": "White Vet Clinic Improvements",
+     "actual": 10453,
+     "committed": 0
+    },
+    {
+     "jobNo": "2402GP09",
+     "jobName": "Wakarusa WTP",
+     "actual": 7296,
+     "committed": 0
+    },
+    {
+     "jobNo": "2316RO06",
+     "jobName": "263 Wellview Court (Lot 26)",
+     "actual": 3074,
+     "committed": 0
+    },
+    {
+     "jobNo": "2507GP03",
+     "jobName": "Milford Water Utility Imp. Div",
+     "actual": 2837,
+     "committed": 0
+    },
+    {
+     "jobNo": "2316RO03",
+     "jobName": "372 Wellfield Dr. (Lot 82A)",
+     "actual": 2329,
+     "committed": 0
+    },
+    {
+     "jobNo": "2316RO04",
+     "jobName": "370 Wellfield Drive (Lot 82B)",
+     "actual": 2244,
+     "committed": 0
+    },
+    {
+     "jobNo": "2316RO01",
+     "jobName": "WF Douwsma Seth-Jillian Lot 24",
+     "actual": 1807,
+     "committed": 0
+    },
+    {
+     "jobNo": "2316RO05",
+     "jobName": "280 Wellfield Dr. (Lot 85)",
+     "actual": 1177,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO09",
+     "jobName": "Greencroft 2036 WPC",
+     "actual": 776,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO03",
+     "jobName": "Greencroft 2060 WPC",
+     "actual": 486,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO11",
+     "jobName": "Greencroft 2027 WPC",
+     "actual": 366,
+     "committed": 0
+    },
+    {
+     "jobNo": "2416RO02",
+     "jobName": "WF Klotz Wayne Lot 2",
+     "actual": 142,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO07",
+     "jobName": "Greencroft 2026 WPC",
+     "actual": 109,
+     "committed": 0
+    },
+    {
+     "jobNo": "2518RO18",
+     "jobName": "Greencroft Midd 529 Pkwy Lot51",
+     "actual": 73,
+     "committed": 0
+    },
+    {
+     "jobNo": "2416RO01",
+     "jobName": "WF Klotz Wayne Lot 1",
+     "actual": 22,
+     "committed": 0
     }
    ]
   },
@@ -14470,107 +14571,6 @@
      "jobNo": "2316RO01",
      "jobName": "WF Douwsma Seth-Jillian Lot 24",
      "actual": 6876,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "2358",
-   "name": "NIPSCO",
-   "actualCost": 25483,
-   "actualJobs": 15,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2402GP09",
-     "jobName": "Wakarusa WTP",
-     "actual": 7296,
-     "committed": 0
-    },
-    {
-     "jobNo": "2316RO06",
-     "jobName": "263 Wellview Court (Lot 26)",
-     "actual": 3074,
-     "committed": 0
-    },
-    {
-     "jobNo": "2507GP03",
-     "jobName": "Milford Water Utility Imp. Div",
-     "actual": 2837,
-     "committed": 0
-    },
-    {
-     "jobNo": "2611CO01",
-     "jobName": "White Vet Clinic Improvements",
-     "actual": 2746,
-     "committed": 0
-    },
-    {
-     "jobNo": "2316RO03",
-     "jobName": "372 Wellfield Dr. (Lot 82A)",
-     "actual": 2329,
-     "committed": 0
-    },
-    {
-     "jobNo": "2316RO04",
-     "jobName": "370 Wellfield Drive (Lot 82B)",
-     "actual": 2244,
-     "committed": 0
-    },
-    {
-     "jobNo": "2316RO01",
-     "jobName": "WF Douwsma Seth-Jillian Lot 24",
-     "actual": 1807,
-     "committed": 0
-    },
-    {
-     "jobNo": "2316RO05",
-     "jobName": "280 Wellfield Dr. (Lot 85)",
-     "actual": 1177,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO09",
-     "jobName": "Greencroft 2036 WPC",
-     "actual": 776,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO03",
-     "jobName": "Greencroft 2060 WPC",
-     "actual": 486,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO11",
-     "jobName": "Greencroft 2027 WPC",
-     "actual": 366,
-     "committed": 0
-    },
-    {
-     "jobNo": "2416RO02",
-     "jobName": "WF Klotz Wayne Lot 2",
-     "actual": 142,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO07",
-     "jobName": "Greencroft 2026 WPC",
-     "actual": 109,
-     "committed": 0
-    },
-    {
-     "jobNo": "2518RO18",
-     "jobName": "Greencroft Midd 529 Pkwy Lot51",
-     "actual": 73,
-     "committed": 0
-    },
-    {
-     "jobNo": "2416RO01",
-     "jobName": "WF Klotz Wayne Lot 1",
-     "actual": 22,
      "committed": 0
     }
    ]
