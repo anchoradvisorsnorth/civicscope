@@ -97,8 +97,12 @@ export default async function handler(req, res) {
     if (!slug) return res.status(400).json({ error: 'tenant is required' });
     if (!SB_URL || !SB_KEY) return res.status(503).json({ error: 'Corpus is not configured.' });
     try {
+      // `water_wssn` is here because the village hub needs to know which products this village
+      // has, and this GET is already "tell me about this tenant". Naming wart acknowledged: the
+      // endpoint is `muni-ask` but this branch is a village lookup, not an ask. Renaming it would
+      // break the deploy contract and the live page for no reader benefit.
       const [t] = await sb(`muni_tenants?slug=eq.${encodeURIComponent(slug)}`
-        + '&select=slug,label,short_label,site_url,blurb,active,doc_count,last_ingest_at');
+        + '&select=slug,label,short_label,site_url,blurb,active,doc_count,last_ingest_at,water_wssn');
       if (!t) return res.status(404).json({ error: 'Unknown municipality.' });
       const docs = await sb(`muni_docs?tenant=eq.${encodeURIComponent(slug)}`
         + '&select=collection,text_source,chunk_count');
