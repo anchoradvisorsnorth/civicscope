@@ -382,6 +382,26 @@ script at its Drive folders → ingest → check the answers → `active=true` �
 `vercel.json`. `active` is enforced **server-side** in `api/muni-ask.js`, because the page is cached
 in browsers that are already open.
 
+**⚠ A TEXT LAYER DOES NOT MEAN THE DOCUMENT IS COVERED — TABLES GO MISSING SILENTLY (found
+2026-08-18).** `Centreville Zoning Book 19.pdf` has a **645,000-character text layer**, so the
+ingest classified it `text-layer`, ingested it for free, and reported 603 passages. But the
+**Site Development Requirements table — the per-district front / side / rear yard setbacks, lot
+sizes, heights and coverages — is not in the extracted text.** `Table 4-5` appears nowhere; the
+grid survives only as debris (`R-1 20,000 sq. ft.; 80 ft`, `R-2 50 ft`), and the other tables
+(e.g. Table 4-1) extract with their columns interleaved into nonsense. Those setbacks are the most
+common zoning question a village gets, and the corpus cannot answer them.
+
+**The safeguard held** — asked for residential setbacks, the model cited the Section 4.5 footnotes
+it *did* have, said plainly that the base numbers sit in a table it was not given, and pointed the
+reader at Section 4.5. It invented nothing. That is the "no corpus, no answer" rule doing its job,
+and it is why the citation-and-provenance design matters more than retrieval quality.
+
+**The defect is that the text-layer check is per-document and all-or-nothing.** A PDF can carry a
+rich text layer and still hold image-only or layout-mangled tables. Fix (unbuilt, costs money):
+detect low-text-density pages inside otherwise-textual documents and OCR **those pages**, since the
+vision model reads a printed grid correctly where `pdftotext` flattens it. Until then, **do not
+tell a village its zoning dimensions are covered.**
+
 **No corpus, no answer.** Zero retrieval hits returns "not found" and never reaches the model — a
 plausible answer assembled from general knowledge of municipal law is the worst thing this product
 could produce. Those zero-hit questions are logged to `muni_questions` and are the village's own
@@ -520,6 +540,13 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
   (Key Learnings). **But nothing records what Centreville has agreed to or pays**
   (`Centreville\CLAUDE.md`), so the rest does not run on Keith's key until that exists.
   Finish with: `--collection "Village Voice" --ocr --max-spend 12`.
+- **🚨 Municipal Documents — THE ZONING SETBACK TABLE IS NOT IN THE CORPUS (found 2026-08-18).**
+  The zoning book ingested "successfully" as a text-layer document, but its Site Development
+  Requirements grid (per-district setbacks, lot sizes, heights, coverage) did not survive
+  extraction — see **Municipal Documents** above. Those are the numbers a village is asked for most
+  often. **Do not describe zoning dimensions as covered.** Fix is per-page OCR of low-text-density
+  pages inside otherwise-textual documents; costs money, so it sits behind the same Centreville
+  commercial gate as the rest of the ingest.
 - **Municipal Documents — `Applications and Permits` returned 0 documents.** The folder is linked
   from the village-info page and enumerates clean but is empty (or holds only non-document types).
   Worth a look before telling a village the permit forms are covered.
