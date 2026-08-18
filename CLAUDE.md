@@ -42,6 +42,7 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 | GC External | app.civicscope.io/gc/:slug | GC prospective clients | v1.6.0-gc |
 | GC Internal | app.civicscope.io/gc/:slug-internal | GC estimating teams | v1.5.0-gc-int |
 | **Municipal Documents (NEW 2026-08-18)** | **civicscope.io/:municipality** (live: `/centreville`) | **Village clerks + residents** | **v1.0.0-muni** |
+| **Water Plant Daily Log (NEW 2026-08-18)** | **app.civicscope.io/water** | **Water plant operators + the OIC who signs the MOR** | **v1.0.0-water** |
 | QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
 | Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin (+ QA test harness) |
 | RYC Scheduler | app.civicscope.io/ryc/schedule | RYC crew | v1.0.0 |
@@ -133,6 +134,13 @@ brand_statement, brand_values (jsonb array)
   `api/muni-ask.js` + migrations `006`–`009` (`muni_tenants` / `muni_docs` / `muni_chunks` /
   `muni_questions` + the `muni_search()` ranked-retrieval function). Corpus is built by
   `scripts/ingest-muni-corpus.mjs`. Full detail: **Municipal Documents** section below.
+- **/water — Water Plant Daily Log (NEW 2026-08-18).** `civicscope-water/index.html`, one page for
+  every water supply; the supply comes from the WSSN typed at unlock, not the path, because the
+  audience is a named operator with a credential rather than the public. Backed by
+  `api/water-ops.js` + migration `010_water_ops.sql` (nine `water_*` tables). **The arithmetic
+  lives in `civicscope-water/derive.js` and is imported by BOTH the page and the API** — ship the
+  three files together. Gated by `WATER_OPS_CODE` (Vercel env, production+preview) plus a
+  per-operator PIN; writes REFUSE if the code is unset. Full detail: **Water Plant Daily Log** below.
 - /admin, /qa are literal rewrites
 - :slug wildcard LAST
 
@@ -354,10 +362,20 @@ re-chunks from stored text for free, so chunk size, overlap and heading detectio
 against the real corpus; `--reocr` is the expensive escape hatch.
 
 ```bash
-node scripts/ingest-muni-corpus.mjs --tenant centreville --list          # enumerate, no writes
-node scripts/ingest-muni-corpus.mjs --tenant centreville --collection "Code of Ordinances" --ocr
-node scripts/ingest-muni-corpus.mjs --tenant centreville --rechunk       # free, no fetch, no OCR
+node scripts/ingest-muni-corpus.mjs --tenant centreville --list     # enumerate, nothing fetched
+node scripts/ingest-muni-corpus.mjs --tenant centreville --probe    # MEASURE cost before spending
+node scripts/ingest-muni-corpus.mjs --tenant centreville --ocr      # full ingest
+node scripts/ingest-muni-corpus.mjs --tenant centreville --rechunk  # free, no fetch, no OCR
 ```
+
+**`--probe` before any large ingest — it is free and it is the difference between a decision and a
+guess.** It downloads every PDF, checks for a real text layer, counts pages, and prints a
+per-collection cost table. **Pages are what cost money, not documents**, and the two are not
+correlated: the Centreville corpus is 605 documents but only **1,264 pages** — mostly one- and
+two-page minutes, agendas and notices. Measured 2026-08-18: **436 of 605 documents are scans, 627
+pages need OCR, ≈$21 for the entire corpus.** The pre-probe estimate, reasoning from "605 scanned
+documents" without page counts, was *several hundred dollars* — wrong by more than 10×, and it was
+about to cause a slice of the corpus to be left unbuilt for no reason.
 
 **Adding a municipality:** `muni_tenants` row (`active=false`) → point `CORPORA` in the ingest
 script at its Drive folders → ingest → check the answers → `active=true` → one literal rewrite in
@@ -371,25 +389,137 @@ could produce. Those zero-hit questions are logged to `muni_questions` and are t
 
 ---
 
+## Water Plant Daily Log (`/water`) — NEW 2026-08-18
+
+**What it is.** A community water supply's operator walks a round: at each well he reads a meter,
+reads the chlorine and phosphate tank levels, and pulls a plant-tap sample. Today that goes on a
+paper Well and Pump Record and gets retyped into EGLE's Monthly Operation Report at month end.
+This is the tablet that replaces the clipboard, plus the repository the records land in, plus the
+generator that produces the state's own workbook from them.
+
+**Live:** `app.civicscope.io/water`. First supply = **Village of Centreville, WSSN 01310**
+(the same village as `/centreville` — this is a second product for an existing tenant). Three
+entry points seeded from the July 2026 records: TP001/Well 1, TP003/Well 3, TP004/Well 4.
+
+**⛔ THE OPERATOR ENTERS READINGS, NEVER CALCULATIONS — and reading one month of the plant's own
+paperwork by hand is what proved why.** Across all three wells for the whole of July 2026, *every*
+handwritten dose in the CL ppm / PH ppm columns is 3–5% off EGLE's own formula. Nobody was
+careless: the operator reads a dose chart, the state's spreadsheet divides. But it means the
+plant's daily log and the report the village files **have never agreed**, and nothing in the
+process could have surfaced it. Four more defects were sitting in the same month:
+
+| Found in July 2026 | What it was |
+|---|---|
+| Well 3, 7/21 | Both doses computed from **Well 4's** flow (70,000 gal, not Well 3's 48,000). Substitute it and both written figures reproduce to the cent. |
+| Well 4, 7/2 and 7/28 (Cl); Well 3, 7/28 (PO₄) | Tank readings disagree with their own "Gallons Added" column. |
+| Well 1, 7/9 | Plant tap reads **free 0.77 / total 0.69** — physically impossible, and it went to the state that way. |
+| The whole month | **No bacti dates and no residuals at all** in the submitted packet. |
+
+**`derive()` is one module, imported twice.** `civicscope-water/derive.js` is pure (no network, no
+clock, no env) and is imported by the browser AND by `api/water-ops.js`. The moment that rule
+exists twice, the screen and the filed report can disagree and the operator cannot tell which one
+lied — which is exactly the failure above. Same lesson as `pool/scoring.js`. **Any change here
+must be made once, in that file.**
+
+**The profile is data, not code.** `water_entry_points` says what is *read* at a location
+(meter + units, pressure, temp, which tap residuals) and `water_feeds` says what is *fed* there
+and at what strength (0.125 for 12.5% hypochlorite, 0.25 + ortho factor 0.1 for the phosphate).
+Standing up the next village is rows, not a release. EGLE's template is already shaped this way —
+an EntryPoint tab per entry point, blank columns for chemicals that do not apply.
+
+**Two states the paper cannot express, both of which happened in July:**
+- **A refill.** Well 3's chlorine went 25 → 303 on 7/15, Well 4's 12 → 315 on 7/20. On paper the
+  operator circles the new number. `water_feed_readings.refill_to` records what it was filled TO,
+  and the next day measures from there. A tank that rose with no refill on file is **refused**,
+  not silently turned into −278 lbs.
+- **A well that did not run.** Well 1's meter was unchanged 7/6 → 7/7. That is a row with
+  `gallons_pumped = 0`. **No row at all means nobody visited** — a different fact, kept different.
+
+**Corrections append, never overwrite.** These are the records behind a report signed under
+1976 PA 399. A correction inserts a new row carrying `corrects` + `correction_reason` and stamps
+the old one `superseded_at`; the unique indexes are **partial** (`where superseded_at is null`) or
+a corrected day could never be re-entered.
+
+**The gate: `node scripts/verify-water-derivation.mjs` → 569 checks, `WATER-DERIVE-COMPLETE`.**
+It replays all 93 July well-days through the real `derive()` against the scans, and pins the
+refusals the clipboard never made. It also **names** the five places July's paper disagrees with
+itself rather than smoothing them over — a gate that hid them would be lying about the source.
+⚠ The dose tolerance is **5%**, set from the evidence (median gap 3.4%, 88 of 89 rows ≤4.5%); the
+one 8.4% row is listed as a named outlier. **Do not widen it to make a run go green.**
+
+**The loop closes back to the state's own file.** `scripts/build-mor.py --wssn 01310 --year 2026
+--month 7 --template "<Blank MOR.xls>" --out <file>` fills EGLE's workbook from the stored month.
+Three things make that non-trivial and all three are handled: the template is **Excel-encrypted**
+(default `VelvetSweatshop`), **xlrd cannot read formulas** so a plain xlutils copy silently blanks
+all 1,988 of them (re-injected from `scripts/extract-mor-formulas.mjs`), and **xlutils flattens
+merged ranges**, costing every merged box its right-hand border. xlwt also writes formulas with an
+empty cached result, so `FormulaRecord` is patched to "recalculate on open" or the report opens
+with blank totals. Verified: zero formatting differences on any cell with content.
+
+**July 2026 is loaded** (`scripts/backfill-water-july2026.mjs`, `source='backfill'`) — 96 readings
+including a 6/30 opening balance per well, plus 23 distribution samples. Round-trip verified at
+379 checks against the scans. The 7/9 impossible residuals are stored **absent, with a note
+quoting the paper**: backfilling a number known to be impossible would be forging a record.
+
+**Known gaps, deliberately:**
+- **No service worker.** The submit queue is localStorage, so "loaded, then lost signal" is
+  covered — a cold start inside a concrete well house is not. That is the next real piece.
+- **No bacti capture screen yet.** The API action exists and **requires the residual** (the exact
+  thing July's packet lacked); the UI for it does not.
+- `water_supplies.active` is informational — the working gate is `WATER_OPS_CODE`.
+
 ## Open Action Items
+
+- **Centreville is now a CLIENT PROJECT with its own folder — `Cowork\Centreville\CLAUDE.md`
+  (2026-08-18).** Two live products for one village (`/centreville` + `/water`). Read that file
+  alongside this one for anything Centreville-specific: the plant profile, corpus state, and what
+  is owed to EGLE. ⛔ **The code stays multi-tenant here — Keith declined a separate Vercel
+  project, Supabase project and Anthropic workspace the same day.** Village #2 is a config row.
+- ✅ **Corpus count RECONCILED 2026-08-18 — the gap was one collection, and the "full corpus"
+  claim was wrong.** `--list` against the live corpus, collection by collection:
+
+  | Collection | In Drive | Ingested | Missing |
+  |---|---|---|---|
+  | Code of Ordinances | 21 | 21 | — |
+  | Zoning & Planning Commission | 103 | 103 | — |
+  | Village Information | 201 | 201 | — |
+  | Redevelopment Ready Communities | 3 | 3 | — |
+  | Applications and Permits | 0 | 0 | — |
+  | **Village Voice & Calendar** | **277** | **28** | **249** |
+  | **TOTAL** | **605** | **356** | **249** |
+
+  Every collection that answers a question about the law is **complete**. The whole shortfall is
+  Village Voice & Calendar — the village newsletter — which is the least useful slice for
+  answering anything and is **deliberately left unfinished**: it was mid-ingest when the run was
+  stopped, because no commercial relationship with Centreville is recorded and further paid ingest
+  is gated on that (`Centreville\CLAUDE.md`). `muni_tenants.doc_count` corrected 21 → 356, and the
+  ingest now maintains it at the end of every run so it cannot drift again.
+- **Water Plant Daily Log — no service worker, no bacti screen.** The submit queue survives
+  "loaded, then lost signal" but not a cold start inside a concrete well house, which is where the
+  round actually happens. The bacti API action exists and **requires the residual** (the exact
+  thing Centreville's July packet lacked); the capture screen does not.
+- **Centreville's August 2026 is being recorded on paper right now.** `/water` is live and nobody
+  is using it. Every day that runs is another day that has to be backfilled.
+- **`Civicscope/scripts/` is gitignored except narrow re-includes**, so the water gate, the
+  backfill, the MOR generator and their fixtures are not under version control. Same one-line
+  decision as `migrations/` — they are secret-free by inspection.
 
 Forward-looking action queue. Source of truth for the CRM dashboard's "Across All Businesses → CivicScope" card. Curated at `/wrap`. Done items are removed, not strikethroughed — historical context lives in the `## Active Backlog` sections below.
 
 
-- **Municipal Documents — WHICH VILLAGE IS THE TARGET? (KEITH, 2026-08-18).** Keith asked for
-  `civicscope.io/constantine` but the links he supplied (`centrevillemi.com` + that Drive folder)
-  are the **Village of Centreville, MI**. Both are St. Joseph County villages. Built tenant-generic
-  and shipped `/centreville`, matching the documents actually supplied — serving Centreville's
-  ordinances at Constantine's URL would be worse than not shipping. **If Constantine is the real
-  target, its document source is needed**; adding it is a `muni_tenants` row + a `CORPORA` entry +
-  an ingest run + one rewrite.
-- **Municipal Documents — the other 584 documents are NOT ingested (KEITH decision).** Shipped
-  scope is the Code of Ordinances (21 docs, ~$1.90 of OCR). Remaining: Zoning & Planning
-  Commission (103 — the zoning book is high value, minutes less so), Village Information (201),
-  Village Voice & Calendar (277), Redevelopment Ready Communities (3). **Recommended next slice:
-  the zoning book alone** — "what can I build on this lot" is the other question a village gets
-  constantly. Sizing needs a `--list` + text-layer probe first: only 7 of 21 ordinance docs were
-  scans, so the naive "all of it is scanned" estimate overstates cost substantially.
+- ✅ **Municipal Documents — target village SETTLED: Centreville (Keith, 2026-08-18).** Keith's
+  original ask said `civicscope.io/constantine`, but the links supplied were Centreville's; he
+  confirmed same day that **Centreville is correct**. `/centreville` is the live route. No
+  Constantine corpus is planned — if that changes it is a `muni_tenants` row + a `CORPORA` entry +
+  an ingest run + one literal rewrite.
+- **Municipal Documents — 356 of 605 ingested; the remaining 249 are GATED on a Centreville
+  commercial relationship.** All four collections that bear on the law are complete (ordinances,
+  zoning, village information, RRC); what is left is the Village Voice newsletter. `--probe` put
+  the whole corpus at **≈$21** (1,264 pages, 627 needing OCR) against a pre-measurement guess of
+  *several hundred dollars* — the scope question was never a real decision, only an unmeasured one
+  (Key Learnings). **But nothing records what Centreville has agreed to or pays**
+  (`Centreville\CLAUDE.md`), so the rest does not run on Keith's key until that exists.
+  Finish with: `--collection "Village Voice" --ocr --max-spend 12`.
 - **Municipal Documents — `Applications and Permits` returned 0 documents.** The folder is linked
   from the village-info page and enumerates clean but is empty (or holds only non-document types).
   Worth a look before telling a village the permit forms are covered.
@@ -450,6 +580,59 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 ---
 
 ## Key Learnings
+- **🚨 NEVER WRITE A COMPLETION CLAIM INTO THE DURABLE RECORD BEFORE VERIFYING IT (2026-08-18).**
+  This file carried *"✅ FULL CORPUS INGESTED — All 605 documents"* while the live corpus held
+  **356**. The line was written at the moment the full ingest was *launched*, not after it
+  finished — and the run then lost 329 documents to an expired token and 69 more to the Anthropic
+  usage limit. A parallel session found the contradiction by comparing the API against this file;
+  it should never have had to. **The failure is the same shape as the exit-0-on-partial-failure bug
+  in the same script**: an optimistic success signal emitted before the evidence existed. Concretely
+  — a ✅ in an instruction file is a claim someone will act on (here: telling a village its records
+  are covered), so it gets written *after* a reconciliation, quoting the number and the date, and
+  the reconciliation is `--list` against the DB collection by collection, not a summary line from a
+  run log.
+- **🚨 THE MUNI INGEST EXHAUSTED THE ORG'S MONTHLY ANTHROPIC LIMIT (2026-08-18) — a bulk job on
+  the shared key must police its own spend.** One Anthropic key serves every business in this
+  stack (`reference_anthropic_shared_key_spof`), and a bulk OCR run is the only workload that can
+  drain a monthly limit in one sitting. It did: mid-corpus, the API began returning *"You have
+  reached your specified API usage limits. You will regain access on 2026-09-01"* and Keith had to
+  raise the cap. **Two things made it worse than it needed to be:** the script kept going, turning
+  one clear signal into **69 identical failures** and marking 69 documents "failed" that were never
+  actually attempted; and the per-document `try/catch` swallowed it, so the run still looked like
+  ordinary attrition. Fixed in `ingest-muni-corpus.mjs`: a usage-limit response now throws
+  `AbortRun`, which the per-document handler explicitly re-throws and which unwinds the whole run
+  with exit 2 and a resume note; plus a self-imposed `--max-spend` ceiling (default **$25**).
+  **Generalise: any job that can spend real money on the shared key needs (a) its own ceiling,
+  (b) a hard stop on the provider's limit error, and (c) an error class the per-item handler
+  cannot swallow.** The estimate being right ($21 for the corpus) was no protection — the limit is
+  shared with everything else already running that month.
+- **RETRY TRANSIENT NETWORK FAILURES, OR A LONG WALK WILL SHRED ITSELF.** The same run lost **187
+  documents to bare `fetch failed`** — dropped connections and throttled sockets against Drive —
+  because `driveFetch` retried 401s and nothing else. Several hundred requests over the public
+  internet *will* see transient failures; treating each as a permanent document-level failure
+  discards real work and inflates the failure count until the real problem is invisible.
+  Now 4 attempts with backoff on network errors, 429 and 5xx.
+- **A CREDENTIAL MINTED ONCE AT STARTUP IS A TIME BOMB IN ANY JOB THAT OUTLIVES IT (muni ingest,
+  2026-08-18).** The Google service-account token lives **one hour**. The full Centreville ingest
+  minted it once in `main()` and threaded it through every call — so the run ingested 254 documents
+  cleanly, hit the one-hour mark, and then failed **329 consecutive downloads with `401`**. It
+  exited **0**: every failure was caught per-document and counted, so the job "succeeded" while
+  silently completing 42% of the work. Fixed with a cached `driveToken()` that re-mints 5 minutes
+  before expiry, plus a forced-refresh retry on any 401. **Ask of every long-running job: what is
+  the shortest-lived credential it holds, and does the job outlive it?** Also worth noting the
+  failure was *recoverable at zero cost* only because extracted text is persisted — the retry
+  skipped all 254 completed documents. **Per-item error handling that keeps a job running must not
+  also let it report success**; a completion summary needs to make a large failure count
+  impossible to miss.
+- **AN UNMEASURED COST ESTIMATE CAN COST MORE THAN THE WORK (muni ingest, 2026-08-18).** The
+  Centreville corpus was scoped down to one collection because the full ingest "looked like several
+  hundred dollars" — reasoned from 605 documents and 339 MB without ever counting pages. A free
+  probe (download, check for a text layer, count pages) put the real figure at **≈$21**: 605
+  documents but only 1,264 pages, because most are one- and two-page minutes and notices. The
+  guess was wrong by more than 10×, and its only effect was to nearly leave 96% of the corpus
+  unbuilt and hand Keith a decision that did not need making. **Where a job's cost scales on a
+  quantity you have not measured, measure it — especially when measuring is free.** Bulk (MB) and
+  item count are both poor proxies for the thing actually billed.
 - **THE EXPENSIVE STEP MUST BE GATED BEFORE IT RUNS, NOT AFTER (muni ingest, 2026-08-18).** The
   first build extracted text, hashed it, and *then* asked whether the document had changed. That is
   free when the text comes from a PDF's own text layer and ruinous when it comes from OCR: every
