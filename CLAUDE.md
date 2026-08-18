@@ -41,6 +41,7 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 | **Infrastructure (NEW June 6)** | **app.civicscope.io/infrastructure** | **Public works / utility leaders** | **v1.0.0-infrastructure** |
 | GC External | app.civicscope.io/gc/:slug | GC prospective clients | v1.6.0-gc |
 | GC Internal | app.civicscope.io/gc/:slug-internal | GC estimating teams | v1.5.0-gc-int |
+| **Municipal Documents (NEW 2026-08-18)** | **civicscope.io/:municipality** (live: `/centreville`) | **Village clerks + residents** | **v1.0.0-muni** |
 | QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
 | Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin (+ QA test harness) |
 | RYC Scheduler | app.civicscope.io/ryc/schedule | RYC crew | v1.0.0 |
@@ -125,6 +126,13 @@ brand_statement, brand_values (jsonb array)
   PM from the credential and there is no `pm` parameter a browser can send. Scans live in the
   PRIVATE Supabase bucket `ryc-invoice-scans`, served as 15-minute signed URLs. Full detail:
   **RYC CLAUDE.md**.
+- **/centreville — Municipal Documents (NEW 2026-08-18).** One page (`civicscope-muni/index.html`)
+  serves every municipality; the tenant comes from the path, so adding a village is a
+  `muni_tenants` row + one literal rewrite here. **Literal per tenant on purpose — never a root
+  `/:slug` wildcard**, which would swallow every unmatched path on the site. Backed by
+  `api/muni-ask.js` + migrations `006`–`009` (`muni_tenants` / `muni_docs` / `muni_chunks` /
+  `muni_questions` + the `muni_search()` ranked-retrieval function). Corpus is built by
+  `scripts/ingest-muni-corpus.mjs`. Full detail: **Municipal Documents** section below.
 - /admin, /qa are literal rewrites
 - :slug wildcard LAST
 
@@ -292,11 +300,99 @@ worktree-based comparison would match the stale deployment and pass a commit tha
 
 ---
 
+## Municipal Documents (`/centreville`) — NEW 2026-08-18
+
+**What it is.** A village publishes its ordinances as a tree of Google Drive PDFs. That is a filing
+cabinet with a URL: a clerk who wants the commercial-vehicle rule has to already know which of
+twenty subject folders holds it, then read a 90-page PDF. This turns that into a question box that
+answers from the village's own documents and links the source every time.
+
+**Live:** `civicscope.io/centreville` (apex 307s to `www`, both resolve). Corpus = the Village of
+Centreville, MI **Code of Ordinances**: 21 documents, 547 passages.
+
+**⚠ THE CORPUS IS PARTLY SCANNED PAPER — that is the hard part of this product, not the AI.**
+`Environment.pdf` is 10.3 MB across 24 pages and `pdftotext` extracts **zero** characters from it.
+Nobody can Ctrl+F those documents today — not the clerk, not a resident, not Google. **7 of the 21
+ordinance documents had no text layer at all** and had to be transcribed before they could be
+searched. The transcripts are stored in `muni_docs.raw_text` and are the only machine-readable copy
+of those ordinances that exists anywhere; losing them means paying to recreate them.
+**Do not assume a municipal corpus is digital — measure it** (`--list` then a `pdftotext` probe).
+
+**Provenance travels with every passage.** `muni_docs.text_source` is `text-layer` or `ocr`, the
+retrieval function returns it per passage, the prompt labels passages `[text]`/`[scan]`, and the
+model is told to flag a *figure* it is relying on from a transcription. A misread digit in a
+setback or a fee is the failure mode this product has to guard against, and it is visible in the
+live answers ("the 14-day, 60-day and 30-day figures all come from scanned pages, so confirm
+them"). The UI shows a `scan` tag on those sources.
+
+**Retrieval is Postgres FTS, not embeddings — deliberately.** Anthropic has no embeddings endpoint,
+so vectors would mean a new vendor, a new key and a new bill before the first question is answered.
+Municipal code is also unusually well suited to lexical search: it is written in stable specific
+nouns and the citation the reader needs is a section number. Headings carry tsvector weight **A**
+and body text weight **B**, and `muni_search()` boosts the adopted code over meeting minutes
+(1.60 / 1.35 / 1.15 / 1.00) — *an ordinance is what the village adopted; minutes are what a board
+discussed*. A vector column can be added later without moving the chunk rows.
+
+**The heading is load-bearing, and getting it wrong is worse than leaving it null.** Weight A means
+whatever lands in `heading` is weighted far above body text — so capturing a body sentence
+("Section A — The fire department will consist of a maximum of 30 members unless altered by…")
+double-counts that sentence and drags unrelated queries toward one chunk. `looksLikeTitle()` in the
+ingest script is the guard: ≤70 chars, no trailing sentence punctuation, no `shall/will/must/may`.
+
+**Cost, and why it is scoped.** OCR runs **~$0.03/page** on `claude-opus-5` at `effort: low`
+(transcription is mechanical — the default effort ran ~5 min for 15 pages and bought nothing;
+thinking stays ON because disabling it on this model risks `<thinking>` tags leaking into output,
+which would land in the corpus as if it were ordinance text). The full Code of Ordinances cost
+**~$1.90**. **The remaining 584 documents are mostly years of meeting minutes and have NOT been
+ingested — that is Keith's call**, and the whole stack shares one Anthropic key with an org spend
+limit (memory `reference_anthropic_shared_key_spof`).
+
+**Re-runs are cheap by construction, and the ordering matters.** The change check is keyed on
+Drive's `modifiedTime` and runs **ahead of extraction** — the first build had it after, which would
+have re-transcribed the whole corpus at full price to discover nothing had changed. `--rechunk`
+re-chunks from stored text for free, so chunk size, overlap and heading detection can be tuned
+against the real corpus; `--reocr` is the expensive escape hatch.
+
+```bash
+node scripts/ingest-muni-corpus.mjs --tenant centreville --list          # enumerate, no writes
+node scripts/ingest-muni-corpus.mjs --tenant centreville --collection "Code of Ordinances" --ocr
+node scripts/ingest-muni-corpus.mjs --tenant centreville --rechunk       # free, no fetch, no OCR
+```
+
+**Adding a municipality:** `muni_tenants` row (`active=false`) → point `CORPORA` in the ingest
+script at its Drive folders → ingest → check the answers → `active=true` → one literal rewrite in
+`vercel.json`. `active` is enforced **server-side** in `api/muni-ask.js`, because the page is cached
+in browsers that are already open.
+
+**No corpus, no answer.** Zero retrieval hits returns "not found" and never reaches the model — a
+plausible answer assembled from general knowledge of municipal law is the worst thing this product
+could produce. Those zero-hit questions are logged to `muni_questions` and are the village's own
+"what can't we answer" list.
+
+---
+
 ## Open Action Items
 
 Forward-looking action queue. Source of truth for the CRM dashboard's "Across All Businesses → CivicScope" card. Curated at `/wrap`. Done items are removed, not strikethroughed — historical context lives in the `## Active Backlog` sections below.
 
 
+- **Municipal Documents — WHICH VILLAGE IS THE TARGET? (KEITH, 2026-08-18).** Keith asked for
+  `civicscope.io/constantine` but the links he supplied (`centrevillemi.com` + that Drive folder)
+  are the **Village of Centreville, MI**. Both are St. Joseph County villages. Built tenant-generic
+  and shipped `/centreville`, matching the documents actually supplied — serving Centreville's
+  ordinances at Constantine's URL would be worse than not shipping. **If Constantine is the real
+  target, its document source is needed**; adding it is a `muni_tenants` row + a `CORPORA` entry +
+  an ingest run + one rewrite.
+- **Municipal Documents — the other 584 documents are NOT ingested (KEITH decision).** Shipped
+  scope is the Code of Ordinances (21 docs, ~$1.90 of OCR). Remaining: Zoning & Planning
+  Commission (103 — the zoning book is high value, minutes less so), Village Information (201),
+  Village Voice & Calendar (277), Redevelopment Ready Communities (3). **Recommended next slice:
+  the zoning book alone** — "what can I build on this lot" is the other question a village gets
+  constantly. Sizing needs a `--list` + text-layer probe first: only 7 of 21 ordinance docs were
+  scans, so the naive "all of it is scanned" estimate overstates cost substantially.
+- **Municipal Documents — `Applications and Permits` returned 0 documents.** The folder is linked
+  from the village-info page and enumerates clean but is empty (or holds only non-document types).
+  Worth a look before telling a village the permit forms are covered.
 - **CivicScope QC process (built 2026-06-17)** — response to the June 16 silent outage. Now in place: **(1)** rebuilt `/qa-check` skill (`skills/qa-check/SKILL.md`) — model-alias/`max_tokens`-headroom/`maxDuration`/push-manifest guards as section 1; **(2)** **two-stage post-deploy gate** in `push_civicscope.ps1`, both **fail the deploy** so "fixed" can't be reported on a broken ship: **(2a)** backend smoke `scripts/smoke-test.js` (real full estimate per vertical vs `/api/claude`, validates a cost range), **(2b)** browser E2E `scripts/e2e-check.js` (puppeteer-core + local Chrome; drives the REAL page via `?qa=<preset>&autorun=1`, asserts a cost renders in `#costRange` — catches client-side breaks the backend smoke can't see); **(3)** **daily VM smoke** (`cs-smoke-daily`, 8am ET) catches truncation/timeout from model drift the 10-min cheap probe misses; **(4)** `cs-health` (every 10 min) as the always-on catastrophic watch. The tools' JSON parse was hardened (strict → outermost-`{…}` fallback) so occasional model prose no longer 500s. **Gate scripts are local-only** (`Civicscope/scripts/`, not in the deploy manifest; the gate runs on Keith's PC). **Still TODO:** external dead-man's-switch (heartbeat service) so a *dead* cs-health pages Keith — pending Keith's healthchecks.io/UptimeRobot signup + ping URL; Anthropic auto-reload (console toggle); model-retirement calendar.
 - **Activate the OpenAI fallback in `api/claude.js` (wired 2026-06-23, dormant).** After the June 23 Anthropic 529 "elevated error rate" outage, `api/claude.js` gained bounded **retry on 429/5xx/529** (live) + an **OpenAI-compatible fallback** that's OFF until `OPENAI_API_KEY` is set in CivicScope's Vercel. **To activate:** Keith provides a general-purpose OpenAI key (NOT Codex — it's a code model; fallback defaults to `gpt-4o`, override via `OPENAI_FALLBACK_MODEL`); Claude sets both env vars via the Vercel REST API (avoid the empty-string pipe gotcha) + redeploy. Can't be end-to-end tested without inducing an Anthropic failure — will self-validate on the next real 529. **New platform → add OpenAI to the tracker** (`opsStatus: watch` until proven).
 - **External dead-man's-switch for cs-health (NEW 2026-06-17)** — cs-health is one VM cron; if it dies (VM/cron/script), there are no checks AND no alert — only the weekly AAN email surfaces it (too slow). Need an independent heartbeat (healthchecks.io free tier or UptimeRobot heartbeat) that pages Keith when the 10-min ping goes missing. **Blocked on Keith:** 2-min signup → create one check → set alert target (email/SMS) → paste the ping URL; then ~5 lines on the VM (curl the ping URL at the end of each successful cs-health run). Closes the last "I can't be the last to know" gap.
@@ -354,6 +450,32 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 ---
 
 ## Key Learnings
+- **THE EXPENSIVE STEP MUST BE GATED BEFORE IT RUNS, NOT AFTER (muni ingest, 2026-08-18).** The
+  first build extracted text, hashed it, and *then* asked whether the document had changed. That is
+  free when the text comes from a PDF's own text layer and ruinous when it comes from OCR: every
+  re-run would have re-transcribed the entire corpus at full price to discover nothing had changed,
+  and tuning the chunker — a normal thing to do while improving retrieval — would have meant
+  re-OCRing everything to re-chunk it. Fixed by moving the change check ahead of extraction (keyed
+  on Drive's own `modifiedTime`, the only honest signal for a source we don't control) and storing
+  the extracted text in `muni_docs.raw_text`. **Whenever a pipeline has one step that costs money,
+  check the ordering of the skip logic against it explicitly** — "skip unchanged work" is only
+  cheap if the skip happens before the cost.
+- **A CORPUS THAT LOOKS DIGITAL CAN BE PHOTOGRAPHS (muni ingest, 2026-08-18).** 605 PDFs, 339 MB,
+  every one `application/pdf` — and a third of the ordinance set has no text layer whatsoever.
+  `pdftotext` returned 24 characters from a 10.3 MB, 24-page file. The download succeeded, the mime
+  type was right, and the file was a valid PDF-1.4; nothing about the metadata hinted at it. **Probe
+  extraction on a real sample before estimating any document-ingest project** — the difference
+  between "index these PDFs" and "transcribe these PDFs" is the whole project.
+- **DEFAULT EFFORT IS THE WRONG SETTING FOR MECHANICAL WORK.** OCR transcription at Opus 5's default
+  effort ran ~5 minutes for 15 pages, spending adaptive-thinking tokens deliberating about a task
+  that is "read the page, write what is printed." `effort: low` cut it dramatically with no quality
+  loss. Thinking stayed **on**: disabling it on this model risks `<thinking>` tags leaking into the
+  visible output, and in an ingest pipeline that text would be stored as if it were ordinance text.
+- **A HEADING FIELD WITH SEARCH WEIGHT IS A LIABILITY IF IT CAN CATCH PROSE.** `muni_chunks.heading`
+  is indexed at tsvector weight A. The first heading detector happily captured "Section A — The fire
+  department will consist of a maximum of 30 members unless altered by the…", double-weighting a
+  body sentence and pulling unrelated queries toward that chunk. **Any field that is weighted above
+  the rest of the document needs a test for what it is, not just a pattern for where it starts.**
 - **A REPORT CAN COUNT CORRECTLY AND STILL LIE — the daily digest, fixed 2026-08-11.** It queried
   `created_at >= now - 24h` and then headlined the email with **today's** date. The cron fires at
   7am ET, so the window was 7am yesterday → 7am today: almost entirely *yesterday*, sent under
