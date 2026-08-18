@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<!-- civicscope-muni v1.0.0 | 2026-08-18 — municipal document answers -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask the Village — CivicScope</title>
+<meta name="description" content="Ask a question and get an answer drawn from the Village's own ordinances, zoning rules and meeting records — with a link to the source document every time.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/civicscope.css">
+<style>
+  /* Tenant page — layout only; every colour and face comes from civicscope.css tokens. */
+  body { background: var(--cream); color: var(--ink); font-family: var(--font-body); }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 48px 24px 96px; }
+
+  header.masthead { border-bottom: 1px solid var(--rule); padding-bottom: 24px; margin-bottom: 40px; }
+  .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+             margin-bottom: 10px; }
+  h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 5vw, 40px);
+       line-height: 1.15; margin: 0 0 10px; }
+  .blurb { color: var(--ink-light); font-size: 17px; line-height: 1.55; margin: 0; }
+  .blurb a { color: var(--accent); }
+
+  /* Ask box */
+  form.ask { margin: 0 0 8px; }
+  .field { display: flex; gap: 10px; align-items: stretch; }
+  textarea {
+    flex: 1; font: inherit; font-size: 17px; line-height: 1.5; color: var(--ink);
+    background: var(--white); border: 1px solid var(--rule); border-radius: var(--radius-md);
+    padding: 14px 16px; resize: vertical; min-height: 62px; transition: border-color var(--ease);
+  }
+  textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  button.go {
+    font: inherit; font-weight: 600; font-size: 16px; color: var(--white); background: var(--accent);
+    border: 0; border-radius: var(--radius-md); padding: 0 24px; cursor: pointer;
+    transition: background var(--ease); white-space: nowrap;
+  }
+  button.go:hover:not(:disabled) { background: var(--accent-hover); }
+  button.go:disabled { opacity: .5; cursor: default; }
+
+  .examples { margin: 14px 0 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .examples .lbl { font-size: 13px; color: var(--muted); margin-right: 2px; }
+  .chip {
+    font: inherit; font-size: 13px; color: var(--ink-light); background: var(--white);
+    border: 1px solid var(--rule); border-radius: 999px; padding: 6px 13px; cursor: pointer;
+    transition: all var(--ease);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Answer */
+  #out { margin-top: 40px; }
+  .status { color: var(--muted); font-size: 15px; display: flex; align-items: center; gap: 10px; }
+  .spinner { width: 15px; height: 15px; border: 2px solid var(--rule); border-top-color: var(--accent);
+             border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .answer { background: var(--white); border: 1px solid var(--rule); border-radius: var(--radius-md);
+            padding: 28px 30px; box-shadow: var(--shadow-sm); }
+  .answer p { font-size: 17px; line-height: 1.65; margin: 0 0 15px; }
+  .answer p:last-child { margin-bottom: 0; }
+  .cite { display: inline-block; min-width: 17px; height: 17px; line-height: 17px; text-align: center;
+          font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-light);
+          border-radius: 3px; margin: 0 1px; padding: 0 3px; vertical-align: 1px;
+          text-decoration: none; cursor: pointer; }
+  .cite:hover { background: var(--accent); color: var(--white); }
+
+  .sources { margin-top: 26px; border-top: 1px solid var(--rule); padding-top: 20px; }
+  .sources h2 { font-family: var(--font-display); font-size: 15px; font-weight: 600; margin: 0 0 14px;
+                color: var(--ink-light); }
+  .src { display: flex; gap: 11px; padding: 9px 0; border-bottom: 1px solid var(--cream-dark);
+         font-size: 14px; line-height: 1.5; }
+  .src:last-child { border-bottom: 0; }
+  .src .n { flex: 0 0 20px; font-weight: 600; color: var(--accent); font-size: 12px; padding-top: 2px; }
+  .src .body { flex: 1; min-width: 0; }
+  .src .h { color: var(--ink); }
+  .src .where { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .src a { color: var(--accent); }
+  .tag { display: inline-block; font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+         color: var(--muted); border: 1px solid var(--rule); border-radius: 3px; padding: 1px 5px;
+         margin-left: 6px; vertical-align: 1px; }
+
+  .note { background: var(--accent-light); border-left: 2px solid var(--accent);
+          padding: 13px 16px; font-size: 14px; line-height: 1.55; color: var(--ink-light);
+          border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .err { background: #fef2f2; border-left-color: #dc2626; }
+
+  footer.foot { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--rule);
+                font-size: 13px; line-height: 1.6; color: var(--muted); }
+  footer.foot strong { color: var(--ink-light); font-weight: 600; }
+  footer.foot a { color: var(--muted); text-decoration: underline; }
+  .stats { margin-bottom: 12px; }
+
+  @media (max-width: 620px) {
+    .wrap { padding: 32px 18px 64px; }
+    .field { flex-direction: column; }
+    button.go { padding: 14px; }
+    .answer { padding: 22px 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">CivicScope</div>
+    <h1 id="title">Loading…</h1>
+    <p class="blurb" id="blurb"></p>
+  </header>
+
+  <form class="ask" id="form">
+    <div class="field">
+      <textarea id="q" rows="2" maxlength="500" autocomplete="off"
+        placeholder="Ask about ordinances, zoning, permits or meeting records…"></textarea>
+      <button class="go" id="go" type="submit">Ask</button>
+    </div>
+    <div class="examples" id="examples"></div>
+  </form>
+
+  <div id="out"></div>
+
+  <footer class="foot">
+    <div class="stats" id="stats"></div>
+    <p>
+      Answers are drawn only from documents the Village publishes itself, and every answer links
+      to the source. <strong>This is not legal advice</strong> — for anything that matters, confirm
+      against the source document and contact the Village office.
+    </p>
+  </footer>
+
+</div>
+
+<script>
+// Tenant comes from the path (/centreville), so one page serves every municipality.
+const SLUG = (location.pathname.replace(/^\/+|\/+$/g, '').split('/')[0] || '').toLowerCase();
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+const EXAMPLES = [
+  'Are golf carts allowed on Village streets?',
+  'How tall can a fence be in a front yard?',
+  'What are the rules for keeping chickens?',
+  'Who sits on the Planning Commission?',
+];
+
+let ready = false;
+
+async function boot() {
+  if (!SLUG) { fail('No municipality specified in the address.'); return; }
+  let d;
+  try {
+    const r = await fetch('/api/muni-ask?tenant=' + encodeURIComponent(SLUG));
+    d = await r.json();
+    if (!r.ok) { fail(d.error || 'Could not load this municipality.'); return; }
+  } catch { fail('Could not reach the document library.'); return; }
+
+  document.title = 'Ask ' + d.tenant.short_label + ' — CivicScope';
+  $('title').textContent = 'Ask ' + (d.tenant.short_label || d.tenant.label);
+  $('blurb').innerHTML = esc(d.tenant.blurb || '')
+    + (d.tenant.site_url ? ' <a href="' + esc(d.tenant.site_url) + '" target="_blank" rel="noopener">Village website ↗</a>' : '');
+
+  const c = d.corpus || {};
+  const named = Object.entries(c.collections || {})
+    .sort((a, b) => b[1] - a[1]).map(([k, n]) => esc(k) + ' (' + n + ')').join(' · ');
+  $('stats').innerHTML = '<strong>' + (c.documents || 0) + ' documents</strong> indexed'
+    + (c.passages ? ', ' + c.passages.toLocaleString() + ' searchable passages' : '')
+    + (named ? '<br>' + named : '')
+    + (c.transcribed
+        ? '<br>' + c.transcribed + ' of them are scanned pages that were transcribed so they '
+          + 'could be searched at all — the Village’s own copies have no text layer.'
+        : '');
+
+  if (!d.tenant.active) {
+    show('<div class="note">This library is still being prepared, so questions are not being '
+       + 'answered yet.</div>');
+    $('go').disabled = true;
+    $('q').disabled = true;
+    return;
+  }
+
+  $('examples').innerHTML = '<span class="lbl">Try:</span>'
+    + EXAMPLES.map(e => '<button type="button" class="chip">' + esc(e) + '</button>').join('');
+  $('examples').addEventListener('click', ev => {
+    const b = ev.target.closest('.chip');
+    if (!b) return;
+    $('q').value = b.textContent;
+    $('form').requestSubmit();
+  });
+  ready = true;
+}
+
+function show(html) { $('out').innerHTML = html; }
+function fail(msg) { show('<div class="note err">' + esc(msg) + '</div>'); }
+
+/** Turn [1] / [2] markers in the model's prose into links to the matching source row. */
+function renderAnswer(text, sources) {
+  const valid = new Set(sources.map(s => String(s.n)));
+  const paras = esc(text).split(/\n{2,}/).filter(p => p.trim());
+  const body = paras.map(p =>
+    '<p>' + p.replace(/\n/g, ' ').replace(/\[(\d+)\]/g, (m, n) =>
+      valid.has(n) ? '<a class="cite" href="#s' + n + '">' + n + '</a>' : m) + '</p>'
+  ).join('');
+
+  const list = sources.map(s => {
+    const where = [s.heading, s.citation].filter(Boolean).join(' · ');
+    return '<div class="src" id="s' + s.n + '">'
+      + '<div class="n">' + s.n + '</div>'
+      + '<div class="body">'
+      +   '<div class="h">' + esc(s.title)
+      +     (s.transcribed ? '<span class="tag" title="Transcribed from a scanned page — confirm figures against the source">scan</span>' : '')
+      +   '</div>'
+      +   '<div class="where">' + esc(where) + '</div>'
+      +   (s.url ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">Open the source document ↗</a>' : '')
+      + '</div></div>';
+  }).join('');
+
+  return '<div class="answer">' + body
+    + '<div class="sources"><h2>Sources</h2>' + list + '</div></div>';
+}
+
+$('form').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  if (!ready) return;
+  const question = $('q').value.trim();
+  if (!question) return;
+
+  $('go').disabled = true;
+  show('<div class="status"><span class="spinner"></span>Reading the Village’s documents…</div>');
+
+  try {
+    const r = await fetch('/api/muni-ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenant: SLUG, question }),
+    });
+    const d = await r.json();
+    if (!r.ok) { fail(d.error || 'Something went wrong.'); return; }
+    if (!d.found) { show('<div class="note">' + esc(d.answer) + '</div>'); return; }
+    show(renderAnswer(d.answer, d.sources || []));
+  } catch {
+    fail('Could not reach the answering service. Please try again.');
+  } finally {
+    $('go').disabled = false;
+  }
+});
+
+// Enter submits; Shift+Enter for a newline.
+$('q').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('form').requestSubmit(); }
+});
+
+boot();
+</script>
+</body>
+</html>
