@@ -80,6 +80,12 @@ function batchLoadRecent(){
            live jobs aiming at one SharePoint folder. Without this the name is stuck. */
         + (["new","uploaded","proposed","failed"].indexOf(j.status) >= 0
             ? ' <button class="pfill" onclick="batchCancel(' + invArg(j.id) + ')">Cancel</button>' : '')
+        /* CLEARING THE BOARD IS NOT DELETING ANYTHING. This hides the row; the batch, its
+           verification and its SharePoint folder are all untouched. Offered on everything except
+           the states the worker is actively driving — a run that is uploading into SharePoint must
+           not vanish from the only screen showing it. */
+        + (["rendering","reading","reconciling","filing"].indexOf(j.status) < 0
+            ? ' <button class="pfill" onclick="batchDismiss(' + invArg(j.id) + ')">Dismiss</button>' : '')
         + '</td></tr>';
     });
     el.innerHTML = h + '</tbody></table></div>';
@@ -288,6 +294,31 @@ function batchConfirmPanel(j){
 function batchCancel(id){
   invPost("batch_cancel", { id:id }).then(function(r){
     if(!r.ok){ var e = document.getElementById("batchErr"); if(e) e.textContent = r.error || "Could not cancel."; return; }
+    if(_batch.id === id){ batchStop(); _batch.job = null; document.getElementById("batchLive").innerHTML = ""; }
+    batchLoadRecent();
+  });
+}
+
+/* Take a finished batch off the board. NOTHING IN SHAREPOINT IS TOUCHED and the batch record is
+   kept — this only stops the row being painted, so a two-day-old traceback cannot go on reading
+   like a live failure. A batch that was still WAITING is also abandoned by this, because a hidden
+   job must never act later; the API says so and the confirmation below repeats it in the words
+   that matter to whoever is clicking. */
+function batchDismiss(id){
+  var j = null, i;
+  for(i = 0; i < (_batch.recent || []).length; i++) if(_batch.recent[i].id === id) j = _batch.recent[i];
+  var waiting = j && ["new","uploaded","proposed"].indexOf(j.status) >= 0;
+  var name = j ? j.folder : "this batch";
+  var ask = waiting
+    ? 'Dismiss "' + name + '"?\n\nIt has not been filed yet, so dismissing it ABANDONS it — it '
+      + 'will never file.\n\nNothing already in SharePoint is deleted.'
+    : 'Dismiss "' + name + '"?\n\nThis only clears it from this list. The batch record and its '
+      + 'SharePoint folder are left exactly as they are.';
+  if(!window.confirm(ask)) return;
+  invPost("batch_dismiss", { id:id }).then(function(r){
+    var e = document.getElementById("batchErr");
+    if(!r.ok){ if(e) e.textContent = r.error || "Could not dismiss."; return; }
+    if(e) e.textContent = "";
     if(_batch.id === id){ batchStop(); _batch.job = null; document.getElementById("batchLive").innerHTML = ""; }
     batchLoadRecent();
   });

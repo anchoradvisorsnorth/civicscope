@@ -1217,9 +1217,14 @@ export default async function handler(req, res) {
     if (action === 'batch_status') {
       if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
       const id = String(body.id || '').trim();
+      /* The LIST hides dismissed rows; asking for one BY ID still returns it. A dismissed batch is
+         off the front office's board, not erased — "what happened to that batch" has to stay
+         answerable, and a watch link already in someone's hand must not 404. */
       const q = id
         ? `ryc_batch_jobs?company_id=eq.ryc&id=eq.${id}&select=*`
-        : 'ryc_batch_jobs?company_id=eq.ryc&select=id,filename,folder,status,phase_note,page_count,pages_read,folder_url,error,created_at&order=created_at.desc&limit=8';
+        : 'ryc_batch_jobs?company_id=eq.ryc&dismissed_at=is.null'
+          + '&select=id,filename,folder,status,phase_note,page_count,pages_read,folder_url,error,created_at'
+          + '&order=created_at.desc&limit=8';
       const r = await sb(q);
       if (!r.ok) return res.status(502).json({ error: 'Could not read the batch.' });
       const rows = await r.json();
@@ -1275,6 +1280,50 @@ export default async function handler(req, res) {
       const rows = await r.json();
       if (!rows.length) return res.status(409).json({ error: 'That batch is already filing or filed.' });
       return res.status(200).json({ ok: true, job: rows[0] });
+    }
+
+    /* TAKE A FINISHED BATCH OFF THE BOARD. Keith, 2026-08-19, looking at a red Python traceback
+       from the previous day sitting directly under the successful re-run of the same PDF: *"still
+       broken?"* It was not. The list simply could not forget, so a stale error was indistinguishable
+       from a live one — the same defect as `proposed` once painting the "waiting for you" state as a
+       moving progress bar. A screen that cannot forget eventually stops being read.
+
+       ⛔ IT REFUSES WHILE THE MACHINE IS WORKING. Hiding a batch mid-render, mid-read or mid-upload
+       would take a run that is actively writing into RYC's SharePoint off the only screen that
+       shows it. Those states are the worker's, not a button's.
+
+       For a batch that is merely WAITING — `new`, `uploaded`, `proposed` — dismissing also ABANDONS
+       it, because a hidden job must never act later. That is one honest meaning ("I am done with
+       this") rather than a hidden row that quietly files 129 pages an hour from now. Nothing is
+       deleted either way: the row, its manifest, its verification and its error text all remain, and
+       `batch_status` by id still returns it. */
+    if (action === 'batch_dismiss') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const id = String(body.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'id is required.' });
+      const cur = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${id}&select=status,folder`);
+      const job = cur.ok ? (await cur.json())[0] : null;
+      if (!job) return res.status(404).json({ error: 'No such batch.' });
+      const WORKING = ['rendering', 'reading', 'reconciling', 'filing'];
+      if (WORKING.includes(job.status)) {
+        return res.status(409).json({
+          error: `"${job.folder}" is ${job.status} right now — it is being worked. Let it finish; `
+            + 'it can be dismissed once it is done.' });
+      }
+      const abandon = ['new', 'uploaded', 'proposed'].includes(job.status);
+      const patch = { dismissed_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      if (abandon) {
+        patch.status = 'failed';
+        patch.error = 'dismissed before it was confirmed';
+        patch.phase_note = 'dismissed';
+      }
+      const r = await sb(`ryc_batch_jobs?id=eq.${id}&dismissed_at=is.null`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not dismiss the batch.' });
+      const rows = await r.json();
+      if (!rows.length) return res.status(409).json({ error: 'That batch is already dismissed.' });
+      return res.status(200).json({ ok: true, abandoned: abandon, job: rows[0] });
     }
 
     /* ---- the worker's two actions. Service token only (see SERVICE_ACTIONS). ---- */
