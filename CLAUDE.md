@@ -119,6 +119,20 @@ brand_statement, brand_values (jsonb array)
 - /ryc/command → ryc-command/index.html (NEW 2026-07-07 — RYC Command Center v2, the FundView-style operating-cockpit rebuild of the RYC dashboard; parallel beta route, legacy /ryc/dashboard untouched until cutover. See RYC CLAUDE.md + memory project_ryc_command_center_overhaul.)
 - /ryc/estimate → ryc-estimate/index.html (NEW 2026-06-28 — RYC Estimating Assist: plan-set → Claude Vision takeoff → estimate grounded in RYC Foundation history; gate ryc2026. Part of the GC estimating-intelligence product, RYC = tenant #1. Calibration in progress; next is the unit-cost library. See RYC CLAUDE.md + memory project_civicscope_gc_estimating_intelligence.)
 - **/pool — "The Pool" unified hub (2026-07-19).** All friends'-pool pages (hidden personal, not a CivicScope product) merged under `pool/`: hub `index.html` + `golf.html`/`golf-picks.html` + `football.html`/`football-picks.html`/`commish.html` + **`live.html` (NEW 2026-08-09 — `/pool/live`, the bookmarkable phone-first live tracker)** + **`scoring.js` (NEW — the ONE client-side copy of the pool scoring rules, loaded by both `football.html` and `live.html`; mirror any change in `api/football-pool.js` and nowhere else)** + `sms.html` (A2P opt-in form → `sms_optin` action) + `privacy.html`/`terms.html` (A2P legal). Old `/golf*` + `/football*` URLs **301-redirect** (vercel.json; old file paths = meta-refresh stubs). APIs unchanged: [api/golf-pool.js](api/golf-pool.js) (`GOLF_POOL_CODE`) + [api/football-pool.js](api/football-pool.js) (`FOOTBALL_POOL_CODE`; `GET ?ver=1` returns its `VER` const — bump every edit + curl-verify live after deploy). Pool emails: `reply_to keith@anchoradvisorsnorth.com` on every send (pool@ has no mailbox — replies bounced before 7/19). **Full state/conventions live in `Cowork\Pools\CLAUDE.md` — read it before ANY pool work** (golf history incl. The Open final BOB, football demo state, no-odds rule, Twilio SMS status).
+- **`api/alert-sms.js` — a single-destination SMS relay (NEW 2026-08-19, `1.0.0-alert`).** No page,
+  no route rewrite; it is reached only as `/api/alert-sms`. An OUTSIDE monitoring system (a friend's
+  down-detector, nothing to do with CivicScope) texts one fixed handset through the pool's Twilio
+  number. **Deliberately NOT an action on `api/pool-sms.js`:** that file is gated by
+  `FOOTBALL_POOL_CODE`, which also opens `save_players`, `lock_slate` and the message log — and the
+  log carries players' PINs. This has its own code (`ALERT_SMS_CODE`) and its recipient is pinned
+  server-side (`ALERT_SMS_TO`), so there is no recipient parameter to abuse. ⚠ **It shares the
+  pool's A2P campaign and therefore the pool's carrier throughput**, which is a sole-prop STARTER
+  registration with low daily caps — a flapping monitor could starve the pool's slate-lock and PIN
+  texts, so the relay self-limits (6/hr, 24/day, identical text suppressed for 15 min) by reading
+  Twilio's own message log rather than a counter table, and **refuses to send when that log is
+  unreadable rather than sending blind**. Contract-gated on `?ver=1`. Rationale and the operational
+  detail live in `Cowork\Pools\CLAUDE.md`; **no code, number or credential belongs in this PUBLIC
+  repo.**
 - **/invoices — RYC Invoices, the AP register (NEW 2026-08-11).** Third RYC workspace in the
   shared shell (`ryc-invoices/`), alongside `/ryc/estimate` and `/ryc/command`. `/invoices`,
   `/invoices/:path*` and `/ryc/invoices` all rewrite to `ryc-invoices/index.html`. Deliberately
@@ -503,10 +517,12 @@ including a 6/30 opening balance per well, plus 23 distribution samples. Round-t
 quoting the paper**: backfilling a number known to be impossible would be forging a record.
 
 **Known gaps, deliberately:**
-- **No service worker.** The submit queue is localStorage, so "loaded, then lost signal" is
-  covered — a cold start inside a concrete well house is not. That is the next real piece.
-- **No bacti capture screen yet.** The API action exists and **requires the residual** (the exact
-  thing July's packet lacked); the UI for it does not.
+- ✅ **Service worker and bacti capture shipped 2026-08-18** (network-first on purpose — a
+  cache-first shell could pin an old `derive.js` and make the screen and the filed record
+  disagree, which is the defect class this product exists to remove).
+- ⚠ **Not verified on a real tablet in a real well house.** Registration, scope and the served
+  bytes are confirmed in production; "the operator walks into a concrete box and it opens" is not
+  provable from here.
 - `water_supplies.active` is informational — the working gate is `WATER_OPS_CODE`.
 
 ## Open Action Items
@@ -535,10 +551,11 @@ quoting the paper**: backfilling a number known to be impossible would be forgin
   stopped, because no commercial relationship with Centreville is recorded and further paid ingest
   is gated on that (`Centreville\CLAUDE.md`). `muni_tenants.doc_count` corrected 21 → 356, and the
   ingest now maintains it at the end of every run so it cannot drift again.
-- **Water Plant Daily Log — no service worker, no bacti screen.** The submit queue survives
-  "loaded, then lost signal" but not a cold start inside a concrete well house, which is where the
-  round actually happens. The bacti API action exists and **requires the residual** (the exact
-  thing Centreville's July packet lacked); the capture screen does not.
+- ✅ **Water Plant Daily Log — service worker and bacti capture SHIPPED** (verified live
+  2026-08-19: `/water-sw.js` 200 at root scope, bacti screen present). Left standing here as open
+  after they were built.
+- 🚨 **Nobody has used `/water` yet — zero readings exist after 2026-07-31.** August is being
+  written on paper while the tablet is live, so every day adds to the next backfill.
 - **Centreville's August 2026 is being recorded on paper right now.** `/water` is live and nobody
   is using it. Every day that runs is another day that has to be backfilled.
 - **`Civicscope/scripts/` is gitignored except narrow re-includes**, so the water gate, the
