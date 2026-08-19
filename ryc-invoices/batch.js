@@ -40,6 +40,9 @@ function batchSuggestFolder(){
 function renderBatch(){
   batchStop();
   _batch = { id:null, job:null, timer:null, sel:{}, recent:[] };
+  // The reconcile panel is per-batch; leaving last batch's rows in memory would paint them under
+  // the next one's header for the moment before the fetch returns.
+  _recon = { docs: [], targets: _recon ? _recon.targets : null, batchId: null, busy: {} };
   var v = document.getElementById("view");
   v.innerHTML =
     '<div class="panel"><div class="h">Batch process</div>'
@@ -219,16 +222,23 @@ function batchPaint(){
           : '')
       + '<div style="margin-top:10px"><a class="pfill" href="' + esc(j.folder_url||"#") + '" target="_blank" '
       + 'rel="noopener" style="text-decoration:none;padding:7px 12px">Open the SharePoint folder</a></div>';
-    if(f.documents && f.documents.length){
-      h += '<table class="t" style="margin-top:10px"><tbody>';
-      f.documents.forEach(function(d){
-        h += '<tr><td>' + esc(d.name) + '</td><td class="sub r" style="width:50px">' + d.pages + 'p</td>'
-          + '<td class="r" style="width:110px">' + fmt(d.amount) + '</td></tr>';
-      });
-      h += '</tbody></table>';
+    /* THE RECONCILIATION LIVES IN ITS OWN PANEL, loaded from the document rows rather than from the
+       verification blob.  records what the machine did; the rows below record what
+       a person still owes a decision on, and only one of those two can be edited. */
+    var rr = f.reconciliation || {};
+    if(rr.read && rr.read !== f.files){
+      h += '<div class="sub">Read as ' + rr.read + ' document(s), reconciled to ' + f.files
+        + ' before filing.</div>';
+    }
+    if((rr.pay_app_amounts || []).length){
+      h += '<div class="sub m-a">' + rr.pay_app_amounts.length
+        + ' pay application amount(s) corrected from the form&rsquo;s own arithmetic.</div>';
     }
   }
-  el.innerHTML = h + '</div>' + (j.status === "proposed" ? batchConfirmPanel(j) : "");
+  el.innerHTML = h + '</div>' + (j.status === "proposed" ? batchConfirmPanel(j) : "")
+    + (j.status === "filed" ? '<div id="batchRecon"></div>' : "");
+  if(j.status === "filed" && _recon.batchId !== j.id) reconLoad(j.id);
+  else if(j.status === "filed") reconRender();
 }
 
 /* MERGE IS THE ONLY EDIT OFFERED, deliberately. Every boundary error on a real batch has been the
@@ -425,5 +435,195 @@ function batchConfirm(){
     if(!r.ok){ errEl.textContent = r.error || "Could not confirm."; return; }
     _batch.sel = {}; _batch.job = null;
     batchWatch(j.id);
+  });
+}
+
+/* ===================== RECONCILING A FILED BATCH ================================
+   Keith, 2026-08-19: *"this is a reconciliation process for the front office - as part of their
+   process each invoice needs to be filed to its proper job folder or assigned as RYC Expense."*
+
+   Filing the batch produced the archive. This is the second half: one row per payable, each ending
+   either copied into its job's Vendor Invoices folder or declared RYC Expense. Both are DONE — the
+   difference is whether a file moved, not whether a decision was made.
+
+   PAY APPLICATIONS ARE SHOWN SEPARATELY because they are read differently: a pay app's amount is
+   the money due THIS period, sitting on a face sheet beside four larger numbers that are not bills.
+   A reviewer scanning a mixed list has to re-orient on every row. */
+var _recon = { docs: [], targets: null, batchId: null, busy: {} };
+
+function reconLoad(batchId, render){
+  _recon.batchId = batchId;
+  var need = _recon.targets ? Promise.resolve(null) : invPost("file_targets", {});
+  Promise.all([invPost("batch_documents", { id: batchId }), need]).then(function(rs){
+    if(rs[0] && rs[0].ok) _recon.docs = rs[0].data.documents || [];
+    if(rs[1] && rs[1].ok) _recon.targets = rs[1].data.jobs || [];
+    if(render !== false) reconRender();
+  });
+}
+
+function reconDoc(id){
+  for(var i=0;i<_recon.docs.length;i++) if(_recon.docs[i].id === id) return _recon.docs[i];
+  return null;
+}
+
+/* A pay application and its own lien waiver arrive as one payable, so `pay_application` here means
+   "the reconciler kept the pay app as the payable" — the waiver is inside the same PDF. */
+function reconIsPayApp(d){ return (d.doc_type || "") === "pay_application"; }
+
+function reconRender(){
+  var el = document.getElementById("batchRecon");
+  if(!el) return;
+  var docs = _recon.docs;
+  if(!docs.length){ el.innerHTML = ""; return; }
+
+  var done = 0, expense = 0, failedN = 0;
+  docs.forEach(function(d){
+    if(d.reconciled_at){ done++; if(d.disposition === "ryc_expense") expense++; }
+    else if(d.copy_error && d.copy_error !== "working") failedN++;
+  });
+  var open = docs.length - done;
+
+  var h = '<div class="panel"><div class="h">Reconcile &middot; ' + docs.length + ' document(s)</div>'
+    + '<div class="sub">Every invoice ends in one of two places: copied into its job&rsquo;s Vendor '
+    + 'Invoices folder, or marked <b>RYC Expense</b> &mdash; an overhead cost that belongs to no job '
+    + 'and is deliberately filed nowhere. The batch folder keeps its copy either way.</div>'
+    + '<div style="margin-top:8px"><b>' + done + ' of ' + docs.length + ' done</b>'
+    + (expense ? ' <span class="sub">&middot; ' + expense + ' RYC Expense</span>' : '')
+    + (open ? ' <span class="m-a">&middot; ' + open + ' outstanding</span>' : '')
+    + (failedN ? ' <span class="m-r">&middot; ' + failedN + ' failed</span>' : '')
+    + '</div>';
+
+  var pay = docs.filter(reconIsPayApp), inv = docs.filter(function(d){ return !reconIsPayApp(d); });
+  if(pay.length) h += reconGroup("Pay applications", pay);
+  if(inv.length) h += reconGroup(inv.length === docs.length ? "Invoices" : "Invoices and other documents", inv);
+  el.innerHTML = h + '</div>';
+}
+
+function reconGroup(title, docs){
+  var total = 0;
+  docs.forEach(function(d){ total += Number(d.amount || 0); });
+  var h = '<div style="margin-top:14px"><b>' + esc(title) + '</b> <span class="sub">'
+    + docs.length + ' &middot; ' + fmt(total) + '</span></div>'
+    + '<table class="t" style="margin-top:6px"><tbody>';
+  docs.forEach(function(d){ h += reconRow(d); });
+  return h + '</tbody></table>';
+}
+
+function reconRow(d){
+  var busy = !!_recon.busy[d.id];
+  var doneAt = d.reconciled_at;
+  var err = (d.copy_error && d.copy_error !== "working") ? d.copy_error : null;
+  var working = d.copy_error === "working" || busy;
+
+  var name = '<div>' + esc(d.file_name) + '</div>'
+    + '<div class="sub">' + (d.page_to - d.page_from + 1) + 'p'
+    + (d.vendor ? ' &middot; ' + esc(d.vendor) : '')
+    + (d.invoice_no ? ' &middot; #' + esc(d.invoice_no) : '')
+    /* WHAT THE VENDOR PRINTED, shown even when it resolved — four spellings of one job is a fact
+       the front office needs to see, and it is the only way to tell a good match from a lucky one. */
+    + (d.job_text ? ' &middot; printed &ldquo;' + esc(String(d.job_text).slice(0, 40)) + '&rdquo;' : '')
+    + '</div>';
+
+  /* THE JOB COLUMN. Keith, 2026-08-19: *"Can we add Job name as a column ... We might not know it
+     specifically with these batches but moving forward will."* It is a control rather than a label
+     because the answer is often already known — the matcher resolved it from the printed text — and
+     the front office's job is to confirm or correct it, not to retype it. */
+  var job = "";
+  if(doneAt){
+    job = '<div>' + esc(d.job_name || d.job_no || "") + '</div>'
+      + '<div class="sub">' + (d.disposition === "ryc_expense"
+          ? "RYC Expense &middot; not filed to a job folder"
+          : "filed " + esc(String(doneAt).slice(0,10))) + '</div>';
+  } else {
+    var opts = '<option value="">&mdash; choose a job &mdash;</option>';
+    (_recon.targets || []).forEach(function(t){
+      opts += '<option value="' + esc(t.no) + '"' + (t.no === d.job_no ? ' selected' : '') + '>'
+        + esc(t.name) + (t.no === "RYC-EXPENSE" ? "" : " (" + esc(t.no) + ")") + '</option>';
+    });
+    job = '<select id="rj_' + esc(d.id) + '" class="pfill" style="max-width:260px"'
+      + (working ? ' disabled' : '') + '>' + opts + '</select>'
+      + (d.job_source === "matched" && d.job_no
+          ? '<div class="sub">read off the invoice &mdash; confirm or change it</div>' : '');
+  }
+
+  var act = "";
+  if(d.sp_url){
+    act += '<a class="pfill" href="' + esc(d.sp_url) + '" target="_blank" rel="noopener" '
+      + 'style="text-decoration:none;padding:6px 10px">View</a> ';
+  }
+  if(doneAt){
+    if(d.copied_url){
+      act += '<a href="' + esc(d.copied_url) + '" target="_blank" rel="noopener">Open in job folder</a>';
+    } else if(d.disposition === "ryc_expense"){
+      act += '<span class="sub">RYC Expense</span>';
+    }
+  } else if(working){
+    act += '<span class="sub">copying&hellip;</span>';
+  } else {
+    act += '<button class="pfill" onclick="reconFile(' + invArg(d.id) + ')">File to job</button>'
+      + ' <button class="pfill" onclick="reconRename(' + invArg(d.id) + ')">Edit name</button>';
+  }
+  if(err) act += '<div class="sub m-r" style="margin-top:4px">' + esc(String(err).slice(0,160)) + '</div>';
+
+  return '<tr><td>' + name + '</td>'
+    + '<td class="r" style="width:110px">' + fmt(d.amount) + '</td>'
+    + '<td style="width:300px">' + job + '</td>'
+    + '<td class="r" style="width:270px">' + act + '</td></tr>';
+}
+
+/* One click, one document. The button disappears the moment it is pressed and the server refuses a
+   second attempt anyway — `reconciled_at is null` guards the write, so a double-click cannot file
+   an invoice into a job folder twice. */
+function reconFile(id){
+  var d = reconDoc(id);
+  if(!d) return;
+  var sel = document.getElementById("rj_" + id);
+  var jobNo = sel ? sel.value : "";
+  if(!jobNo){ alert("Choose a job, or RYC Expense if this is not a job cost."); return; }
+  var t = (_recon.targets || []).filter(function(x){ return x.no === jobNo; })[0];
+  var label = t ? t.name : jobNo;
+  var msg = jobNo === "RYC-EXPENSE"
+    ? 'Mark "' + d.file_name + '" as RYC Expense?\n\nIt stays in the batch folder and is NOT copied '
+      + 'to any job folder. This cannot be undone from here.'
+    : 'File "' + d.file_name + '" to ' + label + '?\n\nA copy goes into that job’s Vendor '
+      + 'Invoices folder. The batch folder keeps its copy. This cannot be undone from here.';
+  if(!window.confirm(msg)) return;
+
+  _recon.busy[id] = true; reconRender();
+  invPost("doc_reconcile", { doc_id:id, job_no:jobNo }).then(function(r){
+    delete _recon.busy[id];
+    if(!r.ok){ alert(r.error || "Could not file it."); reconRender(); return; }
+    /* A job copy is QUEUED, not finished — the VM holds the SharePoint credential. Poll until the
+       worker reports where it landed, so the link Keith asked for appears on its own rather than
+       after a manual refresh. */
+    reconLoad(_recon.batchId);
+    if(r.data && r.data.queued) reconPoll(6);
+  });
+}
+
+function reconPoll(left){
+  if(left <= 0) return;
+  setTimeout(function(){
+    invPost("batch_documents", { id:_recon.batchId }).then(function(r){
+      if(r.ok) _recon.docs = r.data.documents || [];
+      reconRender();
+      var pending = _recon.docs.some(function(d){ return d.copy_error === "working"; });
+      if(pending) reconPoll(left - 1);
+    });
+  }, 2500);
+}
+
+/* THE MASTER EDIT. Deliberately offered only before filing: once a copy exists in a job folder
+   under a given name, renaming one of the two copies makes the archive disagree with itself. */
+function reconRename(id){
+  var d = reconDoc(id);
+  if(!d) return;
+  var next = window.prompt("File name for this invoice:", d.file_name);
+  if(next === null) return;
+  next = String(next).trim();
+  if(!next || next === d.file_name) return;
+  invPost("doc_update", { doc_id:id, file_name:next }).then(function(r){
+    if(!r.ok){ alert(r.error || "Could not rename it."); return; }
+    reconLoad(_recon.batchId);
   });
 }

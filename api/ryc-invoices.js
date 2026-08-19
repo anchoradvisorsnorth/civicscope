@@ -209,7 +209,19 @@ Each document:
   "vendor_marked_dup": <true if the page carries DUPLICATE / REPRINT / COPY as a document marker>,
   "multi_job": <true if this one document bills more than one job/site>,
   "job_splits": [ { "job_text": ..., "amount": <number> } ],
-  "notes": <anything a reviewer should see: overbilling summary, missing pages, hand-written marks>
+  "notes": <anything a reviewer should see: overbilling summary, missing pages, hand-written marks>,
+
+  "pay_app": null, OR — only when doc_type is "pay_application" — the three figures below, read off
+  the application face sheet EXACTLY as printed. They are what make the payable checkable:
+  {
+    "current_payment_due": <number>,   the money owed for THIS period. Labelled "CURRENT PAYMENT DUE",
+                                       "AMOUNT DUE THIS APPLICATION", "TOTAL DUE THIS APPLICATION" or
+                                       "PAYMENT DUE" — normally line 8 on a G702-style form.
+    "eligible_to_date": <number|null>, "AMOUNT ELIGIBLE TO DATE" / "TOTAL EARNED LESS RETAINAGE"
+                                       (line 6). null if the form does not show it.
+    "less_previous": <number|null>     "LESS PREVIOUS PAYMENTS" / "LESS PREVIOUS CERTIFICATES FOR
+                                       PAYMENT" (line 7). null if the form does not show it.
+  }
 }
 
 RULES
@@ -222,6 +234,20 @@ RULES
 - A customer-copy credit-card slip is "receipt" — it is already paid, not a payable.
 - Set vendor_marked_dup only for a DOCUMENT marker, never for the word appearing in line items.
 - amount is the document's grand total, not a subtotal or a page continuation.
+
+- ⛔ A PAY APPLICATION'S "amount" IS THE MONEY DUE THIS PERIOD — never the contract, never the
+  running total. On one real application the face sheet carries $537,076.61 (current contract),
+  $483,017.31 (completed to date), $458,866.44 (eligible to date), $430,578.67 (previous payments)
+  and $28,287.77 (due this application). Only the LAST of those is a bill; the rest are the story
+  of the job so far, and RYC has already paid most of it. Take "amount" from the same line as
+  "pay_app.current_payment_due".
+  NEVER take it from: original or current contract sum · total completed and stored to date ·
+  amount eligible to date · less previous payments · balance to finish · retainage · a continuation
+  sheet's running column · a hand-typed "billed to date" summary stapled behind the application.
+- Fill "pay_app.eligible_to_date" and "pay_app.less_previous" whenever the form prints them, even
+  though they are not the payable. Their difference must equal the amount due, so they are how a
+  misread digit gets caught — and a misread digit in an amount becomes a filename and then an
+  archive entry that nobody re-checks.
 - If a field is not legible or not present, use null. Do not guess.`;
 
 async function readPages(images) {
@@ -714,6 +740,42 @@ function supportingDocuments(rows) {
    The matcher, the desk rule and the payable classifier are the pieces of this module with real
    logic and no I/O, so they are the pieces that can be tested exhaustively without touching
    production. */
+/* RYC EXPENSE IS AN ANSWER, NOT A BLANK. Keith, 2026-08-19: *"create a fake job RYC Expense for
+   those invoices that are not attributed to a specific project."* Plenty of real payables belong to
+   no job at all — fleet fuel, finance charges, a card-lock account, capital equipment shipped to
+   RYC's own yard; the 2026-08-13 batch alone had six. Before this they sat in the queue looking
+   unresolved forever, which is how a reconciliation queue stops being read. It is a LABEL in this
+   directory only: nothing is created in Procore or Foundation, and nothing is copied anywhere. */
+const RYC_EXPENSE = { no: 'RYC-EXPENSE', name: 'RYC Expense', expense: true };
+
+/* SharePoint rejects these in an item name. Mirrors `sanitise()` in file_invoice.py — the front
+   office should be told before the rename is queued, not after the worker refuses it. */
+const SP_ILLEGAL = /[\\/:*?"<>|]/;
+
+/* Test jobs are not real work and must never be a filing destination. Everything else in the
+   Foundation list IS real — including warranty work and the two PMs' own residences, which the
+   AUTO-MATCHER still refuses (an invoice reading "Brad Yoder" would land on one confidently and
+   wrongly) but a person may deliberately choose. Those are different acts and get different lists. */
+const NOT_A_REAL_JOB = /^\s*TEST\s+JOB\b/i;
+
+function pickableJobs(dir) {
+  const out = [];
+  const seen = new Set();
+  for (const j of [...(dir.jobs || []), ...(dir.foundationOnly || [])]) {
+    const no = String(j.no || '').trim();
+    const name = String(j.name || '').trim();
+    if (!no || seen.has(no) || NOT_A_REAL_JOB.test(name)) continue;
+    seen.add(no);
+    out.push({ no, name: name || no, pm: j.pm || null, active: j.active !== false,
+      in_procore: j.in_procore !== false });
+  }
+  out.sort((a, b) => {
+    if (a.active !== b.active) return a.active ? -1 : 1;   // live jobs first; the rest still there
+    return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+  });
+  return [RYC_EXPENSE, ...out];
+}
+
 export const __matcher = { matchJob, tokenIndex, jobTokens, jobNoKey };
 export const __pm = { resolveJobPm, resolveJobPmSource };
 export const __payable = { supportingDocuments, vendorKey, NEVER_PAYABLE };
@@ -723,6 +785,12 @@ export const __payable = { supportingDocuments, vendorKey, NEVER_PAYABLE };
    asserts the rule itself rather than a copy of it — this module has been bitten three times by one
    rule written twice, once inside the test meant to catch it. */
 export const __manifest = { validateManifest };
+/* The filing destinations a PERSON may choose. Exported because the widening here is deliberate
+   and easy to undo by accident: this list is broader than the auto-matcher's on purpose, and the
+   only things excluded are the test jobs. A gate that asserts it keeps the two lists from silently
+   converging again. */
+export const __targets = { pickableJobs, RYC_EXPENSE, NOT_A_REAL_JOB };
+
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
@@ -755,7 +823,8 @@ export default async function handler(req, res) {
        let it OCR a page; only one of them also lets it write invoices into the register. The
        narrower grant is the one that cannot create a payable. */
     'invoice-filer': new Set(['filing_queue', 'mark_filed', 'read',
-      'reconcile', 'adjudicate', 'batch_autoconfirm',
+      'reconcile', 'adjudicate', 'batch_autoconfirm', 'batch_documents_register',
+      'doc_copy_claim', 'doc_copy_done',
       'batch_claim', 'batch_progress']),
     'invoice-ingest': new Set(['open_batch', 'read', 'register']),
   };
@@ -771,7 +840,11 @@ export default async function handler(req, res) {
        `batch_confirm` is the front office's route and it is the one that says a PERSON approved
        these boundaries. `reconcile` and `adjudicate` are deliberately NOT here: they only read and
        propose, exactly like `read`, and the page is free to use them. */
-    'batch_autoconfirm']);
+    'batch_autoconfirm',
+    /* A page must never be able to assert that a document was filed into a live job folder, nor to
+       register what "was filed" in the first place. Both are claims about SharePoint, and only the
+       machine holding the SharePoint credential is in a position to make one. */
+    'batch_documents_register', 'doc_copy_claim', 'doc_copy_done']);
   if (who.scope === 'service') {
     const allowed = SERVICE_ACTIONS[who.service] || new Set();
     if (!allowed.has(action)) {
@@ -1324,6 +1397,241 @@ export default async function handler(req, res) {
       const rows = await r.json();
       if (!rows.length) return res.status(409).json({ error: 'That batch is already dismissed.' });
       return res.status(200).json({ ok: true, abandoned: abandon, job: rows[0] });
+    }
+
+    /* ===================== RECONCILING A FILED BATCH ==============================
+       Keith, 2026-08-19: *"this is a reconciliation process for the front office - as part of their
+       process each invoice needs to be filed to its proper job folder or assigned as RYC Expense in
+       which case it is not filed in jobs folder. Further, we'll need to make sure that
+       reconciliation is done and cannot be done again (duplicated)."*
+
+       Filing the batch put every payable in one dated folder. That is the ARCHIVE. Reconciling is
+       the second, human half: each document is either copied into its job's Vendor Invoices folder
+       or declared RYC Expense — an overhead cost that belongs to no job and is deliberately filed
+       nowhere. Both are finished states. The difference is whether a file moved, not whether a
+       decision was made.
+
+       ⛔ EVERY WRITE HERE GUARDS ON `reconciled_at is null`, so a second click changes zero rows and
+       is told so. A retry after a FAILED copy is still allowed — that is the difference between
+       "not done yet" and "done" — but nothing can be reconciled twice. See migration 013. */
+    if (action === 'batch_documents') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const id = String(body.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'A batch id is required.' });
+      const r = await sb(`ryc_batch_documents?company_id=eq.ryc&batch_id=eq.${id}`
+        + '&select=*&order=seq.asc');
+      if (!r.ok) return res.status(502).json({ error: 'Could not read the batch documents.' });
+      return res.status(200).json({ ok: true, documents: await r.json() });
+    }
+
+    /* The worker registers what it actually filed. THE JOB IS RESOLVED HERE, not on the VM, because
+       the matcher lives here and this module has been bitten three times by expressing one business
+       rule in a second place. Idempotent by (batch_id, seq): re-running the worker converges instead
+       of duplicating the reconciliation queue. */
+    if (action === 'batch_documents_register') {
+      const id = String(body.id || '').trim();
+      const docs = Array.isArray(body.documents) ? body.documents : [];
+      if (!id || !docs.length) return res.status(400).json({ error: 'A batch id and documents are required.' });
+
+      let dir = null;
+      try { dir = await jobDirectory(); } catch { /* handled by leaving the job unresolved */ }
+      const idx = dir ? __matcher.tokenIndex(dir.jobs) : null;
+
+      const rows = docs.map((d, i) => {
+        const seq = parseInt(d.seq, 10) || (i + 1);
+        let job_no = null, job_name = null, job_source = null;
+        if (dir && idx && String(d.job_text || '').trim()) {
+          const m = __matcher.matchJob(String(d.job_text), dir.jobs, idx, dir.foundationOnly);
+          if (m && m.job) {
+            job_no = m.job.no;
+            job_name = dir.names[m.job.no] || m.job.name || null;
+            job_source = 'matched';
+          }
+        }
+        const name = String(d.name || '').trim();
+        return {
+          company_id: 'ryc', batch_id: id, seq,
+          file_name: name, sp_name: name, sp_url: d.url || null,
+          page_from: parseInt(d.page_from, 10) || 0,
+          page_to: parseInt(d.page_to, 10) || 0,
+          doc_type: d.doc_type || 'unknown',
+          vendor: d.vendor || null,
+          invoice_no: d.invoice_no || null,
+          amount: (d.amount === null || d.amount === undefined || d.amount === '')
+            ? null : Number(d.amount),
+          job_text: d.job_text || null,
+          job_no, job_name, job_source,
+        };
+      });
+      const r = await sb('ryc_batch_documents?on_conflict=batch_id,seq', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
+        body: JSON.stringify(rows),
+      });
+      if (!r.ok) return res.status(502).json({ error: `Could not register documents (${r.status}).` });
+      const made = await r.json();
+      return res.status(200).json({ ok: true, inserted: made.length, of: rows.length });
+    }
+
+    /* Assign a document and finish it. `RYC-EXPENSE` is a real answer, not a refusal — an overhead
+       cost that belongs to no job — so it completes immediately, because there is nothing to copy.
+       A real job leaves `reconciled_at` NULL until the copy actually lands in SharePoint; a
+       reconciliation that claimed to be done while the file was still on Vercel's side of the fence
+       would be exactly the "green tick over an unknown" this module refuses elsewhere. */
+    if (action === 'doc_reconcile') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const docId = String(body.doc_id || '').trim();
+      const jobNo = String(body.job_no || '').trim();
+      if (!docId || !jobNo) return res.status(400).json({ error: 'A document id and a job are required.' });
+
+      const cur = await sb(`ryc_batch_documents?company_id=eq.ryc&id=eq.${docId}&select=*`);
+      const doc = cur.ok ? (await cur.json())[0] : null;
+      if (!doc) return res.status(404).json({ error: 'No such document.' });
+      if (doc.reconciled_at) {
+        return res.status(409).json({
+          error: `"${doc.file_name}" was already reconciled on `
+            + `${String(doc.reconciled_at).slice(0, 10)} — it cannot be filed twice.` });
+      }
+
+      const expense = jobNo.toUpperCase() === RYC_EXPENSE.no;
+      let job_name = RYC_EXPENSE.name;
+      if (!expense) {
+        let dir = null;
+        try { dir = await jobDirectory(); } catch { /* reported below */ }
+        if (!dir) return res.status(503).json({ error: 'The job list could not be read just now — try again.' });
+        const j = pickableJobs(dir).find(x => x.no === jobNo);
+        if (!j) return res.status(400).json({ error: `${jobNo} is not a job that can be filed to.` });
+        job_name = j.name;
+      }
+      const patch = {
+        job_no: expense ? RYC_EXPENSE.no : jobNo, job_name, job_source: 'chosen',
+        disposition: expense ? 'ryc_expense' : 'job_folder',
+        copy_error: null, updated_at: new Date().toISOString(),
+      };
+      if (expense) {
+        patch.reconciled_at = new Date().toISOString();
+        patch.reconciled_by = who.via === 'admin' ? 'admin' : 'front office';
+      }
+      const r = await sb(`ryc_batch_documents?id=eq.${docId}&reconciled_at=is.null`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not record the reconciliation.' });
+      const rows = await r.json();
+      if (!rows.length) return res.status(409).json({ error: 'That document was reconciled a moment ago.' });
+      return res.status(200).json({ ok: true, document: rows[0], queued: !expense });
+    }
+
+    /* The master edit. Deliberately refused once a document is reconciled: the copy in the job
+       folder is filed under the name it had, and silently renaming one half of a pair is worse than
+       refusing. Rare-case corrections happen BEFORE filing, which is where the review is anyway. */
+    if (action === 'doc_update') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const docId = String(body.doc_id || '').trim();
+      if (!docId) return res.status(400).json({ error: 'A document id is required.' });
+      const cur = await sb(`ryc_batch_documents?company_id=eq.ryc&id=eq.${docId}&select=*`);
+      const doc = cur.ok ? (await cur.json())[0] : null;
+      if (!doc) return res.status(404).json({ error: 'No such document.' });
+      if (doc.reconciled_at) {
+        return res.status(409).json({
+          error: `"${doc.file_name}" is already filed to ${doc.job_name || doc.job_no}. `
+            + 'Edit it before filing, not after.' });
+      }
+      const patch = { updated_at: new Date().toISOString() };
+      if (body.file_name !== undefined) {
+        const nm = String(body.file_name || '').trim();
+        if (!nm) return res.status(400).json({ error: 'A file name cannot be empty.' });
+        if (SP_ILLEGAL.test(nm)) {
+          return res.status(400).json({ error: 'A file name cannot contain \\ / : * ? " < > | characters.' });
+        }
+        patch.file_name = /\.pdf$/i.test(nm) ? nm : `${nm}.pdf`;
+      }
+      if (body.job_no !== undefined) {
+        const jobNo = String(body.job_no || '').trim();
+        if (jobNo.toUpperCase() === RYC_EXPENSE.no) {
+          patch.job_no = RYC_EXPENSE.no; patch.job_name = RYC_EXPENSE.name;
+        } else if (jobNo) {
+          let dir = null;
+          try { dir = await jobDirectory(); } catch { /* reported below */ }
+          if (!dir) return res.status(503).json({ error: 'The job list could not be read just now — try again.' });
+          const j = pickableJobs(dir).find(x => x.no === jobNo);
+          if (!j) return res.status(400).json({ error: `${jobNo} is not a job that can be filed to.` });
+          patch.job_no = j.no; patch.job_name = j.name;
+        } else {
+          patch.job_no = null; patch.job_name = null;
+        }
+        patch.job_source = 'chosen';
+      }
+      const r = await sb(`ryc_batch_documents?id=eq.${docId}&reconciled_at=is.null`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not update the document.' });
+      const rows = await r.json();
+      if (!rows.length) return res.status(409).json({ error: 'That document was reconciled a moment ago.' });
+      return res.status(200).json({ ok: true, document: rows[0] });
+    }
+
+    /* Every job a person may deliberately file an invoice to, plus RYC Expense.
+       ⚠ WIDER THAN THE MATCHER'S LIST, ON PURPOSE (Keith, 2026-08-19: *"Yes include all real
+       jobs"*). The auto-matcher still excludes warranty work and the two PMs' own residences,
+       because an invoice whose job field reads "Brad Yoder" would land on one of them confidently
+       and wrongly. A HUMAN choosing one from a dropdown is a different act, and refusing them a
+       real destination only moves the misfile somewhere less visible. Only the test jobs stay out
+       of both — they are not real work. */
+    if (action === 'file_targets') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      let dir = null;
+      try { dir = await jobDirectory(); } catch { /* reported below */ }
+      if (!dir) return res.status(503).json({ error: 'The job list could not be read just now.' });
+      return res.status(200).json({ ok: true, jobs: pickableJobs(dir), as_of: dir.asOf });
+    }
+
+    /* ---- the copy worker's actions. Service token only (see SERVICE_ACTIONS). ----
+       The copy itself happens on keith-agent-01: SharePoint needs the delegated credential, which
+       deliberately does not exist on Vercel. Same split as everything else here — the API owns the
+       STATE, the VM owns the WORK. */
+    if (action === 'doc_copy_claim') {
+      /* Claim by PATCHing a row that is still claimable and letting PostgREST report what it
+         actually changed, so two workers cannot both win. `copy_error` doubles as the lease: a
+         worker that dies leaves a visible "working" a human can see, rather than a row that
+         silently re-runs and copies an invoice into a job folder twice. */
+      const r = await sb('ryc_batch_documents?company_id=eq.ryc&disposition=eq.job_folder'
+        + '&reconciled_at=is.null&copy_error=is.null&order=updated_at.asc&limit=1', {
+        method: 'PATCH', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ copy_error: 'working', updated_at: new Date().toISOString() }),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'claim failed' });
+      const rows = await r.json();
+      const doc = rows[0] || null;
+      if (doc) {
+        const b = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${doc.batch_id}`
+          + '&select=folder,received_date');
+        if (b.ok) {
+          const batch = (await b.json())[0];
+          if (batch) { doc.batch_folder = batch.folder; doc.received_date = batch.received_date; }
+        }
+      }
+      return res.status(200).json({ ok: true, document: doc });
+    }
+
+    /* The worker reports what actually happened. A SUCCESS here is the only thing that sets
+       `reconciled_at`, and it is set from evidence — the copy landed at this path, at this URL. */
+    if (action === 'doc_copy_done') {
+      const docId = String(body.doc_id || '').trim();
+      if (!docId) return res.status(400).json({ error: 'A document id is required.' });
+      const failed = String(body.error || '').trim();
+      const patch = failed
+        ? { copy_error: failed.slice(0, 500), updated_at: new Date().toISOString() }
+        : {
+            copy_error: null, copied_path: body.path || null, copied_url: body.url || null,
+            sp_name: body.sp_name || undefined,
+            reconciled_at: new Date().toISOString(), reconciled_by: 'front office',
+            updated_at: new Date().toISOString(),
+          };
+      const r = await sb(`ryc_batch_documents?id=eq.${docId}&reconciled_at=is.null`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not record the copy.' });
+      return res.status(200).json({ ok: true, document: (await r.json())[0] || null });
     }
 
     /* ---- the worker's two actions. Service token only (see SERVICE_ACTIONS). ---- */

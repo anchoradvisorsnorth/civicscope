@@ -30,11 +30,56 @@ document.getElementById("gate-input").addEventListener("keydown", function(e){
   if(e.key === "Enter") tryGate();
 });
 
+/* ===================== ONE ADDRESS PER VIEW =====================================
+   Keith, 2026-08-19: *"we need unique domains for the different functions in the left sidebar so
+   that people can bookmark to the page that is useful to them."*
+
+   All three views lived at /ryc/invoices, so the front office could not bookmark the arrivals queue
+   and a PM could not bookmark their desk — the rail state existed only in memory and a reload threw
+   it away. The shell already routes this way for /desk/... and /command/...; this is the same
+   pattern for the third workspace.
+
+   THE QUERY STRING IS CARRIED THROUGH EVERY NAVIGATION, and that is not cosmetic: ?c= and ?k= ARE
+   the credential. Dropping the search on a pushState would silently sign the user out on the first
+   rail click, and an emailed ?k= link would stop working the moment its holder looked at anything
+   else. */
+var INV_VIEWS = { inbound:"inbound", invoices:"desks", batch:"batch" };
+var INV_BY_PATH = { inbound:"inbound", desks:"invoices", batch:"batch",
+                    "pm-desks":"invoices", invoices:"invoices" };
+
+function invBasePath(){
+  // Works under /ryc/invoices and the bare /invoices alias without hard-coding either.
+  var m = location.pathname.match(/^(.*\/invoices)(?:\/|$)/);
+  return m ? m[1] : "/ryc/invoices";
+}
+function invViewFromPath(){
+  var base = invBasePath();
+  var rest = location.pathname.slice(base.length).replace(/^\/+|\/+$/g, "").toLowerCase();
+  return rest ? (INV_BY_PATH[rest] || null) : null;
+}
+function invPushView(key, replace){
+  var slug = INV_VIEWS[key];
+  if(!slug) return;
+  var url = invBasePath() + "/" + slug + location.search + location.hash;
+  if(location.pathname + location.search === invBasePath() + "/" + slug + location.search) return;
+  try { history[replace ? "replaceState" : "pushState"]({ view:key }, "", url); } catch(e){ /* file:// */ }
+}
+function invRender(key){
+  if(key === "inbound") renderInbound();
+  else if(key === "batch") renderBatch();
+  else renderInvoices();
+}
+function invGoTo(key, push){
+  if(typeof RYCShell !== "undefined") RYCShell.setActive(key);
+  if(push !== false) invPushView(key);
+  invRender(key);
+}
+
 function init(){
   if(typeof RYCShell !== "undefined"){
     RYCShell.mount({
       workspace: "invoices",
-      version: "v1.2.0",
+      version: "v1.4.0",
       active: "inbound",
       /* TWO destinations, because they are two different people's work (Keith, 2026-08-13).
          Inbound is the front office: everything that has arrived and not yet been sent to a desk.
@@ -51,12 +96,7 @@ function init(){
       ] }],
       /* setActive is not automatic — the rail keeps whatever `active` was mounted with, which is
          why clicking Inbound left "Daily batch" highlighted. */
-      onSelect: function(key){
-        RYCShell.setActive(key);
-        if(key === "inbound") renderInbound();
-        else if(key === "batch") renderBatch();
-        else renderInvoices();
-      },
+      onSelect: function(key){ invGoTo(key); },
       onLock: function(){ sessionStorage.removeItem("ryc_inv_auth"); location.reload(); }
     });
   }
@@ -75,8 +115,22 @@ function init(){
     var who = (r && r.ok && r.data) ? r.data : null;
     if(who){ _inv.who = who; _inv.pm = who.pm || null; }
     var pm = who && who.scope === "pm";
-    if(typeof RYCShell !== "undefined") RYCShell.setActive(pm ? "invoices" : "inbound");
-    if(pm) renderInvoices(); else renderInbound();
+    /* AN EXPLICIT ADDRESS BEATS THE DEFAULT. A bookmark is a statement about where its owner wants
+       to be, so it wins over the who-am-I heuristic; without a path we still ask the server rather
+       than guessing, so an admin code lands on Inbound and an emailed ?k= link lands on that PM's
+       desk exactly as before. `replaceState` normalises the bare /ryc/invoices to its real view so
+       the Back button never has a rung that just redirects. */
+    var want = invViewFromPath() || (pm ? "invoices" : "inbound");
+    if(typeof RYCShell !== "undefined") RYCShell.setActive(want);
+    invPushView(want, true);
+    invRender(want);
+  });
+
+  // Back/forward move between views instead of leaving the workspace.
+  window.addEventListener("popstate", function(){
+    var key = invViewFromPath() || "inbound";
+    if(typeof RYCShell !== "undefined") RYCShell.setActive(key);
+    invRender(key);
   });
 }
 
