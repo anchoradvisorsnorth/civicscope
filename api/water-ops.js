@@ -109,10 +109,21 @@ export default async function handler(req, res) {
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
   const action = body.action;
   const READ_ONLY = new Set(['profile', 'month', 'preview']);
-
-  // Fail closed. An unset access code must not mean an open plant record.
-  if (!READ_ONLY.has(action)) {
-    if (!OPS_CODE) return bad(res, 503, 'WATER_OPS_CODE is not configured — writes are disabled.');
+  /* ⛔ THE CREW NEVER LOG IN (Keith, 2026-08-19: "this is the wellhouse app - it need to be super
+     simple - pick a well - no login").
+     Entering a reading is the crew's whole job, done one-handed in a concrete well house, and an
+     access-code screen in front of it is a login however it is labelled. So the three submit
+     actions are open, exactly like the reads.
+     ADMIN IS NOT. Adding or deactivating an operator changes who the record can be attributed to,
+     which is not a field task and is not something a bookmarked link should be able to do — those
+     still require the code.
+     ⚠ Stated plainly: with this, anyone holding the /water URL can write a reading into a record
+     that sits behind a report signed under 1976 PA 399. That is the same posture the village hub
+     already describes in words ("open on this link for now") and the same one the OIC review page
+     runs under. Google sign-in is what closes it, for both surfaces at once. */
+  const FIELD_ENTRY = new Set(['submit_reading', 'submit_dist', 'submit_bacti']);
+  if (!READ_ONLY.has(action) && !FIELD_ENTRY.has(action)) {
+    if (!OPS_CODE) return bad(res, 503, 'WATER_OPS_CODE is not configured — admin actions are disabled.');
     if (body.code !== OPS_CODE) return bad(res, 403, 'Wrong access code.');
   }
 
