@@ -61,9 +61,6 @@
   .msg.warn{background:var(--warnbg);border:1px solid #fcd34d;color:var(--warn)}
   .msg.err{background:var(--errbg);border:1px solid #fecaca;color:var(--err)}
   .msg.ok{background:#f0fdfa;border:1px solid #99f6e4;color:var(--ok)}
-  nav.tabs{display:flex;gap:6px;margin-bottom:12px}
-  nav.tabs button{flex:1;background:#fff;border:1px solid var(--line);color:var(--mut);padding:11px 6px;font-size:13px}
-  nav.tabs button[aria-current="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
   table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
   th,td{border:1px solid #cbd5e1;padding:4px 5px;text-align:right;white-space:nowrap}
   th{background:#eef2f7;font-size:11px;font-weight:600;color:#334155}
@@ -118,12 +115,11 @@
 
   <!-- ===== 3. app ======================================================================= -->
   <div id="app" class="hide">
-    <nav class="tabs">
-      <button data-tab="round"  aria-current="true">Round</button>
-      <button data-tab="dist">Distribution</button>
-      <button data-tab="bacti">Bacti</button>
-      <button data-tab="book">Records</button>
-    </nav>
+    <!-- ⛔ NO TAB BAR (Keith 2026-08-19: "what are those other button at the top? what is round?
+         It should just be pick a well").
+         "Round" was our word, not the crew's, and "Records" was the OIC's screen sitting in the
+         field app. What is left is one list of what today needs: the three wells, then the two
+         samples. Nothing to navigate — you tap the thing you are standing at. -->
 
     <section id="tabRound">
       <div class="card">
@@ -136,6 +132,7 @@
     <section id="tabEntry" class="hide"></section>
 
     <section id="tabDist" class="hide">
+      <button class="ghost" style="width:100%;margin-bottom:10px" onclick="showTab('round')">← Back to the wells</button>
       <div class="card">
         <h2>Distribution sample</h2>
         <div class="muted">One sample per site per day.</div>
@@ -159,6 +156,7 @@
          The residual is REQUIRED here (the API refuses without it) because a bacti result
          with no chlorine residual beside it tells EGLE nothing about the water. ============ -->
     <section id="tabBacti" class="hide">
+      <button class="ghost" style="width:100%;margin-bottom:10px" onclick="showTab('round')">← Back to the wells</button>
       <div class="card">
         <h2>Bacteriological sample</h2>
         <div class="muted">Routine sites, or a well. The free chlorine taken with the sample
@@ -188,17 +186,6 @@
       </div>
     </section>
 
-    <section id="tabBook" class="hide">
-      <div class="card">
-        <h2>Records</h2>
-        <div class="row">
-          <div><label for="bkMonth">Month</label><input id="bkMonth" type="month"></div>
-          <div><label for="bkEp">Sheet</label><select id="bkEp"></select></div>
-        </div>
-        <div class="muted" style="margin-top:10px">The Well and Pump Record as it is kept on paper — one row a day, derived columns filled in.</div>
-      </div>
-      <div id="bookOut"></div>
-    </section>
   </div>
 </main>
 
@@ -329,26 +316,18 @@ $('btnWho').onclick = async () => {
 // The tab now lives in the URL hash (`/water#book`). Hash rather than pushState deliberately: it
 // needs no server rewrite, so it cannot break the single `/water` route or the deploy's routing
 // gate, and it works identically on the deployment URL and the production alias.
-const TABS = ['round', 'dist', 'bacti', 'book'];
+const TABS = ['round', 'dist', 'bacti'];
 
 function showTab(tab, { push = true } = {}) {
   if (!TABS.includes(tab)) tab = 'round';
   S.tab = tab;
-  document.querySelectorAll('nav.tabs button')
-    .forEach(x => x.setAttribute('aria-current', x.dataset.tab === tab));
   $('tabRound').classList.toggle('hide', tab !== 'round');
   $('tabEntry').classList.add('hide');
   $('tabDist').classList.toggle('hide', tab !== 'dist');
   $('tabBacti').classList.toggle('hide', tab !== 'bacti');
-  $('tabBook').classList.toggle('hide', tab !== 'book');
   if (push && location.hash.slice(1) !== tab) location.hash = tab;
-  if (tab === 'book') paintBook();
   if (tab === 'round') refreshRound();
 }
-
-document.querySelectorAll('nav.tabs button').forEach(b => {
-  b.onclick = () => showTab(b.dataset.tab);
-});
 
 // Back/forward — including the phone's back gesture — now move between screens instead of
 // leaving the app. `push:false` so restoring a screen does not add another history entry.
@@ -372,7 +351,20 @@ async function refreshRound(){
     t.onclick = () => openEntry(ep);
     $('epTiles').appendChild(t);
   }
-  // distribution + records selectors
+  /* The samples are part of the same list, not a different place. A distribution sample is taken
+     most days and a bacti roughly monthly, so they belong on the list of what today needs —
+     just below the wells, and visibly secondary to them. */
+  for (const [label, sub, tab] of [
+    ['Distribution sample', 'One sample per site per day', 'dist'],
+    ['Bacti sample', 'Routine sites — needs the free chlorine taken with it', 'bacti'],
+  ]) {
+    const t = el(`<button class="tile"><span><b>${label}</b>
+      <span class="muted">${sub}</span></span><span class="st todo">open</span></button>`);
+    t.onclick = () => showTab(tab);
+    $('epTiles').appendChild(t);
+  }
+
+  // distribution selectors
   const dsites = (p.sites||[]).filter(s=>s.kind==='distribution');
   $('dSite').innerHTML = dsites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
   if(!$('dDate').value) $('dDate').value = today();
@@ -382,8 +374,6 @@ async function refreshRound(){
   paintBactiSites();
   if(!$('bDate').value) $('bDate').value = today();
   if(!$('bLab').value) $('bLab').value = p.supply?.lab_name || '';
-  $('bkEp').innerHTML = p.entryPoints.map(e=>`<option value="${e.id}">${esc(e.label)} · ${esc(e.code)}</option>`).join('');
-  if(!$('bkMonth').value) $('bkMonth').value = today().slice(0,7);
   paintQueue();
 }
 
@@ -586,64 +576,9 @@ $('btnDist').onclick = async () => {
   }
 };
 
-// ---- the repository: the paper sheet, rebuilt ---------------------------------------------------
-$('bkMonth').onchange = paintBook; $('bkEp').onchange = paintBook;
-async function paintBook(){
-  const [y,m] = ($('bkMonth').value||today().slice(0,7)).split('-').map(Number);
-  const epId = $('bkEp').value;
-  $('bookOut').innerHTML = '<div class="card muted">Loading…</div>';
-  let d; try{ d = await api('month', { year:y, month:m }); }
-  catch(e){ $('bookOut').innerHTML = `<div class="card msg err">${esc(e.message)}</div>`; return; }
-
-  const ep = d.entryPoints.find(e=>e.id===epId) || d.entryPoints[0];
-  const rows = d.readings.filter(r=>r.entry_point_id===ep.id);
-  const feeds = ep.feeds;
-  const days = new Date(y, m, 0).getDate();
-  const byDay = {}; for(const r of rows) byDay[Number(r.reading_date.slice(8,10))] = r;
-
-  let head = `<tr><th>Date</th><th>Time</th><th>Meter</th><th>Gallons</th><th>Lbs&nbsp;Water</th>`;
-  for(const f of feeds) head += `<th>${esc(f.product_name||f.kind)}</th><th>Lbs</th><th>ppm</th>`;
-  head += `<th>Free</th><th>Total</th><th>PO₄</th><th>By</th></tr>`;
-
-  let body='';
-  for(let dd=1; dd<=days; dd++){
-    const r = byDay[dd];
-    const dt = new Date(y, m-1, dd);
-    const dow = dt.toLocaleDateString(undefined,{weekday:'short'});
-    if(!r){ body += `<tr><td>${dd} ${dow}</td><td colspan="${5+feeds.length*3+3}" class="muted" style="text-align:left;color:#94a3b8">—</td></tr>`; continue; }
-    let cells = `<td>${dd} ${dow}</td><td>${esc((r.reading_time||'').slice(0,5))}</td>`+
-      `<td>${r.meter_reading??''}</td><td>${r.gallons_pumped==null?'':r.gallons_pumped.toLocaleString()}</td>`+
-      `<td>${fmt(r.million_lbs)}</td>`;
-    for(const f of feeds){
-      const fr = (r.feeds||[]).find(x=>x.feed_id===f.id) || {};
-      cells += `<td>${fr.tank_level??''}${fr.refill_to!=null?` <span class="pill">→${fr.refill_to}</span>`:''}</td>`+
-               `<td>${fr.solution_lbs??''}</td><td>${fmt(fr.dose_mg_l)}</td>`;
-    }
-    cells += `<td>${fmt(r.tap_free)}</td><td>${fmt(r.tap_total)}</td><td>${fmt(r.tap_ortho)}</td><td>${esc(r.operator_initials||'')}</td>`;
-    body += `<tr>${cells}</tr>`;
-  }
-
-  const dist = d.dist||[];
-  const distTable = dist.length ? `
-    <div class="card"><div class="scroll"><table class="sheet">
-      <caption>Distribution samples</caption>
-      <tr><th>Date</th><th>Site</th><th>Free</th><th>Total</th><th>PO₄</th><th>By</th></tr>
-      ${dist.map(s=>`<tr><td>${esc(s.sample_date)}</td><td>${esc(s.site_name)}</td>
-        <td>${fmt(s.free)}</td><td>${fmt(s.total)}</td><td>${fmt(s.ortho)}</td><td>${esc(s.operator_initials||'')}</td></tr>`).join('')}
-    </table></div></div>` : '';
-
-  const bacti = d.bacti||[];
-  const bactiNote = bacti.length ? '' :
-    `<div class="card msg warn">No bacteriological samples recorded this month. The MOR needs the collection date and the chlorine residual taken with each one.</div>`;
-
-  $('bookOut').innerHTML = `
-    <div class="card"><div class="scroll"><table class="sheet">
-      <caption>Well and Pump Record — ${esc(ep.label)} (${esc(ep.code)}) · ${y}-${String(m).padStart(2,'0')}</caption>
-      ${head}${body}
-    </table></div>
-    <div class="muted" style="margin-top:8px">Lbs Water, Lbs used and ppm are derived — nobody types them.</div>
-    </div>${distTable}${bactiNote}`;
-}
+/* The month-by-month record used to live here as a Records tab. It moved to the OIC page at
+   /water/review, where it belongs: reading back a month is what Michelle does, not what someone
+   standing at a well house does, and leaving it here meant the crew app carried a second job. */
 
 // ---- offline shell ------------------------------------------------------------------------------
 // Registered from `/water-sw.js` (a root-level rewrite), NOT `/civicscope-water/sw.js`. A service
