@@ -332,6 +332,21 @@ export default async function handler(req, res) {
           return res.status(422).json({ error: 'validation', errors: [{ field: 'free', msg: 'A bacti sample needs the free chlorine residual taken with it.' }] });
         }
         const site = (p.sites || []).find((s) => s.id === body.site_id) || null;
+        /* ⛔ THIS WAS THE ONLY WRITE PATH WITH NO ALREADY-RECORDED GUARD, and it cost five copies
+           of every bacti sample in 2026 when the backfill was re-run five times (2026-08-19).
+           submit_reading and submit_dist both refuse a day that is already on file; this one
+           inserted blindly, so a re-run — the most ordinary thing anyone does with a seeding
+           script — silently multiplied the compliance record. A monthly report built from that
+           would have shown 70 samples where the village took 14.
+           Same contract as its neighbours: refuse, and say what would replace what. */
+        const dupeSite = site ? site.name : String(body.site_name || '');
+        const already = await sb(
+          `water_bacti_samples?supply_id=eq.${p.supply.id}&site_name=eq.${encodeURIComponent(dupeSite)}` +
+            `&collected_date=eq.${String(body.collected_date || '').slice(0, 10)}&select=id`
+        );
+        if (already && already[0]) {
+          return res.status(409).json({ error: 'exists', msg: 'That site already has a bacti sample on this date.', id: already[0].id });
+        }
         const ins = await sb('water_bacti_samples', {
           method: 'POST', headers: { Prefer: 'return=representation' },
           body: JSON.stringify([{
