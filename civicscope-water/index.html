@@ -115,6 +115,7 @@
     <nav class="tabs">
       <button data-tab="round"  aria-current="true">Round</button>
       <button data-tab="dist">Distribution</button>
+      <button data-tab="bacti">Bacti</button>
       <button data-tab="book">Records</button>
     </nav>
 
@@ -141,6 +142,43 @@
         </div>
         <div id="dMsg"></div>
         <div style="margin-top:16px"><button class="primary" id="btnDist">Submit sample</button></div>
+      </div>
+    </section>
+
+    <!-- ===== bacti ====================================================================
+         July 2026 was filed with NO bacteriological samples at all — not a missing screen
+         then, a missing capability now: the API accepted them, the tablet could not send
+         them. The MOR cannot be signed without collection dates and the residual taken
+         with each sample, so this is the screen that unblocks Michelle's month.
+         The residual is REQUIRED here (the API refuses without it) because a bacti result
+         with no chlorine residual beside it tells EGLE nothing about the water. ============ -->
+    <section id="tabBacti" class="hide">
+      <div class="card">
+        <h2>Bacteriological sample</h2>
+        <div class="muted">Routine sites, or a well. The free chlorine taken with the sample
+          is required — a result with no residual beside it cannot be read.</div>
+        <label for="bKind">Type</label>
+        <select id="bKind">
+          <option value="routine">Routine (distribution site)</option>
+          <option value="repeat">Repeat</option>
+          <option value="special">Special / well</option>
+        </select>
+        <label for="bSite">Site</label><select id="bSite"></select>
+        <label for="bDate">Collected</label><input id="bDate" type="date">
+        <div class="row3">
+          <div><label for="bFree">Free *</label><input id="bFree" inputmode="decimal" placeholder="mg/L"></div>
+          <div><label for="bTotal">Total</label><input id="bTotal" inputmode="decimal" placeholder="mg/L"></div>
+          <div><label for="bResult">Result</label>
+            <select id="bResult">
+              <option value="">(pending lab)</option>
+              <option value="absent">Absent</option>
+              <option value="present">Present</option>
+            </select>
+          </div>
+        </div>
+        <label for="bLab">Lab</label><input id="bLab" placeholder="Three Rivers">
+        <div id="bMsg"></div>
+        <div style="margin-top:16px"><button class="primary" id="btnBacti">Submit sample</button></div>
       </div>
     </section>
 
@@ -253,7 +291,7 @@ $('btnWho').onclick = async () => {
 // The tab now lives in the URL hash (`/water#book`). Hash rather than pushState deliberately: it
 // needs no server rewrite, so it cannot break the single `/water` route or the deploy's routing
 // gate, and it works identically on the deployment URL and the production alias.
-const TABS = ['round', 'dist', 'book'];
+const TABS = ['round', 'dist', 'bacti', 'book'];
 
 function showTab(tab, { push = true } = {}) {
   if (!TABS.includes(tab)) tab = 'round';
@@ -263,6 +301,7 @@ function showTab(tab, { push = true } = {}) {
   $('tabRound').classList.toggle('hide', tab !== 'round');
   $('tabEntry').classList.add('hide');
   $('tabDist').classList.toggle('hide', tab !== 'dist');
+  $('tabBacti').classList.toggle('hide', tab !== 'bacti');
   $('tabBook').classList.toggle('hide', tab !== 'book');
   if (push && location.hash.slice(1) !== tab) location.hash = tab;
   if (tab === 'book') paintBook();
@@ -299,6 +338,12 @@ async function refreshRound(){
   const dsites = (p.sites||[]).filter(s=>s.kind==='distribution');
   $('dSite').innerHTML = dsites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
   if(!$('dDate').value) $('dDate').value = today();
+  // Bacti sites follow the TYPE: routine sampling happens at the two distribution addresses on
+  // the sampling plan, a special/repeat can be taken at a well. Showing all six regardless would
+  // invite a routine sample logged against Well #3, which EGLE reads as a different thing.
+  paintBactiSites();
+  if(!$('bDate').value) $('bDate').value = today();
+  if(!$('bLab').value) $('bLab').value = p.supply?.lab_name || '';
   $('bkEp').innerHTML = p.entryPoints.map(e=>`<option value="${e.id}">${esc(e.label)} · ${esc(e.code)}</option>`).join('');
   if(!$('bkMonth').value) $('bkMonth').value = today().slice(0,7);
   paintQueue();
@@ -433,6 +478,53 @@ async function openEntry(ep){
 }
 
 // ---- distribution ------------------------------------------------------------------------------
+// ---- bacti ------------------------------------------------------------------------------------
+function paintBactiSites(){
+  const p = S.profile; if(!p) return;
+  const kind = $('bKind').value;
+  // routine + repeat -> the sampling plan's routine sites; special -> wells and everything else.
+  const want = kind === 'special' ? 'bacti_other' : 'bacti_routine';
+  const sites = (p.sites||[]).filter(s=>s.kind===want);
+  $('bSite').innerHTML = sites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')
+    || '<option value="">(no sites of this type on the sampling plan)</option>';
+}
+$('bKind').onchange = paintBactiSites;
+
+$('btnBacti').onclick = async () => {
+  // Guard here as well as at the API. The API refuses without a residual (422) and that refusal
+  // is authoritative — but on a tablet with no signal the submit is QUEUED, so a client-side
+  // check is the only thing standing between the operator and a sample that will be rejected
+  // hours later when the queue finally flushes, long after he has left the site.
+  if(!$('bFree').value.trim()){
+    $('bMsg').innerHTML = '<div class="msg err">The free chlorine taken with the sample is required.</div>';
+    return;
+  }
+  if(!$('bSite').value){
+    $('bMsg').innerHTML = '<div class="msg err">No site of this type is on the sampling plan.</div>';
+    return;
+  }
+  const payload = {
+    site_id: $('bSite').value,
+    sample_kind: $('bKind').value,
+    collected_date: $('bDate').value, collected_time: nowTime(),
+    operator_id: S.op.id, operator_initials: S.op.initials,
+    lab_name: $('bLab').value || null,
+    result: $('bResult').value || null,
+    input: { free: $('bFree').value, total: $('bTotal').value },
+  };
+  $('bMsg').innerHTML='';
+  try{
+    const r = await api('submit_bacti', payload);
+    $('bMsg').innerHTML = '<div class="msg ok">Bacti sample recorded.</div>' +
+      (r.flags||[]).map(f=>`<div class="msg warn">${esc(f.msg)}</div>`).join('');
+    $('bFree').value=$('bTotal').value=''; $('bResult').value='';
+  }catch(e){
+    if(e.status===422||e.status===409){
+      $('bMsg').innerHTML = `<div class="msg err">${esc((e.payload&&(e.payload.msg||(e.payload.errors||[])[0]?.msg))||e.message)}</div>`;
+    }else{ enqueue('submit_bacti', payload); $('bMsg').innerHTML='<div class="msg warn">No signal — held on this tablet.</div>'; }
+  }
+};
+
 $('btnDist').onclick = async () => {
   const payload = {
     site_id: $('dSite').value, sample_date: $('dDate').value, sample_time: nowTime(),
@@ -509,6 +601,18 @@ async function paintBook(){
     </table></div>
     <div class="muted" style="margin-top:8px">Lbs Water, Lbs used and ppm are derived — nobody types them.</div>
     </div>${distTable}${bactiNote}`;
+}
+
+// ---- offline shell ------------------------------------------------------------------------------
+// Registered from `/water-sw.js` (a root-level rewrite), NOT `/civicscope-water/sw.js`. A service
+// worker's default scope is its own directory, so a worker served from /civicscope-water/ could
+// never control /water — the page would register something that silently governs nothing. Serving
+// the script from the origin root is what makes scope '/water' legal.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/water-sw.js', { scope: '/water' })
+      .catch(() => { /* offline shell unavailable; the app still works with signal */ });
+  });
 }
 
 // ---- boot ---------------------------------------------------------------------------------------
