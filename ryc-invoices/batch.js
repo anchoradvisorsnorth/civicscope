@@ -541,7 +541,8 @@ function reconRow(d){
         + esc(t.name) + (t.no === "RYC-EXPENSE" ? "" : " (" + esc(t.no) + ")") + '</option>';
     });
     job = '<select id="rj_' + esc(d.id) + '" class="pfill" style="max-width:260px"'
-      + (working ? ' disabled' : '') + '>' + opts + '</select>'
+      + (working ? ' disabled' : '') + ' onchange="reconRelabel(' + invArg(d.id) + ')">'
+      + opts + '</select>'
       + (d.job_source === "matched" && d.job_no
           ? '<div class="sub">read off the invoice &mdash; confirm or change it</div>' : '');
   }
@@ -557,10 +558,22 @@ function reconRow(d){
     } else if(d.disposition === "ryc_expense"){
       act += '<span class="sub">RYC Expense</span>';
     }
+    /* A wrong job WILL happen — Kropp Fire Protection matched Milford Water Utility off a delivery
+       address reading "CHORE TIME 410 N. HIGBEE ST. MILFORD". Correcting is a different act from
+       repeating: it MOVES the file rather than filing a second copy, and the old placement is kept
+       in the row's history. */
+    act += ' <button class="pfill" onclick="reconCorrect(' + invArg(d.id) + ')">Change job</button>';
+    if((d.history || []).length){
+      act += '<div class="sub">corrected ' + d.history.length + '&times;</div>';
+    }
   } else if(working){
     act += '<span class="sub">copying&hellip;</span>';
   } else {
-    act += '<button class="pfill" onclick="reconFile(' + invArg(d.id) + ')">File to job</button>'
+    /* THE BUTTON SAYS WHAT THE CLICK WILL DO. With RYC Expense chosen, "File to job" describes
+       the opposite of what happens — nothing is copied anywhere. The label tracks the dropdown. */
+    var chosen = d.job_no || "";
+    act += '<button class="pfill" id="rb_' + esc(d.id) + '" onclick="reconFile(' + invArg(d.id) + ')">'
+      + (chosen === "RYC-EXPENSE" ? "Mark RYC Expense" : "File to job") + '</button>'
       + ' <button class="pfill" onclick="reconRename(' + invArg(d.id) + ')">Edit name</button>';
   }
   if(err) act += '<div class="sub m-r" style="margin-top:4px">' + esc(String(err).slice(0,160)) + '</div>';
@@ -625,5 +638,53 @@ function reconRename(id){
   invPost("doc_update", { doc_id:id, file_name:next }).then(function(r){
     if(!r.ok){ alert(r.error || "Could not rename it."); return; }
     reconLoad(_recon.batchId);
+  });
+}
+
+/* Keep the action button honest as the dropdown changes, without a re-render that would throw away
+   the other rows' unsaved selections. */
+function reconRelabel(id){
+  var sel = document.getElementById("rj_" + id), btn = document.getElementById("rb_" + id);
+  if(!sel || !btn) return;
+  btn.textContent = sel.value === "RYC-EXPENSE" ? "Mark RYC Expense" : "File to job";
+}
+
+/* CHANGE THE JOB ON A DOCUMENT THAT IS ALREADY FILED. Keith, 2026-08-19: *"the user should have the
+   ability to edit Job Assignment (in case there is an error)."*
+
+   This is a MOVE. The copy sitting in the wrong job's folder is removed and the document is
+   re-filed to the right one — leaving both would reconcile one payable against two job budgets,
+   which is worse than the original mistake and much harder to notice.
+
+   Deliberately a separate control from the ordinary flow: the guard that stops a double-click
+   filing one payable twice is still in force, and this is the other case. It needs saying out loud
+   before it runs, which is why the confirmation names where the file is now and what will happen
+   to it. */
+function reconCorrect(id){
+  var d = reconDoc(id);
+  if(!d) return;
+  var NL = String.fromCharCode(10);
+  var where = d.disposition === "ryc_expense"
+    ? "RYC Expense (no copy in any job folder)"
+    : "filed to " + (d.job_name || d.job_no);
+  var next = window.prompt(
+    'Change the job on "' + d.file_name + '".' + NL + NL
+      + "It is currently " + where + "." + NL + NL
+      + "Type the job number to move it to, or RYC-EXPENSE." + NL
+      + "The copy in the current job folder is REMOVED, then re-filed to the new one.",
+    d.job_no || "");
+  if(next === null) return;
+  next = String(next).trim();
+  if(!next) return;
+  var match = null;
+  (_recon.targets || []).forEach(function(t){
+    if(t.no.toLowerCase() === next.toLowerCase()) match = t;
+  });
+  if(!match){ alert(next + " is not a job that can be filed to."); return; }
+  if(match.no === d.job_no){ return; }
+  invPost("doc_recorrect", { doc_id:id, job_no:match.no }).then(function(r){
+    if(!r.ok){ alert(r.error || "Could not change the job."); return; }
+    reconLoad(_recon.batchId);
+    if(r.data && r.data.queued) reconPoll(8);
   });
 }

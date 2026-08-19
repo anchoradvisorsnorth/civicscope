@@ -1570,6 +1570,90 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, document: rows[0] });
     }
 
+    /* CORRECTING A RECONCILIATION IS NOT REPEATING ONE. Keith, 2026-08-19: *"the user should have
+       the ability to edit Job Assignment (in case there is an error)."*
+
+       `doc_reconcile` still refuses a second attempt — that guard exists so a double-click cannot
+       put one payable into a job folder twice, and it is untouched. This is the other case, which
+       will happen: the wrong job. The live queue already holds one — Kropp Fire Protection
+       $30,161.25 resolved to Milford Water Utility because the delivery address reads
+       "CHORE TIME 410 N. HIGBEE ST. MILFORD" and "Milford" belongs to exactly one job name.
+
+       ⛔ A CORRECTION IS A MOVE, NEVER A SECOND FILE. The copy already sitting in the wrong job's
+       folder is retired first (`retire_path`), and only then is the document re-filed. Leaving both
+       would put the mistake and the fix in the archive side by side, reconciling against two job
+       budgets — which is worse than the original error and much harder to notice.
+
+       The prior disposition is APPENDED to `history`, never overwritten. These records sit behind
+       money moving between job budgets; "it was on the wrong job until someone moved it" is a fact
+       the archive has to be able to answer later. */
+    if (action === 'doc_recorrect') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const docId = String(body.doc_id || '').trim();
+      const jobNo = String(body.job_no || '').trim();
+      if (!docId || !jobNo) return res.status(400).json({ error: 'A document id and a job are required.' });
+
+      const cur = await sb(`ryc_batch_documents?company_id=eq.ryc&id=eq.${docId}&select=*`);
+      const doc = cur.ok ? (await cur.json())[0] : null;
+      if (!doc) return res.status(404).json({ error: 'No such document.' });
+      if (!doc.reconciled_at) {
+        return res.status(409).json({
+          error: `"${doc.file_name}" has not been reconciled yet — use the job list on the row.` });
+      }
+      if (doc.retire_path) {
+        return res.status(409).json({
+          error: 'A correction on this document is still being applied — give it a moment.' });
+      }
+
+      const expense = jobNo.toUpperCase() === RYC_EXPENSE.no;
+      let job_name = RYC_EXPENSE.name;
+      if (!expense) {
+        let dir = null;
+        try { dir = await jobDirectory(); } catch { /* reported below */ }
+        if (!dir) return res.status(503).json({ error: 'The job list could not be read just now — try again.' });
+        const j = pickableJobs(dir).find(x => x.no === jobNo);
+        if (!j) return res.status(400).json({ error: `${jobNo} is not a job that can be filed to.` });
+        job_name = j.name;
+      }
+      if (doc.job_no === (expense ? RYC_EXPENSE.no : jobNo)) {
+        return res.status(400).json({ error: `That is already where "${doc.file_name}" is filed.` });
+      }
+
+      const past = Array.isArray(doc.history) ? doc.history.slice() : [];
+      past.push({
+        at: doc.reconciled_at, by: doc.reconciled_by || null,
+        job_no: doc.job_no, job_name: doc.job_name, disposition: doc.disposition,
+        copied_path: doc.copied_path, copied_url: doc.copied_url,
+        corrected_at: new Date().toISOString(),
+        corrected_to: expense ? RYC_EXPENSE.no : jobNo,
+      });
+
+      /* Reopening the row is what puts it back in front of the worker. `retire_path` carries the
+         copy that must be deleted; when there is none (it was RYC Expense, so nothing was ever
+         copied) and the new answer is RYC Expense too, there is no work to do and it completes
+         here. Everything else goes to the VM, because only the VM can touch SharePoint. */
+      const retire = doc.disposition === 'job_folder' ? doc.copied_path : null;
+      const patch = {
+        history: past, retire_path: retire,
+        job_no: expense ? RYC_EXPENSE.no : jobNo, job_name, job_source: 'chosen',
+        disposition: expense ? 'ryc_expense' : 'job_folder',
+        copied_path: null, copied_url: null, copy_error: null,
+        reconciled_at: null, reconciled_by: null,
+        updated_at: new Date().toISOString(),
+      };
+      if (expense && !retire) {
+        patch.reconciled_at = new Date().toISOString();
+        patch.reconciled_by = who.via === 'admin' ? 'admin' : 'front office';
+      }
+      const r = await sb(`ryc_batch_documents?id=eq.${docId}&reconciled_at=not.is.null`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not record the correction.' });
+      const rows = await r.json();
+      if (!rows.length) return res.status(409).json({ error: 'That document changed a moment ago — reload.' });
+      return res.status(200).json({ ok: true, document: rows[0], queued: !(expense && !retire) });
+    }
+
     /* Every job a person may deliberately file an invoice to, plus RYC Expense.
        ⚠ WIDER THAN THE MATCHER'S LIST, ON PURPOSE (Keith, 2026-08-19: *"Yes include all real
        jobs"*). The auto-matcher still excludes warranty work and the two PMs' own residences,
@@ -1594,8 +1678,14 @@ export default async function handler(req, res) {
          actually changed, so two workers cannot both win. `copy_error` doubles as the lease: a
          worker that dies leaves a visible "working" a human can see, rather than a row that
          silently re-runs and copies an invoice into a job folder twice. */
-      const r = await sb('ryc_batch_documents?company_id=eq.ryc&disposition=eq.job_folder'
-        + '&reconciled_at=is.null&copy_error=is.null&order=updated_at.asc&limit=1', {
+      /* Two kinds of outstanding work now, and both are `reconciled_at is null`: a copy to make
+         (disposition job_folder) and a copy to RETIRE after a correction — including a correction
+         to RYC Expense, where the only work left is removing the file from the job folder it should
+         never have reached. `or=` rather than two polls, so one claim cannot starve the other. */
+      const r = await sb('ryc_batch_documents?company_id=eq.ryc'
+        + '&reconciled_at=is.null&copy_error=is.null'
+        + '&or=(disposition.eq.job_folder,retire_path.not.is.null)'
+        + '&order=updated_at.asc&limit=1', {
         method: 'PATCH', headers: { Prefer: 'return=representation' },
         body: JSON.stringify({ copy_error: 'working', updated_at: new Date().toISOString() }),
       });
@@ -1624,6 +1714,9 @@ export default async function handler(req, res) {
         : {
             copy_error: null, copied_path: body.path || null, copied_url: body.url || null,
             sp_name: body.sp_name || undefined,
+            // The retirement is only finished once the worker says so; clearing it here is what
+            // takes a corrected document back out of the work queue.
+            retire_path: null,
             reconciled_at: new Date().toISOString(), reconciled_by: 'front office',
             updated_at: new Date().toISOString(),
           };
