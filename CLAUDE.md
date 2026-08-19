@@ -554,8 +554,20 @@ quoting the paper**: backfilling a number known to be impossible would be forgin
 - ✅ **Water Plant Daily Log — service worker and bacti capture SHIPPED** (verified live
   2026-08-19: `/water-sw.js` 200 at root scope, bacti screen present). Left standing here as open
   after they were built.
-- 🚨 **Nobody has used `/water` yet — zero readings exist after 2026-07-31.** August is being
-  written on paper while the tablet is live, so every day adds to the next backfill.
+- ✅ **2026 January–July is seeded (2026-08-19)** — 626 readings, 152 distribution samples, 14 bacti,
+  loaded from the year's paper records and cross-checked against the seven MORs actually filed with
+  EGLE (**meter 97.4%, tank 95.1% agreement**). Tooling in `scripts/`: `extract-mor.py`,
+  `transcribe-well-sheets.mjs`, `reconcile-well-sheets.mjs`, `reread-meter-column.mjs`,
+  `seed-water-2026.mjs`. Detail + findings: **`CentrevilleCLAUDE.md`**.
+- ⛔ **THE AMENDMENT PATH WAS BROKEN IN THREE PLACES AND NOTHING HAD EVER EXERCISED IT.** Seeding
+  six months of paper was the first thing that ever tried to CORRECT stored data, and found: a
+  correction could never be saved (the replacement row was inserted before the old one was
+  superseded, colliding with the partial unique index — `submit_reading` and `submit_dist` both,
+  fixed `25049ea`), and `submit_bacti` had no already-recorded guard at all, so re-running a
+  backfill multiplied the compliance record five-fold (fixed `73babb1`). **The ordinary path
+  worked in every case; only amendment was broken — which is exactly what no smoke test walks.**
+- 🚨 **August 2026 is still being written on paper.** The tablet is live and nobody is using it;
+  every day that runs is another day that has to be backfilled.
 - **Centreville's August 2026 is being recorded on paper right now.** `/water` is live and nobody
   is using it. Every day that runs is another day that has to be backfilled.
 - **`Civicscope/scripts/` is gitignored except narrow re-includes**, so the water gate, the
