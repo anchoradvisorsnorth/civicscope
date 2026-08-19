@@ -173,7 +173,21 @@ export default async function handler(req, res) {
           const ops = await sb(`water_operators?id=eq.${body.operator_id}&supply_id=eq.${p.supply.id}&select=*`);
           operator = ops && ops[0];
           if (!operator) return bad(res, 404, 'unknown operator');
-          if (operator.pin && String(body.pin || '') !== String(operator.pin)) return bad(res, 403, 'Wrong PIN.');
+          /* ⛔ THE FIELD ROUND NO LONGER ASKS FOR A PIN (Keith 2026-08-19: "each inspector should
+             just need to add their initials one time before submitting"), so one must not be
+             demanded here either. This line would otherwise have broken the product for exactly
+             one person — MICHELLE, the Operator-In-Charge, because she is the only operator with a
+             PIN on file. Every round she walked would have 403'd while JD's and SD's went through,
+             since a null PIN was never enforced.
+             Her stored PIN is deliberately NOT deleted: it is the beginning of a real identity for
+             the OIC environment, where it belongs. What is asserted at a well house is who says
+             they took the reading — the same guarantee the paper's "Done by" column gives — and
+             what makes the record trustworthy is her review and signature under 1976 PA 399.
+             A PIN is still honoured when one is actually supplied, so a caller that wants to prove
+             identity still can. */
+          if (operator.pin && body.pin != null && body.pin !== '' && String(body.pin) !== String(operator.pin)) {
+            return bad(res, 403, 'Wrong PIN.');
+          }
         }
 
         const date = String(body.reading_date || '').slice(0, 10);

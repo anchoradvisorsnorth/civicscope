@@ -32,7 +32,8 @@
          display:flex;align-items:center;gap:10px;padding-top:max(10px,env(safe-area-inset-top))}
   header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.2px;flex:1}
   header .sub{font-size:12px;opacity:.72;font-weight:400}
-  .chip{background:rgba(255,255,255,.14);border-radius:999px;padding:3px 10px;font-size:12px}
+  .chip{background:rgba(255,255,255,.14);border-radius:999px;padding:5px 12px;font-size:12px;
+        color:#fff;border:1px solid rgba(255,255,255,.28);font-weight:600;cursor:pointer}
   main{max-width:820px;margin:0 auto;padding:14px 14px 90px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
   h2{font-size:17px;margin:0 0 4px}
@@ -83,7 +84,11 @@
     <h1 id="hdrTitle">Plant Log</h1>
     <div class="sub" id="hdrSub">signing in…</div>
   </div>
-  <span class="chip hide" id="whoChip"></span>
+  <!-- Tappable on purpose. With no PIN, this chip is the ONLY thing saying whose name is going on
+       the record, so it has to be both permanently visible and one tap from being changed — on a
+       tablet shared between JD, SD and Michelle, a hidden setting would quietly credit the wrong
+       person for a whole month of rounds. -->
+  <button class="chip hide" id="whoChip" title="Change who is on the round"></button>
 </header>
 
 <main>
@@ -100,12 +105,22 @@
   </section>
 
   <!-- ===== 2. operator ================================================================== -->
+  <!-- INITIALS ONCE, NO PIN (Keith 2026-08-19: "each inspector should just need to add their
+       initials one time before submitting").
+       This is the paper's own model: the Well and Pump Record has a "Done by" column holding
+       initials and nothing else. The PIN that used to sit here was theatre — three of the four
+       operators have no PIN set, so the server enforced it for one person and waved everyone else
+       through, while the field implied every entry was authenticated. A control that looks like
+       authentication and validates nothing is worse than no control, which is the same reason the
+       village hub says Google sign-in is not built instead of showing a dead button.
+       Attribution here is ASSERTED, exactly as it is on paper. What makes the record trustworthy
+       is the OIC's review and signature under 1976 PA 399 — not a 4-digit code typed at a well
+       house. The identity that has to be real is Michelle's, and that belongs in her environment. -->
   <section id="scrWho" class="card hide">
     <h2>Who's on the round?</h2>
     <label for="opSel">Operator</label>
     <select id="opSel"></select>
-    <label for="opPin">PIN</label>
-    <input id="opPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
+    <p class="muted">Set once on this tablet. Your initials stay on screen and go on everything you submit — tap them any time to hand the round to someone else.</p>
     <div id="whoMsg"></div>
     <div style="margin-top:16px"><button class="primary" id="btnWho">Start round</button></div>
   </section>
@@ -267,12 +282,19 @@ $('btnUnlock').onclick = async () => {
   }catch(e){ $('unlockMsg').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
 };
 
+// Hand the round to someone else: back to the picker, keeping everything already queued.
+$('whoChip').onclick = () => { $('app').classList.add('hide'); $('scrWho').classList.remove('hide'); };
+
 $('btnWho').onclick = async () => {
-  const id = $('opSel').value, pin = $('opPin').value;
+  const id = $('opSel').value;
   const op = S.profile.operators.find(o=>o.id===id);
-  // The PIN is proved by the server on the first submit. Holding it here keeps the round moving
-  // in a well house with no signal — the record is refused later if it is wrong, never accepted.
-  S.op = { id, pin, name:op.name, initials:op.initials }; save();
+  /* No PIN is sent. `submit_reading` only enforces one where an operator actually has a PIN set,
+     so passing a blank is not a downgrade — it is the same result, minus a field that implied a
+     check nobody was performing.
+     ⚠ The tablet may be shared at the plant, so "set once and forget" could quietly credit every
+     round to whoever set it last. The answer is not to re-ask for a code, it is to never HIDE who
+     is being credited: the initials ride the submit control itself and are one tap from changing. */
+  S.op = { id, name:op.name, initials:op.initials }; save();
   $('whoChip').textContent = op.initials; $('whoChip').classList.remove('hide');
   $('scrWho').classList.add('hide'); $('app').classList.remove('hide');
   // Land on the screen the link asked for, not always the round.
@@ -459,7 +481,7 @@ async function openEntry(ep){
     const out = recompute(); if(!out.ok) return;
     const payload = {
       entry_point_id: ep.id, reading_date: date, reading_time: $('e_time').value,
-      operator_id: S.op.id, pin: S.op.pin, input: collect(),
+      operator_id: S.op.id, operator_initials: S.op.initials, input: collect(),
     };
     $('e_submit').disabled = true; $('e_submit').textContent = 'Sending…';
     try{
