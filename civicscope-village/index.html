@@ -141,7 +141,9 @@ async function boot() {
   // so the hub never offers a plant log to a village with no plant.
   if (t.water_wssn) {
     cards.push(card(
-      '/water',
+      // The hub is the OIC's front door, so it opens on the REVIEW side. The crew never come
+      // through here — they bookmark /water and go straight to entering a round.
+      '/water/review',
       // Keith named it Well Testing (2026-08-19). The card said 'Sampler' while the tool itself
       // said 'Plant Log' — three names for one product, none of them his.
       'Well Testing',

@@ -91,6 +91,10 @@
       "destination": "/ryc-invoices/index.html"
     },
     {
+      "source": "/ryc/invoices/:path*",
+      "destination": "/ryc-invoices/index.html"
+    },
+    {
       "source": "/try/:slug",
       "destination": "/api/try?slug=:slug"
     },
@@ -225,6 +229,10 @@
     {
       "source": "/centreville/ask",
       "destination": "/civicscope-muni/index.html"
+    },
+    {
+      "source": "/water/review",
+      "destination": "/civicscope-water/review.html"
     },
     {
       "source": "/water",

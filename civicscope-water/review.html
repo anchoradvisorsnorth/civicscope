@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<!--
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.0.0-oic
+
+  This is NOT the tablet with a wider layout. It is the other half of the product, and the two jobs
+  barely overlap (Keith, 2026-08-19):
+
+    the crew   — phone, in a concrete well house, never logs in. Pick the well they are standing
+                 at, read the equipment, initial it, submit. Four taps, one direction. That is
+                 /water, and it should stay almost nothing.
+    the OIC    — desk, reviewing what came in from three wells, questioning a number, and once a
+                 month producing the report she signs and sends to EGLE under 1976 PA 399.
+
+  So this page never asks for a reading. It answers one question — "is there anything I need to
+  deal with?" — and puts the exceptions first, because on a good month the honest answer is no and
+  she should be able to see that in a glance rather than read 93 rows to find out.
+
+  ⛔ OPEN ON THIS LINK, DELIBERATELY (Keith: "dont gate her access at all"). It reads through the
+  `month` action, which is one of the three the API already serves without an access code, so this
+  page holds no credential at all. Correcting a day still goes through the write path, which does
+  carry the code — that is the door that was already there, not a gate on her.
+
+  ⚠ EVERY NUMBER ON THIS PAGE IS READ, NOT COMPUTED HERE. The doses and volumes were derived by
+  derive.js when the reading was stored and are displayed as recorded. Recomputing them in this
+  page would be a third copy of the plant's arithmetic, and the whole product exists because the
+  daily log and the filed report had drifted apart.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Well Testing — Review</title>
+<style>
+  :root{
+    --navy:#0f2942; --ink:#0f172a; --mut:#64748b; --line:#dbe3ec; --bg:#f1f5f9; --card:#fff;
+    --ok:#0f766e; --okbg:#f0fdfa; --warn:#b45309; --warnbg:#fffbeb; --err:#b91c1c; --errbg:#fef2f2;
+    --accent:#c2410c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{background:var(--navy);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:14px}
+  header h1{font-size:17px;margin:0;font-weight:600;flex:1}
+  header .sub{font-size:12.5px;opacity:.72;font-weight:400;display:block;margin-top:2px}
+  header a{color:#cbd5e1;font-size:13px;text-decoration:none;border:1px solid rgba(255,255,255,.28);
+           border-radius:8px;padding:6px 12px;white-space:nowrap}
+  header a:hover{background:rgba(255,255,255,.1);color:#fff}
+  main{max-width:1060px;margin:0 auto;padding:20px 16px 60px}
+  h2{font-size:15px;margin:26px 0 10px;color:#334155;letter-spacing:.2px}
+  h2 .n{color:var(--mut);font-weight:400}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .wells{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+  .well b{font-size:17px}
+  .well .when{font-size:13px;color:var(--mut);margin:2px 0 12px}
+  .well .when.stale{color:var(--accent);font-weight:600}
+  .kv{display:flex;justify-content:space-between;padding:5px 0;font-size:14px;border-top:1px solid #f1f5f9}
+  .kv span{color:var(--mut)}
+  .kv b{font-variant-numeric:tabular-nums}
+  .banner{border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:15px}
+  .banner.ok{background:var(--okbg);border:1px solid #99f6e4;color:var(--ok)}
+  .banner.warn{background:var(--warnbg);border:1px solid #fcd34d;color:var(--warn)}
+  .banner.err{background:var(--errbg);border:1px solid #fecaca;color:var(--err)}
+  .banner b{display:block;font-size:16px;margin-bottom:3px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+  th,td{border-bottom:1px solid var(--line);padding:8px 9px;text-align:right;white-space:nowrap}
+  th{background:#eef2f7;font-size:11.5px;font-weight:600;color:#334155;text-transform:uppercase;letter-spacing:.4px}
+  td:first-child,th:first-child,td.l,th.l{text-align:left}
+  tr:last-child td{border-bottom:0}
+  .tag{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:600}
+  .tag.warn{background:#fef3c7;color:var(--warn)} .tag.err{background:#fee2e2;color:var(--err)}
+  .tag.info{background:#e0e7ff;color:#3730a3}
+  .cov{display:flex;gap:3px;flex-wrap:wrap;margin-top:6px}
+  .cov i{width:19px;height:24px;border-radius:4px;background:#e2e8f0;font-style:normal;font-size:10px;
+         color:#94a3b8;display:flex;align-items:center;justify-content:center}
+  .cov i.has{background:#0f766e;color:#fff}
+  .cov i.future{background:#f1f5f9;color:#cbd5e1}
+  .muted{color:var(--mut);font-size:13.5px}
+  .scroll{overflow-x:auto}
+  select{padding:8px 10px;font-size:14px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
+  .note{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:13px 15px;font-size:13.5px;color:#475569}
+  @media(max-width:640px){ header{padding:12px 14px} main{padding:14px 12px 50px} }
+</style>
+</head>
+<body>
+<header>
+  <div style="flex:1">
+    <h1 id="hdrTitle">Well Testing — Review</h1>
+    <span class="sub" id="hdrSub">loading…</span>
+  </div>
+  <a href="/water">Enter readings →</a>
+</header>
+
+<main>
+  <div id="top"></div>
+
+  <h2>The three wells <span class="n">— most recent reading</span></h2>
+  <div class="wells" id="wells"></div>
+
+  <h2>Needs your attention <span class="n" id="attnCount"></span></h2>
+  <div id="attn"></div>
+
+  <h2 style="display:flex;align-items:center;gap:12px">
+    <span>The month</span>
+    <select id="monthSel"></select>
+  </h2>
+  <div class="card" id="coverage"></div>
+
+  <h2>Month end <span class="n">— the EGLE report</span></h2>
+  <div class="note" id="monthEnd"></div>
+</main>
+
+<script type="module">
+const API = '/api/water-ops';
+const WSSN = new URLSearchParams(location.search).get('wssn') || '01310';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const MN = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// Read-only, and no access code: `month` is one of the three actions the API serves ungated.
+const post = async (b) => {
+  const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
+                               body: JSON.stringify({ wssn: WSSN, ...b }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `error ${r.status}`);
+  return j;
+};
+
+const fmt = (v, d = 2) => (v == null || v === '' ? '—' : Number(v).toFixed(d));
+const int = (v) => (v == null ? '—' : Number(v).toLocaleString());
+const dayOf = (iso) => Number(String(iso).slice(8, 10));
+const todayISO = () => new Date().toISOString().slice(0, 10);
+function daysAgo(iso) {
+  const ms = Date.parse(todayISO()) - Date.parse(iso);
+  return Math.round(ms / 86400000);
+}
+
+/* The most recent reading per well does not live in "this month" — on the 1st it is last month's,
+   and after a gap it may be older still. Two months are read and merged, which also gives the
+   coverage strip its previous-month comparison without a third request. */
+async function load() {
+  const now = new Date();
+  let y = now.getUTCFullYear(), m = now.getUTCMonth() + 1;
+  const cur = await post({ action: 'month', year: y, month: m });
+  const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
+  const prev = await post({ action: 'month', year: py, month: pm });
+  return { cur, prev, y, m };
+}
+
+function render({ cur, prev, y, m }) {
+  const eps = cur.entryPoints || [];
+  $('hdrTitle').textContent = `${cur.supply.name} — Well Testing`;
+  $('hdrSub').textContent = `WSSN ${cur.supply.wssn}${cur.supply.classification ? ' · ' + cur.supply.classification : ''} · review and monthly report`;
+  document.title = `Well Testing — ${cur.supply.name}`;
+
+  const all = [...(prev.readings || []), ...(cur.readings || [])];
+  const latestFor = (ep) => all.filter((r) => r.entry_point_id === ep.id)
+                               .sort((a, b) => a.reading_date < b.reading_date ? 1 : -1)[0] || null;
+
+  /* ── the headline. The most important thing this page can say is that nothing has come in — a
+     month recorded on paper while the tablet sits unused is exactly how Centreville arrived here,
+     and it is invisible unless something says it out loud. */
+  const newest = all.map((r) => r.reading_date).sort().pop();
+  const gap = newest ? daysAgo(newest) : null;
+  let top = '';
+  if (!newest) {
+    top = `<div class="banner err"><b>No readings on file at all</b>Nothing has been recorded for this supply.</div>`;
+  } else if (gap >= 2) {
+    top = `<div class="banner err"><b>Nothing recorded for ${gap} days</b>The last reading from any well was ${esc(newest)}. If the round is being walked, it is being written somewhere other than here — and every day of that has to be re-entered later.</div>`;
+  } else {
+    top = `<div class="banner ok"><b>Up to date</b>Last reading ${esc(newest)}${gap === 1 ? ' (yesterday)' : ' (today)'}.</div>`;
+  }
+  $('top').innerHTML = top;
+
+  // ── the three wells
+  $('wells').innerHTML = eps.map((ep) => {
+    const r = latestFor(ep);
+    if (!r) return `<div class="card well"><b>${esc(ep.label)}</b><div class="when stale">no readings on file</div></div>`;
+    const g = daysAgo(r.reading_date);
+    const feeds = r.feeds || [];
+    const fl = (kind) => feeds.find((f) => (ep.feeds.find((x) => x.id === f.feed_id) || {}).kind === kind) || {};
+    const cl = fl('chlorine'), ph = fl('phosphate');
+    return `<div class="card well">
+      <b>${esc(ep.label)}</b>
+      <div class="when${g >= 2 ? ' stale' : ''}">${esc(r.reading_date)}${g === 0 ? ' · today' : g === 1 ? ' · yesterday' : ` · ${g} days ago`}${r.operator_initials ? ' · ' + esc(r.operator_initials) : ''}</div>
+      <div class="kv"><span>Pumped</span><b>${int(r.gallons_pumped)} gal</b></div>
+      <div class="kv"><span>Chlorine dose</span><b>${fmt(cl.dose_mg_l)} mg/L</b></div>
+      <div class="kv"><span>Phosphate</span><b>${fmt(ph.ortho_mg_l)} mg/L</b></div>
+      <div class="kv"><span>Plant tap free / total</span><b>${fmt(r.tap_free)} / ${fmt(r.tap_total)}</b></div>
+    </div>`;
+  }).join('') || '<div class="card muted">This supply has no entry points configured.</div>';
+
+  // ── month picker: this month and the eleven before it
+  const sel = $('monthSel');
+  if (!sel.options.length) {
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(Date.UTC(y, m - 1 - i, 1));
+      const o = document.createElement('option');
+      o.value = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
+      o.textContent = `${MN[d.getUTCMonth() + 1]} ${d.getUTCFullYear()}`;
+      sel.appendChild(o);
+    }
+    sel.onchange = async () => {
+      const [yy, mm] = sel.value.split('-').map(Number);
+      renderMonth(await post({ action: 'month', year: yy, month: mm }), yy, mm, eps);
+    };
+  }
+  renderMonth(cur, y, m, eps);
+}
+
+/* Exceptions only. A month has ~93 well-days; listing them all is the paper problem with a
+   scrollbar. What the OIC needs is the handful that are not ordinary — and on a clean month,
+   the ability to see that in one line. */
+function renderMonth(mo, y, m, eps) {
+  const readings = mo.readings || [];
+  const epName = (id) => (eps.find((e) => e.id === id) || {}).label || '—';
+  const rows = [];
+
+  for (const r of readings) {
+    for (const f of (r.flags || [])) {
+      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: f.level === 'warn' ? 'warn' : 'info',
+                  what: f.msg || f.code, who: r.operator_initials });
+    }
+    // Recorded but impossible. derive() refuses these on entry now, so any that exist came from a
+    // backfill of paper that already contained them — which is exactly what has to reach her.
+    if (r.tap_free != null && r.tap_total != null && Number(r.tap_free) > Number(r.tap_total)) {
+      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'err',
+                  what: `Plant tap free ${fmt(r.tap_free)} is above total ${fmt(r.tap_total)} — not physically possible`, who: r.operator_initials });
+    }
+    if (r.correction_reason) {
+      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'info',
+                  what: `Corrected: ${r.correction_reason}`, who: r.operator_initials });
+    }
+  }
+
+  // Days nobody visited a well that normally runs — a gap in the record, not a quiet day.
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const isCurrent = (new Date().getUTCFullYear() === y && new Date().getUTCMonth() + 1 === m);
+  const upto = isCurrent ? new Date().getUTCDate() : last;
+
+  // ── bacti: the thing July's packet reached the state without
+  const bacti = mo.bacti || [];
+  if (!bacti.length) {
+    rows.push({ date: `${y}-${String(m).padStart(2, '0')}`, where: 'Distribution', level: 'warn',
+                what: 'No bacti sample recorded this month — the routine samples and their residuals are what EGLE checks first', who: '' });
+  }
+  for (const b of bacti) {
+    if (b.result && !/^ND$/i.test(b.result)) {
+      rows.push({ date: b.collected_date, where: esc(b.site_name || 'Distribution'), level: 'err',
+                  what: `Bacti result ${esc(b.result)} — not ND`, who: '' });
+    }
+  }
+  const minFree = mo.supply && mo.supply.min_free_cl;
+  for (const d of (mo.dist || [])) {
+    if (minFree != null && d.free != null && Number(d.free) < Number(minFree)) {
+      rows.push({ date: d.sample_date, where: esc(d.site_name || 'Distribution'), level: 'warn',
+                  what: `Distribution free chlorine ${fmt(d.free)} mg/L, below the ${minFree} this supply watches`, who: d.operator_initials });
+    }
+  }
+
+  rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  $('attnCount').textContent = rows.length ? `— ${rows.length} in ${MN[m]}` : `— nothing in ${MN[m]}`;
+  $('attn').innerHTML = rows.length
+    ? `<div class="card scroll"><table><thead><tr><th class="l">Date</th><th class="l">Where</th><th class="l">What</th><th class="l">Who</th></tr></thead><tbody>`
+      + rows.map((r) => `<tr><td class="l">${esc(r.date)}</td><td class="l">${esc(r.where)}</td>
+          <td class="l"><span class="tag ${r.level}">${r.level === 'err' ? 'check' : r.level === 'warn' ? 'watch' : 'note'}</span> ${esc(r.what)}</td>
+          <td class="l">${esc(r.who || '')}</td></tr>`).join('')
+      + `</tbody></table></div>`
+    : `<div class="banner ok"><b>Nothing to chase in ${MN[m]}</b>No flagged readings, no impossible values, bacti on file, distribution residuals in range.</div>`;
+
+  // ── coverage: which days each well was actually read
+  $('coverage').innerHTML = eps.map((ep) => {
+    const days = new Set(readings.filter((r) => r.entry_point_id === ep.id).map((r) => dayOf(r.reading_date)));
+    let cells = '';
+    for (let d = 1; d <= last; d++) {
+      const cls = days.has(d) ? 'has' : (d > upto ? 'future' : '');
+      cells += `<i class="${cls}" title="${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}">${d}</i>`;
+    }
+    const missing = upto - days.size;
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <b>${esc(ep.label)}</b>
+        <span class="muted">${days.size} of ${upto} day${upto === 1 ? '' : 's'} recorded${missing > 0 ? ` · ${missing} missing` : ''}</span>
+      </div>
+      <div class="cov">${cells}</div>
+    </div>`;
+  }).join('');
+
+  // ── month end. Honest about what is not built rather than a button that does nothing.
+  const dist = (mo.dist || []).length;
+  $('monthEnd').innerHTML = `<b>${MN[m]} ${y}</b> holds ${readings.length} well-day${readings.length === 1 ? '' : 's'}, `
+    + `${dist} distribution sample${dist === 1 ? '' : 's'} and ${bacti.length} bacti sample${bacti.length === 1 ? '' : 's'}.<br><br>`
+    + `The EGLE workbook is generated from exactly these records, but <b>not yet from this page</b> — it still runs as `
+    + `<code>scripts/build-mor.py</code> on Keith's machine. That is the one thing on this screen that is a capability `
+    + `you do not have rather than a view you cannot see, and it is the next thing to build.`;
+}
+
+load().then(render).catch((e) => {
+  $('top').innerHTML = `<div class="banner err"><b>Could not load</b>${esc(e.message)}</div>`;
+  $('hdrSub').textContent = '';
+});
+</script>
+</body>
+</html>
