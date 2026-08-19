@@ -195,7 +195,25 @@ export default async function handler(req, res) {
           return res.status(409).json({ error: 'exists', msg: 'This day is already recorded. Send correction_reason to replace it.' });
         }
 
-        const inserted = await sb('water_readings', {
+        /* ⛔ A CORRECTION COULD NEVER BE SAVED (found 2026-08-19 while seeding January–June).
+           The old row was superseded AFTER the new one was inserted, so for the length of that
+           insert BOTH rows had superseded_at null — and the unique index on
+           (entry_point_id, reading_date) is partial exactly on `where superseded_at is null`.
+           Every correction therefore died on a 23505 unique violation surfaced as a 500. The
+           feature was implemented, documented and reachable, and had never once worked; nothing
+           detected it because correcting a day is the one path no smoke test walks.
+           The old row is now stood down FIRST. If the insert then fails the correction is put back,
+           because a superseded day with nothing replacing it would silently delete a record that
+           is behind a report signed under 1976 PA 399. */
+        if (supersedes) {
+          await sb(`water_readings?id=eq.${supersedes.id}`, {
+            method: 'PATCH', headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({ superseded_at: new Date().toISOString() }),
+          });
+        }
+        let inserted;
+        try {
+          inserted = await sb('water_readings', {
           method: 'POST',
           headers: { Prefer: 'return=representation' },
           body: JSON.stringify([{
@@ -212,7 +230,18 @@ export default async function handler(req, res) {
             corrects: supersedes ? supersedes.id : null,
             correction_reason: body.correction_reason || null,
           }]),
-        });
+          });
+        } catch (e) {
+          // Put the day back exactly as it was. A correction that fails must leave the record it
+          // was trying to amend still standing.
+          if (supersedes) {
+            await sb(`water_readings?id=eq.${supersedes.id}`, {
+              method: 'PATCH', headers: { Prefer: 'return=minimal' },
+              body: JSON.stringify({ superseded_at: null }),
+            });
+          }
+          throw e;
+        }
         const row = inserted[0];
 
         if (out.feeds.length) {
@@ -221,13 +250,10 @@ export default async function handler(req, res) {
             body: JSON.stringify(out.feeds.map((f) => ({ reading_id: row.id, ...f, kind: undefined }))),
           });
         }
-        if (supersedes) {
-          await sb(`water_readings?id=eq.${supersedes.id}`, {
-            method: 'PATCH', headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ superseded_at: new Date().toISOString() }),
-          });
-        }
-        return res.status(200).json({ ok: true, id: row.id, derived: out.reading, feeds: out.feeds, flags: out.flags });
+        return res.status(200).json({
+          ok: true, id: row.id, derived: out.reading, feeds: out.feeds, flags: out.flags,
+          ...(supersedes ? { corrected: supersedes.id } : {}),
+        });
       }
 
       // ---- distribution sample -----------------------------------------------------------------
@@ -254,7 +280,17 @@ export default async function handler(req, res) {
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'That site already has a sample on this date.' });
         }
-        const ins = await sb('water_dist_samples', {
+        // Same defect, same fix as submit_reading above: stand the old sample down BEFORE inserting
+        // its replacement, or the partial unique index rejects the correction.
+        if (supersedes) {
+          await sb(`water_dist_samples?id=eq.${supersedes.id}`, {
+            method: 'PATCH', headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({ superseded_at: new Date().toISOString() }),
+          });
+        }
+        let ins;
+        try {
+          ins = await sb('water_dist_samples', {
           method: 'POST', headers: { Prefer: 'return=representation' },
           body: JSON.stringify([{
             supply_id: p.supply.id,
@@ -273,14 +309,17 @@ export default async function handler(req, res) {
             corrects: supersedes ? supersedes.id : null,
             correction_reason: body.correction_reason || null,
           }]),
-        });
-        if (supersedes) {
-          await sb(`water_dist_samples?id=eq.${supersedes.id}`, {
-            method: 'PATCH', headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ superseded_at: new Date().toISOString() }),
           });
+        } catch (e) {
+          if (supersedes) {
+            await sb(`water_dist_samples?id=eq.${supersedes.id}`, {
+              method: 'PATCH', headers: { Prefer: 'return=minimal' },
+              body: JSON.stringify({ superseded_at: null }),
+            });
+          }
+          throw e;
         }
-        return res.status(200).json({ ok: true, id: ins[0].id, flags });
+        return res.status(200).json({ ok: true, id: ins[0].id, flags, ...(supersedes ? { corrected: supersedes.id } : {}) });
       }
 
       // ---- bacteriological sample. The residual is REQUIRED: July 2026's packet reached the
