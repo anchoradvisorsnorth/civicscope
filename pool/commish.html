@@ -124,8 +124,7 @@
       <div class="row" style="margin-top:10px" id="editonly">
         <button class="btn gray" onclick="addPlayer()">+ New person</button>
         <button class="btn gray" onclick="addExisting()" title="Someone already in The Pool — reuse them so their history follows">+ Add existing</button>
-        <button class="btn gold" id="savebtn" onclick="savePlayers()">Save players</button>
-        <button class="btn gray" id="reloadbtn" onclick="loadPlayers()" title="Re-read the roster from the server, discarding anything unsaved">↻ Reload</button>
+        <button class="btn gray" id="reloadbtn" onclick="discardEdits()" title="Re-read the roster from the server, discarding anything unsaved">↻ Reload</button>
         <span class="muted">PINs auto-generate when blank — <b>each player can change their own</b> on the picks page. Text + Email default ON. <b>A text only sends once that member texts JOIN to (574) 444-0320 from the mobile you enter here.</b> Use <b>+ Add existing</b> for anyone already in The Pool; names and mobiles are unique across every pool.</span>
       </div>
     </div>
@@ -284,7 +283,31 @@ async function post(body){const r=await fetch(API,{method:'POST',headers:{'Conte
    the one thing you actually came for: who is set up and who still needs chasing. So VIEW is the
    default — one calm line each, with the状 status stated — and EDIT is opt-in. */
 let editMode=false;
-function toggleEdit(){ editMode=!editMode; renderPlayers(); }
+/* ⛔ TWO BUTTONS COMPETED TO BE THE ONE THAT FINISHES (Keith 2026-08-19: "the done editing and
+   save players buttons are competing with one another"). Both were gold, both read as "I'm done",
+   and only one of them wrote anything. Worse than clutter: 'Done editing' just flipped the mode,
+   and VIEW mode renders the LOCAL players array — so tapping it painted the unsaved edits as a
+   calm, saved-looking roster with nothing but a small note to say otherwise. You could leave the
+   editor believing you had added someone who was never written.
+   There is now ONE commit control, in the header, and it says which of the two things it will do:
+   dirty -> "✓ Save & done" (gold, saves then leaves), clean -> "✓ Done editing" (grey, just
+   leaves). Leaving the editor with unsaved work is no longer reachable by accident, so the state
+   the page shows is always the state the server holds. */
+function toggleEdit(){
+  if(editMode&&dirty){ saveAndDone(); return; }   // the header button IS the save when there is work
+  editMode=!editMode; renderPlayers();
+}
+async function saveAndDone(){
+  await savePlayers();
+  if(dirty) return;                 // refused, cancelled or failed — stay in the editor, stay honest
+  editMode=false; renderPlayers();
+}
+/* Discarding is a real decision and it used to be a button labelled "Reload" that threw work away
+   without asking. It still re-reads the server; it just says so first when there is something to lose. */
+function discardEdits(){
+  if(dirty&&!confirm('Discard your unsaved roster changes and re-read the server copy?'))return;
+  loadPlayers();
+}
 function statusOf(p){
   if(p.canText) return {t:'✓ texts on',c:'#14532d',b:'#dcfce7'};
   if(!p.phone)  return {t:'no mobile',  c:'#854d0e',b:'#fef9c3'};
@@ -292,7 +315,11 @@ function statusOf(p){
 }
 function renderPlayers(){
   const eb=document.getElementById('editbtn');
-  if(eb){eb.textContent=editMode?'✓ Done editing':'✎ Edit roster';eb.classList.toggle('gold',editMode);eb.classList.toggle('gray',!editMode);}
+  if(eb){
+    eb.textContent=!editMode?'✎ Edit roster':(dirty?'✓ Save & done':'✓ Done editing');
+    eb.classList.toggle('gold',editMode&&dirty);
+    eb.classList.toggle('gray',!editMode||!dirty);
+  }
   document.getElementById('editonly').style.display=editMode?'':'none';
   // The stacked phone layout is scoped to this class so VIEW mode — two columns, already fine on a
   // handset — keeps its ordinary table rendering rather than inheriting a fix it never needed.
@@ -411,12 +438,18 @@ let loadedCount=0;   // roster size as last read from the server — see savePla
 let dirty=false;
 function markDirty(){ dirty=true; paintState(); }
 function paintState(){
-  const s=document.getElementById('pstate'); const save=document.getElementById('savebtn');
-  if(!s||!save)return;
-  s.textContent = dirty ? '● unsaved changes' : (loadedCount?'saved':'');
-  s.style.color = dirty ? '#fde68a' : '#b9c6da';
-  save.classList.toggle('gold', dirty); save.classList.toggle('gray', !dirty);
-  save.textContent = dirty ? 'Save players' : 'Saved ✓';
+  const s=document.getElementById('pstate'), eb=document.getElementById('editbtn'),
+        rl=document.getElementById('reloadbtn');
+  if(s){
+    s.textContent = dirty ? '● unsaved changes' : (loadedCount?'saved':'');
+    s.style.color = dirty ? '#fde68a' : '#b9c6da';
+  }
+  // The one commit control lives in the header and re-labels itself — see toggleEdit().
+  if(eb&&editMode){
+    eb.textContent = dirty ? '✓ Save & done' : '✓ Done editing';
+    eb.classList.toggle('gold', dirty); eb.classList.toggle('gray', !dirty);
+  }
+  if(rl) rl.textContent = dirty ? '↻ Discard changes' : '↻ Reload';
 }
 /* The roster is the pool's MEMBERSHIP now, read from the database — so there is no hardcoded
    fallback list any more. There used to be one ('BRAD','BOB',…) that filled in whenever the load

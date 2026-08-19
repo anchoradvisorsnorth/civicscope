@@ -106,3 +106,51 @@ function weekPoints(wk, scores) {
   }
   return { pts, detail };
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   WHO IS LOOKING (2026-08-19). An open board is now answered PER VIEWER: while a
+   member added mid-week still has a card to fill, only a viewer who has locked their
+   own picks gets to see everyone else's (api/football-pool.js). That is only usable
+   if the read-only pages can say who they are — before this, the board and the live
+   tracker were entirely anonymous, so a player who HAD picked would have lost the
+   board to a gate meant for someone else.
+
+   Stored under one key, in ONE place, for the same reason the scoring rules are:
+   three pages read it. It moves from sessionStorage to localStorage because the
+   tracker is meant to be BOOKMARKED — a per-tab session is gone by the time it is
+   opened from the home screen, which is exactly how it gets used. A tab already
+   holding the old session keeps working: the read falls back to sessionStorage and
+   migrates it forward.
+
+   ⚠ This puts a 4-digit PIN in localStorage on the member's own phone. It is the same
+   credential already sent to them by text and already accepted in a GET query string
+   (Codex #6, deliberately deferred) — phone-as-identity with a one-time code is the
+   real answer and is scoped as that rebuild, not as a patch here.
+   ───────────────────────────────────────────────────────────────────────────── */
+const POOL_SESSION_KEY = 'fb_me';
+const poolSession = {
+  get() {
+    try {
+      let raw = localStorage.getItem(POOL_SESSION_KEY);
+      if (!raw) {
+        raw = sessionStorage.getItem(POOL_SESSION_KEY);
+        if (raw) localStorage.setItem(POOL_SESSION_KEY, raw);   // carry an open tab forward
+      }
+      const v = raw ? JSON.parse(raw) : null;
+      return v && v.name && v.pin ? v : null;
+    } catch (e) { return null; }
+  },
+  set(name, pin) {
+    try { localStorage.setItem(POOL_SESSION_KEY, JSON.stringify({ name, pin })); } catch (e) {}
+    try { sessionStorage.setItem(POOL_SESSION_KEY, JSON.stringify({ name, pin })); } catch (e) {}
+  },
+  clear() {
+    try { localStorage.removeItem(POOL_SESSION_KEY); } catch (e) {}
+    try { sessionStorage.removeItem(POOL_SESSION_KEY); } catch (e) {}
+  },
+  // Identity for a read-only GET. Empty string when signed out, so it concatenates safely.
+  query() {
+    const s = poolSession.get();
+    return s ? '&name=' + encodeURIComponent(s.name) + '&pin=' + encodeURIComponent(s.pin) : '';
+  },
+};
