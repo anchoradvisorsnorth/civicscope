@@ -92,18 +92,9 @@
 </header>
 
 <main>
-  <!-- ===== 1. unlock ===================================================================== -->
-  <section id="scrUnlock" class="card">
-    <h2>Plant access</h2>
-    <p class="muted">Enter the access code for your water supply. Ask your Operator-In-Charge if you don't have it.</p>
-    <label for="wssn">Supply number (WSSN)</label>
-    <input id="wssn" inputmode="numeric" value="01310" autocomplete="off">
-    <label for="code">Access code</label>
-    <input id="code" type="password" inputmode="text" autocomplete="off">
-    <div id="unlockMsg"></div>
-    <div style="margin-top:16px"><button class="primary" id="btnUnlock">Continue</button></div>
-  </section>
-
+  <!-- The Plant access screen used to sit here. It was a login in front of a job that is done
+       one-handed in a well house, and Keith had already said the crew never log in. Gone: /water
+       opens on the wells. The WSSN is fixed per deployment rather than typed. -->
   <!-- ===== 2. operator ================================================================== -->
   <!-- INITIALS ONCE, NO PIN (Keith 2026-08-19: "each inspector should just need to add their
        initials one time before submitting").
@@ -229,13 +220,14 @@ const n = (v) => (v===''||v==null ? null : Number(v));
 const fmt = (v,d=2) => (v==null||!isFinite(v) ? '—' : Number(v).toFixed(d));
 
 // ---- persistence ----------------------------------------------------------------------------
-function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,code:S.code,op:S.op,queue:S.queue})); }
+// No access code is stored, because none is asked for. The crew never log in.
+function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,op:S.op,queue:S.queue})); }
 function load(){ try{ Object.assign(S, JSON.parse(localStorage.getItem(LS)||'{}')); }catch{} S.queue ||= []; }
 
 async function api(action, payload={}, opts={}){
   const r = await fetch(API, {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ action, wssn:S.wssn, code:S.code, ...payload }),
+    body: JSON.stringify({ action, wssn:S.wssn, ...payload }),
   });
   const j = await r.json().catch(()=>({error:'bad response'}));
   if(!r.ok && !opts.raw) throw Object.assign(new Error(j.error||('http '+r.status)), {payload:j, status:r.status});
@@ -267,37 +259,61 @@ window.addEventListener('online', flush);
 setInterval(flush, 30000);
 
 // ---- screens ---------------------------------------------------------------------------------
-$('btnUnlock').onclick = async () => {
-  S.wssn = $('wssn').value.trim(); S.code = $('code').value;
-  $('unlockMsg').innerHTML = '';
+/* ⛔ NO LOGIN. /water opens on the wells (Keith: "pick a well - no login"). There is no access-code
+   screen and no WSSN to type: the supply is fixed for this deployment and can be overridden with
+   ?wssn= if a second village ever shares the build. Boot fetches the profile and shows the round. */
+const WSSN_DEFAULT = '01310';
+
+async function boot(){
+  S.wssn = new URLSearchParams(location.search).get('wssn') || S.wssn || WSSN_DEFAULT;
   try{
     const p = await api('profile', { date: today() });
-    if(!p.writesEnabled){ $('unlockMsg').innerHTML = '<div class="msg err">This plant is not open for entry yet — WATER_OPS_CODE is not configured.</div>'; return; }
     S.profile = p; save();
     $('hdrTitle').textContent = p.supply.name;
     $('hdrSub').textContent = `WSSN ${p.supply.wssn} · ${p.supply.classification||''}`;
-    if(!p.operators.length){ $('unlockMsg').innerHTML = '<div class="msg err">No operators are set up for this supply yet.</div>'; return; }
     $('opSel').innerHTML = p.operators.map(o=>`<option value="${o.id}">${esc(o.name)} (${esc(o.initials)})</option>`).join('');
-    $('scrUnlock').classList.add('hide'); $('scrWho').classList.remove('hide');
-  }catch(e){ $('unlockMsg').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
-};
+    // An operator remembered from last time is simply reused — that is the "initials one time"
+    // Keith asked for. Nobody is asked to identify themselves to LOOK at the round; only to file
+    // one, and only if this device has never been used before.
+    if(S.op && p.operators.some(o=>o.id===S.op.id)){
+      $('whoChip').textContent = S.op.initials; $('whoChip').classList.remove('hide');
+    } else {
+      S.op = null;
+      $('whoChip').textContent = 'set initials'; $('whoChip').classList.remove('hide');
+    }
+    $('app').classList.remove('hide');
+    showTab(location.hash.slice(1) || 'round', { push: false });
+  }catch(e){
+    $('app').classList.remove('hide');
+    $('roundOut') && ($('roundOut').innerHTML = `<div class="card msg err">${esc(e.message)}</div>`);
+  }
+}
 
-// Hand the round to someone else: back to the picker, keeping everything already queued.
+// The chip is the only place initials live. Tap it any time to hand the round to someone else.
 $('whoChip').onclick = () => { $('app').classList.add('hide'); $('scrWho').classList.remove('hide'); };
+
+/* Asked ONCE, and only when something is about to be filed under a name. Returns false if the
+   operator still has not chosen, so the caller can stop rather than submit anonymously. */
+function needOperator(){
+  if(S.op) return true;
+  $('app').classList.add('hide'); $('scrWho').classList.remove('hide');
+  $('whoMsg').innerHTML = '<div class="msg warn">Add your initials before submitting — they go on the record.</div>';
+  return false;
+}
 
 $('btnWho').onclick = async () => {
   const id = $('opSel').value;
-  const op = S.profile.operators.find(o=>o.id===id);
-  /* No PIN is sent. `submit_reading` only enforces one where an operator actually has a PIN set,
-     so passing a blank is not a downgrade — it is the same result, minus a field that implied a
-     check nobody was performing.
-     ⚠ The tablet may be shared at the plant, so "set once and forget" could quietly credit every
-     round to whoever set it last. The answer is not to re-ask for a code, it is to never HIDE who
-     is being credited: the initials ride the submit control itself and are one tap from changing. */
+  const op = (S.profile.operators||[]).find(o=>o.id===id);
+  if(!op) return;
+  /* No PIN. The Well and Pump Record has a "Done by" column holding initials and nothing else, and
+     the PIN this replaced was enforced for exactly one of four operators.
+     ⚠ Because nothing proves who is holding the tablet, the initials are never hidden: the chip
+     shows them on every screen and is one tap from changing, so a shared tablet cannot quietly
+     credit a month of rounds to whoever set it last. */
   S.op = { id, name:op.name, initials:op.initials }; save();
-  $('whoChip').textContent = op.initials; $('whoChip').classList.remove('hide');
+  $('whoChip').textContent = op.initials;
+  $('whoMsg').innerHTML = '';
   $('scrWho').classList.add('hide'); $('app').classList.remove('hide');
-  // Land on the screen the link asked for, not always the round.
   showTab(location.hash.slice(1) || 'round', { push: false });
 };
 
@@ -479,6 +495,8 @@ async function openEntry(ep){
 
   $('e_submit').onclick = async () => {
     const out = recompute(); if(!out.ok) return;
+    // Initials go on the record, so they are asked for once — here, not at a login screen.
+    if(!needOperator()) return;
     const payload = {
       entry_point_id: ep.id, reading_date: date, reading_time: $('e_time').value,
       operator_id: S.op.id, operator_initials: S.op.initials, input: collect(),
@@ -513,6 +531,7 @@ function paintBactiSites(){
 $('bKind').onchange = paintBactiSites;
 
 $('btnBacti').onclick = async () => {
+  if(!needOperator()) return;
   // Guard here as well as at the API. The API refuses without a residual (422) and that refusal
   // is authoritative — but on a tablet with no signal the submit is QUEUED, so a client-side
   // check is the only thing standing between the operator and a sample that will be rejected
@@ -548,6 +567,7 @@ $('btnBacti').onclick = async () => {
 };
 
 $('btnDist').onclick = async () => {
+  if(!needOperator()) return;
   const payload = {
     site_id: $('dSite').value, sample_date: $('dDate').value, sample_time: nowTime(),
     operator_id: S.op.id, operator_initials: S.op.initials,
@@ -639,23 +659,7 @@ if ('serviceWorker' in navigator) {
 
 // ---- boot ---------------------------------------------------------------------------------------
 load(); paintQueue();
-if(S.wssn) $('wssn').value = S.wssn;
-if(S.wssn && S.code){
-  $('code').value = S.code;
-  $('btnUnlock').click();
-  if(S.op){
-    const iv = setInterval(()=>{
-      if(!S.profile) return; clearInterval(iv);
-      const still = S.profile.operators.find(o=>o.id===S.op.id);
-      if(!still) return;
-      $('whoChip').textContent = S.op.initials; $('whoChip').classList.remove('hide');
-      $('scrWho').classList.add('hide'); $('scrUnlock').classList.add('hide'); $('app').classList.remove('hide');
-      // Honour a linked screen (/water#book) instead of always landing on the round. This is
-      // what makes a screen sendable — the OIC can point an operator at the records directly.
-      showTab(location.hash.slice(1) || 'round', { push: false });
-    }, 120);
-  }
-}
+boot();
 </script>
 </body>
 </html>
