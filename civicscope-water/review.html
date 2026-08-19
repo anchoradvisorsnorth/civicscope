@@ -243,6 +243,34 @@ function renderMonth(mo, y, m, eps) {
     }
   }
 
+  /* ⛔ OUT OF FAMILY FOR THIS PLANT — not out of bounds for the regulation.
+     derive() already refuses a dose above the NSF maximum (26 mg/L for the phosphate) and warns on
+     a configured ceiling. Neither fires on a dose that is merely NINE TIMES this plant's normal:
+     1 March 2026 recorded Aquadine at 11.53 mg/L against a median of about 1.2, and this page said
+     nothing about it until this check existed. A regulatory ceiling answers "is this illegal";
+     the OIC's question is "is this like every other day", and only the plant's own history answers
+     that. Measured per feed against the median of the SAME month, so it needs no reference data and
+     cannot drift as the plant changes. */
+  const doseByFeed = {};
+  for (const r of readings) for (const f of (r.feeds || [])) {
+    if (f.dose_mg_l != null) (doseByFeed[f.feed_id] ||= []).push(Number(f.dose_mg_l));
+  }
+  const medianOf = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+  const feedName = (id) => {
+    for (const e of eps) { const f = (e.feeds || []).find((x) => x.id === id); if (f) return f.product_name || f.kind; }
+    return 'chemical';
+  };
+  for (const r of readings) for (const f of (r.feeds || [])) {
+    const series = doseByFeed[f.feed_id];
+    if (f.dose_mg_l == null || !series || series.length < 8) continue;
+    const med = medianOf(series);
+    if (med > 0 && Number(f.dose_mg_l) > med * 4) {
+      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'warn',
+        what: `${feedName(f.feed_id)} dose ${fmt(f.dose_mg_l)} mg/L — about ${Math.round(Number(f.dose_mg_l) / med)}× this plant's normal (${fmt(med)}). Usually a tank level read wrong on this day or the one before it.`,
+        who: r.operator_initials });
+    }
+  }
+
   // Days nobody visited a well that normally runs — a gap in the record, not a quiet day.
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const isCurrent = (new Date().getUTCFullYear() === y && new Date().getUTCMonth() + 1 === m);
