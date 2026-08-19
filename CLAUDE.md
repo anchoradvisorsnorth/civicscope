@@ -41,7 +41,8 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 | **Infrastructure (NEW June 6)** | **app.civicscope.io/infrastructure** | **Public works / utility leaders** | **v1.0.0-infrastructure** |
 | GC External | app.civicscope.io/gc/:slug | GC prospective clients | v1.6.0-gc |
 | GC Internal | app.civicscope.io/gc/:slug-internal | GC estimating teams | v1.5.0-gc-int |
-| **Municipal Documents (NEW 2026-08-18)** | **civicscope.io/:municipality** (live: `/centreville`) | **Village clerks + residents** | **v1.0.0-muni** |
+| **Village Hub (NEW 2026-08-18)** | **civicscope.io/:village** (live: `/centreville`) | **The village's own staff — one address for every product** | **v1.0.0-village** |
+| **Ask &lt;Village&gt; (NEW 2026-08-18)** | **civicscope.io/:village/ask** (live: `/centreville/ask`) | **Village clerks + residents** | **v1.0.0-muni** ⏸ paused |
 | **Water Plant Daily Log (NEW 2026-08-18)** | **app.civicscope.io/water** | **Water plant operators + the OIC who signs the MOR** | **v1.0.0-water** |
 | QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
 | Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin (+ QA test harness) |
@@ -127,7 +128,16 @@ brand_statement, brand_values (jsonb array)
   PM from the credential and there is no `pm` parameter a browser can send. Scans live in the
   PRIVATE Supabase bucket `ryc-invoice-scans`, served as 15-minute signed URLs. Full detail:
   **RYC CLAUDE.md**.
-- **/centreville — Municipal Documents (NEW 2026-08-18).** One page (`civicscope-muni/index.html`)
+- **/centreville — the VILLAGE HUB (NEW 2026-08-18)**, `civicscope-village/index.html`. A village's
+  front door: it reads that village's `muni_tenants` row and offers the products that village
+  actually has — **Ask &lt;Village&gt;** when `active`, **Well Sampler** when `water_wssn` is set
+  (migration `011`). Tenant-generic like everything else here; a second village is a rewrite line
+  plus a row. **Two rewrites under one slug both answer 200**, so `verify-routing.js` asserts
+  *which page* each serves via its version comment (`servesPage()`) — a status-only check would let
+  the hub and the ask tool swap silently. Google sign-in is **not built**; the hub says so in
+  words rather than showing a dead button.
+- **/centreville/ask — Ask &lt;Village&gt; (moved here 2026-08-18** from `/centreville`, which is now
+  the hub). One page (`civicscope-muni/index.html`)
   serves every municipality; the tenant comes from the path, so adding a village is a
   `muni_tenants` row + one literal rewrite here. **Literal per tenant on purpose — never a root
   `/:slug` wildcard**, which would swallow every unmatched path on the site. Backed by
@@ -193,6 +203,17 @@ you can report as done:
 | 60 | internal error |
 
 **Verification is selected from the declared paths — you do not pick it.** Two axes combine:
+
+**`water` profile (NEW 2026-08-18) — `civicscope-water/*` + `api/water-ops.js` → the derivation
+gate.** `derive()` produces numbers that are **filed with the State of Michigan**, and the
+api-contract gate can only prove the route answers, never that it answers with the right numbers.
+`scripts/verify-water-derivation.mjs` replays Centreville's real July 2026 — 93 well-days
+transcribed from the scans — through the exact function the tablet calls and checks it against
+what the operator wrote by hand (569 assertions). It fires on **both** files, because the
+arithmetic lives in `derive.js` while `api/water-ops.js` re-derives authoritatively at submit;
+changing one alone is precisely the drift this catches. **Not `optional`** — unlike the pool and
+RYC gates it needs no credential and no network, so "could not run" is never legitimate here.
+*(Until this existed, the plant's arithmetic shipped ungated.)*
 
 *Profile* (functional depth): `pool/*`,`golf/*`,`football/*`,`api/{golf,football}-pool.js`,
 `api/pool-sms.js` → pool integrity. `api/claude.js`, the three tool dirs, `civicscope.css`,
