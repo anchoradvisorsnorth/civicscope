@@ -106,8 +106,18 @@
   </h2>
   <div class="card" id="coverage"></div>
 
+  <h2 style="display:flex;align-items:center;gap:12px">
+    <span>The records</span>
+    <select id="wellSel"></select>
+    <span class="n">— as the paper sheet reads</span>
+  </h2>
+  <div id="records"></div>
+
   <h2>Month end <span class="n">— the EGLE report</span></h2>
   <div class="note" id="monthEnd"></div>
+
+  <h2>Reports filed <span class="n">— what went to EGLE</span></h2>
+  <div class="note" id="filed"></div>
 </main>
 
 <script type="module">
@@ -286,6 +296,17 @@ function renderMonth(mo, y, m, eps) {
     </div>`;
   }).join('');
 
+  /* ── the records themselves. The month picker already moves the exceptions and the coverage, but
+     without this she could see THAT a day was odd and never see the day. The same sheet exists in
+     the crew's tablet at /water#book — behind the plant access code, in the app built for a well
+     house. Reading her own records should not require walking into the field app. */
+  const wsel = $('wellSel');
+  const want = wsel.value;
+  wsel.innerHTML = eps.map((e) => `<option value="${esc(e.id)}">${esc(e.label)}</option>`).join('');
+  if (want && eps.some((e) => e.id === want)) wsel.value = want;
+  wsel.onchange = () => paintRecords(mo, y, m, eps);
+  paintRecords(mo, y, m, eps);
+
   // ── month end. Honest about what is not built rather than a button that does nothing.
   const dist = (mo.dist || []).length;
   $('monthEnd').innerHTML = `<b>${MN[m]} ${y}</b> holds ${readings.length} well-day${readings.length === 1 ? '' : 's'}, `
@@ -293,6 +314,80 @@ function renderMonth(mo, y, m, eps) {
     + `The EGLE workbook is generated from exactly these records, but <b>not yet from this page</b> — it still runs as `
     + `<code>scripts/build-mor.py</code> on Keith's machine. That is the one thing on this screen that is a capability `
     + `you do not have rather than a view you cannot see, and it is the next thing to build.`;
+
+  /* ⛔ THE PRODUCT HAS NO CONCEPT OF A FILED REPORT. Nine water_* tables and not one of them
+     records that a month was submitted, when, by whom, or which file went. The 2026 workbooks
+     exist — in Keith's Drive — but to this system they are invisible, so the honest answer to
+     "where do I see past reports" is that there is nowhere yet.
+     Saying that plainly beats an empty table implying none were ever filed: seven were. */
+  $('filed').innerHTML =
+    `<b>Nothing here records what was filed.</b><br><br>`
+    + `The readings behind every month are above and can be read back at any time — but the report itself, the date it `
+    + `went to EGLE and who signed it are not stored anywhere in this system. The 2026 workbooks that <em>were</em> `
+    + `submitted live as files in Drive; the product cannot see them.<br><br>`
+    + `Closing this needs somewhere to keep a filing — the month, the date submitted, who signed it, and the exact `
+    + `workbook that went — so that "what did we send EGLE in March, and does it still match our records?" is a `
+    + `question this page can answer. It pairs with generating the report above: the same action that produces the `
+    + `workbook should record that it was filed.`;
+}
+
+/* The Well and Pump Record, rebuilt — deliberately the same shape and column order as the paper
+   sheet it replaces, because she is checking it against a scan or against her memory of the sheet,
+   not reading a database export. Every derived column (Lbs Water, Lbs used, ppm) is shown as it
+   was STORED: recomputing here would be a third copy of the plant's arithmetic, and the two
+   existing copies drifting apart is the whole reason this product exists. */
+function paintRecords(mo, y, m, eps) {
+  const ep = eps.find((e) => e.id === $('wellSel').value) || eps[0];
+  if (!ep) { $('records').innerHTML = ''; return; }
+  const rows = (mo.readings || []).filter((r) => r.entry_point_id === ep.id);
+  const byDay = {};
+  for (const r of rows) byDay[dayOf(r.reading_date)] = r;
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const feeds = ep.feeds || [];
+
+  let head = '<tr><th class="l">Date</th><th>Time</th><th>Meter</th><th>Gallons</th>';
+  for (const f of feeds) head += `<th>${esc(f.product_name || f.kind)}</th><th>Used</th><th>ppm</th>`;
+  head += '<th>Free</th><th>Total</th><th>PO₄</th><th class="l">By</th></tr>';
+
+  let body = '';
+  for (let d = 1; d <= last; d++) {
+    const r = byDay[d];
+    const dow = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(undefined, { weekday: 'short', timeZone: 'UTC' });
+    if (!r) {
+      body += `<tr><td class="l" style="color:#94a3b8">${d} ${dow}</td>`
+            + `<td colspan="${3 + feeds.length * 3 + 4}" class="l" style="color:#cbd5e1">not recorded</td></tr>`;
+      continue;
+    }
+    const odd = r.tap_free != null && r.tap_total != null && Number(r.tap_free) > Number(r.tap_total);
+    let cells = `<td class="l">${d} ${dow}</td><td>${esc((r.reading_time || '').slice(0, 5))}</td>`
+              + `<td>${r.meter_reading ?? ''}</td><td>${int(r.gallons_pumped)}</td>`;
+    for (const f of feeds) {
+      const fr = (r.feeds || []).find((x) => x.feed_id === f.id) || {};
+      cells += `<td>${fr.tank_level ?? ''}${fr.refill_to != null ? ` <span class="tag info">→${fr.refill_to}</span>` : ''}</td>`
+             + `<td>${fr.solution_lbs ?? ''}</td><td>${fmt(fr.dose_mg_l)}</td>`;
+    }
+    cells += `<td${odd ? ' style="color:#b91c1c;font-weight:700"' : ''}>${fmt(r.tap_free)}</td>`
+           + `<td${odd ? ' style="color:#b91c1c;font-weight:700"' : ''}>${fmt(r.tap_total)}</td>`
+           + `<td>${fmt(r.tap_ortho)}</td><td class="l">${esc(r.operator_initials || '')}</td>`;
+    body += `<tr>${cells}</tr>`;
+  }
+
+  const dist = mo.dist || [], bacti = mo.bacti || [];
+  const distTable = dist.length ? `<div class="card scroll" style="margin-top:12px"><table>
+      <thead><tr><th class="l">Distribution sample</th><th class="l">Site</th><th>Free</th><th>Total</th><th>PO₄</th><th class="l">By</th></tr></thead><tbody>
+      ${dist.map((s) => `<tr><td class="l">${esc(s.sample_date)}</td><td class="l">${esc(s.site_name || '')}</td>
+        <td>${fmt(s.free)}</td><td>${fmt(s.total)}</td><td>${fmt(s.ortho)}</td><td class="l">${esc(s.operator_initials || '')}</td></tr>`).join('')}
+      </tbody></table></div>` : '';
+  const bactiTable = bacti.length ? `<div class="card scroll" style="margin-top:12px"><table>
+      <thead><tr><th class="l">Bacti sample</th><th class="l">Site</th><th class="l">Result</th><th>Free</th><th>Total</th></tr></thead><tbody>
+      ${bacti.map((b) => `<tr><td class="l">${esc(b.collected_date)}</td><td class="l">${esc(b.site_name || '')}</td>
+        <td class="l">${esc(b.result || '')}</td><td>${fmt(b.free)}</td><td>${fmt(b.total)}</td></tr>`).join('')}
+      </tbody></table></div>` : '';
+
+  $('records').innerHTML = `<div class="card scroll"><table>
+      <thead>${head}</thead><tbody>${body}</tbody></table></div>
+    <div class="muted" style="margin:8px 0 0">Gallons, Used and ppm are derived from the meter and tank levels — nobody types them.</div>
+    ${distTable}${bactiTable}`;
 }
 
 load().then(render).catch((e) => {
