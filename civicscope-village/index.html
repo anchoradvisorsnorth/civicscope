@@ -142,10 +142,14 @@ async function boot() {
   if (t.water_wssn) {
     cards.push(card(
       '/water',
-      'Well Sampler',
+      // Keith named it Well Testing (2026-08-19). The card said 'Sampler' while the tool itself
+      // said 'Plant Log' — three names for one product, none of them his.
+      'Well Testing',
       'Record the daily round at the plant — wells, doses, tank levels and distribution samples — '
         + 'and generate the monthly EGLE report from what was actually recorded.',
-      'Water supply <strong>WSSN ' + esc(t.water_wssn) + '</strong> · needs your plant access code and PIN'
+      // The PIN is gone (2026-08-19): the field round is initials-only, so promising a PIN here
+      // would send an operator hunting for a credential that no longer exists.
+      'Water supply <strong>WSSN ' + esc(t.water_wssn) + '</strong> · needs your plant access code'
     ));
   }
 
