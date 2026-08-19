@@ -102,7 +102,9 @@ async function load(){
     document.getElementById('content').innerHTML='<div class="note">⏳ <b>No week is running yet.</b> This page comes alive the moment the commissioner locks a slate — bookmark it now and it will be waiting.</div>';
     return;
   }
-  const j=await(await fetch(API+'?week='+meta.slug,{cache:'no-store'})).json();
+  // Identity, same reason as the board (2026-08-19): an open board is answered per viewer,
+  // so a player who has locked must be identifiable or the tracker goes blank for them too.
+  const j=await(await fetch(API+'?week='+meta.slug+poolSession.query(),{cache:'no-store'})).json();
   const wk=j.data;
   if(!wk){document.getElementById('content').innerHTML='<div class="note">Could not load that week — this does NOT mean there isn\'t one. Pull to refresh.</div>';return;}
   const games=wk.games||[];

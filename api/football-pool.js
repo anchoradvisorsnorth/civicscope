@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.10.0-poolscoped';   // the shrink guard and both roster reads name the pool they mean
+const VER = '3.11.0-openperviewer'; // an open board is answered per viewer; a reveal never retracts
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -228,7 +228,20 @@ export default async function handler(req, res) {
      ⛔ LOCKED, never merely SAVED. A saved card stays editable until the deadline; revealing on
      "saved" would hand back the exact exploit Codex #2 closed. `allLocked` requires every roster
      member to have `locked: true`, so one unlocked card keeps the whole board masked. */
-  const isRevealed = (wk, roster) => pastDeadline(wk) || allLocked(wk, roster);
+  /* ⛔ REVEAL IS A LATCH, NOT A RECOMPUTATION (Keith 2026-08-19, adding a player mid-week).
+     `allLocked` is derived from the CURRENT roster, so adding a member to a week that had
+     already opened made it false again — and the board silently RE-MASKED for the people who
+     had already been shown it. A reveal is an event that happened; a later roster change cannot
+     un-happen it. `revealedAt` is stamped by save_picks the moment the last card locks, and is
+     what keeps the board open afterwards. `allLocked` stays as the live fallback for weeks that
+     opened before this existed. */
+  const isRevealed = (wk, roster) => pastDeadline(wk) || !!wk.revealedAt || allLocked(wk, roster);
+  /* Members who could still be filling a card in: on the roster, no locked entry, deadline not
+     passed. Once this is empty there is nobody left to protect a pick from, and the board is
+     public exactly as it always was. While it is NOT empty — the only case being someone added
+     after the board opened — the open board is answered per viewer. */
+  const outstandingFor = (wk, roster) => (pastDeadline(wk) ? []
+    : (roster || []).filter(p => !(wk.picks && wk.picks[p.id] && wk.picks[p.id].locked)));
 
   /* Cover vs the FROZEN line — identical rule to the board's coverOf() and the sim's cover().
      Kept server-side so scoring never depends on what a browser computed. */
@@ -505,7 +518,10 @@ export default async function handler(req, res) {
           savedBy: Object.entries(data.picks || {}).filter(([, v]) => !v.locked).map(([k, v]) => v.name || k),
           // full detail (incl. picks + results) only once the board is revealed — same rule as
           // the single-week GET: everyone locked in, or the deadline passed.
-          full: isRevealed(data, listRoster) ? data : null,
+          /* Same rule as the single-week GET, and the list has no viewer to be identified — so
+             while anyone is outstanding it carries no picks at all. Without this the season list
+             is a side door onto the board a newcomer is being held out of. */
+          full: (isRevealed(data, listRoster) && !outstandingFor(data, listRoster).length) ? data : null,
         })));
       }
       // players roster — id + name only, never pins/emails/phones
@@ -520,13 +536,26 @@ export default async function handler(req, res) {
       if (!row) return res.status(200).json({ slug, data: null });
       const wk = row.data;
       const roster = await loadRoster(slug);
-      const revealed = isRevealed(wk, roster);
+      const name = String(req.query.name || '').toUpperCase();
+      const pin = String(req.query.pin || '');
+      const me = roster.find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
+      /* ⛔ AN OPEN BOARD IS ANSWERED PER VIEWER (Keith 2026-08-19): "the newly added player should
+         not be able to see everyone elses picks until they have picked, even though those picks
+         have been revealed to existing player."
+         Those two requirements cannot both be met by one global answer, so they stop being one
+         answer. `boardOpen` is the week's own state and never goes backwards; what a given
+         request is ALLOWED to see is decided per request. While anyone is still outstanding, only
+         a viewer who has locked their own card gets the picks — and that includes an
+         unidentified viewer, because the board is a public URL and a gate the newcomer can walk
+         around by opening it signed-out is not a gate. The moment nobody is outstanding the board
+         is public again, which is every ordinary week. */
+      const boardOpen = isRevealed(wk, roster);
+      const stillOut = outstandingFor(wk, roster);
+      const meLocked = !!(me && wk.picks && wk.picks[me.id] && wk.picks[me.id].locked);
+      const revealed = boardOpen && (!stillOut.length || meLocked);
       if (!revealed && wk.picks) {
-        // pick privacy: until everyone is locked in (or the deadline passes), only your own
-        // picks come back (name+pin); everyone else shows locked-status only.
-        const name = String(req.query.name || '').toUpperCase();
-        const pin = String(req.query.pin || '');
-        const me = roster.find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
+        // pick privacy: only your own picks come back (name+pin); everyone else shows
+        // locked-status only.
         const masked = {};
         for (const [pid, v] of Object.entries(wk.picks)) {
           masked[pid] = (me && pid === me.id)
@@ -538,6 +567,10 @@ export default async function handler(req, res) {
       // Roster travels with the week so clients can render names from person ids without a 2nd call.
       return res.status(200).json({
         slug: row.slug, data: wk, revealed, updated_at: row.updated_at,
+        /* Told apart deliberately, so a client can say WHY it is showing a locked board rather
+           than implying the week never opened: boardOpen = the week is open, waitingOn = who we
+           are still holding it from you for. */
+        boardOpen, waitingOn: stillOut.map(p => p.name),
         roster: roster.map(p => ({ id: p.id, name: p.name })),
       });
     }
@@ -1368,9 +1401,12 @@ export default async function handler(req, res) {
           // If this lock completes the board, fire the "all in" email once. The guard flag is
           // set BEFORE persisting so a retry can't double-send.
           fireNotify = false;
-          if (req.body.lock && !wk.notifiedAllLocked && allLocked(wk, roster)) {
-            wk.notifiedAllLocked = true;
-            fireNotify = true;
+          if (req.body.lock && allLocked(wk, roster)) {
+            /* THE REVEAL LATCH. Separate from notifiedAllLocked on purpose: that flag is about a
+               message and is deliberately RELEASED when the message reaches nobody (2026-08-13),
+               and the board opening must not be undone by a failed text. */
+            if (!wk.revealedAt) wk.revealedAt = new Date().toISOString();
+            if (!wk.notifiedAllLocked) { wk.notifiedAllLocked = true; fireNotify = true; }
           }
           saved = await putRowCAS(slug, wk, row.updated_at);
         }

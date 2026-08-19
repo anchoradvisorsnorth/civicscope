@@ -85,9 +85,15 @@ const fmtDT=d=>new Date(d).toLocaleString('en-US',{timeZone:'America/New_York',w
 
 async function renderWeek(slug){
   viewSlug=slug;
-  const j=await(await fetch(API+'?week='+slug,{cache:'no-store'})).json();
+  /* SAY WHO IS LOOKING (2026-08-19). This page was entirely anonymous. Now that an open board is
+     answered per viewer — a member added mid-week must not read the others' cards before filling
+     their own — a player who HAS locked has to be identifiable, or the gate meant for the newcomer
+     would take the board away from everybody. Signed out it sends nothing and behaves as before. */
+  const j=await(await fetch(API+'?week='+slug+poolSession.query(),{cache:'no-store'})).json();
   const wk=j.data; if(!wk){document.getElementById('content').innerHTML='<div class="note">Week not found.</div>';return;}
-  const revealed=j.revealed;   // server: all locked OR past first kickoff
+  const revealed=j.revealed;             // what THIS viewer may see
+  const boardOpen=j.boardOpen!==false;   // the week's own state — never goes backwards
+  const signedIn=poolSession.get();
   const games=wk.games||[];
   /* IDENTITY (2026-08-07): wk.picks is keyed by PERSON ID, not name. Every entry carries a `name`
      snapshot, and the week response now ships `roster:[{id,name}]`, so ids resolve to names without
@@ -118,6 +124,19 @@ async function renderWeek(slug){
        /picks would only tell them there is no open slate. */
     if(!wk.slateLocked){
       html+='<div class="note">📝 <b>This week is still a draft.</b> The commissioner hasn\'t locked the slate yet — picks aren\'t open and these spreads can still move. You\'ll get a text and an email the moment it opens.</div>';
+    } else if(boardOpen){
+      /* THE BOARD IS OPEN AND IS BEING HELD FROM YOU — a different fact from "it has not opened
+         yet", and saying the wrong one would tell a player who already locked that the week never
+         started. This state exists when somebody is added after the board opened: they still have
+         a card to fill, so the picks stay hidden from anyone who has not locked their own —
+         signed-out viewers included, because this URL is public and a gate you can walk around by
+         opening it signed out is not a gate. */
+      html+='<div class="note">🔓 <b>The board is open — but not to you yet.</b> '+
+        (waiting.length?'Still to pick: <b>'+waiting.join(', ')+'</b>. ':'')+
+        (signedIn
+          ? 'Lock your own card and the full board opens up: <a href="/pool/football/picks">make your picks →</a>'
+          : 'Sign in on the <a href="/pool/football/picks">picks page</a> — once your card is locked, the board opens up.')+
+        '</div>';
     } else {
       html+='<div class="note">🔒 <b>Picks open the moment everyone is locked in</b>'+(wk.deadline?' — or at the deadline ('+fmtDT(wk.deadline)+') if someone hasn\'t': '')+'.<br>Locked in: <b>'+
         (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
@@ -146,7 +165,10 @@ async function renderWeek(slug){
     html+='<div class="note">Slate is set but nobody has picks in yet.</div>';
   }
   document.getElementById('content').innerHTML=html;
-  document.getElementById('status').innerHTML='<b>'+esc(wk.label||slug)+'</b> · '+(!revealed?'picks open — hidden until all lock':wk.finalized?'final':'live')+'<br>Updated '+new Date().toLocaleTimeString();
+  const state=revealed?(wk.finalized?'final':'live')
+    :boardOpen?'board open — lock your picks to see it'
+    :'picks open — hidden until all lock';
+  document.getElementById('status').innerHTML='<b>'+esc(wk.label||slug)+'</b> · '+state+'<br>Updated '+new Date().toLocaleTimeString();
 }
 
 function renderSeason(){

@@ -84,6 +84,7 @@
   <button class="btn gold" id="lockbtn" onclick="save(true)">🔒 Save &amp; lock</button>
 </div>
 
+<script src="/pool/scoring.js"></script>
 <script>
 const API='/api/football-pool';
 let me=null,pin=null,myId=null,week=null,slugName=null,picks={},lockedMine=false;
@@ -93,7 +94,7 @@ function toast(t,ms){const m=document.getElementById('msg');m.textContent=t;m.st
 async function boot(){
   const j=await(await fetch(API+'?players=1',{cache:'no-store'})).json();
   document.getElementById('who').innerHTML=(j.players||[]).map(p=>'<option>'+esc(p.name)+'</option>').join('')||'<option>No players set</option>';
-  const saved=JSON.parse(sessionStorage.getItem('fb_me')||'null');
+  const saved=poolSession.get();
   if(saved){document.getElementById('who').value=saved.name;document.getElementById('pin').value=saved.pin;enter();}
 }
 let weekRows=[];
@@ -146,13 +147,13 @@ async function enter(){
       body:JSON.stringify({action:'verify_pin',name:who,pin:p})});
     auth=await r.json();
     if(!r.ok){
-      sessionStorage.removeItem('fb_me');            // a stale saved PIN must not keep re-failing
+      poolSession.clear();                           // a stale saved PIN must not keep re-failing
       toast(/pin/i.test(auth.error||'')?('Wrong PIN for '+who):(auth.error||'could not sign in'),5000);
       return;
     }
   }catch(e){toast('Could not reach the pool — check signal and try again',5000);return;}
   me=auth.name;pin=p;myId=auth.id;
-  sessionStorage.setItem('fb_me',JSON.stringify({name:me,pin}));
+  poolSession.set(me,pin);
   document.getElementById('login').style.display='none';
   document.getElementById('whoamiName').textContent=me;
   document.getElementById('whoami').style.display='flex';
@@ -178,7 +179,7 @@ async function loadWeek(){
   render();
 }
 function signOut(){
-  sessionStorage.removeItem('fb_me');
+  poolSession.clear();
   me=pin=myId=week=slugName=null;picks={};lockedMine=false;
   document.getElementById('whoami').style.display='none';
   document.getElementById('bar').style.display='none';
@@ -221,7 +222,7 @@ async function changePin(){
     if(!r.ok){toast(j.error||'could not change PIN',5000);return;}
     if(j.unchanged){toast('That is already your PIN');return;}
     pin=String(next).trim();
-    sessionStorage.setItem('fb_me',JSON.stringify({name:me,pin}));   // stay logged in
+    poolSession.set(me,pin);                                         // stay logged in
     toast('PIN changed ✓ — use it next time',6000);
   }catch(e){toast('could not change PIN',4000);}
 }
