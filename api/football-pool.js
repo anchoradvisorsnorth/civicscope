@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.9.0-keepthepin';    // a PIN the member already holds is never reissued by a save
+const VER = '3.10.0-poolscoped';   // the shrink guard and both roster reads name the pool they mean
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -94,8 +94,24 @@ export default async function handler(req, res) {
      Consent and channel preference now live on the PERSON, which is what removes the silently-wrong
      join that shipped earlier the same day. */
   const poolSlugFor = (weekSlug) => (isSandbox(weekSlug) ? 'sandbox-football' : 'football-2026');
-  const loadRoster = async (weekSlug) => {
-    const poolSlug = poolSlugFor(weekSlug);
+  const loadRoster = async (weekSlug) => loadRosterByPool(poolSlugFor(weekSlug));
+  /* ⛔ THE ROSTER READS ADDRESSED THE DEFAULT POOL WHILE THE WRITE ADDRESSED THE REQUESTED ONE
+     (found by the pool-integrity gate, 2026-08-19). `save_players` resolves `poolSlug` from the
+     request and writes memberships to THAT pool — but its shrink guard, its response body and
+     `get_players_full` all called `loadRoster('')`, and `poolSlugFor('')` is `football-2026`.
+     So the guard whose entire job is to stop a roster being wiped was counting a DIFFERENT pool's
+     members. It refused a legitimate 2-player save to `sandbox-football` because the live pool
+     happened to hold 3 — and, in the direction that actually costs something, it would have
+     ALLOWED a write cutting a ten-member pool to four, because four is not fewer than three.
+     `get_players_full` was worse: it echoed the requested `poolSlug` back with
+     `football-2026`'s players underneath it, so the editor could paint one pool's roster under
+     another pool's name — and the next Save would write those people into it.
+     This is the 2026-08-07 roster overwrite's own lesson one layer up: that fix taught the WRITE
+     which world it was in and left the READS behind. A boundary that covers most of the accesses
+     is not a boundary. Pool-addressed callers now name the pool; week-addressed ones still derive
+     it from the week. */
+  const loadRosterByPool = async (slug) => {
+    const poolSlug = encodeURIComponent(String(slug || 'football-2026'));
     const r = await sb(`pool_memberships?select=role,pools!inner(slug),pool_people!inner(id,name,email,phone,pin,sms_consent,sms_opted_out,notify_sms,notify_email,global_role)&pools.slug=eq.${poolSlug}`);
     if (!r.ok) return [];
     return (await r.json()).map(m => ({
@@ -779,7 +795,7 @@ export default async function handler(req, res) {
             p.pin = String(held || Math.floor(1000 + Math.random() * 9000));
           }
 
-          const cur = await loadRoster('');
+          const cur = await loadRosterByPool(poolSlug);   // THIS pool, not the default one
           if (!req.body.confirmShrink && cur.length > 1 && incoming.length < cur.length) {
             return res.status(409).json({
               error: `refusing to shrink ${poolSlug} from ${cur.length} to ${incoming.length} participants`,
@@ -892,7 +908,7 @@ export default async function handler(req, res) {
             }
           }
           return res.status(200).json({
-            poolSlug, players: await loadRoster(''),
+            poolSlug, players: await loadRosterByPool(poolSlug),
             addedCount: added.length, notified,
           });
         }
@@ -915,9 +931,10 @@ export default async function handler(req, res) {
           });
         }
         if (action === 'get_players_full') {
+          const poolSlug = String(req.body.poolSlug || 'football-2026');
           return res.status(200).json({
-            poolSlug: String(req.body.poolSlug || 'football-2026'),
-            players: (await loadRoster('')).map(p => ({
+            poolSlug,
+            players: (await loadRosterByPool(poolSlug)).map(p => ({
               id: p.id, name: p.name, email: p.email, phone: p.phone, pin: p.pin, role: p.role,
               // Preference (editable by the commissioner) and consent (never editable here) are
               // reported separately so the UI can show WHY someone will or will not get a text.
