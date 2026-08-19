@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.11.0-openperviewer'; // an open board is answered per viewer; a reveal never retracts
+const VER = '3.12.0-latchlegacy';   // the reveal latch also covers weeks that opened before it existed
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -235,7 +235,22 @@ export default async function handler(req, res) {
      un-happen it. `revealedAt` is stamped by save_picks the moment the last card locks, and is
      what keeps the board open afterwards. `allLocked` stays as the live fallback for weeks that
      opened before this existed. */
-  const isRevealed = (wk, roster) => pastDeadline(wk) || !!wk.revealedAt || allLocked(wk, roster);
+  /* THE LATCH HAS TO COVER WEEKS THAT OPENED BEFORE IT EXISTED, AND IT CANNOT DO THAT BY
+     REWRITING THEM. `revealedAt` is stamped by save_picks, and locking is final — so no week
+     already open will ever be saved again, and the live `2026-pre2` (open since
+     2026-08-18T20:02:46Z, three texted, three emailed) would have had no latch at all. Adding a
+     player to it would have re-masked the board for the three who had already seen it: precisely
+     the bug this change exists to remove, still live on the only week that matters.
+     It does not need a data migration, because the moment the board opened is ALREADY on the row.
+     `notifiedAllLocked` and `allLockedNotice.at` are written by the SAME condition at the SAME
+     instant, so they are evidence that it opened. `allLockedNotice` is the better of the two:
+     when a notice reaches nobody the 2026-08-13 fix deliberately releases `notifiedAllLocked`,
+     but it still records the attempt — and the board opened either way, because a text failing is
+     not the board closing. Neither can mark a week open that never opened; the worst case is a
+     fall-through to `allLocked`, which is exactly today's behaviour. */
+  const openedAt = (wk) => wk.revealedAt || (wk.allLockedNotice && wk.allLockedNotice.at) || null;
+  const isRevealed = (wk, roster) =>
+    pastDeadline(wk) || !!openedAt(wk) || !!wk.notifiedAllLocked || allLocked(wk, roster);
   /* Members who could still be filling a card in: on the roster, no locked entry, deadline not
      passed. Once this is empty there is nobody left to protect a pick from, and the board is
      public exactly as it always was. While it is NOT empty — the only case being someone added
