@@ -59,6 +59,38 @@
     .gm .t{white-space:normal}
     .gm .sp{text-align:right}
   }
+  /* ⛔ THE ROSTER EDITOR WAS UNREACHABLE PAST COLUMN TWO ON A PHONE (Keith 2026-08-19: "if I
+     wanted add players I cannot scroll right to enter see their email").
+     §1's edit mode is six columns of fixed-width inputs — 110 + 140 + 210 + the notify pair + PIN
+     + ✕, about 700px — inside `.card`, which is `overflow:hidden`. On a 412px handset that clips
+     everything from EMAIL rightward, and clips it in a container that CANNOT SCROLL: the email,
+     both notify checkboxes, the PIN and the delete button had no on-screen existence at all.
+     Adding a player was therefore impossible from a phone, which is where the commissioner
+     actually works — the same fault the slate rows had on 2026-08-16, in a card nobody re-checked.
+     A horizontal scroller would reach the fields and still be miserable one-handed, so the row
+     becomes a card: one labelled field per line, ✕ on the name line. EDIT mode only (`#ptable.edit`)
+     — view mode is two columns and already fits. Labels come from `data-label`, so the stacked
+     view can never disagree with the header row about which box is which. */
+  .i-nm{width:110px}.i-ph{width:140px}.i-em{width:210px}
+  @media(max-width:760px){
+    #ptable.edit,#ptable.edit tbody{display:block;width:100%}
+    #ptable.edit thead{display:none}
+    #ptable.edit tbody tr{display:grid;grid-template-columns:1fr auto;
+      grid-template-areas:"nm rm" "mo mo" "em em" "pn pn" "no no";
+      gap:7px 10px;padding:13px 2px;border-bottom:1px solid var(--line)}
+    #ptable.edit tbody tr:last-child{border-bottom:none}
+    #ptable.edit tbody td{display:flex;align-items:center;gap:8px;padding:0;border:none;min-width:0}
+    #ptable.edit tbody td::before{content:attr(data-label);flex:0 0 62px;font-size:10px;
+      text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+    #ptable.edit tbody td input:not([type=checkbox]){flex:1 1 auto;width:auto;min-width:0}
+    #ptable.edit tbody td.c-pn input{flex:0 0 92px}
+    #ptable.edit tbody td.c-rm{justify-content:flex-end}
+    #ptable.edit tbody td.c-rm::before{content:none}
+    #ptable.edit tbody td.c-no{flex-wrap:wrap;white-space:normal}
+    #ptable.edit tbody td.c-no>div{flex:1 1 100%;margin-left:70px}
+    .c-nm{grid-area:nm}.c-ph{grid-area:mo}.c-em{grid-area:em}
+    .c-no{grid-area:no}.c-pn{grid-area:pn}.c-rm{grid-area:rm}
+  }
   .msg{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:10px;padding:10px 18px;font-size:14px;display:none;z-index:5}
   .muted{color:var(--muted);font-size:12px}
   /* Add-existing picker. Was a prompt() with a numbered list you had to type into — fine to build,
@@ -262,6 +294,9 @@ function renderPlayers(){
   const eb=document.getElementById('editbtn');
   if(eb){eb.textContent=editMode?'✓ Done editing':'✎ Edit roster';eb.classList.toggle('gold',editMode);eb.classList.toggle('gray',!editMode);}
   document.getElementById('editonly').style.display=editMode?'':'none';
+  // The stacked phone layout is scoped to this class so VIEW mode — two columns, already fine on a
+  // handset — keeps its ordinary table rendering rather than inheriting a fix it never needed.
+  document.getElementById('ptable').classList.toggle('edit',editMode);
   if(!editMode){
     document.querySelector('#ptable thead').style.display='none';
     document.querySelector('#ptable tbody').innerHTML=players.length?players.map((p,i)=>{
@@ -277,16 +312,16 @@ function renderPlayers(){
   }
   document.querySelector('#ptable thead').style.display='';
   document.querySelector('#ptable tbody').innerHTML=players.map((p,i)=>`
-    <tr><td><input value="${esc(p.name)}" style="width:110px" onchange="players[${i}].name=this.value.toUpperCase();markDirty()"></td>
-    <td><input value="${esc(p.phone||'')}" style="width:140px" placeholder="mobile" onchange="players[${i}].phone=this.value;markDirty()"></td>
-    <td><input value="${esc(p.email||'')}" style="width:210px" placeholder="email (backup)" onchange="players[${i}].email=this.value;markDirty()"></td>
-    <td style="white-space:nowrap">
+    <tr><td class="c-nm" data-label="Name"><input value="${esc(p.name)}" class="i-nm" onchange="players[${i}].name=this.value.toUpperCase();markDirty()"></td>
+    <td class="c-ph" data-label="Mobile"><input value="${esc(p.phone||'')}" class="i-ph" placeholder="mobile" onchange="players[${i}].phone=this.value;markDirty()"></td>
+    <td class="c-em" data-label="Email"><input value="${esc(p.email||'')}" class="i-em" placeholder="email (backup)" onchange="players[${i}].email=this.value;markDirty()"></td>
+    <td class="c-no" data-label="Notify" style="white-space:nowrap">
       <label style="font-size:12px;margin-right:8px"><input type="checkbox" ${p.notify?.sms!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{sms:this.checked});markDirty()"> Text</label>
       <label style="font-size:12px"><input type="checkbox" ${p.notify?.email!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{email:this.checked});markDirty()"> Email</label>
-      <div style="font-size:11px;margin-top:2px;color:${p.canText?'#14532d':'#b42318'}">${p.canText?'✓ will get texts':(p.smsConsent?'no mobile on file':'not opted in — tap Text invite')}</div>
+      <div style="font-size:11px;margin-top:2px;color:${p.canText?'#14532d':'#b42318'}">${p.canText?'✓ will get texts':(p.smsConsent?'no mobile on file':'not opted in — see the JOIN note below')}</div>
     </td>
-    <td><input value="${esc(p.pin||'')}" class="sm" placeholder="auto" onchange="players[${i}].pin=this.value;markDirty()"></td>
-    <td><button class="btn red" onclick="players.splice(${i},1);renderPlayers();markDirty()">✕</button></td></tr>`).join('');
+    <td class="c-pn" data-label="PIN"><input value="${esc(p.pin||'')}" class="sm" placeholder="auto" onchange="players[${i}].pin=this.value;markDirty()"></td>
+    <td class="c-rm"><button class="btn red" onclick="players.splice(${i},1);renderPlayers();markDirty()">✕</button></td></tr>`).join('');
   paintJoinBanner();
 }
 /* Keith 2026-08-08: "text invite button is still stupid — when commish adds new users and saves,
