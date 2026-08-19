@@ -717,6 +717,12 @@ function supportingDocuments(rows) {
 export const __matcher = { matchJob, tokenIndex, jobTokens, jobNoKey };
 export const __pm = { resolveJobPm, resolveJobPmSource };
 export const __payable = { supportingDocuments, vendorKey, NEVER_PAYABLE };
+/* The batch coverage rule. `batch_confirm` (a person confirmed these boundaries) and
+   `batch_autoconfirm` (the reconciler resolved them) both call this ONE function, so the machine
+   route can never reach SharePoint through a laxer door than the human one. Exported so the gate
+   asserts the rule itself rather than a copy of it — this module has been bitten three times by one
+   rule written twice, once inside the test meant to catch it. */
+export const __manifest = { validateManifest };
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
