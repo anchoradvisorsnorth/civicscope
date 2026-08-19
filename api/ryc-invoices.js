@@ -261,6 +261,210 @@ async function readPages(images) {
   return { status: 200, body: { documents: parsed.documents } };
 }
 
+/* ===================== THE RECONCILER =============================================
+   Keith, 2026-08-19: "The front office does not want to manually reconcile the batch — they
+   just want the files, similar to how when I ask you to do a batch here on the backend."
+
+   ⛔ THAT IS NOT THE SAME THING AS FILING WHAT THE READER PROPOSED, and the measured record is
+   unambiguous about it. Across four real batches the reader has invented a $4,444.75 payable out
+   of a contract billed-to-date line, split one invoice into a $0.00 document and a $1,917.30 one,
+   filed a $63,450.50 pay application beside its own lien waiver as two payables, read one $43,875
+   payable as three, and — on 2026-08-17 — proposed 41 documents where 29 was the truth, a
+   $994,689.84 gap that included a $130,575.60 pay application the office had already superseded
+   IN ITS OWN HANDWRITING. Run unattended without this pass, the tool files that.
+
+   So the confirm step does not disappear; it stops being the front office's job. This is the
+   reading-and-merging that was being done on the confirm screen, done here instead, in the one
+   place that can see the WHOLE batch at once. It never invents a document and never drops a page:
+   its only output is a MERGE PLAN — which proposed documents are really one document — and every
+   page in a merged group stays in the filed PDF, in order.
+
+   WHY THE READER CANNOT DO THIS ITSELF: it reads a sliding window, so it can never see that p45
+   carries the office's "See revised" sticky note about p41, or that the same Alpha invoice was
+   photocopied twice sixty pages apart. Those are whole-batch facts. */
+const RECONCILE_SYSTEM = `You are the second pass over a scanned accounts-payable batch for a
+general contractor. A first pass read the pages through a sliding window and proposed where each
+document starts and ends. It sees a few pages at a time; you see the whole batch at once.
+
+Your ONLY job is to decide which proposed documents are really ONE payable.
+
+Return ONE JSON object, nothing else, no prose, no code fence:
+{ "merges": [ { "keep": <idx>, "absorb": [<idx>, ...], "reason": "<short, concrete>",
+                "confidence": "high" | "low" } ] }
+
+- Indices are the "idx" values given to you. Every index appears at most once across the whole
+  plan, in exactly one group, as either a keep or an absorb.
+- "keep" is the document whose VENDOR, AMOUNT and INVOICE NUMBER are correct for the combined
+  payable — the bill itself, not its cover sheet, waiver, or superseded copy.
+- A group must be CONTIGUOUS in page order unless you are merging duplicate copies of one document
+  that were scanned apart; say so in the reason when they are not adjacent.
+- Return an empty "merges" array if every proposed document is genuinely its own payable.
+
+MERGE these — each one has actually happened in this archive:
+1. A CONTINUATION. "Page 1 of 5" on the first page and the total landing pages later; every total
+   line reading "Continued". One invoice, one payable.
+2. A NULL OR ZERO AMOUNT next to a priced document of the same vendor. A document the reader could
+   not price is almost always a continuation page of the one before it. Keep the priced one.
+3. A SUPPORTING-DETAIL page read as its own document. An "Invoice Supporting Detail" or an Invoice
+   Summary table whose figure is the contract BILLED-TO-DATE, not a bill. Keep the invoice.
+4. A PAY APPLICATION PACKAGE. A pay application, its own invoice and/or its lien waiver, same
+   vendor, same amount, same batch. ONE payable. Keep the invoice if there is one, else the pay
+   application. (A LONE pay application with no matching invoice is itself the bill — do not merge
+   it into anything.)
+5. A LIEN WAIVER, PACKING SLIP, STATEMENT, DELIVERY TICKET or REMITTANCE STUB stapled to the
+   invoice it belongs to. Never a payable on its own. Keep the invoice.
+6. A SUPERSEDED REVISION. Two pay applications or invoices for the same contract and period at
+   different amounts, where a note, sticky or handwriting says "revised", "see revised", "void"
+   or similar. Keep the CURRENT one; the superseded copy is filed behind it.
+7. A DUPLICATE COPY inside this same batch — same vendor, same invoice number, same amount, same
+   date, photocopied twice. Keep the first.
+
+DO NOT MERGE:
+- Two different invoices from one vendor that carry DIFFERENT invoice numbers and are both real
+  bills, however similar the amounts.
+- A credit memo into the invoice it credits. It is its own document and its amount is negative.
+- Anything you are merging only because it "looks related". If you cannot name the concrete
+  evidence on the page, leave it alone — a wrongly merged payable is money that never gets paid.
+
+Set "confidence":"low" whenever the evidence is a resemblance rather than something printed
+(a matching amount with no matching invoice number, an inferred continuation with no "Page N of M",
+a suspected revision with no note saying so). Low-confidence groups get looked at again with the
+actual page images before anything is filed, so marking one costs nothing and guessing costs
+money.`;
+
+const ADJUDICATE_SYSTEM = `You are settling ONE question about a scanned accounts-payable batch,
+with the actual page images in front of you: are these pages ONE payable document, or more than
+one?
+
+A first pass proposed boundaries from a sliding window and a second pass suspected they are one
+document but could not prove it from the extracted fields alone. You can see the pages. Decide.
+
+Return ONE JSON object, nothing else, no prose, no code fence:
+{ "one_document": true | false,
+  "keep": <the idx whose vendor/amount/invoice number is correct for the combined payable>,
+  "amount": <the combined payable's grand total as a number, or null if you cannot read it>,
+  "invoice_no": <as printed, or null>,
+  "vendor_name": <as printed, or null>,
+  "received_stamp": "YYYY-MM-DD" | null,
+  "reason": "<what is printed on the page that settles it>" }
+
+Decide from what is PRINTED: a "Page 1 of N" label, a total line reading "Continued", a running
+invoice number across pages, a lien waiver or pay application naming the same amount, a handwritten
+"see revised", a DUPLICATE stamp. If nothing on the pages settles it, answer false — two payables
+that should have been one is a visible duplicate on a PM's desk, while one payable that should have
+been two is a bill that silently never gets paid.`;
+
+async function claudeJson(system, content, maxTokens) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return { status: 503, body: { error: 'Reader is not configured.' } };
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6', max_tokens: maxTokens, temperature: 0,
+      system, messages: [{ role: 'user', content }],
+    }),
+  });
+  if (!r.ok) return { status: 502, body: { error: `Reader returned ${r.status}.` } };
+  const data = await r.json();
+  const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
+  let parsed = null;
+  try { parsed = JSON.parse(text); } catch {
+    const a = text.indexOf('{'), b = text.lastIndexOf('}');
+    if (a > -1 && b > a) { try { parsed = JSON.parse(text.slice(a, b + 1)); } catch { /* below */ } }
+  }
+  if (!parsed) return { status: 502, body: { error: 'Reader returned an unusable response.' } };
+  return { status: 200, body: parsed };
+}
+
+/* THE RECONCILER SEES FIELDS, NOT IMAGES — on purpose. 129 pages is past the per-request image
+   limit, and every merge rule above is decidable from what the reader already extracted plus its
+   notes. The cases that genuinely need eyes are the ones it marks `low`, and those go to
+   `adjudicate` with just their own pages. */
+async function reconcileBatch(documents) {
+  const compact = documents.map((d, i) => ({
+    idx: i,
+    pages: d.page_from === d.page_to ? `p${d.page_from}` : `p${d.page_from}-${d.page_to}`,
+    doc_type: d.doc_type || 'unknown',
+    vendor: d.vendor_canonical || d.vendor_name || null,
+    invoice_no: d.invoice_no || null,
+    amount: (d.amount === null || d.amount === undefined || d.amount === '') ? null : Number(d.amount),
+    invoice_date: d.invoice_date || null,
+    received_stamp: d.received_stamp || null,
+    page_label_of: d.page_label_of || null,
+    job_text: d.job_text || null,
+    notes: d.notes || null,
+  }));
+  const out = await claudeJson(RECONCILE_SYSTEM, [{
+    type: 'text',
+    text: `The batch has ${documents.length} proposed documents, in page order:\n`
+      + `${JSON.stringify(compact, null, 1)}\n\nReturn the merge plan JSON.`,
+  }], 8000);
+  if (out.status !== 200) return out;
+  if (!Array.isArray(out.body.merges)) {
+    return { status: 502, body: { error: 'Reconciler returned an unusable response.' } };
+  }
+  return { status: 200, body: { merges: out.body.merges } };
+}
+
+async function adjudicateGroup(images, docs) {
+  const content = images.map(im => ({
+    type: 'image',
+    source: { type: 'base64', media_type: im.media_type || 'image/jpeg', data: im.data },
+  }));
+  content.push({
+    type: 'text',
+    text: `The images above are the pages of this candidate group, in order.\n`
+      + `The first pass read them as these separate documents:\n${JSON.stringify(docs, null, 1)}\n\n`
+      + 'Return the ruling JSON.',
+  });
+  const out = await claudeJson(ADJUDICATE_SYSTEM, content, 1500);
+  if (out.status !== 200) return out;
+  if (typeof out.body.one_document !== 'boolean') {
+    return { status: 502, body: { error: 'Adjudicator returned an unusable response.' } };
+  }
+  return { status: 200, body: out.body };
+}
+
+/* THE COVERAGE RULE, EXPRESSED ONCE. `batch_confirm` (a person) and `batch_autoconfirm` (the
+   reconciler) must enforce IDENTICALLY — a page claimed twice is a payable filed twice, and a page
+   claimed by nothing is a payable that vanishes between the scanner and the archive, undetectable
+   afterwards because the batch PDF is deleted. This module has already been bitten three times by
+   one rule written in two places (the PM-desk precedence, twice, and then again inside the test
+   meant to guard it). Both callers call this; neither restates it. */
+function validateManifest(manifest, pageCount) {
+  const seen = new Set();
+  for (const d of manifest) {
+    const a = parseInt(d.page_from, 10), b = parseInt(d.page_to, 10);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a < 1 || b < a) {
+      return `Bad page range: ${JSON.stringify(d.page_from)}-${JSON.stringify(d.page_to)}.`;
+    }
+    if (pageCount && b > pageCount) return `Page ${b} is past the end of a ${pageCount}-page scan.`;
+    for (let p = a; p <= b; p++) {
+      if (seen.has(p)) return `Page ${p} is claimed by two documents.`;
+      seen.add(p);
+    }
+    if (!String(d.vendor_canonical || d.vendor_name || '').trim()) {
+      return `A document covering p${a}-${b} has no vendor name.`;
+    }
+    /* `Number(null)` is 0 and `Number.isFinite(0)` is true, so a null amount used to sail through
+       and file as `Vendor  0.00  date.pdf` — a payable-shaped file for a document the reader could
+       not read at all. Caught on the first real batch: p17 came back `unknown` with a null amount,
+       and it is a continuation page that belongs merged into p16. Require the number. */
+    if (d.amount === null || d.amount === undefined || d.amount === ''
+        || !Number.isFinite(Number(d.amount))) {
+      return `The document on p${a}-${b} has no amount — merge it into the document it continues, `
+        + 'or give it one.';
+    }
+  }
+  if (pageCount) {
+    const missing = [];
+    for (let p = 1; p <= pageCount; p++) if (!seen.has(p)) missing.push(p);
+    if (missing.length) return `Pages claimed by no document: ${missing.join(', ')}.`;
+  }
+  return null;
+}
+
 /* ===================== STAGING: READ THE JOB OFF THE INVOICE =======================
    Keith, 2026-08-13: "the way the system will know is reading the invoice and looking for the
    job name" — and "job name tells you who the PM is".
@@ -545,6 +749,7 @@ export default async function handler(req, res) {
        let it OCR a page; only one of them also lets it write invoices into the register. The
        narrower grant is the one that cannot create a payable. */
     'invoice-filer': new Set(['filing_queue', 'mark_filed', 'read',
+      'reconcile', 'adjudicate', 'batch_autoconfirm',
       'batch_claim', 'batch_progress']),
     'invoice-ingest': new Set(['open_batch', 'read', 'register']),
   };
@@ -555,7 +760,12 @@ export default async function handler(req, res) {
      broken Inbound's intake — caught in this feature's own end-to-end test, one deploy before it
      would have shipped. A page must never be able to assert that a document was filed; a page
      must still be able to read a page image. */
-  const MACHINE_ONLY = new Set(['filing_queue', 'mark_filed', 'batch_claim', 'batch_progress']);
+  const MACHINE_ONLY = new Set(['filing_queue', 'mark_filed', 'batch_claim', 'batch_progress',
+    /* A browser must not be able to skip the confirm screen by posting the reconciler's action —
+       `batch_confirm` is the front office's route and it is the one that says a PERSON approved
+       these boundaries. `reconcile` and `adjudicate` are deliberately NOT here: they only read and
+       propose, exactly like `read`, and the page is free to use them. */
+    'batch_autoconfirm']);
   if (who.scope === 'service') {
     const allowed = SERVICE_ACTIONS[who.service] || new Set();
     if (!allowed.has(action)) {
@@ -938,7 +1148,7 @@ export default async function handler(req, res) {
        summary line read as a $4,444.75 payable that does not exist, one invoice split into a
        $0.00 document and a $1,917.30 one, and a $63,450.50 pay application filed alongside its
        own lien waiver as two payables. */
-    const BATCH_STATES = ['new', 'uploaded', 'rendering', 'reading', 'proposed',
+    const BATCH_STATES = ['new', 'uploaded', 'rendering', 'reading', 'reconciling', 'proposed',
       'confirmed', 'filing', 'filed', 'failed'];
 
     if (action === 'batch_start') {
@@ -1017,50 +1227,18 @@ export default async function handler(req, res) {
       if (!id || !manifest || !manifest.length) {
         return res.status(400).json({ error: 'A job id and a non-empty manifest are required.' });
       }
-      /* COVERAGE IS CHECKED HERE TOO, not only in the VM script. A page claimed twice is a
-         payable filed twice; a page claimed by nothing is a payable that vanishes between the
-         scanner and the archive, and neither is detectable afterwards because the batch PDF gets
-         deleted. The client also checks, so this is the second of two — the one a browser cannot
-         skip by posting directly. */
+      /* COVERAGE IS CHECKED HERE TOO, not only in the VM script. The client also checks, so this
+         is the second of two — the one a browser cannot skip by posting directly. The rule itself
+         lives in `validateManifest()` because `batch_autoconfirm` must enforce exactly the same
+         one; see the note there. */
       const cur = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${id}&select=page_count,status`);
       const job = cur.ok ? (await cur.json())[0] : null;
       if (!job) return res.status(404).json({ error: 'No such batch.' });
       if (job.status !== 'proposed') {
         return res.status(409).json({ error: `That batch is "${job.status}" — only a proposed batch can be confirmed.` });
       }
-      const seen = new Map();
-      for (const d of manifest) {
-        const a = parseInt(d.page_from, 10), b = parseInt(d.page_to, 10);
-        if (!Number.isFinite(a) || !Number.isFinite(b) || a < 1 || b < a) {
-          return res.status(400).json({ error: `Bad page range: ${JSON.stringify(d.page_from)}-${JSON.stringify(d.page_to)}.` });
-        }
-        if (job.page_count && b > job.page_count) {
-          return res.status(400).json({ error: `Page ${b} is past the end of a ${job.page_count}-page scan.` });
-        }
-        for (let p = a; p <= b; p++) {
-          if (seen.has(p)) return res.status(400).json({ error: `Page ${p} is claimed by two documents.` });
-          seen.set(p, true);
-        }
-        if (!String(d.vendor_canonical || d.vendor_name || '').trim()) {
-          return res.status(400).json({ error: `A document covering p${a}-${b} has no vendor name.` });
-        }
-        /* `Number(null)` is 0 and `Number.isFinite(0)` is true, so a null amount used to sail
-           through and file as `Vendor  0.00  date.pdf` — a payable-shaped file for a document the
-           reader could not read at all. Caught on the first real batch: p17 came back `unknown`
-           with a null amount, and it is a continuation page that belongs merged into p16. Require
-           the number to actually be there. */
-        if (d.amount === null || d.amount === undefined || d.amount === ''
-            || !Number.isFinite(Number(d.amount))) {
-          return res.status(400).json({
-            error: `The document on p${a}-${b} has no amount — merge it into the document it `
-              + 'continues, or give it one.' });
-        }
-      }
-      if (job.page_count) {
-        const missing = [];
-        for (let p = 1; p <= job.page_count; p++) if (!seen.has(p)) missing.push(p);
-        if (missing.length) return res.status(400).json({ error: `Pages claimed by no document: ${missing.join(', ')}.` });
-      }
+      const bad = validateManifest(manifest, job.page_count);
+      if (bad) return res.status(400).json({ error: bad });
       const r = await sb(`ryc_batch_jobs?id=eq.${id}&status=eq.proposed`, {
         method: 'PATCH', headers: { Prefer: 'return=representation' },
         body: JSON.stringify({ manifest, status: 'confirmed',
@@ -1506,6 +1684,82 @@ export default async function handler(req, res) {
       if (!r.ok) return res.status(502).json({ error: `Could not open batch (${r.status}).` });
       const rows = await r.json();
       return res.status(200).json({ ok: true, batch: rows[0] });
+    }
+
+    /* ---- the reconciler: the confirm screen's judgement, done by the machine ----
+       Reads and proposes only. It cannot move a batch, file anything, or create a payable —
+       `batch_autoconfirm` is the only action that acts on its output, and that one is service-only
+       AND re-validates coverage from scratch. */
+    if (action === 'reconcile') {
+      if (!canRead) return res.status(403).json({ error: 'Front office only.' });
+      if (!READ_ENABLED) {
+        return res.status(503).json({ error: 'The document reader is switched off on this deployment.' });
+      }
+      const docs = Array.isArray(body.documents) ? body.documents : [];
+      if (!docs.length) return res.status(400).json({ error: 'No documents supplied.' });
+      if (docs.length > 400) {
+        return res.status(413).json({ error: `${docs.length} documents sent; this endpoint reconciles up to 400.` });
+      }
+      const out = await reconcileBatch(docs);
+      return res.status(out.status).json(out.status === 200 ? { ok: true, ...out.body } : out.body);
+    }
+
+    if (action === 'adjudicate') {
+      if (!canRead) return res.status(403).json({ error: 'Front office only.' });
+      if (!READ_ENABLED) {
+        return res.status(503).json({ error: 'The document reader is switched off on this deployment.' });
+      }
+      const imgs = Array.isArray(body.images) ? body.images : [];
+      const docs = Array.isArray(body.documents) ? body.documents : [];
+      if (!imgs.length || !docs.length) {
+        return res.status(400).json({ error: 'Pages and the candidate documents are both required.' });
+      }
+      if (imgs.length > MAX_IMAGES) {
+        return res.status(413).json({ error: `${imgs.length} pages sent; this endpoint reads up to ${MAX_IMAGES} at a time.` });
+      }
+      const abytes = imgs.reduce((n, im) => n + String(im.data || '').length, 0);
+      if (abytes > MAX_IMAGE_BYTES) {
+        return res.status(413).json({ error: `Pages total ${Math.round(abytes / 1024)}KB, over the ${MAX_IMAGE_BYTES / 1024}KB limit.` });
+      }
+      const out = await adjudicateGroup(imgs, docs);
+      return res.status(out.status).json(out.status === 200 ? { ok: true, ...out.body } : out.body);
+    }
+
+    /* THE RECONCILER'S OWN CONFIRM. Separate from `batch_confirm` for one reason: that action says
+       "a person approved these boundaries", and it must keep meaning that. This one says "the
+       reconciler resolved them", records HOW in `reconciliation`, and is reachable only by the
+       filer service. It enforces the identical coverage rule — same function, not a copy — so
+       nothing reaches SharePoint through a laxer door than the one a human uses. */
+    if (action === 'batch_autoconfirm') {
+      const id = String(body.id || '').trim();
+      const manifest = Array.isArray(body.manifest) ? body.manifest : null;
+      if (!id || !manifest || !manifest.length) {
+        return res.status(400).json({ error: 'A job id and a non-empty manifest are required.' });
+      }
+      const cur = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${id}&select=page_count,status`);
+      const job = cur.ok ? (await cur.json())[0] : null;
+      if (!job) return res.status(404).json({ error: 'No such batch.' });
+      if (job.status !== 'reconciling') {
+        return res.status(409).json({ error: `That batch is "${job.status}" — only a reconciling batch can be auto-confirmed.` });
+      }
+      const bad = validateManifest(manifest, job.page_count);
+      if (bad) return res.status(400).json({ error: bad });
+      /* `proposed` stays EXACTLY what the reader said — the page renders it as an array and it is
+         the only record of what was seen before anything merged it. What the reconciler DECIDED is
+         parked in `filed` now and carried into the verification the worker writes there when the
+         folder is proven, so the finished card can say what was merged and why. Two different
+         questions, two different columns, and the reader's version is never overwritten. */
+      const r = await sb(`ryc_batch_jobs?id=eq.${id}&status=eq.reconciling`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ manifest, status: 'confirmed',
+          filed: body.reconciliation ? { reconciliation: body.reconciliation } : null,
+          phase_note: `${manifest.length} document(s) reconciled — queued for filing`,
+          updated_at: new Date().toISOString() }),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not confirm the batch.' });
+      const rows = await r.json();
+      if (!rows.length) return res.status(409).json({ error: 'That batch moved on before the confirmation landed.' });
+      return res.status(200).json({ ok: true, job: rows[0] });
     }
 
     if (action === 'read') {
