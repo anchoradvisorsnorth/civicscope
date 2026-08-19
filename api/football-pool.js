@@ -489,7 +489,15 @@ export default async function handler(req, res) {
       if (req.query.ver !== undefined) return res.status(200).json({ ver: VER });
       // list all weeks for a season (summaries only — no picks)
       if (req.query.list) {
-        const season = String(req.query.list).replace(/\D/g, '');
+        /* `?list=sandbox` addresses the sandbox season. Not a widening of the sandbox boundary —
+           poolSlugFor() already resolves a sandbox- week to the sandbox pool — but without it this
+           branch was UNREACHABLE for any test: the pattern is built from digits only, so no sandbox
+           week could ever appear in a list, and the `full:` gate below (the side door onto a board
+           being withheld from someone) could not be asserted at all. A branch nothing can reach is
+           a branch nothing is checking. */
+        const season = /^sandbox$/i.test(String(req.query.list))
+          ? 'sandbox'
+          : String(req.query.list).replace(/\D/g, '');
         /* ⛔ `${season}-w*` MADE THE ENTIRE PRESEASON INVISIBLE (found 2026-08-08 chasing Keith's
            phone screenshot). Preseason weeks are slugged `2026-pre1` — the commish page even
            offers that placeholder — but this pattern only matched `-w`, so `?list=` returned an
