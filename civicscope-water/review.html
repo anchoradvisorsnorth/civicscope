@@ -226,22 +226,11 @@ function renderMonth(mo, y, m, eps) {
   const epName = (id) => (eps.find((e) => e.id === id) || {}).label || '—';
   const rows = [];
 
-  for (const r of readings) {
-    for (const f of (r.flags || [])) {
-      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: f.level === 'warn' ? 'warn' : 'info',
-                  what: f.msg || f.code, who: r.operator_initials });
-    }
-    // Recorded but impossible. derive() refuses these on entry now, so any that exist came from a
-    // backfill of paper that already contained them — which is exactly what has to reach her.
-    if (r.tap_free != null && r.tap_total != null && Number(r.tap_free) > Number(r.tap_total)) {
-      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'err',
-                  what: `Plant tap free ${fmt(r.tap_free)} is above total ${fmt(r.tap_total)} — not physically possible`, who: r.operator_initials });
-    }
-    if (r.correction_reason) {
-      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'info',
-                  what: `Corrected: ${r.correction_reason}`, who: r.operator_initials });
-    }
-  }
+  /* Filled by the out-of-family pass below, and used to suppress the stored dose flag for the same
+     day. Both are true, but they are the SAME FACT — and an exceptions queue that says everything
+     twice is one nobody finishes reading. The quantified line wins because it carries the size of
+     the anomaly and the likeliest cause; the stored flag only says "above normal range". */
+  const quantified = new Set();
 
   /* ⛔ OUT OF FAMILY FOR THIS PLANT — not out of bounds for the regulation.
      derive() already refuses a dose above the NSF maximum (26 mg/L for the phosphate) and warns on
@@ -265,9 +254,29 @@ function renderMonth(mo, y, m, eps) {
     if (f.dose_mg_l == null || !series || series.length < 8) continue;
     const med = medianOf(series);
     if (med > 0 && Number(f.dose_mg_l) > med * 4) {
+      quantified.add(`${r.reading_date}|${r.entry_point_id}`);
       rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'warn',
         what: `${feedName(f.feed_id)} dose ${fmt(f.dose_mg_l)} mg/L — about ${Math.round(Number(f.dose_mg_l) / med)}× this plant's normal (${fmt(med)}). Usually a tank level read wrong on this day or the one before it.`,
         who: r.operator_initials });
+    }
+  }
+
+
+  for (const r of readings) {
+    for (const f of (r.flags || [])) {
+      if (/^dose_(high|low)$/.test(f.code || '') && quantified.has(`${r.reading_date}|${r.entry_point_id}`)) continue;
+      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: f.level === 'warn' ? 'warn' : 'info',
+                  what: f.msg || f.code, who: r.operator_initials });
+    }
+    // Recorded but impossible. derive() refuses these on entry now, so any that exist came from a
+    // backfill of paper that already contained them — which is exactly what has to reach her.
+    if (r.tap_free != null && r.tap_total != null && Number(r.tap_free) > Number(r.tap_total)) {
+      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'err',
+                  what: `Plant tap free ${fmt(r.tap_free)} is above total ${fmt(r.tap_total)} — not physically possible`, who: r.operator_initials });
+    }
+    if (r.correction_reason) {
+      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'info',
+                  what: `Corrected: ${r.correction_reason}`, who: r.operator_initials });
     }
   }
 
