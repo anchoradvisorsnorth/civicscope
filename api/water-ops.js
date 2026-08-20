@@ -120,14 +120,22 @@ const sbStorage = (p, init = {}) =>
    surface as a filing that recorded fine and pointed at nothing. Creating it is idempotent (409
    when it already exists) and costs one request on the first upload ever. */
 async function putWorkbook(path, bytes) {
-  const send = () =>
-    sbStorage(`object/${MOR_BUCKET}/${path}`, {
+  const send = async () => {
+    const r = await sbStorage(`object/${MOR_BUCKET}/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/vnd.ms-excel', 'cache-control': 'max-age=31536000' },
       body: bytes,
     });
+    return { status: r.status, ok: r.ok, body: await r.text() };
+  };
   let r = await send();
-  if (r.status === 404) {
+  /* ⚠ A MISSING BUCKET DOES NOT COME BACK AS AN HTTP 404. Supabase Storage answers the upload with
+     HTTP **400** and puts the real condition in the body (`"code":"NoSuchBucket"`, `"statusCode":
+     "404"` as a STRING). Keying the create-on-missing off `r.status === 404` therefore never fired
+     — the first real run failed all seven workbooks with "Bucket not found" while the code that
+     existed to prevent exactly that sat unreachable. Match on the condition the service reports,
+     not on the transport code you expected it to use. */
+  if (!r.ok && /NoSuchBucket|Bucket not found/i.test(r.body || '')) {
     await sbStorage('bucket', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -136,8 +144,8 @@ async function putWorkbook(path, bytes) {
     r = await send();
   }
   // The path carries the content hash, so an identical object at the same path IS the same bytes.
-  if (r.status === 409) return { ok: true, existed: true };
-  if (!r.ok) return { ok: false, status: r.status, msg: (await r.text()).slice(0, 200) };
+  if (r.status === 409 || /Duplicate|already exists/i.test(r.body || '')) return { ok: true, existed: true };
+  if (!r.ok) return { ok: false, status: r.status, msg: (r.body || '').slice(0, 200) };
   return { ok: true };
 }
 
