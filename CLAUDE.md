@@ -516,6 +516,66 @@ including a 6/30 opening balance per well, plus 23 distribution samples. Round-t
 379 checks against the scans. The 7/9 impossible residuals are stored **absent, with a note
 quoting the paper**: backfilling a number known to be impossible would be forging a record.
 
+### Reports filed — `water_mor_filings` (NEW 2026-08-20)
+
+Keith, looking at May 2026 on the OIC page: *"why are we not showing EGLE report that she filed the
+old way - I gave you all those reports"*. He had. Seven 2026 workbooks were in
+`G:\My Drive\Centreville\2026 MOR Submittals` and **the product had no concept of a filing** — nine
+`water_*` tables and not one recorded that a month was submitted. So the page could show every
+reading behind March and could not show March.
+
+**Migration `017_water_mor_filings.sql`.** One row per submitted report: the month, the date it went
+(EGLE Cover **G39**), who certified it under 1976 PA 399, her comments to the district, and the
+**exact workbook** — bytes in the private Supabase bucket `water-mor-filings`, keyed by content
+hash, reached only through 15-minute signed URLs. Corrections append: an amended MOR supersedes and
+both stay on the record, on the same partial unique index discipline as `water_readings`.
+
+**`filed` is stored verbatim and never recomputed.** It holds what the workbook literally says, read
+from its cells by `scripts/extract-mor.py`. Recomputing it from `water_readings` would answer a
+different question — *what we would send today* — and would make every divergence vanish exactly
+when it mattered.
+
+**⛔ THE COMPARISON IS A DIFF, AND ITS FIRST VERSION WAS WRONG IN THE DANGEROUS DIRECTION.**
+`diffFiling()` (exported from `api/water-ops.js`) compares filed metered million gallons and
+chemical pounds against the stored records. It shipped counting **every idle well as a divergence**:
+a well that did not run is a recorded `0` here and a **blank cell** on the MOR, by EGLE's own
+instruction *("do not put 0 in a cell if the pumpage was not checked")*. April reported 24
+differences and May 55 — burying the two days that were real inside seventy-nine that were not.
+April's own Cover explains it in the operator's words: *"The water tower is currently down for
+repair so we are only running well #3."* **A comparison that cries wolf is worse than none, because
+the reader stops looking.** Only a non-zero figure on one side against silence on the other is a
+finding.
+
+**What it now surfaces on her page, per month:**
+
+| Month | Filed | What differs |
+|---|---|---|
+| January | *(no date on the Cover — recorded absent, never guessed)* | 4 metered days · 1 filed with no reading · 7 chemical |
+| February | 2026-03-10 | 6 · 3 · 11 — incl. **Well 4 day 23: filed 0, records 0.007 MG** |
+| March | 2026-04-09 | 4 · 0 · 3 — incl. **Well 1 day 1 phosphate: filed 1 lb, records 10** |
+| April | 2026-05-08 | 3 · 3 · 14 |
+| May | 2026-06-10 | 3 · 0 · 9 — incl. **Well 3 day 29: filed 0, records 0.02 MG** |
+| June | 2026-07-10 | 7 · 7 · 21 — incl. **Well 3 day 5: filed 0.02, records 0.06 MG** |
+| July | **2026-08-07** | 0 · 0 · 4 |
+
+The **five days `derive()` refused** (a tank level left blank on a day the well ran) now appear as
+*"filed 0.028 MG, no reading on file"* — they had lived only in a script's JSON output. So do the
+documented paper-vs-filed divergences.
+
+**The gate: `node scripts/verify-mor-filings.mjs --base <origin>` → 28 checks,
+`MOR-FILINGS-VERIFY-COMPLETE`.** Wired into the `water` deploy profile (optional: exit 3 when a
+supply has no filings, which is a missing capability and not a verdict). It pins the outcome, not
+the mechanism — the documented divergences must still appear, `ours_only` must stay **0** so the
+idle-well false positive cannot return, sample counts must match the workbook they were seeded
+from, and one workbook is downloaded through its signed link and hashed against what was recorded.
+⚠ **Those numbers are the village's, not ours.** Changing one to make a run go green would change
+what we say the State of Michigan was told.
+
+**Recording them:** `python scripts/file-mor-submittals.py "<folder>" --wssn 01310 --code <WATER_OPS_CODE>`
+— idempotent by content hash (a re-run reports `unchanged` and writes nothing), refuses a month
+already on file with different bytes unless `--correction-reason` is given, and reads every month
+back through the live API to print the comparison rather than trusting its own writes.
+
 **Known gaps, deliberately:**
 - ✅ **Service worker and bacti capture shipped 2026-08-18** (network-first on purpose — a
   cache-first shell could pin an old `derive.js` and make the screen and the filed record
@@ -566,10 +626,20 @@ quoting the paper**: backfilling a number known to be impossible would be forgin
   fixed `25049ea`), and `submit_bacti` had no already-recorded guard at all, so re-running a
   backfill multiplied the compliance record five-fold (fixed `73babb1`). **The ordinary path
   worked in every case; only amendment was broken — which is exactly what no smoke test walks.**
+- ✅ **THE FILED MORs ARE IN THE PRODUCT (2026-08-20)** — migration `017`, all seven 2026 workbooks
+  recorded, `/water/review` shows what went to EGLE and whether it still agrees with the records.
+  See **Reports filed** above. 🚩 **A correction fell out of it: July WAS submitted, on 2026-08-07.**
+  Its Cover tab carries that date. `Centreville\CLAUDE.md` had recorded July as *"not yet
+  submitted — three things block a clean signature"*, which was true of **our generated workbook**
+  and not of the village's own filing. Michelle filed July the old way while we were building the
+  replacement.
 - 🚨 **August 2026 is still being written on paper.** The tablet is live and nobody is using it;
   every day that runs is another day that has to be backfilled.
-- **Centreville's August 2026 is being recorded on paper right now.** `/water` is live and nobody
-  is using it. Every day that runs is another day that has to be backfilled.
+- **Michelle still cannot produce the MOR from `/water/review`.** It remains `scripts/build-mor.py`
+  on Keith's machine. Now that a filing is a first-class record, the pairing the page has always
+  described is buildable: **the same action that generates the workbook records that it was filed**
+  (`record_filing` already accepts `source:'product'`, and nothing writes it yet — so the first one
+  generated here will be distinguishable from the seven that came before it).
 - **`Civicscope/scripts/` is gitignored except narrow re-includes**, so the water gate, the
   backfill, the MOR generator and their fixtures are not under version control. Same one-line
   decision as `migrations/` — they are secret-free by inspection.
@@ -657,6 +727,28 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 ---
 
 ## Key Learnings
+- **🚨 A COMPARISON THAT CRIES WOLF IS WORSE THAN NO COMPARISON (`diffFiling`, 2026-08-20).** The
+  filed-vs-held check shipped counting every idle well as a divergence — 24 in April, 55 in May —
+  because a well that did not run is a stored `0` and a **blank cell** on EGLE's form, which is the
+  form's own instruction. The genuine findings (a well that ran on a day the state was told nothing,
+  a phosphate tank read ten times its filed usage) were two lines inside seventy-nine. **When a
+  check's whole value is that a human reads it, its false-positive rate is a correctness property,
+  not a polish item.** The fix was not a threshold: it was recognising that *absent* and *zero* are
+  the same claim on this form, and only silence against a non-zero is a disagreement. Pinned by
+  `scripts/verify-mor-filings.mjs` asserting `ours_only = 0` in every month, forever.
+- **🚨 A MISSING STORAGE BUCKET IS NOT AN HTTP 404 (2026-08-20).** Supabase Storage answers an
+  upload into a bucket that does not exist with **HTTP 400**, carrying `"code":"NoSuchBucket"` and
+  `"statusCode":"404"` *as a string* in the body. The create-on-missing path was keyed on
+  `r.status === 404`, so it never fired, and the first real run failed all seven workbooks with
+  "Bucket not found" while the code written to prevent exactly that sat unreachable. **Match on the
+  condition the service reports, not on the transport code you expected it to use** — and note that
+  a create-on-missing path is only ever exercised once, so it is precisely the code that ships
+  untested.
+- **A WINDOWS CONSOLE CAN DECIDE WHETHER A JOB FINISHES.** `file-mor-submittals.py` recorded a
+  filing, then died on `UnicodeEncodeError` printing the ✓ in its own success message — cp1252
+  raises rather than degrading. The write had already happened, so the run was both successful and
+  a crash. `sys.stdout.reconfigure(encoding='utf-8', errors='replace')` at the top of any script
+  that prints anything but ASCII; never let output formatting sit on the completion path.
 - **🚨 NEVER WRITE A COMPLETION CLAIM INTO THE DURABLE RECORD BEFORE VERIFYING IT (2026-08-18).**
   This file carried *"✅ FULL CORPUS INGESTED — All 605 documents"* while the live corpus held
   **356**. The line was written at the moment the full ingest was *launched*, not after it
