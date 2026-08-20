@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.1.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.2.0-oic
 
   This is NOT the tablet with a wider layout. It is the other half of the product, and the two jobs
   barely overlap (Keith, 2026-08-19):
@@ -375,16 +375,60 @@ function renderMonth(mo, y, m, eps) {
   wsel.onchange = () => paintRecords(mo, y, m, eps);
   paintRecords(mo, y, m, eps);
 
-  // ── month end. Honest about what is not built rather than a button that does nothing.
+  /* ── month end. The EGLE workbook is now generated HERE (2026-08-20) — until today this panel
+     said, honestly, that it ran on Keith's machine. That was the one item on this screen that was
+     a capability the OIC lacked rather than a view she could not see, which is a strange thing for
+     the person legally required to sign the report.
+     The button is only rendered when the month HAS records. A month with nothing in it cannot
+     produce a report, and a control that exists to return an error is the dead-button problem this
+     page keeps refusing to ship. */
   const dist = (mo.dist || []).length;
+  const can = readings.length > 0;
   $('monthEnd').innerHTML = `<b>${MN[m]} ${y}</b> holds ${readings.length} well-day${readings.length === 1 ? '' : 's'}, `
     + `${dist} distribution sample${dist === 1 ? '' : 's'} and ${bacti.length} bacti sample${bacti.length === 1 ? '' : 's'}.<br><br>`
-    + `The EGLE workbook is generated from exactly these records, but <b>not yet from this page</b> — it still runs as `
-    + `<code>scripts/build-mor.py</code> on Keith's machine. That is the one thing on this screen that is a capability `
-    + `you do not have rather than a view you cannot see, and it is the next thing to build.`;
+    + (can
+        ? `<button class="btn" id="genBtn" onclick="generateMor(${y},${m})">Generate the EGLE workbook</button>`
+          + `<span class="muted" id="genNote" style="margin-left:12px"></span><br><br>`
+          + `It is filled from exactly the records above — every figure derived once, when the reading was `
+          + `stored, so the workbook and this screen cannot disagree. <b>Open it, add your Cover comments and `
+          + `sign it before sending</b>; what you send is what should be recorded under “Reports filed”.`
+          + (bacti.length ? '' : `<br><br>⚠ <b>No bacti samples are on file for ${MN[m]}</b> — the Bacti &amp; Cl Res tab will go to EGLE empty.`)
+        : `Nothing is recorded for ${MN[m]} ${y}, so there is no report to generate. If the round is being `
+          + `walked, it is being written somewhere other than here.`);
 
   renderFiled(mo, y, m);
 }
+
+/* The workbook comes back as the file itself rather than a link: there is no draft to store, and
+   storing one would invite the wrong thing being filed. What Michelle sends EGLE is this file
+   AFTER she has added her Cover comments — she writes them every month — so a draft kept here
+   would never be the document that went. The filed copy is recorded from what she actually sent. */
+window.generateMor = async (y, m) => {
+  const b = $('genBtn'), note = $('genNote'), was = b.textContent;
+  b.disabled = true; b.textContent = 'Building…'; note.textContent = '';
+  try {
+    const r = await fetch('/api/build-mor', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'generate', wssn: WSSN, year: y, month: m }),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(j.error || `error ${r.status}`);
+    }
+    const name = r.headers.get('X-Mor-Filename') || `MOR ${MN[m]} ${y}.xls`;
+    let stats = {}; try { stats = JSON.parse(r.headers.get('X-Mor-Stats') || '{}'); } catch {}
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+    note.textContent = `${name} — ${(stats.well_days ?? '?')} well-days, ${(stats.distribution ?? '?')} distribution, ${(stats.bacti ?? '?')} bacti.`;
+  } catch (e) {
+    note.innerHTML = `<span style="color:var(--err)">${esc(e.message)}</span>`;
+  } finally {
+    b.disabled = false; b.textContent = was;
+  }
+};
 
 /* ── REPORTS FILED ─────────────────────────────────────────────────────────────────────────────
    Keith, 2026-08-20: *"why are we not showing EGLE report that she filed the old way - I gave you
