@@ -209,13 +209,25 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
                     ? Number(pumpage[d][String(ep.well_no)]) : null);
       const oMg = r && r.million_gallons != null ? Number(r.million_gallons) : null;
 
+      /* ⛔ A BLANK CELL AND A ZERO SAY THE SAME THING ON THIS FORM, AND TREATING THEM AS A
+         DISAGREEMENT BURIES THE REAL ONES. EGLE's own Pumpage instruction is "do not put 0 in a
+         cell if the pumpage was not checked" — so a well that genuinely did not run is a 0 in our
+         records and a blank on the MOR, by design on both sides. The first run of this comparison
+         reported 55 such "differences" for May and 24 for April — April's Cover explains them in
+         the operator's own words: *"The water tower is currently down for repair so we are only
+         running well #3."* Two wells sat idle all month, correctly recorded as 0 here and
+         correctly left blank there.
+         So only a NON-ZERO figure on one side and silence on the other is a finding. That is what
+         leaves Feb 23 (Well 4 ran 0.007 MG and the state was told nothing) standing where it
+         belongs, instead of as one line in fifty-five. */
+      const zeroish = (v) => v != null && Math.abs(v) <= MG_TOLERANCE;
       if (fMg == null && oMg == null) { /* neither side has the day — nothing to say */ }
       else if (oMg == null) {
-        rows.push({ day: Number(d), ep_id: ep.id, ep: ep.label, field: 'million_gallons',
+        if (!zeroish(fMg)) rows.push({ day: Number(d), ep_id: ep.id, ep: ep.label, field: 'million_gallons',
           kind: 'filed_only', filed: fMg, ours: null,
           msg: `${fMg} MG was filed for ${ep.label} on day ${d}, but there is no reading on file for that day.` });
       } else if (fMg == null) {
-        rows.push({ day: Number(d), ep_id: ep.id, ep: ep.label, field: 'million_gallons',
+        if (!zeroish(oMg)) rows.push({ day: Number(d), ep_id: ep.id, ep: ep.label, field: 'million_gallons',
           kind: 'ours_only', filed: null, ours: oMg,
           msg: `${ep.label} is recorded as pumping ${oMg} MG on day ${d}, and the filed report shows nothing for it.` });
       } else if (!near(fMg, oMg, MG_TOLERANCE)) {
@@ -225,6 +237,11 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
       }
 
       if (!r) continue;
+      /* Same reasoning one level down: on a day both sides agree the well produced nothing, a
+         pound of chemical on the form against none in the records is bookkeeping on an idle well,
+         not a treatment discrepancy — there is no flow for it to dose. Comparing it added 14 rows
+         to April, a month in which two of the three wells never ran. */
+      if ((fMg == null || zeroish(fMg)) && (oMg == null || zeroish(oMg))) continue;
       for (const [col, kind, label] of [['cl_lbs', 'chlorine', 'chlorine'], ['po4_lbs', 'phosphate', 'phosphate']]) {
         const fl = fd[col] != null ? Number(fd[col]) : null;
         const fr = (r.feeds || []).find((x) => kindOf[x.feed_id] === kind);
