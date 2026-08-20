@@ -79,8 +79,8 @@ function init(){
   if(typeof RYCShell !== "undefined"){
     RYCShell.mount({
       workspace: "invoices",
-      version: "v1.4.0",
-      active: "inbound",
+      version: "v1.5.0",
+      active: "batch",
       /* TWO destinations, because they are two different people's work (Keith, 2026-08-13).
          Inbound is the front office: everything that has arrived and not yet been sent to a desk.
          Daily batch is a PM's own queue. Grouping the unplaced invoices as a "No job yet" section
@@ -89,10 +89,13 @@ function init(){
          invoices arriving by email that must reach a PM's desk, this is a stack of paper the
          front office has ALREADY worked, which never enters the register and goes straight to
          the archive. Putting it inside Inbound would imply the register is involved. */
+      /* BATCH PROCESS IS FIRST AND IT IS THE DEFAULT (Keith, 2026-08-20). It is the front office's
+         first act of the day — the scanned stack goes in before anything reaches a desk — so it is
+         the top rail item and where the tool opens. Inbound and PM Desks are what happens after. */
       groups: [{ label:"", items:[
+        { key:"batch",    label:"Batch process", icon:"&#128196;" },
         { key:"inbound",  label:"Inbound",       icon:"&#128229;" },
         { key:"invoices", label:"PM Desks",      icon:"&#129534;" },
-        { key:"batch",    label:"Batch process", icon:"&#128196;" },
       ] }],
       /* setActive is not automatic — the rail keeps whatever `active` was mounted with, which is
          why clicking Inbound left "Daily batch" highlighted. */
@@ -120,7 +123,11 @@ function init(){
        than guessing, so an admin code lands on Inbound and an emailed ?k= link lands on that PM's
        desk exactly as before. `replaceState` normalises the bare /ryc/invoices to its real view so
        the Back button never has a rung that just redirects. */
-    var want = invViewFromPath() || (pm ? "invoices" : "inbound");
+    /* ⚠ A PM STILL LANDS ON THEIR OWN DESK. Keith's "default landing spot" is about entering the
+       tool — the front office opening /invoices — and it must not reach through an emailed ?k=
+       link, whose whole purpose is to put one PM in front of their own queue. Only the
+       front-office default moved: inbound -> batch. */
+    var want = invViewFromPath() || (pm ? "invoices" : "batch");
     if(typeof RYCShell !== "undefined") RYCShell.setActive(want);
     invPushView(want, true);
     invRender(want);
@@ -128,7 +135,7 @@ function init(){
 
   // Back/forward move between views instead of leaving the workspace.
   window.addEventListener("popstate", function(){
-    var key = invViewFromPath() || "inbound";
+    var key = invViewFromPath() || "batch";
     if(typeof RYCShell !== "undefined") RYCShell.setActive(key);
     invRender(key);
   });

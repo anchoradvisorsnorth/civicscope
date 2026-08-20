@@ -531,8 +531,15 @@ function invPaintInbound(){
     + '</div>'
     + '<div id="inb-msg" class="sub" style="margin-top:6px"></div></div>';
 
-  // Scanning a paper batch still has to work — mail is not the only way an invoice arrives.
-  h += invIntakePanel();
+  /* ⛔ THE INTAKE CARD IS GONE FROM THIS SCREEN (Keith, 2026-08-20): *"Its confusing to have batch
+     process in two places - it should be removed from the inbound page."*
+     It was not merely duplicated, it was the copy that could not do the job — `invIntakeRun()`
+     REFUSES a PDF and asks for exported page images, and the office's scanner produces exactly one
+     thing: a PDF. So the card on the front office's own screen rejected the only file they have,
+     while the screen that accepts it sat one rail item away. `invIntakePanel()` and
+     `invIntakeRun()` are kept below and still work for loose page images; nothing on Inbound
+     calls them. `open_batch`/`register` are untouched — that is the path ingest_ap_mailbox.py
+     uses for email arrivals, and it is the reason this queue exists at all. */
 
   if(!_inb.rows.length){
     v.innerHTML = h + '<div class="panel"><div class="sub">Nothing waiting. Anything that arrives '

@@ -43,6 +43,18 @@ function renderBatch(){
   // The reconcile panel is per-batch; leaving last batch's rows in memory would paint them under
   // the next one's header for the moment before the fetch returns.
   _recon = { docs: [], targets: _recon ? _recon.targets : null, batchId: null, busy: {} };
+
+  /* ⛔ THIS SCREEN DID NOT OWN ITS OWN HEADER, so arriving from Inbound left the page titled
+     "Inbound — Everything that has arrived and not yet been sent to a desk" over the batch
+     uploader. Exactly the defect invoices.js:264 already records for Inbound -> PM Desks, and the
+     same class as a button that misdescribes its own effect: the header is the reader's answer to
+     "where am I". It matters more now that this is where the tool opens (app.js). */
+  var _t = document.getElementById("view-title");
+  if(_t) _t.textContent = "Batch process";
+  var _c = document.getElementById("view-ctx");
+  if(_c) _c.innerHTML = "The scanned stack the office has already worked &middot; filed to its own "
+    + "SharePoint folder, then reconciled to a job";
+
   var v = document.getElementById("view");
   v.innerHTML =
     '<div class="panel"><div class="h">Batch process</div>'
