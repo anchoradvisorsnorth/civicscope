@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/build-mor.py": { "maxDuration": 60 }
+  },
   "crons": [
     {
       "path": "/api/digest",
