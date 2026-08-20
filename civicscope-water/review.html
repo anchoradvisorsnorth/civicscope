@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.0.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.1.0-oic
 
   This is NOT the tablet with a wider layout. It is the other half of the product, and the two jobs
   barely overlap (Keith, 2026-08-19):
@@ -79,6 +79,16 @@
   .scroll{overflow-x:auto}
   select{padding:8px 10px;font-size:14px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
   .note{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:13px 15px;font-size:13.5px;color:#475569}
+  .btn{display:inline-block;border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:8px;
+       padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer;text-decoration:none}
+  .btn:hover{background:#173c5e}
+  .btn[disabled]{opacity:.55;cursor:default}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 11px;font-size:12.5px;
+        color:#334155;cursor:pointer}
+  .chip:hover{border-color:var(--navy);color:var(--navy)}
+  .chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .quote{border-left:3px solid #cbd5e1;padding:2px 0 2px 12px;margin:10px 0;color:#475569;font-size:13.5px}
   @media(max-width:640px){ header{padding:12px 14px} main{padding:14px 12px 50px} }
 </style>
 </head>
@@ -117,7 +127,7 @@
   <div class="note" id="monthEnd"></div>
 
   <h2>Reports filed <span class="n">— what went to EGLE</span></h2>
-  <div class="note" id="filed"></div>
+  <div id="filed"></div>
 </main>
 
 <script type="module">
@@ -148,12 +158,19 @@ function daysAgo(iso) {
 /* The most recent reading per well does not live in "this month" — on the 1st it is last month's,
    and after a gap it may be older still. Two months are read and merged, which also gives the
    coverage strip its previous-month comparison without a third request. */
+/* Every month this supply has ever filed. Read once, so the "Reports filed" panel can say what
+   IS on record even while she is looking at a month that is not — "nothing for August" and
+   "nothing, ever" are very different answers and the page has to be able to tell them apart. */
+let FILINGS = [];
+
 async function load() {
   const now = new Date();
   let y = now.getUTCFullYear(), m = now.getUTCMonth() + 1;
   const cur = await post({ action: 'month', year: y, month: m });
   const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
   const prev = await post({ action: 'month', year: py, month: pm });
+  // A supply with no filings recorded is a normal state, not a failure — never let it break the page.
+  FILINGS = await post({ action: 'filings' }).then((r) => r.filings || []).catch(() => []);
   return { cur, prev, y, m };
 }
 
@@ -217,6 +234,20 @@ function render({ cur, prev, y, m }) {
   }
   renderMonth(cur, y, m, eps);
 }
+
+/* The month picker only reaches back twelve months, and a filing older than that still has to be
+   openable — so a chip for a month outside the list adds it rather than failing silently. */
+window.goMonth = async (y, m) => {
+  const sel = $('monthSel'), want = `${y}-${m}`;
+  if (![...sel.options].some((o) => o.value === want)) {
+    const o = document.createElement('option');
+    o.value = want; o.textContent = `${MN[m]} ${y}`;
+    sel.appendChild(o);
+  }
+  sel.value = want;
+  sel.dispatchEvent(new Event('change'));
+  $('filed').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
 
 /* Exceptions only. A month has ~93 well-days; listing them all is the paper problem with a
    scrollbar. What the OIC needs is the handful that are not ordinary — and on a clean month,
@@ -352,21 +383,111 @@ function renderMonth(mo, y, m, eps) {
     + `<code>scripts/build-mor.py</code> on Keith's machine. That is the one thing on this screen that is a capability `
     + `you do not have rather than a view you cannot see, and it is the next thing to build.`;
 
-  /* ⛔ THE PRODUCT HAS NO CONCEPT OF A FILED REPORT. Nine water_* tables and not one of them
-     records that a month was submitted, when, by whom, or which file went. The 2026 workbooks
-     exist — in Keith's Drive — but to this system they are invisible, so the honest answer to
-     "where do I see past reports" is that there is nowhere yet.
-     Saying that plainly beats an empty table implying none were ever filed: seven were. */
-  $('filed').innerHTML =
-    `<b>Nothing here records what was filed.</b><br><br>`
-    + `The readings behind every month are above and can be read back at any time — but the report itself, the date it `
-    + `went to EGLE and who signed it are not stored anywhere in this system. The 2026 workbooks that <em>were</em> `
-    + `submitted live as files in Drive; the product cannot see them.<br><br>`
-    + `Closing this needs somewhere to keep a filing — the month, the date submitted, who signed it, and the exact `
-    + `workbook that went — so that "what did we send EGLE in March, and does it still match our records?" is a `
-    + `question this page can answer. It pairs with generating the report above: the same action that produces the `
-    + `workbook should record that it was filed.`;
+  renderFiled(mo, y, m);
 }
+
+/* ── REPORTS FILED ─────────────────────────────────────────────────────────────────────────────
+   Keith, 2026-08-20: *"why are we not showing EGLE report that she filed the old way - I gave you
+   all those reports"*. He had; the product had no concept of a filing, so seven submitted 2026
+   workbooks were invisible to it. `water_mor_filings` (migration 017) is where they live now.
+
+   Two things are on this panel and they are not the same thing:
+     1. THE FILING — that this month was submitted, on this date, certified by this operator, as
+        this exact file. A historical fact that stays true even after a reading behind it is
+        corrected, which is precisely why the workbook's own numbers are stored verbatim.
+     2. WHETHER IT STILL AGREES with the records held here. That comparison is computed by the API
+        (`diffFiling`) and only its result crosses the wire. This page must never grow its own copy
+        of it, for the same reason it never recomputes a dose: two copies of a rule drift, and the
+        daily log drifting from the filed report is the defect this whole product exists to remove.
+
+   A difference here is NOT presented as an error. Centreville has 14 days across 2026 where the
+   operator's paper and the filed report genuinely disagree — including two where a well ran and
+   the state was told it produced nothing. Those are findings for the OIC, and until now they lived
+   in a script's JSON output where she could never see them. */
+function renderFiled(mo, y, m) {
+  const f = mo.filing;
+  const chips = FILINGS.length
+    ? `<div class="chips">` + FILINGS.map((x) =>
+        `<span class="chip${x.year === y && x.month === m ? ' on' : ''}" onclick="goMonth(${x.year},${x.month})"
+               title="${x.submitted_date ? 'submitted ' + esc(x.submitted_date) : 'no submission date on the Cover'}"
+          >${MN[x.month]} ${x.year}</span>`).join('') + `</div>` : '';
+
+  if (!f) {
+    $('filed').innerHTML = `<div class="note">`
+      + (FILINGS.length
+          ? `<b>No report is on record for ${MN[m]} ${y}.</b><br>`
+            + `${FILINGS.length} month${FILINGS.length === 1 ? ' is' : 's are'} on file — pick one to see what was sent, `
+            + `open the workbook itself, and check it against these records.`
+          : `<b>No filed reports are on record for this supply yet.</b><br>`
+            + `A submitted MOR is recorded with the month, the date it went to EGLE, who certified it and the exact `
+            + `workbook that was sent, so "what did we send in March, and does it still match our records?" is a `
+            + `question this page can answer.`)
+      + chips + `</div>`;
+    return;
+  }
+
+  const d = f.diff || {}, c = d.counts || {};
+  const when = f.submitted_date
+    ? `submitted <b>${esc(f.submitted_date)}</b>`
+    : `<b>no submission date</b> was filled in on the Cover tab`;
+  const kb = f.workbook_bytes ? ` · ${Math.round(f.workbook_bytes / 1024).toLocaleString()} KB` : '';
+
+  let verdict;
+  if (d.matches) {
+    verdict = `<div class="banner ok" style="margin:14px 0 0"><b>Still matches these records</b>`
+      + `Every metered day, every chemical weight, and the sample counts in the filed report agree with what is held here.</div>`;
+  } else {
+    const bits = [];
+    if (c.pumpage_differs) bits.push(`${c.pumpage_differs} day${c.pumpage_differs === 1 ? '' : 's'} differ on metered gallons`);
+    if (c.ours_only) bits.push(`${c.ours_only} day${c.ours_only === 1 ? '' : 's'} recorded here that the report shows nothing for`);
+    if (c.filed_only) bits.push(`${c.filed_only} day${c.filed_only === 1 ? '' : 's'} filed with no reading on file`);
+    if (c.chemical_differs) bits.push(`${c.chemical_differs} chemical weight${c.chemical_differs === 1 ? '' : 's'} differ`);
+    if (c.dist_filed !== c.dist_ours) bits.push(`${c.dist_filed} distribution sample${c.dist_filed === 1 ? '' : 's'} filed against ${c.dist_ours} held`);
+    if (c.bacti_filed !== c.bacti_ours) bits.push(`${c.bacti_filed} bacti sample${c.bacti_filed === 1 ? '' : 's'} filed against ${c.bacti_ours} held`);
+    const rows = (d.rows || []).map((r) => `<tr>
+        <td class="l">${r.day}</td><td class="l">${esc(r.ep)}</td>
+        <td class="l">${esc(r.field === 'million_gallons' ? 'metered MG' : r.field.replace('_lbs', ' lbs'))}</td>
+        <td>${r.filed == null ? '—' : esc(String(r.filed))}</td>
+        <td>${r.ours == null ? '—' : esc(String(r.ours))}</td></tr>`).join('');
+    verdict = `<div class="banner warn" style="margin:14px 0 0"><b>What was sent and what is held differ</b>${esc(bits.join(' · '))}.
+        These are findings, not errors on this screen — the report went to EGLE with the figures in the "Filed" column.</div>`
+      + (rows ? `<div class="card scroll" style="margin-top:10px"><table>
+          <thead><tr><th class="l">Day</th><th class="l">Where</th><th class="l">What</th><th>Filed</th><th>Held here</th></tr></thead>
+          <tbody>${rows}</tbody></table></div>` : '');
+  }
+
+  $('filed').innerHTML = `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <div>
+          <b style="font-size:17px">${MN[m]} ${y} was filed</b>
+          <div class="muted" style="margin-top:3px">${when}${f.signed_by ? ` · certified by ${esc(f.signed_by)}` : ''}${f.oic_cert ? ` (${esc(f.oic_cert)})` : ''}</div>
+          <div class="muted" style="margin-top:2px">${esc(f.workbook_name)}${kb}${f.submitted_to ? ` · sent to ${esc(f.submitted_to)}` : ''}</div>
+        </div>
+        <button class="btn" id="wbBtn" onclick="openWorkbook(${y},${m})">Open the workbook that went</button>
+      </div>
+      ${f.comments ? `<div class="quote"><b>Comments to EGLE:</b> ${esc(f.comments)}</div>` : ''}
+      ${f.correction_reason ? `<div class="quote"><b>Amended:</b> ${esc(f.correction_reason)}</div>` : ''}
+      ${verdict}
+      ${chips}
+    </div>`;
+}
+
+/* The workbook lives in a private bucket and is fetched through a signed URL that expires in
+   fifteen minutes, so the link cannot be minted until she asks for it. Assigning it to
+   location.href starts the download without navigating the page away. */
+window.openWorkbook = async (y, m) => {
+  const b = $('wbBtn');
+  const was = b ? b.textContent : '';
+  if (b) { b.disabled = true; b.textContent = 'Opening…'; }
+  try {
+    const r = await post({ action: 'filing_workbook', year: y, month: m });
+    location.href = r.url;
+    if (b) { b.disabled = false; b.textContent = was; }
+  } catch (e) {
+    if (b) { b.disabled = false; b.textContent = was; }
+    alert(`Could not open the workbook: ${e.message}`);
+  }
+};
 
 /* The Well and Pump Record, rebuilt — deliberately the same shape and column order as the paper
    sheet it replaces, because she is checking it against a scan or against her memory of the sheet,

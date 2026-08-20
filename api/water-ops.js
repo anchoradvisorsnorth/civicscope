@@ -44,11 +44,18 @@
 
 export const config = { maxDuration: 30 };
 
+import crypto from 'node:crypto';
+
 const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const OPS_CODE = process.env.WATER_OPS_CODE || '';
 
-export const VER = '1.0.0-waterops';
+// Private bucket holding the exact .xls workbooks that were submitted to EGLE. Never public: it is
+// reached only through short-lived signed URLs minted per request, same posture as
+// `ryc-invoice-scans`.
+const MOR_BUCKET = 'water-mor-filings';
+
+export const VER = '1.1.0-waterops';
 
 import { derive, LBS_PER_MILLION_GALLONS } from '../civicscope-water/derive.js';
 export { derive };
@@ -99,6 +106,162 @@ async function previousReading(entryPointId, date) {
   return { id: prev.id, reading_date: prev.reading_date, meter_reading: prev.meter_reading, feeds };
 }
 
+// ---------------------------------------------------------------------------------------------
+// Supabase Storage — the submitted workbooks themselves
+// ---------------------------------------------------------------------------------------------
+const sbStorage = (p, init = {}) =>
+  fetch(`${SB_URL}/storage/v1/${p}`, {
+    ...init,
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, ...(init.headers || {}) },
+  });
+
+/* The bucket is created on first use rather than by hand. A manual console step is a step that
+   does not exist for the next supply and is invisible when it is missing — the failure would
+   surface as a filing that recorded fine and pointed at nothing. Creating it is idempotent (409
+   when it already exists) and costs one request on the first upload ever. */
+async function putWorkbook(path, bytes) {
+  const send = () =>
+    sbStorage(`object/${MOR_BUCKET}/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/vnd.ms-excel', 'cache-control': 'max-age=31536000' },
+      body: bytes,
+    });
+  let r = await send();
+  if (r.status === 404) {
+    await sbStorage('bucket', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: MOR_BUCKET, name: MOR_BUCKET, public: false }),
+    });
+    r = await send();
+  }
+  // The path carries the content hash, so an identical object at the same path IS the same bytes.
+  if (r.status === 409) return { ok: true, existed: true };
+  if (!r.ok) return { ok: false, status: r.status, msg: (await r.text()).slice(0, 200) };
+  return { ok: true };
+}
+
+async function signWorkbook(path, seconds = 900) {
+  const r = await sbStorage(`object/sign/${MOR_BUCKET}/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expiresIn: seconds }),
+  });
+  if (!r.ok) return null;
+  const j = await r.json().catch(() => null);
+  return j && j.signedURL ? `${SB_URL}/storage/v1${j.signedURL}` : null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// WHAT WE SENT vs WHAT WE HOLD
+// ---------------------------------------------------------------------------------------------
+/* ⛔ THIS IS A DIFF, NOT A DERIVATION — it must never recompute anything.
+   `filed` is what the submitted workbook literally says, read out of its cells. `readings` is what
+   the plant observed and derive() turned into numbers. Comparing them is the only way to answer
+   "does what we sent EGLE still match our records", and it is the question that surfaces the 14
+   days where Centreville's paper and its filings already disagree — including two days where a
+   well ran and the state was told it produced nothing.
+
+   Recomputing either side here would destroy the finding: a diff of the stored records against
+   themselves is always clean. The comparison is therefore deliberately dumb, and it is exported so
+   it can be exercised against the seven real 2026 filings rather than trusted.
+
+   TOLERANCES ARE SET BY THE FORM, not by taste. EGLE's Pumpage and EntryPoint cells carry metered
+   million gallons at three decimals, so anything under half of the last printed digit is the
+   form's own rounding and not a disagreement. Solution pounds are whole or half pounds off a tank
+   gauge. Widening either one to make a month go green would be hiding the thing this exists for. */
+const MG_TOLERANCE = 0.0005;
+const LBS_TOLERANCE = 0.01;
+
+export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
+  const rows = [];
+  const eps = entryPoints || [];
+  const filedEps = (filed && filed.entry_points) || {};
+  const pumpage = (filed && filed.pumpage) || {};
+  const near = (a, b, tol) => Math.abs(Number(a) - Number(b)) <= tol;
+
+  for (const ep of eps) {
+    const sheet = ep.mor_sheet ? `EntryPoint${ep.mor_sheet}` : null;
+    const days = (sheet && filedEps[sheet]) || {};
+    const ours = {};
+    for (const r of readings || []) {
+      if (r.entry_point_id === ep.id) ours[String(Number(String(r.reading_date).slice(8, 10)))] = r;
+    }
+    const kindOf = {};
+    for (const f of ep.feeds || []) kindOf[f.id] = f.kind;
+
+    const allDays = new Set([...Object.keys(days), ...Object.keys(ours)]);
+    for (const d of [...allDays].sort((a, b) => Number(a) - Number(b))) {
+      const fd = days[d] || {};
+      const r = ours[d];
+      // The EntryPoint tab is the primary source; a supply that filled only the Pumpage tab for a
+      // well still told the state a number, so fall back to it rather than reading "not filed".
+      const fMg = fd.mg != null ? Number(fd.mg)
+                : (ep.well_no != null && pumpage[d] && pumpage[d][String(ep.well_no)] != null
+                    ? Number(pumpage[d][String(ep.well_no)]) : null);
+      const oMg = r && r.million_gallons != null ? Number(r.million_gallons) : null;
+
+      if (fMg == null && oMg == null) { /* neither side has the day — nothing to say */ }
+      else if (oMg == null) {
+        rows.push({ day: Number(d), ep_id: ep.id, ep: ep.label, field: 'million_gallons',
+          kind: 'filed_only', filed: fMg, ours: null,
+          msg: `${fMg} MG was filed for ${ep.label} on day ${d}, but there is no reading on file for that day.` });
+      } else if (fMg == null) {
+        rows.push({ day: Number(d), ep_id: ep.id, ep: ep.label, field: 'million_gallons',
+          kind: 'ours_only', filed: null, ours: oMg,
+          msg: `${ep.label} is recorded as pumping ${oMg} MG on day ${d}, and the filed report shows nothing for it.` });
+      } else if (!near(fMg, oMg, MG_TOLERANCE)) {
+        rows.push({ day: Number(d), ep_id: ep.id, ep: ep.label, field: 'million_gallons',
+          kind: 'differs', filed: fMg, ours: oMg,
+          msg: `${ep.label} day ${d}: the report says ${fMg} MG, the records say ${oMg} MG.` });
+      }
+
+      if (!r) continue;
+      for (const [col, kind, label] of [['cl_lbs', 'chlorine', 'chlorine'], ['po4_lbs', 'phosphate', 'phosphate']]) {
+        const fl = fd[col] != null ? Number(fd[col]) : null;
+        const fr = (r.feeds || []).find((x) => kindOf[x.feed_id] === kind);
+        const ol = fr && fr.solution_lbs != null ? Number(fr.solution_lbs) : null;
+        if (fl == null || ol == null) continue;          // one side silent is not a disagreement
+        if (!near(fl, ol, LBS_TOLERANCE)) {
+          rows.push({ day: Number(d), ep_id: ep.id, ep: ep.label, field: `${kind}_lbs`,
+            kind: 'differs', filed: fl, ours: ol,
+            msg: `${ep.label} day ${d}: the report says ${fl} lbs of ${label}, the records say ${ol}.` });
+        }
+      }
+    }
+  }
+
+  rows.sort((a, b) => a.day - b.day || String(a.ep).localeCompare(String(b.ep)));
+  const mg = rows.filter((r) => r.field === 'million_gallons');
+  const counts = {
+    pumpage_differs: mg.filter((r) => r.kind === 'differs').length,
+    filed_only: mg.filter((r) => r.kind === 'filed_only').length,
+    ours_only: mg.filter((r) => r.kind === 'ours_only').length,
+    chemical_differs: rows.length - mg.length,
+    dist_filed: ((filed && filed.distribution) || []).length,
+    dist_ours: (dist || []).length,
+    bacti_filed: ((filed && filed.bacti) || []).length,
+    bacti_ours: (bacti || []).length,
+  };
+  return {
+    rows,
+    counts,
+    matches: rows.length === 0 && counts.dist_filed === counts.dist_ours && counts.bacti_filed === counts.bacti_ours,
+  };
+}
+
+// The filing row as the review page wants it: everything except the `filed` blob, which can run to
+// tens of kilobytes and is only ever needed to build the diff — which the server has already done.
+const filingCard = (f) => ({
+  id: f.id, year: f.report_year, month: f.report_month,
+  submitted_date: f.submitted_date, signed_by: f.signed_by, oic_cert: f.oic_cert,
+  submitted_to: f.submitted_to, comments: f.comments,
+  workbook_name: f.workbook_name, workbook_sha256: f.workbook_sha256, workbook_bytes: f.workbook_bytes,
+  source: f.source, notes: f.notes, recorded_at: f.created_at,
+  correction_reason: f.correction_reason,
+  summary: f.filed_summary || {},
+});
+
 const bad = (res, code, msg) => res.status(code).json({ error: msg });
 
 export default async function handler(req, res) {
@@ -108,7 +271,13 @@ export default async function handler(req, res) {
 
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
   const action = body.action;
-  const READ_ONLY = new Set(['profile', 'month', 'preview']);
+  /* `filings` and `filing_workbook` join the ungated reads deliberately. An MOR is a public record
+     that a public water supply files with the State of Michigan, and every number in it is already
+     served by `month` on this same open path — the workbook adds the OIC's name, which is printed
+     on the form and already in `water_supplies`. Gating the report behind a code while serving its
+     contents without one would be a lock on the door of a room with no wall. Recording a filing is
+     a different matter and stays gated: it asserts something was submitted to a regulator. */
+  const READ_ONLY = new Set(['profile', 'month', 'preview', 'filings', 'filing_workbook']);
   /* ⛔ THE CREW NEVER LOG IN (Keith, 2026-08-19: "this is the wellhouse app - it need to be super
      simple - pick a well - no login").
      Entering a reading is the crew's whole job, done one-handed in a concrete well house, and an
@@ -423,9 +592,162 @@ export default async function handler(req, res) {
         for (const f of feedReadings) (byReading[f.reading_id] ||= []).push(f);
         for (const r of readings) r.feeds = byReading[r.id] || [];
 
+        /* ── the report that actually went to EGLE for this month.
+           The `filed` blob is read here and used here; only the card and the diff go over the
+           wire, because the page needs the ANSWER ("3 days differ") and not the workbook's cells.
+           Computing the diff server-side also keeps it in one place: the page must never grow its
+           own copy of this comparison, for the same reason it never recomputes a dose. */
+        const filings = await sb(
+          `water_mor_filings?supply_id=eq.${p.supply.id}&report_year=eq.${y}&report_month=eq.${m}` +
+            `&superseded_at=is.null&select=*&limit=1`
+        );
+        const filing = filings && filings[0];
+        let filedCard = null;
+        if (filing) {
+          filedCard = filingCard(filing);
+          filedCard.diff = diffFiling({
+            filed: filing.filed || {}, entryPoints: p.entryPoints, readings, dist, bacti,
+          });
+        }
+
         return res.status(200).json({
           ver: VER, supply: p.supply, entryPoints: p.entryPoints, sites: p.sites,
-          year: y, month: m, readings, dist, bacti,
+          year: y, month: m, readings, dist, bacti, filing: filedCard,
+        });
+      }
+
+      // ---- every report this supply has on file ------------------------------------------------
+      case 'filings': {
+        const p = await loadProfile(wssn);
+        if (!p) return bad(res, 404, 'unknown supply');
+        const rows = await sb(
+          `water_mor_filings?supply_id=eq.${p.supply.id}&superseded_at=is.null` +
+            `&select=*&order=report_year.desc,report_month.desc`
+        );
+        return res.status(200).json({ ver: VER, filings: (rows || []).map(filingCard) });
+      }
+
+      // ---- hand back the exact workbook that was submitted --------------------------------------
+      case 'filing_workbook': {
+        const p = await loadProfile(wssn);
+        if (!p) return bad(res, 404, 'unknown supply');
+        const y = Number(body.year), m = Number(body.month);
+        const rows = await sb(
+          `water_mor_filings?supply_id=eq.${p.supply.id}&report_year=eq.${y}&report_month=eq.${m}` +
+            `&superseded_at=is.null&select=id,workbook_name,workbook_path,workbook_sha256&limit=1`
+        );
+        const f = rows && rows[0];
+        if (!f) return bad(res, 404, 'no filing on record for that month');
+        if (!f.workbook_path) return bad(res, 404, 'that filing was recorded without its workbook');
+        const url = await signWorkbook(f.workbook_path, 900);
+        if (!url) return bad(res, 502, 'could not sign the workbook');
+        return res.status(200).json({ ok: true, name: f.workbook_name, sha256: f.workbook_sha256, url, expires_in: 900 });
+      }
+
+      /* ---- record that a month was filed --------------------------------------------------------
+         Keith, 2026-08-20: *"why are we not showing EGLE report that she filed the old way"*. This
+         is the door those seven workbooks come in through.
+
+         Two properties matter more than anything else here:
+         1. RE-RUNNING IS FREE AND SAFE. The path in storage carries the content hash, and a request
+            whose bytes already match the live filing returns `unchanged` without writing. The bacti
+            table learned this the expensive way — it was the one write path with no already-recorded
+            guard and a re-run put five copies of every 2026 sample in the compliance record.
+         2. AN AMENDED MOR SUPERSEDES, IT DOES NOT OVERWRITE. Different bytes for a month already on
+            file are refused unless a `correction_reason` is supplied, and then the old row is stood
+            down FIRST (the partial unique index is on `where superseded_at is null`) and put back if
+            the insert fails. Both workbooks stay in storage under their own hashes, because "what
+            did we send, and when" has to stay answerable for the version that was actually sent. */
+      case 'record_filing': {
+        const p = await loadProfile(wssn);
+        if (!p) return bad(res, 404, 'unknown supply');
+        const y = Number(body.year), m = Number(body.month);
+        if (!(y > 2000 && m >= 1 && m <= 12)) return bad(res, 400, 'year/month required');
+        if (!body.workbook_b64) return bad(res, 400, 'workbook_b64 required — the filing IS the file');
+
+        let bytes;
+        try { bytes = Buffer.from(String(body.workbook_b64), 'base64'); }
+        catch { return bad(res, 400, 'workbook_b64 is not valid base64'); }
+        if (!bytes.length) return bad(res, 400, 'workbook_b64 decoded to nothing');
+        const sha = crypto.createHash('sha256').update(bytes).digest('hex');
+
+        const existing = await sb(
+          `water_mor_filings?supply_id=eq.${p.supply.id}&report_year=eq.${y}&report_month=eq.${m}` +
+            `&superseded_at=is.null&select=id,workbook_sha256&limit=1`
+        );
+        const supersedes = existing && existing[0];
+        if (supersedes && supersedes.workbook_sha256 === sha) {
+          return res.status(200).json({ ok: true, unchanged: true, id: supersedes.id, sha256: sha });
+        }
+        if (supersedes && !body.correction_reason) {
+          return res.status(409).json({
+            error: 'exists',
+            msg: `${y}-${String(m).padStart(2, '0')} is already recorded as filed, with different bytes. Send correction_reason to record an amended report.`,
+            id: supersedes.id,
+          });
+        }
+
+        const path = `${wssn}/${y}-${String(m).padStart(2, '0')}-${sha.slice(0, 8)}.xls`;
+        const up = await putWorkbook(path, bytes);
+        if (!up.ok) return bad(res, 502, `could not store the workbook (${up.status}): ${up.msg}`);
+
+        const cover = body.cover || {};
+        const filed = body.filed || {};
+        const summary = {
+          pumpage_days: Object.keys(filed.pumpage || {}).length,
+          entry_points: Object.keys(filed.entry_points || {}).length,
+          distribution: (filed.distribution || []).length,
+          bacti: (filed.bacti || []).length,
+          bacti_required: filed.bacti_required ?? null,
+          lab_name: filed.lab_name ?? null,
+        };
+
+        if (supersedes) {
+          await sb(`water_mor_filings?id=eq.${supersedes.id}`, {
+            method: 'PATCH', headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({ superseded_at: new Date().toISOString() }),
+          });
+        }
+        let ins;
+        try {
+          ins = await sb('water_mor_filings', {
+            method: 'POST', headers: { Prefer: 'return=representation' },
+            body: JSON.stringify([{
+              supply_id: p.supply.id,
+              report_year: y, report_month: m,
+              submitted_date: cover.submitted_date || null,
+              signed_by: cover.signed_by || cover.oic_name || null,
+              oic_cert: cover.oic_cert || null,
+              submitted_to: cover.submitted_to || null,
+              comments: cover.comments || null,
+              workbook_name: String(body.workbook_name || `${y}-${String(m).padStart(2, '0')}.xls`),
+              workbook_bucket: MOR_BUCKET,
+              workbook_path: path,
+              workbook_sha256: sha,
+              workbook_bytes: bytes.length,
+              filed,
+              filed_summary: summary,
+              source: ['backfill', 'product', 'import'].includes(body.source) ? body.source : 'backfill',
+              recorded_by: body.recorded_by || null,
+              notes: body.notes || null,
+              corrects: supersedes ? supersedes.id : null,
+              correction_reason: body.correction_reason || null,
+            }]),
+          });
+        } catch (e) {
+          // A superseded filing with nothing replacing it would erase the record that a month was
+          // ever sent to the state. Put it back exactly as it was.
+          if (supersedes) {
+            await sb(`water_mor_filings?id=eq.${supersedes.id}`, {
+              method: 'PATCH', headers: { Prefer: 'return=minimal' },
+              body: JSON.stringify({ superseded_at: null }),
+            });
+          }
+          throw e;
+        }
+        return res.status(200).json({
+          ok: true, id: ins[0].id, sha256: sha, bytes: bytes.length, summary,
+          ...(supersedes ? { superseded: supersedes.id } : {}),
         });
       }
 
