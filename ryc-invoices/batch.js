@@ -80,9 +80,38 @@ function batchLoadRecent(){
     if(!r.ok || !r.data.jobs) return;
     _batch.recent = r.data.jobs;              // the twin check in the confirm panel reads this
     if(!el || !r.data.jobs.length) return;
-    var h = '<div class="panel"><div class="h">Recent batches</div><table class="t"><tbody>';
-    r.data.jobs.forEach(function(j){
+    /* COMPLETE BATCHES ARE SET ASIDE, NOT MIXED IN (Keith, 2026-08-20). `reconciled` comes from
+       the API so the page never re-derives what "done" means. Outstanding first — that is the
+       work; finished ones sit below under their own heading so the board reads as a queue
+       rather than a log. */
+    var jobs = r.data.jobs;
+    var openJobs = jobs.filter(function(j){ return !j.reconciled; });
+    var doneJobs = jobs.filter(function(j){ return j.reconciled; });
+    var h = "";
+    if(openJobs.length) h += batchRecentTable("Batches needing you", openJobs, false);
+    if(doneJobs.length) h += batchRecentTable("Complete", doneJobs, true);
+    el.innerHTML = h;
+  });
+}
+
+function batchRecentTable(title, jobs, done){
+  var h = '<div class="panel"><div class="h">' + esc(title)
+    + ' <span class="sub">' + jobs.length + '</span></div>'
+    + (done ? '<div class="sub">Every payable in these is assigned to a job or marked RYC '
+        + 'Expense. Nothing here is waiting on anybody.</div>' : '')
+    + '<table class="t" style="margin-top:6px"><tbody>';
+  jobs.forEach(function(j){
       h += '<tr><td>' + esc(j.folder) + '<div class="sub">' + esc(j.filename) + '</div></td>'
+        /* SAY HOW MUCH IS LEFT, not just that something is. "3 of 6 reconciled" is the number the
+           front office is actually asking the board for. */
+        + '<td class="sub">'
+        + (j.docs
+            ? (j.reconciled
+                ? '<b class="m-g">&#10003; ' + j.docs + ' reconciled</b>'
+                : '<b class="m-a">' + (j.docs - j.docs_done) + ' of ' + j.docs + ' outstanding</b>')
+              + (j.docs_failed ? ' <span class="m-r">&middot; ' + j.docs_failed + ' failed</span>' : '')
+            : '')
+        + '</td>'
         + '<td class="sub">'
         + (j.status === "proposed"
             ? '<b style="color:#b7791f">' + BATCH_LABEL.proposed + '</b>'
@@ -102,9 +131,8 @@ function batchLoadRecent(){
         + (["rendering","reading","reconciling","filing"].indexOf(j.status) < 0
             ? ' <button class="pfill" onclick="batchDismiss(' + invArg(j.id) + ')">Dismiss</button>' : '')
         + '</td></tr>';
-    });
-    el.innerHTML = h + '</tbody></table></div>';
   });
+  return h + '</tbody></table></div>';
 }
 
 /* The upload goes STRAIGHT to storage, never through the API: Vercel caps a request body around
@@ -559,41 +587,66 @@ function reconRow(d){
           ? '<div class="sub">read off the invoice &mdash; confirm or change it</div>' : '');
   }
 
-  var act = "";
-  if(d.sp_url){
-    act += '<a class="pfill" href="' + esc(d.sp_url) + '" target="_blank" rel="noopener" '
-      + 'style="text-decoration:none;padding:6px 10px">View</a> ';
-  }
+  /* ⛔ THE ROW IS ORDERED BY THE WORK, NOT BY THE DATA (Keith, 2026-08-20, after running a batch
+     WITH the front office): *"I felt like there needed to be an order in which files were renamed
+     and jobs were changed or assigned... that is the real life flow and we should do the same with
+     the UI."*
+       look at it  ->  say whose job it is  ->  fix the name  ->  complete it
+     Before this, View and Edit name sat in one trailing action cell to the RIGHT of the button
+     that ENDS the row, so the two things you do first were the two things furthest from where you
+     started reading — and "Edit name" appeared after a control that makes renaming impossible
+     (a reconciled document is deliberately refused a rename; the copy in the job folder is filed
+     under the name it had). Reading order now matches the order of operations, which is the same
+     reason the label tracks the dropdown: the screen should describe the work truthfully. */
+  var view = d.sp_url
+    ? '<a class="pfill" href="' + esc(d.sp_url) + '" target="_blank" rel="noopener" '
+      + 'style="text-decoration:none;padding:6px 10px;white-space:nowrap">View invoice</a>'
+    : '<span class="sub">&mdash;</span>';
+
+  var rename = "", act = "";
   if(doneAt){
+    /* Done: there is nothing left to rename, so that cell carries WHERE IT LANDED instead. */
     if(d.copied_url){
-      act += '<a href="' + esc(d.copied_url) + '" target="_blank" rel="noopener">Open in job folder</a>';
-    } else if(d.disposition === "ryc_expense"){
-      act += '<span class="sub">RYC Expense</span>';
+      rename = '<a href="' + esc(d.copied_url) + '" target="_blank" rel="noopener">Open in job folder</a>';
     }
+    /* Nothing goes in the rename cell for an expense — the job cell already says "RYC Expense .
+       not filed to a job folder", and saying it twice reads as two different facts. */
     /* A wrong job WILL happen — Kropp Fire Protection matched Milford Water Utility off a delivery
        address reading "CHORE TIME 410 N. HIGBEE ST. MILFORD". Correcting is a different act from
        repeating: it MOVES the file rather than filing a second copy, and the old placement is kept
-       in the row's history. */
-    act += ' <button class="pfill" onclick="reconCorrect(' + invArg(d.id) + ')">Change job</button>';
+       in the row's history. It sits in the completion column because it is what replaces it. */
+    act = '<button class="pfill" onclick="reconCorrect(' + invArg(d.id) + ')">Change job</button>';
     if((d.history || []).length){
       act += '<div class="sub">corrected ' + d.history.length + '&times;</div>';
     }
   } else if(working){
-    act += '<span class="sub">copying&hellip;</span>';
+    act = '<span class="sub">copying&hellip;</span>';
   } else {
+    rename = '<button class="pfill" onclick="reconRename(' + invArg(d.id) + ')">Edit name</button>';
     /* THE BUTTON SAYS WHAT THE CLICK WILL DO. With RYC Expense chosen, "File to job" describes
-       the opposite of what happens — nothing is copied anywhere. The label tracks the dropdown. */
+       the opposite of what happens — nothing is copied anywhere. The label tracks the dropdown.
+       "Complete:" is the front office's own word for the end of the row (Keith, 2026-08-20) and it
+       carries through BOTH labels — dropping it on the expense branch would make the two endings
+       look like different kinds of act when they are the same one. */
     var chosen = d.job_no || "";
-    act += '<button class="pfill" id="rb_' + esc(d.id) + '" onclick="reconFile(' + invArg(d.id) + ')">'
-      + (chosen === "RYC-EXPENSE" ? "Mark RYC Expense" : "File to job") + '</button>'
-      + ' <button class="pfill" onclick="reconRename(' + invArg(d.id) + ')">Edit name</button>';
+    act = '<button class="pfill" id="rb_' + esc(d.id) + '" onclick="reconFile(' + invArg(d.id) + ')">'
+      + reconFileLabel(chosen) + '</button>';
   }
   if(err) act += '<div class="sub m-r" style="margin-top:4px">' + esc(String(err).slice(0,160)) + '</div>';
 
   return '<tr><td>' + name + '</td>'
     + '<td class="r" style="width:110px">' + fmt(d.amount) + '</td>'
+    + '<td style="width:120px">' + view + '</td>'
     + '<td style="width:300px">' + job + '</td>'
-    + '<td class="r" style="width:270px">' + act + '</td></tr>';
+    + '<td style="width:120px">' + rename + '</td>'
+    + '<td class="r" style="width:210px">' + act + '</td></tr>';
+}
+
+/* ONE definition of the completion label, because it is written in two places — once when the row
+   is painted and once when the dropdown changes under it (reconRelabel). Two copies is how a
+   control starts describing the wrong effect. */
+function reconFileLabel(jobNo){
+  return jobNo === "RYC-EXPENSE" ? "Complete: Mark RYC Expense" : "Complete: File to Job";
 }
 
 /* One click, one document. The button disappears the moment it is pressed and the server refuses a
@@ -658,7 +711,7 @@ function reconRename(id){
 function reconRelabel(id){
   var sel = document.getElementById("rj_" + id), btn = document.getElementById("rb_" + id);
   if(!sel || !btn) return;
-  btn.textContent = sel.value === "RYC-EXPENSE" ? "Mark RYC Expense" : "File to job";
+  btn.textContent = reconFileLabel(sel.value);
 }
 
 /* CHANGE THE JOB ON A DOCUMENT THAT IS ALREADY FILED. Keith, 2026-08-19: *"the user should have the

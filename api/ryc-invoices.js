@@ -1301,6 +1301,37 @@ export default async function handler(req, res) {
       const r = await sb(q);
       if (!r.ok) return res.status(502).json({ error: 'Could not read the batch.' });
       const rows = await r.json();
+
+      /* ⛔ "FILED" IS NOT "FINISHED", AND THE BOARD COULD NOT TELL THEM APART (Keith, 2026-08-20):
+         *"when a batch is complete it should be labled as such, and set aside from any outstanding
+         batches."* `status` only ever describes the FILING half — the documents reached the dated
+         archive folder. The second half is human: every payable assigned to a job or marked RYC
+         Expense. A batch sitting at `filed` with three unreconciled invoices looked exactly like
+         one that was genuinely done, so the front office had to open each row to find out which.
+         Counting it here rather than in the page keeps ONE definition of "complete"; deriving it
+         a second time in the browser is how the two surfaces start disagreeing. */
+      if (!id && rows.length) {
+        const ids = rows.map(x => x.id).filter(Boolean);
+        const dr = await sb(`ryc_batch_documents?company_id=eq.ryc&batch_id=in.(${ids.join(',')})`
+          + '&select=batch_id,reconciled_at,copy_error&limit=5000');
+        if (dr.ok) {
+          const tally = {};
+          for (const d of await dr.json()) {
+            const t = tally[d.batch_id] || (tally[d.batch_id] = { docs: 0, done: 0, failed: 0 });
+            t.docs++;
+            if (d.reconciled_at) t.done++;
+            else if (d.copy_error && d.copy_error !== 'working') t.failed++;
+          }
+          for (const x of rows) {
+            const t = tally[x.id] || { docs: 0, done: 0, failed: 0 };
+            x.docs = t.docs; x.docs_done = t.done; x.docs_failed = t.failed;
+            /* A batch with NO registered documents is not complete — it is a run that never got
+               that far. Completion is a positive statement about payables, never the absence of
+               anything to check. */
+            x.reconciled = t.docs > 0 && t.done === t.docs;
+          }
+        }
+      }
       return res.status(200).json(id ? { ok: true, job: rows[0] || null } : { ok: true, jobs: rows });
     }
 
