@@ -46,6 +46,11 @@ async function liveScores(games) {
           homeScore: Number(home.score || 0), awayScore: Number(away.score || 0),
           state: c.status && c.status.type ? c.status.type.state : undefined,
           detail: (c.status && c.status.type && c.status.type.shortDetail) || '',
+          /* ESPN's OWN kickoff, in ms. Carried purely so the board can order finished games by
+             when they ended (see boardOrder below). Preferred over our stored g.date because a
+             hand-built slate's times were converted ET->UTC by hand and can be an hour out — and
+             an hour is exactly the size of error that reorders a Sunday. */
+          kickoff: Date.parse(e.date) || null,
         };
         out[String(e.id)] = sc;
         /* ALSO key by matchup. A hand-built slate carries our own ids, which will never equal an
@@ -88,6 +93,60 @@ const scoreFor = (g, scores) =>
 
 // How a market is written. A total must never render as an empty spread.
 const marketLabel = g => g.market === 'total' ? ('O/U ' + g.total) : (g.pickem ? 'PICK EM' : g.spreadText);
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DISPLAY ORDER — MOST RECENTLY FINISHED AT THE TOP (Mike, via Keith 2026-08-21).
+
+   A slate is stored in the order the commissioner built it, which is not chronological
+   and has no reason to be: `2026-pre2` shipped with LV @ HOU — the Wednesday night game,
+   the FIRST to finish — sitting at rows 4 and 5, below three games that had not kicked
+   off. The result you most want to look at was the one furthest down the page.
+
+   The order is now derived on every render, from the live state of each game:
+
+     1. FINAL      — most recently finished first
+     2. IN PROGRESS
+     3. NOT STARTED — soonest kickoff first
+
+   ⚠ ESPN PUBLISHES NO "GAME ENDED AT" TIMESTAMP, so "most recently finished" is
+   necessarily inferred. Within the finished group we order by KICKOFF, latest first —
+   football games are close enough to the same length that later-starting means
+   later-finishing, and two games in the same slot end within minutes of each other
+   anyway. It is a proxy, and it is named as one here rather than dressed up as a fact.
+   The kickoff used is ESPN's own (`sc.kickoff`) where we have it, falling back to the
+   stored `g.date`.
+
+   THIS IS DISPLAY ONLY. Scoring iterates `wk.games` and is order-independent; this
+   returns a SORTED COPY and never mutates the week. Nothing here may change a score,
+   and no server change is required — which is the whole reason it is safe to derive on
+   the client on every paint.
+   ───────────────────────────────────────────────────────────────────────────── */
+function boardOrder(games, scores) {
+  const bucket = (g) => {
+    const st = (scoreFor(g, scores) || {}).state;
+    return st === 'post' ? 0 : st === 'in' ? 1 : 2;
+  };
+  const kickOf = (g) => {
+    const sc = scoreFor(g, scores) || {};
+    return sc.kickoff || Date.parse(g.date) || 0;
+  };
+  return (games || []).slice().sort((a, b) => {
+    const ba = bucket(a), bb = bucket(b);
+    if (ba !== bb) return ba - bb;
+    const ka = kickOf(a), kb = kickOf(b);
+    // Finished games run newest-first; anything still to come reads forwards, as a schedule should.
+    if (ka !== kb) return ba === 0 ? kb - ka : ka - kb;
+    /* SAME KICKOFF. Two entries for ONE fixture (spread + its `#ou` twin) must stay adjacent —
+       splitting a game away from its own over/under would be worse than the original order. Group
+       by base id, spread above total, then by id so the sort is total and the paint never jitters
+       between refreshes. */
+    const ida = String(a.id).split('#')[0], idb = String(b.id).split('#')[0];
+    if (ida !== idb) return ida < idb ? -1 : 1;
+    const ma = a.market === 'total' ? 1 : 0, mb = b.market === 'total' ? 1 : 0;
+    if (ma !== mb) return ma - mb;
+    return String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
+  });
+}
 
 function weekPoints(wk, scores) {
   const pts = {}, detail = {};
@@ -154,3 +213,10 @@ const poolSession = {
     return s ? '&name=' + encodeURIComponent(s.name) + '&pin=' + encodeURIComponent(s.pin) : '';
   },
 };
+
+/* Node can load this file to unit-test the pure rules — scripts/verify-pool-integrity.js does,
+   because the deploy gate hits the deployed API and can otherwise say nothing at all about the
+   client-side ordering. `module` is undefined in a browser, so this is inert there. */
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { coverOf, scoreFor, marketLabel, weekPoints, boardOrder };
+}
