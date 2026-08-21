@@ -825,6 +825,9 @@ export default async function handler(req, res) {
     'invoice-filer': new Set(['filing_queue', 'mark_filed', 'read',
       'reconcile', 'adjudicate', 'batch_autoconfirm', 'batch_documents_register',
       'doc_copy_claim', 'doc_copy_done',
+      /* The VM publishes what folders SharePoint holds and reads back the overrides a person set.
+         Neither creates a payable; both are the filer's own job. */
+      'job_folders_publish', 'job_folder_map',
       'batch_claim', 'batch_progress']),
     'invoice-ingest': new Set(['open_batch', 'read', 'register']),
   };
@@ -844,7 +847,11 @@ export default async function handler(req, res) {
     /* A page must never be able to assert that a document was filed into a live job folder, nor to
        register what "was filed" in the first place. Both are claims about SharePoint, and only the
        machine holding the SharePoint credential is in a position to make one. */
-    'batch_documents_register', 'doc_copy_claim', 'doc_copy_done']);
+    'batch_documents_register', 'doc_copy_claim', 'doc_copy_done',
+    /* WHICH FOLDERS EXIST is a claim about SharePoint. A page asserting it could put destinations
+       in the picker that are not there, and the pin would then fail on the copy — relocating the
+       failure instead of ending it. Reading the list back (`job_folders`) is the browser's route. */
+    'job_folders_publish']);
   if (who.scope === 'service') {
     const allowed = SERVICE_ACTIONS[who.service] || new Set();
     if (!allowed.has(action)) {
@@ -1738,10 +1745,116 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, jobs: pickableJobs(dir), as_of: dir.asOf });
     }
 
+    /* ⛔ WHEN THE MATCHER REFUSES, A PERSON HAS TO BE ABLE TO SETTLE IT (Keith, 2026-08-21):
+       *"the user should be able to action it."*
+
+       `resolve_job_folder()` has always checked a human-confirmed job -> folder map BEFORE any
+       resemblance scoring. It read `job-folder-map.json` on the VM, and measured on 2026-08-21
+       THAT FILE HAD NEVER EXISTED — the one override designed to overrule the matcher was
+       reachable from no screen. These two actions are its handle.
+
+       The picker offers only folders the VM has actually seen in SharePoint. Letting her type a
+       path would let her name one that does not exist, and the failure would arrive later, on the
+       copy, looking like a different problem. */
+    if (action === 'job_folders') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const f = await sb('ryc_job_folders?company_id=eq.ryc&select=folder,seen_at&order=folder.asc&limit=2000');
+      if (!f.ok) return res.status(502).json({ error: 'The folder list could not be read.' });
+      const folders = await f.json();
+      const m = await sb('ryc_job_folder_map?company_id=eq.ryc&select=job_no,folder,set_by,set_at,note&limit=2000');
+      return res.status(200).json({
+        ok: true,
+        folders: folders.map(x => x.folder),
+        /* Published, not live. If the index is stale the picker is stale, and a screen that cannot
+           say how old its list is will be believed anyway. */
+        as_of: folders.length ? folders.map(x => x.seen_at).sort().slice(-1)[0] : null,
+        overrides: m.ok ? await m.json() : [],
+      });
+    }
+
+    /* Pin a job to a folder, permanently, and re-arm the copy that was refused.
+       ⚠ THIS OUTRANKS EVERY GUARD BELOW IT — the two-distinctive-words rule, the ambiguity refusal,
+       all of it. That is what it is for, and it is why the row records who set it. */
+    if (action === 'job_folder_pin') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const jobNo = String(body.job_no || '').trim();
+      const folder = String(body.folder || '').trim();
+      if (!jobNo || !folder) return res.status(400).json({ error: 'A job and a folder are required.' });
+      if (jobNo.toUpperCase() === RYC_EXPENSE.no) {
+        return res.status(400).json({ error: 'RYC Expense is not filed to a folder.' });
+      }
+      /* The folder must be one the VM has seen. A pin to a path that does not exist would look
+         settled here and fail on the copy, which is the failure mode this whole action exists to
+         end rather than relocate. */
+      const chk = await sb(`ryc_job_folders?company_id=eq.ryc&folder=eq.${encodeURIComponent(folder)}&select=folder`);
+      const hit = chk.ok ? await chk.json() : [];
+      if (!hit.length) {
+        return res.status(400).json({
+          error: `${folder} is not a SharePoint job folder the system has seen. Pick one from the list.` });
+      }
+      const row = {
+        company_id: 'ryc', job_no: jobNo, folder,
+        note: String(body.note || '').slice(0, 300) || null,
+        set_by: who.via === 'admin' ? 'admin' : 'front office',
+        set_at: new Date().toISOString(),
+      };
+      const r = await sb('ryc_job_folder_map?on_conflict=company_id,job_no', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify([row]),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not save that folder.' });
+
+      /* Re-arm every copy this job had refused. `copy_error` is what keeps a failed row out of
+         `doc_copy_claim`, so clearing it IS the retry — the same thing the button does. Scoped to
+         this job and to rows that are not finished, so nothing already settled is disturbed. */
+      let rearmed = 0;
+      const ra = await sb(`ryc_batch_documents?company_id=eq.ryc&job_no=eq.${encodeURIComponent(jobNo)}`
+        + '&reconciled_at=is.null&disposition=eq.job_folder&copy_error=not.is.null'
+        + '&copy_error=neq.working', {
+        method: 'PATCH', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ copy_error: null, updated_at: new Date().toISOString() }),
+      });
+      if (ra.ok) rearmed = (await ra.json()).length;
+      return res.status(200).json({ ok: true, map: (await r.json())[0], rearmed });
+    }
+
     /* ---- the copy worker's actions. Service token only (see SERVICE_ACTIONS). ----
        The copy itself happens on keith-agent-01: SharePoint needs the delegated credential, which
        deliberately does not exist on Vercel. Same split as everything else here — the API owns the
        STATE, the VM owns the WORK. */
+    /* WHAT FOLDERS EXIST is a statement about SharePoint, so only the machine holding the
+       SharePoint credential may make it (MACHINE_ONLY). Published as a whole set and reconciled
+       against what is stored: a folder that has been renamed or removed must LEAVE the picker,
+       otherwise she is offered a destination that no longer exists and the pin fails on the copy. */
+    if (action === 'job_folders_publish') {
+      const list = Array.isArray(body.folders) ? body.folders : null;
+      if (!list) return res.status(400).json({ error: 'folders[] is required.' });
+      if (!list.length) {
+        /* An empty publish would silently empty the picker, and the likeliest cause of one is a
+           broken index build rather than an RYC with no job folders. Refuse it. */
+        return res.status(400).json({ error: 'Refusing to publish an empty folder list.' });
+      }
+      const now = new Date().toISOString();
+      const rows = list.map(f => ({ company_id: 'ryc', folder: String(f), seen_at: now }));
+      const up = await sb('ryc_job_folders?on_conflict=company_id,folder', {
+        method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify(rows),
+      });
+      if (!up.ok) return res.status(502).json({ error: 'Could not publish the folder list.' });
+      const del = await sb(`ryc_job_folders?company_id=eq.ryc&seen_at=lt.${now}`, { method: 'DELETE' });
+      return res.status(200).json({ ok: true, published: rows.length, pruned: del.ok });
+    }
+
+    /* The filer's read of the override map. It runs on the VM and already talks to this API, so the
+       map lives here rather than in a file on one machine's disk that nothing could write. */
+    if (action === 'job_folder_map') {
+      const m = await sb('ryc_job_folder_map?company_id=eq.ryc&select=job_no,folder&limit=2000');
+      if (!m.ok) return res.status(502).json({ error: 'Could not read the folder map.' });
+      const out = {};
+      for (const r of await m.json()) out[r.job_no] = r.folder;
+      return res.status(200).json({ ok: true, map: out });
+    }
+
     if (action === 'doc_copy_claim') {
       /* Claim by PATCHing a row that is still claimable and letting PostgREST report what it
          actually changed, so two workers cannot both win. `copy_error` doubles as the lease: a

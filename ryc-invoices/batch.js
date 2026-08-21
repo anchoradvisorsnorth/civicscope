@@ -676,8 +676,16 @@ function reconRow(d){
   if(err){
     act += '<div class="sub m-r" style="margin-top:4px">' + reconWhy(err) + '</div>';
     if(!doneAt && !working){
-      act += '<button class="pfill" style="margin-top:4px" onclick="reconNoFile(' + invArg(d.id) + ')">'
-        + 'Resolve without filing</button>';
+      /* TWO REAL ANSWERS TO A REFUSAL, because there are two different reasons for one.
+         "Point at the folder" is for a job whose folder exists and simply does not resemble its
+         name. "Resolve without filing" is for a job that HAS no folder and never will — measured
+         2026-08-21, that is 30 of RYC's 53 active jobs. Offering only one of them would leave half
+         the refusals with no honest way out. */
+      act += '<div style="margin-top:4px">'
+        + '<button class="pfill" onclick="reconPickFolder(' + invArg(d.id) + ')">'
+        + 'Point at the folder</button> '
+        + '<button class="pfill" onclick="reconNoFile(' + invArg(d.id) + ')">'
+        + 'Resolve without filing</button></div>';
     }
   }
 
@@ -729,6 +737,81 @@ function reconWhy(err){
   }
   if(!say) return esc(raw.slice(0, 200));
   return say + ' <span class="sub">(' + esc(raw.slice(0, 160)) + ')</span>';
+}
+
+/* POINT AT THE FOLDER, AND THE SYSTEM REMEMBERS. Keith, 2026-08-21: *"the user should be able to
+   action it."*
+
+   `resolve_job_folder()` has always consulted a human-confirmed job -> folder map before any
+   scoring — and the file it read had never been created, so that override was reachable from
+   nowhere. This is its handle. The pin is by JOB, not by document: the next invoice for the same
+   job files without asking, which is the difference between fixing it and re-answering it monthly.
+
+   ⚠ IT OUTRANKS THE MATCHER'S SAFETY RULES, so the confirmation says so plainly and the row records
+   who set it. The list offered is only what the VM has actually seen in SharePoint — letting her
+   type a path would move the failure to the copy instead of ending it. */
+function reconPickFolder(id){
+  var d = reconDoc(id);
+  if(!d) return;
+  var sel = document.getElementById("rj_" + id);
+  var jobNo = sel ? sel.value : (d.job_no || "");
+  if(!jobNo || jobNo === "RYC-EXPENSE"){
+    alert("Choose the job first — the folder is remembered against the job, not this one invoice.");
+    return;
+  }
+  var t = (_recon.targets || []).filter(function(x){ return x.no === jobNo; })[0];
+  var jobLabel = t ? t.name : jobNo;
+
+  invPost("job_folders", {}).then(function(r){
+    if(!r.ok){ alert(r.error || "The folder list could not be read."); return; }
+    var folders = (r.data && r.data.folders) || [];
+    if(!folders.length){
+      alert("No SharePoint folders have been published yet.\n\nRun publish_job_folders.py on the VM.");
+      return;
+    }
+    /* A guess, offered as the default rather than applied: the folder whose name shares the most
+       with the job. She is confirming, not hunting through 77 lines. */
+    var guess = reconClosestFolder(jobLabel, folders);
+    var msg = "Which SharePoint folder is \"" + jobLabel + "\"?\n\n"
+      + "This is remembered for the job — every future invoice for it files here without asking, "
+      + "and it overrides the automatic matcher.\n\n"
+      + (r.data.as_of ? "Folder list published " + String(r.data.as_of).slice(0,10) + ".\n\n" : "")
+      + "Type or paste one of:\n" + folders.join("\n");
+    var pick = window.prompt(msg, guess || folders[0]);
+    if(pick === null) return;
+    pick = String(pick).trim();
+    if(!pick) return;
+
+    invPost("job_folder_pin", { job_no:jobNo, folder:pick, note:d.copy_error }).then(function(p){
+      if(!p.ok){ alert(p.error || "That folder could not be saved."); return; }
+      var n = (p.data && p.data.rearmed) || 0;
+      /* Say what it actually did. The pin is by job, so it can release invoices she is not looking
+         at, and a silent side effect on other rows is worse than a noisy one. */
+      alert(jobLabel + " will file to:\n" + pick
+        + (n ? "\n\n" + n + " invoice(s) for this job are filing now." : ""));
+      reconLoad(_recon.batchId);
+      if(n) reconPoll(10);
+    });
+  });
+}
+
+/* The best guess at which folder a job is, by shared words. Only ever a DEFAULT in the prompt —
+   nothing is pinned without a person accepting it. */
+function reconClosestFolder(jobName, folders){
+  var stop = { the:1, of:1, and:1, a:1, an:1, at:1, "in":1, on:1, "for":1, llc:1, inc:1, co:1,
+    project:1, phase:1, "new":1, addition:1, town:1, city:1, county:1, school:1 };
+  function words(s){
+    return String(s || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
+      .filter(function(w){ return w && !stop[w] && !/^\d+$/.test(w); });
+  }
+  var want = words(jobName), best = null, bestN = 0;
+  folders.forEach(function(f){
+    var have = words(f.indexOf("/") >= 0 ? f.slice(f.indexOf("/") + 1) : f);
+    var n = 0;
+    want.forEach(function(w){ if(have.indexOf(w) >= 0) n++; });
+    if(n > bestN){ bestN = n; best = f; }
+  });
+  return bestN ? best : null;
 }
 
 /* THE THIRD ENDING. Keith, 2026-08-21: *"We dont want a folder for Brad style projects - we just
