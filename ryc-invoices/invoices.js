@@ -231,11 +231,20 @@ function invLoad(){
   });
 }
 
+var INV_UNASSIGNED = "__unassigned__";
+
 /* ---- grouping: BY JOB, because that is how the day is actually thought about ---- */
 function invGroups(rows){
   var by = {}, order = [];
   rows.forEach(function(r){
-    var k = r.job_no || " none";
+    /* THE UNASSIGNED GROUP KEY. It was three literal NUL BYTES in the source until 2026-08-21
+       — `grep` reported this whole file as binary — and it only worked because all three
+       sites happened to carry the identical byte. One reformat, one copy-paste or one generator
+       pass and the comparisons below would stop matching, silently, and the unassigned group
+       would sort into the middle of the board. Third instance of that corruption class in this
+       module in three days. A plain sentinel cannot collide with a job number — they look like
+       "2515CO01" or "RYC-EXPENSE" — and it survives every editor. */
+    var k = r.job_no || INV_UNASSIGNED;
     if(!by[k]){ by[k] = { job:r.job_no, rows:[], total:0, open:0, hard:0 }; order.push(k); }
     by[k].rows.push(r);
     by[k].total += Number(r.amount) || 0;
@@ -244,8 +253,8 @@ function invGroups(rows){
   });
   // unassigned last — it is a worklist, not a job
   order.sort(function(a,b){
-    if(a === " none") return 1;
-    if(b === " none") return -1;
+    if(a === INV_UNASSIGNED) return 1;
+    if(b === INV_UNASSIGNED) return -1;
     return by[b].total - by[a].total;
   });
   return order.map(function(k){ return by[k]; });
