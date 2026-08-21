@@ -37,10 +37,20 @@
 //   * FREE > TOTAL. Well 1's tap on 7/9 reads free 0.77 / total 0.69, which is impossible. Caught
 //     here at the sink, while the sample is still in the operator's hand.
 //
-// SECURITY POSTURE. This repo is PUBLIC. The supply access code lives in Vercel env
-// (WATER_OPS_CODE) and never here; per-operator PINs live in Supabase and are never returned by
-// any action. If the code is not configured, every write action REFUSES — a missing credential
-// must fail closed, not open.
+// SECURITY POSTURE, STATED HONESTLY. This repo is PUBLIC, so no credential appears here: the
+// value behind WATER_OPS_CODE lives in Vercel env and per-operator PINs live in Supabase and are
+// returned by no action.
+//
+// ⛔ BUT THERE IS NO PLANT ACCESS CODE (Keith, 2026-08-21, asked directly whether Michelle holds
+// one: *"there is no plant access code"*). WATER_OPS_CODE is an environment variable, not
+// something any person at the village has ever been given. That makes it a credential only a
+// script can present, which is fine for administration and useless as a gate on the people who
+// operate the plant. Everything an operator does — entering a round, recording that a report was
+// filed — is therefore OPEN, and says so, rather than sitting behind a lock with no key.
+// This is the same judgement already made about the field PIN, which was enforced for exactly one
+// of four operators while implying every entry was authenticated. A gate that stops nobody but
+// the legitimate user is worse than no gate, because it reads as security.
+// Google sign-in is what actually closes this, for the crew's tablet and the OIC page at once.
 
 export const config = { maxDuration: 30 };
 
@@ -55,7 +65,7 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.1.0-waterops';
+export const VER = '1.2.0-waterops';
 
 import { derive, LBS_PER_MILLION_GALLONS } from '../civicscope-water/derive.js';
 export { derive };
@@ -315,9 +325,15 @@ export default async function handler(req, res) {
      that sits behind a report signed under 1976 PA 399. That is the same posture the village hub
      already describes in words ("open on this link for now") and the same one the OIC review page
      runs under. Google sign-in is what closes it, for both surfaces at once. */
-  const FIELD_ENTRY = new Set(['submit_reading', 'submit_dist', 'submit_bacti']);
-  if (!READ_ONLY.has(action) && !FIELD_ENTRY.has(action)) {
-    if (!OPS_CODE) return bad(res, 503, 'WATER_OPS_CODE is not configured — admin actions are disabled.');
+  /* `record_filing` is here too, since 2026-08-21. It was gated on the reasoning that recording a
+     filing "asserts something was submitted to a regulator" — true, and irrelevant once Keith
+     confirmed no such code exists for anyone to hold. Gated, it was unreachable by Michelle and by
+     everyone else, while the three actions above — which write the DATA a future report is built
+     from — stayed open. That is backwards: a filing is a statement about a document that has
+     already gone, and a reading is what flows into the next one. */
+  const OPERATOR_WRITES = new Set(['submit_reading', 'submit_dist', 'submit_bacti', 'record_filing']);
+  if (!READ_ONLY.has(action) && !OPERATOR_WRITES.has(action)) {
+    if (!OPS_CODE) return bad(res, 503, 'WATER_OPS_CODE is not configured — the admin actions are disabled.');
     if (body.code !== OPS_CODE) return bad(res, 403, 'Wrong access code.');
   }
 
@@ -348,7 +364,6 @@ export default async function handler(req, res) {
           sites: p.sites,
           operators: p.operators,
           doneToday: done || [],
-          writesEnabled: Boolean(OPS_CODE),
         });
       }
 
