@@ -1501,10 +1501,36 @@ export default async function handler(req, res) {
       try { dir = await jobDirectory(); } catch { /* handled by leaving the job unresolved */ }
       const idx = dir ? __matcher.tokenIndex(dir.jobs) : null;
 
+      /* ⛔ THE HINT STORE WAS WRITE-ONLY FROM THIS SIDE. Teaching it from the batch screen is only
+         half the fix — registration has to ASK it, or the front office answers the same three jobs
+         every week and watches the tool not learn. This is what makes "Ryan Fire Protection" arrive
+         already pointing at "Ryan Fire Prot - Valpo" the second time it is seen.
+
+         A HINT BEATS THE MATCHER, because a hint is a person's confirmed answer and the matcher is
+         a resemblance score. That is the same precedence the PM desk already uses. */
+      const hints = new Map();
+      try {
+        /* Normalisation stays in SQL, beside the store - migration 027. Rebuilding those
+           two regexes here is exactly how the desk-parity harness once went on asserting a
+           rule the product had already reversed. */
+        const hr = await sb('rpc/ryc_match_job_hints', {
+          method: 'POST',
+          body: JSON.stringify({ p_docs: docs.map((d, i) => ({
+            seq: parseInt(d.seq, 10) || (i + 1),
+            vendor: d.vendor || '', job_text: d.job_text || '' })) }),
+        });
+        if (hr.ok) for (const h of await hr.json()) hints.set(h.seq, h.job_no);
+      } catch { /* fall through to the matcher: an unreadable hint is not a wrong answer */ }
+
       const rows = docs.map((d, i) => {
         const seq = parseInt(d.seq, 10) || (i + 1);
         let job_no = null, job_name = null, job_source = null;
-        if (dir && idx && String(d.job_text || '').trim()) {
+        if (hints.has(seq)) {
+          job_no = hints.get(seq);
+          job_name = (dir && dir.names && dir.names[job_no]) || null;
+          job_source = 'hint';
+        }
+        if (!job_no && dir && idx && String(d.job_text || '').trim()) {
           const m = __matcher.matchJob(String(d.job_text), dir.jobs, idx, dir.foundationOnly);
           if (m && m.job) {
             job_no = m.job.no;
@@ -1626,7 +1652,11 @@ export default async function handler(req, res) {
       if (!r.ok) return res.status(502).json({ error: 'Could not record the reconciliation.' });
       const rows = await r.json();
       if (!rows.length) return res.status(409).json({ error: 'That document was reconciled a moment ago.' });
-      return res.status(200).json({ ok: true, document: rows[0], queued: !done });
+      /* Also taught on completion, because a row whose job the MATCHER got right is never touched
+         by `doc_update` — she just clicks Complete. Confirming a correct proposal is a
+         confirmation too, and it is what raises `confirmations` on a hint that already exists. */
+      const learned = expense ? null : await learnJobHint(rows[0], jobNo);
+      return res.status(200).json({ ok: true, document: rows[0], queued: !done, learned });
     }
 
     /* The master edit. Deliberately refused once a document is reconciled: the copy in the job
@@ -1675,7 +1705,14 @@ export default async function handler(req, res) {
       if (!r.ok) return res.status(502).json({ error: 'Could not update the document.' });
       const rows = await r.json();
       if (!rows.length) return res.status(409).json({ error: 'That document was reconciled a moment ago.' });
-      return res.status(200).json({ ok: true, document: rows[0] });
+      /* She picked a job for this printed text — that is the confirmation the hint store is built
+         from. Taught here, on the CHOICE, rather than on completion: a document she assigns and
+         then resolves without filing has still told us what that text means. */
+      let learned = null;
+      if (body.job_no !== undefined && patch.job_no) {
+        learned = await learnJobHint(rows[0], patch.job_no);
+      }
+      return res.status(200).json({ ok: true, document: rows[0], learned });
     }
 
     /* CORRECTING A RECONCILIATION IS NOT REPEATING ONE. Keith, 2026-08-19: *"the user should have
@@ -1788,6 +1825,35 @@ export default async function handler(req, res) {
        The picker offers only folders the VM has actually seen in SharePoint. Letting her type a
        path would let her name one that does not exist, and the failure would arrive later, on the
        copy, looking like a different problem. */
+    /* ⛔ THE FRONT OFFICE TAUGHT THIS TOOL FOR FIVE BATCHES AND IT LEARNED NOTHING.
+       Erica McIntosh, 2026-08-21: *"NP Tech/ New Paris, Ryan Fire Protection and Coldwater WWTP do
+       not show up with the job picked in the drop down. I noticed that the detail for the invoice
+       is showing that it is picking up the name in the invoice text."*
+
+       Her second sentence is the whole diagnosis: the job name IS printed on the invoice and IS
+       captured into `job_text` — the matcher just cannot turn "Ryan Fire Protection" into a job
+       named "Ryan Fire Prot - Valpo", or "NP TECH" into "NPTech Community Fiber".
+
+       `ryc_invoice_job_hints` is the product's own answer to exactly that, and it was wired to the
+       PM desk only. Measured the same day: 17 hints, all from 2026-08-11..13; Erica had reconciled
+       five batches since, every job chosen by hand, teaching it nothing. Same shape as the
+       job-folder override fixed hours earlier — a learning store reachable from one of the two
+       surfaces that need it.
+
+       Teaching NEVER blocks the assignment: a hint that fails to save must not stop an invoice
+       being filed. It is an optimisation for next time, not part of this decision. */
+    async function learnJobHint(doc, jobNo) {
+      try {
+        if (!doc || !doc.vendor || !doc.job_text || !jobNo) return null;
+        const r = await sb('rpc/ryc_learn_job_hint', {
+          method: 'POST',
+          body: JSON.stringify({ p_vendor: doc.vendor, p_job_text: doc.job_text, p_job_no: jobNo,
+            p_actor: who.via === 'admin' ? 'admin' : 'front office' }),
+        });
+        return r.ok ? await r.json() : null;
+      } catch { return null; }
+    }
+
     if (action === 'job_folders') {
       if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
       const f = await sb('ryc_job_folders?company_id=eq.ryc&select=folder,seen_at&order=folder.asc&limit=2000');

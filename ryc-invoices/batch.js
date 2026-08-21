@@ -635,10 +635,14 @@ function reconRow(d){
     job = '<select id="rj_' + esc(d.id) + '" class="pfill" style="max-width:260px"'
       + (working ? ' disabled' : '') + ' onchange="reconRelabel(' + invArg(d.id) + ')">'
       + opts + '</select>'
+      /* WHY a job is already selected, because "matched" and "someone taught me this" are
+         different levels of evidence and she should be able to tell them apart at a glance. */
       + (d.job_stage_error
           ? '<div class="sub m-r">' + esc(d.job_stage_error) + '</div>'
-          : (d.job_source === "matched" && d.job_no
-              ? '<div class="sub">read off the invoice &mdash; confirm or change it</div>' : ''));
+          : (d.job_no && d.job_source === "hint"
+              ? '<div class="sub">you told the system this one before &mdash; confirm or change it</div>'
+              : (d.job_source === "matched" && d.job_no
+                  ? '<div class="sub">read off the invoice &mdash; confirm or change it</div>' : '')));
   }
 
   /* ⛔ THE ROW IS ORDERED BY THE WORK, NOT BY THE DATA (Keith, 2026-08-20, after running a batch
