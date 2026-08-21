@@ -283,9 +283,29 @@ function batchPaint(){
       h += '<div class="sub">Read as ' + rr.read + ' document(s), reconciled to ' + f.files
         + ' before filing.</div>';
     }
+    /* ⛔ THIS BANNER USED TO ASSERT A CORRECTION THAT HAD BEEN THROWN AWAY (fixed 2026-08-21).
+       `settle_pay_app_amounts()` rewrote a pay application's amount from the form's arithmetic, the
+       vision adjudicator then overwrote it again, and this line went on announcing the correction
+       as applied — so the screen reported one number while the archive carried another. The
+       adjudicator no longer overrules a settled amount, and this line now distinguishes an amount
+       that was CHANGED from one that was merely measured. A count is not a claim about what shipped
+       unless it says which it is. */
     if((rr.pay_app_amounts || []).length){
-      h += '<div class="sub m-a">' + rr.pay_app_amounts.length
-        + ' pay application amount(s) corrected from the form&rsquo;s own arithmetic.</div>';
+      var changed = rr.pay_app_amounts.filter(function(p){
+        return p.was === null || p.was === undefined || Math.abs(Number(p.now) - Number(p.was)) >= 0.005;
+      });
+      var billed = rr.pay_app_amounts.filter(function(p){
+        return p.work_this_period !== null && p.work_this_period !== undefined
+          && Math.abs(Number(p.work_this_period) - Number(p.now)) >= 0.005;
+      });
+      if(changed.length){
+        h += '<div class="sub m-a">' + changed.length
+          + ' pay application amount(s) corrected from the form&rsquo;s own arithmetic.</div>';
+      }
+      if(billed.length){
+        h += '<div class="sub">' + billed.length + ' pay application(s) billed more this period '
+          + 'than is due after retainage &mdash; the amount shown is the payment due.</div>';
+      }
     }
   }
   el.innerHTML = h + '</div>' + (j.status === "proposed" ? batchConfirmPanel(j) : "")

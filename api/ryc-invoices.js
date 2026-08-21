@@ -211,16 +211,29 @@ Each document:
   "job_splits": [ { "job_text": ..., "amount": <number> } ],
   "notes": <anything a reviewer should see: overbilling summary, missing pages, hand-written marks>,
 
-  "pay_app": null, OR — only when doc_type is "pay_application" — the three figures below, read off
-  the application face sheet EXACTLY as printed. They are what make the payable checkable:
+  "pay_app": null, OR — only when doc_type is "pay_application" — the figures below, read off THIS
+  DOCUMENT and nothing else. Every one of them is optional: null is always a valid answer and is
+  ALWAYS better than a number you are not reading off this page.
   {
-    "current_payment_due": <number>,   the money owed for THIS period. Labelled "CURRENT PAYMENT DUE",
-                                       "AMOUNT DUE THIS APPLICATION", "TOTAL DUE THIS APPLICATION" or
-                                       "PAYMENT DUE" — normally line 8 on a G702-style form.
+    "current_payment_due": <number|null>,  the money that will actually be paid on this application,
+                                       AFTER retainage and after previous payments. Labelled
+                                       "CURRENT PAYMENT DUE", "AMOUNT DUE THIS APPLICATION",
+                                       "TOTAL DUE THIS APPLICATION" or "PAYMENT DUE" — usually
+                                       line 8 on a G702-style face sheet.
+    "work_this_period": <number|null>, the value of work BILLED THIS PERIOD, before retainage.
+                                       This is NOT on the G702 face sheet — it is the GRAND TOTAL of
+                                       the "WORK COMPLETED THIS PERIOD" column on the G703
+                                       continuation sheet (column E, the total row at the bottom),
+                                       or a line labelled "WORK COMPLETED THIS PERIOD" /
+                                       "THIS PERIOD" / "COMPLETED THIS PERIOD". Read the
+                                       continuation sheet to get it. null if this document has no
+                                       continuation sheet.
     "eligible_to_date": <number|null>, "AMOUNT ELIGIBLE TO DATE" / "TOTAL EARNED LESS RETAINAGE"
                                        (line 6). null if the form does not show it.
-    "less_previous": <number|null>     "LESS PREVIOUS PAYMENTS" / "LESS PREVIOUS CERTIFICATES FOR
+    "less_previous": <number|null>,    "LESS PREVIOUS PAYMENTS" / "LESS PREVIOUS CERTIFICATES FOR
                                        PAYMENT" (line 7). null if the form does not show it.
+    "completed_to_date": <number|null>,"TOTAL COMPLETED AND STORED TO DATE" (line 4, column G).
+    "retainage": <number|null>         total retainage held (line 5). null if not shown.
   }
 }
 
@@ -235,18 +248,31 @@ RULES
 - Set vendor_marked_dup only for a DOCUMENT marker, never for the word appearing in line items.
 - amount is the document's grand total, not a subtotal or a page continuation.
 
-- ⛔ A PAY APPLICATION'S "amount" IS THE MONEY DUE THIS PERIOD — never the contract, never the
-  running total. On one real application the face sheet carries $537,076.61 (current contract),
-  $483,017.31 (completed to date), $458,866.44 (eligible to date), $430,578.67 (previous payments)
-  and $28,287.77 (due this application). Only the LAST of those is a bill; the rest are the story
-  of the job so far, and RYC has already paid most of it. Take "amount" from the same line as
-  "pay_app.current_payment_due".
-  NEVER take it from: original or current contract sum · total completed and stored to date ·
-  amount eligible to date · less previous payments · balance to finish · retainage · a continuation
-  sheet's running column · a hand-typed "billed to date" summary stapled behind the application.
-- Fill "pay_app.eligible_to_date" and "pay_app.less_previous" whenever the form prints them, even
-  though they are not the payable. Their difference must equal the amount due, so they are how a
-  misread digit gets caught — and a misread digit in an amount becomes a filename and then an
+- ⛔ NEVER COPY A NUMBER OUT OF THESE INSTRUCTIONS. Every figure you return must be one you are
+  reading off the pages in front of you. This rule exists because it has already been broken: on
+  2026-08-21 a Niblock Excavating pay application came back carrying `eligible_to_date` 458866.44
+  and `less_previous` 430578.67 — the two figures that used to appear in this prompt as a worked
+  example from a DIFFERENT vendor's document. They were not on the Niblock form. Downstream
+  arithmetic then "verified" the payable against them and reported high confidence in a number that
+  came from the instructions rather than from the invoice. There are now no example amounts here at
+  all. If you cannot read a figure off this document, return null.
+
+- ⛔ A PAY APPLICATION'S FACE SHEET CARRIES SEVERAL LARGE NUMBERS AND MOST OF THEM ARE NOT A BILL.
+  The contract sum, the total completed and stored to date, the amount eligible to date and the
+  previous payments are the story of the job so far — RYC has already paid most of that. Two
+  figures describe THIS application and you must keep them apart and never swap them:
+    * "work_this_period"      what was billed this period, BEFORE retainage (G703 column E total)
+    * "current_payment_due"   what will be paid, AFTER retainage and previous payments (line 8)
+  Set "amount" to "current_payment_due" when you can read it, otherwise leave "amount" null rather
+  than substituting a to-date figure.
+  NEVER take "amount" from: original or current contract sum · total completed and stored to date ·
+  amount eligible to date · total earned less retainage · less previous payments · balance to
+  finish · retainage · a hand-typed "billed to date" summary stapled behind the application.
+  ⚠ "TOTAL EARNED LESS RETAINAGE" (line 6) is a TO-DATE figure and is the most common wrong answer,
+  because the words "less retainage" make it look like a net payment. It is not. Line 8 is.
+- Fill every other figure whenever the form prints it, even though it is not the payable. Line 6
+  minus line 7 must equal line 8, and column E minus retainage-this-period must reconcile too, so
+  they are how a misread digit gets caught — and a misread digit becomes a filename and then an
   archive entry that nobody re-checks.
 - If a field is not legible or not present, use null. Do not guess.`;
 
