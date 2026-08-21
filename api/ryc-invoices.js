@@ -250,8 +250,8 @@ RULES
 
 - ⛔ NEVER COPY A NUMBER OUT OF THESE INSTRUCTIONS. Every figure you return must be one you are
   reading off the pages in front of you. This rule exists because it has already been broken: on
-  2026-08-21 a Niblock Excavating pay application came back carrying `eligible_to_date` 458866.44
-  and `less_previous` 430578.67 — the two figures that used to appear in this prompt as a worked
+  2026-08-21 a Niblock Excavating pay application came back carrying "eligible_to_date" 458866.44
+  and "less_previous" 430578.67 — the two figures that used to appear in this prompt as a worked
   example from a DIFFERENT vendor's document. They were not on the Niblock form. Downstream
   arithmetic then "verified" the payable against them and reported high confidence in a number that
   came from the instructions rather than from the invoice. There are now no example amounts here at
