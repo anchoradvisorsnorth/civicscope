@@ -442,6 +442,70 @@ plausible answer assembled from general knowledge of municipal law is the worst 
 could produce. Those zero-hit questions are logged to `muni_questions` and are the village's own
 "what can't we answer" list.
 
+### ⚠ `muni_docs` / `muni_chunks` HAVE A SECOND WRITER (2026-08-20)
+
+`scripts/ingest-boarddocs-policies.mjs` writes **school district board policy manuals** into the
+same four tables, for FundView (`FundView\CLAUDE.md` → District Policy Corpus). Source is BoardDocs,
+not Drive; the content arrives as text, so **no PDF, no OCR, no Anthropic spend**. Read this before
+touching anything `muni_*`:
+
+- **The chunker now lives in `scripts/lib/muni-corpus-lib.mjs` and is imported by BOTH ingesters.**
+  `chunk()`, `headingOf()`, `looksLikeTitle()` and `sb()` moved there verbatim; the move was proved
+  by diffing fixture output before and after. **Change chunking in that file only.** Two ingesters
+  chunking by two copies of the same rule is how one corpus silently drifts from the other while
+  `muni_search()` ranks them against each other as equals — the same argument as
+  `civicscope-water/derive.js` and `pool/scoring.js`.
+- **`muni_tenants` now holds two kinds of row.** Villages (`centreville`) are products. School
+  districts (`sd-jgsc`, `sd-unusc`, …) are an **internal research corpus and are always
+  `active=false`** — `api/muni-ask.js` refuses them server-side and no `vercel.json` route points at
+  an `sd-*` slug. Flipping one active would publish a school district's policy manual under
+  CivicScope's name. Do not do it as a side effect of anything.
+- **`drive_id` is the generic external key**, as its own column comment says. For a BoardDocs row it
+  holds the policy id (`BD2RD6622C3F`). Misnamed for that source, not misused — do not "fix" it with
+  a rename; the unique index `(tenant, drive_id)` is the re-run key for both ingesters.
+- **Migrations `018`–`021` govern policy-book ranking** in `muni_search()`: Policy Manual 1.60
+  (adopted authority, same standing as a Code of Ordinances) · Administrative Guideline Manual 1.25
+  · Forms Manual 0.45 · **plus a sort tier putting Forms Manual below every other collection that
+  matched**. The village weights are unchanged — Centreville's rankings are byte-identical to their
+  pre-018 baseline — and every `.verify.sql` asserts **all sets**, because the way these migrations
+  fail is by rewriting the whole function and silently dropping Centreville's ranking while adding
+  the new arms. `021` also writes the entire ranking contract onto the function as a comment, so
+  it is visible to whoever is debugging a bad answer.
+- 🚨 **NO MULTIPLIER COULD FIX THIS, AND TWO MIGRATIONS TRIED — `020` MADE IT A SORT TIER.**
+  A BoardDocs "Forms Manual" entry is not a document: it is ONE stub per section listing every form
+  *title* in that section. That makes it a short chunk which is almost entirely search terms, so
+  `ts_rank_cd` scores it far above real prose discussing the same subject in paragraphs.
+  `018` set 0.85 → jgsc's "payroll authorization" returned the form index at **0.779**, above
+  `ag6510B PAYROLL AUTHORIZATION` (0.663) and above the adopted `po6510` (0.640). `019` cut it to
+  0.45, which fixed jgsc → then sbcsc's "field trip request" put the form index (0.2052) above
+  `ag2340A FIELD TRIP GUIDELINES` (0.1250) anyway. Back the weights out and the stub's RAW lexical
+  rank is **2.3× a real policy's on jgsc and 4.6× on sbcsc** — the ratio scales with how many form
+  titles a section happens to hold, so there is no constant that cancels it. `020` stopped picking
+  numbers: Forms Manual gets its own **sort tier**, below every other collection that matched,
+  whatever its rank, in **both** the strict and OR-fallback passes. Demoted, not removed — "which
+  form do I use?" is a fair question and the stub is the right answer to it.
+  **When a weight is meant to change an ordering, verify the ordering — and if what you are
+  cancelling has no bound, a coefficient is the wrong instrument.**
+- ⚠ **The gate that should have caught it was green, vacuously.** Its head-to-head check searched a
+  term with no Forms Manual hit and reported *"nothing to compare"* as a **pass**. It now probes
+  five terms, judges every genuine head-to-head, and **fails when a corpus that HAS a Forms Manual
+  yields none** — while correctly reporting N/A for a district like `phm` that has no Forms Manual
+  at all. A check that cannot locate its own subject has verified nothing, and calling that a pass
+  is how it rots back into a green tick.
+- ⚠ **A `.verify.sql`'s SHAPE decides whether it can protect anything.** `db-migrate.js` embeds a
+  verification in the migration's own transaction **only when it starts with `select`**
+  (`embeddableVerify()`); anything else silently degrades to a post-commit check that cannot roll
+  the migration back. `020`'s first verify opened with `with src as (...)` and also carried a paren
+  bug, so a correct migration went live wearing a failed-verification flag. `021` re-asserts it
+  in-transaction. **`020`'s ledger row still reads "verify FAILED" deliberately** — it records what
+  actually happened, and tidying that away is worse than a true blemish with an explanation beside
+  it. Never open a verify file with a CTE.
+- **Gate: `node scripts/verify-boarddocs-corpus.mjs` → `BOARDDOCS-CORPUS-COMPLETE`**, exit 0/2/3
+  (3 = could not verify, never a false red). Its offline half needs no credential and no network.
+  It pins the two defects that shipped and were caught by reading the output rather than the exit
+  code: the metadata table leaking into every policy body, and two-column tables flattening into
+  orphan lines — **the same failure that lost the Centreville zoning setback grid.**
+
 ---
 
 ## Water Plant Daily Log (`/water`) — NEW 2026-08-18
@@ -576,6 +640,62 @@ what we say the State of Michigan was told.
 already on file with different bytes unless `--correction-reason` is given, and reads every month
 back through the live API to print the comparison rather than trusting its own writes.
 
+### Michelle generates the MOR herself — `api/build-mor.py` (NEW 2026-08-21)
+
+The generator ran as `scripts/build-mor.py` on Keith's laptop from the day it was written, which
+meant **the person legally required to sign the report could not produce it.** Every other gap on
+the OIC side was a view she could not see; this one was a capability she did not have.
+
+It is now a **Vercel Python function** — the only Python route in this project. Node cannot fill
+EGLE's form: the template is Excel-encrypted, its white cells are ~1,990 formulas, and it is print
+laid-out, so it has to be *filled* rather than rebuilt, which needs xlrd/xlwt/xlutils/msoffcrypto.
+SheetJS community strips styles on write, and a state form that loses its formatting is not the
+form. Proven before it was trusted: a branch build confirmed Vercel resolves Python 3.12 and
+installs all four libraries without disturbing the Node build.
+
+⛔ **`api/build-mor.py` IS THE ONLY COPY OF THE FILL LOGIC.** `scripts/build-mor.py` is now a thin
+client that posts to it and saves the bytes; its `--template` argument is gone. Two copies of this
+rule on two machines is the same defect the whole product exists to remove. **Byte-for-byte
+identical output** — the July 2026 workbook produced by the old script, by the function locally,
+by production, and by the browser download all share one SHA256; 6,578 cells compared, zero value,
+style or merge differences.
+
+**The template is data (migration 022).** `water_supplies.mor_template` keys into the private
+`water-mor-templates` bucket, which holds the blank workbook and the formula map extracted from
+that same file, paired under a manifest so they can never be resolved independently. A Class C
+supply, or another state, is a key and a column value — never a branch in the generator.
+Upload with `scripts/upload-mor-template.mjs`.
+
+**Read-only by construction, and generating is not filing.** It reads a month through the ungated
+`month` action and the template out of storage; it writes nothing. What Michelle sends EGLE is the
+file *after* she adds her Cover comments — she writes them every month — so no draft is kept, and
+the filed copy is recorded from the bytes she actually sent.
+
+**`GET /api/build-mor` is a selftest, and it is the route's API contract.** It proves the Python
+runtime, all four libraries, and that the stored template is present and decryptable, while
+reading no plant data. Built at the moment the route was written rather than months later — the
+lesson `api/pool-sms.js` taught in August.
+
+### ⛔ THERE IS NO PLANT ACCESS CODE (Keith, 2026-08-21)
+
+Asked directly whether Michelle holds one: *"there is no plant access code."* `WATER_OPS_CODE` is
+an environment variable, not something any person at the village has been given.
+
+That makes it a credential only a script can present — fine for administration, useless as a gate
+on the people who operate the plant. Gated, `record_filing` was unreachable by **Michelle and by
+everyone else**, while the three actions that write the *data* a future report is built from stayed
+open. Backwards: a filing is a statement about a document that already went; a reading is what
+flows into the next one. **`record_filing` is now an open operator action** (`1.2.0-waterops`), and
+`profile` no longer returns `writesEnabled` — a flag derived from a code that governed nothing the
+tablet does.
+
+Same judgement already made about the field PIN, which was enforced for exactly one of four
+operators while implying every entry was authenticated. **A gate that stops nobody but the
+legitimate user is worse than no gate, because it reads as security.** `add_operator` and
+`set_active` stay gated: they change who the record can be attributed to and whether the supply is
+live, they are never field tasks, and only a script ever performs them. Google sign-in is what
+actually closes this, for both surfaces at once.
+
 **Known gaps, deliberately:**
 - ✅ **Service worker and bacti capture shipped 2026-08-18** (network-first on purpose — a
   cache-first shell could pin an old `derive.js` and make the screen and the filed record
@@ -635,11 +755,19 @@ back through the live API to print the comparison rather than trusting its own w
   replacement.
 - 🚨 **August 2026 is still being written on paper.** The tablet is live and nobody is using it;
   every day that runs is another day that has to be backfilled.
-- **Michelle still cannot produce the MOR from `/water/review`.** It remains `scripts/build-mor.py`
-  on Keith's machine. Now that a filing is a first-class record, the pairing the page has always
-  described is buildable: **the same action that generates the workbook records that it was filed**
-  (`record_filing` already accepts `source:'product'`, and nothing writes it yet — so the first one
-  generated here will be distinguishable from the seven that came before it).
+- ✅ **Michelle generates the MOR from `/water/review` (2026-08-21)** — `api/build-mor.py`, output
+  byte-identical to the laptop generator. See **Michelle generates the MOR herself** above.
+- **"Mark as filed" is the last step of the loop, and it is HALF BUILT.** `record_filing` is open
+  and working (it took all seven 2026 workbooks), but nothing on the page reaches it, so recording
+  a filing still needs a script. Remaining: an `extract` action on `api/build-mor.py` returning
+  `{cover, filed}` from an uploaded workbook — the EGLE cell map must move there rather than being
+  copied, since `api/water-ops.js` is Node and cannot read a .xls — then an upload + date control
+  in the Reports filed panel. `record_filing` already accepts `source:'product'`, and nothing writes
+  it yet, so the first report filed from here stays distinguishable from the seven that came before.
+- **The crew tablet shows validation errors before anything is typed.** Opening a well greets the
+  operator with *"Meter reading is required. Sodium hypochlorite 12.5% tank level is required.
+  Aquadine tank level is required."* — three red-flavoured lines for someone who has done nothing
+  wrong, in a one-handed app used in a concrete room. Suppress until first input or first submit.
 - **`Civicscope/scripts/` is gitignored except narrow re-includes**, so the water gate, the
   backfill, the MOR generator and their fixtures are not under version control. Same one-line
   decision as `migrations/` — they are secret-free by inspection.
