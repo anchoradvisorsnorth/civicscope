@@ -162,7 +162,13 @@ async function load(){
     const state=sc?sc.state:'pre';
     const stTxt=state==='post'?'FINAL':(state==='in'?(sc.detail||'LIVE'):fmtDT(g.date));
     const stCls=state==='post'?'post':(state==='in'?'in':'pre');
-    return '<div class="g"><div class="m"><b>'+esc(g.short)+'</b><span>'+esc(marketLabel(g))
+    /* NAME THE LEAGUE (2026-08-21). This card dropped it, which was survivable while games sat in
+       slate order — the commissioner loads NFL and college separately, so they arrived grouped.
+       boardOrder interleaves them by time, so on a mixed week a college game and a pro game can
+       now sit next to each other with nothing to tell them apart but the abbreviations, and those
+       are NOT unique across the two (CIN, BUF, MIA, HOU are the same string in both). The full
+       board has always labelled every row; this brings the tracker into line. */
+    return '<div class="g"><div class="m"><b>'+esc(g.short)+'</b><span>'+esc(marketLabel(g))+' · '+g.league.toUpperCase()
       +(cov?' · '+(cov==='PUSH'?'push':esc(cov)+' wins it'):'')+'</span></div>'
       +'<div class="sc">'+(sc?(esc(g.awayAbbrev)+' '+sc.awayScore+' — '+esc(g.homeAbbrev)+' '+sc.homeScore):'&nbsp;')+'</div>'
       +'<div class="st '+stCls+'">'+esc(stTxt)+'</div></div>';
