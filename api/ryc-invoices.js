@@ -1523,6 +1523,12 @@ export default async function handler(req, res) {
           invoice_no: d.invoice_no || null,
           amount: (d.amount === null || d.amount === undefined || d.amount === '')
             ? null : Number(d.amount),
+          /* Pay applications only: what was billed THIS period, before retainage (G703 column E).
+             It is NOT the payable — `amount` is — but it is the figure the office actually watches,
+             and the reader was already reading it off the continuation sheet and dropping it into
+             free text where nothing could use it. See migration 024. */
+          work_this_period: (d.work_this_period === null || d.work_this_period === undefined
+            || d.work_this_period === '') ? null : Number(d.work_this_period),
           job_text: d.job_text || null,
           job_no, job_name, job_source,
         };

@@ -573,10 +573,24 @@ function reconRender(){
 }
 
 function reconGroup(title, docs){
-  var total = 0;
-  docs.forEach(function(d){ total += Number(d.amount || 0); });
+  var total = 0, period = 0, anyPeriod = false;
+  docs.forEach(function(d){
+    total += Number(d.amount || 0);
+    /* Falls back to the payable so the two totals are comparable. Summing only the documents that
+       happen to carry a this-period figure would produce a smaller number that looks like a
+       smaller bill rather than a partial count. */
+    if(d.work_this_period !== null && d.work_this_period !== undefined){
+      anyPeriod = true;
+      period += Number(d.work_this_period);
+    } else {
+      period += Number(d.amount || 0);
+    }
+  });
   var h = '<div style="margin-top:14px"><b>' + esc(title) + '</b> <span class="sub">'
-    + docs.length + ' &middot; ' + fmt(total) + '</span></div>'
+    + docs.length + ' &middot; ' + fmt(total)
+    + (anyPeriod && Math.abs(period - total) >= 0.005
+        ? ' due &middot; ' + fmt(period) + ' billed this period' : '')
+    + '</span></div>'
     + '<table class="t" style="margin-top:6px"><tbody>';
   docs.forEach(function(d){ h += reconRow(d); });
   return h + '</tbody></table>';
@@ -709,8 +723,24 @@ function reconRow(d){
     }
   }
 
+  /* THE TWO FIGURES ON A PAY APPLICATION, BOTH SHOWN, EACH LABELLED (Keith, 2026-08-21):
+     *"the office is concerned about the amount billed during this period."* That is the G703
+     column E grand total, and it is NOT what will be paid — retainage and previous payments sit
+     between them. Showing one number and calling it "the amount" is how a reader assumes the other
+     one. Only rendered when they actually differ, so an application with no retainage does not
+     grow a second line saying the same thing twice. */
+  var amountCell = fmt(d.amount);
+  var period = d.work_this_period;
+  if(period !== null && period !== undefined
+     && Math.abs(Number(period) - Number(d.amount || 0)) >= 0.005){
+    amountCell = '<div>' + fmt(d.amount) + '</div>'
+      + '<div class="sub">due after retainage</div>'
+      + '<div style="margin-top:3px">' + fmt(period) + '</div>'
+      + '<div class="sub">billed this period</div>';
+  }
+
   return '<tr><td>' + name + '</td>'
-    + '<td class="r" style="width:110px">' + fmt(d.amount) + '</td>'
+    + '<td class="r" style="width:110px">' + amountCell + '</td>'
     + '<td style="width:120px">' + view + '</td>'
     + '<td style="width:300px">' + job + '</td>'
     + '<td style="width:120px">' + rename + '</td>'
