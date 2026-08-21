@@ -74,12 +74,25 @@ function renderBatch(){
   batchLoadRecent();
 }
 
+/* Two refreshes can be in flight at once — Dismiss fires one per click, and the front office
+   clicks Dismiss twice in a row. Responses are not ordered, so the FIRST reply can land last and
+   repaint a row that has already been dismissed. The row then sits there looking undismissed
+   until a manual reload. Seen live 2026-08-20: two batches dismissed, one kept painting until
+   refresh. A sequence token means only the newest answer is allowed to draw. */
+var _batchRecentSeq = 0;
+
 function batchLoadRecent(){
+  var seq = ++_batchRecentSeq;
   invPost("batch_status", {}).then(function(r){
     var el = document.getElementById("batchRecent");
+    if(seq !== _batchRecentSeq) return;       // a newer refresh already answered
     if(!r.ok || !r.data.jobs) return;
     _batch.recent = r.data.jobs;              // the twin check in the confirm panel reads this
-    if(!el || !r.data.jobs.length) return;
+    if(!el) return;
+    /* ⛔ EMPTY MUST REPAINT, NOT RETURN. This used to bail out when the list came back empty,
+       leaving the PREVIOUS list painted — so dismissing the last batch left it on screen looking
+       exactly like a batch that had not been dismissed. "Nothing to show" is a state to draw. */
+    if(!r.data.jobs.length){ el.innerHTML = ""; return; }
     /* COMPLETE BATCHES ARE SET ASIDE, NOT MIXED IN (Keith, 2026-08-20). `reconciled` comes from
        the API so the page never re-derives what "done" means. Outstanding first — that is the
        work; finished ones sit below under their own heading so the board reads as a queue
