@@ -48,18 +48,70 @@
   .champ .ct{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold)}
   .champ .cn{font-size:24px;font-weight:900;margin-top:2px}
   .tblwrap{overflow-x:auto}
+  .printonly{display:none}
+
+  /* ─── PRINT (Mike, via Keith 2026-08-21: "the commissioner wants the ability to print") ───
+     The board is the thing worth putting on paper — every player's card, every result, one page.
+     Printing it before this produced a mess, and one fault was fatal rather than cosmetic:
+     .tblwrap is `overflow-x:auto`, and a horizontally-scrolling box PRINTS ONLY WHAT IS VISIBLE.
+     On a phone-width or narrow window that silently drops the right-hand player columns — a
+     printout that looks complete and is missing people. It must be `visible` on paper.
+     Everything else here is the ordinary work: kill the chrome that means nothing on paper
+     (nav, gradient header, Refresh, the week dropdown), put the week's identity back with a
+     printed heading that says WHICH week and WHEN it was printed, repeat the header row across
+     pages, and never split a game across a page break. */
+  @media print{
+    @page{size:landscape;margin:12mm}
+    :root{--bg:#fff}
+    body{background:#fff;color:#000;font-size:11px}
+    .navstrip,header,.btn,.section-title select,#status{display:none !important}
+    .printonly{display:block}
+    main{max-width:none;margin:0;padding:0}
+    /* ⛔ THE ONE THAT ACTUALLY LOSES DATA — see above. */
+    .tblwrap{overflow:visible !important}
+    .card{border:1px solid #333;border-radius:0;break-inside:auto}
+    table{font-size:10.5px}
+    td,th{padding:5px 7px}
+    thead{display:table-header-group}          /* the header row repeats on every page */
+    tr{break-inside:avoid;page-break-inside:avoid}
+    th{color:#000;border-bottom:1.5px solid #000}
+    tbody tr{border-bottom:1px solid #bbb}
+    .section-title{color:#000;margin:14px 0 6px;display:block}
+    /* The week's own section title repeats what the printed heading already says, and on paper
+       there is no dropdown left in it to justify the row. The Season standings title stays. */
+    #content .section-title{display:none}
+    /* Keep the win/loss/push tints if the printer will do it, AND give every chip a border so a
+       black-and-white printout is still readable — the ✓ ✗ ½ glyphs carry the meaning either way. */
+    .pk{-webkit-print-color-adjust:exact;print-color-adjust:exact;border:1px solid #b0b8c4;min-width:38px}
+    .pk.w{border-color:var(--win)} .pk.l{border-color:var(--red)} .pk.p{border-color:var(--push)}
+    .lead{background:none !important}
+    .champ{background:#fff !important;color:#000 !important;border:2px solid #000;border-radius:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .champ .ct{color:#000}
+    .note{background:#fff;border:1px solid #666;border-radius:0;padding:8px 10px;font-size:11px}
+    #foot{font-size:9.5px;color:#333;margin-top:10px}
+    a{color:#000;text-decoration:none}
+  }
+  .phead h2{margin:0;font-size:19px}
+  .phead .pmeta{font-size:11px;color:#333;margin-top:3px}
+  .phead{border-bottom:2px solid #000;padding-bottom:7px;margin-bottom:10px}
 </style>
 </head>
 <body>
-<div style="background:#08192e;font-family:-apple-system,'Segoe UI',Arial,sans-serif;font-size:13px;padding:8px 18px;display:flex;gap:18px;align-items:center"><a href="/pool" style="color:#fff;font-weight:800;text-decoration:none">🏆 The Pool</a><a href="/pool/golf" style="color:#b9c6da;text-decoration:none">Golf</a><a href="/pool/football" style="color:#b9c6da;text-decoration:none">Football</a><a href="/pool/live" style="color:#c8a24b;font-weight:700;text-decoration:none">Live</a></div>
+<div class="navstrip" style="background:#08192e;font-family:-apple-system,'Segoe UI',Arial,sans-serif;font-size:13px;padding:8px 18px;display:flex;gap:18px;align-items:center"><a href="/pool" style="color:#fff;font-weight:800;text-decoration:none">🏆 The Pool</a><a href="/pool/golf" style="color:#b9c6da;text-decoration:none">Golf</a><a href="/pool/football" style="color:#b9c6da;text-decoration:none">Football</a><a href="/pool/live" style="color:#c8a24b;font-weight:700;text-decoration:none">Live</a></div>
 <header><div class="wrap htop">
   <h1>🏈 The Football Pool<span class="sub">Winners against the spread · weekly champion</span></h1>
   <div>
     <div class="status" id="status">Loading…</div>
-    <div style="text-align:right;margin-top:8px"><button class="btn" onclick="load()">Refresh</button></div>
+    <div style="text-align:right;margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="printBoard()" title="Print this week's board">🖨 Print</button>
+      <button class="btn" onclick="load()">Refresh</button>
+    </div>
   </div>
 </div></header>
 <main>
+  <!-- Paper has no header bar, no tab title and no URL. A printed board with no week name on it
+       is an anonymous grid of abbreviations — this is what makes it a record. -->
+  <div class="printonly phead" id="printhead"></div>
   <div id="content"><div class="note">Loading the pool…</div></div>
   <div class="section-title">Season standings — weekly wins</div>
   <div class="card tblwrap" id="season"></div>
@@ -142,12 +194,12 @@ async function renderWeek(slug){
         (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
     }
     html+='<div class="card tblwrap"><table><thead><tr><th>Game</th><th>Kickoff</th><th>Frozen line</th></tr></thead><tbody>'+
-      games.map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td>'+fmtDT(g.date)+'</td><td style="font-weight:800;color:var(--green)">'+esc(marketLabel(g))+'</td></tr>').join('')+
+      boardOrder(games,{}).map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td>'+fmtDT(g.date)+'</td><td style="font-weight:800;color:var(--green)">'+esc(marketLabel(g))+'</td></tr>').join('')+
       '</tbody></table></div>';
   } else if(players.length){
     html+='<div class="card tblwrap"><table><thead><tr><th>Game · frozen line</th><th>Score</th>'+
       ranked.map(p=>'<th class="num">'+esc(nameOf(p))+'</th>').join('')+'</tr></thead><tbody>';
-    for(const g of games){
+    for(const g of boardOrder(games,scores)){
       const sc=scoreFor(g,scores);
       const st=!sc?'<span class="gsub">'+fmtDT(g.date)+'</span>':sc.state==='post'?'<span class="final">'+sc.awayScore+'–'+sc.homeScore+' F</span>':sc.state==='in'?'<span class="live">'+sc.awayScore+'–'+sc.homeScore+' · '+esc(sc.detail)+'</span>':'<span class="gsub">'+fmtDT(g.date)+'</span>';
       html+='<tr><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div></td><td>'+st+'</td>'+
@@ -165,11 +217,40 @@ async function renderWeek(slug){
     html+='<div class="note">Slate is set but nobody has picks in yet.</div>';
   }
   document.getElementById('content').innerHTML=html;
+  setPrintHead(wk,slug,revealed,games.length);
   const state=revealed?(wk.finalized?'final':'live')
     :boardOpen?'board open — lock your picks to see it'
     :'picks open — hidden until all lock';
   document.getElementById('status').innerHTML='<b>'+esc(wk.label||slug)+'</b> · '+state+'<br>Updated '+new Date().toLocaleTimeString();
 }
+
+/* WHAT THE PAPER SAYS IT IS. Screen chrome carries the week, the live state and the clock; a
+   printout has none of that, so it is rebuilt here — which week, how many games, whether the
+   result is final or still moving, and the moment it was printed. A board printed at half-time
+   and a board printed on Monday look identical otherwise, and only one of them is a result. */
+function setPrintHead(wk,slug,revealed,ngames){
+  const el=document.getElementById('printhead'); if(!el)return;
+  const when=new Date().toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})+' ET';
+  const state=!wk.slateLocked?'Draft — not locked'
+    :wk.finalized?('FINAL'+(wk.weeklyWinner?' · 🏆 '+wk.weeklyWinner:''))
+    :revealed?'Live — scores still moving':'Picks hidden until everyone is locked in';
+  el.innerHTML='<h2>🏈 The Football Pool — '+esc(wk.label||slug)+'</h2>'+
+    '<div class="pmeta">'+ngames+' games · '+esc(state)+
+    (wk.slateLocked&&wk.lockedAt?' · spreads frozen '+new Date(wk.lockedAt).toLocaleDateString():'')+
+    ' · printed '+esc(when)+'</div>';
+}
+
+/* Refresh the stamp and stop the 2-minute auto-reload before the dialog opens, so the page cannot
+   repaint underneath a print preview. Both the button and the browser's own Ctrl+P go through the
+   beforeprint event, so the stamp is right either way. */
+function printBoard(){ window.print(); }
+window.addEventListener('beforeprint',()=>{
+  if(timer){clearInterval(timer);timer=null;}
+  const st=document.querySelector('#printhead .pmeta');
+  if(st) st.innerHTML=st.innerHTML.replace(/· printed .*$/,'· printed '+
+    new Date().toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})+' ET');
+});
+window.addEventListener('afterprint',()=>{ if(!timer) timer=setInterval(load,120000); });
 
 function renderSeason(){
   const finals=weeks.filter(w=>w.finalized&&w.weeklyWinner);

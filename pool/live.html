@@ -122,7 +122,7 @@ async function load(){
       +(locked.length?locked.map(n=>'<div class="row"><div class="who">'+esc(n)+'</div><div style="color:var(--win);font-weight:800;font-size:12px">✓ IN</div></div>').join('')
         :'<div class="row"><div class="who" style="font-weight:400;color:var(--muted)">Nobody yet.</div></div>')
       +'</div>';
-    html+='<div class="card"><div class="ch">This week\'s card</div>'+games.map(g=>
+    html+='<div class="card"><div class="ch">This week\'s card</div>'+boardOrder(games,{}).map(g=>
       '<div class="g"><div class="m"><b>'+esc(g.short)+'</b><span>'+fmtDT(g.date)+' · '+g.league.toUpperCase()+'</span></div>'
       +'<div class="sc">'+esc(marketLabel(g))+'</div></div>').join('')+'</div>';
     html+='<div class="note">🔒 Everyone\'s picks open as soon as the last player locks in — or at the deadline if someone hasn\'t. Standings appear here the moment that happens, then update on their own as games finish. <a href="/pool/football/picks">Make or check your picks →</a></div>';
@@ -152,7 +152,11 @@ async function load(){
         +'<div class="pts">'+pts[id]+'</div></div>';
     }).join('')+'</div>';
 
-  html+='<div class="card"><div class="ch">Games</div>'+games.map(g=>{
+  /* Same order as the full board, from the same shared function: most recently finished first,
+     then live, then still to come (pool/scoring.js boardOrder). The tracker is read on a phone
+     between Thursday and Sunday night — the result that just landed belongs at the top of the
+     card, not wherever the commissioner happened to add it. */
+  html+='<div class="card"><div class="ch">Games</div>'+boardOrder(games,scores).map(g=>{
     const sc=scoreFor(g,scores);
     const cov=coverOf(g,sc,true);
     const state=sc?sc.state:'pre';
