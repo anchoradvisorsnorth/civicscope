@@ -1534,14 +1534,52 @@ export default async function handler(req, res) {
         if (!j) return res.status(400).json({ error: `${jobNo} is not a job that can be filed to.` });
         job_name = j.name;
       }
+
+      /* ⛔ A REAL JOB WITH NO SHAREPOINT FOLDER IS A THIRD ENDING, NOT A FAILURE (Keith,
+         2026-08-21): *"We dont want a folder for Brad style projects - we just want erica to be
+         able to resolve it without moving a file to sharepoint."*
+
+         Measured the same day against the live folder index: of RYC's 53 Procore-active jobs,
+         **30 have no job folder at all** — 29 of them Greencroft unit jobs plus St. Joe County
+         Garages. Those payables are not overhead, so `ryc_expense` would state something false
+         about the money: the cost belongs to that job, it simply has nowhere to be copied. And
+         creating folders for one-off residence and unit jobs would litter RYC's job tree with
+         directories nobody asked for.
+
+         So the row completes with the job recorded and NOTHING copied. `disposition` says which of
+         the three endings it was, because "done" is not one fact here — a reader has to be able to
+         tell "the file is in the job folder" from "there is no job folder and we said so on
+         purpose". The batch folder keeps the only copy either way, exactly as it does for an
+         expense. */
+      const noFiling = body.no_filing === true && !expense;
+      if (body.no_filing === true && expense) {
+        return res.status(400).json({
+          error: 'RYC Expense already means nothing is copied — pick the job it belongs to instead.' });
+      }
+
+      const done = expense || noFiling;
       const patch = {
         job_no: expense ? RYC_EXPENSE.no : jobNo, job_name, job_source: 'chosen',
-        disposition: expense ? 'ryc_expense' : 'job_folder',
+        disposition: expense ? 'ryc_expense' : (noFiling ? 'job_unfiled' : 'job_folder'),
         copy_error: null, updated_at: new Date().toISOString(),
       };
-      if (expense) {
+      if (done) {
         patch.reconciled_at = new Date().toISOString();
         patch.reconciled_by = who.via === 'admin' ? 'admin' : 'front office';
+      }
+      /* WHY nothing was copied is written down, on the row, forever. `history` already appends
+         rather than overwrites because these records sit behind money moving between job budgets —
+         and "this payable was never copied to SharePoint, and here is who decided that and what the
+         filer had said" is precisely the kind of question that gets asked months later. */
+      if (noFiling) {
+        patch.history = [...(Array.isArray(doc.history) ? doc.history : []), {
+          at: new Date().toISOString(),
+          by: who.via === 'admin' ? 'admin' : 'front office',
+          action: 'resolved_without_filing',
+          job_no: jobNo,
+          job_name,
+          filer_said: String(body.reason || doc.copy_error || '').slice(0, 300) || null,
+        }];
       }
       const r = await sb(`ryc_batch_documents?id=eq.${docId}&reconciled_at=is.null`, {
         method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
@@ -1549,7 +1587,7 @@ export default async function handler(req, res) {
       if (!r.ok) return res.status(502).json({ error: 'Could not record the reconciliation.' });
       const rows = await r.json();
       if (!rows.length) return res.status(409).json({ error: 'That document was reconciled a moment ago.' });
-      return res.status(200).json({ ok: true, document: rows[0], queued: !expense });
+      return res.status(200).json({ ok: true, document: rows[0], queued: !done });
     }
 
     /* The master edit. Deliberately refused once a document is reconciled: the copy in the job

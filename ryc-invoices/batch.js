@@ -583,10 +583,15 @@ function reconRow(d){
      the front office's job is to confirm or correct it, not to retype it. */
   var job = "";
   if(doneAt){
+    /* THREE ENDINGS, AND THE ROW HAS TO SAY WHICH ONE. "filed" is a claim that a copy exists in a
+       job folder; for a job with no folder that claim is false, and a false green tick is the
+       defect this module has now hit four times. */
+    var ended = "filed " + esc(String(doneAt).slice(0,10));
+    if(d.disposition === "ryc_expense") ended = "RYC Expense &middot; not filed to a job folder";
+    else if(d.disposition === "job_unfiled") ended = "resolved &middot; this job has no SharePoint folder, "
+      + "so nothing was copied";
     job = '<div>' + esc(d.job_name || d.job_no || "") + '</div>'
-      + '<div class="sub">' + (d.disposition === "ryc_expense"
-          ? "RYC Expense &middot; not filed to a job folder"
-          : "filed " + esc(String(doneAt).slice(0,10))) + '</div>';
+      + '<div class="sub">' + ended + '</div>';
   } else {
     var opts = '<option value="">&mdash; choose a job &mdash;</option>';
     (_recon.targets || []).forEach(function(t){
@@ -596,8 +601,10 @@ function reconRow(d){
     job = '<select id="rj_' + esc(d.id) + '" class="pfill" style="max-width:260px"'
       + (working ? ' disabled' : '') + ' onchange="reconRelabel(' + invArg(d.id) + ')">'
       + opts + '</select>'
-      + (d.job_source === "matched" && d.job_no
-          ? '<div class="sub">read off the invoice &mdash; confirm or change it</div>' : '');
+      + (d.job_stage_error
+          ? '<div class="sub m-r">' + esc(d.job_stage_error) + '</div>'
+          : (d.job_source === "matched" && d.job_no
+              ? '<div class="sub">read off the invoice &mdash; confirm or change it</div>' : ''));
   }
 
   /* ⛔ THE ROW IS ORDERED BY THE WORK, NOT BY THE DATA (Keith, 2026-08-20, after running a batch
@@ -619,8 +626,19 @@ function reconRow(d){
   var rename = "", act = "";
   if(doneAt){
     /* Done: there is nothing left to rename, so that cell carries WHERE IT LANDED instead. */
-    if(d.copied_url){
-      rename = '<a href="' + esc(d.copied_url) + '" target="_blank" rel="noopener">Open in job folder</a>';
+    /* ⛔ "OPEN IN JOB FOLDER" OPENED THE INVOICE (Keith, 2026-08-21): *"it should open the sharepoint
+       job folder where the invoice landed."* `copied_url` is the UPLOADED FILE's webUrl — the worker
+       sends `item.get("webUrl")` — so the link did exactly what View invoice already does, and the
+       one thing the label promised (see the folder, see it in context, see what else is in it) was
+       the one thing it could not do. A control that misdescribes its own effect, again.
+
+       Trimming the last segment is not a guess: verified against live Graph on 2026-08-21, the
+       trimmed file webUrl is byte-identical to the string Graph reports as that folder's own
+       webUrl, including names carrying commas and periods. Deriving it here rather than changing
+       the worker also repairs every row that was filed before today, with no backfill. */
+    var folderUrl = reconFolderUrl(d.copied_url);
+    if(folderUrl){
+      rename = '<a href="' + esc(folderUrl) + '" target="_blank" rel="noopener">Open in job folder</a>';
     }
     /* Nothing goes in the rename cell for an expense — the job cell already says "RYC Expense .
        not filed to a job folder", and saying it twice reads as two different facts. */
@@ -633,7 +651,10 @@ function reconRow(d){
       act += '<div class="sub">corrected ' + d.history.length + '&times;</div>';
     }
   } else if(working){
-    act = '<span class="sub">copying&hellip;</span>';
+    act = _recon.stalled
+      ? '<span class="sub m-r">still copying &mdash; the filing worker has not answered. '
+        + 'Reload to check.</span>'
+      : '<span class="sub">copying to SharePoint&hellip;</span>';
   } else {
     rename = '<button class="pfill" onclick="reconRename(' + invArg(d.id) + ')">Edit name</button>';
     /* THE BUTTON SAYS WHAT THE CLICK WILL DO. With RYC Expense chosen, "File to job" describes
@@ -645,7 +666,20 @@ function reconRow(d){
     act = '<button class="pfill" id="rb_' + esc(d.id) + '" onclick="reconFile(' + invArg(d.id) + ')">'
       + reconFileLabel(chosen) + '</button>';
   }
-  if(err) act += '<div class="sub m-r" style="margin-top:4px">' + esc(String(err).slice(0,160)) + '</div>';
+  /* ⛔ A REFUSAL MUST HAND HER SOMETHING TO DO (Keith, 2026-08-21, reading
+     *"only 1 distinctive word matched between 'Huntertown Wastewater Treatment Plan Expansion:
+     Phase 3' and '2025/Huntertown WWTP' — too weak to file on"*): *"seems like more of a statement
+     than anything ... the user should be able to action it."*
+     That text is the matcher's internal score narrated at a person. It says how the algorithm felt
+     and names no next step, which is the same failure as a button that misdescribes its own effect:
+     the screen is talking about itself instead of about her work. */
+  if(err){
+    act += '<div class="sub m-r" style="margin-top:4px">' + reconWhy(err) + '</div>';
+    if(!doneAt && !working){
+      act += '<button class="pfill" style="margin-top:4px" onclick="reconNoFile(' + invArg(d.id) + ')">'
+        + 'Resolve without filing</button>';
+    }
+  }
 
   return '<tr><td>' + name + '</td>'
     + '<td class="r" style="width:110px">' + fmt(d.amount) + '</td>'
@@ -655,11 +689,80 @@ function reconRow(d){
     + '<td class="r" style="width:210px">' + act + '</td></tr>';
 }
 
+/* The folder a filed copy sits in, from the file's own URL. Returns null rather than a half-URL if
+   there is nothing to trim — a link that goes somewhere wrong is worse than no link. */
+function reconFolderUrl(fileUrl){
+  var u = String(fileUrl || "").split("?")[0].replace(/\/+$/, "");
+  if(!/^https?:\/\//i.test(u)) return null;
+  var cut = u.lastIndexOf("/");
+  if(cut < 0) return null;
+  var folder = u.slice(0, cut);
+  return /^https?:\/\/[^/]+\/.+/i.test(folder) ? folder : null;
+}
+
 /* ONE definition of the completion label, because it is written in two places — once when the row
    is painted and once when the dropdown changes under it (reconRelabel). Two copies is how a
    control starts describing the wrong effect. */
 function reconFileLabel(jobNo){
   return jobNo === "RYC-EXPENSE" ? "Complete: Mark RYC Expense" : "Complete: File to Job";
+}
+
+/* THE FILER'S REASON, SAID TO A PERSON. The raw strings are diagnostics written for whoever was
+   debugging the matcher — distinctive-word counts and folder keys. They are true and they are
+   useless at this desk, so each one is restated as what is missing and what she can do about it.
+   The original is kept underneath: when the front office reports a problem, the exact refusal is
+   what makes it findable, and paraphrasing it away would cost that. */
+function reconWhy(err){
+  var raw = String(err || "");
+  var say = null;
+  var m = raw.match(/only \d+ distinctive words? matched .* and '([^']+)'/);
+  if(m){
+    say = "Couldn&rsquo;t tell which SharePoint folder this job is. The closest is <b>"
+      + esc(m[1]) + "</b>.";
+  } else if(/^no job folder resembles/.test(raw)){
+    say = "There is no SharePoint folder for this job, so there is nothing to copy into.";
+  } else if(/job folders match .* equally/.test(raw)){
+    say = "More than one SharePoint folder could be this job, so it refused to choose rather than "
+      + "risk filing against the wrong budget.";
+  } else if(/^no distinctive words/.test(raw)){
+    say = "This job&rsquo;s name has nothing distinctive to match a folder on.";
+  }
+  if(!say) return esc(raw.slice(0, 200));
+  return say + ' <span class="sub">(' + esc(raw.slice(0, 160)) + ')</span>';
+}
+
+/* THE THIRD ENDING. Keith, 2026-08-21: *"We dont want a folder for Brad style projects - we just
+   want erica to be able to resolve it without moving a file to sharepoint."*
+
+   Measured against the live folder index the same day: 30 of RYC's 53 Procore-active jobs have no
+   SharePoint folder at all — 29 Greencroft unit jobs plus St. Joe County Garages. So this is the
+   ordinary case for a whole class of work, not an escape hatch.
+
+   ⚠ IT IS OFFERED ONLY ON A ROW THE FILER HAS ALREADY REFUSED. Put it on every row and it becomes
+   the fast way to clear the board, and invoices quietly stop reaching the job folders that do
+   exist — which is the entire point of the tool. */
+function reconNoFile(id){
+  var d = reconDoc(id);
+  if(!d) return;
+  var sel = document.getElementById("rj_" + id);
+  var jobNo = sel ? sel.value : (d.job_no || "");
+  if(!jobNo || jobNo === "RYC-EXPENSE"){
+    alert("Choose the job this cost belongs to first.\n\nRYC Expense is a different answer — it "
+      + "means the cost belongs to no job at all.");
+    return;
+  }
+  var t = (_recon.targets || []).filter(function(x){ return x.no === jobNo; })[0];
+  if(!window.confirm('Resolve "' + d.file_name + '" against ' + (t ? t.name : jobNo)
+      + ' without filing?\n\nThe cost is recorded against that job. Nothing is copied to '
+      + 'SharePoint — the batch folder keeps the only copy. This cannot be undone from here.')) return;
+
+  _recon.busy[id] = true; reconRender();
+  invPost("doc_reconcile", { doc_id:id, job_no:jobNo, no_filing:true, reason:d.copy_error })
+    .then(function(r){
+      delete _recon.busy[id];
+      if(!r.ok){ alert(r.error || "Could not resolve it."); reconRender(); return; }
+      reconLoad(_recon.batchId);
+    });
 }
 
 /* One click, one document. The button disappears the moment it is pressed and the server refuses a
@@ -688,20 +791,34 @@ function reconFile(id){
        worker reports where it landed, so the link Keith asked for appears on its own rather than
        after a manual refresh. */
     reconLoad(_recon.batchId);
-    if(r.data && r.data.queued) reconPoll(6);
+    if(r.data && r.data.queued) reconPoll(10);
   });
 }
 
-function reconPoll(left){
-  if(left <= 0) return;
+/* ⚠ THIS USED TO GIVE UP AFTER 15 SECONDS AND SAY NOTHING. Six ticks at 2.5s, then the row kept
+   reading "copying..." forever with nothing still watching it. `batch_worker.py` is a bare `nohup`
+   with no supervisor, so "copying" can also mean "the worker is dead" — and the screen asserted a
+   live upload either way. Same family as the two-day-old traceback that read as a current error.
+   Now: backs off to about a minute, and when it does run out it SAYS SO. */
+function reconPoll(left, wait){
+  if(left <= 0){ reconStall(); return; }
+  _recon.stalled = false;
+  wait = wait || 1200;
   setTimeout(function(){
     invPost("batch_documents", { id:_recon.batchId }).then(function(r){
       if(r.ok) _recon.docs = r.data.documents || [];
-      reconRender();
+      if(!reconBusyEditing()) reconRender();
       var pending = _recon.docs.some(function(d){ return d.copy_error === "working"; });
-      if(pending) reconPoll(left - 1);
+      if(pending) reconPoll(left - 1, Math.min(Math.round(wait * 1.5), 9000));
     });
-  }, 2500);
+  }, wait);
+}
+
+/* "Nothing came back" is a state to draw, not a reason to stop drawing. */
+function reconStall(){
+  if(!_recon.docs.some(function(d){ return d.copy_error === "working"; })) return;
+  _recon.stalled = true;
+  if(!reconBusyEditing()) reconRender();
 }
 
 /* THE MASTER EDIT. Deliberately offered only before filing: once a copy exists in a job folder
@@ -713,18 +830,88 @@ function reconRename(id){
   if(next === null) return;
   next = String(next).trim();
   if(!next || next === d.file_name) return;
+  /* Show it immediately — she typed it, so making her watch a round trip to learn what she already
+     knows is the "waiting for the UI to catch up" she described. The server still has the last
+     word (it appends .pdf and rejects characters SharePoint will not take), so the response is
+     applied over the top rather than assumed. */
+  var was = d.file_name;
+  d.file_name = next;
+  reconRender();
   invPost("doc_update", { doc_id:id, file_name:next }).then(function(r){
-    if(!r.ok){ alert(r.error || "Could not rename it."); return; }
-    reconLoad(_recon.batchId);
+    var cur = reconDoc(id);
+    if(!cur) return;
+    if(!r.ok){
+      cur.file_name = was;
+      reconRender();
+      alert(r.error || "Could not rename it.");
+      return;
+    }
+    if(r.data && r.data.document) cur.file_name = r.data.document.file_name;
+    reconRender();
   });
 }
 
-/* Keep the action button honest as the dropdown changes, without a re-render that would throw away
-   the other rows' unsaved selections. */
+/* Keep the action button honest as the dropdown changes, and SAVE the choice. */
 function reconRelabel(id){
   var sel = document.getElementById("rj_" + id), btn = document.getElementById("rb_" + id);
-  if(!sel || !btn) return;
-  btn.textContent = reconFileLabel(sel.value);
+  if(!sel) return;
+  if(btn) btn.textContent = reconFileLabel(sel.value);
+  reconStageJob(id, sel.value);
+}
+
+/* ⛔ THE JOB SHE PICKED LIVED ONLY IN THE DOM, AND THREE DIFFERENT THINGS PAINTED OVER IT (Keith,
+   2026-08-21, watching the front office): *"it seems that if you select job then edit the file name
+   - you have reselect the job again ... it's almost like she has to wait a few seconds until the UI
+   catches up."*
+
+   It was not lag. `reconRender()` rebuilds every row with `innerHTML =`, and until this change the
+   selection existed nowhere else — so the choice was DESTROYED, silently, by:
+     - Edit name           (reconRename -> reconLoad -> reconRender)
+     - Complete on ANY row (reconFile, twice)
+     - THE POLL, EVERY 2.5 SECONDS while any row was copying
+   The third is the one she felt. While row 1 was uploading to SharePoint, row 5's selection was
+   being wiped on a timer whether or not anybody touched it: pick a job, watch it vanish, pick it
+   again. The comment above this function already warned that a re-render throws away unsaved
+   selections — that was known, and then three other paths did it anyway.
+
+   The fix is not to repaint less. It is to stop holding her work somewhere a repaint can reach:
+   the choice is written to the row the moment she makes it, so every future repaint RESTORES it
+   instead of erasing it — including repaints from causes nobody has thought of yet. `doc_update`
+   already accepted `job_no`, so this costs no schema change and no new endpoint.
+
+   The local copy is updated BEFORE the request goes out, deliberately: a repaint that fires while
+   the save is still in flight must still show what she chose. */
+function reconStageJob(id, jobNo){
+  var d = reconDoc(id);
+  if(!d || d.reconciled_at) return;
+  var t = (_recon.targets || []).filter(function(x){ return x.no === jobNo; })[0];
+  d.job_no = jobNo || null;
+  d.job_name = t ? t.name : null;
+  d.job_source = jobNo ? "chosen" : null;
+  invPost("doc_update", { doc_id:id, job_no:jobNo }).then(function(r){
+    var cur = reconDoc(id);
+    if(!cur || cur.reconciled_at) return;
+    if(!r.ok){
+      /* Say it. A selection that looks saved and is not is worse than one that never took. */
+      cur.job_stage_error = r.error || "That job could not be saved — choose it again.";
+      reconRender();
+      return;
+    }
+    cur.job_stage_error = null;
+    if(r.data && r.data.document){
+      cur.job_no = r.data.document.job_no;
+      cur.job_name = r.data.document.job_name;
+      cur.job_source = r.data.document.job_source;
+    }
+  });
+}
+
+/* A REPAINT MUST NOT REACH IN AND CLOSE A DROPDOWN SHE IS USING. The poll fires on a timer with no
+   idea whether somebody is mid-choice; rebuilding the table under an open <select> closes it and
+   drops the keystrokes. Skipping the paint costs nothing — the next tick draws it. */
+function reconBusyEditing(){
+  var a = document.activeElement, el = document.getElementById("batchRecon");
+  return !!(a && el && el.contains(a) && (a.tagName === "SELECT" || a.tagName === "INPUT"));
 }
 
 /* CHANGE THE JOB ON A DOCUMENT THAT IS ALREADY FILED. Keith, 2026-08-19: *"the user should have the
