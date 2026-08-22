@@ -199,7 +199,7 @@ async function renderWeek(slug){
   } else if(players.length){
     html+='<div class="card tblwrap"><table><thead><tr><th>Game · frozen line</th><th>Score</th>'+
       ranked.map(p=>'<th class="num">'+esc(nameOf(p))+'</th>').join('')+'</tr></thead><tbody>';
-    for(const g of boardOrder(games,scores)){
+    for(const g of boardOrder(games,scores,wk.finalized)){
       const sc=scoreFor(g,scores);
       const st=!sc?'<span class="gsub">'+fmtDT(g.date)+'</span>':sc.state==='post'?'<span class="final">'+sc.awayScore+'–'+sc.homeScore+' F</span>':sc.state==='in'?'<span class="live">'+sc.awayScore+'–'+sc.homeScore+' · '+esc(sc.detail)+'</span>':'<span class="gsub">'+fmtDT(g.date)+'</span>';
       html+='<tr><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div></td><td>'+st+'</td>'+

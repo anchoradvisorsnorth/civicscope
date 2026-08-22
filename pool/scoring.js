@@ -95,33 +95,45 @@ const scoreFor = (g, scores) =>
 const marketLabel = g => g.market === 'total' ? ('O/U ' + g.total) : (g.pickem ? 'PICK EM' : g.spreadText);
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   DISPLAY ORDER — MOST RECENTLY FINISHED AT THE TOP (Mike, via Keith 2026-08-21).
+   DISPLAY ORDER (Mike, via Keith 2026-08-21; refined 2026-08-22).
 
-   A slate is stored in the order the commissioner built it, which is not chronological
-   and has no reason to be: `2026-pre2` shipped with LV @ HOU — the Wednesday night game,
-   the FIRST to finish — sitting at rows 4 and 5, below three games that had not kicked
-   off. The result you most want to look at was the one furthest down the page.
+   A slate is stored in **the order the commissioner built it**, which is not chronological and
+   has no reason to be: `2026-pre2` shipped with LV @ HOU — the Thursday-night game, the FIRST to
+   finish — sitting fourth, below three games that had not kicked off. The result you most wanted
+   to look at was the one furthest down the page.
 
-   The order is now derived on every render, from the live state of each game:
+   THE ORDER DEPENDS ON WHETHER THE WEEK IS STILL RUNNING, because a live board and a finished
+   board are answering two different questions.
 
-     1. FINAL      — most recently finished first
-     2. IN PROGRESS
-     3. NOT STARTED — soonest kickoff first
+     WHILE THE WEEK IS LIVE — "what just happened?"
+       1. FINAL, most recently finished first
+       2. IN PROGRESS
+       3. NOT STARTED, soonest kickoff first
+       The newest result is always at the top, where you look first.
 
-   ⚠ ESPN PUBLISHES NO "GAME ENDED AT" TIMESTAMP, so "most recently finished" is
-   necessarily inferred. Within the finished group we order by KICKOFF, latest first —
-   football games are close enough to the same length that later-starting means
-   later-finishing, and two games in the same slot end within minutes of each other
-   anyway. It is a proxy, and it is named as one here rather than dressed up as a fact.
-   The kickoff used is ESPN's own (`sc.kickoff`) where we have it, falling back to the
-   stored `g.date`.
+     ONCE THE WEEK IS FINALIZED — "how did the week go?"
+       Plain chronological, oldest first. A finished week is a RECORD, and a record reads
+       forwards: Thursday at the top, the game that decided it at the bottom. Keith, on the
+       finalized `2026-pre2` board, 2026-08-22 — the same reason a completed golf pool stopped
+       polling ESPN and started rendering a stored result. Live affordances and records are not
+       the same artifact.
 
-   THIS IS DISPLAY ONLY. Scoring iterates `wk.games` and is order-independent; this
-   returns a SORTED COPY and never mutates the week. Nothing here may change a score,
-   and no server change is required — which is the whole reason it is safe to derive on
-   the client on every paint.
+   ⚠ ESPN PUBLISHES NO "GAME ENDED AT" TIMESTAMP, so "most recently finished" is necessarily
+   inferred. Within the finished group we order by KICKOFF, latest first — football games are
+   close enough to the same length that later-starting means later-finishing, and two games in
+   the same slot end within minutes of each other anyway. It is a proxy, and it is named as one
+   here rather than dressed up as a fact. The kickoff used is ESPN's own (`sc.kickoff`) where we
+   have it, falling back to the stored `g.date`.
+
+   Leagues are deliberately NOT grouped: a mixed NFL/college week reads as ONE timeline. Both
+   pages label every row with its league, because the abbreviations are not unique across the two
+   codes (CIN, BUF, MIA, HOU are the same string in both).
+
+   THIS IS DISPLAY ONLY. Scoring iterates `wk.games` and is order-independent; this returns a
+   SORTED COPY and never mutates the week. Nothing here may change a score, and no server change
+   is required — which is the whole reason it is safe to derive on the client on every paint.
    ───────────────────────────────────────────────────────────────────────────── */
-function boardOrder(games, scores) {
+function boardOrder(games, scores, finalized) {
   const bucket = (g) => {
     const st = (scoreFor(g, scores) || {}).state;
     return st === 'post' ? 0 : st === 'in' ? 1 : 2;
@@ -130,21 +142,27 @@ function boardOrder(games, scores) {
     const sc = scoreFor(g, scores) || {};
     return sc.kickoff || Date.parse(g.date) || 0;
   };
-  return (games || []).slice().sort((a, b) => {
-    const ba = bucket(a), bb = bucket(b);
-    if (ba !== bb) return ba - bb;
-    const ka = kickOf(a), kb = kickOf(b);
-    // Finished games run newest-first; anything still to come reads forwards, as a schedule should.
-    if (ka !== kb) return ba === 0 ? kb - ka : ka - kb;
-    /* SAME KICKOFF. Two entries for ONE fixture (spread + its `#ou` twin) must stay adjacent —
-       splitting a game away from its own over/under would be worse than the original order. Group
-       by base id, spread above total, then by id so the sort is total and the paint never jitters
-       between refreshes. */
+  /* SAME KICKOFF. Two entries for ONE fixture (spread + its `#ou` twin) must stay adjacent in
+     BOTH modes — splitting a game away from its own over/under would be worse than the order it
+     replaced. Group by base id, spread above total, then by id so the sort is total and the paint
+     never jitters between refreshes. */
+  const pair = (a, b) => {
     const ida = String(a.id).split('#')[0], idb = String(b.id).split('#')[0];
     if (ida !== idb) return ida < idb ? -1 : 1;
     const ma = a.market === 'total' ? 1 : 0, mb = b.market === 'total' ? 1 : 0;
     if (ma !== mb) return ma - mb;
     return String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
+  };
+  return (games || []).slice().sort((a, b) => {
+    const ka = kickOf(a), kb = kickOf(b);
+    // A FINALIZED WEEK IS A RECORD — read it forwards, and never mind the buckets (by the time a
+    // week can be finalized every game in it is final anyway; finalize_week refuses otherwise).
+    if (finalized) return ka !== kb ? ka - kb : pair(a, b);
+    const ba = bucket(a), bb = bucket(b);
+    if (ba !== bb) return ba - bb;
+    // Finished games run newest-first; anything still to come reads forwards, as a schedule should.
+    if (ka !== kb) return ba === 0 ? kb - ka : ka - kb;
+    return pair(a, b);
   });
 }
 
