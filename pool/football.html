@@ -50,6 +50,48 @@
   .tblwrap{overflow-x:auto}
   .printonly{display:none}
 
+  /* ─── THE BOARD ON A PHONE (Keith 2026-08-22: "ui is not great generally") ───
+     Measured on production before this: at a 412px viewport the table is **559px wide inside a
+     370px window**, so THREE of the six players were off-screen and reachable only by scrolling
+     sideways — and rows were 94px tall from wrapping. Identical at 360px. This page had NO phone
+     breakpoint for the table at all: exactly the omission the commissioner page had on 08-19, on
+     the page nobody went back to check.
+
+     A players × games matrix cannot fit a phone, so below 720px it stops being one. Each GAME
+     becomes a card — fixture and line as the heading, the score beside it, then one line per
+     player, `NAME ......... PICK`. Nothing scrolls sideways, and it works for a roster of any
+     size instead of failing a little worse with each new member.
+
+     ⚠ It is the SAME table, restacked with CSS off `data-p` / `data-l`. There is no second mobile
+     render to drift from the first — the same reason the scoring rules live in one file.
+     Desktop above 720px is byte-for-byte unchanged, and print forces the table back (print CSS
+     wins on specificity via the @media print block below). */
+  @media (max-width:720px){
+    #content .tblwrap{overflow-x:visible;background:none;border:none}
+    #content table{display:block;font-size:14px}
+    #content thead{display:none}                       /* the header row IS each cell's label now */
+    #content tbody{display:flex;flex-direction:column;gap:10px}
+    #content tbody tr{display:block;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:4px 0 6px;overflow:hidden}
+    #content tbody td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 14px;text-align:left}
+    /* the fixture is the card's heading */
+    #content tbody td.gtitle{display:block;font-size:15px;font-weight:800;background:#f7f9fc;border-bottom:1px solid var(--line);padding:9px 14px;margin-bottom:2px}
+    #content tbody td.gtitle .gsub{font-size:12px;font-weight:600;margin-top:1px}
+    #content tbody td[data-l]::before{content:attr(data-l);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+    #content tbody td[data-p]::before{content:attr(data-p);font-size:13px;font-weight:600;color:#475467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #content tbody td+td{border-top:1px solid #f4f6f9}
+    #content tbody td.gtitle+td{border-top:none}
+    .pk{min-width:72px;font-size:13px;padding:5px 10px}
+    /* YOUR OWN ROW. Six names on a card and one of them is yours — say which. */
+    #content tbody td.me{background:#fffaf0}
+    #content tbody td.me::before{color:#8a6d1f;font-weight:800}
+    /* STANDINGS FIRST. The Points row is the LAST row of the table, which on a phone put the one
+       number everybody opens the page for at the very bottom, behind a sideways scroll. */
+    #content tbody tr.ptsrow{order:-1;border:1px solid var(--gold);background:linear-gradient(180deg,#fffdf6,#fff)}
+    #content tbody tr.ptsrow td[colspan]{display:block;background:#fdf6e3;border-bottom:1px solid var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#8a6d1f;padding:9px 14px}
+    #content tbody tr.ptsrow td{font-size:17px}
+  }
+  .ptsrow{background:#fafbfc}
+
   /* ─── PRINT (Mike, via Keith 2026-08-21: "the commissioner wants the ability to print") ───
      The board is the thing worth putting on paper — every player's card, every result, one page.
      Printing it before this produced a mess, and one fault was fatal rather than cosmetic:
@@ -69,6 +111,20 @@
     main{max-width:none;margin:0;padding:0}
     /* ⛔ THE ONE THAT ACTUALLY LOSES DATA — see above. */
     .tblwrap{overflow:visible !important}
+    /* Paper is never a phone. Undo the <720px card stack — a printed page is landscape and wide,
+       and the grid is the whole point of printing it. Without this, printing from a phone-width
+       window would emit six cards per game instead of the board. */
+    #content .tblwrap{background:none;border:none}
+    #content table{display:table !important;font-size:10.5px}
+    #content thead{display:table-header-group !important}
+    #content tbody{display:table-row-group !important}
+    #content tbody tr{display:table-row !important;border:none;border-radius:0;background:none !important;padding:0}
+    #content tbody td{display:table-cell !important;border-top:none}
+    #content tbody td.gtitle{display:table-cell !important;background:none;border-bottom:none;padding:5px 7px;margin:0;font-size:10.5px}
+    #content tbody td[data-l]::before,#content tbody td[data-p]::before{content:none !important}
+    #content tbody tr.ptsrow{order:0;border:none;background:none !important}
+    #content tbody tr.ptsrow td[colspan]{display:table-cell !important;background:none;border-bottom:none;font-size:10.5px;text-transform:none;letter-spacing:0;color:#000;padding:5px 7px}
+    #content tbody td.me{background:none !important}
     .card{border:1px solid #333;border-radius:0;break-inside:auto}
     table{font-size:10.5px}
     td,th{padding:5px 7px}
@@ -158,6 +214,10 @@ async function renderWeek(slug){
   const scores=revealed?await liveScores(games):{};
   const {pts,detail}=revealed?weekPoints(wk,scores):{pts:{},detail:{}};
   const ranked=players.slice().sort((a,b)=>(pts[b]||0)-(pts[a]||0));
+  /* WHICH COLUMN IS MINE. On a laptop you scan six columns and find your own name; on a phone the
+     card lists six people and yours is just one more line. The session already knows who is
+     looking (it is sent with the request), so mark it. */
+  const meId=signedIn?(players.find(p=>String(nameOf(p)).toUpperCase()===String(signedIn.name).toUpperCase())||null):null;
   const roster=rosterList.map(p=>p.name);
   const sel='<select onchange="renderWeek(this.value)">'+weeks.map(w=>'<option value="'+w.slug+'" '+(w.slug===slug?'selected':'')+'>'+esc(w.label||w.slug)+'</option>').join('')+'</select>';
 
@@ -194,7 +254,7 @@ async function renderWeek(slug){
         (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
     }
     html+='<div class="card tblwrap"><table><thead><tr><th>Game</th><th>Kickoff</th><th>Frozen line</th></tr></thead><tbody>'+
-      boardOrder(games,{}).map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td>'+fmtDT(g.date)+'</td><td style="font-weight:800;color:var(--green)">'+esc(marketLabel(g))+'</td></tr>').join('')+
+      boardOrder(games,{}).map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td data-l="Kickoff">'+fmtDT(g.date)+'</td><td data-l="Frozen line" style="font-weight:800;color:var(--green)">'+esc(marketLabel(g))+'</td></tr>').join('')+
       '</tbody></table></div>';
   } else if(players.length){
     html+='<div class="card tblwrap"><table><thead><tr><th>Game · frozen line</th><th>Score</th>'+
@@ -202,16 +262,20 @@ async function renderWeek(slug){
     for(const g of boardOrder(games,scores,wk.finalized)){
       const sc=scoreFor(g,scores);
       const st=!sc?'<span class="gsub">'+fmtDT(g.date)+'</span>':sc.state==='post'?'<span class="final">'+sc.awayScore+'–'+sc.homeScore+' F</span>':sc.state==='in'?'<span class="live">'+sc.awayScore+'–'+sc.homeScore+' · '+esc(sc.detail)+'</span>':'<span class="gsub">'+fmtDT(g.date)+'</span>';
-      html+='<tr><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div></td><td>'+st+'</td>'+
+      /* `data-p` carries the player's name onto every pick cell, and `data-l` onto the score.
+         On a phone the SAME markup restacks into a per-game card using those labels — there is no
+         second mobile render, so the two can never disagree about what a cell means. */
+      html+='<tr><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div></td><td data-l="Score">'+st+'</td>'+
         ranked.map(p=>{
           const mypick=(wk.picks[p].picks||{})[g.id]||'—';
           const r=detail[p]?detail[p][g.id]:mypick;
           const cls=r==='W'?'w':r==='L'?'l':r==='P'?'p':'';
-          return '<td class="num"><span class="pk '+cls+'">'+esc(mypick)+(r==='W'?' ✓':r==='L'?' ✗':r==='P'?' ½':'')+'</span></td>';
+          const me=meId&&p===meId?' me':'';
+          return '<td class="num'+me+'" data-p="'+esc(nameOf(p))+'"><span class="pk '+cls+'">'+esc(mypick)+(r==='W'?' ✓':r==='L'?' ✗':r==='P'?' ½':'')+'</span></td>';
         }).join('')+'</tr>';
     }
-    html+='<tr style="background:#fafbfc"><td colspan="2" style="font-weight:800">Points</td>'+
-      ranked.map((p,i)=>'<td class="num" style="font-weight:900;font-size:15px'+(i===0?';color:var(--win)':'')+'">'+(pts[p]||0)+'</td>').join('')+'</tr>';
+    html+='<tr class="ptsrow"><td colspan="2" style="font-weight:800">Points</td>'+
+      ranked.map((p,i)=>'<td class="num'+(meId&&p===meId?' me':'')+'" data-p="'+esc(nameOf(p))+'" style="font-weight:900;font-size:15px'+(i===0?';color:var(--win)':'')+'">'+(pts[p]||0)+'</td>').join('')+'</tr>';
     html+='</tbody></table></div>';
   } else {
     html+='<div class="note">Slate is set but nobody has picks in yet.</div>';
