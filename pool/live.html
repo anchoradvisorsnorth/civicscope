@@ -156,7 +156,7 @@ async function load(){
      then live, then still to come (pool/scoring.js boardOrder). The tracker is read on a phone
      between Thursday and Sunday night — the result that just landed belongs at the top of the
      card, not wherever the commissioner happened to add it. */
-  html+='<div class="card"><div class="ch">Games</div>'+boardOrder(games,scores).map(g=>{
+  html+='<div class="card"><div class="ch">Games</div>'+boardOrder(games,scores,wk.finalized).map(g=>{
     const sc=scoreFor(g,scores);
     const cov=coverOf(g,sc,true);
     const state=sc?sc.state:'pre';
