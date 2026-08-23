@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-22T09:30:13.702Z",
+ "generatedAt": "2026-08-23T09:30:11.036Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -44,23 +44,6 @@
      ]
     },
     {
-     "id": "69a7158c18d056078e1fb9bf",
-     "name": "Demolition",
-     "number": "02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 1,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Michiana Recycling and Disposal"
-     ]
-    },
-    {
      "id": "69a71a7957b080769f6b0957",
      "name": "Awnings",
      "number": "06-02",
@@ -75,6 +58,23 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "BH Awning"
+     ]
+    },
+    {
+     "id": "69a7158c18d056078e1fb9bf",
+     "name": "Demolition",
+     "number": "02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Michiana Recycling and Disposal"
      ]
     },
     {
@@ -509,6 +509,20 @@
      ]
     },
     {
+     "id": "6a021d9b0b9343200b33a5f4",
+     "name": "Masonry",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 0,
+     "undecided": 3,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
+    },
+    {
      "id": "6a021d2288ed57c2a441b604",
      "name": "Concrete",
      "number": null,
@@ -524,20 +538,6 @@
      "biddingSubs": [
       "Jess Concrete INC"
      ]
-    },
-    {
-     "id": "6a021d9b0b9343200b33a5f4",
-     "name": "Masonry",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 0,
-     "undecided": 3,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
     },
     {
      "id": "6a022d0bae28a07b4d475101",
@@ -1040,7 +1040,7 @@
      "bidding": 1,
      "undecided": 4,
      "notBidding": 0,
-     "viewed": 2,
+     "viewed": 3,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -1065,23 +1065,6 @@
      ]
     },
     {
-     "id": "6a70c61c25bd11ce3266c1ef",
-     "name": "Concrete",
-     "number": "03-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-08-24T16:00:00.000Z",
-     "invites": 4,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 2,
-     "viewed": 4,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Jess Concrete INC"
-     ]
-    },
-    {
      "id": "6a70c5763046fb65ecbe600b",
      "name": "Masonry",
      "number": "04-01",
@@ -1096,6 +1079,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Tony's Stone Brick and Block LLC"
+     ]
+    },
+    {
+     "id": "6a70c61c25bd11ce3266c1ef",
+     "name": "Concrete",
+     "number": "03-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-08-24T16:00:00.000Z",
+     "invites": 4,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 2,
+     "viewed": 4,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Jess Concrete INC"
      ]
     },
     {
@@ -1581,7 +1581,7 @@
      "bidding": 0,
      "undecided": 4,
      "notBidding": 0,
-     "viewed": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -1647,6 +1647,24 @@
      ]
     },
     {
+     "id": "6a846a9e85828a2b6282210d",
+     "name": "Epoxy Flooring",
+     "number": "09-03",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-01T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 2,
+     "notBidding": 0,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Prep & Polish Inc",
+      "Ideal Coatings"
+     ]
+    },
+    {
      "id": "6a846b1bcb26805c63574f6a",
      "name": "Vinyl Cove Base",
      "number": "09-04",
@@ -1680,24 +1698,6 @@
      "undecidedSubs": [
       "Matteson Acoustics",
       "Quality Drywall"
-     ]
-    },
-    {
-     "id": "6a846a9e85828a2b6282210d",
-     "name": "Epoxy Flooring",
-     "number": "09-03",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-01T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Prep & Polish Inc",
-      "Ideal Coatings"
      ]
     },
     {
@@ -1839,24 +1839,6 @@
      ]
     },
     {
-     "id": "6a8470042fcf2fabe4aad7ee",
-     "name": "Foundations",
-     "number": "03-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-01T16:00:00.000Z",
-     "invites": 5,
-     "bidding": 2,
-     "undecided": 3,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Universal Services LLC",
-      "Jess Concrete INC"
-     ]
-    },
-    {
      "id": "6a84703eb64256039f6810b7",
      "name": "Flatwork",
      "number": "03-02",
@@ -1867,6 +1849,24 @@
      "undecided": 2,
      "notBidding": 1,
      "viewed": 3,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Universal Services LLC",
+      "Jess Concrete INC"
+     ]
+    },
+    {
+     "id": "6a8470042fcf2fabe4aad7ee",
+     "name": "Foundations",
+     "number": "03-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-01T16:00:00.000Z",
+     "invites": 5,
+     "bidding": 2,
+     "undecided": 3,
+     "notBidding": 0,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2511,7 +2511,7 @@
      "bidding": 0,
      "undecided": 10,
      "notBidding": 4,
-     "viewed": 4,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "undecidedSubs": [
@@ -2929,7 +2929,7 @@
      "bidding": 1,
      "undecided": 3,
      "notBidding": 0,
-     "viewed": 1,
+     "viewed": 2,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
