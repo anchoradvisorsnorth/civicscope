@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-23T09:30:11.036Z",
+ "generatedAt": "2026-08-24T09:30:12.434Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -509,20 +509,6 @@
      ]
     },
     {
-     "id": "6a021d9b0b9343200b33a5f4",
-     "name": "Masonry",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 0,
-     "undecided": 3,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "6a021d2288ed57c2a441b604",
      "name": "Concrete",
      "number": null,
@@ -538,6 +524,20 @@
      "biddingSubs": [
       "Jess Concrete INC"
      ]
+    },
+    {
+     "id": "6a021d9b0b9343200b33a5f4",
+     "name": "Masonry",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 0,
+     "undecided": 3,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a022d0bae28a07b4d475101",
@@ -605,20 +605,6 @@
      "awardedCompany": null
     },
     {
-     "id": "6a022160e2751b37f7554aa8",
-     "name": "Building Insulation",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "6a02212e44826dba5a600a30",
      "name": "PEMB Insulation",
      "number": null,
@@ -634,6 +620,20 @@
      "biddingSubs": [
       "Silvercote"
      ]
+    },
+    {
+     "id": "6a022160e2751b37f7554aa8",
+     "name": "Building Insulation",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a022a285e266905149cee3c",
@@ -1647,24 +1647,6 @@
      ]
     },
     {
-     "id": "6a846a9e85828a2b6282210d",
-     "name": "Epoxy Flooring",
-     "number": "09-03",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-01T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 0,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Prep & Polish Inc",
-      "Ideal Coatings"
-     ]
-    },
-    {
      "id": "6a846b1bcb26805c63574f6a",
      "name": "Vinyl Cove Base",
      "number": "09-04",
@@ -1680,6 +1662,24 @@
      "undecidedSubs": [
       "Carpet Service Outlet",
       "Avanti Flooring LLC"
+     ]
+    },
+    {
+     "id": "6a846a9e85828a2b6282210d",
+     "name": "Epoxy Flooring",
+     "number": "09-03",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-01T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 2,
+     "notBidding": 0,
+     "viewed": 0,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Prep & Polish Inc",
+      "Ideal Coatings"
      ]
     },
     {
@@ -2579,30 +2579,6 @@
      ]
     },
     {
-     "id": "6a7f7b07b95b5674def6c1f1",
-     "name": "Flatwork",
-     "number": "03-2",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-08T17:00:00.000Z",
-     "invites": 9,
-     "bidding": 0,
-     "undecided": 8,
-     "notBidding": 1,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Universal Services LLC",
-      "Witmer&Witmer LLC",
-      "Alltrade Concrete Construction",
-      "J L Denlinger concrete LLc",
-      "Heiman Construction, Inc.",
-      "Sterling Contracting",
-      "Robert Geans Corporation",
-      "Jess Concrete INC"
-     ]
-    },
-    {
      "id": "6a7f7ad120c738b76f58a6f6",
      "name": "Foundations",
      "number": "03-1",
@@ -2624,6 +2600,30 @@
       "Robert Geans Corporation",
       "Universal Services LLC",
       "Sterling Contracting",
+      "Jess Concrete INC"
+     ]
+    },
+    {
+     "id": "6a7f7b07b95b5674def6c1f1",
+     "name": "Flatwork",
+     "number": "03-2",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-08T17:00:00.000Z",
+     "invites": 9,
+     "bidding": 0,
+     "undecided": 8,
+     "notBidding": 1,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Universal Services LLC",
+      "Witmer&Witmer LLC",
+      "Alltrade Concrete Construction",
+      "J L Denlinger concrete LLc",
+      "Heiman Construction, Inc.",
+      "Sterling Contracting",
+      "Robert Geans Corporation",
       "Jess Concrete INC"
      ]
     },
@@ -2799,24 +2799,6 @@
      ]
     },
     {
-     "id": "6a836a3f2014ccc930c456d2",
-     "name": "Scoreboards",
-     "number": "11-2",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-08T17:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Nevco",
-      "Daktronics, Inc."
-     ]
-    },
-    {
      "id": "6a8369d022c292f5ee53ec80",
      "name": "Athletic Equipment",
      "number": "11-1",
@@ -2832,6 +2814,24 @@
      "undecidedSubs": [
       "Baseball Racks",
       "PYT Sports, Inc."
+     ]
+    },
+    {
+     "id": "6a836a3f2014ccc930c456d2",
+     "name": "Scoreboards",
+     "number": "11-2",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-08T17:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 2,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "Nevco",
+      "Daktronics, Inc."
      ]
     },
     {
@@ -3266,20 +3266,6 @@
    "closedAt": "2026-02-26T14:57:09.115Z",
    "awarded": "WON",
    "value": null
-  },
-  {
-   "id": "68d1205c9a909934825ae989",
-   "name": "Ashley WWTP Improvements",
-   "closedAt": "2026-02-24T15:48:11.642Z",
-   "awarded": "WON",
-   "value": null
-  },
-  {
-   "id": "6924a5acff4b766f1c0b47ee",
-   "name": "White Veterinary Clinic",
-   "closedAt": "2026-02-24T15:48:00.881Z",
-   "awarded": "WON",
-   "value": 1000000
   }
  ]
 }
