@@ -219,7 +219,12 @@ export default async function handler(req, res) {
       });
       const have = new Set(hits.map((h) => h.chunk_id));
       const add = (tbl || []).filter((t) => !have.has(t.chunk_id));
-      if (add.length) hits = hits.concat(add);
+      /* ⛔ PREPEND, NEVER APPEND. A guaranteed passage that goes on the end is the first thing the
+         context budget throws away: the twelve ranked hits for this very question total 26,621
+         characters against a 24,000 ceiling, so the loop below breaks before reaching anything
+         added after them. The guarantee fired correctly, the table was in , and it still
+         never reached the model. A seat at the back of a full room is not a seat. */
+      if (add.length) hits = add.concat(hits);
     } catch { /* the corpus still answers without it */ }
   }
 
@@ -229,7 +234,8 @@ export default async function handler(req, res) {
         method: 'POST',
         body: JSON.stringify({ p_tenant: slug, p_query: question, p_collection: 'Village Website', p_limit: 2 }),
       });
-      if (web && web.length) hits = hits.concat(web);
+      // Prepended for the same reason as the table above: the context budget truncates the tail.
+      if (web && web.length) hits = web.concat(hits);
     } catch { /* the corpus still answers without it; never fail the question over an extra read */ }
   }
 
