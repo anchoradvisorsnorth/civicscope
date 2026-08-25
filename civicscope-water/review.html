@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.2.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.3.0-oic
 
   This is NOT the tablet with a wider layout. It is the other half of the product, and the two jobs
   barely overlap (Keith, 2026-08-19):
@@ -89,7 +89,14 @@
   .chip:hover{border-color:var(--navy);color:var(--navy)}
   .chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
   .quote{border-left:3px solid #cbd5e1;padding:2px 0 2px 12px;margin:10px 0;color:#475569;font-size:13.5px}
-  @media(max-width:640px){ header{padding:12px 14px} main{padding:14px 12px 50px} }
+  /* Who is looking. Reads on this page are open by design (Keith: "dont gate her access at all")
+     and the gate lives on the village hub — but a page that can reach a correction has to say
+     whose name would go on it, and offer the sign-in when nobody is. */
+  header .who{font-size:12.5px;color:#cbd5e1;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  header .who img{width:22px;height:22px;border-radius:50%}
+  header .who b{color:#fff;font-weight:600}
+  header .who a{border:0;padding:0;text-decoration:underline;color:#cbd5e1}
+  @media(max-width:640px){ header{padding:12px 14px} main{padding:14px 12px 50px} header .who{display:none} }
 </style>
 </head>
 <body>
@@ -98,11 +105,14 @@
     <h1 id="hdrTitle">Well Testing — Review</h1>
     <span class="sub" id="hdrSub">loading…</span>
   </div>
+  <span class="who" id="who"></span>
   <a href="/water">Enter readings →</a>
 </header>
 
 <main>
-  <div id="top"></div>
+  <div id="top"><div class="banner ok" style="background:#f8fafc;border-color:#e2e8f0;color:#475569">
+    <b>Loading the plant’s records…</b>Reading this month, last month, and every report on file.</div></div>
+  <div id="sections" hidden>
 
   <h2>The three wells <span class="n">— most recent reading</span></h2>
   <div class="wells" id="wells"></div>
@@ -128,6 +138,7 @@
 
   <h2>Reports filed <span class="n">— what went to EGLE</span></h2>
   <div id="filed"></div>
+  </div>
 </main>
 
 <script type="module">
@@ -163,18 +174,46 @@ function daysAgo(iso) {
    "nothing, ever" are very different answers and the page has to be able to tell them apart. */
 let FILINGS = [];
 
+/* ⛔ THESE THREE REQUESTS USED TO RUN ONE AFTER THE OTHER, and the page opened on an empty
+   skeleton for about three seconds while they did (reported by Keith, 2026-08-25, opening Well
+   Testing from the village hub). Nothing was actually slow: each call is a lambda plus five
+   Supabase reads, and they were simply queued behind each other for no reason — none of the three
+   needs anything from the other two. In parallel the wait is one round trip instead of three.
+
+   Two things are deliberate. The FILINGS call is allowed to fail softly, because a supply with no
+   filings on record is an ordinary state and must never take the page down; the two month calls
+   are not, because a page that rendered without them would be showing the OIC an empty record for
+   a plant that has one. And the section headings now stay hidden until there is something under
+   them — empty headings read as a page that finished and found nothing, which on this page means
+   "no records", which is the most alarming thing it could wrongly say. */
 async function load() {
   const now = new Date();
-  let y = now.getUTCFullYear(), m = now.getUTCMonth() + 1;
-  const cur = await post({ action: 'month', year: y, month: m });
-  const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
-  const prev = await post({ action: 'month', year: py, month: pm });
-  // A supply with no filings recorded is a normal state, not a failure — never let it break the page.
-  FILINGS = await post({ action: 'filings' }).then((r) => r.filings || []).catch(() => []);
-  return { cur, prev, y, m };
+  /* The month may be named in the URL (?m=YYYY-MM). That is what the "due on the 10th" reminder
+     email links to, so the message and the screen open on the same month — a link that lands on a
+     generic dashboard makes the reader do the navigation the email existed to save them. */
+  const want = (new URLSearchParams(location.search).get('m') || '').match(/^(d{4})-(d{1,2})$/);
+  const cy = now.getUTCFullYear(), cm = now.getUTCMonth() + 1;   // the month we are actually in
+  let y = want ? Number(want[1]) : cy;
+  let m = want ? Number(want[2]) : cm;
+  if (!(m >= 1 && m <= 12)) { y = cy; m = cm; }
+  const py = cm === 1 ? cy - 1 : cy, pm = cm === 1 ? 12 : cm - 1;
+  const [cur, prev, filings, target] = await Promise.all([
+    post({ action: 'month', year: cy, month: cm }),
+    post({ action: 'month', year: py, month: pm }),
+    post({ action: 'filings' }).then((r) => r.filings || []).catch(() => []),
+    /* ⚠ The deep-linked month is a FOURTH read, not a substitute for this month. The headline and
+       the three wells answer "is the round being walked right now"; the month sections answer
+       "what does July hold". Letting ?m= displace the current month would make the reminder's own
+       link report that nothing had been recorded for 25 days — true of July, and nothing to do
+       with the question the banner is asking. */
+    (y === cy && m === cm) ? null : post({ action: 'month', year: y, month: m }),
+  ]);
+  FILINGS = filings;
+  return { cur, prev, y, m, target: target || cur, deepLinked: Boolean(want) };
 }
 
-function render({ cur, prev, y, m }) {
+function render({ cur, prev, y, m, target, deepLinked }) {
+  $('sections').hidden = false;
   const eps = cur.entryPoints || [];
   $('hdrTitle').textContent = `${cur.supply.name} — Well Testing`;
   $('hdrSub').textContent = `WSSN ${cur.supply.wssn}${cur.supply.classification ? ' · ' + cur.supply.classification : ''} · review and monthly report`;
@@ -219,9 +258,10 @@ function render({ cur, prev, y, m }) {
 
   // ── month picker: this month and the eleven before it
   const sel = $('monthSel');
+  const nowY = new Date().getUTCFullYear(), nowM = new Date().getUTCMonth() + 1;
   if (!sel.options.length) {
     for (let i = 0; i < 12; i++) {
-      const d = new Date(Date.UTC(y, m - 1 - i, 1));
+      const d = new Date(Date.UTC(nowY, nowM - 1 - i, 1));
       const o = document.createElement('option');
       o.value = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
       o.textContent = `${MN[d.getUTCMonth() + 1]} ${d.getUTCFullYear()}`;
@@ -232,7 +272,18 @@ function render({ cur, prev, y, m }) {
       renderMonth(await post({ action: 'month', year: yy, month: mm }), yy, mm, eps);
     };
   }
-  renderMonth(cur, y, m, eps);
+  /* A month older than the twelve in the list still has to be openable — the reminder can link to
+     one, and so can a filing chip. Adding the option is what makes the link work rather than
+     silently falling back to the current month. */
+  const wantVal = `${y}-${m}`;
+  if (![...sel.options].some((o) => o.value === wantVal)) {
+    const o = document.createElement('option');
+    o.value = wantVal; o.textContent = `${MN[m]} ${y}`;
+    sel.appendChild(o);
+  }
+  sel.value = wantVal;
+  renderMonth(target, y, m, eps);
+  if (deepLinked) $('monthEnd').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 /* The month picker only reaches back twelve months, and a filing older than that still has to be
@@ -592,7 +643,38 @@ function paintRecords(mo, y, m, eps) {
     ${distTable}${bactiTable}`;
 }
 
-load().then(render).catch((e) => {
+/* ── WHO IS LOOKING ────────────────────────────────────────────────────────────────────────────
+   Reads on this page stay open (Keith, 2026-08-19: "dont gate her access at all"), and the
+   sign-in gate lives on the village hub, which is where Keith put it on 2026-08-25. But this page
+   is where a correction gets started, and correcting a day now requires an identified person —
+   it supersedes a row sitting under a report signed under 1976 PA 399. So the header says whose
+   name would go on one, and offers the sign-in when the answer is nobody.
+
+   Deliberately non-blocking: it renders after the records, never in front of them, and a failure
+   here leaves the page exactly as useful as it was before sign-in existed. */
+async function paintWho() {
+  let me;
+  try {
+    const r = await fetch('/api/auth-google', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'me' }),
+    });
+    me = await r.json();
+  } catch { return; }
+  const w = $('who');
+  if (me && me.signedIn && me.user) {
+    w.innerHTML = (me.user.picture ? `<img src="${esc(me.user.picture)}" alt="">` : '')
+      + `<span><b>${esc(me.user.name || me.user.email)}</b></span>`;
+    w.title = `Signed in as ${me.user.email}`;
+  } else if (me && me.configured) {
+    /* The hub owns the sign-in button; sending her there keeps ONE place that knows how to do it.
+       Two copies of a sign-in flow is two things to keep working. */
+    w.innerHTML = '<a href="/centreville">Sign in</a>';
+  }
+}
+
+load().then((d) => { render(d); paintWho(); }).catch((e) => {
+  $('sections').hidden = true;
   $('top').innerHTML = `<div class="banner err"><b>Could not load</b>${esc(e.message)}</div>`;
   $('hdrSub').textContent = '';
 });

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- civicscope-village v1.0.0 | 2026-08-18 — a village's front door: one address, every product -->
+<!-- civicscope-village v2.0.0 | 2026-08-25 — a village's front door, behind Google sign-in -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -37,11 +37,23 @@
   .card .meta { font-size: 13px; color: var(--muted); }
   .card .go { font-size: 14px; font-weight: 600; color: var(--accent); white-space: nowrap; }
 
-  /* Sign-in: described honestly, not mocked up as a working control. */
-  .signin { margin-top: 34px; border: 1px dashed var(--rule); border-radius: var(--radius-md);
-            padding: 16px 18px; background: transparent; }
-  .signin h3 { font-size: 14px; font-weight: 600; margin: 0 0 5px; color: var(--ink-light); }
-  .signin p { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin: 0; }
+  /* Sign-in */
+  .gate { background: var(--white); border: 1px solid var(--rule); border-radius: var(--radius-md);
+          padding: 30px 28px; box-shadow: var(--shadow-sm); }
+  .gate h2 { font-family: var(--font-display); font-size: 21px; font-weight: 600; margin: 0 0 10px; }
+  .gate p { font-size: 15px; line-height: 1.6; color: var(--ink-light); margin: 0 0 20px; }
+  .gbtn { min-height: 44px; }
+  .who { display: flex; align-items: center; gap: 10px; justify-content: flex-end;
+         font-size: 13.5px; color: var(--muted); margin-bottom: 18px; flex-wrap: wrap; }
+  .who img { width: 26px; height: 26px; border-radius: 50%; }
+  .who b { color: var(--ink-light); font-weight: 600; }
+  .who button { background: none; border: 0; color: var(--muted); font: inherit;
+                text-decoration: underline; cursor: pointer; padding: 0; }
+  .who button:hover { color: var(--accent); }
+
+  .notice { border: 1px dashed var(--rule); border-radius: var(--radius-md);
+            padding: 16px 18px; font-size: 13.5px; line-height: 1.55; color: var(--muted);
+            margin-top: 24px; }
 
   footer.foot { margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--rule);
                 font-size: 13px; line-height: 1.6; color: var(--muted); }
@@ -50,6 +62,9 @@
   .status { color: var(--muted); font-size: 15px; }
   .err { background: #fef2f2; border-left: 2px solid #dc2626; padding: 13px 16px;
          font-size: 14px; color: var(--ink-light); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .pending { background: #fffbeb; border-left: 2px solid #d97706; padding: 13px 16px;
+             font-size: 14px; color: var(--ink-light); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+             margin-bottom: 18px; line-height: 1.55; }
 
   @media (max-width: 620px) {
     .wrap { padding: 36px 18px 56px; }
@@ -61,27 +76,43 @@
 <body>
 <div class="wrap">
 
+  <div class="who" id="who" hidden></div>
+
   <header class="masthead">
     <div class="eyebrow">CivicScope</div>
     <h1 id="title">Loading…</h1>
     <p class="sub" id="sub"></p>
   </header>
 
-  <div class="cards" id="cards"></div>
-
-  <div class="signin">
-    <h3>Signing in</h3>
-    <p>These tools are open on this link for now. Google sign-in is coming, so each person sees
-       only the tools they work with and every plant entry is signed by whoever took it.</p>
-  </div>
+  <div id="main"></div>
 
   <footer class="foot" id="foot"></footer>
 
 </div>
 
 <script>
-// The village comes from the path (/centreville), exactly as the ask tool does — one page serves
-// every village, and village #2 is a rewrite line plus a muni_tenants row.
+/* ============================================================================================
+   THE HUB IS THE GATE (Keith, 2026-08-25: "this is the page that should be gated with login for
+   Michelle and her assistant").
+
+   Signing in belongs HERE rather than on each product, for the reason the hub exists at all:
+   Michelle is one person holding two jobs — she runs the village office and she is the
+   Operator-In-Charge of the water plant — so one address, one sign-in, and the page routes her.
+   Sheila Nelson, her assistant, is enrolled the same way. The session cookie is scoped to
+   `.civicscope.io`, so following a card into Well Testing on `app.civicscope.io` does not ask
+   again; being sent back to sign in a second time is exactly the friction that sends people back
+   to paper.
+
+   ⛔ THE CREW ARE NOT PART OF THIS AND MUST NEVER BE. Mark Major and Jeff Derrikson walk the round
+   with a tablet at /water and, in Keith's words, "wont have email logins". That surface stays open
+   and asks only for a name. This gate is the office, not the well house.
+
+   ⚠ WHEN SIGN-IN IS NOT CONFIGURED, THE PAGE OPENS RATHER THAN BRICKS. `configured:false` means
+   this deployment has no Google client id yet. Refusing everyone in that state would take a working
+   tool away from the village to enforce a gate that nobody — including the people it is for — could
+   satisfy. So it says so plainly and lets them through, and the moment the client id is set the
+   gate is live with no code change. An honest sentence beats both a dead button and a locked door.
+   ============================================================================================ */
 const SLUG = (location.pathname.replace(/^\/+|\/+$/g, '').split('/')[0] || '').toLowerCase();
 
 const $ = id => document.getElementById(id);
@@ -89,7 +120,15 @@ const esc = s => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-function fail(msg) { $('cards').innerHTML = '<div class="err">' + esc(msg) + '</div>'; }
+const auth = async (action, extra = {}) => {
+  const r = await fetch('/api/auth-google', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...extra }),
+  });
+  return r.json().catch(() => ({ ok: false, error: 'bad response' }));
+};
+
+function fail(msg) { $('main').innerHTML = '<div class="err">' + esc(msg) + '</div>'; }
 
 /** One product card. `meta` is the honest one-line state of that product today. */
 function card(href, name, blurb, meta) {
@@ -100,70 +139,145 @@ function card(href, name, blurb, meta) {
     + '</a>';
 }
 
-async function boot() {
-  if (!SLUG) { fail('No village specified in the address.'); return; }
-  $('cards').innerHTML = '<div class="status">Loading…</div>';
+let TENANT = null, CORPUS = null;
 
-  let d;
-  try {
-    const r = await fetch('/api/muni-ask?tenant=' + encodeURIComponent(SLUG));
-    d = await r.json();
-    if (!r.ok) { fail(d.error || 'Could not load this village.'); return; }
-  } catch { fail('Could not reach CivicScope. Please try again.'); return; }
-
-  const t = d.tenant, c = d.corpus || {};
-  const short = t.short_label || t.label;
-
+async function loadTenant() {
+  const r = await fetch('/api/muni-ask?tenant=' + encodeURIComponent(SLUG));
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Could not load this village.');
+  TENANT = d.tenant; CORPUS = d.corpus || {};
+  const short = TENANT.short_label || TENANT.label;
   document.title = short + ' — CivicScope';
   $('title').textContent = short;
   $('sub').innerHTML = 'Your CivicScope tools, in one place.'
-    + (t.site_url ? ' <a href="' + esc(t.site_url) + '" target="_blank" rel="noopener">Village website ↗</a>' : '');
+    + (TENANT.site_url ? ' <a href="' + esc(TENANT.site_url) + '" target="_blank" rel="noopener">Village website ↗</a>' : '');
+  $('foot').innerHTML = 'CivicScope builds these from the Village’s own records. '
+    + 'Answers and reports are working tools, not legal advice or a filed submission — '
+    + 'check anything that matters against the source document.';
+}
 
+/** The tools this person may actually open. Entitlement is data on their row, never a guess. */
+function renderCards(user, opts) {
+  const openBecauseUnconfigured = Boolean(opts && opts.openBecauseUnconfigured);
+  const short = TENANT.short_label || TENANT.label;
   const cards = [];
 
   // ── Ask <Village> ────────────────────────────────────────────────────────────────────
   // Named for the village because that is what it is — the village's own documents, not a
   // general legal search. Only offered when the corpus is actually answering.
-  if (t.active) {
+  if (TENANT.active) {
     cards.push(card(
       '/' + SLUG + '/ask',
       'Ask ' + short,
       'Ask a question in plain English and get an answer drawn from the Village’s own ordinances '
         + 'and zoning rules — with a link to the source document every time.',
-      '<strong>' + (c.documents || 0) + '</strong> documents indexed'
-        + (c.passages ? ' · ' + c.passages.toLocaleString() + ' searchable passages' : '')
-        + (c.transcribed ? ' · ' + c.transcribed + ' transcribed from scans' : '')
+      '<strong>' + (CORPUS.documents || 0) + '</strong> documents indexed'
+        + (CORPUS.passages ? ' · ' + CORPUS.passages.toLocaleString() + ' searchable passages' : '')
+        + (CORPUS.transcribed ? ' · ' + CORPUS.transcribed + ' transcribed from scans' : '')
     ));
   }
 
-  // ── Well Sampler ─────────────────────────────────────────────────────────────────────
-  // Shown only when this village actually has a supply on the platform (muni_tenants.water_wssn),
-  // so the hub never offers a plant log to a village with no plant.
-  if (t.water_wssn) {
+  // ── Well Testing ─────────────────────────────────────────────────────────────────────
+  // Shown when this village has a supply on the platform (muni_tenants.water_wssn) AND this
+  // person is enrolled for it. Sheila is enrolled for the plant too — Keith, 2026-08-25:
+  // "the assistant wont go into the well page - but she can have access" — so what decides the
+  // card is her row, not our assumption about her job.
+  const entitled = openBecauseUnconfigured
+    || (user && (user.role === 'admin' || user.water_wssn === TENANT.water_wssn));
+  if (TENANT.water_wssn && entitled) {
     cards.push(card(
-      // The hub is the OIC's front door, so it opens on the REVIEW side. The crew never come
+      // The hub is the office's front door, so it opens on the REVIEW side. The crew never come
       // through here — they bookmark /water and go straight to entering a round.
-      '/water/review',
-      // Keith named it Well Testing (2026-08-19). The card said 'Sampler' while the tool itself
-      // said 'Plant Log' — three names for one product, none of them his.
+      '/water/review?wssn=' + encodeURIComponent(TENANT.water_wssn),
       'Well Testing',
-      'Record the daily round at the plant — wells, doses, tank levels and distribution samples — '
+      'Review the daily round at the plant — wells, doses, tank levels and distribution samples — '
         + 'and generate the monthly EGLE report from what was actually recorded.',
-      // The PIN is gone (2026-08-19): the field round is initials-only, so promising a PIN here
-      // would send an operator hunting for a credential that no longer exists.
-      'Water supply <strong>WSSN ' + esc(t.water_wssn) + '</strong> · needs your plant access code'
+      // ⚠ This line used to read "needs your plant access code". There has never been a plant
+      // access code for anyone to hold (Keith, 2026-08-21), so the hub was sending its one reader
+      // off to find a credential that does not exist. Sign-in replaced it.
+      'Water supply <strong>WSSN ' + esc(TENANT.water_wssn) + '</strong>'
+        + ' · the MOR is due to EGLE by the 10th'
     ));
   }
 
   if (!cards.length) {
-    fail('No tools are switched on for this village yet.');
+    fail('No tools are switched on for your account for this village yet.');
     return;
   }
-  $('cards').innerHTML = cards.join('');
+  $('main').innerHTML = '<div class="cards">' + cards.join('') + '</div>'
+    + (openBecauseUnconfigured
+        ? '<div class="notice"><strong>Sign-in is not switched on for this deployment yet.</strong> '
+          + 'Anyone with this link can open these tools until it is. Nothing here is hidden behind a '
+          + 'control that does not work.</div>'
+        : '');
+}
 
-  $('foot').innerHTML = 'CivicScope builds these from the Village’s own records. '
-    + 'Answers and reports are working tools, not legal advice or a filed submission — '
-    + 'check anything that matters against the source document.';
+/** Signed out, and sign-in works. This is the whole page. */
+function renderGate(clientId, pendingMsg) {
+  const short = (TENANT && (TENANT.short_label || TENANT.label)) || 'this village';
+  $('main').innerHTML =
+    (pendingMsg ? '<div class="pending">' + esc(pendingMsg) + '</div>' : '')
+    + '<div class="gate">'
+    + '<h2>Sign in to continue</h2>'
+    + '<p>These are ' + esc(short) + '’s own records. Sign in with the Google account the Village '
+    + 'has on file for you.</p>'
+    + '<div class="gbtn" id="gbtn"></div>'
+    + '</div>'
+    + '<div class="notice">Taking readings at the plant? The well-house app does not need a sign-in — '
+    + 'open <strong>civicscope.io/water</strong> on the tablet and pick your name.</div>';
+
+  const s = document.createElement('script');
+  s.src = 'https://accounts.google.com/gsi/client';
+  s.async = true; s.defer = true;
+  s.onload = () => {
+    google.accounts.id.initialize({ client_id: clientId, callback: onCredential });
+    google.accounts.id.renderButton($('gbtn'), {
+      theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', width: 280,
+    });
+  };
+  // A blocked or failed GIS script must not leave an empty box that reads as a slow page.
+  s.onerror = () => {
+    $('gbtn').innerHTML = '<div class="err">Google sign-in could not load. '
+      + 'Check that this browser is not blocking accounts.google.com.</div>';
+  };
+  document.head.appendChild(s);
+}
+
+async function onCredential(response) {
+  $('gbtn').innerHTML = '<div class="status">Signing in…</div>';
+  const r = await auth('signin', { credential: response.credential });
+  if (r.signedIn) { boot(); return; }
+  // Verified by Google, not enrolled here. Say exactly which address was used — that is the one
+  // fact that turns fixing it into a single step instead of a conversation.
+  boot(r.msg || r.error || 'That sign-in could not be completed.');
+}
+
+function renderWho(user) {
+  $('who').hidden = false;
+  $('who').innerHTML =
+    (user.picture ? '<img src="' + esc(user.picture) + '" alt="">' : '')
+    + '<span>Signed in as <b>' + esc(user.name || user.email) + '</b></span>'
+    + '<button type="button" id="out">Sign out</button>';
+  $('out').onclick = async () => {
+    await auth('signout');
+    if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
+    boot();
+  };
+}
+
+async function boot(pendingMsg) {
+  if (!SLUG) { fail('No village specified in the address.'); return; }
+  $('main').innerHTML = '<div class="status">Loading…</div>';
+  $('who').hidden = true;
+
+  try { await loadTenant(); } catch (e) { fail(e.message); return; }
+
+  let me;
+  try { me = await auth('me'); } catch { fail('Could not reach CivicScope. Please try again.'); return; }
+
+  if (me.signedIn) { renderWho(me.user); renderCards(me.user); return; }
+  if (me.configured && me.client_id) { renderGate(me.client_id, pendingMsg); return; }
+  renderCards(null, { openBecauseUnconfigured: true });
 }
 
 boot();

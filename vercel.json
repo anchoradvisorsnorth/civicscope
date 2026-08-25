@@ -1,11 +1,17 @@
 {
   "functions": {
-    "api/build-mor.py": { "maxDuration": 60 }
+    "api/build-mor.py": {
+      "maxDuration": 60
+    }
   },
   "crons": [
     {
       "path": "/api/digest",
       "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/water-reminder",
+      "schedule": "0 12 7 * *"
     }
   ],
   "redirects": [

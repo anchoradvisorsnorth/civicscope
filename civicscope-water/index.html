@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.0.0-water
+  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.1.0-water
 
   The operator picks the well he is standing at. The well's PROFILE decides what he is asked for,
   because Centreville's three wells happen to be identical and the next village's will not be.
@@ -104,13 +104,28 @@
        Attribution here is ASSERTED, exactly as it is on paper. What makes the record trustworthy
        is the OIC's review and signature under 1976 PA 399 — not a 4-digit code typed at a well
        house. The identity that has to be real is Michelle's, and that belongs in her environment. -->
+  <!-- ⛔ THIS IS THE FIRST FIELD, IT IS REQUIRED, AND IT STARTS BLANK (Keith, 2026-08-25:
+       "we need to make sure that the first field (required) is for their name or initials…
+       the person field should default to the blank").
+
+       WHY BLANK MATTERS MORE HERE THAN IT LOOKS. This is ONE tablet, installed at the plant, and
+       "the typical schedule is one person does it for a week and then someone else does it the
+       next week." A remembered name is therefore wrong roughly every seventh day, and wrong
+       SILENTLY — the handover is exactly the moment nobody is thinking about whose initials are in
+       the corner. The previous build remembered the operator forever, so the first week of Jeff's
+       rotation would have gone on the record as Mark.
+
+       So the name is re-chosen each DAY. Not each submission (three wells plus samples in one
+       round; asking four times is how a tool gets abandoned) and not once forever (that is the bug
+       above). One deliberate choice per day, on the screen that opens before anything else. -->
   <section id="scrWho" class="card hide">
-    <h2>Who's on the round?</h2>
-    <label for="opSel">Operator</label>
+    <h2>Who's taking the readings?</h2>
+    <label for="opSel">Your name <span style="color:var(--err)">*</span></label>
     <select id="opSel"></select>
-    <p class="muted">Set once on this tablet. Your initials stay on screen and go on everything you submit — tap them any time to hand the round to someone else.</p>
+    <p class="muted">Required. Your initials go on everything you submit today and stay in the
+      corner of the screen — tap them any time to hand the round to someone else.</p>
     <div id="whoMsg"></div>
-    <div style="margin-top:16px"><button class="primary" id="btnWho">Start round</button></div>
+    <div style="margin-top:16px"><button class="primary" id="btnWho" disabled>Start round</button></div>
   </section>
 
   <!-- ===== 3. app ======================================================================= -->
@@ -196,7 +211,7 @@ import { derive } from '/civicscope-water/derive.js';
 
 const API = '/api/water-ops';
 const LS  = 'cs-water-v1';
-const S   = { wssn:'', code:'', profile:null, op:null, tab:'round', queue:[] };
+const S   = { wssn:'', code:'', profile:null, op:null, opDate:'', tab:'round', queue:[] };
 
 const $  = (id) => document.getElementById(id);
 const el = (h) => { const d=document.createElement('div'); d.innerHTML=h.trim(); return d.firstElementChild; };
@@ -208,7 +223,7 @@ const fmt = (v,d=2) => (v==null||!isFinite(v) ? '—' : Number(v).toFixed(d));
 
 // ---- persistence ----------------------------------------------------------------------------
 // No access code is stored, because none is asked for. The crew never log in.
-function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,op:S.op,queue:S.queue})); }
+function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,op:S.op,opDate:S.opDate,queue:S.queue})); }
 function load(){ try{ Object.assign(S, JSON.parse(localStorage.getItem(LS)||'{}')); }catch{} S.queue ||= []; }
 
 async function api(action, payload={}, opts={}){
@@ -258,46 +273,74 @@ async function boot(){
     S.profile = p; save();
     $('hdrTitle').textContent = p.supply.name;
     $('hdrSub').textContent = `WSSN ${p.supply.wssn} · ${p.supply.classification||''}`;
-    $('opSel').innerHTML = p.operators.map(o=>`<option value="${o.id}">${esc(o.name)} (${esc(o.initials)})</option>`).join('');
-    // An operator remembered from last time is simply reused — that is the "initials one time"
-    // Keith asked for. Nobody is asked to identify themselves to LOOK at the round; only to file
-    // one, and only if this device has never been used before.
-    if(S.op && p.operators.some(o=>o.id===S.op.id)){
+    /* THE BLANK OPTION IS THE DEFAULT AND IT IS SELECTED. A <select> with no placeholder shows its
+       first option as though somebody had chosen it, so the tablet would sit there quietly
+       asserting that whoever happens to sort first is on the round. The empty value is what makes
+       "required" mean anything. */
+    $('opSel').innerHTML = '<option value="">— choose your name —</option>'
+      + p.operators.map(o=>`<option value="${o.id}">${esc(o.name)} (${esc(o.initials)})</option>`).join('');
+
+    /* ⛔ THE NAME EXPIRES AT MIDNIGHT. Keith, 2026-08-25: the rotation is weekly, one tablet, so a
+       name remembered from last time is wrong on every handover day and wrong without anybody
+       noticing. Carrying it within the day is fine and necessary — three wells and two samples are
+       one round, not five identifications. Carrying it across days is the bug. */
+    if(S.op && S.opDate === today() && p.operators.some(o=>o.id===S.op.id)){
+      $('opSel').value = S.op.id;
+      $('btnWho').disabled = false;
       $('whoChip').textContent = S.op.initials; $('whoChip').classList.remove('hide');
+      $('app').classList.remove('hide');
+      showTab(location.hash.slice(1) || 'round', { push: false });
     } else {
-      S.op = null;
-      $('whoChip').textContent = 'set initials'; $('whoChip').classList.remove('hide');
+      S.op = null; S.opDate = ''; save();
+      $('whoChip').textContent = 'who?'; $('whoChip').classList.remove('hide');
+      /* Opens on the name, not on the wells. It is the first field because it is the first thing
+         the round needs, and because a tablet that opens straight onto the wells invites somebody
+         to walk the whole round before discovering it wanted a name. */
+      $('scrWho').classList.remove('hide');
     }
-    $('app').classList.remove('hide');
-    showTab(location.hash.slice(1) || 'round', { push: false });
   }catch(e){
+    // The profile is what supplies the operator list, so with it unreachable there is no name to
+    // choose. Show the app rather than an empty picker, and say what went wrong.
+    $('scrWho').classList.add('hide');
     $('app').classList.remove('hide');
-    $('roundOut') && ($('roundOut').innerHTML = `<div class="card msg err">${esc(e.message)}</div>`);
+    $('roundSub') && ($('roundSub').innerHTML = `<span style="color:var(--err)">${esc(e.message)}</span>`);
   }
 }
 
+// Required means the button cannot be pressed until a name is chosen. A disabled control that
+// explains itself beats an enabled one that refuses.
+$('opSel').onchange = () => { $('btnWho').disabled = !$('opSel').value; $('whoMsg').innerHTML = ''; };
+
 // The chip is the only place initials live. Tap it any time to hand the round to someone else.
-$('whoChip').onclick = () => { $('app').classList.add('hide'); $('scrWho').classList.remove('hide'); };
+/* Handing the round over blanks the field again rather than showing the outgoing person's name.
+   Pre-selecting whoever is being replaced is precisely the wrong default on the one screen whose
+   whole job is to stop the record inheriting the last person who used the tablet. */
+$('whoChip').onclick = () => {
+  $('opSel').value = ''; $('btnWho').disabled = true; $('whoMsg').innerHTML = '';
+  $('app').classList.add('hide'); $('scrWho').classList.remove('hide');
+};
 
 /* Asked ONCE, and only when something is about to be filed under a name. Returns false if the
    operator still has not chosen, so the caller can stop rather than submit anonymously. */
 function needOperator(){
   if(S.op) return true;
   $('app').classList.add('hide'); $('scrWho').classList.remove('hide');
-  $('whoMsg').innerHTML = '<div class="msg warn">Add your initials before submitting — they go on the record.</div>';
+  $('whoMsg').innerHTML = '<div class="msg warn">Choose your name before submitting — it goes on the record.</div>';
   return false;
 }
 
 $('btnWho').onclick = async () => {
   const id = $('opSel').value;
   const op = (S.profile.operators||[]).find(o=>o.id===id);
-  if(!op) return;
+  if(!op){ $('whoMsg').innerHTML = '<div class="msg err">Choose your name to start the round.</div>'; return; }
   /* No PIN. The Well and Pump Record has a "Done by" column holding initials and nothing else, and
      the PIN this replaced was enforced for exactly one of four operators.
      ⚠ Because nothing proves who is holding the tablet, the initials are never hidden: the chip
      shows them on every screen and is one tap from changing, so a shared tablet cannot quietly
      credit a month of rounds to whoever set it last. */
-  S.op = { id, name:op.name, initials:op.initials }; save();
+  // The date is stored WITH the name. It is what expires the choice at midnight, and storing it
+  // separately from the name is what would let the two drift apart.
+  S.op = { id, name:op.name, initials:op.initials }; S.opDate = today(); save();
   $('whoChip').textContent = op.initials;
   $('whoMsg').innerHTML = '';
   $('scrWho').classList.add('hide'); $('app').classList.remove('hide');
