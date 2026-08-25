@@ -216,9 +216,16 @@ function renderAnswer(text, sources) {
       + '<div class="body">'
       +   '<div class="h">' + esc(s.title)
       +     (s.transcribed ? '<span class="tag" title="Transcribed from a scanned page — confirm figures against the source">scan</span>' : '')
+      // A website source is a SNAPSHOT of a page that can change under us, which no ordinance does.
+      // The date is on the tag rather than buried, because "is this still true?" is the only
+      // question worth asking of a web source and the reader cannot ask it without knowing when.
+      +     (s.web ? '<span class="tag" title="From the Village website'
+      +       (s.readAt ? ', as it read on ' + esc(s.readAt) : '')
+      +       ' — the page may have changed since">web' + (s.readAt ? ' · ' + esc(s.readAt) : '') + '</span>' : '')
       +   '</div>'
       +   '<div class="where">' + esc(where) + '</div>'
-      +   (s.url ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">Open the source document ↗</a>' : '')
+      +   (s.url ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">'
+      +     (s.web ? 'Open the page ↗' : 'Open the source document ↗') + '</a>' : '')
       + '</div></div>';
   }).join('');
 
