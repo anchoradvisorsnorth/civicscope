@@ -1110,8 +1110,93 @@ email existed to save them.
   a month with no bacti cannot be signed cleanly, and July 2026 reached the state with none.
 - Exercise it without sending: `POST /api/water-reminder?dry=1[&year=&month=]` with the cron bearer.
 
+## What the village asks, and what it cannot answer — `scripts/muni-usage.mjs` (NEW 2026-08-25)
+
+Keith, on the two audiences: going public is phase two, but *"indexing around how staff use the
+tool will be useful."* Run `node scripts/muni-usage.mjs` (`--tenant`, `--days`, `--failures`).
+
+### ⛔ THE QUESTION LOG WAS ASSERTING SOMETHING FALSE, AND THE METRIC COULD NOT GO RED
+
+`muni_questions.answered` was set true whenever the model produced prose. So a question that
+retrieved twelve passages and was told *"the passages I have do not contain the R-1 dimensional
+table"* counted as **answered**. Measured 2026-08-25: **68 of 68 answered, 0 with zero hits** —
+while a real user asked for setbacks on 18 August and could not get them for a week. A dashboard
+that reports 100% on a product with a week-old hole in it is worse than no dashboard.
+
+Migration **045** replaced it with what the model reports about its own answer (`outcome`,
+`cited_collections`, `used_table`). The marker is the first line of the reply, stripped before the
+reader sees it. A model that emits no marker is recorded as `answered` rather than guessed at from
+its prose — **an inferred outcome is the thing this replaced.** Pre-045 rows stay `null` and print
+as *"outcome unknown"*; back-filling them from `answered` would manufacture the 68 records this
+exists to stop the table asserting.
+
+### The distinction the report is built around
+
+| Outcome | Means | What to do |
+|---|---|---|
+| `answered` / `partial` | the documents carried it | nothing |
+| `referred` | this government does not hold the fact, and the answer named the one that does | **nothing — this is the tool working** |
+| `declined` | passages were retrieved and none answered it | **a retrieval or chunking defect.** The corpus had content to offer and could not reach the answer |
+| `no_corpus` | nothing matched at all | a corpus gap — go and get the document |
+
+`declined` and `no_corpus` are the only two the report calls broken.
+
+### ⛔ `referred` EXISTS BECAUSE 045 HAD THE MIRROR DEFECT — IT COULD NOT GO GREEN FOR A CORRECT REFUSAL
+
+On the first day of real outcome data, two questions logged `declined`, and they are opposites:
+
+- **Bristol, "front setback in the R-1 district"** — the Elkhart County dimensional table **is** in
+  the corpus and retrieval cannot reach it. A defect.
+- **Centreville, "how much does a dog license cost?"** — the Village does not issue dog licences.
+  § 10-3 adopts the county dog ordinance by reference, and the tool **found that**, named the
+  St. Joseph County Treasurer, and gave the Village phone number with the date the site was read.
+  That is the best answer available and arguably the best answer the tool has produced.
+
+Filed under one label, the failure list sends the village chasing a bug that does not exist while
+burying one that does. And this is not an edge case: **Bristol delegates its entire zoning power to
+Elkhart County**, so "the answer belongs to another government" is a routine correct outcome for a
+whole tenant. Migration **046** added `referred`, counted separately and never as a failure.
+
+### ⛔ AND THEN `referred` IMMEDIATELY ATE THE ONE DEFECT IT WAS BUILT TO EXPOSE
+
+Minutes after shipping, Bristol’s R-1 setback logged **`referred`** — the model pointed politely at
+"section 158.03(B)(3), page 3-8 of the Elkhart County Development Ordinance". **That page is in this
+database.** It was merged into the passages for that very question through `shares_corpus_with`.
+The model cannot know which corpora we ingested, so it will refer to a document we already hold,
+and the new outcome absorbs the failure — the same disappearing act as the old `answered` flag, one
+layer up.
+
+**The server overrides the model, because only the server knows what was ingested.** If a `referred`
+answer names the government whose corpus this tenant already shares, it is recorded as `declined`.
+Deliberately narrow — it matches the shared tenant’s own name, so a genuine referral to a state
+agency or an un-ingested county stays `referred`.
+
+⚠ The label is stored qualified (`Elkhart County, Indiana`) while an answer writes *"the Elkhart
+County Development Ordinance"*. Matching the whole label makes this **dead code that always looks
+like it is working** — match the part before the comma.
+
+Verified live after deploy: Bristol setback → `declined`, dog licence → `referred`.
+
+### Reading the report
+
+- **keyword-style** — staff type keywords ("irrigation wells", "what is code 21") because they want
+  a *document*; residents write sentences ("how tall can a fence be?"). A distribution worth
+  watching, not a claim about any one question.
+- **used a table** — whether the table machinery built this month reached a real question.
+  ⚠ It must not under-report: `muni_search` does not return `is_table`, so a table arriving through
+  ordinary retrieval looks like prose. Counted by guaranteed chunk **id**, plus the heading test.
+- **asked more than once** — the shortlist for what the village should publish, and how you notice
+  one person retrying a question that keeps failing.
+
 ## Open Action Items
 
+- ⛔ **Bristol R-1 dimensional row does not reach the model — the ONE open retrieval defect, and it
+  is now the only thing in the failure list.** The Elkhart County chunk is built, flagged
+  `is_table`, and correctly headed; it loses on ranking. `node scripts/muni-usage.mjs --failures`
+  is the standing check. Everything else that looked like a failure on 2026-08-25 turned out to be
+  a correct referral to another government.
+- **Check `minRows: 3 -> 2` in `tabularPages()` for false positives.** Changed to catch Elkhart
+  County continuation pages without measuring precision afterwards.
 - **Centreville is now a CLIENT PROJECT with its own folder — `Cowork\Centreville\CLAUDE.md`
   (2026-08-18).** Two live products for one village (`/centreville` + `/water`). Read that file
   alongside this one for anything Centreville-specific: the plant profile, corpus state, and what
