@@ -65,10 +65,16 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.2.0-waterops';
+export const VER = '1.3.0-waterops';
 
 import { derive, LBS_PER_MILLION_GALLONS } from '../civicscope-water/derive.js';
 export { derive };
+
+/* Google sign-in, shared with api/auth-google.js through the ONE copy of the session rule. Reading
+   the cookie here rather than re-implementing it is the same discipline derive.js enforces on the
+   arithmetic: two copies of "is this browser signed in" drift, and the one that drifts is the one
+   nobody is watching. */
+import { sessionOf } from '../lib/session.js';
 
 // ---------------------------------------------------------------------------------------------
 // Supabase
@@ -114,6 +120,20 @@ async function previousReading(entryPointId, date) {
   const feeds = {};
   for (const f of fr || []) feeds[f.feed_id] = { tank_level: f.tank_level, refill_to: f.refill_to };
   return { id: prev.id, reading_date: prev.reading_date, meter_reading: prev.meter_reading, feeds };
+}
+
+/* WHO IS ASKING. Returns the enrolled, ACTIVE app_users row behind the session cookie, or null.
+   Re-read on every call rather than trusted from the cookie's own claims, because deactivating
+   somebody has to take effect when it is done — not when their 30-day session happens to lapse.
+   A null here is never an error: most calls into this file come from a crew tablet that has no
+   session and is never going to have one. */
+async function signedInUser(req) {
+  const s = sessionOf(req);
+  if (!s || !s.uid) return null;
+  try {
+    const rows = await sb(`app_users?id=eq.${s.uid}&active=eq.true&select=*&limit=1`);
+    return (rows && rows[0]) || null;
+  } catch { return null; }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -321,25 +341,82 @@ export default async function handler(req, res) {
      ADMIN IS NOT. Adding or deactivating an operator changes who the record can be attributed to,
      which is not a field task and is not something a bookmarked link should be able to do — those
      still require the code.
-     ⚠ Stated plainly: with this, anyone holding the /water URL can write a reading into a record
-     that sits behind a report signed under 1976 PA 399. That is the same posture the village hub
-     already describes in words ("open on this link for now") and the same one the OIC review page
-     runs under. Google sign-in is what closes it, for both surfaces at once. */
-  /* `record_filing` is here too, since 2026-08-21. It was gated on the reasoning that recording a
-     filing "asserts something was submitted to a regulator" — true, and irrelevant once Keith
-     confirmed no such code exists for anyone to hold. Gated, it was unreachable by Michelle and by
-     everyone else, while the three actions above — which write the DATA a future report is built
-     from — stayed open. That is backwards: a filing is a statement about a document that has
-     already gone, and a reading is what flows into the next one. */
-  const OPERATOR_WRITES = new Set(['submit_reading', 'submit_dist', 'submit_bacti', 'record_filing']);
-  if (!READ_ONLY.has(action) && !OPERATOR_WRITES.has(action)) {
-    if (!OPS_CODE) return bad(res, 503, 'WATER_OPS_CODE is not configured — the admin actions are disabled.');
-    if (body.code !== OPS_CODE) return bad(res, 403, 'Wrong access code.');
+     ⚠ Stated plainly, and still true: anyone holding the /water URL can write a NEW reading into a
+     record that sits behind a report signed under 1976 PA 399. Google sign-in (2026-08-25) did not
+     change that and was never going to — the crew have no email logins by design. What it changed
+     is that AMENDING one now requires an identified person; see the office-writes rule below. */
+  /* `record_filing` was moved out of the gated set on 2026-08-21, on the reasoning that gating it
+     on a code nobody holds made it unreachable by Michelle and by everyone else while the actions
+     that write the DATA a future report is built from stayed open. That was right at the time and
+     is superseded now, because there is finally a credential a PERSON can hold — see below. */
+  const OPERATOR_WRITES = new Set(['submit_reading', 'submit_dist', 'submit_bacti']);
+
+  /* ── GOOGLE SIGN-IN IS WHAT THIS FILE HAS BEEN WAITING FOR (2026-08-25) ──────────────────────
+     Keith: *"Michelle wants to log in using the oauth on her account… She has an assistant that
+     wants to do the same."* Until today the only credential this route understood was
+     `WATER_OPS_CODE`, which — Keith, 2026-08-21 — *"there is no plant access code"*: an environment
+     variable a script presents, held by no person at the village. So every action was either open
+     or unreachable, and there was no third state.
+
+     There is now. The rules below draw the line where the JOB draws it, not where the technology
+     does:
+
+       READS            open. An MOR is a public record and its contents are already served here.
+       CREW WRITES      open, and must stay open. Keith, 2026-08-19: *"this is the wellhouse app -
+                        it need to be super simple - pick a well - no login"*, and 2026-08-25 of
+                        Mark Major and Jeff Derrikson: *"they wont have email logins."* Entering a
+                        round is the crew's whole job, done one-handed in a concrete room.
+       OFFICE WRITES    identity required — a signed-in person enrolled for THIS supply, or the ops
+                        code for a script. Two actions qualify and they have the same character:
+                        recording that a report was filed with the State of Michigan, and CORRECTING
+                        a day that is already on the record. Both are assertions about the record
+                        rather than observations of the plant, and both are desk work.
+       ADMIN            unchanged (ops code), plus a signed-in CivicScope admin. Adding an operator
+                        or switching a supply live is never a field task.
+
+     ⛔ THE CORRECTION RULE IS ABOUT THE PAYLOAD, NOT THE ACTION NAME. `submit_reading` is an open
+     crew write when it records a new day and an office write when it carries a
+     `correction_reason`, because that second case supersedes a row sitting under a report signed
+     under 1976 PA 399. Keying this on the action alone would have left the correction path open
+     while locking the filing path — which is the same inversion that was fixed on 2026-08-21, in
+     the other direction. */
+  const OFFICE_WRITES = new Set(['record_filing']);
+  const wssn = String(body.wssn || '').trim();
+  if (!wssn) return bad(res, 400, 'wssn required');
+
+  const codeOk = Boolean(OPS_CODE) && body.code === OPS_CODE;
+  const isCorrection = Boolean(body.correction_reason);
+  const needsOffice = OFFICE_WRITES.has(action) || (OPERATOR_WRITES.has(action) && isCorrection);
+  const needsAdmin = !READ_ONLY.has(action) && !OPERATOR_WRITES.has(action) && !OFFICE_WRITES.has(action);
+
+  /* Resolved once, and only when a decision actually depends on it — a crew tablet submitting a
+     round must not pay for a Supabase read that can only ever return null for it. */
+  let actor = null;
+  if (needsOffice || needsAdmin) actor = await signedInUser(req);
+
+  if (needsAdmin) {
+    if (!codeOk && !(actor && actor.role === 'admin')) {
+      if (!OPS_CODE && !actor) return bad(res, 503, 'WATER_OPS_CODE is not configured and you are not signed in — the admin actions are disabled.');
+      return bad(res, 403, 'That action needs a CivicScope admin sign-in or the supply access code.');
+    }
+  } else if (needsOffice) {
+    /* Scoped to the supply, not merely signed in. Somebody enrolled for a different village must
+       not be able to record a filing against this one, and an allowlist that grants "signed in"
+       rather than "signed in FOR THIS SUPPLY" is not an allowlist. */
+    const scoped = Boolean(actor) && (actor.role === 'admin' || actor.water_wssn === wssn);
+    if (!codeOk && !scoped) {
+      return res.status(403).json({
+        error: actor
+          ? 'Your sign-in is not enrolled for this water supply.'
+          : (isCorrection
+              ? 'Correcting a recorded day needs you to be signed in — it supersedes a record behind a report signed under 1976 PA 399.'
+              : 'Recording a filing needs you to be signed in.'),
+        needsSignIn: !actor,
+      });
+    }
   }
 
   try {
-    const wssn = String(body.wssn || '').trim();
-    if (!wssn) return bad(res, 400, 'wssn required');
 
     switch (action) {
       // ---- who am I talking to, and what does this plant look like ---------------------------
@@ -768,7 +845,11 @@ export default async function handler(req, res) {
               filed,
               filed_summary: summary,
               source: ['backfill', 'product', 'import'].includes(body.source) ? body.source : 'backfill',
-              recorded_by: body.recorded_by || null,
+              /* Who recorded the filing. A signed-in person wins over anything the caller
+                 asserts about itself: the whole point of requiring identity for this action is
+                 that the answer stops being self-reported. A script authenticating with the ops
+                 code still supplies its own label, because there is no person behind it to name. */
+              recorded_by: (actor ? (actor.name || actor.email) : null) || body.recorded_by || null,
               notes: body.notes || null,
               corrects: supersedes ? supersedes.id : null,
               correction_reason: body.correction_reason || null,
