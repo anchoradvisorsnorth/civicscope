@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.2.0-water
+  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.3.0-water
 
   The operator picks the well he is standing at. The well's PROFILE decides what he is asked for,
   because Centreville's three wells happen to be identical and the next village's will not be.
@@ -147,7 +147,7 @@
     <section id="tabEntry" class="hide"></section>
 
     <section id="tabDist" class="hide">
-      <button class="ghost" style="width:100%;margin-bottom:10px" onclick="showTab('round')">← Back to the wells</button>
+      <button class="ghost" style="width:100%;margin-bottom:10px" data-tab="round">← Back to the wells</button>
       <div class="card">
         <h2>Distribution sample</h2>
         <div class="muted">One sample per site per day.</div>
@@ -171,7 +171,7 @@
          The residual is REQUIRED here (the API refuses without it) because a bacti result
          with no chlorine residual beside it tells EGLE nothing about the water. ============ -->
     <section id="tabBacti" class="hide">
-      <button class="ghost" style="width:100%;margin-bottom:10px" onclick="showTab('round')">← Back to the wells</button>
+      <button class="ghost" style="width:100%;margin-bottom:10px" data-tab="round">← Back to the wells</button>
       <div class="card">
         <h2>Bacteriological sample</h2>
         <div class="muted">Routine sites, or a well. The free chlorine taken with the sample
@@ -377,6 +377,20 @@ function showTab(tab, { push = true } = {}) {
   if (push && location.hash.slice(1) !== tab) location.hash = tab;
   if (tab === 'round') refreshRound();
 }
+
+/* ⛔ THESE BUTTONS HAVE BEEN DEAD SINCE THE TAB BAR WAS REMOVED (reported by Keith, 2026-08-25:
+   "the back to wells button at the top does not work").
+   They were wired as inline onclick="showTab('round')", and this script is <script type=module>.
+   Module scope is NOT global scope: an inline handler is evaluated against window, where showTab
+   has never existed, so every tap threw ReferenceError into the console and did nothing visible.
+   The OIC page next door got this right only by accident of style — it assigns window.generateMor,
+   window.openWorkbook, window.goMonth explicitly.
+   Fixed with ONE delegated listener rather than another global, so a button added later works by
+   carrying data-tab and nothing has to remember to export anything. */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tab]');
+  if (b) { e.preventDefault(); showTab(b.dataset.tab); }
+});
 
 // Back/forward — including the phone's back gesture — now move between screens instead of
 // leaving the app. `push:false` so restoring a screen does not add another history entry.
