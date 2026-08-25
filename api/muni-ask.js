@@ -157,7 +157,7 @@ export default async function handler(req, res) {
        carries auth_client_id and anthropic_key_env, and this handler's GET branch returns tenant
        fields straight to the browser. A widening edit here is the one mistake that would publish
        configuration nobody meant to publish. */
-    [tenant] = await sb(`muni_tenants?slug=eq.${encodeURIComponent(slug)}&select=slug,label,active,anthropic_key_env`);
+    [tenant] = await sb(`muni_tenants?slug=eq.${encodeURIComponent(slug)}&select=slug,label,active,anthropic_key_env,unit_noun,shares_corpus_with`);
   } catch {
     return res.status(503).json({ error: 'Corpus is unavailable.' });
   }
@@ -198,6 +198,24 @@ export default async function handler(req, res) {
      ⚠ This adds, it never displaces. The ordinances keep every seat they won, so a legal question
      still leads with the law — and the model is separately told that a [web] passage is not law and
      that an ordinance governs where the two disagree about a rule. */
+  /* ⛔ THE COUNTY THAT ACTUALLY ZONES THIS TOWN (migration 040).
+     Bristol adopted the Elkhart County Development Ordinance by reference and handed its plan
+     commission to the county, keeping only the district map. So a zoning question asked of Bristol
+     is answered by a county document, and searching only Bristol returns a confident silence that
+     looks exactly like "the town has no rule about that".
+     A second retrieval against the shared tenant, merged — the same mechanism already proven for
+     the village website and for printed tables. The town keeps every seat it won; the county is
+     added. Passages carry their own citation, so the reader can see which government said it. */
+  if (tenant.shares_corpus_with) {
+    try {
+      const shared = await sb('rpc/muni_search', {
+        method: 'POST',
+        body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: question, p_limit: 6 }),
+      });
+      if (shared && shared.length) hits = (hits || []).concat(shared);
+    } catch { /* the town's own corpus still answers */ }
+  }
+
   /* ⛔ AND THE SAME GUARANTEE FOR A PRINTED TABLE, FOR THE SAME REASON (migration 038).
      A table states each term once; the prose discussing that table repeats them, and ts_rank_cd
      rewards repetition without bound. So the footnotes to Centreville's Table 4-4 beat the table
