@@ -292,11 +292,17 @@ export default async function handler(req, res) {
     } catch { /* the corpus still answers without it */ }
   }
 
+  // Village / Town / City / County — this tenant own noun (047).
+  const websiteCollection = `${tenant.unit_noun || 'Village'} Website`;
   if (hits && hits.length && !hits.some((h) => h.text_source === 'web')) {
     try {
       const web = await sb('rpc/muni_search_collection', {
         method: 'POST',
-        body: JSON.stringify({ p_tenant: slug, p_query: question, p_collection: 'Village Website', p_limit: 2 }),
+        /* ⚠ The collection carries the tenant's own unit noun (047) — Centreville files under
+           'Village Website', Bristol under 'Town Website'. Hardcoding 'Village' here would make
+           this guarantee silently do nothing for every tenant that is not a village, and the
+           only symptom would be worse answers. */
+        body: JSON.stringify({ p_tenant: slug, p_query: question, p_collection: websiteCollection, p_limit: 2 }),
       });
       // Prepended for the same reason as the table above: the context budget truncates the tail.
       if (web && web.length) hits = web.concat(hits);
@@ -525,8 +531,10 @@ export default async function handler(req, res) {
          ⚠ If that table changes, change this with it — it is deliberately the only other place the
          judgement appears, and it lives here rather than in the page so there is one copy per rule
          rather than one per surface. */
-      authority: ['Code of Ordinances', 'Zoning & Planning Commission',
-        'Applications and Permits', 'Village Website'].includes(h.collection)
+      authority: (['Code of Ordinances', 'Zoning & Planning Commission',
+        'Applications and Permits'].includes(h.collection)
+        // Any unit noun: 'Village Website', 'Town Website', 'City Website', 'County Website'.
+        || /Website$/.test(String(h.collection || '')))
         ? 'primary' : 'secondary',
     })),
   });
