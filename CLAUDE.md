@@ -119,7 +119,7 @@ brand_statement, brand_values (jsonb array)
 - /ryc/schedule → ryc-schedule/index.html
 - /ryc/command → ryc-command/index.html (NEW 2026-07-07 — RYC Command Center v2, the FundView-style operating-cockpit rebuild of the RYC dashboard; parallel beta route, legacy /ryc/dashboard untouched until cutover. See RYC CLAUDE.md + memory project_ryc_command_center_overhaul.)
 - /ryc/estimate → ryc-estimate/index.html (NEW 2026-06-28 — RYC Estimating Assist: plan-set → Claude Vision takeoff → estimate grounded in RYC Foundation history; gate ryc2026. Part of the GC estimating-intelligence product, RYC = tenant #1. Calibration in progress; next is the unit-cost library. See RYC CLAUDE.md + memory project_civicscope_gc_estimating_intelligence.)
-- **/pool — "The Pool" unified hub (2026-07-19).** All friends'-pool pages (hidden personal, not a CivicScope product) merged under `pool/`: hub `index.html` + `golf.html`/`golf-picks.html` + `football.html`/`football-picks.html`/`commish.html` + **`live.html` (NEW 2026-08-09 — `/pool/live`, the bookmarkable phone-first live tracker)** + **`scoring.js` (NEW — the ONE client-side copy of the pool scoring rules, loaded by both `football.html` and `live.html`; mirror any change in `api/football-pool.js` and nowhere else)** + `sms.html` (A2P opt-in form → `sms_optin` action) + `privacy.html`/`terms.html` (A2P legal). Old `/golf*` + `/football*` URLs **301-redirect** (vercel.json; old file paths = meta-refresh stubs). APIs unchanged: [api/golf-pool.js](api/golf-pool.js) (`GOLF_POOL_CODE`) + [api/football-pool.js](api/football-pool.js) (`FOOTBALL_POOL_CODE`; `GET ?ver=1` returns its `VER` const — bump every edit + curl-verify live after deploy). Pool emails: `reply_to keith@anchoradvisorsnorth.com` on every send (pool@ has no mailbox — replies bounced before 7/19). **Full state/conventions live in `Cowork\Pools\CLAUDE.md` — read it before ANY pool work** (golf history incl. The Open final BOB, football demo state, no-odds rule, Twilio SMS status).
+- **/pool — "The Pool" unified hub (2026-07-19).** All friends'-pool pages (hidden personal, not a CivicScope product) merged under `pool/`: hub `index.html` + `golf.html`/`golf-picks.html` + `football.html`/`football-picks.html`/`commish.html` + **`live.html` (NEW 2026-08-09 — `/pool/live`, the bookmarkable phone-first live tracker)** + **`scoring.js` (NEW — the ONE client-side copy of the pool scoring rules, loaded by `football.html`, `live.html` **and now `index.html`**; mirror any change in `api/football-pool.js` and nowhere else. ⚠ Since 2026-08-25 it also holds the **season MONEY ledger** — `WEEKLY_STAKE` ($50, hardcoded), `seasonLedger()`, `fmtMoney()` — because three surfaces render that number and a hub and a board that disagree about what someone is OWED is the same class of fault as a board that disagrees with the server about who won. Its gate assertion is a replay of the commissioner's real 2025 spreadsheet: 120 weekly figures + 6 season totals, all matching. Full detail in `Pools\CLAUDE.md`)** + `sms.html` (A2P opt-in form → `sms_optin` action) + `privacy.html`/`terms.html` (A2P legal). Old `/golf*` + `/football*` URLs **301-redirect** (vercel.json; old file paths = meta-refresh stubs). APIs unchanged: [api/golf-pool.js](api/golf-pool.js) (`GOLF_POOL_CODE`) + [api/football-pool.js](api/football-pool.js) (`FOOTBALL_POOL_CODE`; `GET ?ver=1` returns its `VER` const — bump every edit + curl-verify live after deploy). Pool emails: `reply_to keith@anchoradvisorsnorth.com` on every send (pool@ has no mailbox — replies bounced before 7/19). **Full state/conventions live in `Cowork\Pools\CLAUDE.md` — read it before ANY pool work** (golf history incl. The Open final BOB, football demo state, no-odds rule, Twilio SMS status).
 - **`api/alert-sms.js` — a single-destination SMS relay (NEW 2026-08-19, `1.0.0-alert`).** No page,
   no route rewrite; it is reached only as `/api/alert-sms`. An OUTSIDE monitoring system (a friend's
   down-detector, nothing to do with CivicScope) texts one fixed handset through the pool's Twilio
@@ -491,16 +491,153 @@ it can answer, that the crawl is **current** (fails over 45 days), that the adop
 on a legal question, and — so the gate cannot go decorative — that the guarantee is **load-bearing**,
 i.e. those queries really do miss the website on global rank.
 
-**Adding a municipality:** `muni_tenants` row (`active=false`) → point `CORPORA` in the ingest
-script at its Drive folders → ingest → **crawl its website** → check the answers → `active=true` →
-one literal rewrite in `vercel.json`. `active` is enforced **server-side** in `api/muni-ask.js`,
-because the page is cached in browsers that are already open.
+### TENANT #2 — Town of Bristol, Indiana (NEW 2026-08-25), and what a second village actually cost
+
+Keith: *"lets build bristol."* Live at **`civicscope.io/bristol`** — Ask-only, no sign-in, **719
+documents / 1,316 passages**, built end to end in one session for roughly a dollar of compute.
+
+| | Centreville | Bristol |
+|---|---|---|
+| Source of the code | a Drive folder of PDFs, 7 of 21 with **no text layer at all** | **Municode**, structured, section-level |
+| OCR spend | ~$21, plus 240 transcriptions that exist nowhere else | **$0** |
+| Time | hours | ~1 minute for 575 sections |
+| Headings | recovered by heuristic from OCR'd text | the vendor hands over `Sec. 4-1. - Definitions.` |
+| Citations | "page 40-ish of this 90-page PDF" | a deep link to the exact subsection |
+
+**Ask-only and no-sign-in cost ZERO code.** The hub renders the Well Testing card only when
+`water_wssn` is set, and `auth_provider='none'` opens the page. Both are rows. That is the
+"village #2 is a config row" design paying for itself the first time it was tested.
+
+⛔ **THE MUNICODE API IS OPEN AND THE ONLY THING IT WANTS IS A HEADER.** Everything under
+`library.municode.com/api` answers **401** to an ordinary request and **200** to the same request
+carrying **`x-csrf: 1`**. No key, no cookie, no login. Recorded because a lot of time went into
+`api.municode.com`, which is a **different host** that 404s these paths. The chain, none skippable:
+`/api/Products/name?clientId=<c>&productName=code+of+ordinances` → `Model.ProductID` ·
+`/api/Jobs/latest/<productId>` → `Id` · `/api/codesToc?jobId&productId` → chapters ·
+`/api/CodesContent?jobId&productId&nodeId` → every section.
+Ingester: `scripts/ingest-municode.mjs`. Bristol is Municode client **20600**.
+
+🚩 **BRISTOL'S CORPUS IS TEN MONTHS BEHIND AN ADOPTED CODE, AND THE TOOL NOW SAYS SO.** The root
+`CodesContent` carries a `NewOrds` array: **Ordinance No. 3-5-2026-06, adopted 2026-03-05, "ADOPTING
+AND ENACTING A NEW CODE FOR THE TOWN OF BRISTOL"** — while what is published is codified through an
+April 2025 ordinance. ⚠ **Municode holds no text for it** (`PdfText` empty, `PDFBlobExists` false,
+`WebViewerUrl` null — checked, not assumed), so what is in the corpus is a **notice**, in its own
+collection `Adopted Ordinances (Not Yet Codified)` at the default 1.00 weight, deliberately never
+mistakable for the code. Same shape as Centreville's missing setback table: an ingest that looks
+complete and is not.
+
+**The terms question, investigated 2026-08-25 and NOT closed.** `library.municode.com/robots.txt`
+is a Cloudflare Content Signals policy: for `User-agent: *` it is `Allow: /` with
+`search=yes, ai-train=no, use=reference`. **`ai-input` — which their own preamble defines as
+"retrieval augmented generation" — is not specified**, and the policy's clause (c) says an omitted
+signal "neither grants nor restricts". ⚠ But they `Disallow: /` **ClaudeBot, GPTBot, CCBot,
+Google-Extended, Amazonbot, Applebot-Extended, Bytespider and meta-externalagent** by name; we are
+none of those and identify as `CivicScope/1.0` under `*`. Literal reading permits; intent reading is
+less comfortable. **The CivicPlus Terms of Service could not be read** (403 to a request, empty
+headless) — that is the document that would settle it, and it is a Keith action. On copyright: the
+ordinance text is a government edict outside copyright entirely (*Georgia v. Public.Resource.Org*,
+2020); Municode could assert only thin *Feist* compilation copyright in arrangement — not in
+Bristol's law. **The clean resolution is the town's own authorization, not a terms analysis.**
+
+### ✅ THE ZONING SETBACK TABLE ANSWERS (2026-08-25) — and it took FOUR causes, each of which looked like the fix
+
+*"What is the minimum rear yard setback in the R-1 district?"* now returns **30 ft front / 10 ft each
+side / 40 ft rear, per Table 4-4**, flagged `[scan]` so the reader is told to confirm it. This is
+the question the corpus has never been able to answer, and the value is in how many separate things
+had to be true at once.
+
+**Cause 0 — the premise was wrong.** This file recorded the table as *missing*, "surviving only as
+debris". It was not missing: `pdftotext -layout` had recovered the whole of it from the text layer
+all along, R-1 row included, and the page was never even thin enough for OCR to look at. **The
+defect was always retrieval, never extraction.** (Also: it is **Table 4-4**, not 4-5.)
+
+**Cause 1 — a table split from its own header row answers nothing.** The chunker packs to ~1,200
+characters, so the column headers (`Zoning District … Minimum Yard Setback … Front Side Rear`)
+landed in one chunk and the data rows (`R-1  20,000 sq. ft. … 30ft. 10ft. 40ft.`) in the next. One
+half holds the words, the other holds the numbers, and neither answers the question. Fixed with
+`chunkSegments()` in the shared lib: **any page naming a table is kept whole**, headed by its own
+printed caption. One rule plus a named exception — `chunk()` is still the only thing that splits
+prose, and both ingesters still call it. Persisted in `muni_docs.segments` (migration `037`) so
+`--rechunk` cannot silently re-split it later.
+
+**Cause 2 — every positional heading rule filed it under the wrong section.** The table is *printed*
+on page 4-13 while Section 4.5 starts on 4-4, because this ordinance gathers its tables at the end
+of an article. Section inheritance said 4.6; a contents-page lookup said 4.6. The page says what it
+is on its own first lines, so `tableCaptionOf()` uses that and the positional rules became the
+fallback. ⚠ A 12-line scan window found nothing — the page opens with the tail of Table 4-3 — and
+the fix looked like it had failed until the window covered the page.
+
+**Cause 3 — prose about a table beats the table.** Even whole and correctly headed, it lost: a table
+states each term once, while the page of *footnotes* to it repeats "setback", "front yard" and "R-1"
+many times, and `ts_rank_cd` rewards exactly that. Measured at **#9, #10 and outside the top 12**,
+while "site development requirements table" put it at **#1** — findable only by someone who already
+knew its name. ⛔ **Not a weight**: prose can repeat without bound, so no constant closes the gap
+(018/019/020, third time). Migration `038` adds `muni_search_tables()` and `api/muni-ask.js`
+**guarantees the best two tables a seat**, exactly as it does for the village website.
+
+**Cause 4 — a guaranteed seat at the back of a full room is not a seat.** The guarantee fired, the
+table was in `hits`, and it still never reached the model: guaranteed passages were **appended**, and
+the twelve ranked hits for that one question total **26,621 characters against a 24,000 ceiling**, so
+the context loop broke before reaching them. Guarantees now **prepend**, and the ceiling is 30,000
+because a table is now one large chunk.
+
+⚠ **Two seats, not one**: asked how tall a building may be in R-2, the best-matching table is
+Table 4-1 — which states what each district is *for* and carries no dimensions — and the dimensional
+table is second.
+
+⚠ **Still honest about what it has**: the transcribed columns are misaligned for some districts, and
+the tool says so. Asked for R-3's minimum lot area it *refuses to state a figure* it cannot attribute
+to a row with confidence. That is the correct behaviour and it should stay.
+
+### ⛔ FOUR LATENT BUGS SURFACED ON 2026-08-25 — all of them silent, all of them found by use
+
+1. **The Drive ingest had been dead since 2026-08-20.** `ingest-muni-corpus.mjs` referenced
+   `SB_URL`/`SB_KEY`, which stopped existing in that file when the shared chunker moved into
+   `lib/muni-corpus-lib.mjs` for the BoardDocs work. Every non-`--list` run threw `ReferenceError`.
+   It hid because the `&&` **short-circuits**: `--list` never evaluates those operands, and `--list`
+   is what you run when you are *checking* the corpus rather than building it — so the check that
+   would have caught it was the one thing that still worked. Fixed to use the exported
+   `sbConfigured()`.
+2. **`muni_search`'s OR-fallback could never fire when it was needed** — see the retrieval note
+   below. Latent since migration 009.
+3. **The crew tablet's "← Back to the wells" buttons were dead** since the tab bar was removed.
+   Inline `onclick="showTab('round')"` in a `<script type="module">`: module scope is **not** global
+   scope, so the handler evaluated against `window` and threw. Replaced with one delegated
+   `data-tab` listener rather than another global. ⚠ `review.html` only avoids this by style — it
+   assigns `window.generateMor` etc. explicitly.
+4. **`ingest-muni-website.mjs` silently truncated at `MAX_PAGES`.** Bristol discovered 144 URLs and
+   quietly ingested 60, reporting a clean crawl. It now names what it dropped. Written the same day
+   as the rule it broke.
+
+### ⛔ A COINCIDENTAL EXACT MATCH WAS SUPPRESSING THE RIGHT ANSWER (migration 036)
+
+Asking Bristol the most ordinary question a town gets — *"Are golf carts allowed on town streets?"* —
+returned **the parking fine schedule, alone, at rank 0.006**, and the tool honestly said it could not
+answer. Bristol **has** a golf cart ordinance: `golf cart` returns **Sec. 24-292 GOLF CART OPERATION
+at 6.454**.
+
+The strict pass requires every term. The fine schedule contains "allowed"; the ordinance does not.
+So one document matched all of `{golf, cart, allow, town, street}` — the wrong one — and
+`if found then return` meant the OR-fallback, which exists *precisely* for natural-sentence
+questions, could never run. **Latent since 009 and affecting every tenant**; Bristol surfaced it
+because its ordinances are one dense collection where an accidental all-terms match is easy to hit.
+
+`036` switches that gate from **existence to sufficiency**: strict wins only at **≥3 rows**,
+otherwise the OR pass runs. The OR pass matches a superset, so falling through can only add.
+Not a weight — migration 020's lesson was that a coefficient is the wrong instrument for a
+structural problem, and "found something" standing in for "found enough" is structural.
+Centreville's gate stayed 11/11 after it.
+
+**Adding a municipality:** `muni_tenants` row (`active=false`) → point the right ingester at it
+(`CORPORA` for Drive, `CLIENTS` for Municode) → ingest → **crawl its website** → check the answers →
+`active=true` → one literal rewrite in `vercel.json`. `active` is enforced **server-side** in
+`api/muni-ask.js`, because the page is cached in browsers that are already open.
 
 **⚠ A TEXT LAYER DOES NOT MEAN THE DOCUMENT IS COVERED — TABLES GO MISSING SILENTLY (found
 2026-08-18).** `Centreville Zoning Book 19.pdf` has a **645,000-character text layer**, so the
 ingest classified it `text-layer`, ingested it for free, and reported 603 passages. But the
 **Site Development Requirements table — the per-district front / side / rear yard setbacks, lot
-sizes, heights and coverages — is not in the extracted text.** `Table 4-5` appears nowhere; the
+sizes, heights and coverages — is not in the extracted text.** `Table 4-4` appears nowhere; the
 grid survives only as debris (`R-1 20,000 sq. ft.; 80 ft`, `R-2 50 ft`), and the other tables
 (e.g. Table 4-1) extract with their columns interleaved into nonsense. Those setbacks are the most
 common zoning question a village gets, and the corpus cannot answer them.
@@ -880,7 +1017,7 @@ does not exist. `sd-*` research corpora are set to `none`.
    following a hub card never re-prompts), `me` would have honoured it everywhere. Checked in both
    `signin` and `me`. CivicScope admins are the deliberate exception.
 
-⏳ **STILL BLOCKED ON ONE CONSOLE STEP.** A **Web application OAuth client** in a Google Cloud
+✅ **LIVE 2026-08-25.** The OAuth client exists and `muni_tenants.auth_client_id` carries it for Centreville; the gate reports `SIGNIN-VERIFY-COMPLETE` with the forged-token check now returning a real 401 **from the verifier** rather than short-circuiting on an unconfigured route. What it took: A **Web application OAuth client** in a Google Cloud
 project owned by `keith@anchoradvisorsnorth.com` (CivicScope's account of record), consent screen
 **External + In production**, **basic scopes only** (`openid`, `email`, `profile` — no Google
 verification). ⛔ **It must NOT go in `jbk-claude`**: that consent screen is **Internal**, so a
@@ -995,7 +1132,7 @@ email existed to save them.
   the other pipelines, **not** in a lambda: the shared chunker lives in `scripts/lib/` and is not
   deployed, and putting a second copy in a deployable lib is the exact drift migrations 018–021 were
   spent on. Weekly is ample for a 12-page site.
-- ⏳ **GOOGLE SIGN-IN IS BUILT AND DEPLOYED, AND ONE CONSOLE STEP AWAY FROM BEING ON (2026-08-25).**
+- ✅ **GOOGLE SIGN-IN IS LIVE (2026-08-25).** `/centreville` is gated; Michelle and Sheila are enrolled and the Google button renders. Verified in a browser: signed out, the product cards do not render at all. ⚠ Publishing an External consent screen required a **privacy policy**, which CivicScope did not have — the only one on this domain was The Pool’s. Written and live at `/privacy` (`civicscope-legal/privacy.html`), in the deploy manifest under the `signin` profile so the consent screen’s own link cannot quietly 404. **Keith should read it** — every claim was written against what the code does, but the entity line attributes it to Anchor Advisors North LLC. Superseded note:
   Everything works and is gated behind `GOOGLE_SIGNIN_CLIENT_ID`, which does not exist yet — see
   **Google sign-in** above for the exact recipe and why it must not go in `jbk-claude`. Until it is
   set, `/centreville` opens for anyone with the link **and says so on the page**; the moment it is
