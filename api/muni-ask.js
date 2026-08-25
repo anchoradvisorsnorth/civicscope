@@ -100,7 +100,16 @@ HOW TO ANSWER
 - Plain language. No preamble, no restating the question, no markdown headers. Prose, short
   paragraphs.
 - You are not giving legal advice, and you should not say that you are not giving legal advice —
-  the page already tells the reader that. Just answer the question from the documents.`;
+  the page already tells the reader that. Just answer the question from the documents.
+
+FIRST LINE — A MARKER, NOT PROSE
+Begin your reply with exactly one of these on its own first line. It is stripped before the reader
+sees anything, and it is how the village learns which questions its documents cannot answer:
+  ANSWERED   the passages settle the question and you have said so.
+  PARTIAL    you answered part of it and a material part is missing from the passages.
+  DECLINED   passages were retrieved but none of them answers the question.
+Judge only whether the PASSAGES settled it. Do not soften a DECLINED into a PARTIAL because you
+found something adjacent and useful to say — the whole value of this line is that it goes red.`;
 
 export default async function handler(req, res) {
   // ---- safe, read-only tenant lookup ---------------------------------------------------
@@ -280,7 +289,11 @@ export default async function handler(req, res) {
     } catch { /* the corpus still answers without it; never fail the question over an extra read */ }
   }
 
-  const logQuestion = async (hitCount, answered) => {
+  /* ⛔ WHAT ACTUALLY HAPPENED, not whether the model produced prose. Until 2026-08-25 this recorded
+      for every reply, so a question that retrieved twelve passages and was told
+     "I do not have that table" counted as answered — and the village's "what can we not answer"
+     list showed 68 of 68 fine while the most-asked zoning question had been broken for a week. */
+  const logQuestion = async (hitCount, answered, extra = {}) => {
     try {
       await sb('muni_questions', {
         method: 'POST',
@@ -288,6 +301,7 @@ export default async function handler(req, res) {
         body: JSON.stringify([{
           tenant: slug, question, hit_count: hitCount, answered,
           duration_ms: Date.now() - started,
+          ...extra,
         }]),
       });
     } catch { /* logging must never fail the answer */ }
@@ -296,7 +310,7 @@ export default async function handler(req, res) {
   if (!hits || !hits.length) {
     // A genuine corpus gap, recorded as one. These rows are the village's own
     // "what are we not able to answer" list.
-    await logQuestion(0, false);
+    await logQuestion(0, false, { outcome: 'no_corpus' });
     return res.status(200).json({
       ok: true, found: false, sources: [],
       answer: 'I could not find anything in ' + tenant.label + '’s published documents that '
@@ -370,14 +384,14 @@ export default async function handler(req, res) {
        missing so the fix is one step. */
     const own = process.env[tenant.anthropic_key_env];
     if (!own) {
-      await logQuestion(used.length, false);
+      await logQuestion(used.length, false, { outcome: 'error' });
       return res.status(503).json({ error: `Answering service is not configured for this municipality (${tenant.anthropic_key_env} is not set).` });
     }
     key = own;
   }
   if (!key) return res.status(503).json({ error: 'Answering service is not configured.' });
 
-  let answer;
+  let answer;   // reassigned when the outcome marker is stripped
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -397,13 +411,13 @@ export default async function handler(req, res) {
       }),
     });
     if (!r.ok) {
-      await logQuestion(used.length, false);
+      await logQuestion(used.length, false, { outcome: 'error' });
       // Status only — the body echoes the prompt.
       return res.status(502).json({ error: `Answering service returned ${r.status}.` });
     }
     const d = await r.json();
     if (d.stop_reason === 'refusal') {
-      await logQuestion(used.length, false);
+      await logQuestion(used.length, false, { outcome: 'error' });
       return res.status(200).json({
         ok: true, found: false, sources: [],
         answer: 'I am not able to answer that one. Try rephrasing it as a question about the '
@@ -412,11 +426,30 @@ export default async function handler(req, res) {
     }
     answer = (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
   } catch {
-    await logQuestion(used.length, false);
+    await logQuestion(used.length, false, { outcome: 'error' });
     return res.status(503).json({ error: 'Answering service unreachable.' });
   }
 
-  await logQuestion(used.length, true);
+  /* Strip the marker before the reader ever sees it, and record what it said. A model that will not
+     emit one is treated as ANSWERED rather than guessed at from its prose — an inferred outcome is
+     the thing this replaced. */
+  let outcome = null;
+  const mark = String(answer || '').match(/^\s*(ANSWERED|PARTIAL|DECLINED)\b[ \t]*\n+/);
+  if (mark) {
+    outcome = mark[1].toLowerCase();
+    answer = answer.slice(mark[0].length).trim();
+  }
+
+  // Which collections the answer actually leaned on, and whether a whole table reached it. Both are
+  // measures of whether the machinery built this month is doing anything for a real question.
+  const cited = [...new Set(used.map((h) => h.collection).filter(Boolean))];
+  const usedTable = used.some((h) => /^Tables/i.test(String(h.heading || '')) || h.is_table === true);
+
+  await logQuestion(used.length, outcome !== 'declined', {
+    outcome: outcome || 'answered',
+    cited_collections: cited,
+    used_table: usedTable,
+  });
 
   return res.status(200).json({
     ok: true,
