@@ -286,8 +286,24 @@ export default async function handler(req, res) {
      passed. Once this is empty there is nobody left to protect a pick from, and the board is
      public exactly as it always was. While it is NOT empty — the only case being someone added
      after the board opened — the open board is answered per viewer. */
+  /* ⛔ THIS IS THE *PRIVACY* SET, AND IT IS THE ROSTER — NOT THE PARTICIPANTS (2026-08-25).
+     Making this participants-based regressed the 2026-08-19 rule and the gate caught it on the
+     deploy: a member added mid-week is not in a snapshot taken at lock, so this went EMPTY, the
+     board read as "nobody left to protect a pick from", and it opened to the newcomer — and to a
+     signed-out reader — before they had filled a card in.
+
+     Two different questions were sharing one function:
+       · WHO IS THE WEEK WAITING ON to declare itself open, fire the all-picks-in notice and stamp
+         the reveal? → the PARTICIPANTS. A member who is not playing must not hold that up.
+         That is `allLocked`, and it is participants-based.
+       · WHO COULD STILL PUT A CARD IN, and therefore must not read everyone else's first?
+         → ANYONE ON THE ROSTER, because `save_picks` lets any member pick a locked week before
+         the deadline. That is this function, and it stays the roster.
+     Keeping the conservative set here costs nothing that matters: by the time the week is open,
+     every participant has locked by definition, so every actual player already sees the board.
+     The only reader still held out is someone who has not picked — which is the point. */
   const outstandingFor = (wk, roster) => (pastDeadline(wk) ? []
-    : participantsOf(wk, roster).filter(p => !(wk.picks && wk.picks[p.id] && wk.picks[p.id].locked)));
+    : (roster || []).filter(p => !(wk.picks && wk.picks[p.id] && wk.picks[p.id].locked)));
 
   /* Cover vs the FROZEN line — identical rule to the board's coverOf() and the sim's cover().
      Kept server-side so scoring never depends on what a browser computed. */
