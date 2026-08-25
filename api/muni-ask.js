@@ -454,6 +454,33 @@ export default async function handler(req, res) {
     answer = answer.slice(mark[0].length).trim();
   }
 
+  /* ⛔ A REFERRAL TO A GOVERNMENT WHOSE DOCUMENTS WE ALREADY HOLD IS NOT A REFERRAL.
+     The model cannot know which corpora we ingested, so it will politely point at the Elkhart
+     County Development Ordinance — which is sitting in this very database, reachable through
+     `shares_corpus_with`, and was merged into the passages for this exact question. Measured
+     2026-08-25, minutes after REFERRED shipped: Bristol's R-1 front setback logged `referred`
+     while naming section 158.03(B)(3) at page 3-8, a page we ingested. Left alone, the new
+     outcome would have quietly absorbed the one open retrieval defect it was built to expose —
+     the same disappearing act as the old `answered` flag, one layer up.
+
+     So the SERVER overrides the model here, because only the server knows what was ingested. If
+     the answer refers the reader to the government whose corpus this tenant already shares, that
+     is a retrieval failure wearing a referral's clothes: record it as `declined`.
+
+     Deliberately narrow — it fires only on the shared tenant's own name. A genuine referral out
+     to a state agency, or to a county we have NOT ingested, stays `referred`, which is the whole
+     point of having the outcome at all. */
+  if (outcome === 'referred' && tenant.shares_corpus_with) {
+    let sharedLabel = '';
+    try {
+      const [st] = await sb(`muni_tenants?slug=eq.${encodeURIComponent(tenant.shares_corpus_with)}&select=label`);
+      /* The distinctive part only. Labels are stored qualified — 'Elkhart County, Indiana' — while
+         an answer writes 'the Elkhart County Development Ordinance', so matching the whole label
+         would make this override dead code that always looked like it was working. */
+      sharedLabel = String((st && st.label) || '').split(',')[0].trim();
+    } catch { /* naming the override is a nicety; never fail an answered request over it */ }
+    if (sharedLabel && answer.toLowerCase().includes(sharedLabel.toLowerCase())) outcome = 'declined';
+  }
   // Which collections the answer actually leaned on, and whether a whole table reached it. Both are
   // measures of whether the machinery built this month is doing anything for a real question.
   const cited = [...new Set(used.map((h) => h.collection).filter(Boolean))];
