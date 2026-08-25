@@ -175,6 +175,32 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Search is unavailable.' });
   }
 
+  /* ⛔ THE VILLAGE'S OWN WEBSITE IS GUARANTEED A SEAT, BECAUSE IT CANNOT WIN ITS OWN.
+     Centreville's corpus is ~2,800 passages of minutes, zoning and ordinances against ~26 pages of
+     website. `ts_rank_cd` rewards a term repeated many times, without bound and without length
+     normalisation, so a zoning section that says "Village Council" eight times while granting it
+     authority outranks the roster that says it once and then lists seven names. Measured
+     2026-08-25: "who is on the village council" did not return the roster in the top TWENTY.
+
+     That is not fixable with a collection weight — migration 031 assumed it was, and migration 032
+     records the measurements that disproved it. It is a structural consequence of one collection
+     being a hundred times smaller than the other, and the honest fix is not to re-rank the corpus
+     but to stop the small source being invisible: if the website matched the question at all and
+     nothing from it survived the global cut, its best two passages are ADDED.
+
+     ⚠ This adds, it never displaces. The ordinances keep every seat they won, so a legal question
+     still leads with the law — and the model is separately told that a [web] passage is not law and
+     that an ordinance governs where the two disagree about a rule. */
+  if (hits && hits.length && !hits.some((h) => h.text_source === 'web')) {
+    try {
+      const web = await sb('rpc/muni_search_collection', {
+        method: 'POST',
+        body: JSON.stringify({ p_tenant: slug, p_query: question, p_collection: 'Village Website', p_limit: 2 }),
+      });
+      if (web && web.length) hits = hits.concat(web);
+    } catch { /* the corpus still answers without it; never fail the question over an extra read */ }
+  }
+
   const logQuestion = async (hitCount, answered) => {
     try {
       await sb('muni_questions', {
