@@ -589,6 +589,54 @@ table is second.
 the tool says so. Asked for R-3's minimum lot area it *refuses to state a figure* it cannot attribute
 to a row with confidence. That is the correct behaviour and it should stay.
 
+### ⛔ IN INDIANA, A TOWN'S ZONING MAY NOT BE THE TOWN'S — Elkhart County, 2026-08-25
+
+Keith asked whether counties control a lot of zoning and whether the law differs by state. It does,
+and it had already put a hole in a live product.
+
+**Bristol's own code says so.** Sec. 12-195 adopts the **Elkhart County Development Ordinance** by
+reference under **IC 36-1-5-4**; Sec. 12-196 designates the **county** plan commission as Bristol's
+municipal plan commission under **IC 36-7-4-410(a)**; Sec. 12-197 reserves only the district map to
+the town. So uses, setbacks, procedures and subdivision control — every substantive zoning rule
+inside Bristol — live in a county document. Ask Bristol reported 719 documents and had none of it.
+Elkhart County Planning runs the same arrangement for **Middlebury, Wakarusa and Millersburg**.
+
+⚠ **This is Indiana-shaped and does not exist in Michigan.** The Michigan Zoning Enabling Act
+(PA 110 of 2006) defines a county's zoning jurisdiction to **exclude** incorporated cities and
+villages, so Centreville zones itself and its corpus is genuinely whole. **Before onboarding any
+Indiana municipality, check whether it delegated to a county or area plan commission** — it changes
+what you ingest and arguably who the customer is.
+
+**A pointer, not four copies.** `elkhart-county` is its own tenant (inactive, no route, not a
+product) holding the county corpus; `muni_tenants.shares_corpus_with` (migration `040`) points
+Bristol at it and `api/muni-ask.js` runs a second retrieval and merges. Copying a 1,071,426-character
+ordinance into four town corpora would guarantee four versions drifting the first time the county
+amends it. Ingested with `scripts/ingest-pdf-urls.mjs` — the third corpus shape after Drive and
+Municode, and the commonest: a planning department with a page of PDF links.
+
+⚠ **`-layout` is right for this document even though it interleaves its two-column definition
+pages.** Reading-order mode destroys the district tables, which are the part that matters. Measured
+both ways before choosing.
+
+**Four more retrieval causes, all of them the same shape as the setback chain:**
+- **`is_table` is now a column** (`041`), set by the ingester which *knows* it emitted a chunk whole.
+  `038` identified a table by `heading ilike 'Table %'` — Centreville's house style — so 82 county
+  table pages headed *"R-1 Single-Family District — Building Placement & Form"* were invisible to the
+  one mechanism built to surface them.
+- **Shape detection, not captions** (`tabularPages()`): this ordinance numbers no tables at all.
+- **The 036 sufficiency fix was never carried to `muni_search_tables`** (`043`). ⚠ *When a retrieval
+  gate is copied to a second function, its fallback conditions come with it — a fix applied to one
+  and not the other is a fix and a landmine.*
+- **Length normalisation** (`044`, `ts_rank_cd(…, 2)`, scoped to the table search only): every top
+  hit was a 6,000–7,800-character general-provisions chunk beating a compact district table. Three
+  thresholds had already been tuned on this problem; normalisation is bounded by construction.
+
+🚩 **STILL OPEN, HONESTLY.** Bristol answers *that* the county governs it, finds the **TC Town
+Character Preservation Overlay** that applies specifically to Bristol, and quotes R-3's real
+setbacks. **R-1's dimensional row still does not reach the model** for setback phrasings — the chunk
+is correctly built, flagged and headed, and ranks #2–#3 among county tables, so this is ranking, not
+extraction. Do not tell Bristol its zoning dimensions are covered.
+
 ### ⛔ FOUR LATENT BUGS SURFACED ON 2026-08-25 — all of them silent, all of them found by use
 
 1. **The Drive ingest had been dead since 2026-08-20.** `ingest-muni-corpus.mjs` referenced
