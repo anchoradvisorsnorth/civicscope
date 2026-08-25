@@ -855,14 +855,45 @@ dies at `404` instead of writing into a compliance record. ⚠ **Exit 3 while
 Could-not-verify, named in the deploy result, never a green tick (the lesson the pool gate taught on
 2026-08-08).
 
-⏳ **STILL BLOCKED ON ONE CONSOLE STEP.** `GOOGLE_SIGNIN_CLIENT_ID` needs a **Web application OAuth
-client in a NEW Google Cloud project** whose consent screen is **External + In production** with the
-basic scopes only (`openid`, `email`, `profile` — no verification required). ⛔ **It must NOT go in
-`jbk-claude`**: that project's consent screen is **Internal**, so a personal `@gmail.com` gets
-`Error 403: org_internal`, and flipping it to External would break the AAN/JBK Gmail refresh tokens
-(memory `reference_google_cross_org_access`). Authorized JavaScript origins: `https://civicscope.io`,
-`https://www.civicscope.io`, `https://app.civicscope.io`. No redirect URI and **no client secret** are
-needed. `AUTH_SESSION_SECRET` is already set in Vercel.
+### ⛔ EACH VILLAGE BRINGS ITS OWN SIGN-IN — the client id is DATA (migration 033, 2026-08-25)
+
+Built first against a single `GOOGLE_SIGNIN_CLIENT_ID` env var. Keith, shown that: *"this is village
+specific for CivicScope - Centreville. There will be more villages with different credentials (maybe
+not even google)."* He is right, and the second half is the part that matters — a village on
+Microsoft 365 is a different **identity provider**, which no number of Google projects addresses.
+
+So `muni_tenants` carries **`auth_provider`** (`google` | `microsoft` | `none`, CHECK-constrained)
+and **`auth_client_id`**, exactly like `water_feeds` and `mor_template`: a village is a row, not a
+release. The env var survives only as a **fallback** for a single-village or preview deployment; a
+tenant value always wins. `auth_provider` is REFUSED when it names a provider that is not built,
+never quietly treated as Google — a column that falls through to one provider reads as support that
+does not exist. `sd-*` research corpora are set to `none`.
+
+**Three checks, and the third is the one that is easy to leave out:**
+1. **`aud` is verified against THAT village's client.** With one global id this was trivially right;
+   with one per village, "somebody else's app" now includes *another village's client*. There is no
+   ambient default that could make this pass — the caller supplies the id.
+2. The person is on `app_users` and `active`.
+3. **Their `muni_tenant` is the tenant they are signing into.** Miss this and a token verified
+   against village A's client authenticates its holder into village B — and because the session
+   cookie is domain-wide on purpose (one sign-in across `civicscope.io` and `app.civicscope.io`, so
+   following a hub card never re-prompts), `me` would have honoured it everywhere. Checked in both
+   `signin` and `me`. CivicScope admins are the deliberate exception.
+
+⏳ **STILL BLOCKED ON ONE CONSOLE STEP.** A **Web application OAuth client** in a Google Cloud
+project owned by `keith@anchoradvisorsnorth.com` (CivicScope's account of record), consent screen
+**External + In production**, **basic scopes only** (`openid`, `email`, `profile` — no Google
+verification). ⛔ **It must NOT go in `jbk-claude`**: that consent screen is **Internal**, so a
+personal `@gmail.com` gets `Error 403: org_internal`, and flipping it to External would break the
+AAN/JBK Gmail refresh tokens (memory `reference_google_cross_org_access`). Authorized JavaScript
+origins: `https://civicscope.io`, `https://www.civicscope.io`, `https://app.civicscope.io`. No
+redirect URI and **no client secret** — the ID-token flow has no code exchange. Keith is creating one
+project per village (`CivicScope - Centreville`), which also gives each village its own consent-screen
+branding at the cost of a console pass per village.
+
+The client id then goes in the **tenant row**, not an env var:
+`update muni_tenants set auth_client_id = '<id>.apps.googleusercontent.com' where slug = 'centreville';`
+`AUTH_SESSION_SECRET` (which signs our own cookie, and is village-independent) is already set in Vercel.
 
 **Enrolling or correcting people:** `node scripts/app-access.mjs list | add | enable | disable`,
 and the same script owns the plant roster (`operators`, `operator-set`, `operator-add`,
