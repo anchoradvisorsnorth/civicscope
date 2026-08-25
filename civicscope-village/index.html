@@ -142,7 +142,7 @@ function card(href, name, blurb, meta) {
     + '</a>';
 }
 
-let TENANT = null, CORPUS = null;
+let TENANT = null, CORPUS = null, PROVIDER = null;
 
 async function loadTenant() {
   const r = await fetch('/api/muni-ask?tenant=' + encodeURIComponent(SLUG));
@@ -208,10 +208,16 @@ function renderCards(user, opts) {
     return;
   }
   $('main').innerHTML = '<div class="cards">' + cards.join('') + '</div>'
+    // "This village has no sign-in" and "sign-in is not built here yet" are different facts, and a
+    // reader deserves the right one. `provider === 'none'` is a deliberate configuration (Bristol);
+    // anything else with no client id is unfinished setup.
     + (openBecauseUnconfigured
-        ? '<div class="notice"><strong>Sign-in is not switched on for this deployment yet.</strong> '
-          + 'Anyone with this link can open these tools until it is. Nothing here is hidden behind a '
-          + 'control that does not work.</div>'
+        ? (PROVIDER === 'none'
+            ? '<div class="notice">These tools are open to anyone with the link — ' + esc(short)
+              + ' has no sign-in.</div>'
+            : '<div class="notice"><strong>Sign-in is not switched on for this deployment yet.</strong> '
+              + 'Anyone with this link can open these tools until it is. Nothing here is hidden behind a '
+              + 'control that does not work.</div>')
         : '');
 }
 
@@ -278,6 +284,7 @@ async function boot(pendingMsg) {
   let me;
   try { me = await auth('me'); } catch { fail('Could not reach CivicScope. Please try again.'); return; }
 
+  PROVIDER = me.provider || null;
   if (me.signedIn) { renderWho(me.user); renderCards(me.user); return; }
   // Signed in, but for a DIFFERENT village. Say so, rather than showing a bare sign-in box to
   // somebody whose browser plainly is signed in — that reads as broken.
