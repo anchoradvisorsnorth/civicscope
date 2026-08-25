@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<!-- civicscope-legal/privacy.html v1.0.0 | 2026-08-25 — CivicScope privacy policy.
+     Written because Google will not publish an External OAuth consent screen without one, and the
+     only policy on this domain was "The Pool" — a private sports pool that has nothing to do with
+     CivicScope and would have been actively misleading on a municipal product's sign-in dialog.
+     ⚠ Every statement here was checked against what the code actually does (api/log.js, api/try.js,
+     api/muni-ask.js, api/auth-google.js, api/water-ops.js, lib/session.js and the Supabase schema).
+     Keep it that way: if a data flow changes, this page changes in the same deploy. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — CivicScope</title>
+<meta name="description" content="What CivicScope collects, why, who processes it, and how to reach us.">
+<link rel="stylesheet" href="/civicscope.css">
+<style>
+  body { background: var(--cream); color: var(--ink); font-family: var(--font-body); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 56px 24px 90px; }
+  .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+             color: var(--muted); margin-bottom: 12px; }
+  h1 { font-family: var(--font-display); font-weight: 600;
+       font-size: clamp(30px, 6vw, 42px); line-height: 1.14; margin: 0 0 10px; }
+  .updated { color: var(--muted); font-size: 14px; margin: 0 0 34px; }
+  h2 { font-family: var(--font-display); font-size: 21px; font-weight: 600;
+       margin: 38px 0 12px; }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
+  p, li { font-size: 16px; line-height: 1.65; color: var(--ink-light); }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 7px; }
+  a { color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0 6px; font-size: 15px; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 10px;
+           border-bottom: 1px solid var(--rule); color: var(--ink-light); }
+  th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+       color: var(--muted); font-weight: 600; }
+  .lead { font-size: 17.5px; line-height: 1.6; color: var(--ink); }
+  .box { background: var(--white); border: 1px solid var(--rule); border-radius: var(--radius-md);
+         padding: 20px 22px; margin: 20px 0; box-shadow: var(--shadow-sm); }
+  .box p:last-child, .box ul:last-child { margin-bottom: 0; }
+  footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid var(--rule);
+           font-size: 13.5px; line-height: 1.6; color: var(--muted); }
+  footer a { color: var(--muted); text-decoration: underline; }
+  .scroll { overflow-x: auto; }
+  @media (max-width: 620px) { .wrap { padding: 36px 18px 60px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">CivicScope</div>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated 25 August 2026</p>
+
+  <p class="lead">CivicScope builds tools for small municipalities — construction cost estimates,
+    question-answering over a village’s own published documents, and daily record-keeping for a
+    water plant. This page says what we collect, why, and who else touches it.</p>
+
+  <div class="box">
+    <p><strong>The short version.</strong> We collect what the tools need to work and nothing for
+      advertising. <strong>We do not sell personal information and we do not share it with
+      advertisers.</strong> We use no advertising or cross-site tracking cookies. Most CivicScope
+      tools can be used without giving us your name at all.</p>
+  </div>
+
+  <h2>Who we are</h2>
+  <p>CivicScope is operated by Anchor Advisors North LLC, Mishawaka, Indiana. For anything on this
+    page — including a request to see or delete your information — write to
+    <a href="mailto:info@civicscope.io">info@civicscope.io</a>.</p>
+
+  <h2>What we collect, and why</h2>
+
+  <h3>If you sign in with Google</h3>
+  <p>Some CivicScope tools are restricted to named people at a municipality we work with. Signing in
+    uses Google, and Google tells us four things about the account you chose: your
+    <strong>email address, your name, your profile picture, and a stable account identifier</strong>.
+    We store those so we can recognise you next time and show your name on records you create.</p>
+  <p>We ask Google for nothing else. We cannot read your email, your files, your calendar or your
+    contacts, and we never receive your Google password. You can remove our access at any time from
+    your <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google
+    account permissions</a> page.</p>
+  <p><strong>Signing in successfully does not by itself grant access.</strong> Access is granted by
+    the municipality and by us, per person. If you sign in with an account that is not on that list,
+    we record the attempt — the email address, the time, your IP address and your browser’s
+    user-agent string — so the account can be added if it should have been, and so unexpected
+    attempts are visible. That record is kept for security purposes.</p>
+  <p>Once you are signed in, your browser holds a session cookie named <code>cs_session</code>. It is
+    strictly necessary for sign-in to work, contains no personal information beyond an identifier we
+    issue, cannot be read by scripts, and expires after 30 days. Signing out clears it.</p>
+
+  <h3>If you ask a question in an “Ask &lt;Village&gt;” tool</h3>
+  <p>We store <strong>the text of the question</strong>, how many passages it matched and how long it
+    took. We do this so the village can see what its published documents are failing to answer —
+    questions that return nothing are the most useful signal the tool produces. Please do not put
+    personal or sensitive details in a question; it is not the right place for them.</p>
+  <p>Your question, together with passages retrieved from that municipality’s <em>public</em>
+    documents, is sent to <strong>Anthropic</strong> to compose the answer. Nothing about your Google
+    account is sent with it.</p>
+
+  <h3>If you use a cost estimating tool</h3>
+  <p>These are open to anyone and need no sign-in. We store the details you enter about the project —
+    location, project type, size, scope description — and the estimate produced, so the tool can show
+    you results and so we can see how it is being used. The project description you type is sent to
+    Anthropic to produce the estimate.</p>
+  <p>If you choose to have a report emailed to you, or you use a contact form, we store the
+    <strong>email address and any name or organisation you provide</strong> and use them to send you
+    that report and to reply. We do not add you to a marketing list from an estimate alone.</p>
+
+  <h3>If you record readings at a water plant</h3>
+  <p>These tools hold operational records for a public water supply — meter readings, chemical
+    levels, sample results, and the initials or name of the operator who took each reading. That
+    information belongs to the municipality, is part of a record it files with its state regulator,
+    and is retained as long as the municipality needs it for that purpose.</p>
+
+  <h3>Ordinary website usage</h3>
+  <p>When you use a tool we record a usage record containing a random session identifier, timestamps,
+    the page that referred you and your browser’s user-agent string. Where you arrive through a
+    tracked invitation link, we also record the IP address of that click. We use this to understand
+    whether the tools are working and being used. We do not use Google Analytics, advertising
+    pixels, or any cross-site tracking.</p>
+
+  <h2>Who else processes it</h2>
+  <p>We keep this list short on purpose. These providers process data on our behalf, under their own
+    terms, so that CivicScope can run:</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Provider</th><th>What it does for us</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Vercel</strong></td><td>Hosts the site and runs the code</td></tr>
+      <tr><td><strong>Supabase</strong></td><td>The database and file storage behind the tools</td></tr>
+      <tr><td><strong>Anthropic</strong></td><td>Generates answers and estimates from the text sent to it</td></tr>
+      <tr><td><strong>Google</strong></td><td>Sign-in, and hosting of some municipalities’ own public documents</td></tr>
+      <tr><td><strong>Resend</strong></td><td>Sends the emails we send you</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>We do not sell personal information, and we do not disclose it to anyone else except where we
+    are legally required to, or where a municipality is entitled to its own records.</p>
+
+  <h2>Municipal documents are public records</h2>
+  <p>The ordinances, minutes, agendas and similar documents that these tools search are documents the
+    municipality has already published. Answers are drawn from those documents and link back to
+    them. They are working tools, not legal advice and not an official statement by the
+    municipality — check anything that matters against the source document.</p>
+
+  <h2>How long we keep things</h2>
+  <ul>
+    <li><strong>Sign-in records</strong> — for as long as you have access, plus a reasonable period
+      afterwards. Sign-in attempt logs are kept for security review.</li>
+    <li><strong>Questions and usage records</strong> — kept while they remain useful for improving
+      the tools and reporting to the municipality.</li>
+    <li><strong>Municipal operating records</strong> — retained for the municipality, which decides
+      how long its records are kept.</li>
+    <li><strong>Contact details you give us</strong> — until you ask us to delete them.</li>
+  </ul>
+
+  <h2>Your choices</h2>
+  <ul>
+    <li>Ask us what we hold about you, and ask us to correct or delete it — write to
+      <a href="mailto:info@civicscope.io">info@civicscope.io</a>.</li>
+    <li>Revoke CivicScope’s access to your Google account at any time from your
+      <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google
+      account permissions</a> page.</li>
+    <li>Sign out to clear your session cookie.</li>
+    <li>Records a municipality holds about its own operations are the municipality’s — we will
+      forward a request about those to it.</li>
+  </ul>
+  <p>Deleting information we are required to keep as part of a municipality’s regulatory record is
+    not something we can do unilaterally; we will tell you if that is the case.</p>
+
+  <h2>Children</h2>
+  <p>CivicScope is a tool for municipal staff, contractors and residents dealing with local
+    government. It is not directed at children and we do not knowingly collect information from
+    them.</p>
+
+  <h2>Security</h2>
+  <p>Data is held with the providers listed above. Access to municipal records is restricted to named
+    accounts. We do not receive or store your Google password, and there is no CivicScope password to
+    steal. If something goes wrong that affects you, we will tell you and the municipality.</p>
+
+  <h2>Changes</h2>
+  <p>If we change how any of this works, we change this page and update the date at the top.</p>
+
+  <footer>
+    <a href="/">CivicScope</a> · Anchor Advisors North LLC, Mishawaka, Indiana ·
+    <a href="mailto:info@civicscope.io">info@civicscope.io</a>
+  </footer>
+
+</div>
+</body>
+</html>
