@@ -122,7 +122,7 @@ export default async function handler(req, res) {
       for (const d of docs || []) {
         collections[d.collection || 'Other'] = (collections[d.collection || 'Other'] || 0) + 1;
         chunks += d.chunk_count || 0;
-        if (d.text_source === 'ocr') scanned++;
+        if (d.text_source === 'ocr' || d.text_source === 'mixed') scanned++;
       }
       return res.status(200).json({
         ok: true,
@@ -259,7 +259,12 @@ export default async function handler(req, res) {
   let context = '';
   for (const h of hits) {
     const day = h.text_source === 'web' ? fmtDay(readAt[h.doc_id]) : null;
-    const label = h.text_source === 'ocr' ? 'scan'
+    /* ⛔ 'mixed' MUST READ AS A SCAN, NOT AS TEXT. A mixed document has a real text layer plus
+       pages that were transcribed because pdftotext could not read them — and on the Centreville
+       zoning book those pages are the SETBACK TABLE. Labelling that [text] would present a
+       transcribed grid to the model as verbatim and reliable, which is precisely the wrong
+       direction on the one document where a misread digit changes what somebody builds. */
+    const label = (h.text_source === 'ocr' || h.text_source === 'mixed') ? 'scan'
       : h.text_source === 'web' ? (day ? `web, read ${day}` : 'web')
       : 'text';
     const where = [h.heading, h.citation].filter(Boolean).join(' — ');
@@ -351,7 +356,7 @@ export default async function handler(req, res) {
       heading: h.heading,
       citation: h.citation,
       url: h.source_url,
-      transcribed: h.text_source === 'ocr',
+      transcribed: h.text_source === 'ocr' || h.text_source === 'mixed',
       // A website source opens a live page, not a PDF — and the reader needs to know it is looking
       // at a snapshot, because the page may have changed since. The date travels with the source.
       web: h.text_source === 'web',
