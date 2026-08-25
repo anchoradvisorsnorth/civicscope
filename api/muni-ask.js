@@ -241,9 +241,12 @@ export default async function handler(req, res) {
      fired for the setback question, because Table 4-1 (which merely states the PURPOSE of each
      district) had won a seat on its own. A table was present, the right table was not, and the
      answer was still "I don't have the dimensional table". */
+  // Hoisted: the logging site below needs to know which passages were GUARANTEED rather than
+  // ranked, so used_table cannot under-report a table that arrived through the guarantee.
+  let tbl = null;
   if (hits && hits.length) {
     try {
-      let tbl = await sb('rpc/muni_search_tables', {
+      tbl = await sb('rpc/muni_search_tables', {
         method: 'POST',
         /* TWO, not one. Asked how tall a building may be in R-2, the best-matching table is
            Table 4-1 — which states what each district is FOR and carries no dimensions — and the
@@ -443,7 +446,13 @@ export default async function handler(req, res) {
   // Which collections the answer actually leaned on, and whether a whole table reached it. Both are
   // measures of whether the machinery built this month is doing anything for a real question.
   const cited = [...new Set(used.map((h) => h.collection).filter(Boolean))];
-  const usedTable = used.some((h) => /^Tables/i.test(String(h.heading || '')) || h.is_table === true);
+  /* ⚠ A METRIC THAT UNDER-REPORTS IS THE THING THIS WHOLE MIGRATION EXISTS TO STOP, so this does
+     not rely on the heading alone:  does not return , so a table that
+     arrived through ordinary retrieval would look like prose. The guaranteed set is known here by
+     chunk id, and the heading test catches the rest. */
+  const guaranteedIds = new Set((tbl || []).map((x) => x.chunk_id));
+  const usedTable = used.some((h) => guaranteedIds.has(h.chunk_id)
+    || /^Tables/i.test(String(h.heading || '')) || h.is_table === true);
 
   await logQuestion(used.length, outcome !== 'declined', {
     outcome: outcome || 'answered',
