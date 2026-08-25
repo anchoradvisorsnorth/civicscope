@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- civicscope-village v2.1.0 | 2026-08-25 — a village's front door, behind Google sign-in -->
+<!-- civicscope-village v2.2.0 | 2026-08-25 — a village's front door, behind Google sign-in -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Village Hub — CivicScope</title>
-<meta name="description" content="The Village's CivicScope tools in one place.">
+<meta name="description" content="A municipality's CivicScope tools in one place.">
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="/civicscope.css">
 <style>
@@ -15,6 +15,9 @@
   .wrap { max-width: 720px; margin: 0 auto; padding: 56px 24px 80px; }
 
   header.masthead { margin-bottom: 40px; }
+  /* The municipality's mark sits above its name, sized to breathe and never stretched. */
+  .mark { margin: 0 0 22px; }
+  .mark img { max-height: 84px; max-width: 260px; width: auto; height: auto; display: block; }
   .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
              color: var(--muted); margin-bottom: 12px; }
   h1 { font-family: var(--font-display); font-weight: 600;
@@ -77,6 +80,7 @@
 <div class="wrap">
 
   <div class="who" id="who" hidden></div>
+  <div class="mark" id="mark" hidden></div>
 
   <header class="masthead">
     <div class="eyebrow">CivicScope</div>
@@ -143,6 +147,12 @@ function card(href, name, blurb, meta) {
 }
 
 let TENANT = null, CORPUS = null, PROVIDER = null;
+/* ⛔ WHAT THIS MUNICIPALITY ACTUALLY IS. Hardcoding "Village" told Bristol residents about
+   "the Village's own ordinances" and offered them the "Village website" — Bristol is an Indiana
+   TOWN. In a product whose whole claim is accuracy about the reader's local law, getting the
+   name of their government wrong on the first screen is not a typo. It comes from the tenant row
+   (migration 039), like everything else per-municipality here. */
+const noun = () => (TENANT && TENANT.unit_noun) || 'Village';
 
 async function loadTenant() {
   const r = await fetch('/api/muni-ask?tenant=' + encodeURIComponent(SLUG));
@@ -153,8 +163,15 @@ async function loadTenant() {
   document.title = short + ' — CivicScope';
   $('title').textContent = short;
   $('sub').innerHTML = 'Your CivicScope tools, in one place.'
-    + (TENANT.site_url ? ' <a href="' + esc(TENANT.site_url) + '" target="_blank" rel="noopener">Village website ↗</a>' : '');
-  $('foot').innerHTML = 'CivicScope builds these from the Village’s own records. '
+    + (TENANT.site_url ? ' <a href="' + esc(TENANT.site_url) + '" target="_blank" rel="noopener">'
+        + esc(noun()) + ' website ↗</a>' : '');
+  // The municipality's own mark, hosted by them. Null logo_url shows nothing rather than a
+  // generic placeholder — an invented crest on a government page is worse than no crest.
+  if (TENANT.logo_url) {
+    $('mark').innerHTML = '<img src="' + esc(TENANT.logo_url) + '" alt="">';
+    $('mark').hidden = false;
+  }
+  $('foot').innerHTML = 'CivicScope builds these from the ' + esc(noun()) + '’s own records. '
     + 'Answers and reports are working tools, not legal advice or a filed submission — '
     + 'check anything that matters against the source document.';
 }
@@ -172,8 +189,8 @@ function renderCards(user, opts) {
     cards.push(card(
       '/' + SLUG + '/ask',
       'Ask ' + short,
-      'Ask a question in plain English and get an answer drawn from the Village’s own ordinances '
-        + 'and zoning rules — with a link to the source document every time.',
+      'Ask a question in plain English and get an answer drawn from the ' + esc(noun()) + '’s own '
+        + 'ordinances and zoning rules — with a link to the source document every time.',
       '<strong>' + (CORPUS.documents || 0) + '</strong> documents indexed'
         + (CORPUS.passages ? ' · ' + CORPUS.passages.toLocaleString() + ' searchable passages' : '')
         + (CORPUS.transcribed ? ' · ' + CORPUS.transcribed + ' transcribed from scans' : '')
@@ -228,7 +245,7 @@ function renderGate(clientId, pendingMsg) {
     (pendingMsg ? '<div class="pending">' + esc(pendingMsg) + '</div>' : '')
     + '<div class="gate">'
     + '<h2>Sign in to continue</h2>'
-    + '<p>These are ' + esc(short) + '’s own records. Sign in with the Google account the Village '
+    + '<p>These are ' + esc(short) + '’s own records. Sign in with the Google account the ' + esc(noun()) + ' '
     + 'has on file for you.</p>'
     + '<div class="gbtn" id="gbtn"></div>'
     + '</div>'
