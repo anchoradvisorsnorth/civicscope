@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.1.0-water
+  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.2.0-water
 
   The operator picks the well he is standing at. The well's PROFILE decides what he is asked for,
   because Centreville's three wells happen to be identical and the next village's will not be.
@@ -211,7 +211,7 @@ import { derive } from '/civicscope-water/derive.js';
 
 const API = '/api/water-ops';
 const LS  = 'cs-water-v1';
-const S   = { wssn:'', code:'', profile:null, op:null, opDate:'', tab:'round', queue:[] };
+const S   = { wssn:'', code:'', profile:null, op:null, tab:'round', queue:[] };
 
 const $  = (id) => document.getElementById(id);
 const el = (h) => { const d=document.createElement('div'); d.innerHTML=h.trim(); return d.firstElementChild; };
@@ -223,8 +223,24 @@ const fmt = (v,d=2) => (v==null||!isFinite(v) ? '—' : Number(v).toFixed(d));
 
 // ---- persistence ----------------------------------------------------------------------------
 // No access code is stored, because none is asked for. The crew never log in.
-function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,op:S.op,opDate:S.opDate,queue:S.queue})); }
-function load(){ try{ Object.assign(S, JSON.parse(localStorage.getItem(LS)||'{}')); }catch{} S.queue ||= []; }
+/* ⛔ THE OPERATOR IS NEVER PERSISTED. Keith, 2026-08-25: "it should not default to a particular
+   user. it should force the tester to pick from blank who they are and refuse to submit without
+   identifying the tester." This is ONE tablet living at the plant, shared by whoever is on the
+   rotation that week, and a name written to localStorage is a name that outlives the person who
+   set it. The earlier build remembered it for the calendar day, which was already a compromise;
+   this removes the compromise. The choice lives in memory for the length of the visit, which is
+   what makes one round three wells and two samples rather than five identifications, and it is
+   gone the moment the app is reopened.
+   Only the supply and the offline queue are durable. */
+function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,queue:S.queue})); }
+function load(){
+  try{ Object.assign(S, JSON.parse(localStorage.getItem(LS)||'{}')); }catch{}
+  S.queue ||= [];
+  // A tablet that already ran the previous build has a name in storage. Drop it on load rather
+  // than trusting that nothing writes it any more - otherwise the first person to open the app
+  // after this ships inherits whoever used it last, which is the exact failure being removed.
+  S.op = null;
+}
 
 async function api(action, payload={}, opts={}){
   const r = await fetch(API, {
@@ -280,24 +296,14 @@ async function boot(){
     $('opSel').innerHTML = '<option value="">— choose your name —</option>'
       + p.operators.map(o=>`<option value="${o.id}">${esc(o.name)} (${esc(o.initials)})</option>`).join('');
 
-    /* ⛔ THE NAME EXPIRES AT MIDNIGHT. Keith, 2026-08-25: the rotation is weekly, one tablet, so a
-       name remembered from last time is wrong on every handover day and wrong without anybody
-       noticing. Carrying it within the day is fine and necessary — three wells and two samples are
-       one round, not five identifications. Carrying it across days is the bug. */
-    if(S.op && S.opDate === today() && p.operators.some(o=>o.id===S.op.id)){
-      $('opSel').value = S.op.id;
-      $('btnWho').disabled = false;
-      $('whoChip').textContent = S.op.initials; $('whoChip').classList.remove('hide');
-      $('app').classList.remove('hide');
-      showTab(location.hash.slice(1) || 'round', { push: false });
-    } else {
-      S.op = null; S.opDate = ''; save();
-      $('whoChip').textContent = 'who?'; $('whoChip').classList.remove('hide');
-      /* Opens on the name, not on the wells. It is the first field because it is the first thing
-         the round needs, and because a tablet that opens straight onto the wells invites somebody
-         to walk the whole round before discovering it wanted a name. */
-      $('scrWho').classList.remove('hide');
-    }
+    /* ⛔ ALWAYS THE NAME SCREEN, ALWAYS BLANK. There is no remembered-operator branch any more:
+       opening the app is always "who is doing this round?" with nothing pre-selected. It is the
+       first field because it is the first thing the round needs, and because a tablet that opens
+       straight onto the wells invites somebody to walk the whole round before discovering it
+       wanted a name. */
+    S.op = null;
+    $('whoChip').textContent = 'who?'; $('whoChip').classList.remove('hide');
+    $('scrWho').classList.remove('hide');
   }catch(e){
     // The profile is what supplies the operator list, so with it unreachable there is no name to
     // choose. Show the app rather than an empty picker, and say what went wrong.
@@ -338,9 +344,9 @@ $('btnWho').onclick = async () => {
      ⚠ Because nothing proves who is holding the tablet, the initials are never hidden: the chip
      shows them on every screen and is one tap from changing, so a shared tablet cannot quietly
      credit a month of rounds to whoever set it last. */
-  // The date is stored WITH the name. It is what expires the choice at midnight, and storing it
-  // separately from the name is what would let the two drift apart.
-  S.op = { id, name:op.name, initials:op.initials }; S.opDate = today(); save();
+  // In memory only, for the length of this visit. Nothing about the operator reaches localStorage,
+  // so reopening the app asks again.
+  S.op = { id, name:op.name, initials:op.initials };
   $('whoChip').textContent = op.initials;
   $('whoMsg').innerHTML = '';
   $('scrWho').classList.add('hide'); $('app').classList.remove('hide');
