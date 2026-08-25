@@ -1,8 +1,8 @@
 {
- "generated": "2026-08-24T09:30:52.519Z",
+ "generated": "2026-08-25T09:30:55.346Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 132118979,
- "totalCommitted": 141559546,
+ "totalActual": 132144217,
+ "totalCommitted": 141564046,
  "subCount": 642,
  "subs": [
   {
@@ -283,11 +283,11 @@
   {
    "vendorNo": "3480",
    "name": "D & D Electric",
-   "actualCost": 2644631,
-   "actualJobs": 10,
+   "actualCost": 2647117,
+   "actualJobs": 11,
    "committed": 1456500,
    "committedJobs": 4,
-   "variance": -1188131,
+   "variance": -1190617,
    "jobs": [
     {
      "jobNo": "2502GP07",
@@ -335,6 +335,12 @@
      "jobNo": "2413GO02",
      "jobName": "PHM Fieldhouse",
      "actual": 90921,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X012",
+     "jobName": "Town of Bristol - Street Build",
+     "actual": 2486,
      "committed": 0
     },
     {
@@ -1222,9 +1228,9 @@
    "name": "Adams Masonry Inc",
    "actualCost": 1546700,
    "actualJobs": 5,
-   "committed": 268600,
-   "committedJobs": 1,
-   "variance": -1278100,
+   "committed": 273100,
+   "committedJobs": 2,
+   "variance": -1273600,
    "jobs": [
     {
      "jobNo": "2415GO03",
@@ -1254,7 +1260,7 @@
      "jobNo": "26X004",
      "jobName": "Ryan Fire Prot - Valpo",
      "actual": 4500,
-     "committed": 0
+     "committed": 4500
     }
    ]
   },
@@ -6204,35 +6210,6 @@
    ]
   },
   {
-   "vendorNo": "1352",
-   "name": "HG Christman Construction LLC",
-   "actualCost": 281528,
-   "actualJobs": 3,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2307GO09",
-     "jobName": "St. Joe County Garages - Combo",
-     "actual": 206721,
-     "committed": 0
-    },
-    {
-     "jobNo": "2313GO09",
-     "jobName": "SB Airport Carwash",
-     "actual": 51213,
-     "committed": 0
-    },
-    {
-     "jobNo": "2413CO01",
-     "jobName": "Tavel Relocate-Concord Mall",
-     "actual": 23595,
-     "committed": 0
-    }
-   ]
-  },
-  {
    "vendorNo": "3489",
    "name": "G Squared Development LLC",
    "actualCost": 269151,
@@ -6335,6 +6312,35 @@
      "jobName": "",
      "actual": 0,
      "committed": 5225
+    }
+   ]
+  },
+  {
+   "vendorNo": "1352",
+   "name": "HG Christman Construction LLC",
+   "actualCost": 266105,
+   "actualJobs": 3,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2307GO09",
+     "jobName": "St. Joe County Garages - Combo",
+     "actual": 191297,
+     "committed": 0
+    },
+    {
+     "jobNo": "2313GO09",
+     "jobName": "SB Airport Carwash",
+     "actual": 51213,
+     "committed": 0
+    },
+    {
+     "jobNo": "2413CO01",
+     "jobName": "Tavel Relocate-Concord Mall",
+     "actual": 23595,
+     "committed": 0
     }
    ]
   },
@@ -11361,6 +11367,23 @@
    ]
   },
   {
+   "vendorNo": "2049",
+   "name": "Kropp Fire Protection  Inc.",
+   "actualCost": 65560,
+   "actualJobs": 1,
+   "committed": 464395,
+   "committedJobs": 1,
+   "variance": 398835,
+   "jobs": [
+    {
+     "jobNo": "26X005",
+     "jobName": "CTB 2026 Addition",
+     "actual": 65560,
+     "committed": 464395
+    }
+   ]
+  },
+  {
    "vendorNo": "3822",
    "name": "On Deck Sports",
    "actualCost": 65191,
@@ -13809,6 +13832,71 @@
    ]
   },
   {
+   "vendorNo": "3833",
+   "name": "DW1",
+   "actualCost": 32540,
+   "actualJobs": 9,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2507GP03",
+     "jobName": "Milford Water Utility Imp. Div",
+     "actual": 5755,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP10",
+     "jobName": "Ashley WWTP Improvements",
+     "actual": 5730,
+     "committed": 0
+    },
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 5680,
+     "committed": 0
+    },
+    {
+     "jobNo": "2515CO01",
+     "jobName": "Huntertown Wastewater Treatmen",
+     "actual": 4685,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP07",
+     "jobName": "So Bend-South Well Field WTP",
+     "actual": 3890,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP09",
+     "jobName": "Coldwater WRRF Upgrades Phase1",
+     "actual": 2265,
+     "committed": 0
+    },
+    {
+     "jobNo": "2402GP09",
+     "jobName": "Wakarusa WTP",
+     "actual": 2230,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X012",
+     "jobName": "Town of Bristol - Street Build",
+     "actual": 1555,
+     "committed": 0
+    },
+    {
+     "jobNo": "2413CO08",
+     "jobName": "The Monreaux Apartments",
+     "actual": 750,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "2505",
    "name": "Quality Seamless Gutters LLC",
    "actualCost": 32335,
@@ -14015,71 +14103,6 @@
      "jobNo": "26X008",
      "jobName": "Gaska Tape RTO Equip Prep Work",
      "actual": 14725,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "3833",
-   "name": "DW1",
-   "actualCost": 31940,
-   "actualJobs": 9,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2507GP03",
-     "jobName": "Milford Water Utility Imp. Div",
-     "actual": 5755,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP10",
-     "jobName": "Ashley WWTP Improvements",
-     "actual": 5730,
-     "committed": 0
-    },
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 5680,
-     "committed": 0
-    },
-    {
-     "jobNo": "2515CO01",
-     "jobName": "Huntertown Wastewater Treatmen",
-     "actual": 4685,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP07",
-     "jobName": "So Bend-South Well Field WTP",
-     "actual": 3890,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP09",
-     "jobName": "Coldwater WRRF Upgrades Phase1",
-     "actual": 2265,
-     "committed": 0
-    },
-    {
-     "jobNo": "2402GP09",
-     "jobName": "Wakarusa WTP",
-     "actual": 2230,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X012",
-     "jobName": "Town of Bristol - Street Build",
-     "actual": 955,
-     "committed": 0
-    },
-    {
-     "jobNo": "2413CO08",
-     "jobName": "The Monreaux Apartments",
-     "actual": 750,
      "committed": 0
     }
    ]
@@ -14342,23 +14365,6 @@
      "jobName": "Thor 850 Breakroom",
      "actual": 29000,
      "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "2049",
-   "name": "Kropp Fire Protection  Inc.",
-   "actualCost": 28843,
-   "actualJobs": 1,
-   "committed": 464395,
-   "committedJobs": 1,
-   "variance": 435552,
-   "jobs": [
-    {
-     "jobNo": "26X005",
-     "jobName": "CTB 2026 Addition",
-     "actual": 28843,
-     "committed": 464395
     }
    ]
   },
@@ -14938,6 +14944,41 @@
    ]
   },
   {
+   "vendorNo": "3494",
+   "name": "Indiana Michigan Power-ONLINE",
+   "actualCost": 22265,
+   "actualJobs": 4,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 20036,
+     "committed": 0
+    },
+    {
+     "jobNo": "2307GO08",
+     "jobName": "So. Bend Fire Station No. 8",
+     "actual": 1656,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP07",
+     "jobName": "So Bend-South Well Field WTP",
+     "actual": 467,
+     "committed": 0
+    },
+    {
+     "jobNo": "2413CO08",
+     "jobName": "The Monreaux Apartments",
+     "actual": 106,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "4114",
    "name": "Howard Painting Inc",
    "actualCost": 22170,
@@ -14996,41 +15037,6 @@
      "jobNo": "2316RO04",
      "jobName": "370 Wellfield Drive (Lot 82B)",
      "actual": 5164,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "3494",
-   "name": "Indiana Michigan Power-ONLINE",
-   "actualCost": 21407,
-   "actualJobs": 4,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 19178,
-     "committed": 0
-    },
-    {
-     "jobNo": "2307GO08",
-     "jobName": "So. Bend Fire Station No. 8",
-     "actual": 1656,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP07",
-     "jobName": "So Bend-South Well Field WTP",
-     "actual": 467,
-     "committed": 0
-    },
-    {
-     "jobNo": "2413CO08",
-     "jobName": "The Monreaux Apartments",
-     "actual": 106,
      "committed": 0
     }
    ]
@@ -21879,7 +21885,7 @@
   },
   {
    "vendorNo": "3964",
-   "name": "Enduro Composites Inc",
+   "name": "Enduro Composites Inc-BANKING",
    "actualCost": 0,
    "actualJobs": 0,
    "committed": 36197,
