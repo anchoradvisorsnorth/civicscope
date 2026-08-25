@@ -191,7 +191,7 @@ async function load() {
   /* The month may be named in the URL (?m=YYYY-MM). That is what the "due on the 10th" reminder
      email links to, so the message and the screen open on the same month — a link that lands on a
      generic dashboard makes the reader do the navigation the email existed to save them. */
-  const want = (new URLSearchParams(location.search).get('m') || '').match(/^(d{4})-(d{1,2})$/);
+  const want = (new URLSearchParams(location.search).get('m') || '').match(/^(\d{4})-(\d{1,2})$/);
   const cy = now.getUTCFullYear(), cm = now.getUTCMonth() + 1;   // the month we are actually in
   let y = want ? Number(want[1]) : cy;
   let m = want ? Number(want[2]) : cm;
