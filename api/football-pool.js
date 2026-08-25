@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.12.0-latchlegacy';   // the reveal latch also covers weeks that opened before it existed
+const VER = '3.13.0-participants';  // the week carries WHO IS IN IT; a non-player no longer blocks the reveal
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -208,11 +208,42 @@ export default async function handler(req, res) {
     if (sat && sat < firstKick) return { deadline: sat, reason: 'schedule', firstKick };
     return { deadline: firstKick, reason: 'kickoff', firstKick };
   };
-  // All roster players have a locked pick — used ONLY to fire the "all picks are in" email.
+  /* ⛔ WHO IS IN *THIS WEEK* — NOT WHO IS ON THE ROSTER (Keith 2026-08-25).
+     "There will usually be 6 players, I won't be playing — that said they may have the occasional
+     random person join for a week."
+
+     Both halves of that break the old rule. `allLocked` was `roster.every(...)` and
+     `outstandingFor` listed every member without a locked card, so **a member who is not playing
+     is permanently outstanding**: the board never opens on "everyone is locked in", the
+     "all picks are in" text NEVER FIRES, and the week only reveals when the deadline passes —
+     every week, silently, with nothing naming the cause. A one-week guest does the same thing to
+     every subsequent week until somebody deletes them from the roster.
+
+     So the week carries its own participant list, snapshotted when the commissioner locks the
+     slate. `wk.participants` is an array of person ids.
+
+     ⚠ THE DEFAULT IS THE FULL ROSTER, DELIBERATELY. Nothing about an existing week changes
+     behaviour, and a week locked before this existed has no `participants` at all and falls back
+     to exactly today's rule. The commissioner opts people OUT at lock; he does not have to opt
+     anyone in.
+
+     ⚠ AND AN EMPTY/UNMATCHED LIST FALLS BACK RATHER THAN REVEALING. If every id in the snapshot
+     has since left the roster, `participants` would be empty — and an empty list makes
+     `outstandingFor` empty, which would throw the board open to the public. Falling back to the
+     roster is the conservative direction; revealing is not. */
+  const participantsOf = (wk, roster) => {
+    const ids = wk && wk.participants;
+    if (!Array.isArray(ids) || !ids.length) return roster || [];
+    const want = new Set(ids.map(String));
+    const chosen = (roster || []).filter(p => want.has(String(p.id)));
+    return chosen.length ? chosen : (roster || []);
+  };
+  // Everyone IN THIS WEEK has a locked pick — fires the "all picks are in" notice and the reveal.
   // Keyed by person id now — a rename can no longer detach someone's entry from their identity.
   const allLocked = (wk, roster) => {
-    if (!roster || !roster.length || !wk.picks) return false;
-    return roster.every(p => wk.picks[p.id] && wk.picks[p.id].locked);
+    const ps = participantsOf(wk, roster);
+    if (!ps.length || !wk.picks) return false;
+    return ps.every(p => wk.picks[p.id] && wk.picks[p.id].locked);
   };
   /* REVEAL = EVERYONE LOCKED, OR THE DEADLINE — whichever comes first (Keith, 2026-08-12).
      The weekly motion he set: build → lock the slate → everyone is notified to pick → and once
@@ -256,7 +287,7 @@ export default async function handler(req, res) {
      public exactly as it always was. While it is NOT empty — the only case being someone added
      after the board opened — the open board is answered per viewer. */
   const outstandingFor = (wk, roster) => (pastDeadline(wk) ? []
-    : (roster || []).filter(p => !(wk.picks && wk.picks[p.id] && wk.picks[p.id].locked)));
+    : participantsOf(wk, roster).filter(p => !(wk.picks && wk.picks[p.id] && wk.picks[p.id].locked)));
 
   /* Cover vs the FROZEN line — identical rule to the board's coverOf() and the sim's cover().
      Kept server-side so scoring never depends on what a browser computed. */
@@ -1068,6 +1099,25 @@ export default async function handler(req, res) {
             error: 'the same game is on the slate twice for the same market: ' + dupes.join(', '),
             hint: 'A fixture can appear once against the spread AND once as an over/under — but not twice for either.',
           });
+          /* ⛔ SNAPSHOT WHO IS IN THIS WEEK (2026-08-25). See participantsOf() above for why the
+             live roster is the wrong set. Default = everyone, so this changes nothing on its own;
+             the commissioner narrows it by passing `participants: [<id>, …]` from the lock screen,
+             which is the one moment he is already looking at the week and the roster together.
+             Ids are validated against the real roster — an unknown id is dropped rather than
+             stored, so a stale browser cannot write a participant who does not exist. */
+          {
+            const rosterNow = await loadRoster(slug);
+            let chosen = rosterNow;
+            if (Array.isArray(req.body.participants)) {
+              const want = new Set(req.body.participants.map(String));
+              chosen = rosterNow.filter(p => want.has(String(p.id)));
+              if (!chosen.length) return res.status(400).json({
+                error: 'no players selected for this week',
+                hint: 'Tick at least one player. Leave the list alone entirely to include everyone.',
+              });
+            }
+            wk.participants = chosen.map(p => p.id);
+          }
           wk.slateLocked = true;
           wk.lockedAt = new Date().toISOString();
           /* Picks close Saturday 10:00 ET — unless a game kicks off before that, in which case
@@ -1372,6 +1422,24 @@ export default async function handler(req, res) {
           if (!wk.slateLocked) return res.status(400).json({ error: 'slate not locked yet' });
           if (pastDeadline(wk)) return res.status(400).json({ error: 'picks are closed for this week' });
           wk.picks = wk.picks || {};
+          /* ⛔ PICKING JOINS YOU TO THE WEEK (2026-08-25). A member who is not in this week's
+             participant snapshot — because the commissioner left them out, or because they were
+             ADDED to the pool after the slate was locked (Keith 2026-08-19) — is still allowed to
+             pick, and doing so puts them in the week.
+
+             That is what keeps the 08-19 rule working. If a newcomer could pick WITHOUT joining
+             the participant list, they would never count as outstanding, so the board would read
+             as "nobody left to protect a pick from" and open to them before they had filled a
+             card in — the exact bug 08-19 fixed, reintroduced through the back door. Joining here
+             makes them outstanding until they lock, which masks the board from them and from an
+             unidentified viewer, and leaves it open for everyone who already locked.
+
+             It also makes a wrong exclusion harmless: if the commissioner unticks someone who did
+             want to play, they simply pick and are counted. The snapshot is a default, never a
+             lock-out. */
+          if (Array.isArray(wk.participants) && !wk.participants.map(String).includes(String(me.id))) {
+            wk.participants = wk.participants.concat([me.id]);
+          }
           const mine = wk.picks[me.id] || {};
           /* ⛔ LOCKING IS FINAL (Keith 2026-08-09): "they can save — meaning they can edit before
              the deadline — or save and lock in one swoop, in which case they cannot."
