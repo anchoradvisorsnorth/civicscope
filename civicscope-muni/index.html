@@ -81,6 +81,18 @@
          color: var(--muted); border: 1px solid var(--rule); border-radius: 3px; padding: 1px 5px;
          margin-left: 6px; vertical-align: 1px; }
 
+  /* The divider between adopted law and background material. Quiet on purpose — it is a label on
+     the list, not a section of its own. */
+  .tier { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+          margin: 20px 0 6px; padding-top: 14px; border-top: 1px solid var(--rule); }
+  /* Everything retrieved but not relied on. Present, because "what else did it look at" is a fair
+     question — collapsed, because it is not the answer. */
+  .more { margin-top: 20px; }
+  .more summary { font-size: 13.5px; color: var(--muted); cursor: pointer; }
+  .more summary:hover { color: var(--accent); }
+  .mrow { font-size: 13.5px; color: var(--muted); padding: 5px 0 5px 16px; }
+  .mrow a { color: var(--muted); }
+
   .note { background: var(--accent-light); border-left: 2px solid var(--accent);
           padding: 13px 16px; font-size: 14px; line-height: 1.55; color: var(--ink-light);
           border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
@@ -172,13 +184,15 @@ async function boot() {
   const c = d.corpus || {};
   const named = Object.entries(c.collections || {})
     .sort((a, b) => b[1] - a[1]).map(([k, n]) => esc(k) + ' (' + n + ')').join(' · ');
-  $('stats').innerHTML = '<strong>' + (c.documents || 0) + ' documents</strong> indexed'
-    + (c.passages ? ', ' + c.passages.toLocaleString() + ' searchable passages' : '')
-    + (named ? '<br>' + named : '')
-    + (c.transcribed
-        ? '<br>' + c.transcribed + ' of them are scanned pages that were transcribed so they '
-          + 'could be searched at all — the Village’s own copies have no text layer.'
-        : '');
+  /* ⛔ THIS IS ORIENTATION, NOT RESULTS FURNITURE. It answers "what does this thing even know",
+     which is worth a line before you have asked anything and is clutter underneath an answer you
+     are trying to read. Four lines of corpus inventory sat under every result. Now: one line, the
+     per-collection breakdown moved to a tooltip, and the whole block hidden once an answer renders
+     (see show()). */
+  $('stats').innerHTML = '<strong>' + (c.documents || 0) + '</strong> documents'
+    + (c.passages ? ' · ' + c.passages.toLocaleString() + ' passages' : '')
+    + (c.transcribed ? ' · ' + c.transcribed + ' transcribed from scans' : '');
+  if (named) $('stats').title = named;
 
   if (!d.tenant.active) {
     show('<div class="note">This library is still being prepared, so questions are not being '
@@ -199,7 +213,13 @@ async function boot() {
   ready = true;
 }
 
-function show(html) { $('out').innerHTML = html; }
+/* Once there is something on screen to read, the corpus inventory stops being useful and starts
+   being the thing between the reader and the footer. It comes back on reload, where it belongs. */
+function show(html) {
+  $('out').innerHTML = html;
+  const s = $('stats');
+  if (s) s.style.display = html ? 'none' : '';
+}
 function fail(msg) { show('<div class="note err">' + esc(msg) + '</div>'); }
 
 /** Turn [1] / [2] markers in the model's prose into links to the matching source row. */
@@ -211,7 +231,29 @@ function renderAnswer(text, sources) {
       valid.has(n) ? '<a class="cite" href="#s' + n + '">' + n + '</a>' : m) + '</p>'
   ).join('');
 
-  const list = sources.map(s => {
+  /* ⛔ THE ANSWER ALREADY TELLS US WHICH SOURCES IT USED — so stop showing the ones it did not.
+     Retrieval hands the model up to fourteen passages and every one of them was being listed as a
+     "Source", which is not what the word means to a reader: on a question about the council it
+     printed the Rec Plan, some planning minutes and the Vegetation ordinance, none of which the
+     answer leaned on. That is noise in the one place the product is asking to be trusted.
+     The [n] markers in the prose are the model's own statement of what it relied on, so they are the
+     split: cited sources are Sources, the rest are collapsed as "Also searched".
+
+     Within the cited set, PRIMARY BEFORE SECONDARY (Keith, 2026-08-25: "sources should be kind of
+     ranked maybe like primary and secondary"). The tier is decided server-side from the same table
+     that ranks retrieval — adopted law and the Village's own current statements ahead of minutes and
+     plans, because "the Village enacted this" and "a board discussed this" are different claims. */
+  const citedOrder = [];
+  for (const m of String(text).matchAll(/\[(\d+)\]/g)) {
+    if (valid.has(m[1]) && !citedOrder.includes(m[1])) citedOrder.push(m[1]);
+  }
+  const byN = new Map(sources.map(s => [String(s.n), s]));
+  const cited = citedOrder.map(n => byN.get(n));
+  const uncited = sources.filter(s => !citedOrder.includes(String(s.n)));
+  const rank = s => (s.authority === 'primary' ? 0 : 1);
+  cited.sort((a, b) => rank(a) - rank(b));
+
+  const card = s => {
     const where = [s.heading, s.citation].filter(Boolean).join(' · ');
     return '<div class="src" id="s' + s.n + '">'
       + '<div class="n">' + s.n + '</div>'
@@ -229,10 +271,32 @@ function renderAnswer(text, sources) {
       +   (s.url ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">'
       +     (s.web ? 'Open the page ↗' : 'Open the source document ↗') + '</a>' : '')
       + '</div></div>';
-  }).join('');
+  };
+
+  // The divider only appears when BOTH kinds were actually cited. A standing label above a list
+  // that happens to be all one kind would be describing a distinction the reader cannot see.
+  let list = '';
+  let shown = null;
+  for (const s of cited) {
+    if (shown === 'primary' && s.authority === 'secondary') {
+      list += '<div class="tier">Background — what was discussed or planned, not adopted</div>';
+    }
+    list += card(s);
+    shown = s.authority;
+  }
+  if (!cited.length) list = sources.map(card).join('');   // model cited nothing; show what it read
+
+  const more = uncited.length && cited.length
+    ? '<details class="more"><summary>Also searched — ' + uncited.length + ' other document'
+      + (uncited.length === 1 ? '' : 's') + ' the answer did not rely on</summary>'
+      + uncited.map(s => '<div class="mrow">' + esc(s.title)
+          + (s.url ? ' <a href="' + esc(s.url) + '" target="_blank" rel="noopener">open ↗</a>' : '')
+          + '</div>').join('')
+      + '</details>'
+    : '';
 
   return '<div class="answer">' + body
-    + '<div class="sources"><h2>Sources</h2>' + list + '</div></div>';
+    + '<div class="sources"><h2>Sources</h2>' + list + more + '</div></div>';
 }
 
 $('form').addEventListener('submit', async ev => {

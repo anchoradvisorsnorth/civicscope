@@ -327,6 +327,18 @@ export default async function handler(req, res) {
       // at a snapshot, because the page may have changed since. The date travels with the source.
       web: h.text_source === 'web',
       readAt: h.text_source === 'web' ? (fmtDay(readAt[h.doc_id]) || null) : null,
+      /* ⛔ WHAT KIND OF THING THIS IS, DECIDED SERVER-SIDE. A reader needs to know whether an answer
+         rests on what the Village ENACTED or on what a board once discussed — those are not the same
+         claim, and the page must not have to guess. The split is the same judgement already encoded
+         in muni_search's weight table (migration 031): adopted law and the Village's own current
+         statements score 1.10 and above; minutes, plans and the newsletter score 1.00 because they
+         record discussion rather than authority.
+         ⚠ If that table changes, change this with it — it is deliberately the only other place the
+         judgement appears, and it lives here rather than in the page so there is one copy per rule
+         rather than one per surface. */
+      authority: ['Code of Ordinances', 'Zoning & Planning Commission',
+        'Applications and Permits', 'Village Website'].includes(h.collection)
+        ? 'primary' : 'secondary',
     })),
   });
 }
