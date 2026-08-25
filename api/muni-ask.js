@@ -249,7 +249,11 @@ export default async function handler(req, res) {
       if (tenant.shares_corpus_with) {
         const shTbl = await sb('rpc/muni_search_tables', {
           method: 'POST',
-          body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: question, p_limit: 2 }),
+          /* THREE from the county, not two. A county ordinance carries a table per district plus
+             overlays and general provisions, so the specific one a question is about routinely sits
+             third — R-1 Building Placement ranked #2 and #3 with the actual dimensional row at #3.
+             The town own-corpus guarantee stays at two; a county book is simply a bigger haystack. */
+          body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: question, p_limit: 3 }),
         }).catch(() => null);
         if (shTbl && shTbl.length) tbl.push(...shTbl);
       }
