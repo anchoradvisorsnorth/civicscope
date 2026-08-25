@@ -195,6 +195,27 @@ export default async function handler(req, res) {
      ⚠ This adds, it never displaces. The ordinances keep every seat they won, so a legal question
      still leads with the law — and the model is separately told that a [web] passage is not law and
      that an ordinance governs where the two disagree about a rule. */
+  /* ⛔ AND THE SAME GUARANTEE FOR A PRINTED TABLE, FOR THE SAME REASON (migration 038).
+     A table states each term once; the prose discussing that table repeats them, and ts_rank_cd
+     rewards repetition without bound. So the footnotes to Centreville's Table 4-4 beat the table
+     itself on every natural phrasing of "what are the R-1 setbacks" — the numbers were in the
+     corpus, whole and correctly headed, and the tool still answered "I don't have that table".
+     Measured: #9, #10, and outside the top 12, while "site development requirements table" put it
+     at #1 — findable only by somebody who already knew its name.
+
+     Tables are a structurally small, high-value minority that cannot win a term-frequency race, and
+     dimensional standards are the single most common thing a village is asked for. So the best
+     matching table is ADDED when the main retrieval missed it. It never displaces prose. */
+  if (hits && hits.length && !hits.some((h) => /^Table\s/i.test(String(h.heading || '')))) {
+    try {
+      const tbl = await sb('rpc/muni_search_tables', {
+        method: 'POST',
+        body: JSON.stringify({ p_tenant: slug, p_query: question, p_limit: 1 }),
+      });
+      if (tbl && tbl.length) hits = hits.concat(tbl);
+    } catch { /* the corpus still answers without it */ }
+  }
+
   if (hits && hits.length && !hits.some((h) => h.text_source === 'web')) {
     try {
       const web = await sb('rpc/muni_search_collection', {
