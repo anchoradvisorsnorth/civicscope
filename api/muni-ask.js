@@ -107,9 +107,20 @@ Begin your reply with exactly one of these on its own first line. It is stripped
 sees anything, and it is how the village learns which questions its documents cannot answer:
   ANSWERED   the passages settle the question and you have said so.
   PARTIAL    you answered part of it and a material part is missing from the passages.
-  DECLINED   passages were retrieved but none of them answers the question.
+  REFERRED   the passages do not carry the fact BECAUSE THIS GOVERNMENT DOES NOT HOLD IT, and you
+             have named the one that does — a county treasurer who issues the licences, a county
+             plan commission the town delegated its zoning to, a state agency. Use this only when
+             you actually named the responsible body; "ask the Village office" alone is DECLINED.
+  DECLINED   passages were retrieved but none of them answers the question, and you cannot say who
+             would. This is the one that means something is broken.
 Judge only whether the PASSAGES settled it. Do not soften a DECLINED into a PARTIAL because you
-found something adjacent and useful to say — the whole value of this line is that it goes red.`;
+found something adjacent and useful to say — the whole value of this line is that it goes red.
+
+REFERRED and DECLINED both mean "I could not give the number", and they are still opposites, so
+keep them apart. REFERRED is the correct answer to a question this government has no say in —
+Michigan counties issue dog licences, and Bristol handed its zoning to Elkhart County outright.
+DECLINED says the documents should have carried it and did not, which sends someone looking for a
+defect. Calling a good referral DECLINED wastes that trip; calling a real gap REFERRED hides it.`;
 
 export default async function handler(req, res) {
   // ---- safe, read-only tenant lookup ---------------------------------------------------
@@ -437,7 +448,7 @@ export default async function handler(req, res) {
      emit one is treated as ANSWERED rather than guessed at from its prose — an inferred outcome is
      the thing this replaced. */
   let outcome = null;
-  const mark = String(answer || '').match(/^\s*(ANSWERED|PARTIAL|DECLINED)\b[ \t]*\n+/);
+  const mark = String(answer || '').match(/^\s*(ANSWERED|PARTIAL|REFERRED|DECLINED)\b[ \t]*\n+/);
   if (mark) {
     outcome = mark[1].toLowerCase();
     answer = answer.slice(mark[0].length).trim();
@@ -454,7 +465,7 @@ export default async function handler(req, res) {
   const usedTable = used.some((h) => guaranteedIds.has(h.chunk_id)
     || /^Tables/i.test(String(h.heading || '')) || h.is_table === true);
 
-  await logQuestion(used.length, outcome !== 'declined', {
+  await logQuestion(used.length, outcome !== 'declined' && outcome !== 'no_corpus', {
     outcome: outcome || 'answered',
     cited_collections: cited,
     used_table: usedTable,
