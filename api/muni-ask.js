@@ -150,7 +150,11 @@ export default async function handler(req, res) {
   const started = Date.now();
   let tenant;
   try {
-    [tenant] = await sb(`muni_tenants?slug=eq.${encodeURIComponent(slug)}&select=slug,label,active`);
+    /* ⚠ NAMED COLUMNS, NEVER `select=*`, and that is load-bearing on this table now: muni_tenants
+       carries auth_client_id and anthropic_key_env, and this handler's GET branch returns tenant
+       fields straight to the browser. A widening edit here is the one mistake that would publish
+       configuration nobody meant to publish. */
+    [tenant] = await sb(`muni_tenants?slug=eq.${encodeURIComponent(slug)}&select=slug,label,active,anthropic_key_env`);
   } catch {
     return res.status(503).json({ error: 'Corpus is unavailable.' });
   }
@@ -265,7 +269,32 @@ export default async function handler(req, res) {
     used.push(h);
   }
 
-  const key = process.env.ANTHROPIC_API_KEY;
+  /* ── WHOSE ANTHROPIC BILL THIS LANDS ON (migration 035, 2026-08-25) ──────────────────────────
+     Keith: *"I would like the civicscope - centreville to be wired to its own Claude API key."*
+     One key has run every business in this stack, and on 2026-08-18 the Centreville corpus ingest
+     exhausted the ORGANISATION's monthly limit mid-run — every other product in the stack started
+     refusing until the cap was raised. A village on its own key, in its own workspace with its own
+     spend limit, cannot do that to anything else, and its cost becomes a number that can be shown
+     to that village.
+
+     ⛔ THE TENANT ROW NAMES AN ENVIRONMENT VARIABLE; IT NEVER HOLDS THE KEY. And the name is
+     re-validated HERE, not merely constrained in the database, because a value that indexes
+     process.env can otherwise reach ANY environment variable — SUPABASE_SERVICE_KEY included — if
+     whatever wrote that row was ever wrong. A CHECK on a table is not a check on the value that
+     arrives at a function. Anything that fails the pattern falls back to the shared key rather than
+     being looked up. */
+  let key = process.env.ANTHROPIC_API_KEY;
+  if (tenant.anthropic_key_env && /^ANTHROPIC_API_KEY_[A-Z0-9_]+$/.test(tenant.anthropic_key_env)) {
+    /* A village configured for its own key that cannot find it must NOT quietly bill the shared one:
+       that is how an isolation guarantee becomes a comment. It fails, and says which variable is
+       missing so the fix is one step. */
+    const own = process.env[tenant.anthropic_key_env];
+    if (!own) {
+      await logQuestion(used.length, false);
+      return res.status(503).json({ error: `Answering service is not configured for this municipality (${tenant.anthropic_key_env} is not set).` });
+    }
+    key = own;
+  }
   if (!key) return res.status(503).json({ error: 'Answering service is not configured.' });
 
   let answer;
