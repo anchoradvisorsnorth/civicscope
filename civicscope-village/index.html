@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- civicscope-village v2.0.0 | 2026-08-25 — a village's front door, behind Google sign-in -->
+<!-- civicscope-village v2.1.0 | 2026-08-25 — a village's front door, behind Google sign-in -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -108,7 +108,8 @@
    and asks only for a name. This gate is the office, not the well house.
 
    ⚠ WHEN SIGN-IN IS NOT CONFIGURED, THE PAGE OPENS RATHER THAN BRICKS. `configured:false` means
-   this deployment has no Google client id yet. Refusing everyone in that state would take a working
+   THIS VILLAGE has no OAuth client yet (muni_tenants.auth_client_id, migration 033 — each village
+   brings its own, and a future one may not use Google at all). Refusing everyone in that state would take a working
    tool away from the village to enforce a gate that nobody — including the people it is for — could
    satisfy. So it says so plainly and lets them through, and the moment the client id is set the
    gate is live with no code change. An honest sentence beats both a dead button and a locked door.
@@ -123,7 +124,9 @@ const esc = s => String(s == null ? '' : s)
 const auth = async (action, extra = {}) => {
   const r = await fetch('/api/auth-google', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...extra }),
+    // The village travels with every auth call: each village has its own OAuth client, so
+    // the server cannot know which audience to verify against unless the page says.
+    body: JSON.stringify({ action, tenant: SLUG, ...extra }),
   });
   return r.json().catch(() => ({ ok: false, error: 'bad response' }));
 };
@@ -276,7 +279,9 @@ async function boot(pendingMsg) {
   try { me = await auth('me'); } catch { fail('Could not reach CivicScope. Please try again.'); return; }
 
   if (me.signedIn) { renderWho(me.user); renderCards(me.user); return; }
-  if (me.configured && me.client_id) { renderGate(me.client_id, pendingMsg); return; }
+  // Signed in, but for a DIFFERENT village. Say so, rather than showing a bare sign-in box to
+  // somebody whose browser plainly is signed in — that reads as broken.
+  if (me.configured && me.client_id) { renderGate(me.client_id, pendingMsg || me.msg); return; }
   renderCards(null, { openBecauseUnconfigured: true });
 }
 

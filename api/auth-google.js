@@ -43,8 +43,39 @@ export const VER = '1.0.0-auth';
 
 const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
-const CLIENT_ID = process.env.GOOGLE_SIGNIN_CLIENT_ID || '';
 const SECRET = process.env.AUTH_SESSION_SECRET || '';
+
+/* ⛔ EACH VILLAGE BRINGS ITS OWN SIGN-IN (Keith, 2026-08-25: "this is village specific… There will
+   be more villages with different credentials (maybe not even google)").
+
+   This started as one global GOOGLE_SIGNIN_CLIENT_ID, which would not have survived village #2 and
+   would have survived a village on Microsoft 365 even less. The client id is now a column on
+   `muni_tenants` (migration 033) — configuration, like `water_feeds` and `mor_template`, so a new
+   village is a row rather than a release.
+
+   The env var stays as a FALLBACK only: it is what a deployment with a single village, or a preview
+   build, resolves to when the tenant carries no client of its own. A tenant value always wins. */
+const FALLBACK_CLIENT_ID = process.env.GOOGLE_SIGNIN_CLIENT_ID || '';
+
+/* Resolve one village's sign-in configuration. Returns { provider, clientId, tenant } — `clientId`
+   empty means "not configured for this village", which the hub renders as an honest sentence rather
+   than a dead button. */
+async function authConfig(slug) {
+  const s = String(slug || '').trim().toLowerCase();
+  if (!s) return { provider: 'google', clientId: FALLBACK_CLIENT_ID, tenant: null };
+  let row = null;
+  try {
+    const rows = await sb(`muni_tenants?slug=eq.${encodeURIComponent(s)}&select=slug,label,auth_provider,auth_client_id`);
+    row = rows && rows[0];
+  } catch { /* fall through to the fallback below */ }
+  if (!row) return { provider: 'google', clientId: FALLBACK_CLIENT_ID, tenant: null };
+  return {
+    provider: row.auth_provider || 'google',
+    clientId: row.auth_client_id || FALLBACK_CLIENT_ID,
+    tenant: row.slug,
+    label: row.label,
+  };
+}
 
 const SESSION_TTL = 30 * 24 * 3600;   // 30 days, absolute. No refresh: a session ends by itself.
 const SKEW = 120;                     // seconds of clock tolerance on iat/exp
@@ -89,8 +120,8 @@ const unb64u = (s) => Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'
  * Verify a Google ID token. Returns `{ ok:true, claims }` or `{ ok:false, why }`.
  * `why` is for OUR log, never for the caller — see the response builder below.
  */
-async function verifyIdToken(token) {
-  if (!CLIENT_ID) return { ok: false, why: 'GOOGLE_SIGNIN_CLIENT_ID is not configured' };
+async function verifyIdToken(token, clientId) {
+  if (!clientId) return { ok: false, why: 'no OAuth client is configured for this village' };
   const parts = String(token || '').split('.');
   if (parts.length !== 3) return { ok: false, why: 'not a JWT' };
 
@@ -119,9 +150,13 @@ async function verifyIdToken(token) {
 
   const now = Math.floor(Date.now() / 1000);
   if (!['accounts.google.com', 'https://accounts.google.com'].includes(claims.iss)) return { ok: false, why: `iss ${claims.iss}` };
-  /* The audience check is what stops a token minted for SOMEBODY ELSE'S Google app — perfectly
-     valid, correctly signed by Google — being replayed here as a sign-in. */
-  if (claims.aud !== CLIENT_ID) return { ok: false, why: 'aud mismatch' };
+  /* ⛔ THE AUDIENCE CHECK IS THE WHOLE SECURITY PROPERTY, AND IT NOW FOLLOWS THE VILLAGE.
+     It is what stops a token minted for SOMEBODY ELSE'S Google app — perfectly valid, correctly
+     signed by Google — being replayed here as a sign-in. With one client id per village, "somebody
+     else's app" includes ANOTHER VILLAGE'S client, so the id compared here must be the one belonging
+     to the tenant being signed into, never a global. The caller passes it; there is no ambient
+     default that could quietly make this pass. */
+  if (claims.aud !== clientId) return { ok: false, why: 'aud mismatch' };
   if (!(Number(claims.exp) > now - SKEW)) return { ok: false, why: 'expired' };
   if (Number(claims.iat) > now + SKEW) return { ok: false, why: 'issued in the future' };
   if (!claims.email) return { ok: false, why: 'no email claim' };
@@ -174,7 +209,9 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     // The version probe the deploy's API-contract registry reads. Also the cheapest possible
     // answer to "did this route even ship".
-    return res.status(200).json({ ver: VER, configured: Boolean(CLIENT_ID && SECRET) });
+    // Deployment-level readiness only. Whether a given VILLAGE can sign in is a per-tenant question
+    // and is answered by `me` with a tenant — this cannot know which village is asking.
+    return res.status(200).json({ ver: VER, sessionsConfigured: Boolean(SECRET) });
   }
   if (req.method !== 'POST') return bad(res, 405, 'POST only');
 
@@ -193,8 +230,12 @@ export default async function handler(req, res) {
          button that opens a Google error. That is the same rule the village hub already followed
          when it described sign-in in words instead of mocking up a control. */
       case 'me': {
+        // Which village is asking. The hub knows its own slug from the path; a page that does not
+        // send one gets the deployment fallback, which is correct for a single-village build.
+        const cfg = await authConfig(body.tenant);
+        const usable = cfg.provider === 'google' && Boolean(cfg.clientId) && Boolean(SECRET);
         const s = sessionOf(req);
-        if (!s) return res.status(200).json({ ok: true, signedIn: false, configured: Boolean(CLIENT_ID && SECRET), client_id: CLIENT_ID || null });
+        if (!s) return res.status(200).json({ ok: true, signedIn: false, configured: usable, client_id: (usable && cfg.clientId) || null, provider: cfg.provider });
 
         /* The session is re-checked against the allowlist on every call rather than trusted for its
            full 30 days. Deactivating somebody has to take effect when it is done, not when their
@@ -203,15 +244,36 @@ export default async function handler(req, res) {
         const u = await findUser({ sub: s.sub, email: s.email });
         if (!u || !u.active) {
           res.setHeader('Set-Cookie', sessionCookie('', { req }));
-          return res.status(200).json({ ok: true, signedIn: false, revoked: true, configured: Boolean(CLIENT_ID && SECRET), client_id: CLIENT_ID || null });
+          return res.status(200).json({ ok: true, signedIn: false, revoked: true, configured: usable, client_id: (usable && cfg.clientId) || null, provider: cfg.provider });
         }
-        return res.status(200).json({ ok: true, signedIn: true, configured: true, client_id: CLIENT_ID, user: publicUser(u) });
+        /* ⛔ A SESSION IS NOT A PASS INTO EVERY VILLAGE. Signed in for Centreville must not read as
+           signed in on village #2's hub — otherwise the per-village client ids above would be
+           decoration, since the session that follows a sign-in is domain-wide by design (one cookie
+           across civicscope.io and app.civicscope.io, which is what stops a second prompt). CivicScope
+           admins are the deliberate exception. */
+        if (cfg.tenant && u.role !== 'admin' && u.muni_tenant && u.muni_tenant !== cfg.tenant) {
+          return res.status(200).json({
+            ok: true, signedIn: false, wrongTenant: true, configured: usable,
+            client_id: (usable && cfg.clientId) || null, provider: cfg.provider,
+            msg: `${u.email} is signed in, but is not on the access list for ${cfg.label || cfg.tenant}.`,
+          });
+        }
+        return res.status(200).json({ ok: true, signedIn: true, configured: true, client_id: cfg.clientId, provider: cfg.provider, user: publicUser(u) });
       }
 
       /* ---- exchange Google's ID token for our session --------------------------------------- */
       case 'signin': {
-        if (!CLIENT_ID || !SECRET) return bad(res, 503, 'Sign-in is not configured on this deployment.');
-        const v = await verifyIdToken(body.credential);
+        const cfg = await authConfig(body.tenant);
+        /* A provider this route does not implement is REFUSED, never quietly treated as Google.
+           A column that falls through to one provider reads as support that does not exist, and the
+           failure would surface as an inexplicable "could not be verified" for a whole village. */
+        if (cfg.provider !== 'google') {
+          return bad(res, 501, cfg.provider === 'none'
+            ? 'Sign-in is not switched on for this village.'
+            : `This village signs in with ${cfg.provider}, which is not built yet.`);
+        }
+        if (!cfg.clientId || !SECRET) return bad(res, 503, 'Sign-in is not configured for this village.');
+        const v = await verifyIdToken(body.credential, cfg.clientId);
         if (!v.ok) {
           /* The caller is told the credential was not accepted and nothing else. `v.why` —
              "aud mismatch", "expired", "bad signature" — goes to our own log, because a verifier
@@ -250,6 +312,20 @@ export default async function handler(req, res) {
           return res.status(200).json({
             ok: true, signedIn: false, pending: true, email,
             msg: `${email} is on file but has not been switched on yet. Ask the village office or CivicScope to enable it.`,
+          });
+        }
+
+        /* ⛔ THE THIRD CHECK, AND THE ONE THAT IS EASY TO LEAVE OUT. The token verified against THIS
+           village's client and the person is enrolled — but enrolled for WHICH village? Without this
+           line, somebody legitimately enrolled for village B who signs in on village A's hub (whose
+           client accepted them because they hold an account in both, or because A's client id was
+           reused) would be handed a session that `me` then honours. Per-village client ids only mean
+           something if the allowlist is checked against the same tenant they were verified for. */
+        if (cfg.tenant && u.role !== 'admin' && u.muni_tenant && u.muni_tenant !== cfg.tenant) {
+          await logAttempt(req, { outcome: 'denied', email, google_sub: c.sub, user_id: u.id, reason: `enrolled for ${u.muni_tenant}, signing in to ${cfg.tenant}` });
+          return res.status(200).json({
+            ok: true, signedIn: false, email,
+            msg: `${email} is on the access list for ${u.muni_tenant}, not for ${cfg.label || cfg.tenant}.`,
           });
         }
 
