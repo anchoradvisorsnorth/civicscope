@@ -234,7 +234,7 @@ export default async function handler(req, res) {
      answer was still "I don't have the dimensional table". */
   if (hits && hits.length) {
     try {
-      const tbl = await sb('rpc/muni_search_tables', {
+      let tbl = await sb('rpc/muni_search_tables', {
         method: 'POST',
         /* TWO, not one. Asked how tall a building may be in R-2, the best-matching table is
            Table 4-1 — which states what each district is FOR and carries no dimensions — and the
@@ -242,8 +242,20 @@ export default async function handler(req, res) {
            that mentions R-2 and answers nothing. */
         body: JSON.stringify({ p_tenant: slug, p_query: question, p_limit: 2 }),
       });
+      /* ⛔ AND AGAINST THE COUNTY, when a town delegated its zoning there. Bristol is told what its
+         setbacks are by the Elkhart County ordinance; guaranteeing a table only from Bristol s own
+         corpus guarantees the wrong corpus. Measured: without this the answer was "the only
+         building placement table here is for the R-3 district" while R-1 s sat in the county book. */
+      if (tenant.shares_corpus_with) {
+        const shTbl = await sb('rpc/muni_search_tables', {
+          method: 'POST',
+          body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: question, p_limit: 2 }),
+        }).catch(() => null);
+        if (shTbl && shTbl.length) tbl.push(...shTbl);
+      }
       const have = new Set(hits.map((h) => h.chunk_id));
-      const add = (tbl || []).filter((t) => !have.has(t.chunk_id));
+      tbl = tbl || [];
+      const add = tbl.filter((t) => !have.has(t.chunk_id));
       /* ⛔ PREPEND, NEVER APPEND. A guaranteed passage that goes on the end is the first thing the
          context budget throws away: the twelve ranked hits for this very question total 26,621
          characters against a 24,000 ceiling, so the loop below breaks before reaching anything
