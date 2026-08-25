@@ -39,7 +39,10 @@ const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const MODEL = 'claude-opus-5';
 const MAX_QUESTION = 500;
 const RETRIEVE = 12;          // passages pulled from Postgres
-const CONTEXT_CHARS = 24000;  // ceiling on what reaches the model
+const CONTEXT_CHARS = 30000;  // ceiling on what reaches the model.
+// Raised from 24,000 on 2026-08-25. A printed table is now ONE chunk — Centreville's Table 4-4 is
+// 3,265 characters on its own — so the old ceiling was being reached by the ranked hits alone
+// (26,621 for a single setback question) and anything guaranteed afterwards was silently dropped.
 
 async function sb(pathAndQuery, init = {}) {
   const r = await fetch(`${SB_URL}/rest/v1/${pathAndQuery}`, {
@@ -215,7 +218,11 @@ export default async function handler(req, res) {
     try {
       const tbl = await sb('rpc/muni_search_tables', {
         method: 'POST',
-        body: JSON.stringify({ p_tenant: slug, p_query: question, p_limit: 1 }),
+        /* TWO, not one. Asked how tall a building may be in R-2, the best-matching table is
+           Table 4-1 — which states what each district is FOR and carries no dimensions — and the
+           dimensional table is second. Guaranteeing only the top table hands the model a passage
+           that mentions R-2 and answers nothing. */
+        body: JSON.stringify({ p_tenant: slug, p_query: question, p_limit: 2 }),
       });
       const have = new Set(hits.map((h) => h.chunk_id));
       const add = (tbl || []).filter((t) => !have.has(t.chunk_id));
