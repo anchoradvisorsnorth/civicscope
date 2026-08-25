@@ -29,6 +29,13 @@
   .pts{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--navy)}
   .lead{background:linear-gradient(90deg,#fffaf0,#fff)}
   .lead .pts{color:#8a6d1f}
+  /* "Black Gets / Red Pays" — the legend off the commissioner's own 2025 sheet. Smaller than the
+     points figure because a dollar amount is four or five glyphs, not one. */
+  .money{font-size:17px}
+  .money.gets{color:#101828}
+  .money.pays{color:var(--red)}
+  .lead .money.gets{color:#8a6d1f}
+  .key{padding:10px 14px;border-top:1px solid #f0f2f5;font-size:11px;color:var(--muted)}
   .g{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid #f0f2f5;font-size:13px}
   .g .m{flex:1;min-width:0}
   .g .m b{display:block}
@@ -66,7 +73,22 @@
 const API='/api/football-pool';
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const fmtDT=d=>new Date(d).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET';
-let timer=null;
+let timer=null,allWeeks=[];
+
+/* THE SEASON, IN DOLLARS (Keith 2026-08-25). Points answer "how is this week going"; the ledger
+   answers "what do I owe" — the only number the crew carries from week to week. Same shared
+   seasonLedger() the board and the hub use, so three surfaces cannot disagree about a debt.
+   Finalized weeks only: an unfinished week has no winner and therefore no pot to split. */
+function seasonCard(){
+  const led=seasonLedger(allWeeks);
+  if(!led.rows.length) return '';
+  return '<div class="card"><div class="ch">Season · '+led.weeks+' week'+(led.weeks===1?'':'s')+' · black gets, red pays</div>'
+    +led.rows.map((r,i)=>'<div class="row'+(i===0&&r.net>0?' lead':'')+'">'
+      +'<div class="rank">'+(i+1)+'</div>'
+      +'<div class="who">'+esc(r.name)+'<small>'+r.wins+' week'+(r.wins===1?'':'s')+' won · '+r.weeks+' played</small></div>'
+      +'<div class="pts money '+(r.net>0?'gets':r.net<0?'pays':'')+'">'+fmtMoney(r.net)+'</div></div>').join('')
+    +'<div class="key">$'+led.stake+' a week — the winner takes the pot, a tie splits it.</div></div>';
+}
 
 /* Which week to show: the one being played. Prefer a locked, unfinalized week; fall back to the
    most recent finalized one so the page still answers "who won" on a Monday rather than going
@@ -77,6 +99,10 @@ async function currentWeek(){
   let rows=await(await fetch(API+'?list='+season,{cache:'no-store'})).json();
   if((!rows||!rows.length)&&new Date().getMonth()<2) rows=await(await fetch(API+'?list='+(season-1),{cache:'no-store'})).json();
   rows=rows||[];
+  /* Kept, not discarded. The season money ledger is computed from exactly these summaries — no
+     picks, no ESPN, no second request — so the tracker gets the standings for free off the fetch
+     it was already making. */
+  allWeeks=rows;
   const live=rows.filter(w=>w.slateLocked&&!w.finalized);
   if(live.length)return live[live.length-1];
   const done=rows.filter(w=>w.finalized);
@@ -126,6 +152,10 @@ async function load(){
       '<div class="g"><div class="m"><b>'+esc(g.short)+'</b><span>'+fmtDT(g.date)+' · '+g.league.toUpperCase()+'</span></div>'
       +'<div class="sc">'+esc(marketLabel(g))+'</div></div>').join('')+'</div>';
     html+='<div class="note">🔒 Everyone\'s picks open as soon as the last player locks in — or at the deadline if someone hasn\'t. Standings appear here the moment that happens, then update on their own as games finish. <a href="/pool/football/picks">Make or check your picks →</a></div>';
+    /* The season ledger is not part of this week's board and is not withheld with it — it is
+       settled money from weeks that already closed. Hiding it here would take the one number that
+       is always knowable away from a player who simply has not picked yet. */
+    html+=seasonCard();
     document.getElementById('content').innerHTML=html;
     return;
   }
@@ -173,6 +203,8 @@ async function load(){
       +'<div class="sc">'+(sc?(esc(g.awayAbbrev)+' '+sc.awayScore+' — '+esc(g.homeAbbrev)+' '+sc.homeScore):'&nbsp;')+'</div>'
       +'<div class="st '+stCls+'">'+esc(stTxt)+'</div></div>';
   }).join('')+'</div>';
+
+  html+=seasonCard();
 
   if(wk.finalized&&wk.weeklyWinner){
     html='<div class="dl shut"><div><div class="k">Final</div><div class="v">🏆 '+esc(wk.weeklyWinner)+'</div></div></div>'+html;

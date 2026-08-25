@@ -232,9 +232,133 @@ const poolSession = {
   },
 };
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   THE MONEY (Keith 2026-08-25).
+
+   Taken from the commissioner's OWN 2025 workbook — `Pool Screenshots\Picks week 1.xlsx`,
+   20 weeks, six players (Mike, Nick, Mark, Bob, Brandon, Brad) — rather than invented here.
+   What that sheet encodes, and what this reproduces exactly:
+
+     · EVERY PLAYER IN A WEEK PAYS $50. The pot is entrants x $50.
+     · THE WEEKLY WINNER TAKES THE POT. Week 1 2025: Nick +250, five others -50.
+     · A TIE SPLITS IT. Week 3: Mark and Brad +100 each (pot 300 / 2 = 150, less their own 50).
+       Week 9: a three-way, +50 each (300 / 3 = 100, less 50). Both check out to the dollar.
+     · THE SEASON TOTAL IS THE SUM OF THE WEEKS. The sheet totals in blocks of four and then
+       recaps; the recap is all that matters here. 2025 finished Mark +600 · Bob +50 · Brad +50 ·
+       Brandon 0 · Mike -150 · Nick -550.
+     · The legend, printed twice on that sheet and reused verbatim on both pages here:
+       **"Black Gets / Red Pays."** It is the crew's own language for the column and it says in
+       three words what a signed number does not.
+
+   ⛔ IT IS ZERO-SUM, AND THAT IS THE INVARIANT WORTH TESTING. Every dollar paid in is paid out
+   in the same week, so the season column must always sum to exactly 0. The 2025 recap does. If
+   a change here ever makes it not, the ledger is inventing or destroying money and the gate
+   fails on that single assertion rather than on six numbers nobody can check by eye.
+
+   WHO IS IN A WEEK. Entrants come from the week summary's own `pickedBy`/`savedBy` — names, not
+   ids, and present on every `?list=` row whether or not the board is revealed, so the hub can
+   price a week without ever seeing a pick. Both lists count: `pickedBy` is locked cards and
+   `savedBy` is saved-not-locked, and weekPoints() scores BOTH, so charging only the locked ones
+   would bill a different set of people than the one that could win. A named winner missing from
+   both is folded in rather than dropped — you cannot win a week without a card in it, and
+   dropping them would quietly break zero-sum by paying a pot to nobody.
+
+   PRESEASON IS PRICED LIKE ANY OTHER WEEK (Keith, 2026-08-25: "pre-season is just for test — you
+   can act as if they carry money. But we will reset everything once the regular season starts.
+   No one is picking for real"). So there is deliberately NO preseason exemption in this code:
+   the shakedown exercises the real ledger, and the slate wipe at the regular season resets it.
+
+   THE STAKE IS HARDCODED at Keith's instruction — a constant, not pool config. Changing it is a
+   one-line edit and a deploy.
+   ───────────────────────────────────────────────────────────────────────────── */
+const WEEKLY_STAKE = 50;
+
+// "TIE: BOB N, NICK P" → ['BOB N','NICK P']; a single name → one entry; nothing → [].
+function weekWinners(w) {
+  return String((w && w.weeklyWinner) || '')
+    .replace(/^TIE:\s*/i, '')
+    .split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+}
+
+// Everyone with a card in the week, plus any winner not listed in one (see the note above).
+function weekEntrants(w, winners) {
+  const seen = {}, out = [];
+  const push = (n) => {
+    const k = String(n || '').trim().toUpperCase();
+    if (!k || seen[k]) return;
+    seen[k] = 1; out.push(k);
+  };
+  ((w && w.pickedBy) || []).forEach(push);
+  ((w && w.savedBy) || []).forEach(push);
+  (winners || []).forEach(push);
+  return out;
+}
+
+/* The season ledger. Reads ONLY `?list=<season>` summaries — no picks, no ESPN, no second
+   request — which is why the hub can render it from the one fetch it already makes.
+   Returns { rows, weeks, unsettled, stake }, rows sorted the way the sheet reads: most money
+   first, weekly wins breaking a tie, then name so the order never jitters. */
+function seasonLedger(weeks) {
+  const by = {}, order = [];
+  const row = (n) => {
+    if (!by[n]) { by[n] = { name: n, weeks: 0, wins: 0, paid: 0, won: 0, net: 0, paidC: 0, wonC: 0 }; order.push(n); }
+    return by[n];
+  };
+  let counted = 0, unsettled = 0;
+  const stakeC = Math.round(WEEKLY_STAKE * 100);
+  for (const w of (weeks || [])) {
+    if (!w || !w.finalized) continue;
+    const winners = weekWinners(w);
+    const entrants = weekEntrants(w, winners);
+    /* A finalized week with no named winner, or with nobody in it, is NOT priced. It would
+       otherwise charge six people $50 for a pot that is paid to no one — money destroyed, and
+       the zero-sum check would catch it as a bug in the arithmetic when the real fault is a
+       week that never scored. Counted separately so a page can say so out loud. */
+    if (!winners.length || !entrants.length) { unsettled++; continue; }
+    counted++;
+    /* ⛔ INTEGER CENTS, AND THE REMAINDER IS HANDED OUT — NOT ROUNDED AWAY.
+       The 2025 sheet never met this: six players is a $300 pot, which divides evenly by one, two
+       or three winners. SEVEN players is $350, and a three-way tie is $116.666… — round each
+       share to the cent independently and the pot pays out $350.01. A ledger that invents a penny
+       has broken the only invariant that makes it checkable, and it would have started doing so
+       the first time the full crew tied three ways. So the split is floor-to-the-cent and the
+       leftover cents go one each to the winners in a stable (sorted) order, which keeps the week
+       exactly zero-sum and makes the same week always split the same way. */
+    const potC = entrants.length * stakeC;
+    const baseC = Math.floor(potC / winners.length);
+    let extraC = potC - baseC * winners.length;
+    for (const n of entrants) { const r = row(n); r.weeks++; r.paidC = (r.paidC || 0) + stakeC; }
+    for (const n of winners.slice().sort()) {
+      const r = row(n); r.wins++;
+      r.wonC = (r.wonC || 0) + baseC + (extraC > 0 ? (extraC--, 1) : 0);
+    }
+  }
+  const rows = order.map(n => by[n]);
+  for (const r of rows) {
+    r.paid = (r.paidC || 0) / 100;
+    r.won = (r.wonC || 0) / 100;
+    r.net = ((r.wonC || 0) - (r.paidC || 0)) / 100;
+    delete r.paidC; delete r.wonC;
+  }
+  rows.sort((a, b) => (b.net - a.net) || (b.wins - a.wins) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return { rows, weeks: counted, unsettled, stake: WEEKLY_STAKE };
+}
+
+/* Black gets, red pays — the sign is carried by the colour on the page, and by the +/- here so
+   the number still reads correctly on a black-and-white printout. Cents appear only when the
+   split actually produced them. */
+function fmtMoney(n) {
+  const v = Math.round(Number(n || 0) * 100) / 100, abs = Math.abs(v);
+  return (v > 0 ? '+$' : v < 0 ? '-$' : '$') +
+    abs.toLocaleString('en-US', { minimumFractionDigits: abs % 1 ? 2 : 0, maximumFractionDigits: 2 });
+}
+
 /* Node can load this file to unit-test the pure rules — scripts/verify-pool-integrity.js does,
    because the deploy gate hits the deployed API and can otherwise say nothing at all about the
    client-side ordering. `module` is undefined in a browser, so this is inert there. */
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { coverOf, scoreFor, marketLabel, weekPoints, boardOrder };
+  module.exports = {
+    coverOf, scoreFor, marketLabel, weekPoints, boardOrder,
+    WEEKLY_STAKE, weekWinners, weekEntrants, seasonLedger, fmtMoney,
+  };
 }

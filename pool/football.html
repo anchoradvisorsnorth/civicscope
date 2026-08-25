@@ -50,6 +50,20 @@
   .tblwrap{overflow-x:auto}
   .printonly{display:none}
 
+  /* ─── THE MONEY (Keith 2026-08-25) ───
+     "Black Gets / Red Pays" is the legend off the commissioner's own 2025 sheet, printed on it
+     twice. Colour carries the sign on screen; fmtMoney() also prints an explicit +/- so a
+     black-and-white printout of the board still reads correctly. */
+  .gets{color:#101828}
+  .pays{color:var(--red)}
+  .ledgerkey{padding:10px 12px;border-top:1px solid var(--line);background:#fcfcfd;font-size:11.5px;color:var(--muted);line-height:1.6}
+  .weeklist{border-top:1px solid var(--line)}
+  .weeklist a{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:9px 12px;border-bottom:1px solid #f0f2f5;text-decoration:none;color:inherit;font-size:12.5px}
+  .weeklist a:last-child{border-bottom:none}
+  .weeklist a:hover{background:#f7f9fc}
+  .weeklist .wl-win{flex:1;text-align:right;font-weight:700;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .weeklist .wl-pot{font-variant-numeric:tabular-nums;color:var(--muted);min-width:52px;text-align:right}
+
   /* ─── THE BOARD ON A PHONE (Keith 2026-08-22: "ui is not great generally") ───
      Measured on production before this: at a 412px viewport the table is **559px wide inside a
      370px window**, so THREE of the six players were off-screen and reachable only by scrolling
@@ -141,6 +155,11 @@
     .pk{-webkit-print-color-adjust:exact;print-color-adjust:exact;border:1px solid #b0b8c4;min-width:38px}
     .pk.w{border-color:var(--win)} .pk.l{border-color:var(--red)} .pk.p{border-color:var(--push)}
     .lead{background:none !important}
+    /* Keep red where the printer allows it; fmtMoney's explicit +/- is what makes a mono
+       printout of the ledger unambiguous either way. */
+    .gets,.pays{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .ledgerkey{background:#fff;border-top:1px solid #666;color:#000;font-size:10px}
+    .weeklist a{color:#000;font-size:10px;padding:3px 7px}
     .champ{background:#fff !important;color:#000 !important;border:2px solid #000;border-radius:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .champ .ct{color:#000}
     .note{background:#fff;border:1px solid #666;border-radius:0;padding:8px 10px;font-size:11px}
@@ -183,7 +202,12 @@
 <script src="/pool/scoring.js"></script>
 <script>
 const API='/api/football-pool';
-let weeks=[],viewSlug=null;
+let weeks=[],viewSlug=null,liveSlug=null;
+/* The week picker is gone (see renderWeek), so the URL is now the way to reach an earlier week.
+   Validated against the season list before it is used — an unknown slug falls back to this week
+   rather than rendering "Week not found" for a typo. */
+let pinnedSlug=null;
+try{const q=new URLSearchParams(location.search).get('week');if(q&&/^[a-z0-9-]{1,40}$/i.test(q))pinnedSlug=q;}catch(e){}
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const fmtDT=d=>new Date(d).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET';
 
@@ -219,9 +243,19 @@ async function renderWeek(slug){
      looking (it is sent with the request), so mark it. */
   const meId=signedIn?(players.find(p=>String(nameOf(p)).toUpperCase()===String(signedIn.name).toUpperCase())||null):null;
   const roster=rosterList.map(p=>p.name);
-  const sel='<select onchange="renderWeek(this.value)">'+weeks.map(w=>'<option value="'+w.slug+'" '+(w.slug===slug?'selected':'')+'>'+esc(w.label||w.slug)+'</option>').join('')+'</select>';
+  /* ⛔ NO WEEK PICKER (Keith 2026-08-25, from a phone screenshot of this page: "they really don't
+     need a week picker at the top — just display current week"). Measured on that screenshot: the
+     dropdown sat between the title and the winner banner, spending a full row of a phone screen on
+     a control used approximately never. What the crew opens this page for is THIS week.
 
-  let html='<div class="section-title"><span>'+esc(wk.label||slug)+' — '+games.length+' games'+(wk.slateLocked?' · spreads frozen '+new Date(wk.lockedAt).toLocaleDateString():'')+'</span>'+sel+'</div>';
+     Past weeks did NOT become unreachable — deleting the only door to them would have been a
+     regression dressed as a cleanup. They are listed at the bottom in the season card, each with
+     its winner and what it paid, and each linking to `?week=<slug>`, which this page now honours
+     (it never read the URL before — the dropdown was the only way in). A pinned week gets a way
+     back. Same trade the board itself made on 08-22: the thing everyone came for goes at the top. */
+  const backToLive=pinnedSlug&&liveSlug&&pinnedSlug!==liveSlug
+    ? ' · <a href="?" style="font-weight:700;color:var(--navy)">← back to this week</a>' : '';
+  let html='<div class="section-title"><span>'+esc(wk.label||slug)+' — '+games.length+' games'+(wk.slateLocked?' · spreads frozen '+new Date(wk.lockedAt).toLocaleDateString():'')+backToLive+'</span></div>';
 
   if(wk.finalized&&wk.weeklyWinner){
     html+='<div class="champ" style="display:block"><div class="ct">🏆 Week winner</div><div class="cn">'+esc(wk.weeklyWinner)+'</div></div>';
@@ -276,6 +310,26 @@ async function renderWeek(slug){
     }
     html+='<tr class="ptsrow"><td colspan="2" style="font-weight:800">Points</td>'+
       ranked.map((p,i)=>'<td class="num'+(meId&&p===meId?' me':'')+'" data-p="'+esc(nameOf(p))+'" style="font-weight:900;font-size:15px'+(i===0?';color:var(--win)':'')+'">'+(pts[p]||0)+'</td>').join('')+'</tr>';
+    /* WHAT THE WEEK PAID (Keith 2026-08-25). The same row shape as Points on purpose: `ptsrow`
+       already carries the phone card-stack and the print restore, so `moneyrow` adds nothing but
+       the colour and cannot drift away from the row above it.
+
+       ⚠ ONLY ONCE THE WEEK IS FINALIZED. Before that the winner is not decided, and a dollar
+       figure recomputed from a live score would read as money already won — the board's own
+       lesson from 08-22 about a live affordance and a record not being the same artifact.
+
+       Entrants come from `wk.picks` rather than the summary's `pickedBy`, because here we hold
+       the week itself and that is the set weekPoints() actually scores. */
+    if(wk.finalized&&wk.weeklyWinner){
+      const net={};
+      seasonLedger([{finalized:true,weeklyWinner:wk.weeklyWinner,pickedBy:ranked.map(nameOf)}])
+        .rows.forEach(r=>{net[r.name]=r.net;});
+      html+='<tr class="ptsrow moneyrow"><td colspan="2" style="font-weight:800">Week $</td>'+
+        ranked.map(p=>{
+          const v=net[String(nameOf(p)).toUpperCase()]||0;
+          return '<td class="num'+(meId&&p===meId?' me':'')+'" data-p="'+esc(nameOf(p))+'" style="font-weight:900;font-size:15px"><span class="'+(v>0?'gets':v<0?'pays':'')+'">'+fmtMoney(v)+'</span></td>';
+        }).join('')+'</tr>';
+    }
     html+='</tbody></table></div>';
   } else {
     html+='<div class="note">Slate is set but nobody has picks in yet.</div>';
@@ -316,15 +370,47 @@ window.addEventListener('beforeprint',()=>{
 });
 window.addEventListener('afterprint',()=>{ if(!timer) timer=setInterval(load,120000); });
 
+/* ─── SEASON STANDINGS ARE MONEY (Keith 2026-08-25) ───────────────────────────
+   This counted weekly wins from the day the pool was built. The ledger Mike actually keeps —
+   `Pool Screenshots\Picks week 1.xlsx`, twenty weeks of 2025 — is a DOLLAR sheet, and the number
+   the crew argues about in January is what they owe each other. So the standings are the sheet:
+   $50 a week, winner takes the pot, ties split it, black gets and red pays.
+
+   Weekly wins stay as a column because they are how the money was earned, but they no longer sort
+   the table. The arithmetic itself is in pool/scoring.js, shared with the hub — a hub and a board
+   that disagree about what someone is owed would be the same class of fault as a board that
+   disagrees with the server about who won the week.
+
+   The week list underneath is what replaces the picker removed from the top of the page: every
+   finalized week, newest first, with its winner and the pot it paid, each one a link into that
+   week's board. */
 function renderSeason(){
-  const finals=weeks.filter(w=>w.finalized&&w.weeklyWinner);
-  const wins={};
-  finals.forEach(w=>String(w.weeklyWinner).replace(/^TIE:\s*/i,'').split(',').map(s=>s.trim().toUpperCase()).filter(Boolean).forEach(n=>wins[n]=(wins[n]||0)+1));
-  const rows=Object.entries(wins).sort((a,b)=>b[1]-a[1]);
-  document.getElementById('season').innerHTML=rows.length?
-    '<table><thead><tr><th>#</th><th>Player</th><th class="num">Weekly wins</th></tr></thead><tbody>'+
-    rows.map((r,i)=>'<tr class="'+(i===0?'lead':'')+'"><td>'+(i+1)+'</td><td style="font-weight:700">'+esc(r[0])+'</td><td class="num" style="font-weight:800">'+r[1]+'</td></tr>').join('')+
-    '</tbody></table>':'<div style="padding:14px;color:var(--muted);font-size:13px">No finalized weeks yet — standings appear after week 1 wraps.</div>';
+  const led=seasonLedger(weeks);
+  const done=weeks.filter(w=>w.finalized&&w.weeklyWinner).slice().reverse();
+  let html;
+  if(led.rows.length){
+    html='<table><thead><tr><th>#</th><th>Player</th><th class="num">W</th><th class="num">Season</th></tr></thead><tbody>'+
+      led.rows.map((r,i)=>'<tr class="'+(i===0&&r.net>0?'lead':'')+'">'+
+        '<td>'+(i+1)+'</td>'+
+        '<td style="font-weight:700">'+esc(r.name)+'</td>'+
+        '<td class="num">'+r.wins+'</td>'+
+        '<td class="num" style="font-weight:900;font-size:14px"><span class="'+(r.net>0?'gets':r.net<0?'pays':'')+'">'+fmtMoney(r.net)+'</span></td>'+
+      '</tr>').join('')+'</tbody></table>'+
+      '<div class="ledgerkey"><b>Black gets · Red pays.</b> $'+led.stake+' a week — the winner takes the pot, a tie splits it. '+
+      led.weeks+' week'+(led.weeks===1?'':'s')+' settled'+
+      (led.unsettled?' · '+led.unsettled+' finalized week'+(led.unsettled===1?'':'s')+' had no winner recorded and '+(led.unsettled===1?'is':'are')+' not priced':'')+'.</div>';
+    if(done.length){
+      html+='<div class="weeklist">'+done.map(w=>{
+        const ent=weekEntrants(w,weekWinners(w)).length;
+        return '<a href="?week='+encodeURIComponent(w.slug)+'"><span>'+esc(w.label||w.slug)+'</span>'+
+          '<span class="wl-win">'+esc(w.weeklyWinner)+'</span>'+
+          '<span class="wl-pot">'+fmtMoney(ent*led.stake).replace('+','')+'</span></a>';
+      }).join('')+'</div>';
+    }
+  } else {
+    html='<div style="padding:14px;color:var(--muted);font-size:13px">No finalized weeks yet — the money ledger starts the moment week 1 wraps. $'+WEEKLY_STAKE+' a week, winner takes the pot, ties split it.</div>';
+  }
+  document.getElementById('season').innerHTML=html;
 }
 
 let timer=null;
@@ -334,8 +420,10 @@ async function load(){
   if(!weeks.length&&new Date().getMonth()<2) weeks=await(await fetch(API+'?list='+(season-1),{cache:'no-store'})).json();
   renderSeason();
   if(!weeks.length){document.getElementById('content').innerHTML='<div class="note">⏳ No weeks yet — the commissioner builds the first slate at /football/commish.</div>';document.getElementById('status').textContent='No slate yet';return;}
-  const target=viewSlug||((weeks.filter(w=>w.slateLocked).slice(-1)[0])||weeks[weeks.length-1]).slug;
-  await renderWeek(target);
+  /* Which week IS this week — kept separately from what is being viewed, so a `?week=` link can
+     offer a way back to it without the page having to guess whether the reader chose to be here. */
+  liveSlug=((weeks.filter(w=>w.slateLocked).slice(-1)[0])||weeks[weeks.length-1]).slug;
+  await renderWeek(pinnedSlug&&weeks.some(w=>w.slug===pinnedSlug)?pinnedSlug:liveSlug);
 }
 load(); timer=setInterval(load,120000);
 </script>

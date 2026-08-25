@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
 <title>The Pool</title>
+<!-- hub v2.0.0 | 2026-08-25 — football season standings lead; golf ordered by state, not hardcoded -->
 <style>
-  :root{--navy:#0a2240;--green:#14532d;--gold:#c8a24b;--line:#e4e7ec;--muted:#667085;--bg:#f8f7f4}
+  :root{--navy:#0a2240;--green:#14532d;--gold:#c8a24b;--line:#e4e7ec;--muted:#667085;--bg:#f8f7f4;--red:#b42318}
   *{box-sizing:border-box} body{margin:0;font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:#101828}
   .hero{background:linear-gradient(135deg,var(--navy),var(--green));color:#fff;padding:34px 20px 30px;text-align:center}
   .hero h1{margin:0;font-size:30px;letter-spacing:.3px}
@@ -31,6 +32,29 @@
   tr:last-child td{border-bottom:none}
   .foot{text-align:center;font-size:12px;color:var(--muted);margin-top:22px;line-height:1.7}
   .foot a{color:var(--navy)}
+
+  /* ─── THE SEASON LEDGER — the card this page now leads with ───
+     Deliberately NOT a <table>. A table of four columns is the thing that put three of six
+     players off-screen on the board (2026-08-22, measured at 412px); flex rows cannot overflow
+     sideways however long a name gets or however many members join. Same reason, one page later. */
+  .ledger{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden;transition:box-shadow .15s}
+  .ledger:hover{box-shadow:0 4px 14px rgba(10,34,64,.12)}
+  .lhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 20px 12px}
+  .lhead .t{font-size:18px;font-weight:800;color:var(--navy)}
+  .lhead .go{font-size:13px;font-weight:700;color:var(--navy);white-space:nowrap;padding-top:2px}
+  .srow{display:flex;align-items:center;gap:12px;padding:10px 20px;border-top:1px solid #f0f2f5}
+  .srow .rank{width:20px;font-weight:800;color:#98a2b3;font-variant-numeric:tabular-nums;font-size:13px}
+  .srow .who{flex:1;min-width:0;font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srow .who small{display:block;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:1px;white-space:nowrap}
+  .srow .money{font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
+  /* "Black Gets / Red Pays" — the legend printed twice on the commissioner's own 2025 sheet. */
+  .money.gets{color:#101828}
+  .money.pays{color:var(--red)}
+  .srow.lead{background:linear-gradient(90deg,#fffaf0,#fff)}
+  .srow.lead .money.gets{color:#8a6d1f}
+  .lkey{padding:11px 20px;border-top:1px solid var(--line);background:#fcfcfd;font-size:11.5px;color:var(--muted);line-height:1.6}
+  .lempty{padding:4px 20px 18px;font-size:13px;color:var(--muted);line-height:1.6}
+  .sechead{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:26px 4px 10px}
 </style>
 </head>
 <body>
@@ -40,20 +64,36 @@
 </div>
 <div class="wrap">
 
-  <div class="big">
-    <a class="tile champ" href="/pool/golf">
-      <div class="status live" id="golf-status">FINAL</div>
-      <div class="t" id="golf-title">⛳ The Open 2026 — BOB wins</div>
-      <div class="s" id="golf-sub">$3,654,372 · beat NICK by $882,892 · Royal Birkdale. Full board →</div>
-    </a>
-    <a class="tile" href="/pool/football">
-      <div class="status idle" id="fb-status">PRESEASON</div>
-      <div class="t">🏈 Football Pool</div>
-      <div class="s" id="fb-sub">Weekly picks against the spread, September–January. Board, standings &amp; results →</div>
-    </a>
-  </div>
+  <!-- ══ 1 · THE FOOTBALL SEASON ═══════════════════════════════════════════════════════════
+       Keith 2026-08-25: "show a Football — this season's standings at the top."
+       It leads because it is the only thing on this page that changes every week, and because
+       the standings are now MONEY (the commissioner's 2025 workbook: $50 a week, winner takes
+       the pot, ties split it). The whole card is the link to the board — on a phone a 44px text
+       link at the bottom of a card is a worse target than the card itself. -->
+  <a class="ledger" href="/pool/football" id="fbcard">
+    <div class="lhead">
+      <div>
+        <div class="status idle" id="fb-status">SEASON STARTS SEPTEMBER</div>
+        <div class="t">🏈 Football 2026</div>
+      </div>
+      <span class="go">Full board →</span>
+    </div>
+    <div id="fb-body"><div class="lempty">Loading the season…</div></div>
+  </a>
 
-  <div class="big" style="margin-top:2px">
+  <!-- ══ 2 · A GOLF POOL THAT IS ACTUALLY RUNNING ══════════════════════════════════════════
+       Keith 2026-08-25: "keep in mind there might be a new golf pool running while we are still
+       in the football season at some point."
+
+       So position is decided by STATE, not by sport. A golf pool whose row does not carry
+       `final` is live, and a live pool is promoted HERE — above the actions, directly under the
+       football season. A finished one drops to the records section near the bottom. Nothing
+       about that is hardcoded to The Open, and adding next year's major is one entry in
+       GOLF_POOLS below. Empty and hidden the rest of the year. -->
+  <div class="big" id="golf-live" style="display:none;margin-bottom:16px"></div>
+
+  <!-- ══ 3 · WHAT YOU CAME TO DO ═══════════════════════════════════════════════════════════ -->
+  <div class="big">
     <a class="tile" href="/pool/football/picks">
       <div class="t">📝 Make picks</div>
       <div class="s">Football weekly picks — name + PIN</div>
@@ -68,7 +108,26 @@
     </a>
   </div>
 
-  <div class="card" style="margin-top:14px">
+  <!-- ══ 4 · FINISHED COMPETITIONS ═════════════════════════════════════════════════════════
+       Keith 2026-08-25: "the main page should move the Bob won golf down below."
+       It sat at the top of this page for five weeks after the tournament ended, which is the
+       same mistake the golf tracker itself made — a finished competition is a RECORD, and a
+       record does not get the position a live thing has earned.
+
+       ⚠ The Open card below is written into the HTML rather than fetched. That is deliberate:
+       if the golf API is slow or unreachable the page still renders the correct, finished
+       result, exactly as it does today. The script REPLACES this block only on a successful
+       read, never on a failure. -->
+  <div class="sechead" id="golf-head">⛳ Golf — the record</div>
+  <div class="big" id="golf-records">
+    <a class="tile champ" href="/pool/golf">
+      <div class="status live">FINAL</div>
+      <div class="t">⛳ The Open 2026 — BOB wins</div>
+      <div class="s">$3,654,372 · beat NICK by $882,892 · Royal Birkdale. Full board →</div>
+    </a>
+  </div>
+
+  <div class="card" style="margin-top:16px">
     <h2>Champions</h2>
     <table>
       <tr><td>⛳ US Open 2026</td><td>MARK</td></tr>
@@ -82,21 +141,113 @@
   </div>
 </div>
 
+<script src="/pool/scoring.js"></script>
 <script>
-// Light status check — if a football week is live, promote the football tile. Fails silent.
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+/* ═══ FOOTBALL ═══════════════════════════════════════════════════════════════════════════
+   ONE request, the same `?list=<season>` summaries the board reads, and the money ledger is
+   derived from them by the shared seasonLedger() in /pool/scoring.js. No picks are needed to
+   price a week and none are requested, so this card works signed-out and cannot leak a board
+   that is being withheld. Fails silent: a dead API leaves the static "season starts September"
+   copy in place rather than an error. */
 (async()=>{
   try{
-    const r=await fetch('/api/football-pool?list=2026',{cache:'no-store'});
-    const weeks=await r.json();
+    const season=new Date().getFullYear();
+    let weeks=await(await fetch('/api/football-pool?list='+season,{cache:'no-store'})).json();
+    if((!Array.isArray(weeks)||!weeks.length)&&new Date().getMonth()<2)
+      weeks=await(await fetch('/api/football-pool?list='+(season-1),{cache:'no-store'})).json();
     if(!Array.isArray(weeks)||!weeks.length) return;
+
     const open=weeks.find(w=>w.slateLocked&&!w.finalized);
-    const done=weeks.filter(w=>w.finalized);
+    const st=document.getElementById('fb-status');
     if(open){
-      const st=document.getElementById('fb-status');
       st.textContent='LIVE — '+(open.label||open.slug); st.className='status live';
-      document.getElementById('fb-sub').innerHTML='Picks are open — get yours in before kickoff. Board &amp; standings →';
-    } else if(done.length){
-      document.getElementById('fb-status').textContent=done.length+' WEEKS PLAYED';
+    }else{
+      const done=weeks.filter(w=>w.finalized).length;
+      if(done) st.textContent=done+' WEEK'+(done===1?'':'S')+' PLAYED';   // was "1 WEEKS PLAYED"
+    }
+
+    const led=seasonLedger(weeks);
+    const body=document.getElementById('fb-body');
+    if(!led.rows.length){
+      body.innerHTML='<div class="lempty">No weeks settled yet — the ledger starts the moment the first week wraps.<br>'+
+        '<b>$'+WEEKLY_STAKE+' a week</b>, winner takes the pot, ties split it.</div>';
+      return;
+    }
+    body.innerHTML=led.rows.map((r,i)=>
+      '<div class="srow'+(i===0&&r.net>0?' lead':'')+'">'+
+        '<span class="rank">'+(i+1)+'</span>'+
+        '<span class="who">'+esc(r.name)+'<small>'+r.wins+' week'+(r.wins===1?'':'s')+' won · '+r.weeks+' played</small></span>'+
+        '<span class="money '+(r.net>0?'gets':r.net<0?'pays':'')+'">'+fmtMoney(r.net)+'</span>'+
+      '</div>').join('')+
+      '<div class="lkey"><b>Black gets · Red pays.</b> $'+led.stake+' a week — the winner takes the pot, a tie splits it. '+
+      led.weeks+' week'+(led.weeks===1?'':'s')+' settled'+
+      (led.unsettled?' · '+led.unsettled+' finalized week'+(led.unsettled===1?'':'s')+' had no winner recorded and '+(led.unsettled===1?'is':'are')+' not priced':'')+'.</div>';
+
+    /* The Champions row for football is the season leader until somebody actually wins it —
+       "season starts September" stops being true the moment a week is settled. */
+    const top=led.rows[0];
+    if(top&&top.net>0) document.getElementById('fb-champ').textContent=top.name+' leads · '+fmtMoney(top.net);
+  }catch(e){}
+})();
+
+/* ═══ GOLF ═══════════════════════════════════════════════════════════════════════════════
+   ⚠ THERE IS NO `?list=` ON THE GOLF API — it reads one slug at a time (api/golf-pool.js), and
+   /pool/golf itself still hardcodes SLUG + EVENT_ID for the tournament it is tracking. So the
+   set of pools has to be declared, here, and a new major means: point golf.html at it, and add
+   ONE line below. Everything after that is automatic — a pool without `final` is promoted to
+   the live slot at the top, a pool with `final` renders as a record down here.
+
+   A failed or slow fetch changes nothing: the static record above stays exactly as served. */
+const GOLF_POOLS=[
+  {slug:'open-2026', label:'The Open 2026', where:'Royal Birkdale', href:'/pool/golf'},
+];
+(async()=>{
+  try{
+    const got=await Promise.all(GOLF_POOLS.map(async g=>{
+      try{
+        const j=await(await fetch('/api/golf-pool?slug='+encodeURIComponent(g.slug),{cache:'no-store'})).json();
+        return (j&&j.data)?{...g,data:j.data}:null;
+      }catch(e){ return null; }
+    }));
+    if(got.some(x=>!x)) return;               // partial read — leave the served page alone
+
+    const live=got.filter(x=>!x.data.final), done=got.filter(x=>x.data.final);
+
+    if(live.length){
+      document.getElementById('golf-live').innerHTML=live.map(g=>{
+        const locked=!!g.data.locked;
+        return '<a class="tile" href="'+g.href+'">'+
+          '<div class="status live">'+(locked?'LIVE':'PICKS OPEN')+'</div>'+
+          '<div class="t">⛳ '+esc(g.label)+'</div>'+
+          '<div class="s">'+(locked
+            ? 'Picks are locked — follow the money on the leaderboard.'
+            : 'Picks are still open. Get your 15 in before the first tee.')+
+          ' '+esc(g.where)+'. Full board →</div></a>';
+      }).join('');
+      document.getElementById('golf-live').style.display='';
+    }
+
+    if(done.length){
+      document.getElementById('golf-head').textContent=
+        done.length>1?'⛳ Golf — the records':'⛳ Golf — the record';
+      document.getElementById('golf-records').innerHTML=done.map(g=>{
+        const f=g.data.finalResult||{};
+        const sub=f.winner
+          ? '$'+Number(f.winnerTotal||0).toLocaleString('en-US')+
+            (f.runnerUp?' · beat '+esc(f.runnerUp)+' by $'+Number(f.margin||0).toLocaleString('en-US'):'')+
+            ' · '+esc(g.where)+'. Full board →'
+          : esc(g.where)+'. Full board →';
+        return '<a class="tile champ" href="'+g.href+'">'+
+          '<div class="status live">FINAL</div>'+
+          '<div class="t">⛳ '+esc(g.label)+(f.winner?' — '+esc(f.winner)+' wins':'')+'</div>'+
+          '<div class="s">'+sub+'</div></a>';
+      }).join('');
+    }else{
+      // Every declared pool is live: there is no record to head.
+      document.getElementById('golf-head').style.display='none';
+      document.getElementById('golf-records').style.display='none';
     }
   }catch(e){}
 })();
