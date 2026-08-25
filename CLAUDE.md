@@ -41,9 +41,10 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 | **Infrastructure (NEW June 6)** | **app.civicscope.io/infrastructure** | **Public works / utility leaders** | **v1.0.0-infrastructure** |
 | GC External | app.civicscope.io/gc/:slug | GC prospective clients | v1.6.0-gc |
 | GC Internal | app.civicscope.io/gc/:slug-internal | GC estimating teams | v1.5.0-gc-int |
-| **Village Hub (NEW 2026-08-18)** | **civicscope.io/:village** (live: `/centreville`) | **The village's own staff — one address for every product** | **v1.0.0-village** |
+| **Village Hub** | **civicscope.io/:village** (live: `/centreville`) | **The village's own staff — one address for every product** | **v2.0.0-village** — Google sign-in gate |
 | **Ask &lt;Village&gt; (NEW 2026-08-18)** | **civicscope.io/:village/ask** (live: `/centreville/ask`) | **Village clerks + residents** | **v1.0.0-muni** ⏸ paused |
-| **Water Plant Daily Log (NEW 2026-08-18)** | **app.civicscope.io/water** | **Water plant operators + the OIC who signs the MOR** | **v1.0.0-water** |
+| **Well Testing — crew tablet** | **app.civicscope.io/water** | **Water plant operators (no logins, by design)** | **v1.1.0-water** — name first, required, blank |
+| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.3.0-oic** — no stall, `?m=` deep link |
 | QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
 | Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin (+ QA test harness) |
 | RYC Scheduler | app.civicscope.io/ryc/schedule | RYC crew | v1.0.0 |
@@ -705,6 +706,116 @@ actually closes this, for both surfaces at once.
   provable from here.
 - `water_supplies.active` is informational — the working gate is `WATER_OPS_CODE`.
 
+---
+
+## Google sign-in (`api/auth-google.js`) — NEW 2026-08-25
+
+**What it closes.** Keith, 2026-08-25: *"Michelle wants to log in using the oauth on her account —
+can we make that happen? She has an assistant that wants to do the same."* Every Centreville surface
+has been open on its link and has said so in words rather than pretending otherwise, because
+`WATER_OPS_CODE` was never a gate on a **person** — *"there is no plant access code"* (Keith,
+2026-08-21). It is an environment variable a script presents. So every action was either open or
+unreachable and there was no third state. There is now.
+
+**The hub is the gate** (Keith: *"this is the page that should be gated with login"*). `/centreville`
+requires a sign-in; the products sit behind it. Sign-in belongs there rather than on each product
+because Michelle is one person holding two jobs — village office and Operator-In-Charge — so one
+address, one sign-in, and the page routes her. The session cookie is scoped to `.civicscope.io`, so
+following a card into Well Testing on `app.civicscope.io` does not ask again.
+
+⛔ **THE CREW ARE NOT PART OF THIS AND MUST NOT BECOME PART OF IT.** Mark Major and Jeff Derrikson
+*"wont have email logins"* (Keith, 2026-08-25). `/water` stays open and asks for a name only. The
+deploy gate asserts this on every water deploy, because adding identity to `api/water-ops.js` is
+exactly the change that could close the well house by mistake, and a locked tablet stops the plant's
+record that day.
+
+**Two checks, never one.** A verified Google ID token proves Google believes this browser controls
+that mailbox. It proves nothing about whether the person works for the village. Collapsing those is
+how "sign in with Google" becomes "anyone with a Gmail account can correct a compliance record", so
+`app_users` (migration `029`) is the second check. **A verified account that is not enrolled gets a
+PENDING row and no access** — `active` defaults to `false` in the schema and nothing in the handler
+overrides it. That row is a *request*, and it captures the exact address the person used, which is
+what turns enrolling somebody into one command instead of a round of "which Gmail did you use?".
+
+**The token is verified here, not at `tokeninfo`** — RS256 over Google's published keys (cached, and
+refetched only on an unknown `kid`, which is what a key rotation looks like from here), then issuer,
+audience, expiry and `email_verified`. ⛔ **The algorithm is ours to choose, not the token's:**
+reading `header.alg` and verifying with whatever it names is the alg-confusion bug in its original
+form. Anything but RS256 is a forgery attempt. **There is no client secret in this flow at all** — no
+code exchange, no refresh token, so no long-lived Google credential to store, rotate or leak.
+
+**What identity actually buys, in `api/water-ops.js` (`1.3.0-waterops`).** The line is drawn where
+the *job* draws it:
+
+| | |
+|---|---|
+| reads | open — an MOR is a public record and its contents were already served here |
+| crew writes | **open, and must stay open** |
+| **office writes** | **identity required** — a signed-in person enrolled for *this supply*, or the ops code for a script |
+| admin | ops code, or a signed-in CivicScope admin |
+
+⛔ **THE CORRECTION RULE IS ABOUT THE PAYLOAD, NOT THE ACTION NAME.** `submit_reading` is an open
+crew write when it records a new day and an **office** write when it carries a `correction_reason`,
+because that supersedes a row sitting under a report signed under 1976 PA 399. Keying it on the
+action name alone would have left the correction path open while locking the filing path — the same
+inversion that was fixed on 2026-08-21, in the other direction.
+
+⚠ **`lib/session.js` IS THE ONE COPY OF "IS THIS BROWSER SIGNED IN"**, imported by both API routes —
+same discipline as `civicscope-water/derive.js` and `pool/scoring.js`. **Ship `lib/session.js`,
+`api/auth-google.js` and `api/water-ops.js` together**; they are one manifest entry group in
+`push_civicscope.ps1` for that reason.
+
+**Gate: `node scripts/verify-google-signin.mjs --base <origin>` → `SIGNIN-VERIFY-COMPLETE`,
+exit 0/2/3.** An auth route fails in two directions and only one is visible from a browser: too
+tight and Michelle cannot get in (she says so within the hour), too loose and everything looks
+perfect while a forged token works just as well. So the load-bearing checks are **negative** ones —
+a forged session cookie, an unsigned token carrying plausible Google claims, a correction attempted
+with no session — plus the one that stops the plant if it breaks: **the crew's tablet still opens.**
+The correction probe deliberately targets a non-existent entry point, so a gate that ever fails open
+dies at `404` instead of writing into a compliance record. ⚠ **Exit 3 while
+`GOOGLE_SIGNIN_CLIENT_ID` is unset** — no button renders, so "Michelle can sign in" is *unproven*.
+Could-not-verify, named in the deploy result, never a green tick (the lesson the pool gate taught on
+2026-08-08).
+
+⏳ **STILL BLOCKED ON ONE CONSOLE STEP.** `GOOGLE_SIGNIN_CLIENT_ID` needs a **Web application OAuth
+client in a NEW Google Cloud project** whose consent screen is **External + In production** with the
+basic scopes only (`openid`, `email`, `profile` — no verification required). ⛔ **It must NOT go in
+`jbk-claude`**: that project's consent screen is **Internal**, so a personal `@gmail.com` gets
+`Error 403: org_internal`, and flipping it to External would break the AAN/JBK Gmail refresh tokens
+(memory `reference_google_cross_org_access`). Authorized JavaScript origins: `https://civicscope.io`,
+`https://www.civicscope.io`, `https://app.civicscope.io`. No redirect URI and **no client secret** are
+needed. `AUTH_SESSION_SECRET` is already set in Vercel.
+
+**Enrolling or correcting people:** `node scripts/app-access.mjs list | add | enable | disable`,
+and the same script owns the plant roster (`operators`, `operator-set`, `operator-add`,
+`operator-off`). Deactivating an operator removes them from the tablet picker and **nothing else** —
+past readings keep both `operator_id` and the denormalised `operator_initials`.
+
+## "The MOR is due on the 10th" — `api/water-reminder.js` (NEW 2026-08-25)
+
+Keith: *"the EGLE - MOR … is due on the 10th of the month for the previous month's results. Can we
+send an email reminder to Michelle on the 7th … provide a link to shoot her into the page where she
+clicks to generate the report."* Vercel cron `0 12 7 * *` (08:00 ET). The link is
+`/water/review?wssn=…&m=YYYY-MM`, which opens the review page **on that month with the Generate
+button in view** — a link that lands on a generic dashboard makes the reader do the navigation the
+email existed to save them.
+
+- **It says nothing for a month already on record.** `water_mor_filings` knows. A monthly nag that
+  is usually wrong gets filtered, and then the one that mattered is filtered too — the same argument
+  that forced `diffFiling` to be rebuilt.
+- **It is safe to call twice, deliberately.** This project's own backlog says Vercel cron is
+  unreliable, and a missed digest costs a day of numbers while a missed reminder costs a filing
+  date. `water_mor_reminders` (migration `030`) holds one row per (supply, period, kind) under a
+  unique index **partial on `outcome = 'sent'`**, so the route can be wired to a second scheduler
+  without ever mailing the OIC twice — and a run that found nobody, or failed at Resend, leaves the
+  period **open for a retry** rather than occupying it.
+- **"Nobody to send it to" is not a success.** Recipients are the enrolled `oic`/`staff` rows for
+  that supply; an empty list mails CivicScope and records `no_recipient`. A reminder system whose
+  failure mode is silence has already stopped working and nobody has noticed.
+- The message carries **what the month currently holds** — well-days, distribution, bacti — because
+  a month with no bacti cannot be signed cleanly, and July 2026 reached the state with none.
+- Exercise it without sending: `POST /api/water-reminder?dry=1[&year=&month=]` with the cron bearer.
+
 ## Open Action Items
 
 - **Centreville is now a CLIENT PROJECT with its own folder — `Cowork\Centreville\CLAUDE.md`
@@ -764,6 +875,28 @@ actually closes this, for both surfaces at once.
   copied, since `api/water-ops.js` is Node and cannot read a .xls — then an upload + date control
   in the Reports filed panel. `record_filing` already accepts `source:'product'`, and nothing writes
   it yet, so the first report filed from here stays distinguishable from the seven that came before.
+- ⏳ **GOOGLE SIGN-IN IS BUILT AND DEPLOYED, AND ONE CONSOLE STEP AWAY FROM BEING ON (2026-08-25).**
+  Everything works and is gated behind `GOOGLE_SIGNIN_CLIENT_ID`, which does not exist yet — see
+  **Google sign-in** above for the exact recipe and why it must not go in `jbk-claude`. Until it is
+  set, `/centreville` opens for anyone with the link **and says so on the page**; the moment it is
+  set the gate is live with no code change. Then re-run
+  `node scripts/verify-google-signin.mjs --base https://app.civicscope.io` — it should go from
+  exit 3 to `SIGNIN-VERIFY-COMPLETE`, and the forged-token check tightens from "not configured" to a
+  real 401 out of the verifier.
+- ✅ **The crew tablet asks who is reading, first and required (2026-08-25).** Keith: *"the first
+  field (required) is for their name or initials… the person field should default to the blank"*,
+  because *"one person does it for a week and then someone else does it the next week"* on one
+  installed tablet. The name is now re-chosen **each day** — not each submission (three wells plus
+  two samples is one round, not five identifications) and not once forever, which is what the old
+  build did and which would have put the first week of Jeff's rotation on the record as Mark.
+  Roster corrected to the three real people: **Michelle Thibideau (MT), Jeff Derrikson (JD), Mark
+  Major (MM)**. 🚩 `SD` and `M` are off the picker and **unexplained** — see `Centreville\CLAUDE.md`.
+- ✅ **The review page's three-second stall is gone (2026-08-25).** Keith opened Well Testing from
+  the hub and got an empty skeleton for about three seconds. Nothing was slow: `load()` ran its
+  three requests **one after the other** for no reason, none of them needing anything from the
+  others. In parallel it is **~1.7s to the first well card, measured in a real browser**. The
+  section headings are also held back until there is something under them — empty headings read as
+  a page that finished and found nothing, which on this page means "no records".
 - **The crew tablet shows validation errors before anything is typed.** Opening a well greets the
   operator with *"Meter reading is required. Sodium hypochlorite 12.5% tank level is required.
   Aquadine tank level is required."* — three red-flavoured lines for someone who has done nothing
