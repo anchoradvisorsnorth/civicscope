@@ -61,12 +61,15 @@ only that municipality's own published documents. Your reader is often a village
 resident, not a lawyer.
 
 WHAT YOU ARE GIVEN
-Numbered passages retrieved from the village's ordinances, zoning rules, permit materials and
-meeting records. Each carries its source document and, where the document names one, its section
-heading. Each is also labelled with how its text was obtained:
+Numbered passages retrieved from the village's ordinances, zoning rules, permit materials, meeting
+records and its own official website. Each carries its source document and, where the document names
+one, its section heading. Each is also labelled with how its text was obtained:
   [text]  the document's own text — verbatim and reliable
   [scan]  a transcription of a scanned page — accurate in the main, but a digit or a
           punctuation mark can be misread
+  [web, read <date>]  a page from the village's own website, as it read on that date. Official
+          and current for things like office hours, phone numbers, who sits on the council or a
+          committee, payment links, and events. It is NOT adopted law.
 
 HOW TO ANSWER
 - Answer ONLY from the passages. If they do not settle the question, say so plainly and say what
@@ -83,6 +86,14 @@ HOW TO ANSWER
   silently picking one.
 - Meeting minutes record what a board discussed; ordinances are what was adopted. Do not present
   a discussion as if it were the rule.
+- A [web] passage is the village describing itself, not the law. For hours, phone numbers, staff,
+  council and committee membership, payment links and events it is the best source you have and you
+  should use it plainly. But where a [web] page and an ordinance disagree about a RULE, the
+  ordinance governs and you should say so.
+- [web] information can go out of date in a way an ordinance does not. When the answer is a DATE,
+  an event, a meeting time or a cancellation, say when the page was read — for example "as the
+  Village website read on 25 August 2026" — and suggest confirming with the Village office if it
+  matters. Do this for dated and scheduled things, not for a street address.
 - Plain language. No preamble, no restating the question, no markdown headers. Prose, short
   paragraphs.
 - You are not giving legal advice, and you should not say that you are not giving legal advice —
@@ -190,11 +201,37 @@ export default async function handler(req, res) {
     });
   }
 
+  /* WHEN A WEBSITE PASSAGE WAS READ. `muni_search` does not return `modified_at`, and widening its
+     signature is the one change in this system that has repeatedly gone wrong (018–021: a rewrite
+     that silently drops an existing ranking arm). One extra read, only when the website actually
+     matched, is the cheaper and far safer way to get it.
+
+     ⚠ THE DATE IS NOT DECORATION. An ordinance from 2019 is still the ordinance; a meeting
+     cancellation is wrong the moment it is superseded. Without the date the model cannot tell the
+     reader how much to trust a scheduled thing, and an undated stale answer about a meeting is
+     worse than no answer at all. */
+  const webIds = [...new Set(hits.filter((h) => h.text_source === 'web').map((h) => h.doc_id))];
+  const readAt = {};
+  if (webIds.length) {
+    try {
+      const rows = await sb(`muni_docs?id=in.(${webIds.join(',')})&select=id,modified_at`);
+      for (const r of rows || []) readAt[r.id] = r.modified_at;
+    } catch { /* the label degrades to a bare [web]; never fail the answer over it */ }
+  }
+  const fmtDay = (iso) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    return isNaN(d) ? null : d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Detroit' });
+  };
+
   // Build the passage block, bounded so a broad question cannot send an unbounded prompt.
   const used = [];
   let context = '';
   for (const h of hits) {
-    const label = h.text_source === 'ocr' ? 'scan' : 'text';
+    const day = h.text_source === 'web' ? fmtDay(readAt[h.doc_id]) : null;
+    const label = h.text_source === 'ocr' ? 'scan'
+      : h.text_source === 'web' ? (day ? `web, read ${day}` : 'web')
+      : 'text';
     const where = [h.heading, h.citation].filter(Boolean).join(' — ');
     const block = `[${used.length + 1}] (${label}) ${where}\n${h.content}\n\n`;
     if (context.length + block.length > CONTEXT_CHARS) break;
@@ -260,6 +297,10 @@ export default async function handler(req, res) {
       citation: h.citation,
       url: h.source_url,
       transcribed: h.text_source === 'ocr',
+      // A website source opens a live page, not a PDF — and the reader needs to know it is looking
+      // at a snapshot, because the page may have changed since. The date travels with the source.
+      web: h.text_source === 'web',
+      readAt: h.text_source === 'web' ? (fmtDay(readAt[h.doc_id]) || null) : null,
     })),
   });
 }
