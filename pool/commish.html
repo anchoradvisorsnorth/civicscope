@@ -187,6 +187,17 @@
            slate was locked, empty, or had just failed to save. The controls now follow the state:
            locked replaces them with a plain statement of what happened. -->
       <div id="lockedbanner" style="display:none;margin-top:12px;padding:12px 14px;border-radius:10px;background:#ecfdf3;border:1px solid #a6f4c5;font-size:14px"></div>
+      <!-- WHO IS IN THIS WEEK (Keith 2026-08-25). Everyone is ticked by default, so locking
+           without touching this behaves exactly as it always has. Unticking someone keeps the
+           week from waiting on them: a member who is not playing used to sit "outstanding"
+           forever, which meant the board never opened on "everyone is locked in" and the
+           "all picks are in" text never fired. Anyone unticked can still pick — doing so puts
+           them back in the week — so a wrong tick costs nothing. -->
+      <div id="whosinwrap" style="display:none;margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fcfcfd">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Who's in this week</div>
+        <div id="whosin" style="display:flex;flex-wrap:wrap;gap:8px 16px"></div>
+        <div id="whosinnote" style="font-size:12px;color:var(--muted);margin-top:9px;line-height:1.5"></div>
+      </div>
       <div class="row" style="margin-top:12px" id="slateactions">
         <button class="btn gray" onclick="allPickem()" title="Every game with no spread becomes a straight-up pick">PK all unpriced</button> <button class="btn gray" onclick="saveWeek()">💾 Save draft</button>
         <label style="font-size:13px"><input type="checkbox" id="notify" checked> <b>text + email</b> the group on lock</label>
@@ -438,6 +449,7 @@ let loadedCount=0;   // roster size as last read from the server — see savePla
 let dirty=false;
 function markDirty(){ dirty=true; paintState(); }
 function paintState(){
+  try{renderWhosIn();}catch(e){}   // roster just loaded/changed — repaint who is in this week
   const s=document.getElementById('pstate'), eb=document.getElementById('editbtn'),
         rl=document.getElementById('reloadbtn');
   if(s){
@@ -775,6 +787,7 @@ function manualTotal(i,v){
 }
 let lockedSummary='';
 function renderSlate(){
+  try{renderWhosIn();}catch(e){}   // the tick-list hides itself once the week is locked
   const {slug,label}=weekIdent();
   /* Name the week this panel is talking about, every time it paints. */
   const wkEl=document.getElementById('slatewk');
@@ -915,13 +928,48 @@ async function saveWeek(){
     data:{label:document.getElementById('wklabel').value||slug(),games:slate,slateLocked:false}});
     bindSlateToWeek();
     toast('Draft saved ✓ — '+slate.length+' game'+(slate.length===1?'':'s'));listWeeks();}catch(e){}}
+/* WHO IS IN THIS WEEK — the tick-list beside the lock button. Everyone starts ticked, so the
+   default is byte-for-byte the old behaviour; `sittingOut` only ever holds people the
+   commissioner deliberately removed. Rendered from the roster already loaded for §1, and only
+   for players who have a saved id (an unsaved new row has none and cannot be a participant). */
+let sittingOut=new Set();
+function renderWhosIn(){
+  const wrap=document.getElementById('whosinwrap');
+  const withIds=players.filter(p=>p&&p.id&&String(p.name||'').trim());
+  if(slateLocked||!withIds.length){ if(wrap) wrap.style.display='none'; return; }
+  wrap.style.display='';
+  document.getElementById('whosin').innerHTML=withIds.map(p=>
+    `<label style="font-size:14px;display:flex;align-items:center;gap:6px;white-space:nowrap">`+
+    `<input type="checkbox" data-pid="${esc(p.id)}" ${sittingOut.has(String(p.id))?'':'checked'} onchange="toggleIn(this)"> `+
+    `<span style="font-weight:${sittingOut.has(String(p.id))?'400':'700'};color:${sittingOut.has(String(p.id))?'var(--muted)':'inherit'}">${esc(p.name)}</span></label>`).join('');
+  const out=withIds.filter(p=>sittingOut.has(String(p.id))).map(p=>p.name);
+  document.getElementById('whosinnote').innerHTML=out.length
+    ? `<b>${esc(out.join(', '))}</b> ${out.length===1?'is':'are'} sitting this week out — the week won't wait on ${out.length===1?'them':'them'} to open the board. `+
+      `${out.length===1?'They':'They'} can still pick; doing so puts ${out.length===1?'them':'them'} back in.`
+    : 'Everyone is in. Untick anyone who is not playing this week — otherwise the board waits on them before it opens to the group.';
+}
+function toggleIn(el){
+  const id=String(el.getAttribute('data-pid'));
+  if(el.checked) sittingOut.delete(id); else sittingOut.add(id);
+  renderWhosIn();
+}
+
 async function lockSlate(){
   if(!slate.length){toast('Slate is empty');return;}
-  if(!confirm('Lock the slate? Spreads freeze exactly as shown and '+(document.getElementById('notify').checked?'the group gets TEXTED and EMAILED':'NO texts or emails go out')+'.'))return;
+  const withIds=players.filter(p=>p&&p.id&&String(p.name||'').trim());
+  const inThisWeek=withIds.filter(p=>!sittingOut.has(String(p.id)));
+  if(!inThisWeek.length){toast('Nobody is ticked for this week');return;}
+  const sittingNames=withIds.filter(p=>sittingOut.has(String(p.id))).map(p=>p.name);
+  if(!confirm('Lock the slate? Spreads freeze exactly as shown and '+(document.getElementById('notify').checked?'the group gets TEXTED and EMAILED':'NO texts or emails go out')+'.'
+    +(sittingNames.length?'\n\nSitting out this week: '+sittingNames.join(', ')+'.':'')))return;
   let j=null;
   try{
     await post({action:'save_week',code:code(),slug:slug(),data:{label:document.getElementById('wklabel').value||slug(),games:slate}});
-    j=await post({action:'lock_slate',code:code(),slug:slug(),notify:document.getElementById('notify').checked});
+    /* `participants` is sent ONLY when somebody is actually sitting out. Omitting it lets the
+       server apply its own default (everyone), so the common case cannot be broken by a stale
+       or half-loaded roster in this tab. */
+    j=await post({action:'lock_slate',code:code(),slug:slug(),notify:document.getElementById('notify').checked,
+      ...(sittingNames.length?{participants:inThisWeek.map(p=>p.id)}:{})});
     slateLocked=true;
     lockedSummary='Picks close '+new Date(j.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET · '
       +(document.getElementById('notify').checked?`${j.texted} text${j.texted===1?'':'s'} + ${j.emailed} email${j.emailed===1?'':'s'} sent.`:'no notifications sent.');
