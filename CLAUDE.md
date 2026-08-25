@@ -413,10 +413,88 @@ pages need OCR, ≈$21 for the entire corpus.** The pre-probe estimate, reasonin
 documents" without page counts, was *several hundred dollars* — wrong by more than 10×, and it was
 about to cause a slice of the corpus to be left unbuilt for no reason.
 
+### The village's own website is a third source (NEW 2026-08-25)
+
+Keith: *"can we include the actual website as a source for information as well… The website has
+things like calendar of events."* `scripts/ingest-muni-website.mjs` crawls `centrevillemi.com` into
+the same tables as collection **`Village Website`** — **8 pages, 26 passages**, corpus now **364
+documents / 2,840 passages**. Zero cost: HTML, no OCR, no Anthropic spend, which is why it does not
+sit behind the Centreville commercial gate the remaining Drive ingest does.
+
+**It is a different KIND of source, not a lower grade of the same one.** The Drive corpus answers
+*what is the rule*; the website answers *what is happening, who do I call, when is it open*. These
+exist ONLY on the website: the Village Council roster and **every** committee appointment, office
+address/hours/phone/fax, the water-sewer emergency call order, meeting cancellations, and the events
+list. Live proof — asked who is on the council, the tool answers from the website, dates the answer,
+**and flags that the 2025 Recreation Plan lists an older roster**, reasoning that the website is the
+more current of the two.
+
+⛔ **26 PASSAGES CANNOT WIN A GLOBAL RANK AGAINST 2,800, AND MIGRATION 031's HEADER WAS WRONG ABOUT
+WHY.** 031 gave the collection a weight of **1.10** and argued a coefficient was the right
+instrument here — unlike the Forms Manual, whose advantage no constant could bound. Measured
+minutes later against the real corpus: the council roster was **not in the global top twenty**, with
+four zoning-book procedure sections leading it **4.50 to 0.44**. `ts_rank_cd` is cover-density with
+no length normalisation, so a zoning section saying "Village Council" eight times outranks a roster
+that says it once and lists seven names — unbounded, exactly the Forms Manual shape. Two things
+were fixed first and neither moved it: the collection weight, and the missing heading (below).
+
+**The fix is not a re-rank — it is a guaranteed seat.** Migration `032` adds
+`muni_search_collection()`, a **new** function (`muni_search` untouched, byte-identical) that ranks
+inside one collection. `api/muni-ask.js` calls it when the website matched the question but nothing
+from it survived the global cut, and **adds** its best two passages. Nothing is displaced, so a
+legal question still leads with the law; the prompt separately tells the model a `[web]` passage is
+not law and that an ordinance governs where they disagree about a rule. It carries **no weights on
+purpose** — within one collection a weight is a constant and cannot change an ordering, so copying
+the weight table would only create a second copy to drift.
+
+⛔ **THE HEADING FIELD DECIDES WHETHER A SOURCE IS FINDABLE, AND THE FIRST BUILD THREW IT AWAY.**
+`muni_chunks.heading` is indexed at tsvector weight **A**. Every website chunk came back `null`, so
+26 passages competed on body text alone against 2,800 that also got the A-weight boost. GoDaddy
+publishes real `<h1>`–`<h4>` — *Village Council*, *Department of Public Works*, *Finance*, *Police*,
+*Covered Bridge Days*, *Utility Billing Payments* — precisely the terms people search. Those are now
+captured before the tags are stripped and attached to the chunk they head, **after** the shared
+chunker runs. ⚠ `scripts/lib/muni-corpus-lib.mjs` is NOT touched: enriching a result with structure
+one source happens to publish is a different thing from changing how text is split.
+
+⚠ **THIS IS THE ONLY COLLECTION THAT GOES STALE.** An ordinance from 2019 is still the ordinance; a
+cancelled meeting notice is wrong the moment it is superseded. Every page stores when it was fetched,
+the API labels passages `[web, read <date>]`, the UI tags the source with that date, and the model is
+told to date any answer that is a date, an event or a meeting time. **The crawl is not scheduled yet
+— that is the open item.**
+
+**Two measured traps in the crawler, both of which silently destroyed the good content first:**
+- **GoDaddy renders the navigation 4–5× per page** (one copy per breakpoint). Extract naively and
+  every page arrives with its menu repeated ahead of the content. De-duplicated within a page.
+- **Site chrome is measured, not listed** — a line appearing on ≥75% of pages is chrome. A hardcoded
+  "Home | Contact | Privacy" blocklist is a guess about one site. ⚠ But a repeated line is not
+  automatically worthless: anything carrying a **phone number, street address, email, date or
+  opening time is kept however often it repeats**, or the tidy-up would delete the answer to "what is
+  the village office number".
+- ⛔ **SHORT IS NOT EMPTY.** A 40-word floor dropped **six of twelve pages**, including `/festivals`
+  — whose entire content is *"11/11 Military Veteran Walk"*, *"7/18-7/20 Covered Bridge Days"* and
+  Home Town Christmas. That is 39 words and it is the calendar Keith asked for by name. The floor is
+  **12 words**; the pages that still fall out are a heading and a download button.
+- ⛔ **A LINK LABEL WITHOUT ITS DESTINATION ANSWERS NOTHING.** `/utilities` is almost entirely button
+  captions pointing at bsaonline.com and watercustomer.com; strip the hrefs and "where do I pay my
+  water bill" retrieves captions and no answer. External links become `Label — https://…`.
+
+```bash
+node scripts/ingest-muni-website.mjs --tenant centreville --list    # what pages exist
+node scripts/ingest-muni-website.mjs --tenant centreville --dry     # nothing written
+node scripts/ingest-muni-website.mjs --tenant centreville           # skips unchanged pages
+node scripts/ingest-muni-website.mjs --tenant centreville --force   # re-chunk unchanged text
+```
+
+**Gate: `node scripts/verify-muni-website-source.mjs` → `WEBSITE-SOURCE-VERIFY-COMPLETE`, 11 checks,
+exit 0/2/3** — wired as the `muni` deploy profile. It asserts the website answers the questions only
+it can answer, that the crawl is **current** (fails over 45 days), that the adopted code still leads
+on a legal question, and — so the gate cannot go decorative — that the guarantee is **load-bearing**,
+i.e. those queries really do miss the website on global rank.
+
 **Adding a municipality:** `muni_tenants` row (`active=false`) → point `CORPORA` in the ingest
-script at its Drive folders → ingest → check the answers → `active=true` → one literal rewrite in
-`vercel.json`. `active` is enforced **server-side** in `api/muni-ask.js`, because the page is cached
-in browsers that are already open.
+script at its Drive folders → ingest → **crawl its website** → check the answers → `active=true` →
+one literal rewrite in `vercel.json`. `active` is enforced **server-side** in `api/muni-ask.js`,
+because the page is cached in browsers that are already open.
 
 **⚠ A TEXT LAYER DOES NOT MEAN THE DOCUMENT IS COVERED — TABLES GO MISSING SILENTLY (found
 2026-08-18).** `Centreville Zoning Book 19.pdf` has a **645,000-character text layer**, so the
@@ -875,6 +953,17 @@ email existed to save them.
   copied, since `api/water-ops.js` is Node and cannot read a .xls — then an upload + date control
   in the Reports filed panel. `record_filing` already accepts `source:'product'`, and nothing writes
   it yet, so the first report filed from here stays distinguishable from the seven that came before.
+- ✅ **THE VILLAGE WEBSITE IS A CORPUS SOURCE (2026-08-25)** — 8 pages, 26 passages, corpus 364/2,840.
+  See **The village's own website is a third source** above. Ask Centreville was paused for feature
+  work on 2026-08-18; Keith asked for this directly, which supersedes that for this item only.
+- 🚨 **THE WEBSITE CRAWL IS NOT SCHEDULED, AND IT IS THE ONE COLLECTION THAT GOES STALE.** Everything
+  else in the corpus is a document that stays true; a meeting cancellation or an event date is wrong
+  the moment the village edits the page. The gate fails the deploy once the newest page is over 45
+  days old, so this cannot rot silently — but a gate is not a schedule. Re-crawl is one free command
+  (`node scripts/ingest-muni-website.mjs --tenant centreville`) and belongs on the VM cron alongside
+  the other pipelines, **not** in a lambda: the shared chunker lives in `scripts/lib/` and is not
+  deployed, and putting a second copy in a deployable lib is the exact drift migrations 018–021 were
+  spent on. Weekly is ample for a 12-page site.
 - ⏳ **GOOGLE SIGN-IN IS BUILT AND DEPLOYED, AND ONE CONSOLE STEP AWAY FROM BEING ON (2026-08-25).**
   Everything works and is gated behind `GOOGLE_SIGNIN_CLIENT_ID`, which does not exist yet — see
   **Google sign-in** above for the exact recipe and why it must not go in `jbk-claude`. Until it is
