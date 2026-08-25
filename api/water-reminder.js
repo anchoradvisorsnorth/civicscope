@@ -181,8 +181,12 @@ export default async function handler(req, res) {
       /* Recipients are the people ENROLLED for this supply, not a name in a config file. That is
          the point of app_users: adding Sheila to the reminder is the same act as giving her access,
          so the two can never drift into "she can see it but never hears about it". */
+      /* ⛔ THE VILLAGE OFFICE, NOT EVERY ENROLLED ACCOUNT. CivicScope's own admin rows carry this
+         supply's wssn so that Keith can reach the records — that is access, not a subscription to
+         the village's monthly reminders. Filing the MOR is Michelle's job and Sheila's; a reminder
+         addressed to people who cannot act on it trains everybody on the thread to ignore it. */
       const people = await sb(`app_users?water_wssn=eq.${encodeURIComponent(supply.wssn)}&active=eq.true` +
-        `&select=email,name,role&order=role`);
+        `&role=in.(oic,staff)&select=email,name,role&order=role`);
       const to_ = (people || []).map((p) => p.email).filter(Boolean);
 
       const link = `${SITE}/water/review?wssn=${encodeURIComponent(supply.wssn)}&m=${y}-${String(m).padStart(2, '0')}`;
