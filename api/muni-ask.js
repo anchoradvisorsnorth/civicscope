@@ -206,13 +206,20 @@ export default async function handler(req, res) {
      Tables are a structurally small, high-value minority that cannot win a term-frequency race, and
      dimensional standards are the single most common thing a village is asked for. So the best
      matching table is ADDED when the main retrieval missed it. It never displaces prose. */
-  if (hits && hits.length && !hits.some((h) => /^Table\s/i.test(String(h.heading || '')))) {
+  /* ⚠ THE TRIGGER IS "IS THE BEST TABLE HERE", NOT "IS A TABLE HERE" — and getting that wrong once
+     produced a perfect illustration of why. Gated on "no table in the results", the guarantee never
+     fired for the setback question, because Table 4-1 (which merely states the PURPOSE of each
+     district) had won a seat on its own. A table was present, the right table was not, and the
+     answer was still "I don't have the dimensional table". */
+  if (hits && hits.length) {
     try {
       const tbl = await sb('rpc/muni_search_tables', {
         method: 'POST',
         body: JSON.stringify({ p_tenant: slug, p_query: question, p_limit: 1 }),
       });
-      if (tbl && tbl.length) hits = hits.concat(tbl);
+      const have = new Set(hits.map((h) => h.chunk_id));
+      const add = (tbl || []).filter((t) => !have.has(t.chunk_id));
+      if (add.length) hits = hits.concat(add);
     } catch { /* the corpus still answers without it */ }
   }
 
