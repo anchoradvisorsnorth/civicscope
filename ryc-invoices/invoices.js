@@ -31,7 +31,12 @@ var _inv = { who:null, rows:[], codes:null, pm:null, busy:false, showDone:false,
              budget:{}, budgetBasis:null, budgetAsOf:null,
              /* printed job_text -> the community it names, or null for "asked, no community".
                 Both answers are cached; see invLoadFamilies. */
-             families:{} };
+             families:{},
+             /* row id -> {msg, at}. THE SUCCESS CHANNEL THE ROW DID NOT HAVE. Held on `_inv`
+                rather than in the markup because a save ends in `invLoad()`, which repaints from
+                the server and would wipe anything written straight into the DOM — which is
+                precisely why a working Save looked like a dead button. */
+             said:{} };
 
 /* Budget lines for a job, fetched once per job and cached for the session. This is the number
    the PM currently opens Procore to read — how much is left on the line being coded against. */
@@ -785,7 +790,7 @@ function invRoutingPanel(){
       + '<div style="margin-top:4px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">' + sel
       + '<button class="pfill" onclick="invPushToPm(' + invArg(r.id) + ',' + r.version + ')">Push to desk</button>'
       + '</div>'
-      + '<div id="inv-err-' + esc(r.id) + '" class="sub" style="margin-top:3px"></div>'
+      + '<div id="inv-err-' + esc(r.id) + '" class="sub" style="margin-top:3px">' + invRowMsg(r.id) + '</div>'
       + '<div class="sub" style="margin-top:3px">'
       + (r.suggested_pm
           ? 'Suggested: <b>' + esc(r.suggested_pm) + '</b> &mdash; the PM on this job in Procore'
@@ -879,7 +884,7 @@ function invRowHtml(r){
     + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'duplicate'," + r.version + ')">Dup</button> '
     + '<button class="pfill" onclick="invReview(' + invArg(r.id) + ",'not_ap'," + r.version + ')">Not payable</button> '
     + invDocBtn(r)
-    + '<div id="inv-err-' + esc(r.id) + '" class="sub"></div>'
+    + '<div id="inv-err-' + esc(r.id) + '" class="sub">' + invRowMsg(r.id) + '</div>'
     + '</td></tr>';
   return h;
 }
@@ -1001,9 +1006,30 @@ function invErr(id, msg){
   var e = document.getElementById("inv-err-" + id);
   if(e) e.innerHTML = '<span class="m-r">' + esc(msg) + '</span>';
 }
-function invAfter(id, r){
+/* ⛔ THE ROW COULD RENDER A FAILURE AND HAD NO WAY TO RENDER A SUCCESS, so a save that worked was
+   pixel-identical to a dead button. Keith, piloting Logan's desk 2026-08-26: *"pushing save here
+   does not do anything - at least it does feel like it does."* It had saved.
+   It says WHAT WAS RECORDED, not "Saved" — the point is to show the thing that landed, because the
+   one control that did visibly move on that screen (the budget line) moves on the picker's own
+   `onchange`, before Save is pressed, which reads as "it already did whatever it does". */
+var INV_SAID_MS = 7000;
+function invSaid(id, msg){
+  _inv.said[id] = { msg: msg, at: Date.now() };
+  setTimeout(function(){
+    var s = _inv.said[id];
+    if(s && (Date.now() - s.at) >= INV_SAID_MS - 50){ delete _inv.said[id]; invPaint(); }
+  }, INV_SAID_MS);
+}
+/* Rendered FROM STATE at paint time, so it survives the repaint that `invLoad()` performs. */
+function invRowMsg(id){
+  var s = _inv.said[id];
+  if(!s || (Date.now() - s.at) > INV_SAID_MS) return "";
+  return '<span class="m-g">&check; ' + esc(s.msg) + '</span>';
+}
+function invAfter(id, r, said){
   _inv.busy = false;
   if(!r.ok || (r.data && r.data.error)){ invErr(id, (r.data && r.data.error) || r.error || "Failed"); return; }
+  if(said) invSaid(id, said);
   invLoad();
 }
 /* The month is DERIVED from the received date rather than typed. It was a field on the rubber
@@ -1243,15 +1269,31 @@ function invPickUnit(id, jobNo, el){
   }
   el.className = "pfill on";
 }
-function invSave(id, ver){
-  if(_inv.busy) return;
-  _inv.busy = true;
+/* ===== ONE FLUSH, CALLED BY BOTH BUTTONS ==============================================
+   ⛔ THE HOLE THIS CLOSES WAS ALREADY WRITTEN DOWN THREE LINES ABOVE `invReview`, AND IT
+   RE-OPENED ANYWAY. That comment says Approve must not ignore what is on the screen, because the
+   controls are local state until Save is pressed and Approve reads the server. It was made true
+   for the cost code and Mat/Sub — as a PATCH TO ONE FUNCTION rather than as a rule — so when the
+   unit chip and the split were added later, nobody added them to that flush and Approve went back
+   to ignoring the screen. Keith, live: *"Trying to assign one - does not seem to be working."*
+   The row's stored state proved it exactly: Mat/Sub and month landed (Approve flushed the coding)
+   and the job did not, so `ryc_review_invoice` raised RY40G for want of a job the screen had.
+
+   So the flush is now A FUNCTION BOTH BUTTONS CALL, not a branch inside one of them. A control
+   added tomorrow is wired here once and both doors get it.
+
+   `force` is the only difference between them, and it preserves what each already did: Save is an
+   explicit act and writes the coding even when nothing is dirty (that is what stamps `cost_month`);
+   Approve only writes when something on screen differs from the server. */
+function invFlushPending(id, ver, force){
   var r = _inv.rows.filter(function(x){ return x.id === id; })[0] || {};
-  // The row is authoritative for a chip pick; the field still carries a typed job number.
   var jobEl = document.getElementById("job-" + id);
+  // The row is authoritative for a chip pick; the field still carries a typed job number.
   var job = r._unit || (jobEl ? (jobEl.value || "").trim() : "");
   var cc  = (document.getElementById("cc-" + id)||{}).value || "";
   var ms  = (document.getElementById("ms-" + id)||{}).value || "";
+  var told = [];
+  var msName = ms === "mat" ? "Material" : ms === "sub" ? "Sub" : null;
 
   /* A SPLIT DOES NOT ASSIGN THE DOCUMENT TO A JOB, BECAUSE IT BELONGS TO SEVERAL. The lines carry
      the jobs and must foot to the invoice (RY40H); `job_no` on the invoice stays null and
@@ -1266,27 +1308,52 @@ function invSave(id, ver){
                description:nm, cost_code:cc||null, mat_or_sub:ms||null,
                cost_month:invMonthFor(r), assigned_pm:r.assigned_pm || null };
     });
-    if(!lines.length){ invErr(id, "Choose the units this invoice is split across."); _inv.busy=false; return; }
+    if(!lines.length) return Promise.resolve({ error:"Choose the units this invoice is split across." });
     if(lines.some(function(l){ return !l.amount || isNaN(parseFloat(l.amount)); })){
-      invErr(id, "Every unit in a split needs an amount. Use Even to fill them in.");
-      _inv.busy = false; return;
+      return Promise.resolve({ error:"Every unit in a split needs an amount. Use Even to fill them in." });
     }
-    invPost("code", { id:id, month:invMonthFor(r), cost_code:cc||null, mat_or_sub:ms||null,
+    told.push("split across " + lines.length + " units");
+    if(cc) told.push(cc);
+    if(msName) told.push(msName);
+    return invPost("code", { id:id, month:invMonthFor(r), cost_code:cc||null, mat_or_sub:ms||null,
       lines:lines, version:ver }).then(function(b){
-        if(b.ok && !(b.data && b.data.error)) r._split = null;
-        invAfter(id, b);
+        if(!b.ok || (b.data && b.data.error)) return { failed:b };
+        r._split = null;
+        return { version:(b.data && b.data.version) || ver, said:told.join(" · ") };
       });
-    return;
   }
 
-  var first = job
+  var jobDirty  = !!job && job !== (r.job_no || "");
+  var codeDirty = (cc && cc !== (r.cost_code || "")) || (ms && ms !== (r.mat_or_sub || ""));
+  if(!jobDirty && !codeDirty && !force) return Promise.resolve({ version:ver, said:null });
+
+  var step1 = jobDirty
     ? invPost("assign", { id:id, job_no:job, source:"manual", version:ver })
     : Promise.resolve({ ok:true, data:{ version:ver } });
-  first.then(function(a){
-    if(!a.ok || (a.data && a.data.error)){ invAfter(id, a); return; }
+  return step1.then(function(a){
+    if(!a.ok || (a.data && a.data.error)) return { failed:a };
     var nv = (a.data && a.data.version) || ver;   // assign bumped it; carry it forward
+    if(jobDirty){
+      var nm = invJobName(job);
+      told.push(nm ? invUnitLabel(nm) + " (" + job + ")" : job);
+    }
+    if(!codeDirty && !force) return { version:nv, said:told.join(" · ") || null };
+    if(cc) told.push(cc);
+    if(msName) told.push(msName);
     return invPost("code", { id:id, month:invMonthFor(r), cost_code:cc||null,
-      mat_or_sub:ms||null, version:nv }).then(function(b){ invAfter(id, b); });
+      mat_or_sub:ms||null, version:nv }).then(function(b){
+        if(!b.ok || (b.data && b.data.error)) return { failed:b };
+        return { version:(b.data && b.data.version) || nv, said:told.join(" · ") || null };
+      });
+  });
+}
+function invSave(id, ver){
+  if(_inv.busy) return;
+  _inv.busy = true;
+  invFlushPending(id, ver, true).then(function(f){
+    if(f.error){ _inv.busy = false; invErr(id, f.error); return; }
+    if(f.failed){ invAfter(id, f.failed); return; }
+    invAfter(id, { ok:true, data:{} }, f.said || "Saved");
   });
 }
 function invResolve(id, code, ver){
@@ -1316,29 +1383,26 @@ function invRepaintCode(id){
   }
   invPaintRemaining(id);
 }
-/* APPROVE MUST NOT IGNORE WHAT IS ON THE SCREEN. The cost-code and Mat/Sub controls are local
-   state until Save is pressed, and Approve reads the server — so a PM who picked a code and hit
-   Approve was told "This invoice has no cost code", which is true of the database and plainly
-   false of the screen. Flush pending coding first, then review. */
+/* APPROVE MUST NOT IGNORE WHAT IS ON THE SCREEN. The controls are local state until Save is
+   pressed and Approve reads the server, so a PM who chose something and hit Approve was told the
+   row lacked it — true of the database and plainly false of the screen.
+   ⚠ THIS NO LONGER LISTS WHICH CONTROLS. It calls `invFlushPending`, the one place that knows what
+   is pending, precisely because the first version of this fix enumerated the cost code and Mat/Sub
+   and was therefore silently wrong the day a unit chip and a split were added. */
 function invReview(id, decision, ver){
   if(_inv.busy) return;
-  var r = _inv.rows.filter(function(x){ return x.id === id; })[0] || {};
-  var cc = (document.getElementById("cc-" + id)||{}).value || "";
-  var ms = (document.getElementById("ms-" + id)||{}).value || "";
-  var dirty = (cc && cc !== (r.cost_code || "")) || (ms && ms !== (r.mat_or_sub || ""));
-  if(decision === "approved" && dirty){
+  if(decision !== "approved"){
     _inv.busy = true;
-    invPost("code", { id:id, month:invMonthFor(r), cost_code:cc||null,
-                      mat_or_sub:ms||null, version:ver }).then(function(c){
-      if(!c.ok || (c.data && c.data.error)){ invAfter(id, c); return; }
-      var nv = (c.data && c.data.version) || ver;
-      return invPost("review", { id:id, decision:decision, version:nv })
-        .then(function(x){ invAfter(id, x); });
-    });
+    invPost("review", { id:id, decision:decision, version:ver }).then(function(r2){ invAfter(id, r2); });
     return;
   }
   _inv.busy = true;
-  invPost("review", { id:id, decision:decision, version:ver }).then(function(r2){ invAfter(id, r2); });
+  invFlushPending(id, ver, false).then(function(f){
+    if(f.error){ _inv.busy = false; invErr(id, f.error); return; }
+    if(f.failed){ invAfter(id, f.failed); return; }
+    return invPost("review", { id:id, decision:decision, version:f.version })
+      .then(function(x){ invAfter(id, x, x.ok && !(x.data && x.data.error) ? "Approved" : null); });
+  });
 }
 function invCloseBatch(){
   var el = document.getElementById("invSummary");
