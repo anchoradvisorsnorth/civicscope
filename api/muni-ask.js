@@ -343,7 +343,17 @@ export default async function handler(req, res) {
 
   // Village / Town / City / County — this tenant own noun (047).
   const websiteCollection = `${tenant.unit_noun || 'Village'} Website`;
-  if (hits && hits.length && !hits.some((h) => h.text_source === 'web')) {
+  /* ⛔ "IS THE BEST WEBSITE PASSAGE HERE", NOT "IS ANY WEB PASSAGE HERE" — the identical mistake the
+     table guarantee above already documents, left standing one block later. This was gated on
+     `!hits.some(h => h.text_source === 'web')`, so a SINGLE unrelated web page anywhere in the top
+     twelve suppressed the collection search entirely. Asked for town hall hours, a stray events page
+     in the ranked hits is enough to keep the contact page — the one that answers — out of the
+     context, and the reader is told the hours are not published.
+
+     Presence of a source TYPE is not evidence that the best passage of that type survived ranking.
+     So the small collection is always consulted and merged by chunk id; ranking still decides what
+     the model reads first. */
+  if (hits && hits.length) {
     try {
       const web = await sb('rpc/muni_search_collection', {
         method: 'POST',
@@ -353,8 +363,10 @@ export default async function handler(req, res) {
            only symptom would be worse answers. */
         body: JSON.stringify({ p_tenant: slug, p_query: searchQuery, p_collection: websiteCollection, p_limit: 2 }),
       });
+      const seen = new Set(hits.map((h) => h.chunk_id));
+      const add = (web || []).filter((w) => !seen.has(w.chunk_id));
       // Prepended for the same reason as the table above: the context budget truncates the tail.
-      if (web && web.length) hits = web.concat(hits);
+      if (add.length) hits = add.concat(hits);
     } catch { /* the corpus still answers without it; never fail the question over an extra read */ }
   }
 
@@ -499,9 +511,16 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Answering service unreachable.' });
   }
 
-  /* Strip the marker before the reader ever sees it, and record what it said. A model that will not
-     emit one is treated as ANSWERED rather than guessed at from its prose — an inferred outcome is
-     the thing this replaced. */
+  /* Strip the marker before the reader ever sees it, and record what it said.
+
+     ⛔ NO MARKER IS `unknown`, NOT `answered`. This recorded `answered` when the model omitted or
+     malformed its first line — the same optimistic default 045 was written to abolish, surviving one
+     layer down. The reader would see "the passages do not contain the setback table", the report
+     would count a success, and the question would never reach the repair queue.
+
+     `unknown` is also NOT counted as a failure: a missing marker is a defect in our instrumentation,
+     not evidence about the village s documents, and filing it under `declined` would send somebody
+     to debug retrieval for a formatting slip (migration 050). */
   let outcome = null;
   const mark = String(answer || '').match(/^\s*(ANSWERED|PARTIAL|REFERRED|DECLINED)\b[ \t]*\n+/);
   if (mark) {
@@ -547,8 +566,8 @@ export default async function handler(req, res) {
   const usedTable = used.some((h) => guaranteedIds.has(h.chunk_id)
     || /^Tables/i.test(String(h.heading || '')) || h.is_table === true);
 
-  await logQuestion(used.length, outcome !== 'declined' && outcome !== 'no_corpus', {
-    outcome: outcome || 'answered',
+  await logQuestion(used.length, !!outcome && outcome !== 'declined' && outcome !== 'no_corpus', {
+    outcome: outcome || 'unknown',
     cited_collections: cited,
     used_table: usedTable,
   });
