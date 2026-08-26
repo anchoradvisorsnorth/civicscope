@@ -826,7 +826,11 @@ function invRowHtml(r){
   h += '<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">';
   if(!r.job_no){
     var fam = _inv.families[r.job_text || ""];
-    h += (fam && fam.candidates && fam.candidates.length)
+    /* A SPLIT THAT DOES NOT SHOW ON THE ROW AFTERWARDS GETS DONE TWICE. The queue has always
+       returned `lines`; nothing rendered them, so a document coded across five units looked
+       exactly like one nobody had touched. */
+    if(!r._split && r.lines && r.lines.length) h += invSplitSummary(r);
+    else h += (fam && fam.candidates && fam.candidates.length)
       ? invUnitPicker(r, fam)
       : '<input id="job-' + esc(r.id) + '" placeholder="Job no" value="" style="width:110px" '
         + 'title="' + esc(r.job_text||"nothing printed") + '">';
@@ -1027,6 +1031,7 @@ function invUnitLabel(name){
   return /pkwy|crystal|lot/i.test(tail) ? (m[0] + " " + tail) : m[0];
 }
 function invUnitPicker(r, fam){
+  if(r._split) return invSplitPicker(r, fam);
   var h = '<input type="hidden" id="job-' + esc(r.id) + '" value="">'
     + '<div class="sub" style="width:100%;margin-bottom:3px">' + esc(fam.label)
     + ' &mdash; which unit?</div>'
@@ -1037,17 +1042,155 @@ function invUnitPicker(r, fam){
       + 'onclick="invPickUnit(' + invArg(r.id) + ',' + invArg(c.no) + ',this)">'
       + esc(invUnitLabel(c.name)) + '</button>';
   });
-  /* The ending accounting already uses for a dumpster serving five duplexes. Offered LAST and
-     set apart, because it is the right answer only when no single unit is — a shared-cost button
-     sitting first in the row is a shared-cost button that gets pressed to finish the row. */
+  h += '<span style="width:100%;height:0"></span>';
+  /* THE TWO ENDINGS FOR A COST THAT IS GENUINELY SHARED, and neither is a default.
+     Keith, 2026-08-26, asked which one Logan should get: *"Both — Logan chooses per invoice."*
+     A $670 dumpster and a $9,443 flooring invoice are not the same decision, and a tool that
+     picks for him gets the cheap one right and the expensive one wrong. Offered LAST and set
+     apart on their own line: a shared-cost button sitting first in the row is a shared-cost
+     button that gets pressed to finish the row. */
+  h += '<button class="pfill" style="padding:2px 8px" '
+    + 'title="One invoice, one payable, coded across several units — the lines must foot to '
+    + fmt(Number(r.amount)||0) + '" '
+    + 'onclick="invSplitStart(' + invArg(r.id) + ')">Split across units&hellip;</button>';
   if(fam.misc){
-    h += '<span style="width:100%;height:0"></span>'
-      + '<button class="pfill' + (r._unit === fam.misc.no ? " on" : "")
-      + '" style="padding:2px 8px" title="' + esc(fam.misc.no + " · " + fam.misc.name) + '" '
+    h += '<button class="pfill' + (r._unit === fam.misc.no ? " on" : "")
+      + '" style="padding:2px 8px;margin-left:3px" title="' + esc(fam.misc.no + " · " + fam.misc.name) + '" '
       + 'onclick="invPickUnit(' + invArg(r.id) + ',' + invArg(fam.misc.no) + ',this)">'
       + 'Shared &rarr; ' + esc(fam.misc.name) + '</button>';
   }
   return h + '</div>';
+}
+
+/* ===== SPLIT — ONE DOCUMENT, MANY UNITS ==============================================
+   ⚠ THE SPLIT IS NOT NEW AND THAT IS THE POINT. `ryc_invoice_lines` has carried a per-line
+   `job_no` since the register was built, for the case its own header names — Beer & Slabaugh
+   billing three jobs on one page — and `ryc_code_invoice` already refuses lines that do not foot
+   to the document (RY40H). It was reachable from nothing. The same vendor bills Greencroft one
+   30-yard container against a street of duplexes, so the shape the schema was designed around is
+   the shape Logan meets every week, and the only missing piece was a way to say it.
+
+   NOTHING HERE COMPUTES A TOTAL THE SERVER WILL NOT RE-CHECK. The footing readout is a courtesy
+   so the arithmetic is visible while it is being done; RY40H is the control, and it runs on
+   figures this screen cannot influence. A client-side total that agreed with itself and disagreed
+   with the invoice is exactly the false green this module has been bitten by. */
+/* What the document was actually split into, read back from the stored lines rather than from
+   whatever this screen last had in memory — the same reason the SharePoint copies are proved by
+   read-back. `lines` has been in the queue payload since the register was built. */
+function invSplitSummary(r){
+  var h = '<input type="hidden" id="job-' + esc(r.id) + '" value="">'
+    + '<div class="sub" style="width:100%">Split across ' + r.lines.length + ' units: ';
+  h += r.lines.map(function(l){
+    return esc(invUnitLabel(invJobName(l.job_no) || l.job_no || "?")) + ' ' + fmt(Number(l.amount)||0);
+  }).join(' &middot; ');
+  return h + ' <button class="pfill" style="padding:1px 7px;margin-left:4px" '
+    + 'onclick="invSplitStart(' + invArg(r.id) + ')">Change split</button></div>';
+}
+function invSplitStart(id){
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0];
+  if(!r) return;
+  /* ⚠ THE SPLIT EDITOR IS DRIVEN BY A COMMUNITY'S CANDIDATE LIST, so without one there is nothing
+     to render and setting `_split` would hide the row's only control behind a blank. The general
+     many-job split — Beer & Slabaugh billing New Paris, PHM and Shipshewana on one page, which is
+     the case `ryc_invoice_lines` was actually written for — needs a picker over all 53 jobs and is
+     NOT built here. Refusing loudly beats a dead end. */
+  var fam = _inv.families[r.job_text || ""];
+  if(!fam || !fam.candidates || !fam.candidates.length){
+    invErr(id, "A split needs a list of units to split across, and this invoice names no community. "
+      + "Assign it to one job for now.");
+    return;
+  }
+  // Re-opening a stored split starts from what was stored, not from an empty form.
+  var units = [], amt = {};
+  if(r.lines && r.lines.length){
+    r.lines.forEach(function(l){
+      if(!l.job_no) return;
+      units.push(l.job_no); amt[l.job_no] = (Number(l.amount)||0).toFixed(2);
+    });
+  } else if(r._unit){ units.push(r._unit); }
+  r._split = { units: units, amt: amt };
+  r._unit = null;
+  invPaint();
+}
+function invSplitCancel(id){
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0];
+  if(r){ r._split = null; }
+  invPaint();
+}
+/* Harvest the boxes into state BEFORE any repaint. Without this the amounts live only in the
+   markup and the next repaint eats them — the 2026-08-21 defect, one screen over. */
+function invSplitSync(id){
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0];
+  if(!r || !r._split) return;
+  r._split.units.forEach(function(no){
+    var el = document.getElementById("sp-" + id + "-" + no);
+    if(el) r._split.amt[no] = el.value;
+  });
+}
+function invSplitToggle(id, jobNo){
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0];
+  if(!r || !r._split) return;
+  invSplitSync(id);
+  var i = r._split.units.indexOf(jobNo);
+  if(i < 0) r._split.units.push(jobNo);
+  else { r._split.units.splice(i, 1); delete r._split.amt[jobNo]; }
+  invPaint();
+}
+/* An even split of an odd number of cents. The remainder goes onto the FIRST lines a cent at a
+   time rather than being rounded away, because $670.00 across 3 units is 223.34/223.33/223.33 and
+   a split that totals $669.99 is refused by RY40H — correctly, and with a message about the
+   document rather than about arithmetic nobody performed. */
+function invSplitEven(id){
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0];
+  if(!r || !r._split || !r._split.units.length) return;
+  var n = r._split.units.length;
+  var cents = Math.round((Number(r.amount) || 0) * 100);
+  var base = Math.floor(cents / n), extra = cents - (base * n);
+  r._split.units.forEach(function(no, i){
+    r._split.amt[no] = ((base + (i < extra ? 1 : 0)) / 100).toFixed(2);
+  });
+  invPaint();
+}
+function invSplitTotal(r){
+  var t = 0;
+  (r._split ? r._split.units : []).forEach(function(no){
+    var v = parseFloat(r._split.amt[no]);
+    if(!isNaN(v)) t += Math.round(v * 100);
+  });
+  return t / 100;
+}
+function invSplitPicker(r, fam){
+  var id = r.id, sp = r._split, amount = Number(r.amount) || 0;
+  var total = invSplitTotal(r), off = Math.abs(total - amount) > 0.005;
+  var h = '<input type="hidden" id="job-' + esc(id) + '" value="">'
+    + '<div class="sub" style="width:100%;margin-bottom:3px">' + esc(fam.label)
+    + ' &mdash; split across which units?</div>'
+    + '<div style="display:flex;gap:3px;flex-wrap:wrap;width:100%;margin-bottom:4px">';
+  fam.candidates.forEach(function(c){
+    h += '<button class="pfill' + (sp.units.indexOf(c.no) >= 0 ? " on" : "")
+      + '" style="padding:2px 8px" title="' + esc(c.no + " · " + c.name) + '" '
+      + 'onclick="invSplitToggle(' + invArg(id) + ',' + invArg(c.no) + ')">'
+      + esc(invUnitLabel(c.name)) + '</button>';
+  });
+  h += '</div>';
+  if(sp.units.length){
+    h += '<div style="display:flex;gap:6px;flex-wrap:wrap;width:100%;align-items:center">';
+    sp.units.forEach(function(no){
+      var c = fam.candidates.filter(function(x){ return x.no === no; })[0] || { no:no, name:no };
+      h += '<span style="white-space:nowrap"><span class="sub">' + esc(invUnitLabel(c.name))
+        + '</span> <input id="sp-' + esc(id) + '-' + esc(no) + '" value="'
+        + esc(sp.amt[no] == null ? "" : sp.amt[no]) + '" inputmode="decimal" '
+        + 'onchange="invSplitSync(' + invArg(id) + ');invPaint()" style="width:78px"></span>';
+    });
+    h += '</div>';
+  }
+  h += '<div class="sub" style="width:100%;margin-top:4px">'
+    + '<button class="pfill" style="padding:1px 7px" onclick="invSplitEven(' + invArg(id) + ')">Even</button> '
+    + '<button class="pfill" style="padding:1px 7px" onclick="invSplitCancel(' + invArg(id) + ')">Cancel split</button> '
+    + '<span class="' + (off ? "m-r" : "m-g") + '" style="margin-left:6px">'
+    + fmt(total) + ' of ' + fmt(amount)
+    + (off ? ' &mdash; must account for the whole document' : ' &check;') + '</span></div>';
+  return h;
 }
 /* ⛔ THE PICK LIVES ON THE ROW, NOT IN THE DOM — 2026-08-21, ON THE OTHER SCREEN, VERBATIM.
    "if you select job then edit the file name - you have to reselect the job again": a selection
@@ -1077,6 +1220,33 @@ function invSave(id, ver){
   var job = r._unit || (jobEl ? (jobEl.value || "").trim() : "");
   var cc  = (document.getElementById("cc-" + id)||{}).value || "";
   var ms  = (document.getElementById("ms-" + id)||{}).value || "";
+
+  /* A SPLIT DOES NOT ASSIGN THE DOCUMENT TO A JOB, BECAUSE IT BELONGS TO SEVERAL. The lines carry
+     the jobs and must foot to the invoice (RY40H); `job_no` on the invoice stays null and
+     migration 054 clears `job_unassigned` once every line names a unit. Sending an `assign` as
+     well would pick one of the units and call it the document's job — which is the single wrong
+     number this whole exercise exists to stop producing. */
+  if(r._split){
+    invSplitSync(id);
+    var lines = r._split.units.map(function(no){
+      var nm = invJobName(no) || no;
+      return { job_no:no, amount:(r._split.amt[no] || "").trim(), job_text:r.job_text || null,
+               description:nm, cost_code:cc||null, mat_or_sub:ms||null,
+               cost_month:invMonthFor(r), assigned_pm:r.assigned_pm || null };
+    });
+    if(!lines.length){ invErr(id, "Choose the units this invoice is split across."); _inv.busy=false; return; }
+    if(lines.some(function(l){ return !l.amount || isNaN(parseFloat(l.amount)); })){
+      invErr(id, "Every unit in a split needs an amount. Use Even to fill them in.");
+      _inv.busy = false; return;
+    }
+    invPost("code", { id:id, month:invMonthFor(r), cost_code:cc||null, mat_or_sub:ms||null,
+      lines:lines, version:ver }).then(function(b){
+        if(b.ok && !(b.data && b.data.error)) r._split = null;
+        invAfter(id, b);
+      });
+    return;
+  }
+
   var first = job
     ? invPost("assign", { id:id, job_no:job, source:"manual", version:ver })
     : Promise.resolve({ ok:true, data:{ version:ver } });
