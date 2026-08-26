@@ -251,7 +251,12 @@ export default async function handler(req, res) {
            decoration, since the session that follows a sign-in is domain-wide by design (one cookie
            across civicscope.io and app.civicscope.io, which is what stops a second prompt). CivicScope
            admins are the deliberate exception. */
-        if (cfg.tenant && u.role !== 'admin' && u.muni_tenant && u.muni_tenant !== cfg.tenant) {
+        /* ⚠ NULL IS NOT A WILDCARD. This read `u.muni_tenant && u.muni_tenant !== cfg.tenant`, so a
+           row with no tenant short-circuited past the check and was admitted by EVERY village. The
+           water side enrols people by `water_wssn`, so an active operator row with no `muni_tenant`
+           is a perfectly ordinary thing to create — and it would have opened every gated hub. An
+           entitlement has to be granted, never inferred from an absent field. */
+        if (cfg.tenant && u.role !== 'admin' && u.muni_tenant !== cfg.tenant) {
           return res.status(200).json({
             ok: true, signedIn: false, wrongTenant: true, configured: usable,
             client_id: (usable && cfg.clientId) || null, provider: cfg.provider,
@@ -321,11 +326,14 @@ export default async function handler(req, res) {
            client accepted them because they hold an account in both, or because A's client id was
            reused) would be handed a session that `me` then honours. Per-village client ids only mean
            something if the allowlist is checked against the same tenant they were verified for. */
-        if (cfg.tenant && u.role !== 'admin' && u.muni_tenant && u.muni_tenant !== cfg.tenant) {
-          await logAttempt(req, { outcome: 'denied', email, google_sub: c.sub, user_id: u.id, reason: `enrolled for ${u.muni_tenant}, signing in to ${cfg.tenant}` });
+        // Same correction as in `me`: an absent muni_tenant is no entitlement, not a universal one.
+        if (cfg.tenant && u.role !== 'admin' && u.muni_tenant !== cfg.tenant) {
+          await logAttempt(req, { outcome: 'denied', email, google_sub: c.sub, user_id: u.id, reason: `enrolled for ${u.muni_tenant || 'no municipality'}, signing in to ${cfg.tenant}` });
           return res.status(200).json({
             ok: true, signedIn: false, email,
-            msg: `${email} is on the access list for ${u.muni_tenant}, not for ${cfg.label || cfg.tenant}.`,
+            msg: u.muni_tenant
+              ? `${email} is on the access list for ${u.muni_tenant}, not for ${cfg.label || cfg.tenant}.`
+              : `${email} is not on the access list for ${cfg.label || cfg.tenant}.`,
           });
         }
 
