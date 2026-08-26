@@ -1249,8 +1249,64 @@ and an assertion built on one passes vacuously. Build backslashes with `String.f
 or write patterns that need none — migration 047’s verify counts with a length-delta instead of a
 regex for exactly this reason.
 
+### The "Try:" chips are per-tenant and VERIFIED (migration 048, 2026-08-25)
+
+Keith: *"we should suggest questions that actually return answers"*.
+
+The four chips were one hardcoded array in `civicscope-muni/index.html`, shown identically to every
+tenant. They were written against **Centreville** and then inherited by **Bristol** — a different
+body of law in a different state. Measured against Bristol live: *"Who sits on the Planning
+Commission?"* came back **DECLINED** and *"Are golf carts allowed on the streets?"* only
+**PARTIAL**. Both were on the page.
+
+⛔ **That is worse than a question a resident types and we cannot answer.** A suggested question is
+the product telling somebody what it is good at, in their first ten seconds with it. If the first
+thing a Town clerk clicks comes back empty, the honest conclusion is that the tool does not work —
+and they are right to draw it, because **we** picked the question.
+
+`muni_tenants.sample_questions` (jsonb) now holds the chips per tenant, and nothing lands there
+that has not been **asked against that tenant live corpus and come back `answered`**.
+`scripts/verify-sample-questions.mjs` is the only supported writer:
+
+```
+node scripts/verify-sample-questions.mjs --tenant bristol --dry-run
+node scripts/verify-sample-questions.mjs --all
+```
+
+- `partial` is rejected too — a chip that half-answers invites the follow-up we cannot do.
+- `referred` is rejected — correct behaviour, but it advertises what the corpus does NOT cover.
+- The candidate pool is broad and generic; the corpus decides which survive. **Do not tune the pool
+  to make a tenant pass.** A tenant that cannot field four of them is a finding about its corpus,
+  and the answer is to ingest the missing document, not to nominate an easier question.
+- Null falls back to the generic list, so an unverified tenant still gets a prompt.
+
+⚠ **Re-run after any ingest.** A corpus change can retire a chip as easily as it can earn one, and
+a chip that silently stopped working is the whole failure this replaced. Outcomes also vary
+slightly run to run at the margin (a borderline question can move between `answered` and
+`partial`), so treat the set as a snapshot, not a proof for all time.
+
+Verified sets as at 2026-08-25 — note they overlap only partly, which is the point:
+
+| Bristol (Town) | Centreville (Village) |
+|---|---|
+| How tall can a fence be in a front yard? | How tall can a fence be in a front yard? |
+| What are the rules for keeping chickens? | How many dogs can I keep? |
+| Do I need a permit to hold a garage sale? | Do I need a permit to hold a garage sale? |
+| What are the rules for operating a business out of my home? | How tall can a building be in a residential district? |
+
+### The municipality mark is on the Ask page too (2026-08-25)
+
+`logo_url` (migration 039) was rendered on the hub but not on `/‹slug›/ask`, so Bristol arrived at
+an unbranded page from a branded one. Same markup and sizing as the hub — a reader crosses between
+them and it is one product. A tenant with no `logo_url` renders nothing rather than a gap.
+⚠ **Centreville has no `logo_url`** and therefore shows no mark on either surface.
+
 ## Open Action Items
 
+- **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The Try:
+  chips are verified against the live corpus (048); an ingest can retire one as easily as earn it.
+- **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it. Bristol
+  hotlinks the Town own PNG. Needs a logo file from the Village if Keith wants parity.
 - ⛔ **Bristol R-1 dimensional row does not reach the model — the ONE open retrieval defect, and it
   is now the only thing in the failure list.** The Elkhart County chunk is built, flagged
   `is_table`, and correctly headed; it loses on ranking. `node scripts/muni-usage.mjs --failures`
