@@ -2793,11 +2793,63 @@ export default async function handler(req, res) {
       const doc = rows[0] || null;
       if (doc) {
         const b = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${doc.batch_id}`
-          + '&select=folder,received_date,filed');
+          + '&select=folder,received_date,filed,pm_approved_at');
         if (b.ok) {
           const batch = (await b.json())[0];
           if (batch) {
             doc.batch_folder = batch.folder; doc.received_date = batch.received_date;
+
+            /* ===== THE STAMP GOES ON A DIGITAL APPROVAL AND NOTHING ELSE ===================
+               Keith, 2026-08-26: *"Let's implement item 8 for those invoices approved by logan.
+               The batch approval process where erica uploads the already approved invoices do not
+               need the stamp."* Right, and the reason is that the paper already carries it — those
+               folders were signed before they were scanned, so stamping them would print a second,
+               weaker claim on top of a real signature.
+
+               THE DECISION IS MADE HERE, NOT IN THE WORKER. The worker stamps if and only if it is
+               handed an `approval`, so "should this be stamped" has exactly one expression. Two
+               conditions, and both are necessary:
+                 · the batch is NOT marked `pm_approved_at` — nobody has said it came in signed;
+                 · a payable for this document exists and is `approved` — a PM actually pressed it.
+               A paper batch fails the first. A digital batch whose PM has not answered yet fails
+               the second, and the copy cannot happen before he answers anyway.
+
+               ⚠ IT CARRIES `identity_verified` THROUGH UNCHANGED. Until per-user sign-in that is
+               false for everyone, and the stamp says so rather than implying a verified signature —
+               a rubber stamp asserting more than the record holds is worse than no stamp. */
+            let approval = null;
+            if (!batch.pm_approved_at) {
+              try {
+                const rb = await sb('ryc_invoice_batches?company_id=eq.ryc&select=id'
+                  + `&source_message_id=eq.${encodeURIComponent('scan:' + doc.batch_id)}`);
+                const regB = rb.ok ? (await rb.json())[0] : null;
+                if (regB) {
+                  /* Matched on (vendor, amount) — the pair `ryc_register_invoice` already dedupes
+                     on. There is no foreign key from a batch document to its payable and inventing
+                     one would be a migration for a lookup that has a natural key. */
+                  const ir = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${regB.id}`
+                    + '&review_state=eq.approved'
+                    + '&select=vendor_name,amount,cost_month,cost_code,mat_or_sub,reviewed_by,'
+                    + 'reviewed_at,identity_verified&limit=500');
+                  if (ir.ok) {
+                    const want = `${vendorKey(doc.vendor)}|${amountKey(doc.amount)}`;
+                    const hit = (await ir.json())
+                      .find(i => `${vendorKey(i.vendor_name)}|${amountKey(i.amount)}` === want);
+                    if (hit) {
+                      approval = {
+                        month: hit.cost_month || null,
+                        cost_code: hit.cost_code || null,
+                        mat_or_sub: hit.mat_or_sub || null,
+                        pm: hit.reviewed_by || null,
+                        approved_at: hit.reviewed_at || null,
+                        identity_verified: !!hit.identity_verified,
+                      };
+                    }
+                  }
+                }
+              } catch { /* no stamp is a safe outcome; a wrong stamp is not */ }
+            }
+            doc.approval = approval;
             /* WHERE THE #AScans MIRROR WENT — read off the batch's own verification record, never
                recomputed from today's date. The daily folder is named for the day the scan was
                PROCESSED, and a rename can land days later, so deriving it from now() would point
