@@ -209,14 +209,49 @@ export default async function handler(req, res) {
      Stripped for RETRIEVAL only. The model still receives the question exactly as it was typed —
      the reader's phrasing is theirs, and "In Bristol" may matter to how the answer reads. If
      removal would leave almost nothing (somebody asking only about the name), the original stands. */
+  /* ⚠ TWO QUERIES, BECAUSE THE NAME IS NOISE IN ONE CORPUS AND POISON IN THE OTHER.
+
+     In the tenant's OWN corpus the name is merely uninformative — every document is about that
+     place — but it can still be load-bearing: a question that CONTRASTS two municipalities means
+     something different without it. In the SHARED corpus it is actively destructive: the Elkhart
+     County ordinance never says "Bristol", so including the word breaks the strict all-terms pass
+     and drops the county to an OR fallback where the R-1 table cannot win.
+
+     The previous rule stripped both the same way and guarded with a three-word floor, which failed
+     in both directions at once: `Bristol R-1 setbacks` leaves two words, so the floor kept the
+     original and re-created the very failure the stripping exists to prevent; and
+     `Does Centreville or Constantine regulate this parcel?` had Centreville removed even though
+     the comparison is the whole question.
+
+     So: the shared query always drops the name. The own query drops it only when it is doing no
+     work — a leading address phrase ("In Bristol, …"), or anywhere in a question that is not
+     drawing a comparison. Either way the MODEL still receives the question exactly as typed. */
   const placeName = String(tenant.label || '').split(',')[0]
     .replace(new RegExp('^\\s*(Village|Town|City|County|Township)\\s+of\\s+', 'i'), '').trim();
-  let searchQuery = question;
+
+  const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let searchQuery = question;      // the tenant's own corpus
+  let sharedQuery = question;      // the corpus it delegates to
   if (placeName.length > 2) {
-    const stripped = question
-      .replace(new RegExp('\\b' + placeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi'), ' ')
-      .replace(/\s{2,}/g, ' ').trim();
-    if (stripped.split(/\s+/).filter(Boolean).length >= 3) searchQuery = stripped;
+    const name = esc(placeName);
+    const anywhere = new RegExp('\\b' + name + '\\b', 'gi');
+    // "In Bristol," / "For Centreville:" / "Bristol -" — the name as an address, not as a subject.
+    const leading = new RegExp('^\\s*(?:in|for|at|within|about)?\\s*' + name
+      + '\\b[,\\-:]*\\s*', 'i');
+    /* A question weighing one place against another needs both names kept. `between` is included
+       because "the difference between Bristol and Elkhart County" is the same shape. */
+    const comparative = /\b(?:or|vs\.?|versus|between|compared\s+(?:to|with))\b/i.test(question);
+
+    const tidy = (t) => t.replace(/\s{2,}/g, ' ').replace(/^[,\-:\s]+/, '').trim();
+    const keepIfEmpty = (t) => (/[a-z0-9]/i.test(t) ? t : question);
+
+    /* Leading phrase FIRST, then any remaining mention. Removing the name on its own leaves the
+       preposition and comma stranded — "In Bristol, what…" became "In , what…", which is worse
+       than leaving it alone: the tsquery gains a meaningless term and loses nothing. */
+    const stripAll = (t) => tidy(t.replace(leading, ' ').replace(anywhere, ' '));
+    const stripLead = (t) => tidy(t.replace(leading, ' '));
+    sharedQuery = keepIfEmpty(stripAll(question));
+    searchQuery = comparative ? keepIfEmpty(stripLead(question)) : keepIfEmpty(stripAll(question));
   }
 
   // ---- retrieval -----------------------------------------------------------------------
@@ -254,11 +289,12 @@ export default async function handler(req, res) {
      A second retrieval against the shared tenant, merged — the same mechanism already proven for
      the village website and for printed tables. The town keeps every seat it won; the county is
      added. Passages carry their own citation, so the reader can see which government said it. */
+  let sharedOk = null;   // null = no shared corpus configured for this tenant
   if (tenant.shares_corpus_with) {
     try {
       const shared = await sb('rpc/muni_search', {
         method: 'POST',
-        body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: searchQuery, p_limit: 6 }),
+        body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: sharedQuery, p_limit: 6 }),
       });
       /* ⛔ INTERLEAVED, NOT APPENDED — "the county is added" meant "added where the context budget
          throws it away". The same failure the table guarantee documents below, one level up, and it
@@ -273,6 +309,7 @@ export default async function handler(req, res) {
          the previous phrasing it would have buried the town. Comparing them looks principled and is
          not. Interleaving needs no such comparison: each corpus keeps its own ordering and is
          guaranteed seats at the front, which is all this has ever needed. */
+      sharedOk = Boolean(shared);
       if (shared && shared.length) {
         const own = hits || [];
         const merged = [];
@@ -282,7 +319,16 @@ export default async function handler(req, res) {
         }
         hits = merged;
       }
-    } catch { /* the town's own corpus still answers */ }
+    } catch {
+      /* ⛔ NOT NOTHING. For a tenant that DELEGATED its zoning, the shared corpus is not an
+         enhancement — it is the law. Bristol's own 719 documents contain no setback, no use
+         table and no variance procedure; those live in the Elkhart County ordinance. Swallowing
+         this failure meant answering a zoning question from the town's website and reporting a
+         confident `declined` — indistinguishable from a corpus that genuinely lacks the answer.
+         The flag travels into the outcome log so a degraded answer is never mistaken for a
+         complete one. */
+      sharedOk = false;
+    }
   }
 
   /* ⛔ AND THE SAME GUARANTEE FOR A PRINTED TABLE, FOR THE SAME REASON (migration 038).
@@ -325,7 +371,7 @@ export default async function handler(req, res) {
              overlays and general provisions, so the specific one a question is about routinely sits
              third — R-1 Building Placement ranked #2 and #3 with the actual dimensional row at #3.
              The town own-corpus guarantee stays at two; a county book is simply a bigger haystack. */
-          body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: searchQuery, p_limit: 3 }),
+          body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: sharedQuery, p_limit: 3 }),
         }).catch(() => null);
         if (shTbl && shTbl.length) tbl.push(...shTbl);
       }
@@ -426,6 +472,7 @@ export default async function handler(req, res) {
 
   // Build the passage block, bounded so a broad question cannot send an unbounded prompt.
   const used = [];
+  const dropped = [];
   let context = '';
   for (const h of hits) {
     const day = h.text_source === 'web' ? fmtDay(readAt[h.doc_id]) : null;
@@ -439,10 +486,39 @@ export default async function handler(req, res) {
       : 'text';
     const where = [h.heading, h.citation].filter(Boolean).join(' — ');
     const block = `[${used.length + 1}] (${label}) ${where}\n${h.content}\n\n`;
-    if (context.length + block.length > CONTEXT_CHARS) break;
+    /* ⛔ SKIP THE ONE THAT DOES NOT FIT; DO NOT ABANDON THE REST.
+       This was `break`, so the FIRST oversized passage ended the loop and every later passage was
+       discarded whether or not it would have fitted. A printed table is one indivisible chunk of
+       three to seven thousand characters, so the oversized passage is routinely a table — and the
+       thing thrown away behind it is routinely the small county passage that answers the
+       question. Worked: at 28,500 used, a 3,000-character table cannot fit and a 900-character
+       passage carrying the answer never gets considered, with 1,500 characters still free.
+       `continue` costs nothing — the loop is at most a few dozen passages — and the ordering that
+       decides precedence is unchanged. */
+    if (context.length + block.length > CONTEXT_CHARS) { dropped.push(h); continue; }
     context += block;
     used.push(h);
   }
+
+  /* ⛔ AND SAY SO. Three separate defects have now been caused by this budget quietly discarding
+     passages — guaranteed tables appended past it, Bristol's whole county corpus starved by the
+     town's own website hits, and the skip above. Every one of them was invisible because a full
+     context and a truncated one produce the same shaped answer and the same log row. What is
+     dropped is now counted, and counted BY SOURCE, because "which corpus lost its seat" is the
+     question every one of those investigations actually had to answer. */
+  const droppedBySource = {};
+  for (const h of dropped) {
+    const k = h.tenant && h.tenant !== slug ? `shared:${h.tenant}` : (h.collection || 'unknown');
+    droppedBySource[k] = (droppedBySource[k] || 0) + 1;
+  }
+  const retrieval = {
+    retrieved: hits.length,
+    used: used.length,
+    dropped: dropped.length,
+    chars: context.length,
+    ...(dropped.length ? { dropped_by_source: droppedBySource } : {}),
+    ...(sharedOk === false ? { shared_corpus_unavailable: tenant.shares_corpus_with } : {}),
+  };
 
   /* ── WHOSE ANTHROPIC BILL THIS LANDS ON (migration 035, 2026-08-25) ──────────────────────────
      Keith: *"I would like the civicscope - centreville to be wired to its own Claude API key."*
@@ -465,7 +541,7 @@ export default async function handler(req, res) {
        missing so the fix is one step. */
     const own = process.env[tenant.anthropic_key_env];
     if (!own) {
-      await logQuestion(used.length, false, { outcome: 'error' });
+      await logQuestion(used.length, false, { outcome: 'error', retrieval });
       return res.status(503).json({ error: `Answering service is not configured for this municipality (${tenant.anthropic_key_env} is not set).` });
     }
     key = own;
@@ -492,13 +568,13 @@ export default async function handler(req, res) {
       }),
     });
     if (!r.ok) {
-      await logQuestion(used.length, false, { outcome: 'error' });
+      await logQuestion(used.length, false, { outcome: 'error', retrieval });
       // Status only — the body echoes the prompt.
       return res.status(502).json({ error: `Answering service returned ${r.status}.` });
     }
     const d = await r.json();
     if (d.stop_reason === 'refusal') {
-      await logQuestion(used.length, false, { outcome: 'error' });
+      await logQuestion(used.length, false, { outcome: 'error', retrieval });
       return res.status(200).json({
         ok: true, found: false, sources: [],
         answer: 'I am not able to answer that one. Try rephrasing it as a question about the '
@@ -507,7 +583,7 @@ export default async function handler(req, res) {
     }
     answer = (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
   } catch {
-    await logQuestion(used.length, false, { outcome: 'error' });
+    await logQuestion(used.length, false, { outcome: 'error', retrieval });
     return res.status(503).json({ error: 'Answering service unreachable.' });
   }
 
@@ -568,6 +644,7 @@ export default async function handler(req, res) {
 
   await logQuestion(used.length, !!outcome && outcome !== 'declined' && outcome !== 'no_corpus', {
     outcome: outcome || 'unknown',
+    retrieval,
     cited_collections: cited,
     used_table: usedTable,
   });
