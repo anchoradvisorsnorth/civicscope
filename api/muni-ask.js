@@ -310,6 +310,13 @@ export default async function handler(req, res) {
          not. Interleaving needs no such comparison: each corpus keeps its own ordering and is
          guaranteed seats at the front, which is all this has ever needed. */
       sharedOk = Boolean(shared);
+      /* ⚠ ORIGIN IS RECORDED HERE BECAUSE THE ROW DOES NOT CARRY IT. `muni_search` returns
+         chunk, doc, title, collection, citation, heading, url, content, text_source and rank —
+         no tenant. So "was this the county's passage or the town's" is knowable only at the
+         moment of the merge. Deriving it later from `collection` cannot work at all here: Bristol
+         and Elkhart County both file under 'Code of Ordinances', which is precisely the pair the
+         distinction exists to tell apart. */
+      for (const h of shared || []) h._from = `shared:${tenant.shares_corpus_with}`;
       if (shared && shared.length) {
         const own = hits || [];
         const merged = [];
@@ -373,6 +380,9 @@ export default async function handler(req, res) {
              The town own-corpus guarantee stays at two; a county book is simply a bigger haystack. */
           body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: sharedQuery, p_limit: 3 }),
         }).catch(() => null);
+        // Same origin tag as the ranked merge above — a guaranteed county table that the budget
+        // then drops is the single most useful thing this record can name.
+        for (const h of shTbl || []) h._from = `shared:${tenant.shares_corpus_with}`;
         if (shTbl && shTbl.length) tbl.push(...shTbl);
       }
       const have = new Set(hits.map((h) => h.chunk_id));
@@ -508,7 +518,7 @@ export default async function handler(req, res) {
      question every one of those investigations actually had to answer. */
   const droppedBySource = {};
   for (const h of dropped) {
-    const k = h.tenant && h.tenant !== slug ? `shared:${h.tenant}` : (h.collection || 'unknown');
+    const k = h._from || h.collection || 'unknown';
     droppedBySource[k] = (droppedBySource[k] || 0) + 1;
   }
   const retrieval = {
