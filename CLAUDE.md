@@ -1441,6 +1441,64 @@ Two rules came out of it, and they pull in opposite directions on purpose:
 End state: Centreville has exactly one flagged table (Table 4-4), Elkhart 106 (all ingester-set),
 and both setback answers verified unchanged.
 
+### ⛔ A PARTIAL INGEST CAN NO LONGER OVERWRITE A BETTER ONE (2026-08-26)
+
+`--force` re-ingests whether or not the text changed, which is what you want after a chunker fix.
+What you do not want is 2026-08-25: the OCR key resolved to an encrypted blob, every OCR call 401ed,
+**and the document was written anyway** — `mixed` to `text-layer`, silently dropping the
+transcription of every page pdftotext cannot read, one of which is the TC Town Character
+Preservation Overlay that applies to Bristol. The run reported `1 written` and exited 0.
+
+Nothing about that was detectable downstream. The corpus just got quieter.
+
+`isDowngrade(stored, incoming)` in `muni-corpus-lib.mjs` now refuses any write that would lower a
+document transcription quality, in BOTH ingesters. `mixed` and `ocr` rank equal — both mean "pages
+a machine could not read were transcribed" — and the only thing prevented is falling back to a text
+layer already known to be insufficient. `--allow-downgrade` is the explicit opt-in. A refusal is
+counted, printed, and **sets exit code 2**: an ingest that declined to do what it was asked must not
+look like one that succeeded.
+
+Verified by reproducing the exact failure with a deliberately invalid key: `REFUSED`, exit 2,
+document still `mixed`. The guard then blocked a legitimate restore too (the restore had omitted
+`--ocr`, so it really was producing text-layer) — which is the guard working.
+
+### ⛔ AND TESTING THAT GUARD EXPOSED A WORSE ONE: `--rechunk` HAD NEVER PRESERVED TABLES
+
+The `--rechunk` branch reads `prev.segments` to keep transcribed table pages whole, and carries a
+six-line comment saying that without it `--rechunk` silently undoes the table fix. **The comment was
+right and the code never worked**: the `muni_docs` SELECT that builds `prev` did not fetch the
+`segments` column, so `prev.segments` was ALWAYS undefined. Every `--rechunk` therefore wrote
+`segments: null` and fell back to the paragraph chunker.
+
+Running it on the Centreville zoning book to test the downgrade guard did exactly that: Table 4-4
+split back across 6 chunks, filed under "Section 4.6 — Special District Provisions", and the setback
+question started answering *"The passages do not contain the R-1 dimensional table"* — the original
+defect, restored in full, by the command whose documented purpose is improving retrieval.
+
+Restored by re-running the ingest with OCR (19 pages, ~$0.67): 631 chunks, 23 segments, Table 4-4
+whole at 3,265 characters, answer verified. The SELECT now fetches `segments`.
+
+### One judgement, two thresholds — `isTablePage` vs `tabularPages`
+
+| question | who asks | threshold | expensive error |
+|---|---|---|---|
+| which pages of this PDF must not be split? | `tabularPages`, whole document | minRows 2 | a MISS — splits a table from its header row |
+| is this one page actually a table? | `isTablePage`, per page | **minRows 4 / minCells 5** | a FALSE POSITIVE — `muni_search_tables` reserves a seat for it |
+
+The strict test exists because at the permissive threshold the Centreville ordinance TITLE PAGE
+scores 3 rows — "16-48 / 18-18 / 18-19" are page references and the cell pattern cannot tell them
+from measurements — as does a page of Planning Commission bylaws. Table 4-4 scores 9. Both were
+flagged `is_table` twice during this work before the thresholds were separated.
+
+⚠ **`segments` holds two kinds and only one is authoritative.** A `kind: table` written by
+`tabularPages` came from scanning the whole PDF with the page in hand; a rescued page is judged by
+`isTablePage`. A retro pass may ADD a flag on inference but must **remove only on evidence** — a
+script written to enforce that rule broke it moments later, re-judging Elkhart 106 ingester-detected
+table pages with the strict per-page test and demoting 78 of them. Restored.
+
+End state: Centreville 4 flagged tables (4-1 to 4-4, nothing else), Elkhart 106, Bristol 0 (it has
+no tables of its own — it reads the county ordinance). Both setback answers verified.
+
 ## Open Action Items
 
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The Try:
@@ -1453,11 +1511,10 @@ and both setback answers verified unchanged.
 - ✅ **Centreville re-ingest NOT needed (2026-08-25)** — measured: 0 of 23 segments ambiguous, 0
   placed differently by the monotonic scan. Its tables are captioned so pages open distinctly. The
   67% no-heading figure was newsletters, not law. See the section above.
-- ⚠ **`tabularPages` minRows 2 gives false positives on OCR pages carrying page references**
-  (a title page listing "16-48 / 18-18 / 18-19" scored 3 rows). Left permissive at ingest
-  deliberately — a miss splits a real table from its header row, and Elkhart continuation pages
-  need it. `reconcile-table-flags.mjs` uses minRows 4 / minCells 5 instead. If LIVE detection ever
-  starts flagging prose, this is the knob.
+- ✅ **Two thresholds, settled (2026-08-26)** — `tabularPages` stays permissive for whole-document
+  detection; `isTablePage` (minRows 4 / minCells 5) judges a single page. See the table above.
+- ⚠ **6 segments across the corpora match no chunk exactly** (`reconcile-table-flags.mjs` reports
+  them). Left alone rather than guessed at. Worth a look if a table ever goes missing.
 - ⛔ **`--force` overwrites a good ingest with a worse one when OCR fails.** It downgraded the
   Elkhart ordinance from `mixed` to `text-layer` on a 401 and reported success. A partial ingest
   should refuse to replace a document that was previously rescued.
