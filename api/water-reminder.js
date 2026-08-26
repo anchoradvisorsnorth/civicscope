@@ -54,7 +54,12 @@ async function sb(pathAndQuery, init = {}) {
     },
   });
   const body = await r.text();
-  if (!r.ok) throw new Error(`supabase ${r.status}: ${body.slice(0, 300)}`);
+  if (!r.ok) {
+    // `.status` so a caller can tell a lost race (409 on the unique index) from a real failure.
+    const err = new Error(`supabase ${r.status}: ${body.slice(0, 300)}`);
+    err.status = r.status;
+    throw err;
+  }
   return body ? JSON.parse(body) : null;
 }
 
@@ -223,6 +228,38 @@ export default async function handler(req, res) {
 
       if (dry) { out.push({ ...step, outcome: 'would send', to: to_, subject: msg.subject, link }); continue; }
 
+      /* ⛔ CLAIM THE PERIOD BEFORE SENDING, NOT AFTER.
+         This read the reminders table, sent the email, then recorded the row. Two schedulers —
+         and there are two, the Vercel cron and the VM — can both complete the read before either
+         writes, so both send and Michelle gets the reminder twice; the unique index then rejects
+         the loser's INSERT, after its email has already left. An index cannot un-send mail.
+
+         The insert IS the lock: `water_mor_reminders_period_idx` is unique and partial on
+         outcome='sent', so exactly one runner can create the 'sent' row for a period. A 409 means
+         somebody else owns this period — skip, and say so, rather than treating it as an error.
+
+         A failed send then RELEASES the claim by moving the row to 'failed', which the partial
+         index does not cover, so the next run may retry. That is the right trade: the previous
+         order could double-send, this one can at worst leave a claimed-but-unsent period if the
+         process dies in the gap — and that surfaces as silence on a monitored job, whereas a
+         duplicate regulatory reminder reaches the clerk with no signal at all. */
+      let claim;
+      try {
+        [claim] = await sb('water_mor_reminders', {
+          method: 'POST', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify([{
+            supply_id: supply.id, report_year: y, report_month: m, kind: 'due-soon',
+            recipients: to_, subject: msg.subject, outcome: 'sent',
+          }]),
+        });
+      } catch (e) {
+        if (e.status === 409) {
+          out.push({ ...step, skipped: 'another run claimed this period first' });
+          continue;
+        }
+        throw e;
+      }
+
       let providerId = null, outcome = 'sent', detail = null;
       try {
         providerId = await sendMail({ to: to_, subject: msg.subject, html: msg.html, text: msg.text });
@@ -230,13 +267,12 @@ export default async function handler(req, res) {
         outcome = 'failed';
         detail = String(e.message || e).slice(0, 400);
       }
-      await sb('water_mor_reminders', {
-        method: 'POST', headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify([{
-          supply_id: supply.id, report_year: y, report_month: m, kind: 'due-soon',
-          recipients: to_, provider_id: providerId, subject: msg.subject, outcome, detail,
-        }]),
-      });
+      if (claim && claim.id) {
+        await sb(`water_mor_reminders?id=eq.${claim.id}`, {
+          method: 'PATCH', headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ provider_id: providerId, outcome, detail }),
+        }).catch(() => { /* the mail is the deliverable; bookkeeping must not fail the run */ });
+      }
       out.push({ ...step, outcome, to: to_, provider_id: providerId, ...(detail ? { detail } : {}) });
     }
 
