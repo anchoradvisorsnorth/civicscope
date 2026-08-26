@@ -1806,9 +1806,8 @@ Centreville gives 30/10/40 from Table 4-4.
 
 ## Open Action Items
 
-- ✅ **Codex review 2026-08-26 CLOSED — all 15 findings fixed.** Report:
-  `codex-reviews/reports/REVIEW_civicscope-muni-ask-and-water_2026-08-26.md`. Migrations 050–052
-  and the Water work are recorded in the sections above.
+- **Michelle has not used the new edit path yet.** The review page now offers Edit on every line and
+  Add on every gap; the server paths are verified but no human has exercised the UI.
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The chips
   are verified against the live corpus (048); an ingest can retire one as easily as earn it.
   Done 2026-08-26 after the zoning-book restore. Its own traffic is tagged `verifier` (049) so it
