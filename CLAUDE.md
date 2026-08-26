@@ -1542,14 +1542,45 @@ Centreville needed 6 candidates to find 4, against 11 the day before: golf carts
 both moved from `partial` to `answered`. Consistent with the table restoration, though outcomes do
 vary at the margin run to run, so treat it as a snapshot rather than proof.
 
+### ✅ "What are the town hall hours?" — NOT A BUG. Bristol does not publish them (2026-08-26)
+
+The last item in the failure list turned out to be the report accusing the tool of something it did
+not do. Investigated end to end:
+
+- The corpus carries **no** office hours for Bristol — no "Monday through Friday", no "office
+  hours", nothing.
+- The crawl is **not** the problem: `/town-hall-and-staff-contact-information`, `/contact-town-staff`
+  and `/venue/bristol-town-hall` are all ingested.
+- Fetched live and checked: **the Town of Bristol does not publish its counter hours anywhere on its
+  own website.** The only hours-like text on the staff page is the Council work-session schedule.
+
+And the answer was already the right one — hours are not published, here is the address, the meeting
+schedule, the Clerk number `(574) 848-7007` with the date the page was read, and the online
+bill-pay link.
+
+⛔ **So the defect was in `muni-usage.mjs`, which printed "RETRIEVAL — 14 passages matched and none
+answered it".** That asserts a diagnosis the data cannot support. `declined` means the corpus was
+searched and nothing carried the answer; whether that is ranking or a fact the village never
+published is exactly what the row does not know. Sending somebody to debug ranking for a fact that
+does not exist wastes the trip — the same failure as calling a good referral a defect, one layer up.
+
+Now reads `UNANSWERED — n passages matched, none carried the answer (retrieval, or the village never
+published it)`, and the header is `COULD NOT ANSWER` rather than `SOMETHING IS BROKEN`. State the
+fact; name both readings; let the reader decide.
+
+⚠ This is a **client** finding, not an engineering one: if Keith wants the tool to answer it, the
+hours have to come from the Town. Nothing in the code will produce them.
+
 ## Open Action Items
 
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The chips
   are verified against the live corpus (048); an ingest can retire one as easily as earn it.
   Done 2026-08-26 after the zoning-book restore. Its own traffic is tagged `verifier` (049) so it
   no longer pollutes the usage report.
-- ⛔ **Bristol cannot answer "What are the town hall hours?"** — 14 passages retrieved, none of
-  them the hours. A counter-level question and a real corpus gap, not a retrieval artefact.
+- **Bristol town-hall hours: ask the Town.** Not a bug — verified 2026-08-26 that Bristol
+  publishes no counter hours on its own site, and the tool already answers with the address, the
+  meeting schedule and the Clerk number. Only Keith can close this, by getting the hours from the
+  Town and adding them to the corpus.
 - **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it. Bristol
   hotlinks the Town own PNG. Needs a logo file from the Village if Keith wants parity.
 - ✅ **Bristol R-1 setbacks ANSWER (2026-08-25)** — three defects: the town own name poisoning
