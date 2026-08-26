@@ -2757,16 +2757,39 @@ export default async function handler(req, res) {
          the new one, and the #AScans mirror was never renamed under ANY ending. Claiming a finished
          row for a rename is safe because the rename reports through `doc_rename_done`, which
          cannot set `reconciled_at`. */
-      const r = await sb('ryc_batch_documents?company_id=eq.ryc&copy_error=is.null'
+      /* ⛔ `limit=1` ON A PATCH DOES NOTHING, AND THIS LEASED THE WHOLE QUEUE EVERY TIME.
+         PostgREST applies `limit` to a GET; on an UPDATE it is ignored. So this single statement
+         set `copy_error = 'working'` on EVERY claimable row, handed back `rows[0]`, and left the
+         others leased to a worker that was never going to touch them — stranded until a person
+         cleared them by hand.
+
+         INVISIBLE UNTIL THE QUEUE HELD MORE THAN ONE. With a single document it behaves exactly as
+         intended, which is why it survived from the day it was written. Greencroft put NINE
+         claimable rows in at once: the worker leased nine, copied one, and went idle with eight
+         held. Keith, watching the screen say "copying to SharePoint…" for twelve minutes:
+         *"looks like it is still working."* It was not.
+         The tell was in the data — all eight carried the SAME `updated_at` to the microsecond,
+         because one literal timestamp was written by one UPDATE.
+
+         PICK, THEN CLAIM. The `id=eq.… & copy_error=is.null` PATCH keeps exactly the race-safety
+         the original comment describes: two workers racing the same row means the loser's PATCH
+         matches nothing and returns zero rows, and it goes back to polling. What it no longer does
+         is take out a lease on work it is not doing. */
+      const pick = await sb('ryc_batch_documents?company_id=eq.ryc&copy_error=is.null'
         + '&or=(and(reconciled_at.is.null,disposition.eq.job_folder),'
         + 'and(reconciled_at.is.null,retire_path.not.is.null),'
         + 'rename_pending.is.true)'
-        + '&order=updated_at.asc&limit=1', {
+        + '&select=id&order=updated_at.asc&limit=1');
+      if (!pick.ok) return res.status(502).json({ error: 'claim failed' });
+      const cand = (await pick.json())[0];
+      if (!cand) return res.status(200).json({ ok: true, document: null });
+      const r = await sb(`ryc_batch_documents?company_id=eq.ryc&id=eq.${cand.id}&copy_error=is.null`, {
         method: 'PATCH', headers: { Prefer: 'return=representation' },
         body: JSON.stringify({ copy_error: 'working', updated_at: new Date().toISOString() }),
       });
       if (!r.ok) return res.status(502).json({ error: 'claim failed' });
       const rows = await r.json();
+      // Zero rows = another worker claimed it between the pick and the PATCH. Poll again.
       const doc = rows[0] || null;
       if (doc) {
         const b = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${doc.batch_id}`
@@ -2863,7 +2886,19 @@ export default async function handler(req, res) {
          a worker that dies leaves a row a human can see, not one that silently re-runs. */
       const want = String(body.state || '') === 'confirmed' ? 'confirmed' : 'uploaded';
       const next = want === 'confirmed' ? 'filing' : 'rendering';
-      const r = await sb(`ryc_batch_jobs?company_id=eq.ryc&status=eq.${want}&order=created_at.asc&limit=1`, {
+      /* ⛔ SAME DEFECT AS `doc_copy_claim`, FOUND IN THE SAME SWEEP (2026-08-26): `limit=1` on a
+         PATCH is ignored by PostgREST, so this moved EVERY batch in `uploaded` to `rendering` (or
+         every `confirmed` to `filing`), returned one, and left the rest sitting in a working state
+         no worker was working. Worse here than on a document, because the batch's STATUS is what
+         the board reads — a stranded batch reports "rendering pages" indefinitely.
+         Latent while the front office scanned one folder at a time; today there were several.
+         Pick, then claim conditionally: the loser of a race matches zero rows and polls again. */
+      const pick = await sb(`ryc_batch_jobs?company_id=eq.ryc&status=eq.${want}`
+        + '&select=id&order=created_at.asc&limit=1');
+      if (!pick.ok) return res.status(502).json({ error: 'claim failed' });
+      const cand = (await pick.json())[0];
+      if (!cand) return res.status(200).json({ ok: true, job: null });
+      const r = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${cand.id}&status=eq.${want}`, {
         method: 'PATCH', headers: { Prefer: 'return=representation' },
         body: JSON.stringify({ status: next, claimed_at: new Date().toISOString(),
           phase_note: next === 'filing' ? 'filing to SharePoint' : 'rendering pages',
