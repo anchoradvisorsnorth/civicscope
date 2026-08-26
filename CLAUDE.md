@@ -1188,6 +1188,67 @@ Verified live after deploy: Bristol setback → `declined`, dog licence → `ref
 - **asked more than once** — the shortlist for what the village should publish, and how you notice
   one person retrying a question that keeps failing.
 
+### ⛔ "Village Website" WAS A LITERAL STRING IN SEVEN PLACES, AND BRISTOL IS A TOWN (migration 047, 2026-08-25)
+
+The usage report printed `WHAT ANSWERS GET CITED -> Village Website` for **Bristol**, a Town. The
+collection name is not internal: it is printed under every answer as the source. Keith had already
+given this correction once — *"Bristol is a town - not a villiage - village website and footer
+language need to be changed"* — and migration 039 answered it with `unit_noun` for the hub, the
+footer and the logo. **The data layer never got the memo**: 143 Bristol documents were still filed
+under the literal string.
+
+⚠ **The rename was not free, and that is the whole reason it is a migration.** Migration 031 gives
+`Village Website` a ranking weight of **1.10**, matched as an exact string in a simple
+`case d.collection`. Renaming the data alone would have dropped Bristol to the 1.00 default —
+silently un-ranking its entire website corpus, no error anywhere, the only symptom being worse
+answers. **And the deploy gate that exists to prove that weight is load-bearing
+(`verify-muni-website-source.mjs`) defaulted to `--tenant centreville`, so it would have gone on
+passing.** The gate now resolves the collection from the tenant, and it passes for both.
+
+So the weight matches the **concept**, not one spelling of it: any collection ending in `Website`.
+A City or a County ingested tomorrow inherits it without another migration. Seven call sites moved
+together — `muni_search` (both weight blocks), the `muni_docs` rows, the ingester, the deploy gate,
+the website guarantee in `api/muni-ask.js`, and the primary/secondary split.
+
+### ⛔ AND THE PRIMARY/SECONDARY SPLIT WAS ALREADY BROKEN — BY AN INVISIBLE BYTE
+
+While fixing the above, Bristol’s `Town Website` came back **secondary**. So did Centreville’s
+`Village Website`. The source said, plainly:
+
+```js
+|| /\bWebsite$/.test(String(h.collection || ''))
+```
+
+**That is not what was in the file.** The `\b` was a real **U+0008 backspace character**, written by
+a patch script whose escape the shell had eaten. The regex matched a control byte followed by
+`Website` — it could never match anything. `grep`, `sed` and the terminal all render U+0008 as
+nothing, so the line *read as correct* in every tool used to inspect it, including a fetch of the
+deployed file straight from GitHub.
+
+Half an hour went into confirming the deployment was live — the Vercel alias, the deployment id,
+the commit sha, the CDN cache header — all of which said production was running exactly this code.
+**They were right. The code was wrong in a way that could not be seen.** What found it:
+
+```bash
+node -e "fs.readFileSync(f,'utf8').split(/?
+/).forEach((l,i)=>console.log(i+1, JSON.stringify(l)))"
+```
+
+`JSON.stringify` is the tool. It renders U+0008 as `\b` and a real backslash as `\` — the only
+cheap way to tell them apart. **When behaviour contradicts source that looks correct, dump the line
+through `JSON.stringify` before doubting the deployment.**
+
+Impact: since the authority split shipped, **no village website had ever been marked primary** —
+every website citation was presented to readers as a secondary source. Verified after the fix:
+Centreville `Village Website` → primary, Bristol `Town Website` → primary.
+
+⚠ Every patch in this session that wrote a backslash through a heredoc was mangled the same way
+(`s` → `s`, `
+` → newline, `.` → `.`). A mangled regex still **runs**; it just matches nothing,
+and an assertion built on one passes vacuously. Build backslashes with `String.fromCharCode(92)`,
+or write patterns that need none — migration 047’s verify counts with a length-delta instead of a
+regex for exactly this reason.
+
 ## Open Action Items
 
 - ⛔ **Bristol R-1 dimensional row does not reach the model — the ONE open retrieval defect, and it
