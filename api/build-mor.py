@@ -81,6 +81,21 @@ EP_ROW0 = 8
 DIST_ROW0 = 6
 FEED_COL = {'chlorine': 3, 'phosphate': 8, 'fluoride': 13, 'ph_adjust': 18}
 
+# Bacti & Cl Res: the state form splits ROUTINE from REPEAT samples into two fixed blocks, and
+# its own formulas name those exact ranges -- COUNTA(K12:K31) is the routine count, and the
+# average/min/max residuals are AVERAGE/MIN/MAX(L12:L31,L36:L44). So the block bounds are not a
+# guess: writing inside them makes EGLE's own summary cells compute themselves, and writing
+# outside them silently drops a sample out of every total on the sheet.
+#   routine  Excel 12..31 -> 0-based 11..30 (20 rows)
+#   repeat   Excel 36..44 -> 0-based 35..43  (9 rows)
+#   B=1 sample location | J=9 date collected | K=10 total coliform result | L=11 free | M=12 total
+BACTI_SHEET = 'Bacti & Cl Res'
+BACTI_ROUTINE = (11, 20)
+BACTI_REPEAT = (35, 9)
+BACTI_COLS = (1, 9, 10, 11, 12)
+DIST_ROWS = 31          # Excel 7..37
+DIST_COLS = (1, 2, 3, 4)
+
 SB_URL = (os.environ.get('SUPABASE_URL') or '').rstrip('/')
 SB_KEY = os.environ.get('SUPABASE_SERVICE_KEY') or ''
 DATA_ORIGIN = (os.environ.get('MOR_DATA_ORIGIN') or 'https://app.civicscope.io').rstrip('/')
@@ -187,6 +202,80 @@ def build(data, raw_template, formulas):
             return
         wb.get_sheet(sheet_idx[name]).write(r, c, val, style_at(name, r, c))
 
+    def clear_block(name, row0, nrows, cols):
+        """Blank a month's data region before writing this month into it.
+
+        WHY THIS HAS TO EXIST, and it is the sharper half of the bacti defect.
+        The stored template is not a blank state form -- it is Centreville's FILLED July 2026
+        MOR, carrying the supply name, WSSN, OIC and certification that never change. That is a
+        reasonable base, but `put()` returns early on None, so any cell the new month does not
+        supply keeps July's value. Verified 2026-08-26: rows 12 and 13 of the Bacti tab hold the
+        real 2026-07-29 samples for 125 W. Main St and M-86 E. Lift Station. Generating August
+        without clearing does not produce an empty bacti tab -- it produces JULY'S SAMPLES
+        LABELLED AUGUST, which is a false regulatory filing rather than an incomplete one.
+        The same applies to any month with fewer distribution rows than its predecessor.
+
+        A formula cell is never blanked: EGLE's own COUNTA/AVERAGE/MIN/MAX cells live beside
+        the data and are restored from the formula map, so clearing one would delete the
+        summary the state reads.
+        """
+        if name not in sheet_idx:
+            return
+        have = formulas.get(name, {})
+        ws = wb.get_sheet(sheet_idx[name])
+        for r in range(row0, row0 + nrows):
+            for c in cols:
+                if f'{r},{c}' in have:
+                    continue
+                ws.row(r).set_cell_blank(c, style_at(name, r, c))
+
+    def write_bacti(d):
+        """The bacteriological samples -- the half of the MOR that was never written at all.
+
+        `build()` wrote pumpage, entry points and distribution, then saved. `data['bacti']` was
+        read only to report `len()` in the stats, which review.html prints beside the download.
+        So the product said '2 bacti' while the workbook contained none of them, and the OIC
+        could file a report omitting regulatory sample data believing it was included.
+
+        ROUTINE AND REPEAT ARE SEPARATE BLOCKS AND MUST NOT BE MERGED. The form's own formulas
+        count them separately -- COUNTA(K12:K31) is the routine count and COUNTA(K36:K44) the
+        repeat count -- and a repeat sample written into the routine block would overstate
+        routine compliance, which is the number the state checks against the monitoring
+        schedule. Residual statistics span both blocks, so both must be populated to be right.
+        """
+        rows = sorted(d.get('bacti') or [], key=lambda x: (x.get('collected_date') or '',
+                                                           x.get('site_name') or ''))
+        clear_block(BACTI_SHEET, BACTI_ROUTINE[0], BACTI_ROUTINE[1], BACTI_COLS)
+        clear_block(BACTI_SHEET, BACTI_REPEAT[0], BACTI_REPEAT[1], BACTI_COLS)
+
+        buckets = {'routine': list(BACTI_ROUTINE), 'repeat': list(BACTI_REPEAT)}
+        used = {'routine': 0, 'repeat': 0}
+        for smp in rows:
+            kind = 'repeat' if str(smp.get('sample_kind') or 'routine').lower() == 'repeat' \
+                else 'routine'
+            row0, cap = buckets[kind]
+            n = used[kind]
+            if n >= cap:
+                # Refuse rather than drop. A sample silently missing from a filed MOR is the
+                # exact failure this function was added to end.
+                raise Refuse(409, f'more {kind} bacti samples ({used[kind] + 1}) than the state '
+                                  f'form has rows ({cap}). EGLE needs a supplemental sheet for '
+                                  'this month; the workbook was not generated.')
+            r0 = row0 + n
+            used[kind] = n + 1
+            dt = str(smp.get('collected_date') or '')
+            put(BACTI_SHEET, r0, 1, smp.get('site_name'))
+            if len(dt) >= 10:
+                put(BACTI_SHEET, r0, 9, f'{int(dt[5:7])}/{int(dt[8:10])}/{dt[:4]}')
+            put(BACTI_SHEET, r0, 10, smp.get('result'))
+            put(BACTI_SHEET, r0, 11, smp.get('free'))
+            put(BACTI_SHEET, r0, 12, smp.get('total'))
+
+        # The lab is a property of the month's sampling, not of the template it inherited.
+        lab = next((x.get('lab_name') for x in rows if x.get('lab_name')), None)
+        put(BACTI_SHEET, 1, 7, lab)
+        return used
+
     # 1. put the formulas back (xlrd could not carry them across)
     restored, skipped = 0, []
     for name, cells in formulas.items():
@@ -239,7 +328,11 @@ def build(data, raw_template, formulas):
                 if col is not None:
                     put(sheet, r0, col, fr.get('solution_lbs'))
 
+    clear_block('Distribution', DIST_ROW0, DIST_ROWS, DIST_COLS)
     for i, s in enumerate(sorted(data['dist'], key=lambda x: x['sample_date'])):
+        if i >= DIST_ROWS:
+            raise Refuse(409, f"{len(data['dist'])} distribution samples will not fit the state "
+                              f'form, which has room for {DIST_ROWS}. File a supplemental sheet.')
         r0 = DIST_ROW0 + i
         d = s['sample_date']
         put('Distribution', r0, 1, f'{int(d[5:7])}/{int(d[8:10])}/{d[:4]}')
@@ -247,11 +340,18 @@ def build(data, raw_template, formulas):
         put('Distribution', r0, 3, s.get('total'))
         put('Distribution', r0, 4, s.get('ortho'))
 
+    bacti_written = write_bacti(data)
+
     out = io.BytesIO()
     wb.save(out)
+    # stats report what REACHED THE WORKBOOK, not what was fetched. Reporting len(data['bacti'])
+    #    while writing none of it is what let the omission run unnoticed: review.html prints this
+    #    count beside the download, so the product asserted '2 bacti' about a file containing zero.
     return out.getvalue(), {'formulas_restored': restored, 'formulas_skipped': skipped,
                             'well_days': len(data['readings']), 'distribution': len(data['dist']),
-                            'bacti': len(data['bacti'])}
+                            'bacti': bacti_written['routine'] + bacti_written['repeat'],
+                            'bacti_routine': bacti_written['routine'],
+                            'bacti_repeat': bacti_written['repeat']}
 
 
 # ---------------------------------------------------------------------------------------------
