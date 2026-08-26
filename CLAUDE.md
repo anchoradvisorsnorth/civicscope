@@ -1376,6 +1376,71 @@ from `mixed` to `text-layer` and dropping the TC Town Character Preservation Ove
 by pulling the key properly (`vercel env pull`, read, then overwrite and delete the file — it holds
 54 production secrets). A partial ingest should not be able to overwrite a better one.
 
+### The Centreville re-ingest was NOT needed — and measuring that found a different bug (2026-08-25)
+
+The plan was to re-ingest the Centreville zoning book because the `chunkSegments` position-0 bug
+affected every corpus built before today. **Measured first, and it did not apply.** Of the zoning
+book 23 stored segments: **0 have an ambiguous probe, 0 would be placed differently by the
+monotonic scan, 0 are unfindable.** Centreville captions its tables ("Table 4-4 — SITE DEVELOPMENT
+REQUIREMENTS"), so every page opens distinctly; Elkhart County numbers no tables and repeats a
+running header, which is precisely why it broke there and not here. A re-ingest would have spent an
+OCR run to change nothing.
+
+The **67% of Centreville chunks carry no heading** figure was also misleading. By collection:
+
+| collection | chunks | no heading |
+|---|---|---|
+| Village Information | 1,155 | 99% |
+| Village Voice & Calendar | 1,098 | 96% |
+| Zoning & Planning Commission | 882 | 32% |
+| Code of Ordinances | 547 | **8%** |
+| Village Website | 26 | 0% |
+
+The headingless mass is newsletters and informational pages, which genuinely have no sections. The
+law-bearing collections are well headed. No defect.
+
+### ⛔ BUT `segments` HOLDS TWO KINDS OF PAGE AND `chunkSegments` CALLED BOTH A TABLE
+
+`muni_docs.segments` deliberately records both indivisible-page kinds — the TABLES pdftotext could
+read, and the sparse pages it could NOT that the vision model rescued. The comment in
+`ingest-muni-corpus.mjs` says so outright. `chunkSegments` set `is_table: true` on **every** one.
+
+On the Centreville zoning book that is 4 real tables and 18 pages that are nothing of the sort: the
+ordinance TITLE PAGE, the Planning Commission bylaws, and a page of instructions about photocopying
+maps. It has been invisible because Centreville was ingested before migration 041 added the column,
+so the flag was never written and the legacy `heading ilike 'Table %'` fallback carried it. Elkhart
+County, re-ingested today with current code, would have started accumulating it.
+
+This is not cosmetic: **`muni_search_tables` RESERVES A SEAT** for what it believes is a table,
+because a table states each term once and cannot win a term-frequency race against the prose
+discussing it. Mislabelling prose spends the dimensional-standards guarantee on a title page.
+
+Segments now carry `kind: table | rescue`, set by both ingesters. An older record without one is
+judged by the same SHAPE test that detected the page — never by its heading, which is a publisher
+house style (the rule 042 deliberately moved away from).
+
+### ⚠ AND THE RETRO PASS NEEDED A DIFFERENT THRESHOLD FROM THE INGESTER — I GOT THIS WRONG FIRST
+
+`scripts/reconcile-table-flags.mjs` fixes the flag without a re-ingest. Run at the ingest-time
+threshold (`minRows 2 / minCells 4`) it flagged Table 4-4 correctly **and also the ordinance title
+page and a page of bylaws** — "16-48 / 18-18 / 18-19" are page references and the cell pattern
+cannot tell those from measurements. Those two writes were made and then undone by hand.
+
+Two rules came out of it, and they pull in opposite directions on purpose:
+
+- **The retro threshold is STRICTER** (`minRows 4 / minCells 5`). At ingest a miss is expensive —
+  it splits a table from its header row — so permissive is right, and Elkhart continuation pages
+  need it. Retroactively the failure mode is inverted: a false positive spends a guaranteed seat.
+  Table 4-4 scores 9 rows; the two false positives score 3.
+- **Add on inference, remove only on evidence.** A flag the INGESTER set came from `tabularPages`
+  run against the whole page at the moment it chose to keep it intact — stronger evidence than
+  anything reconstructable later. Applying the strict test symmetrically would have **stripped 72
+  correct flags** off the Elkhart ordinance. A flag is now cleared only when the record says
+  `kind: rescue`.
+
+End state: Centreville has exactly one flagged table (Table 4-4), Elkhart 106 (all ingester-set),
+and both setback answers verified unchanged.
+
 ## Open Action Items
 
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The Try:
@@ -1385,9 +1450,14 @@ by pulling the key properly (`vercel env pull`, read, then overwrite and delete 
 - ✅ **Bristol R-1 setbacks ANSWER (2026-08-25)** — three defects: the town own name poisoning
   retrieval, the shared corpus appended past the context budget, and `chunkSegments` putting the
   table flag on the wrong pages. See the section above.
-- ⛔ **Re-ingest the Centreville zoning book with the fixed `chunkSegments`.** The position-0 lookup
-  bug affected every corpus built before 2026-08-25. Table 4-4 answers, so this is not urgent, but
-  **67% of Centreville chunks carry no heading** and its other tables may be misfiled the same way.
+- ✅ **Centreville re-ingest NOT needed (2026-08-25)** — measured: 0 of 23 segments ambiguous, 0
+  placed differently by the monotonic scan. Its tables are captioned so pages open distinctly. The
+  67% no-heading figure was newsletters, not law. See the section above.
+- ⚠ **`tabularPages` minRows 2 gives false positives on OCR pages carrying page references**
+  (a title page listing "16-48 / 18-18 / 18-19" scored 3 rows). Left permissive at ingest
+  deliberately — a miss splits a real table from its header row, and Elkhart continuation pages
+  need it. `reconcile-table-flags.mjs` uses minRows 4 / minCells 5 instead. If LIVE detection ever
+  starts flagging prose, this is the knob.
 - ⛔ **`--force` overwrites a good ingest with a worse one when OCR fails.** It downgraded the
   Elkhart ordinance from `mixed` to `text-layer` on a 401 and reported success. A partial ingest
   should refuse to replace a document that was previously rescued.
