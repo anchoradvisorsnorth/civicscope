@@ -661,6 +661,149 @@ function matchedTokens(want, have) {
   return hits;
 }
 
+/* ===== GREENCROFT: THE COMMUNITY IS PRINTED, THE UNIT IS THE JOB ======================
+   ⛔ MEASURED 2026-08-26 against the live 53-job feed, on Logan Moore's real weekly batch
+   (10 pages, `G:\My Drive\RYC Dashboard\Invoice Tool\Greencroft`). The matcher placed 3 and
+   TWO OF THE THREE WERE WRONG — Miller's Building Supply $5,268.17 and a $670 Beer & Slabaugh
+   dumpster both landed on `2502GP12 Goshen WWTP Anaerobic Digester`. One of ten was right, on
+   the family that is 29 of the 53 active jobs and the whole of one PM's desk.
+
+   Three separate causes, each measured rather than supposed:
+
+   1. THE WORD THE VENDORS USE FOR THE COMMUNITY EXISTS IN NO JOB NAME. `southfield`, `village`,
+      `whispering` and `pine` are owned by ZERO jobs in the feed. Procore calls that South Bend
+      street `Chestnut`; every vendor billing it writes "Southfield Village". Same shape as the
+      WWTP/WTP contraction: CONTRACT the vendor's phrase to the token RYC's own job names carry.
+      Expanding RYC's token into generic words is the move that files one plant into another.
+
+   2. `goshen` IS DISTINCTIVE AND IT BELONGS TO THE WASTEWATER PLANT. Exactly one job in the feed
+      carries the word — the anaerobic digester — and not one of the 24 Greencroft Goshen duplexes
+      does. So an invoice printing the community AND the city (which is what Miller's prints, and
+      what the dumpster ticket prints) scores a distinct hit on a WWTP and nothing at all on the
+      street it was delivered to. A city name that is distinctive only by accident of this feed
+      must never outrank a community the invoice actually names.
+
+   3. A BARE HOUSE NUMBER WAS DISCARDED FOR BEING SHORT. `MIN_LONE` is 6, so "6516" was refused as
+      "too weak" — while being, measured across all 101 jobs Procore and Foundation know between
+      them, unique to exactly one. Every Greencroft house number is unique. The ONLY exceptions
+      are Middlebury's `525` and `529`, each naming both a Pkwy lot and a Crystal Rg lot, and
+      those must stay ambiguous forever.
+
+   ⚠ THE FIX CREATES ITS OWN MIRROR RISK, AND THAT IS WHY A NUMBER MUST BE AN ADDRESS.
+   The Beer & Slabaugh ticket reads "Waste Containers 2026" — the YEAR — and `Greencroft 2026 WPC`
+   is a real unit on that very street. Accepting any number that happens to name a unit in the
+   family would file a shared dumpster confidently onto one resident's duplex: the same
+   misattribution as before, arriving through the fix. So a number counts only where it sits
+   ADJACENT to the community phrase, which is what makes it a street address rather than a year, a
+   ZIP or a quantity. "2048 WHISPERING PINE CT" and "6516 Southfield Village" qualify;
+   "Waste Containers 2026" and "Indiana 26001" do not.
+
+   WHAT IT DELIBERATELY CANNOT DO IS ALSO THE POINT. When the community is named and the unit is
+   not — five of the ten pages, and the front office had already written "Which units?" on a teal
+   sticky on every one of them — this returns a FAMILY instead of a job. That is not a refusal:
+   the desk, the customer and a candidate list of 4 to 21 are all known, so the invoice reaches
+   the PM already narrowed and the question he answers is one tap rather than a phone call. */
+
+/* The vendor's words on the left; the token RYC's own job names carry on the right. Order
+   matters — "southfield village" must be consumed before the bare "southfield". */
+const COMMUNITY_ALIASES = [
+  [/\bgreen\s+croft\b/g,                       'greencroft'],   // Miller's spells it both ways
+  [/\bsouthfield\s+village\b/g,                'chestnut'],
+  [/\bsouthfield\b/g,                          'chestnut'],
+  [/\bwhispering\s+pines?\s*(?:ct|court)?\b/g, 'wpc'],
+  [/\bmiddlebury\b/g,                          'midd'],
+];
+
+/* Most specific first; the first signal present in the text wins. `greencroft` is the backstop —
+   the community was not identified, but the family and therefore the desk still are.
+
+   `misc` is the job Foundation ALREADY absorbs a genuinely shared Greencroft cost into — one
+   dumpster serving five duplexes, a stock buy of door hardware. Those two buckets are not new:
+   `2105CO09 Misc jobs-Greencroft` carries $128K of costs and `2518RO06 Greencroft
+   Southfield-MiscWork` $8K, both Logan's, both zero-contract. They are FOUNDATION-ONLY, so the
+   auto-matcher can reach them only by a printed number, which no invoice ever carries — the
+   ending accounting already uses is the one the tool could not offer. Resolved against the live
+   feed at read time rather than trusted from here, so a closed or renamed bucket removes the
+   button instead of assigning a dead job. */
+const FAMILIES = [
+  { key: 'greencroft-goshen',     signal: 'wpc',        misc: '2105CO09',
+    label: 'Greencroft Goshen (Whispering Pine Ct)' },
+  { key: 'greencroft-southbend',  signal: 'chestnut',   misc: '2518RO06',
+    label: 'Greencroft South Bend (Southfield Village)' },
+  { key: 'greencroft-middlebury', signal: 'midd',       misc: '2105CO09',
+    label: 'Greencroft Middlebury' },
+  { key: 'greencroft',            signal: 'greencroft', misc: '2105CO09',
+    label: 'Greencroft' },
+];
+
+function aliasText(s) {
+  let t = ` ${String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ')} `;
+  for (const [re, to] of COMMUNITY_ALIASES) t = t.replace(re, ` ${to} `);
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+/* THE DESK OF A COMMUNITY. Logan Moore owns every Greencroft unit but one — `2416RO07 Greencroft
+   2032 WPC`, where Procore names Erik Parcell and Foundation has no row for the job at all, which
+   is the weakest signal the feed can carry and a question for a person rather than something to
+   encode around. A community invoice must not be held back over a single dissenting unit: an
+   unrouted payable sits unlooked-at, which is the failure `ryc_release_invoices` exists to
+   prevent. So the desk is the PM who owns EVERY candidate but at most one. A family split any
+   more evenly than that has no desk, and says so. */
+function familyDesk(candidates) {
+  const tally = new Map();
+  for (const c of candidates) if (c.pm) tally.set(c.pm, (tally.get(c.pm) || 0) + 1);
+  if (!tally.size) return null;
+  const [pm, n] = [...tally.entries()].sort((a, b) => b[1] - a[1])[0];
+  return (candidates.length - n) <= 1 ? pm : null;
+}
+
+/* Returns a job, a FAMILY, or null to let the ordinary scorer have the text unchanged.
+   Candidates always carry `greencroft` as well as the community token, so a future
+   "Middlebury Schools" job can never be drawn into a Greencroft community. */
+function familyMatch(text, jobs) {
+  const seq = aliasText(text).split(' ').filter(Boolean);
+  const toks = new Set(seq);
+  const fam = FAMILIES.find(f => toks.has(f.signal));
+  if (!fam) return null;
+
+  const candidates = jobs.filter(j => {
+    const t = jobTokens(j.name);
+    return t.has('greencroft') && t.has(fam.signal);
+  });
+  if (candidates.length < 2) return null;   // not a family here; nothing gained by intercepting
+
+  /* A number is a house number only where it touches the street. See the mirror-risk note. */
+  const addresses = new Set();
+  seq.forEach((w, i) => {
+    if (w !== fam.signal) return;
+    for (const k of [i - 1, i + 1]) {
+      if (seq[k] && /^[0-9]{2,5}$/.test(seq[k])) addresses.add(seq[k]);
+    }
+  });
+
+  const hits = [];
+  for (const j of candidates) {
+    const t = jobTokens(j.name);
+    for (const n of addresses) if (t.has(n)) { hits.push({ job: j, n }); break; }
+  }
+  if (hits.length === 1) {
+    return { job: hits[0].job, hits: [hits[0].n, fam.signal], conf: 0.92,
+      why: `${hits[0].n} on ${fam.label} is ${hits[0].job.name}` };
+  }
+
+  /* Ambiguous by number (Middlebury's 525/529) narrows to the tied units; no number at all
+     narrows to the whole community. Both are the same state — the unit is the open question. */
+  const pool = hits.length > 1 ? hits.map(h => h.job) : candidates;
+  const why = hits.length > 1
+    ? `${pool.length} ${fam.label} jobs are numbered ${[...addresses].join('/')} — which unit is not printed`
+    : `${fam.label} is named but the unit is not — ${pool.length} to choose from`;
+  return {
+    job: null, why,
+    family: { key: fam.key, label: fam.label, pm: familyDesk(pool),
+      candidates: pool.map(j => ({ no: j.no, name: j.name, pm: j.pm || null })) },
+  };
+}
+
 /* job_text -> a job, or null WITH A REASON. The reason is not decoration: "nothing was printed"
    and "two jobs match equally" call for completely different actions from the front office. */
 function matchJob(jobText, jobs, idx, numberOnly) {
@@ -685,6 +828,13 @@ function matchJob(jobText, jobs, idx, numberOnly) {
     if (hit) return { job: hit, hits: [w], conf: 0.95, why: `job number ${hit.no} is printed on the invoice` };
     if (/[A-Z]/.test(k) && /[0-9]/.test(k)) orphanNo = orphanNo || w;   // job-number SHAPE, unknown
   }
+  /* THE COMMUNITY BRANCH RUNS BEFORE THE GENERAL SCORER, AND THAT ORDER IS THE FIX. Left to the
+     scorer, `goshen` wins on distinctiveness against a family whose 24 members share every word
+     they have — which is exactly how a duplex invoice reached a wastewater plant. A printed job
+     number still beats this, because that is the thing itself rather than a resemblance. */
+  const fam = familyMatch(raw, jobs);
+  if (fam) return fam;
+
   const noJob = (why) => ({ job: null, why: orphanNo
     ? `the invoice prints job ${orphanNo}, which is not in the Procore feed` : why });
 
@@ -874,6 +1024,11 @@ function pickableJobs(dir) {
 }
 
 export const __matcher = { matchJob, tokenIndex, jobTokens, jobNoKey };
+/* The community rule, exported for the gate. `aliasText` and `familyDesk` are asserted directly
+   rather than only through `matchJob`: the alias table is the piece a future community gets added
+   to, and the desk rule is the piece whose failure mode is silent (an invoice held back forever
+   because one unit in a street disagrees about its PM). */
+export const __family = { familyMatch, familyDesk, aliasText, FAMILIES, COMMUNITY_ALIASES };
 export const __pm = { resolveJobPm, resolveJobPmSource };
 export const __payable = { supportingDocuments, vendorKey, NEVER_PAYABLE };
 /* The batch coverage rule. `batch_confirm` (a person confirmed these boundaries) and
@@ -2356,7 +2511,7 @@ export default async function handler(req, res) {
          re-reading after a hint is taught or a job gains a PM in Procore. */
       const rows = all.filter(r => r.staged_source !== 'manual'
         && (force || (!r.staged_pm && !r.staged_job_no)));
-      if (!rows.length) return { staged: 0, unplaced: 0, note: 'nothing waiting to be staged' };
+      if (!rows.length) return { staged: 0, unplaced: 0, community: 0, note: 'nothing waiting to be staged' };
 
       /* The job list and each job's desk come from `jobDirectory()` — the SAME resolution
          Command uses (Foundation first, Procore second). It used to read the Procore cache
@@ -2369,13 +2524,13 @@ export default async function handler(req, res) {
         foundationOnly = dir.foundationOnly || [];
       } catch { /* no feed -> nothing is staged, which is honest */ }
       if (!jobs.length) {
-        return { staged: 0, unplaced: rows.length,
+        return { staged: 0, unplaced: rows.length, community: 0,
           note: 'the Procore job feed could not be read — nothing staged rather than guessed' };
       }
       const idx = tokenIndex(jobs);
       const byNo = new Map(jobs.map(j => [j.no, j]));
 
-      const staged = [], unplaced = [];
+      const staged = [], unplaced = [], community = [];
       for (const r of rows) {
         /* A job resolved at REGISTER time — from ryc_invoice_job_hints, the alias a PM taught
            once — is already a human's answer. Re-deriving it from the printed text would be
@@ -2384,6 +2539,41 @@ export default async function handler(req, res) {
         const m = known
           ? { job: known, conf: 1.0, why: `job ${known.no} was already resolved on this invoice`, source: 'hint' }
           : { ...matchJob(r.job_text, jobs, idx, foundationOnly), source: 'job_text' };
+
+        /* ⛔ A DESK WITHOUT A JOB IS A REAL ANSWER, AND IT NEEDED NO SCHEMA (2026-08-26).
+           Greencroft invoices routinely name the community and not the unit — a dumpster on
+           Whispering Pines, a flooring invoice whose Project field the vendor truncated at
+           "Southfield Village - ". Five of the ten pages in Logan's real weekly batch, and the
+           front office had already written "Which units?" on a teal sticky on every one of them.
+           Treating that as "unplaced" is wrong in the way that matters: the desk, the customer and
+           a candidate list of 4 to 21 are all known, so the only open question is one a PM answers
+           in a tap — and it is HIS question, not the front office's (Keith, 2026-08-26).
+
+           `ryc_stage_invoice` already accepts a PM with a null job, and `ryc_release_invoices`
+           gates on `staged_pm` alone, so this releases to Logan's desk carrying the
+           `job_unassigned` flag it should carry. Nothing was added to the schema; the state was
+           expressible all along and nothing produced it. `staged_source` stays `job_text` — the
+           desk WAS derived from the printed text — and with no job number, release leaves
+           `job_source` untouched, so no vocabulary is being smuggled across that boundary. */
+        if (!m.job && m.family && m.family.pm) {
+          const note = `${m.family.label} — the unit is not printed. Pick one of `
+            + `${m.family.candidates.length}.`;
+          if (r.staged_pm !== m.family.pm || r.staged_job_no || r.staged_note !== note) {
+            const s = await rpc('ryc_stage_invoice', {
+              p_id: r.id, p_staged_pm: m.family.pm, p_staged_job_no: null,
+              p_source: 'job_text', p_confidence: 0.5, p_note: note,
+              p_expected_version: r.version, p_request_id: `${rid}:fam:${r.id}`, p_actor: actor,
+            });
+            if (s.status !== 200) {
+              unplaced.push({ id: r.id, vendor: r.vendor_name, why: (s.body && s.body.error) || 'stage failed' });
+              continue;
+            }
+          }
+          community.push({ id: r.id, vendor: r.vendor_name, job_text: r.job_text,
+            family: m.family.key, label: m.family.label, pm: m.family.pm,
+            candidates: m.family.candidates, why: m.why });
+          continue;
+        }
 
         if (!m.job) {
           // Record WHY, once. Rewriting an unchanged note every pass would churn the version and
@@ -2426,7 +2616,12 @@ export default async function handler(req, res) {
           unplaced.push({ id: r.id, vendor: r.vendor_name, job: m.job.no, why: note });
         }
       }
-      return { staged: staged.length, unplaced: unplaced.length, staged_rows: staged, unplaced_rows: unplaced };
+      /* `community` is reported as its own number rather than folded into either of the others.
+         Counting it as staged would tell the front office an invoice is fully placed when its job
+         is still open; counting it as unplaced would put work back on their screen that is
+         deliberately on the PM's. It is a third outcome and it reads as one. */
+      return { staged: staged.length, unplaced: unplaced.length, community: community.length,
+        staged_rows: staged, unplaced_rows: unplaced, community_rows: community };
     }
 
     if (action === 'stage_inbound') {
@@ -2497,6 +2692,51 @@ export default async function handler(req, res) {
         p_expected_version: body.version ?? null, p_request_id: rid, p_actor: actor,
       });
       return res.status(out.status).json(out.body);
+    }
+
+    /* ===== WHICH UNIT — THE QUESTION THE FRONT OFFICE WRITES ON A STICKY NOTE ==========
+       ⛔ A PM DESK ROW WITH NO JOB RENDERS A FREE-TEXT "Job no" BOX, and for Greencroft that is
+       the wrong affordance by a distance. Logan Moore's desk IS Greencroft — all 28 of his active
+       jobs are duplex units — so "which job" means "which of 21 houses on Whispering Pine Ct",
+       and the box asks him to recall that `2518RO20` is 6516 Chestnut. Nobody does that; they go
+       back to the paper, which is precisely what this module exists to replace.
+
+       The candidates are computed HERE, by the same `familyMatch` the stager uses, rather than
+       re-derived in the browser. This module has been bitten three separate times by one rule
+       written twice — the desk rule the harness re-implemented, the coverage rule, the
+       `rename_pending` flag — and a second copy of the community rule living in `invoices.js`
+       would drift the first time an alias is added on one side only.
+
+       Keyed by the printed text rather than by row id: two flooring invoices in one batch both
+       read "Southfield Village - " and deserve one answer and one round trip. The browser already
+       holds `job_text` (it is the tooltip on that very box) and already holds the job list, so
+       nothing is exposed here that the desk could not already see. */
+    if (action === 'job_candidates') {
+      const texts = (Array.isArray(body.texts) ? body.texts : []).slice(0, 200);
+      if (!texts.length) return res.status(200).json({ ok: true, families: {} });
+      let dir = null;
+      try { dir = await jobDirectory(); } catch { /* handled below */ }
+      if (!dir || !dir.jobs.length) {
+        // No feed is an honest empty answer: the desk keeps the text box it has today.
+        return res.status(200).json({ ok: true, families: {}, note: 'the job feed could not be read' });
+      }
+      const byNo = new Map([...dir.jobs, ...(dir.foundationOnly || [])].map(j => [j.no, j]));
+      const families = {};
+      for (const t of texts) {
+        const key = String(t == null ? '' : t);
+        if (Object.prototype.hasOwnProperty.call(families, key)) continue;
+        const m = familyMatch(key, dir.jobs);
+        if (!m || !m.family) continue;
+        const def = FAMILIES.find(f => f.key === m.family.key);
+        const misc = def && byNo.get(def.misc);
+        families[key] = {
+          key: m.family.key, label: m.family.label, pm: m.family.pm,
+          candidates: m.family.candidates,
+          /* Read back off the feed, never asserted from the table above. */
+          misc: misc ? { no: misc.no, name: misc.name } : null,
+        };
+      }
+      return res.status(200).json({ ok: true, families, as_of: dir.asOf || null });
     }
 
     if (action === 'code') {

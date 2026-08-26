@@ -28,7 +28,10 @@ function jobByNo(no){ var n=_jobNames[no]; return n ? { name:n } : null; }
    this page can send to widen its own scope. Only a front-office credential is scope 'all'. */
 var INV_URL = "/api/ryc-invoices";
 var _inv = { who:null, rows:[], codes:null, pm:null, busy:false, showDone:false, jobs:[],
-             budget:{}, budgetBasis:null, budgetAsOf:null };
+             budget:{}, budgetBasis:null, budgetAsOf:null,
+             /* printed job_text -> the community it names, or null for "asked, no community".
+                Both answers are cached; see invLoadFamilies. */
+             families:{} };
 
 /* Budget lines for a job, fetched once per job and cached for the session. This is the number
    the PM currently opens Procore to read — how much is left on the line being coded against. */
@@ -228,7 +231,35 @@ function invLoad(){
     if(pending.length){
       Promise.all(pending.map(invLoadBudget)).then(function(){ invPaint(); });
     }
+    invLoadFamilies();
   });
+}
+
+/* ===== THE UNITS BEHIND A COMMUNITY ===================================================
+   One round trip for the whole desk, keyed by the PRINTED TEXT rather than by row — two
+   flooring invoices in a batch both read "Southfield Village - " and deserve one answer.
+   Runs AFTER the first paint for the same reason budgets do: the queue must render without
+   waiting on the Procore feed, and a desk that renders late reads as a desk that is broken.
+   Every failure is a no-op — the row keeps the plain job box it has today. */
+function invLoadFamilies(){
+  var want = {}, list = [];
+  _inv.rows.forEach(function(r){
+    var t = r.job_text || "";
+    if(r.job_no || !t || want[t] || _inv.families[t] !== undefined) return;
+    want[t] = 1; list.push(t);
+  });
+  if(!list.length || _inv._famLoading) return;
+  _inv._famLoading = true;
+  invPost("job_candidates", { texts:list }).then(function(f){
+    _inv._famLoading = false;
+    if(!f.ok || !f.data) return;
+    var got = f.data.families || {};
+    /* Record the MISSES too (as null). Without that, every repaint re-asks for the texts that
+       have no community — which on a mixed desk is most of them — and the poll turns into a
+       request loop nobody ordered. */
+    list.forEach(function(t){ _inv.families[t] = got[t] || null; });
+    invPaint();
+  }, function(){ _inv._famLoading = false; });
 }
 
 var INV_UNASSIGNED = "__unassigned__";
@@ -794,8 +825,11 @@ function invRowHtml(r){
   // ---- inline coding ----
   h += '<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">';
   if(!r.job_no){
-    h += '<input id="job-' + esc(r.id) + '" placeholder="Job no" value="" style="width:110px" '
-      + 'title="' + esc(r.job_text||"nothing printed") + '">';
+    var fam = _inv.families[r.job_text || ""];
+    h += (fam && fam.candidates && fam.candidates.length)
+      ? invUnitPicker(r, fam)
+      : '<input id="job-' + esc(r.id) + '" placeholder="Job no" value="" style="width:110px" '
+        + 'title="' + esc(r.job_text||"nothing printed") + '">';
   }
   h += '<span id="cccell-' + esc(r.id) + '">' + invCodeSelect(r) + '</span>'
     + '<select id="ms-' + esc(r.id) + '" style="width:92px" '
@@ -970,12 +1004,77 @@ function invMonthFor(r){
   var d = r.cost_month || (r.received_date || r.invoice_date || "");
   return d ? String(d).slice(0, 7) : null;
 }
+/* ===== "WHICH UNIT?" — THE STICKY NOTE, ON SCREEN =====================================
+   The front office writes *Which units?* on a teal Post-it and the question travels to the PM on
+   paper. On screen it had been a text box asking Logan Moore to recall that `2518RO20` is the
+   duplex at 6516 — which he would not do, and the batch would go back to the folder.
+
+   THE NUMBER IS WHAT A PERSON SAYS. Nobody at RYC calls it 2518RO20; they call it 6516. So the
+   chip is the house number and the job number lives on the hover. Chips rather than a dropdown
+   because a select hides twenty of the twenty-one behind a click, and seeing the street is the
+   entire advantage a person has over the reader here.
+
+   ⚠ IT WRITES THROUGH THE SAME HIDDEN `job-<id>` FIELD THE TEXT BOX USED, so `invSave` is
+   untouched and a unit still reaches the ledger through `ryc_assign_invoice` — the one typed,
+   audited operation. A picker with its own save path would be a second way to assign a job, and
+   the first divergence between them would be silent. Nothing is written until Save: the unit and
+   the cost code are one decision and they travel together. */
+function invUnitLabel(name){
+  var m = String(name||"").match(/\d{2,5}/);
+  if(!m) return String(name||"").replace(/^Greencroft\s*/i, "");
+  // Middlebury has two lots per number (Pkwy and Crystal Rg) — the number alone is not the answer.
+  var tail = String(name).slice(m.index + m[0].length).replace(/\s+/g, " ").trim();
+  return /pkwy|crystal|lot/i.test(tail) ? (m[0] + " " + tail) : m[0];
+}
+function invUnitPicker(r, fam){
+  var h = '<input type="hidden" id="job-' + esc(r.id) + '" value="">'
+    + '<div class="sub" style="width:100%;margin-bottom:3px">' + esc(fam.label)
+    + ' &mdash; which unit?</div>'
+    + '<div id="units-' + esc(r.id) + '" style="display:flex;gap:3px;flex-wrap:wrap;width:100%">';
+  fam.candidates.forEach(function(c){
+    h += '<button class="pfill' + (r._unit === c.no ? " on" : "")
+      + '" style="padding:2px 8px" title="' + esc(c.no + " · " + c.name) + '" '
+      + 'onclick="invPickUnit(' + invArg(r.id) + ',' + invArg(c.no) + ',this)">'
+      + esc(invUnitLabel(c.name)) + '</button>';
+  });
+  /* The ending accounting already uses for a dumpster serving five duplexes. Offered LAST and
+     set apart, because it is the right answer only when no single unit is — a shared-cost button
+     sitting first in the row is a shared-cost button that gets pressed to finish the row. */
+  if(fam.misc){
+    h += '<span style="width:100%;height:0"></span>'
+      + '<button class="pfill' + (r._unit === fam.misc.no ? " on" : "")
+      + '" style="padding:2px 8px" title="' + esc(fam.misc.no + " · " + fam.misc.name) + '" '
+      + 'onclick="invPickUnit(' + invArg(r.id) + ',' + invArg(fam.misc.no) + ',this)">'
+      + 'Shared &rarr; ' + esc(fam.misc.name) + '</button>';
+  }
+  return h + '</div>';
+}
+/* ⛔ THE PICK LIVES ON THE ROW, NOT IN THE DOM — 2026-08-21, ON THE OTHER SCREEN, VERBATIM.
+   "if you select job then edit the file name - you have to reselect the job again": a selection
+   held only in the markup is destroyed by every repaint, and this cell repaints when the budget
+   lines land and again when the community list does. A chip that looks chosen while `job-<id>`
+   has been rebuilt empty would let Save code an invoice to NO JOB and report success. So the
+   answer is written to the row, the chip's `on` state is RENDERED from the row, and `invSave`
+   reads the row rather than the field. */
+function invPickUnit(id, jobNo, el){
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0];
+  if(r) r._unit = jobNo;
+  var f = document.getElementById("job-" + id);
+  if(f) f.value = jobNo;
+  var box = document.getElementById("units-" + id);
+  if(box){
+    var b = box.getElementsByTagName("button");
+    for(var i = 0; i < b.length; i++) b[i].className = "pfill";
+  }
+  el.className = "pfill on";
+}
 function invSave(id, ver){
   if(_inv.busy) return;
   _inv.busy = true;
   var r = _inv.rows.filter(function(x){ return x.id === id; })[0] || {};
+  // The row is authoritative for a chip pick; the field still carries a typed job number.
   var jobEl = document.getElementById("job-" + id);
-  var job = jobEl ? (jobEl.value || "").trim() : "";
+  var job = r._unit || (jobEl ? (jobEl.value || "").trim() : "");
   var cc  = (document.getElementById("cc-" + id)||{}).value || "";
   var ms  = (document.getElementById("ms-" + id)||{}).value || "";
   var first = job
