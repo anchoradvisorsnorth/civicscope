@@ -1795,6 +1795,81 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, inserted: made.length, of: rows.length });
     }
 
+    /* ===== ASK THE MATCHER AGAIN — FOR ROWS IT ANSWERED ITSELF, AND ONLY THOSE ==========
+       ⛔ `batch_documents_register` upserts with `resolution=ignore-duplicates`, which is what makes
+       a worker re-run converge instead of duplicating the queue — and it also means a document
+       registered before a matcher improvement KEEPS THE OLD ANSWER FOREVER. Measured 2026-08-26:
+       `approved 82626GC` seq 1, Miller's Building Supply **$5,268.17**, printed "GREEN CROFT GOSHEN
+       2048 WHISPERING PINE CT", is stored against **`2502GP12` Goshen WWTP Anaerobic Digester** —
+       registered at 07:49 ET, the community rule deployed at 10:20 ET. The fix cannot reach it and
+       re-running the worker is a no-op, so it sits there until a person changes it by hand.
+
+       ⚠ A PERSON'S ANSWER IS NEVER OVERWRITTEN. Only `matched` and unresolved rows are re-asked:
+       `chosen` is the front office's own decision and `hint` is a PM's confirmed alias, and both
+       outrank a resemblance score. Reconciled rows are never touched at all — that document is
+       filed, and re-labelling where a filed thing belongs is a correction (`doc_recorrect`), not a
+       re-read. Same precedence the inbound queue's "look again" already uses.
+
+       ⚠ IT IS NOT WIRED TO ANY BUTTON ON THE BATCH SCREEN. Erica's process runs every day on that
+       screen and this changes nothing she sees; it exists so a stale machine guess can be corrected
+       deliberately. */
+    if (action === 'batch_rematch') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const id = String(body.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'A batch id is required.' });
+
+      const cur = await sb(`ryc_batch_documents?company_id=eq.ryc&batch_id=eq.${id}`
+        + '&select=id,seq,vendor,job_text,job_no,job_name,job_source,reconciled_at&order=seq.asc');
+      if (!cur.ok) return res.status(502).json({ error: 'Could not read the batch documents.' });
+      const docs = await cur.json();
+
+      let dir = null;
+      try { dir = await jobDirectory(); } catch { /* handled below */ }
+      if (!dir || !dir.jobs.length) {
+        return res.status(502).json({ error: 'The job feed could not be read — nothing re-matched rather than guessed.' });
+      }
+      const idx = __matcher.tokenIndex(dir.jobs);
+
+      /* Eligible = the machine's own answers, on rows nobody has finished. */
+      const eligible = docs.filter(d => !d.reconciled_at
+        && (d.job_source === null || d.job_source === undefined || d.job_source === 'matched'));
+
+      /* A taught alias still beats the matcher, exactly as at registration. */
+      const hints = new Map();
+      if (eligible.length) {
+        try {
+          const hr = await sb('rpc/ryc_match_job_hints', {
+            method: 'POST',
+            body: JSON.stringify({ p_docs: eligible.map(d => ({
+              seq: d.seq, vendor: d.vendor || '', job_text: d.job_text || '' })) }),
+          });
+          if (hr.ok) for (const h of await hr.json()) hints.set(h.seq, h.job_no);
+        } catch { /* an unreadable hint is not a wrong answer */ }
+      }
+
+      const changed = [], unchanged = [];
+      for (const d of eligible) {
+        let job_no = null, job_source = null;
+        if (hints.has(d.seq)) { job_no = hints.get(d.seq); job_source = 'hint'; }
+        if (!job_no && String(d.job_text || '').trim()) {
+          const m = __matcher.matchJob(String(d.job_text), dir.jobs, idx, dir.foundationOnly);
+          if (m && m.job) { job_no = m.job.no; job_source = 'matched'; }
+        }
+        if ((job_no || null) === (d.job_no || null)) { unchanged.push(d.seq); continue; }
+        const job_name = job_no ? ((dir.names && dir.names[job_no]) || null) : null;
+        const up = await sb(`ryc_batch_documents?id=eq.${d.id}`, {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ job_no, job_name, job_source, updated_at: new Date().toISOString() }),
+        });
+        if (!up.ok) { unchanged.push(d.seq); continue; }
+        changed.push({ seq: d.seq, vendor: d.vendor, job_text: d.job_text,
+          was: d.job_no || null, was_name: d.job_name || null, now: job_no, now_name: job_name });
+      }
+      return res.status(200).json({ ok: true, documents: docs.length, eligible: eligible.length,
+        changed: changed.length, unchanged: unchanged.length, changes: changed });
+    }
+
     /* Assign a document and finish it. `RYC-EXPENSE` is a real answer, not a refusal — an overhead
        cost that belongs to no job — so it completes immediately, because there is nothing to copy.
        A real job leaves `reconciled_at` NULL until the copy actually lands in SharePoint; a
