@@ -40,6 +40,10 @@
   button.go:hover:not(:disabled) { background: var(--accent-hover); }
   button.go:disabled { opacity: .5; cursor: default; }
 
+  /* The municipality's mark, sized to breathe and never stretched — matches the hub exactly, since
+     a reader arrives here from there and the two are one product. */
+  .mark { margin: 0 0 18px; }
+  .mark img { max-height: 72px; max-width: 240px; width: auto; height: auto; display: block; }
   .examples { margin: 14px 0 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .examples .lbl { font-size: 13px; color: var(--muted); margin-right: 2px; }
   .chip {
@@ -117,6 +121,9 @@
 
   <header class="masthead">
     <div class="eyebrow" id="crumb">CivicScope</div>
+    <!-- The municipality's own mark, same treatment as the hub. Hidden until there is one to show:
+         a tenant without a logo_url gets no gap and no broken image. -->
+    <div class="mark" id="mark" hidden></div>
     <h1 id="title">Loading…</h1>
     <p class="blurb" id="blurb"></p>
   </header>
@@ -154,6 +161,19 @@ const esc = s => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
+/* ⛔ A FALLBACK, NOT THE SOURCE. These four were the chips every tenant saw, and they were written
+   against CENTREVILLE then inherited by Bristol — a different body of law in a different state.
+   Measured 2026-08-25 against Bristol's live corpus: "Who sits on the Planning Commission?" comes
+   back DECLINED and "Are golf carts allowed on the streets?" only PARTIAL.
+
+   A suggested question is the product telling somebody what it is good at in their first ten
+   seconds. If the first thing a Town clerk clicks comes back empty, the honest conclusion is that
+   the tool does not work — and they are right, because WE picked the question.
+
+   The real chips are per-tenant and VERIFIED: `sample_questions` holds only questions that were
+   asked against that corpus and came back `answered` (migration 048,
+   scripts/verify-sample-questions.mjs). This list survives solely for a tenant that has not been
+   verified yet, where a generic prompt still beats an empty row. */
 const EXAMPLES = [
   'Are golf carts allowed on the streets?',
   'How tall can a fence be in a front yard?',
@@ -175,6 +195,11 @@ async function boot() {
   } catch { fail('Could not reach the document library.'); return; }
 
   NOUN = d.tenant.unit_noun || 'Village';
+  // The municipality's own mark, hosted by them. No logo_url shows nothing rather than a gap.
+  if (d.tenant.logo_url) {
+    $('mark').innerHTML = '<img src="' + esc(d.tenant.logo_url) + '" alt="">';
+    $('mark').hidden = false;
+  }
   const short = d.tenant.short_label || d.tenant.label;
   document.title = 'Ask ' + short + ' — CivicScope';
   $('title').textContent = 'Ask ' + short;
@@ -205,8 +230,11 @@ async function boot() {
     return;
   }
 
+  // Verified for THIS corpus if we have them; the generic list only when we do not.
+  const chips = Array.isArray(d.tenant.sample_questions) && d.tenant.sample_questions.length
+    ? d.tenant.sample_questions : EXAMPLES;
   $('examples').innerHTML = '<span class="lbl">Try:</span>'
-    + EXAMPLES.map(e => '<button type="button" class="chip">' + esc(e) + '</button>').join('');
+    + chips.map(e => '<button type="button" class="chip">' + esc(e) + '</button>').join('');
   $('examples').addEventListener('click', ev => {
     const b = ev.target.closest('.chip');
     if (!b) return;
