@@ -242,15 +242,20 @@ function invLoad(){
    waiting on the Procore feed, and a desk that renders late reads as a desk that is broken.
    Every failure is a no-op — the row keeps the plain job box it has today. */
 function invLoadFamilies(){
-  var want = {}, list = [];
+  var want = {}, list = [], items = [];
   _inv.rows.forEach(function(r){
+    /* ⚠ A ROW WITH NO PRINTED TEXT AT ALL STILL NEEDS THE PICKER. A shared cost frequently prints
+       nothing a matcher can use — the whole reason it is shared — so keying only on non-empty text
+       left the dumpster and the stock buy with a bare job box and no way to split. The DESK is the
+       evidence in that case, so the desk travels with the request. */
     var t = r.job_text || "";
-    if(r.job_no || !t || want[t] || _inv.families[t] !== undefined) return;
+    if(r.job_no || want[t] || _inv.families[t] !== undefined) return;
     want[t] = 1; list.push(t);
+    items.push({ text:t, pm: r.assigned_pm || _inv.pm || null });
   });
   if(!list.length || _inv._famLoading) return;
   _inv._famLoading = true;
-  invPost("job_candidates", { texts:list }).then(function(f){
+  invPost("job_candidates", { items:items }).then(function(f){
     _inv._famLoading = false;
     if(!f.ok || !f.data) return;
     var got = f.data.families || {};
@@ -1023,6 +1028,33 @@ function invMonthFor(r){
    audited operation. A picker with its own save path would be a second way to assign a job, and
    the first divergence between them would be silent. Nothing is written until Save: the unit and
    the cost code are one decision and they travel together. */
+/* ⚠ 2048 AND 6508 ARE THE SAME LENGTH AND DIFFERENT STREETS. When the candidates are a whole
+   desk rather than one community — which is what a shared cost gets — twenty-eight bare house
+   numbers in a row is worse than the text box it replaced. So chips are grouped under the street
+   they stand on, and only when there are enough of them to be confusing. The tag is read off
+   RYC's own job names, not invented: `… WPC`, `… Chestnut`, `… Midd …`. */
+function invUnitStreet(name){
+  var n = String(name || "");
+  if(/\bWPC\b/i.test(n))      return "Whispering Pine Ct (Goshen)";
+  if(/Chestnut/i.test(n))     return "Southfield Village (South Bend)";
+  if(/\bMidd\b/i.test(n))     return "Middlebury";
+  return "Other";
+}
+function invUnitChips(candidates, render){
+  if(candidates.length <= 8) return candidates.map(render).join("");
+  var order = [], groups = {};
+  candidates.forEach(function(c){
+    var g = invUnitStreet(c.name);
+    if(!groups[g]){ groups[g] = []; order.push(g); }
+    groups[g].push(c);
+  });
+  if(order.length < 2) return candidates.map(render).join("");
+  return order.map(function(g){
+    return '<span style="width:100%;height:0"></span>'
+      + '<span class="sub" style="width:100%;margin:2px 0 1px">' + esc(g) + '</span>'
+      + groups[g].map(render).join("");
+  }).join("");
+}
 function invUnitLabel(name){
   var m = String(name||"").match(/\d{2,5}/);
   if(!m) return String(name||"").replace(/^Greencroft\s*/i, "");
@@ -1036,8 +1068,8 @@ function invUnitPicker(r, fam){
     + '<div class="sub" style="width:100%;margin-bottom:3px">' + esc(fam.label)
     + ' &mdash; which unit?</div>'
     + '<div id="units-' + esc(r.id) + '" style="display:flex;gap:3px;flex-wrap:wrap;width:100%">';
-  fam.candidates.forEach(function(c){
-    h += '<button class="pfill' + (r._unit === c.no ? " on" : "")
+  h += invUnitChips(fam.candidates, function(c){
+    return '<button class="pfill' + (r._unit === c.no ? " on" : "")
       + '" style="padding:2px 8px" title="' + esc(c.no + " · " + c.name) + '" '
       + 'onclick="invPickUnit(' + invArg(r.id) + ',' + invArg(c.no) + ',this)">'
       + esc(invUnitLabel(c.name)) + '</button>';
@@ -1166,8 +1198,8 @@ function invSplitPicker(r, fam){
     + '<div class="sub" style="width:100%;margin-bottom:3px">' + esc(fam.label)
     + ' &mdash; split across which units?</div>'
     + '<div style="display:flex;gap:3px;flex-wrap:wrap;width:100%;margin-bottom:4px">';
-  fam.candidates.forEach(function(c){
-    h += '<button class="pfill' + (sp.units.indexOf(c.no) >= 0 ? " on" : "")
+  h += invUnitChips(fam.candidates, function(c){
+    return '<button class="pfill' + (sp.units.indexOf(c.no) >= 0 ? " on" : "")
       + '" style="padding:2px 8px" title="' + esc(c.no + " · " + c.name) + '" '
       + 'onclick="invSplitToggle(' + invArg(id) + ',' + invArg(c.no) + ')">'
       + esc(invUnitLabel(c.name)) + '</button>';

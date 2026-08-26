@@ -1983,6 +1983,49 @@ export default async function handler(req, res) {
           : { staged: p.staged, community: p.community || 0, unplaced: p.unplaced };
       } catch (e) { placement = { error: (e && e.message) || 'staging failed' }; }
 
+      /* ⛔ THE DOCUMENTS THAT MOST NEED HIM ARE THE ONES HIS FOLDER CANNOT IDENTIFY, AND THEY WERE
+         THE ONES BEING HELD BACK. Measured on the first real run: 7 of 10 released, and the 3 held
+         were the Beer & Slabaugh dumpster on Whispering Pines ($670.00), a Leatherman stock buy
+         ($980.72) and touch-up paint ($11.97) — which is to say **the only genuinely shared costs
+         in the folder**. Everything that DID reach him was a single-unit invoice needing one chip
+         tapped. Keith, looking at that desk: *"the main thing we are solving for — seems unsolved —
+         he is going to need to assign an invoice to multiple units relative to that units
+         respective cost."* He was right, and this is why: a shared cost names no unit and no
+         community BY ITS NATURE, so per-document matching must refuse it, and the split editor sat
+         on the rows that never needed it.
+
+         THE BATCH IS THE EVIDENCE THE DOCUMENT LACKS. A scanned folder is ONE PM's folder — that is
+         the premise `batchDesk()` already derives a desk from, unanimously or not at all. So a
+         document in Logan's folder is Logan's, whatever its own text failed to print. It gets his
+         DESK and no job, which is exactly the state the community rows already use: the money is on
+         the right screen and the allocation is the open question.
+
+         ⚠ IT IS THE DESK ONLY, NEVER A JOB. Inheriting a job from the batch would be the
+         confident-wrong-answer this module exists to prevent — a dumpster is not the job the
+         invoice above it happened to name. `staged_job_no` stays null, `job_unassigned` stands, and
+         he splits it across the units it actually served.
+
+         ⚠ SCOPED TO THIS BATCH'S OWN INVOICES. It can never reach the mailbox queue: the filter is
+         `batch_id`, and the 54 unplaced invoices in Inbound have a different batch or none. */
+      let inherited = null;
+      try {
+        const nr = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${invBatchId}`
+          + '&released_at=is.null&staged_pm=is.null&select=id,version,vendor_name,amount,job_text');
+        const orphans = nr.ok ? await nr.json() : [];
+        const took = [];
+        for (const o of orphans) {
+          const note = `From ${batch.folder || 'a scanned folder'} — every other document in it is `
+            + `${pm}'s. Nothing on this one named a unit, so it is his to allocate.`;
+          const s = await rpc('ryc_stage_invoice', {
+            p_id: o.id, p_staged_pm: pm, p_staged_job_no: null,
+            p_source: 'job_text', p_confidence: 0.4, p_note: note.slice(0, 300),
+            p_expected_version: o.version, p_request_id: `${rid}:inh:${o.id}`, p_actor: actor,
+          });
+          if (s.status === 200) took.push({ vendor: o.vendor_name, amount: o.amount, job_text: o.job_text });
+        }
+        inherited = { staged: took.length, of: orphans.length, documents: took };
+      } catch (e) { inherited = { error: (e && e.message) || 'batch-desk inheritance failed' }; }
+
       /* RELEASE IS WHAT PUTS IT ON HIS SCREEN, and it gates on the DESK, not the job — which is the
          whole reason a Greencroft row with an unresolved unit can reach him at all. Anything with
          no desk is held back and reported, exactly as in the mailbox path. */
@@ -2000,7 +2043,7 @@ export default async function handler(req, res) {
         } else release = { released: 0, held: 0, note: 'nothing staged with a desk' };
       } catch (e) { release = { error: (e && e.message) || 'release failed' }; }
 
-      return res.status(200).json({ ok: true, flow: 'digital', pm,
+      return res.status(200).json({ ok: true, flow: 'digital', pm, inherited,
         register_batch: invBatchId,
         registered: results.filter(r => r.ok && !r.replayed).length,
         replayed: results.filter(r => r.ok && r.replayed).length,
@@ -3000,7 +3043,11 @@ export default async function handler(req, res) {
        holds `job_text` (it is the tooltip on that very box) and already holds the job list, so
        nothing is exposed here that the desk could not already see. */
     if (action === 'job_candidates') {
-      const texts = (Array.isArray(body.texts) ? body.texts : []).slice(0, 200);
+      /* `items` carries the desk alongside the printed text; `texts` is the original shape and
+         still works. The desk matters because of the case below. */
+      const items = Array.isArray(body.items) ? body.items.slice(0, 200)
+        : (Array.isArray(body.texts) ? body.texts : []).slice(0, 200).map(t => ({ text: t, pm: null }));
+      const texts = items.map(i => (i && i.text !== undefined ? i.text : i));
       if (!texts.length) return res.status(200).json({ ok: true, families: {} });
       let dir = null;
       try { dir = await jobDirectory(); } catch { /* handled below */ }
@@ -3010,11 +3057,41 @@ export default async function handler(req, res) {
       }
       const byNo = new Map([...dir.jobs, ...(dir.foundationOnly || [])].map(j => [j.no, j]));
       const families = {};
-      for (const t of texts) {
+      for (const it of items) {
+        const t = (it && it.text !== undefined) ? it.text : it;
+        const deskPm = (it && it.pm) ? String(it.pm).trim() : null;
         const key = String(t == null ? '' : t);
         if (Object.prototype.hasOwnProperty.call(families, key)) continue;
         const m = familyMatch(key, dir.jobs);
-        if (!m || !m.family) continue;
+
+        /* ⛔ A SHARED COST NAMES NO COMMUNITY BY ITS NATURE, AND THAT IS THE ONE THE SPLIT IS FOR.
+           A 30-yard container standing on Whispering Pines serves a street, so the ticket says
+           "Waste Containers 2026" and nothing else; a stock buy of door hardware says "Rodeliser
+           Stock". Both refuse, correctly — and until now that meant they fell back to a bare "Job
+           no" text box with no way to split at all. **Every row that DID get the split editor was a
+           single-unit invoice that never needed it**, which is exactly what Keith saw on the desk.
+
+           So when the document says nothing but the DESK is known, the candidates are that PM's own
+           jobs. That is a weaker claim than a community and it is labelled as one — it does not
+           assert which units, it offers the ones he could possibly mean. For Logan Moore every
+           active job is a Greencroft unit, so this is the street; for a PM with a mixed portfolio it
+           is his job list, which is still the right set and still requires him to choose.
+
+           ⚠ Only when there is more than one candidate. A PM with a single job needs no picker, and
+           offering one would turn an unambiguous row into a question. */
+        if (!m || !m.family) {
+          if (!deskPm) continue;
+          const mine = dir.jobs.filter(j => j.pm === deskPm);
+          if (mine.length < 2) continue;
+          const allGreencroft = mine.every(j => jobTokens(j.name).has('greencroft'));
+          const misc = allGreencroft ? byNo.get('2105CO09') : null;
+          families[key] = {
+            key: 'desk', label: `Nothing named a community — ${deskPm}'s jobs`, pm: deskPm,
+            candidates: mine.map(j => ({ no: j.no, name: j.name, pm: j.pm || null })),
+            misc: misc ? { no: misc.no, name: misc.name } : null,
+          };
+          continue;
+        }
         const def = FAMILIES.find(f => f.key === m.family.key);
         const misc = def && byNo.get(def.misc);
         families[key] = {
