@@ -1571,11 +1571,89 @@ fact; name both readings; let the reader decide.
 ⚠ This is a **client** finding, not an engineering one: if Keith wants the tool to answer it, the
 hours have to come from the Town. Nothing in the code will produce them.
 
+## Codex review of Ask + Water — 2026-08-26
+
+Report: `codex-reviews/reports/REVIEW_civicscope-muni-ask-and-water_2026-08-26.md`. Verdict
+**FIX-FIRST**, 15 findings. Six fixed the same day; nine remain, four of which need a decision
+from Keith rather than code.
+
+### ⛔ 1 (Critical) — THE MOR NEVER WROTE BACTERIOLOGICAL SAMPLES, AND CARRIED JULY’S INTO EVERY MONTH
+
+`bacti` appeared exactly ONCE in `api/build-mor.py`: in the stats return. `build()` wrote pumpage,
+entry points and distribution, then saved. So the workbook reported "2 bacti" while containing
+none, and `review.html` printed that count beside the download.
+
+⛔ **And it is worse than an empty tab.** The stored template is not a blank state form — it is
+Centreville’s FILLED July 2026 MOR (supply name, WSSN, OIC, certification, and July’s data).
+`put()` returns early on `None`, and nothing cleared anything, so rows 12–13 of the Bacti tab held
+the real 2026-07-29 samples for 125 W. Main St and M-86 E. Lift Station. **Generating August would
+have filed July’s samples labelled August** — a false regulatory filing, not an incomplete one.
+The same applied to any month with fewer distribution rows than its predecessor.
+
+Fixed:
+- Bacti written — **routine into K12:K31, repeats into K36:K44**. Not a guess: EGLE’s own formulas
+  are `COUNTA(K12:K31)`, `COUNTA(K36:K44)` and `AVERAGE/MIN/MAX(L12:L31,L36:L44)`, so writing
+  inside those ranges makes the state’s summary cells compute themselves and writing outside them
+  drops a sample out of every total on the sheet.
+- ⚠ **Routine and repeat must never be merged** — the form counts them separately, and a repeat in
+  the routine block overstates routine compliance, which is the number EGLE checks against the
+  monitoring schedule.
+- `clear_block()` blanks each month’s data region first, skipping formula cells.
+- Over-capacity **refuses** rather than dropping a sample silently.
+- Stats report what reached the workbook, not what was fetched — that mismatch is what hid this.
+
+Verified by building real workbooks and reading the cells back: July writes both samples with
+dates/results/residuals and keeps its 23 distribution rows; **August now produces an empty bacti
+tab** where it previously would have carried July’s.
+
+### The other five fixed the same day
+
+| # | Finding | Fix |
+|---|---|---|
+| 12 | An active user with **no** `muni_tenant` passed EVERY village gate — `u.muni_tenant &&` short-circuited. Water enrols by `water_wssn`, so a tenant-less operator row is ordinary to create and would have opened every gated hub | `u.muni_tenant !== cfg.tenant` in both gates. An entitlement is granted, never inferred from an absent field. All four current users carry `centreville`, so nobody was locked out |
+| 8 | The website guarantee repeated the **"is any table present"** defect the table guarantee documents as already fixed — one stray web hit in the top 12 suppressed the collection search entirely | Always consult the collection, merge by chunk id. Presence of a source TYPE is not evidence the best passage of that type survived ranking |
+| 13 | A missing/malformed marker was still logged `answered` — the same optimistic default 045 existed to abolish, one layer down | `unknown` (migration **050**), counted as neither success nor village failure: a missing marker is OUR instrumentation failing, not evidence about the documents |
+| 11 | A rescued page became a segment only if it had a caption — excluding exactly the uncaptioned Elkhart tables the shape detector was added for | Every rescued page is a segment; `kind` decides table vs rescue; `sectionHeadingOf` supplies the weight-A heading |
+| 14 | The reminder read, sent, then recorded — two schedulers (Vercel cron **and** the VM) could both send before either wrote | The INSERT is the lock: the unique partial index on `outcome='sent'` means one runner claims the period, a 409 means skip, and a failed send releases the claim by moving to `failed` |
+
+Also fixed: `replace(/s/g, '')` in the URL ingester stripped the **letter s**, not whitespace, twelve
+lines below an identical check that does it correctly. Lenient direction, so nothing ever looked broken.
+
+### ⚠ Still open — four need Keith, not code
+
+- **2 (High)** A historical insert or correction never re-derives the following day, so day 3 keeps
+  a stale interval and the month total is wrong in the filing. **Decision: re-derive the successor
+  transactionally, or refuse and route through an office correction flow?**
+- **3 (High)** Office auth is selected solely by the presence of `correction_reason`, and the
+  submit handlers require a reason only when a row already exists for that date. **An
+  unauthenticated caller can therefore add a previously-absent day or bacti sample to an ALREADY
+  FILED month.** Fix is clear in shape — any write into a filed month is an office write — but it
+  changes what the crew tablet can do, so it is Keith’s call.
+- **4 (High)** The filed-vs-held check compares distribution and bacti **by array length only**, and
+  skips a chemical field when either side is null. `matches` can be true with materially different
+  residuals.
+- **5 (High)** A partial month generates a filing-ready workbook. Confirmed live: **August has 1
+  well-day, 1 distribution sample, 0 bacti and still produces a normal-looking EGLE workbook.**
+  Empty months refuse; partial months do not. **Decision: what must a month contain before the tool
+  will generate?**
+
+Remaining medium/low: **6** (truncation still discards passages that would fit, and logs nothing),
+**7** (shared-corpus RPC failure is swallowed; 1:1 round-robin is an unmeasured quota), **9** (the
+three-word stripping floor recreates the Bristol failure for short questions and mangles
+comparative ones), **10** (batched OCR can assign a whole batch to page 1 when the model omits page
+sentinels), **15** (`isDowngrade` ranks `mixed` and `ocr` equal, so a full re-OCR can replace a
+verbatim text layer).
+
+⚠ **Codex could not compare against production `b204d92`** — that SHA is not an object in the local
+Cowork repo. Its findings are verified against the working tree, not against GitHub.
+
 ## Open Action Items
 
-- **Codex review requested 2026-08-26** — Ask (Bristol + Centreville) and Water.
-  `codex-reviews/requests/REVIEW-REQUEST_civicscope-muni-ask-and-water_2026-08-26.md`. Awaiting
-  the report; several reviewed scripts are uncommitted, which the request flags.
+- ⛔ **Codex review 2026-08-26: 9 of 15 findings still open** — see the section above. Four are
+  High-severity Water findings needing a decision from Keith (historical re-derivation, writes
+  into a filed month, the length-only filed-vs-held diff, and what completeness a month needs
+  before it can generate). Report:
+  `codex-reviews/reports/REVIEW_civicscope-muni-ask-and-water_2026-08-26.md`.
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The chips
   are verified against the live corpus (048); an ingest can retire one as easily as earn it.
   Done 2026-08-26 after the zoning-book restore. Its own traffic is tagged `verifier` (049) so it
