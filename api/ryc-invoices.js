@@ -1837,18 +1837,40 @@ export default async function handler(req, res) {
         if (!j) return res.status(400).json({ error: `${jobNo} is not a job that can be filed to.` });
         job_name = j.name;
       }
-      if (doc.job_no === (expense ? RYC_EXPENSE.no : jobNo)) {
+      /* ⛔ "ALREADY WHERE IT IS FILED" IS FALSE FOR A ROW THAT WAS NEVER FILED (2026-08-26).
+         `job_unfiled` is Keith's third ending — the job is recorded and NOTHING is copied, for the
+         30 of 53 active jobs that genuinely have no SharePoint folder. It was reachable, and then
+         it was a DEAD END: this guard refused a re-file to the same job, so once the front office
+         chose it there was no way back, ever. Premium Plant Services $2,934.37 sat resolved against
+         26X021 while `2026/ITR - East Point` existed the whole time — and the filer's own refusal
+         message had NAMED that folder before offering her the button that means it does not exist.
+
+         Re-filing an unfiled row to its own job is not a repeat. It is the copy that never happened:
+         `retire_path` stays null because there is nothing to take back, and the double-click guard
+         is untouched because a `job_folder` row still cannot be re-filed to where it already is. */
+      const refiling = doc.disposition === 'job_unfiled' && !expense && doc.job_no === jobNo;
+      if (!refiling && doc.job_no === (expense ? RYC_EXPENSE.no : jobNo)) {
         return res.status(400).json({ error: `That is already where "${doc.file_name}" is filed.` });
       }
 
       const past = Array.isArray(doc.history) ? doc.history.slice() : [];
-      past.push({
+      const evt = {
         at: doc.reconciled_at, by: doc.reconciled_by || null,
         job_no: doc.job_no, job_name: doc.job_name, disposition: doc.disposition,
         copied_path: doc.copied_path, copied_url: doc.copied_url,
-        corrected_at: new Date().toISOString(),
-        corrected_to: expense ? RYC_EXPENSE.no : jobNo,
-      });
+      };
+      /* A RE-FILE IS NOT A CORRECTION AND MUST NOT BE COUNTED AS ONE. The row's badge counts
+         `corrected_at` entries; stamping one here would tell the front office they got the job
+         wrong when what actually happened is that the folder was found. Nothing was wrong with the
+         job — only with there being nowhere to put the file. */
+      if (refiling) {
+        evt.action = 'refiled_after_folder_found';
+        evt.refiled_at = new Date().toISOString();
+      } else {
+        evt.corrected_at = new Date().toISOString();
+        evt.corrected_to = expense ? RYC_EXPENSE.no : jobNo;
+      }
+      past.push(evt);
 
       /* Reopening the row is what puts it back in front of the worker. `retire_path` carries the
          copy that must be deleted; when there is none (it was RYC Expense, so nothing was ever

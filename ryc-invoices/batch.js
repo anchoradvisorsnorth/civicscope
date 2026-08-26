@@ -685,6 +685,15 @@ function reconRow(d){
        repeating: it MOVES the file rather than filing a second copy, and the old placement is kept
        in the row's history. It sits in the completion column because it is what replaces it. */
     act = '<button class="pfill" onclick="reconCorrect(' + invArg(d.id) + ')">Change job</button>';
+    /* ⛔ "RESOLVED WITHOUT FILING" WAS A ONE-WAY DOOR. The job is right, the cost is recorded, and
+       the only thing missing is the copy — but `doc_recorrect` refused a re-file to the same job
+       ("that is already where it is filed", which was never true for this ending), so there was no
+       way to finish the row once the folder turned up. Now there is, and it is one action: point at
+       the folder, and the copy is queued. */
+    if(d.disposition === "job_unfiled"){
+      act = '<button class="pfill" onclick="reconRefile(' + invArg(d.id) + ')">'
+        + 'File to the job folder</button> ' + act;
+    }
     var fixes = (d.history || []).filter(function(h){ return h && h.corrected_at; });
     if(fixes.length){
       act += '<div class="sub">corrected ' + fixes.length + '&times;</div>';
@@ -729,11 +738,24 @@ function reconRow(d){
          name. "Resolve without filing" is for a job that HAS no folder and never will — measured
          2026-08-21, that is 30 of RYC's 53 active jobs. Offering only one of them would leave half
          the refusals with no honest way out. */
+      /* ⛔ DO NOT OFFER "THIS JOB HAS NO FOLDER" WHEN THE REFUSAL JUST NAMED ONE. Both endings are
+         real, but they are not both available on every refusal, and presenting them as equals is
+         how a $2,934.37 payable was resolved against a job whose folder existed and was named in
+         the very message above the buttons. A choice offered is a choice endorsed. */
+      var namedF = reconNamedFolders(err);
       act += '<div style="margin-top:4px">'
         + '<button class="pfill" onclick="reconPickFolder(' + invArg(d.id) + ')">'
-        + 'Point at the folder</button> '
-        + '<button class="pfill" onclick="reconNoFile(' + invArg(d.id) + ')">'
-        + 'Resolve without filing</button></div>';
+        + 'Point at the folder</button>'
+        + (namedF.length ? '' : ' <button class="pfill" onclick="reconNoFile(' + invArg(d.id) + ')">'
+            + 'Resolve without filing</button>')
+        + '</div>';
+      if(namedF.length){
+        act += '<div class="sub">' + (namedF.length === 1 ? 'It found ' : 'It found ')
+          + '<b>' + esc(namedF.join('</b>, <b>')) + '</b> and would not choose'
+          + (namedF.length > 1 ? ' between them' : '') + '. Pick the right one &mdash; it is '
+          + 'remembered for the job. <i>Resolve without filing</i> is not offered here: that answer '
+          + 'means the job has no folder, and it has one.</div>';
+      }
     }
   }
 
@@ -835,7 +857,13 @@ function reconPickFolder(id){
     }
     /* A guess, offered as the default rather than applied: the folder whose name shares the most
        with the job. She is confirming, not hunting through 77 lines. */
-    var guess = reconClosestFolder(jobLabel, folders);
+    /* PREFER A FOLDER THE REFUSAL ITSELF NAMED. The tie message already narrowed 77 folders to two;
+       starting her from a resemblance score instead would throw that away and is how she ends up
+       scrolling a list the tool had already shortened for her. Falls back to the score when the
+       refusal named nothing, or named something no longer published. */
+    var fromErr = reconNamedFolders(d.copy_error || reconFilerSaid(d))
+      .filter(function(f){ return folders.indexOf(f) >= 0; });
+    var guess = fromErr[0] || reconClosestFolder(jobLabel, folders);
     var msg = "Which SharePoint folder is \"" + jobLabel + "\"?\n\n"
       + "This is remembered for the job — every future invoice for it files here without asking, "
       + "and it overrides the automatic matcher.\n\n"
@@ -857,6 +885,34 @@ function reconPickFolder(id){
       if(n) reconPoll(10);
     });
   });
+}
+
+/* ⛔ WHICH FOLDERS THE REFUSAL ITSELF NAMED — and it usually names one (2026-08-26).
+   Erica, on Premium Plant Services $2,934.37: she assigned the job, and the tool told her the job
+   had no SharePoint folder. It has one. Its own refusal read:
+     "2 job folders match 'ITR East Point Repairs' equally (2026/ITR - East Point,
+      2025/ITR Portage Repairs) — refusing to choose"
+   The tie refusal is right. But it NAMES the folder and then offers "Resolve without filing" — an
+   answer that asserts the job has no folder — beside "Point at the folder" with equal weight. One
+   of those two is provably false whenever this text appears, and it is the one that reads like a
+   way to finish the row. Parsing the refusal is not a guess: these strings are written by the
+   filer, in `file_approved_invoices.py`, and `reconWhy()` already matches on them. */
+function reconNamedFolders(err){
+  var raw = String(err || ""), m;
+  m = raw.match(/job folders match .* equally \(([^)]+)\)/);
+  if(m) return m[1].split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+  m = raw.match(/only \d+ distinctive words? matched .* and '([^']+)'/);
+  if(m) return [m[1]];
+  return [];
+}
+
+/* What the filer said at the moment a row was resolved without filing. It is kept on `history`
+   precisely so this question stays answerable months later — and it is what lets a row that took
+   the wrong ending be handed back its own evidence instead of starting from nothing. */
+function reconFilerSaid(d){
+  var said = "";
+  ((d && d.history) || []).forEach(function(h){ if(h && h.filer_said) said = String(h.filer_said); });
+  return said;
 }
 
 /* The best guess at which folder a job is, by shared words. Only ever a DEFAULT in the prompt —
@@ -1059,6 +1115,50 @@ function reconStageJob(id, jobNo){
 function reconBusyEditing(){
   var a = document.activeElement, el = document.getElementById("batchRecon");
   return !!(a && el && el.contains(a) && (a.tagName === "SELECT" || a.tagName === "INPUT"));
+}
+
+/* FINISH A ROW THAT WAS RESOLVED WITHOUT FILING, NOW THAT THE FOLDER IS KNOWN.
+
+   The job on these rows is not in doubt — a person chose it — so this asks the only open question:
+   which folder. It pins that answer against the JOB (so every future invoice for it files without
+   asking) and then re-files this document, which `doc_recorrect` now allows for an unfiled row
+   because there is no earlier copy to take back.
+
+   It starts her from the folder the original refusal named, recovered from the row's own history.
+   That message is the whole reason this row took the wrong ending; handing it back is the least
+   the screen owes her. */
+function reconRefile(id){
+  var d = reconDoc(id);
+  if(!d || !d.job_no || d.job_no === "RYC-EXPENSE") return;
+  var jobLabel = d.job_name || d.job_no;
+  invPost("job_folders", {}).then(function(r){
+    if(!r.ok){ alert(r.error || "The folder list could not be read."); return; }
+    var folders = (r.data && r.data.folders) || [];
+    if(!folders.length){
+      alert("No SharePoint folders have been published yet.\n\nRun publish_job_folders.py on the VM.");
+      return;
+    }
+    var said = reconFilerSaid(d);
+    var named = reconNamedFolders(said).filter(function(f){ return folders.indexOf(f) >= 0; });
+    var guess = named[0] || reconClosestFolder(jobLabel, folders) || folders[0];
+    var msg = 'Which SharePoint folder is "' + jobLabel + '"?\n\n'
+      + 'This row was resolved without filing, so nothing was ever copied. Choosing the folder '
+      + 'files it now, and is remembered for the job.\n\n'
+      + (said ? 'When it was resolved, the filer said:\n' + said + '\n\n' : '')
+      + 'Type or paste one of:\n' + folders.join("\n");
+    var pick = window.prompt(msg, guess);
+    if(pick === null) return;
+    pick = String(pick).trim();
+    if(!pick) return;
+    invPost("job_folder_pin", { job_no:d.job_no, folder:pick, note:said }).then(function(p){
+      if(!p.ok){ alert(p.error || "That folder could not be saved."); return; }
+      invPost("doc_recorrect", { doc_id:id, job_no:d.job_no }).then(function(c){
+        if(!c.ok){ alert(c.error || "Could not queue the copy."); reconLoad(_recon.batchId); return; }
+        reconLoad(_recon.batchId);
+        if(c.data && c.data.queued) reconPoll(10);
+      });
+    });
+  });
 }
 
 /* CHANGE THE JOB ON A DOCUMENT THAT IS ALREADY FILED. Keith, 2026-08-19: *"the user should have the
