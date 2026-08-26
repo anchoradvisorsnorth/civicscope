@@ -1,9 +1,9 @@
 {
- "generated": "2026-08-25T09:30:55.346Z",
+ "generated": "2026-08-26T09:30:52.535Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 132144217,
+ "totalActual": 132521110,
  "totalCommitted": 141564046,
- "subCount": 642,
+ "subCount": 646,
  "subs": [
   {
    "vendorNo": "3662",
@@ -607,6 +607,89 @@
    ]
   },
   {
+   "vendorNo": "133",
+   "name": "Kleckner Interior Systems Inc",
+   "actualCost": 2063027,
+   "actualJobs": 12,
+   "committed": 1135200,
+   "committedJobs": 8,
+   "variance": -927827,
+   "jobs": [
+    {
+     "jobNo": "2413GO02",
+     "jobName": "PHM Fieldhouse",
+     "actual": 596869,
+     "committed": 470300
+    },
+    {
+     "jobNo": "2315GO08",
+     "jobName": "Jimtown Historical Gym Renovat",
+     "actual": 444770,
+     "committed": 0
+    },
+    {
+     "jobNo": "2410GO03",
+     "jobName": "Walt Disney Elem. Piping",
+     "actual": 409120,
+     "committed": 356500
+    },
+    {
+     "jobNo": "2302GO16",
+     "jobName": "Oregon-Davis HVAC Reno",
+     "actual": 303551,
+     "committed": 0
+    },
+    {
+     "jobNo": "2415GO03",
+     "jobName": "INDOT Roselawn Unit & Salt Bld",
+     "actual": 82946,
+     "committed": 92500
+    },
+    {
+     "jobNo": "2402GP09",
+     "jobName": "Wakarusa WTP",
+     "actual": 68380,
+     "committed": 69100
+    },
+    {
+     "jobNo": "2520GP01",
+     "jobName": "EHA Waterfall SEC Upgrades",
+     "actual": 63375,
+     "committed": 59000
+    },
+    {
+     "jobNo": "26X004",
+     "jobName": "Ryan Fire Prot - Valpo",
+     "actual": 39296,
+     "committed": 57000
+    },
+    {
+     "jobNo": "2502GO03",
+     "jobName": "Byers Softball Complex Improve",
+     "actual": 30767,
+     "committed": 18000
+    },
+    {
+     "jobNo": "2315GO01",
+     "jobName": "Culver ES & MSHS Renovations",
+     "actual": 14060,
+     "committed": 12800
+    },
+    {
+     "jobNo": "2407CO01",
+     "jobName": "PPL - Sewer Restoration",
+     "actual": 9894,
+     "committed": 0
+    },
+    {
+     "jobNo": "2402GO11",
+     "jobName": "Oregon Davis Roof Repairs",
+     "actual": 0,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "1178",
    "name": "Beer & Slabaugh  Inc",
    "actualCost": 2034260,
@@ -733,89 +816,6 @@
      "jobNo": "2307GO02",
      "jobName": "Goshen Alumni Plaza",
      "actual": 4207,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "133",
-   "name": "Kleckner Interior Systems Inc",
-   "actualCost": 1986870,
-   "actualJobs": 12,
-   "committed": 1135200,
-   "committedJobs": 8,
-   "variance": -851670,
-   "jobs": [
-    {
-     "jobNo": "2413GO02",
-     "jobName": "PHM Fieldhouse",
-     "actual": 596869,
-     "committed": 470300
-    },
-    {
-     "jobNo": "2315GO08",
-     "jobName": "Jimtown Historical Gym Renovat",
-     "actual": 444770,
-     "committed": 0
-    },
-    {
-     "jobNo": "2410GO03",
-     "jobName": "Walt Disney Elem. Piping",
-     "actual": 356464,
-     "committed": 356500
-    },
-    {
-     "jobNo": "2302GO16",
-     "jobName": "Oregon-Davis HVAC Reno",
-     "actual": 303551,
-     "committed": 0
-    },
-    {
-     "jobNo": "2415GO03",
-     "jobName": "INDOT Roselawn Unit & Salt Bld",
-     "actual": 82946,
-     "committed": 92500
-    },
-    {
-     "jobNo": "2402GP09",
-     "jobName": "Wakarusa WTP",
-     "actual": 68380,
-     "committed": 69100
-    },
-    {
-     "jobNo": "2520GP01",
-     "jobName": "EHA Waterfall SEC Upgrades",
-     "actual": 63375,
-     "committed": 59000
-    },
-    {
-     "jobNo": "2502GO03",
-     "jobName": "Byers Softball Complex Improve",
-     "actual": 30767,
-     "committed": 18000
-    },
-    {
-     "jobNo": "26X004",
-     "jobName": "Ryan Fire Prot - Valpo",
-     "actual": 15795,
-     "committed": 57000
-    },
-    {
-     "jobNo": "2315GO01",
-     "jobName": "Culver ES & MSHS Renovations",
-     "actual": 14060,
-     "committed": 12800
-    },
-    {
-     "jobNo": "2407CO01",
-     "jobName": "PPL - Sewer Restoration",
-     "actual": 9894,
-     "committed": 0
-    },
-    {
-     "jobNo": "2402GO11",
-     "jobName": "Oregon Davis Roof Repairs",
-     "actual": 0,
      "committed": 0
     }
    ]
@@ -2914,6 +2914,29 @@
    ]
   },
   {
+   "vendorNo": "3383",
+   "name": "Grove Electrical Services",
+   "actualCost": 722228,
+   "actualJobs": 2,
+   "committed": 601511,
+   "committedJobs": 1,
+   "variance": -120717,
+   "jobs": [
+    {
+     "jobNo": "2410GO03",
+     "jobName": "Walt Disney Elem. Piping",
+     "actual": 637868,
+     "committed": 601511
+    },
+    {
+     "jobNo": "2303CO06",
+     "jobName": "IUSB Raclin/Carmichael Hall",
+     "actual": 84360,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "3486",
    "name": "Jettline Electric Inc",
    "actualCost": 720063,
@@ -2974,29 +2997,6 @@
      "jobName": "Eden Worship Center Window Rep",
      "actual": 24876,
      "committed": 24876
-    }
-   ]
-  },
-  {
-   "vendorNo": "3383",
-   "name": "Grove Electrical Services",
-   "actualCost": 712044,
-   "actualJobs": 2,
-   "committed": 601511,
-   "committedJobs": 1,
-   "variance": -110533,
-   "jobs": [
-    {
-     "jobNo": "2410GO03",
-     "jobName": "Walt Disney Elem. Piping",
-     "actual": 627684,
-     "committed": 601511
-    },
-    {
-     "jobNo": "2303CO06",
-     "jobName": "IUSB Raclin/Carmichael Hall",
-     "actual": 84360,
-     "committed": 0
     }
    ]
   },
@@ -3475,6 +3475,53 @@
      "jobName": "Wabash Pickleball Courts",
      "actual": 131658,
      "committed": 0
+    }
+   ]
+  },
+  {
+   "vendorNo": "2056",
+   "name": "L & M Electric Inc",
+   "actualCost": 629402,
+   "actualJobs": 6,
+   "committed": 1280903,
+   "committedJobs": 5,
+   "variance": 651501,
+   "jobs": [
+    {
+     "jobNo": "26X005",
+     "jobName": "CTB 2026 Addition",
+     "actual": 281652,
+     "committed": 809740
+    },
+    {
+     "jobNo": "2513CO01",
+     "jobName": "NMC - Kidmin Area Remodel",
+     "actual": 141042,
+     "committed": 88974
+    },
+    {
+     "jobNo": "2515CO02",
+     "jobName": "NPTech - Community Fiber Build",
+     "actual": 102865,
+     "committed": 119624
+    },
+    {
+     "jobNo": "2310GO07",
+     "jobName": "Elkhart Co. Parks Restroom Ren",
+     "actual": 80711,
+     "committed": 0
+    },
+    {
+     "jobNo": "2611CO01",
+     "jobName": "White Vet Clinic Improvements",
+     "actual": 17087,
+     "committed": 256520
+    },
+    {
+     "jobNo": "2520GP01",
+     "jobName": "EHA Waterfall SEC Upgrades",
+     "actual": 6045,
+     "committed": 6045
     }
    ]
   },
@@ -4276,53 +4323,6 @@
      "jobName": "Ceres-Rochester",
      "actual": 2993,
      "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "2056",
-   "name": "L & M Electric Inc",
-   "actualCost": 474296,
-   "actualJobs": 6,
-   "committed": 1280903,
-   "committedJobs": 5,
-   "variance": 806607,
-   "jobs": [
-    {
-     "jobNo": "2513CO01",
-     "jobName": "NMC - Kidmin Area Remodel",
-     "actual": 141042,
-     "committed": 88974
-    },
-    {
-     "jobNo": "26X005",
-     "jobName": "CTB 2026 Addition",
-     "actual": 126546,
-     "committed": 809740
-    },
-    {
-     "jobNo": "2515CO02",
-     "jobName": "NPTech - Community Fiber Build",
-     "actual": 102865,
-     "committed": 119624
-    },
-    {
-     "jobNo": "2310GO07",
-     "jobName": "Elkhart Co. Parks Restroom Ren",
-     "actual": 80711,
-     "committed": 0
-    },
-    {
-     "jobNo": "2611CO01",
-     "jobName": "White Vet Clinic Improvements",
-     "actual": 17087,
-     "committed": 256520
-    },
-    {
-     "jobNo": "2520GP01",
-     "jobName": "EHA Waterfall SEC Upgrades",
-     "actual": 6045,
-     "committed": 6045
     }
    ]
   },
@@ -5404,6 +5404,35 @@
      "jobName": "",
      "actual": 0,
      "committed": 24518
+    }
+   ]
+  },
+  {
+   "vendorNo": "3186",
+   "name": "JL Denlinger Concrete LLC",
+   "actualCost": 314000,
+   "actualJobs": 3,
+   "committed": 131888,
+   "committedJobs": 2,
+   "variance": -182112,
+   "jobs": [
+    {
+     "jobNo": "2307GO08",
+     "jobName": "So. Bend Fire Station No. 8",
+     "actual": 175392,
+     "committed": 0
+    },
+    {
+     "jobNo": "2515CO02",
+     "jobName": "NPTech - Community Fiber Build",
+     "actual": 125664,
+     "committed": 121287
+    },
+    {
+     "jobNo": "2401RO02",
+     "jobName": "Brenner Garage Addition",
+     "actual": 12944,
+     "committed": 10601
     }
    ]
   },
@@ -6632,35 +6661,6 @@
      "jobName": "Northern Heights Elementary HV",
      "actual": 252668,
      "committed": 251335
-    }
-   ]
-  },
-  {
-   "vendorNo": "3186",
-   "name": "JL Denlinger Concrete LLC",
-   "actualCost": 252536,
-   "actualJobs": 3,
-   "committed": 131888,
-   "committedJobs": 2,
-   "variance": -120648,
-   "jobs": [
-    {
-     "jobNo": "2307GO08",
-     "jobName": "So. Bend Fire Station No. 8",
-     "actual": 175392,
-     "committed": 0
-    },
-    {
-     "jobNo": "2515CO02",
-     "jobName": "NPTech - Community Fiber Build",
-     "actual": 64200,
-     "committed": 121287
-    },
-    {
-     "jobNo": "2401RO02",
-     "jobName": "Brenner Garage Addition",
-     "actual": 12944,
-     "committed": 10601
     }
    ]
   },
@@ -9055,6 +9055,107 @@
    ]
   },
   {
+   "vendorNo": "1071",
+   "name": "Alt & Witzig Engineering  Inc.",
+   "actualCost": 117469,
+   "actualJobs": 13,
+   "committed": 183398,
+   "committedJobs": 9,
+   "variance": 65929,
+   "jobs": [
+    {
+     "jobNo": "2402GP09",
+     "jobName": "Wakarusa WTP",
+     "actual": 29521,
+     "committed": 30000
+    },
+    {
+     "jobNo": "2515CO01",
+     "jobName": "Huntertown Wastewater Treatmen",
+     "actual": 21807,
+     "committed": 47168
+    },
+    {
+     "jobNo": "2415GO03",
+     "jobName": "INDOT Roselawn Unit & Salt Bld",
+     "actual": 17205,
+     "committed": 39930
+    },
+    {
+     "jobNo": "2413CO08",
+     "jobName": "The Monreaux Apartments",
+     "actual": 16079,
+     "committed": 26340
+    },
+    {
+     "jobNo": "2508CO01",
+     "jobName": "Michiana Eye Center",
+     "actual": 13341,
+     "committed": 17927
+    },
+    {
+     "jobNo": "2504CO01",
+     "jobName": "Aluminum Insights North Add'n",
+     "actual": 5550,
+     "committed": 5500
+    },
+    {
+     "jobNo": "2307GO08",
+     "jobName": "So. Bend Fire Station No. 8",
+     "actual": 4975,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP09",
+     "jobName": "Coldwater WRRF Upgrades Phase1",
+     "actual": 3218,
+     "committed": 2480
+    },
+    {
+     "jobNo": "2313GO09",
+     "jobName": "SB Airport Carwash",
+     "actual": 2435,
+     "committed": 0
+    },
+    {
+     "jobNo": "2304CO18",
+     "jobName": "Concord Mall Red. Phase 1",
+     "actual": 1490,
+     "committed": 0
+    },
+    {
+     "jobNo": "2302GP02",
+     "jobName": "Fulton County Airport Hangar",
+     "actual": 1040,
+     "committed": 0
+    },
+    {
+     "jobNo": "2515CO02",
+     "jobName": "NPTech - Community Fiber Build",
+     "actual": 809,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP05",
+     "jobName": "EHA Generator Replacement",
+     "actual": 0,
+     "committed": 0
+    },
+    {
+     "jobNo": "26P001",
+     "jobName": "",
+     "actual": 0,
+     "committed": 8653
+    },
+    {
+     "jobNo": "26X015",
+     "jobName": "",
+     "actual": 0,
+     "committed": 5400
+    }
+   ]
+  },
+  {
    "vendorNo": "4119",
    "name": "G & J 1 LLC",
    "actualCost": 114980,
@@ -9199,107 +9300,6 @@
      "jobName": "Alum Ins Scrap Elevator DH",
      "actual": 826,
      "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "1071",
-   "name": "Alt & Witzig Engineering  Inc.",
-   "actualCost": 111560,
-   "actualJobs": 13,
-   "committed": 183398,
-   "committedJobs": 9,
-   "variance": 71838,
-   "jobs": [
-    {
-     "jobNo": "2402GP09",
-     "jobName": "Wakarusa WTP",
-     "actual": 29521,
-     "committed": 30000
-    },
-    {
-     "jobNo": "2515CO01",
-     "jobName": "Huntertown Wastewater Treatmen",
-     "actual": 21185,
-     "committed": 47168
-    },
-    {
-     "jobNo": "2415GO03",
-     "jobName": "INDOT Roselawn Unit & Salt Bld",
-     "actual": 17205,
-     "committed": 39930
-    },
-    {
-     "jobNo": "2508CO01",
-     "jobName": "Michiana Eye Center",
-     "actual": 12823,
-     "committed": 17927
-    },
-    {
-     "jobNo": "2413CO08",
-     "jobName": "The Monreaux Apartments",
-     "actual": 11906,
-     "committed": 26340
-    },
-    {
-     "jobNo": "2504CO01",
-     "jobName": "Aluminum Insights North Add'n",
-     "actual": 5550,
-     "committed": 5500
-    },
-    {
-     "jobNo": "2307GO08",
-     "jobName": "So. Bend Fire Station No. 8",
-     "actual": 4975,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP09",
-     "jobName": "Coldwater WRRF Upgrades Phase1",
-     "actual": 2624,
-     "committed": 2480
-    },
-    {
-     "jobNo": "2313GO09",
-     "jobName": "SB Airport Carwash",
-     "actual": 2435,
-     "committed": 0
-    },
-    {
-     "jobNo": "2304CO18",
-     "jobName": "Concord Mall Red. Phase 1",
-     "actual": 1490,
-     "committed": 0
-    },
-    {
-     "jobNo": "2302GP02",
-     "jobName": "Fulton County Airport Hangar",
-     "actual": 1040,
-     "committed": 0
-    },
-    {
-     "jobNo": "2515CO02",
-     "jobName": "NPTech - Community Fiber Build",
-     "actual": 809,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP05",
-     "jobName": "EHA Generator Replacement",
-     "actual": 0,
-     "committed": 0
-    },
-    {
-     "jobNo": "26P001",
-     "jobName": "",
-     "actual": 0,
-     "committed": 8653
-    },
-    {
-     "jobNo": "26X015",
-     "jobName": "",
-     "actual": 0,
-     "committed": 5400
     }
    ]
   },
@@ -9631,6 +9631,23 @@
      "jobName": "Wabash Pickleball Courts",
      "actual": 5702,
      "committed": 5177
+    }
+   ]
+  },
+  {
+   "vendorNo": "1182",
+   "name": "Bellman Construction Quality",
+   "actualCost": 100000,
+   "actualJobs": 1,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2508CO01",
+     "jobName": "Michiana Eye Center",
+     "actual": 100000,
+     "committed": 0
     }
    ]
   },
@@ -11047,23 +11064,6 @@
    ]
   },
   {
-   "vendorNo": "1182",
-   "name": "Bellman Construction Quality",
-   "actualCost": 70000,
-   "actualJobs": 1,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2508CO01",
-     "jobName": "Michiana Eye Center",
-     "actual": 70000,
-     "committed": 0
-    }
-   ]
-  },
-  {
    "vendorNo": "1641",
    "name": "Federal Rent A Fence",
    "actualCost": 67720,
@@ -11522,7 +11522,7 @@
   },
   {
    "vendorNo": "4074",
-   "name": "Partner Caulking Co LLC",
+   "name": "Partner Caulking Co DO NOT USE",
    "actualCost": 62292,
    "actualJobs": 1,
    "committed": 0,
@@ -11700,6 +11700,41 @@
    ]
   },
   {
+   "vendorNo": "3470",
+   "name": "Premium Plant Services",
+   "actualCost": 59789,
+   "actualJobs": 4,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2301CO07",
+     "jobName": "ITR Corridor Facelift-Misc Rep",
+     "actual": 36825,
+     "committed": 0
+    },
+    {
+     "jobNo": "2303CO14",
+     "jobName": "Prairie Camp Dining Hall Reno",
+     "actual": 10249,
+     "committed": 0
+    },
+    {
+     "jobNo": "2410CO05",
+     "jobName": "Sherwn Wms Mezz Grate Cleaning",
+     "actual": 9780,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X021",
+     "jobName": "ITR East Point Repairs",
+     "actual": 2934,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "3839",
    "name": "Hobart Glosson Food Equipment",
    "actualCost": 59690,
@@ -11730,35 +11765,6 @@
      "jobName": "Huntertown Wastewater Treatmen",
      "actual": 59200,
      "committed": 59200
-    }
-   ]
-  },
-  {
-   "vendorNo": "3470",
-   "name": "Premium Plant Services",
-   "actualCost": 56854,
-   "actualJobs": 3,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2301CO07",
-     "jobName": "ITR Corridor Facelift-Misc Rep",
-     "actual": 36825,
-     "committed": 0
-    },
-    {
-     "jobNo": "2303CO14",
-     "jobName": "Prairie Camp Dining Hall Reno",
-     "actual": 10249,
-     "committed": 0
-    },
-    {
-     "jobNo": "2410CO05",
-     "jobName": "Sherwn Wms Mezz Grate Cleaning",
-     "actual": 9780,
-     "committed": 0
     }
    ]
   },
@@ -11907,6 +11913,77 @@
    ]
   },
   {
+   "vendorNo": "1049",
+   "name": "airWorx Construction Equipment",
+   "actualCost": 53204,
+   "actualJobs": 10,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 14773,
+     "committed": 0
+    },
+    {
+     "jobNo": "2315GO01",
+     "jobName": "Culver ES & MSHS Renovations",
+     "actual": 8558,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP07",
+     "jobName": "So Bend-South Well Field WTP",
+     "actual": 7194,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP09",
+     "jobName": "Coldwater WRRF Upgrades Phase1",
+     "actual": 6485,
+     "committed": 0
+    },
+    {
+     "jobNo": "2404CO09",
+     "jobName": "Honeyville Metal Office Renova",
+     "actual": 5287,
+     "committed": 0
+    },
+    {
+     "jobNo": "2315GO03",
+     "jobName": "Warsaw Maint & Concession Bldg",
+     "actual": 3496,
+     "committed": 0
+    },
+    {
+     "jobNo": "26X005",
+     "jobName": "CTB 2026 Addition",
+     "actual": 3373,
+     "committed": 0
+    },
+    {
+     "jobNo": "2515CO02",
+     "jobName": "NPTech - Community Fiber Build",
+     "actual": 2000,
+     "committed": 0
+    },
+    {
+     "jobNo": "2507GP03",
+     "jobName": "Milford Water Utility Imp. Div",
+     "actual": 1168,
+     "committed": 0
+    },
+    {
+     "jobNo": "2413CO08",
+     "jobName": "The Monreaux Apartments",
+     "actual": 869,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "2951",
    "name": "Weaver Consultants Group LLC",
    "actualCost": 52797,
@@ -12013,77 +12090,6 @@
      "jobNo": "2404CO13",
      "jobName": "Warrior Youth Baseball Bldg",
      "actual": 50523,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "1049",
-   "name": "airWorx Construction Equipment",
-   "actualCost": 50476,
-   "actualJobs": 10,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 12044,
-     "committed": 0
-    },
-    {
-     "jobNo": "2315GO01",
-     "jobName": "Culver ES & MSHS Renovations",
-     "actual": 8558,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP07",
-     "jobName": "So Bend-South Well Field WTP",
-     "actual": 7194,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP09",
-     "jobName": "Coldwater WRRF Upgrades Phase1",
-     "actual": 6485,
-     "committed": 0
-    },
-    {
-     "jobNo": "2404CO09",
-     "jobName": "Honeyville Metal Office Renova",
-     "actual": 5287,
-     "committed": 0
-    },
-    {
-     "jobNo": "2315GO03",
-     "jobName": "Warsaw Maint & Concession Bldg",
-     "actual": 3496,
-     "committed": 0
-    },
-    {
-     "jobNo": "26X005",
-     "jobName": "CTB 2026 Addition",
-     "actual": 3373,
-     "committed": 0
-    },
-    {
-     "jobNo": "2515CO02",
-     "jobName": "NPTech - Community Fiber Build",
-     "actual": 2000,
-     "committed": 0
-    },
-    {
-     "jobNo": "2507GP03",
-     "jobName": "Milford Water Utility Imp. Div",
-     "actual": 1168,
-     "committed": 0
-    },
-    {
-     "jobNo": "2413CO08",
-     "jobName": "The Monreaux Apartments",
-     "actual": 869,
      "committed": 0
     }
    ]
@@ -13172,7 +13178,7 @@
   {
    "vendorNo": "3904",
    "name": "United Dumpsters LLC",
-   "actualCost": 39190,
+   "actualCost": 39490,
    "actualJobs": 4,
    "committed": 0,
    "committedJobs": 0,
@@ -13181,7 +13187,7 @@
     {
      "jobNo": "2513CO04",
      "jobName": "Helix Orchard Wallen Road",
-     "actual": 31646,
+     "actual": 31946,
      "committed": 0
     },
     {
@@ -13809,32 +13815,9 @@
    ]
   },
   {
-   "vendorNo": "2736",
-   "name": "Stone Ridge Landscaping  Inc.",
-   "actualCost": 32541,
-   "actualJobs": 2,
-   "committed": 15943,
-   "committedJobs": 1,
-   "variance": -16598,
-   "jobs": [
-    {
-     "jobNo": "2307GO02",
-     "jobName": "Goshen Alumni Plaza",
-     "actual": 20093,
-     "committed": 15943
-    },
-    {
-     "jobNo": "2302GO07",
-     "jobName": "WCSC 2023 Facility Improvement",
-     "actual": 12448,
-     "committed": 0
-    }
-   ]
-  },
-  {
    "vendorNo": "3833",
    "name": "DW1",
-   "actualCost": 32540,
+   "actualCost": 32880,
    "actualJobs": 9,
    "committed": 0,
    "committedJobs": 0,
@@ -13873,7 +13856,7 @@
     {
      "jobNo": "2502GP09",
      "jobName": "Coldwater WRRF Upgrades Phase1",
-     "actual": 2265,
+     "actual": 2605,
      "committed": 0
     },
     {
@@ -13892,6 +13875,29 @@
      "jobNo": "2413CO08",
      "jobName": "The Monreaux Apartments",
      "actual": 750,
+     "committed": 0
+    }
+   ]
+  },
+  {
+   "vendorNo": "2736",
+   "name": "Stone Ridge Landscaping  Inc.",
+   "actualCost": 32541,
+   "actualJobs": 2,
+   "committed": 15943,
+   "committedJobs": 1,
+   "variance": -16598,
+   "jobs": [
+    {
+     "jobNo": "2307GO02",
+     "jobName": "Goshen Alumni Plaza",
+     "actual": 20093,
+     "committed": 15943
+    },
+    {
+     "jobNo": "2302GO07",
+     "jobName": "WCSC 2023 Facility Improvement",
+     "actual": 12448,
      "committed": 0
     }
    ]
@@ -14179,6 +14185,35 @@
      "jobName": "Concord Handicap Swing",
      "actual": 826,
      "committed": 0
+    }
+   ]
+  },
+  {
+   "vendorNo": "3692",
+   "name": "Express Signs Inc",
+   "actualCost": 30956,
+   "actualJobs": 2,
+   "committed": 31621,
+   "committedJobs": 2,
+   "variance": 665,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 26484,
+     "committed": 25405
+    },
+    {
+     "jobNo": "2307GO09",
+     "jobName": "St. Joe County Garages - Combo",
+     "actual": 4472,
+     "committed": 0
+    },
+    {
+     "jobNo": "2413CO08",
+     "jobName": "",
+     "actual": 0,
+     "committed": 6216
     }
    ]
   },
@@ -14537,6 +14572,107 @@
    ]
   },
   {
+   "vendorNo": "3303",
+   "name": "LRS LLC",
+   "actualCost": 27644,
+   "actualJobs": 15,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2315GO01",
+     "jobName": "Culver ES & MSHS Renovations",
+     "actual": 4947,
+     "committed": 0
+    },
+    {
+     "jobNo": "2508CO01",
+     "jobName": "Michiana Eye Center",
+     "actual": 4649,
+     "committed": 0
+    },
+    {
+     "jobNo": "2410GO03",
+     "jobName": "Walt Disney Elem. Piping",
+     "actual": 3104,
+     "committed": 0
+    },
+    {
+     "jobNo": "2508GP02",
+     "jobName": "EHA Bannerker Hts Kitchen Reno",
+     "actual": 2746,
+     "committed": 0
+    },
+    {
+     "jobNo": "2315GO03",
+     "jobName": "Warsaw Maint & Concession Bldg",
+     "actual": 2658,
+     "committed": 0
+    },
+    {
+     "jobNo": "2413CO08",
+     "jobName": "The Monreaux Apartments",
+     "actual": 2007,
+     "committed": 0
+    },
+    {
+     "jobNo": "2402GO07",
+     "jobName": "Weesaw Park Improvements",
+     "actual": 1861,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GO06",
+     "jobName": "Wabash Pickleball Courts",
+     "actual": 1658,
+     "committed": 0
+    },
+    {
+     "jobNo": "2402RO06",
+     "jobName": "Brad - Misc Work at Residence",
+     "actual": 1441,
+     "committed": 0
+    },
+    {
+     "jobNo": "2303CO08",
+     "jobName": "Ceres-Rochester",
+     "actual": 728,
+     "committed": 0
+    },
+    {
+     "jobNo": "2302GP02",
+     "jobName": "Fulton County Airport Hangar",
+     "actual": 635,
+     "committed": 0
+    },
+    {
+     "jobNo": "2415GO04",
+     "jobName": "Culver Design Build",
+     "actual": 478,
+     "committed": 0
+    },
+    {
+     "jobNo": "2307GO09",
+     "jobName": "St. Joe County Garages - Combo",
+     "actual": 455,
+     "committed": 0
+    },
+    {
+     "jobNo": "2302GO15",
+     "jobName": "Argos Parking Lot Improvements",
+     "actual": 276,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP07",
+     "jobName": "So Bend-South Well Field WTP",
+     "actual": 0,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "3168",
    "name": "Black Diamond Builders LLC",
    "actualCost": 27576,
@@ -14618,107 +14754,6 @@
      "jobNo": "2307GO09",
      "jobName": "St. Joe County Garages - Combo",
      "actual": 12681,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "3303",
-   "name": "LRS LLC",
-   "actualCost": 25660,
-   "actualJobs": 15,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2315GO01",
-     "jobName": "Culver ES & MSHS Renovations",
-     "actual": 4947,
-     "committed": 0
-    },
-    {
-     "jobNo": "2508CO01",
-     "jobName": "Michiana Eye Center",
-     "actual": 3538,
-     "committed": 0
-    },
-    {
-     "jobNo": "2315GO03",
-     "jobName": "Warsaw Maint & Concession Bldg",
-     "actual": 2658,
-     "committed": 0
-    },
-    {
-     "jobNo": "2508GP02",
-     "jobName": "EHA Bannerker Hts Kitchen Reno",
-     "actual": 2626,
-     "committed": 0
-    },
-    {
-     "jobNo": "2410GO03",
-     "jobName": "Walt Disney Elem. Piping",
-     "actual": 2610,
-     "committed": 0
-    },
-    {
-     "jobNo": "2402GO07",
-     "jobName": "Weesaw Park Improvements",
-     "actual": 1861,
-     "committed": 0
-    },
-    {
-     "jobNo": "2413CO08",
-     "jobName": "The Monreaux Apartments",
-     "actual": 1747,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GO06",
-     "jobName": "Wabash Pickleball Courts",
-     "actual": 1658,
-     "committed": 0
-    },
-    {
-     "jobNo": "2402RO06",
-     "jobName": "Brad - Misc Work at Residence",
-     "actual": 1441,
-     "committed": 0
-    },
-    {
-     "jobNo": "2303CO08",
-     "jobName": "Ceres-Rochester",
-     "actual": 728,
-     "committed": 0
-    },
-    {
-     "jobNo": "2302GP02",
-     "jobName": "Fulton County Airport Hangar",
-     "actual": 635,
-     "committed": 0
-    },
-    {
-     "jobNo": "2415GO04",
-     "jobName": "Culver Design Build",
-     "actual": 478,
-     "committed": 0
-    },
-    {
-     "jobNo": "2307GO09",
-     "jobName": "St. Joe County Garages - Combo",
-     "actual": 455,
-     "committed": 0
-    },
-    {
-     "jobNo": "2302GO15",
-     "jobName": "Argos Parking Lot Improvements",
-     "actual": 276,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP07",
-     "jobName": "So Bend-South Well Field WTP",
-     "actual": 0,
      "committed": 0
     }
    ]
@@ -15708,35 +15743,6 @@
    ]
   },
   {
-   "vendorNo": "3692",
-   "name": "Express Signs Inc",
-   "actualCost": 17175,
-   "actualJobs": 2,
-   "committed": 31621,
-   "committedJobs": 2,
-   "variance": 14446,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 12703,
-     "committed": 25405
-    },
-    {
-     "jobNo": "2307GO09",
-     "jobName": "St. Joe County Garages - Combo",
-     "actual": 4472,
-     "committed": 0
-    },
-    {
-     "jobNo": "2413CO08",
-     "jobName": "",
-     "actual": 0,
-     "committed": 6216
-    }
-   ]
-  },
-  {
    "vendorNo": "157",
    "name": "TrueLook Inc",
    "actualCost": 17165,
@@ -16643,6 +16649,23 @@
    ]
   },
   {
+   "vendorNo": "4138",
+   "name": "Raynor Door Authority of",
+   "actualCost": 12171,
+   "actualJobs": 1,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2515CO01",
+     "jobName": "Huntertown Wastewater Treatmen",
+     "actual": 12171,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "3544",
    "name": "Bracing Systems - North",
    "actualCost": 11870,
@@ -16673,23 +16696,6 @@
      "jobName": "Helix Orchard Wallen Road",
      "actual": 11690,
      "committed": 41090
-    }
-   ]
-  },
-  {
-   "vendorNo": "4138",
-   "name": "Raynor Door Authority of",
-   "actualCost": 11669,
-   "actualJobs": 1,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2515CO01",
-     "jobName": "Huntertown Wastewater Treatmen",
-     "actual": 11669,
-     "committed": 0
     }
    ]
   },
@@ -16986,6 +16992,47 @@
    ]
   },
   {
+   "vendorNo": "2413",
+   "name": "Ozinga Ready Mix",
+   "actualCost": 10816,
+   "actualJobs": 5,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2402GP09",
+     "jobName": "Wakarusa WTP",
+     "actual": 4761,
+     "committed": 0
+    },
+    {
+     "jobNo": "2313GO09",
+     "jobName": "SB Airport Carwash",
+     "actual": 2928,
+     "committed": 0
+    },
+    {
+     "jobNo": "2310GO07",
+     "jobName": "Elkhart Co. Parks Restroom Ren",
+     "actual": 2380,
+     "committed": 0
+    },
+    {
+     "jobNo": "2307GO01",
+     "jobName": "Baugo Schools Signs",
+     "actual": 461,
+     "committed": 0
+    },
+    {
+     "jobNo": "2507GO04",
+     "jobName": "PHM Educational Svc Elevator",
+     "actual": 287,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "3223",
    "name": "Herb's Drywall Service Inc",
    "actualCost": 10700,
@@ -17112,47 +17159,6 @@
      "jobNo": "2608CO01",
      "jobName": "Kindig Sloat Office Renovation",
      "actual": 9906,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "2413",
-   "name": "Ozinga Ready Mix",
-   "actualCost": 9893,
-   "actualJobs": 5,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2402GP09",
-     "jobName": "Wakarusa WTP",
-     "actual": 3838,
-     "committed": 0
-    },
-    {
-     "jobNo": "2313GO09",
-     "jobName": "SB Airport Carwash",
-     "actual": 2928,
-     "committed": 0
-    },
-    {
-     "jobNo": "2310GO07",
-     "jobName": "Elkhart Co. Parks Restroom Ren",
-     "actual": 2380,
-     "committed": 0
-    },
-    {
-     "jobNo": "2307GO01",
-     "jobName": "Baugo Schools Signs",
-     "actual": 461,
-     "committed": 0
-    },
-    {
-     "jobNo": "2507GO04",
-     "jobName": "PHM Educational Svc Elevator",
-     "actual": 287,
      "committed": 0
     }
    ]
@@ -17756,6 +17762,23 @@
      "jobNo": "2515CO01",
      "jobName": "Huntertown Wastewater Treatmen",
      "actual": 1750,
+     "committed": 0
+    }
+   ]
+  },
+  {
+   "vendorNo": "4161",
+   "name": "Radon Environmental Inc",
+   "actualCost": 7125,
+   "actualJobs": 1,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2413CO08",
+     "jobName": "The Monreaux Apartments",
+     "actual": 7125,
      "committed": 0
     }
    ]
@@ -18645,6 +18668,23 @@
      "jobNo": "2404CO09",
      "jobName": "Honeyville Metal Office Renova",
      "actual": 4328,
+     "committed": 0
+    }
+   ]
+  },
+  {
+   "vendorNo": "4043",
+   "name": "Johnson Controls",
+   "actualCost": 4318,
+   "actualJobs": 1,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2413GO02",
+     "jobName": "PHM Fieldhouse",
+     "actual": 4318,
      "committed": 0
     }
    ]
@@ -20032,6 +20072,29 @@
    ]
   },
   {
+   "vendorNo": "1425",
+   "name": "Cottage Watchman Security Syst",
+   "actualCost": 2033,
+   "actualJobs": 2,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2410GO03",
+     "jobName": "Walt Disney Elem. Piping",
+     "actual": 1846,
+     "committed": 0
+    },
+    {
+     "jobNo": "2404CO08",
+     "jobName": "CTB Door 160 Repair",
+     "actual": 187,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "4151",
    "name": "Dump that Junk LLC",
    "actualCost": 2025,
@@ -20735,6 +20798,23 @@
      "jobNo": "2502GP09",
      "jobName": "Coldwater WRRF Upgrades Phase1",
      "actual": 1125,
+     "committed": 0
+    }
+   ]
+  },
+  {
+   "vendorNo": "1218",
+   "name": "Bontrager Security Solutions",
+   "actualCost": 1104,
+   "actualJobs": 1,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2501CO01",
+     "jobName": "R. Yoder 2025 2nd Floor Addtn",
+     "actual": 1104,
      "committed": 0
     }
    ]
