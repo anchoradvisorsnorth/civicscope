@@ -1301,17 +1301,96 @@ an unbranded page from a branded one. Same markup and sizing as the hub — a re
 them and it is one product. A tenant with no `logo_url` renders nothing rather than a gap.
 ⚠ **Centreville has no `logo_url`** and therefore shows no mark on either surface.
 
+### ✅ BRISTOL R-1 SETBACKS ANSWER (2026-08-25) — three defects, and the first two hid the third
+
+The standing failure was *"In Bristol, what is the front setback in the R-1 district?"* — logged
+`declined` with 15 passages retrieved. It was never a ranking problem, which is what it looked like
+for a week. Asked directly, `muni_search(elkhart-county, "front setback R-1 district")` returned the
+right chunk at **#1**. Three separate defects sat between that and the reader.
+
+**1. The town own name was poisoning its own retrieval.**
+People write *"In Bristol, what is..."* — naming the place is the natural way to ask. But every
+document in the tenant is already about Bristol, so the word carries no information and enormous
+term frequency. Measured:
+
+| query | the town top 12 |
+|---|---|
+| with "Bristol" | Farmers Market ×5, Parks Dept, Fire Station, Water Bill, 2 history pages |
+| without | ordinance sections, and the R-1 dimensional table ranks |
+
+143 website pages carry the town name and `ts_rank_cd` rewards that without bound. Worse across the
+shared corpus: the Elkhart County ordinance never says "Bristol", so including it **broke the strict
+all-terms pass** and dropped the county to the OR fallback. The name is now stripped for RETRIEVAL
+only — the model still receives the question exactly as typed.
+
+**2. The shared corpus was appended, so the context budget ate it.**
+`hits = hits.concat(shared)` — the comment said *"the county is added"*, and it was: added where the
+budget throws it away. The town 12 own hits filled 25,292 of the 30,000-char budget, so the loop
+broke **before any county passage at all**. Bristol zoning answer was being assembled from the
+Farmers Market page. Exactly the failure the table guarantee documents one level down, unnoticed one
+level up.
+
+⚠ **They cannot simply be sorted by rank.** The two arrays come from separate `muni_search` calls
+that may have taken different passes, so the numbers are not on one scale — measured on the same
+question, the town scored 2.5–7.5 (strict) and the county 0.015–0.05 (OR fallback). Sorting looks
+principled and is not. They are **interleaved**: each corpus keeps its own ordering and is
+guaranteed seats at the front, which needs no cross-corpus comparison.
+
+**3. ⛔ AND THE TABLE FLAG WAS ON THE WRONG PAGES — `chunkSegments` located pages from position 0.**
+
+A detected table page is found in the assembled text by its first 120 characters. That is correct
+only if those characters are unique. In a published ordinance they are the opposite of unique —
+every page of a district standards opens with the same running header:
+
+```
+158.03(B)   STANDARD DISTRICTS
+  R-1 Single-Family District
+(3) Building Placement & Form
+```
+
+so each R-1 table page matched the FIRST page carrying that header. The result, measured:
+**chunks 88–90 — the district purpose and permitted-uses pages, holding no table at all — were
+flagged `is_table` and given the heading "R-1 Single-Family District — Building Placement & Form",
+while the pages with the actual dimensional rows landed at 91–93 unflagged and with NO heading.**
+Heading is the weight-A field. So the one passage carrying R-1 front setback was simultaneously
+unfindable and unmarked, and `muni_search_tables` dutifully guaranteed a seat to a page with no
+numbers on it. The fix is a monotonic scan — search forward from the last match, never from zero.
+
+After re-ingest every district Building Placement page is one flagged, correctly-headed chunk, and
+the answer is complete:
+
+> the minimum front setback is measured **from the centerline of the road** — **50 ft from a named
+> road or street, 75 ft from a numbered county road, 120 ft from a federal/state highway**
+
+It also flagged, unprompted, that two scanned tables disagree on an adjacent figure (minimum lot
+size 5,000 vs 4,000 sq ft) — the transcription-uncertainty rule doing exactly its job.
+
+⚠ **This bug affected every corpus ingested before 2026-08-25.** Centreville Table 4-4 answers
+correctly and was left alone, but **67% of Centreville chunks carry no heading** and its other
+tables may be misfiled the same way. Re-ingesting the zoning book is the obvious next probe.
+
+⚠ **`--force` writes even when the OCR rescue fails.** The first re-ingest attempt pulled the
+per-tenant key from the Vercel API with `decrypt=true`, got a 1,308-character encrypted blob rather
+than a key, 401ed on every OCR call — **and wrote the document anyway**, silently downgrading it
+from `mixed` to `text-layer` and dropping the TC Town Character Preservation Overlay page. Recovered
+by pulling the key properly (`vercel env pull`, read, then overwrite and delete the file — it holds
+54 production secrets). A partial ingest should not be able to overwrite a better one.
+
 ## Open Action Items
 
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The Try:
   chips are verified against the live corpus (048); an ingest can retire one as easily as earn it.
 - **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it. Bristol
   hotlinks the Town own PNG. Needs a logo file from the Village if Keith wants parity.
-- ⛔ **Bristol R-1 dimensional row does not reach the model — the ONE open retrieval defect, and it
-  is now the only thing in the failure list.** The Elkhart County chunk is built, flagged
-  `is_table`, and correctly headed; it loses on ranking. `node scripts/muni-usage.mjs --failures`
-  is the standing check. Everything else that looked like a failure on 2026-08-25 turned out to be
-  a correct referral to another government.
+- ✅ **Bristol R-1 setbacks ANSWER (2026-08-25)** — three defects: the town own name poisoning
+  retrieval, the shared corpus appended past the context budget, and `chunkSegments` putting the
+  table flag on the wrong pages. See the section above.
+- ⛔ **Re-ingest the Centreville zoning book with the fixed `chunkSegments`.** The position-0 lookup
+  bug affected every corpus built before 2026-08-25. Table 4-4 answers, so this is not urgent, but
+  **67% of Centreville chunks carry no heading** and its other tables may be misfiled the same way.
+- ⛔ **`--force` overwrites a good ingest with a worse one when OCR fails.** It downgraded the
+  Elkhart ordinance from `mixed` to `text-layer` on a 401 and reported success. A partial ingest
+  should refuse to replace a document that was previously rescued.
 - **Check `minRows: 3 -> 2` in `tabularPages()` for false positives.** Changed to catch Elkhart
   County continuation pages without measuring precision afterwards.
 - **Centreville is now a CLIENT PROJECT with its own folder — `Cowork\Centreville\CLAUDE.md`
