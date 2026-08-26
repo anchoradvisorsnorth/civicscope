@@ -1647,12 +1647,101 @@ verbatim text layer).
 ⚠ **Codex could not compare against production `b204d92`** — that SHA is not an object in the local
 Cowork repo. Its findings are verified against the working tree, not against GitHub.
 
+## Michelle owns the month — the Water workflow, and what it settled (2026-08-26)
+
+Keith described how the EGLE report actually gets made, and it resolved four open High-severity
+findings at once:
+
+> *"Michelle will have oversight — if a reading is missing, she will add it before running the
+> report. She also personally handles the bacteria report, which gets sent to lab, then she gets the
+> lab results back via email 24 hours later. She can manually enter it that time. She also sometimes
+> changes numbers slightly in the actual EGLE report. So we will want her to have the ability to edit
+> a line or entry from what the field guys submit."*
+
+⛔ **Read that as a specification, because it changes which defects matter.** Inserting into the
+middle of a filed-or-forming month is not an edge case here — it is the ordinary path.
+
+### She can now edit a line (`civicscope-water/review.html`)
+
+Every recorded day, distribution sample and bacti sample carries an **Edit** control; every day the
+crew did not record carries **Add**. All of it appears only when she is signed in, because every
+save is an office write.
+
+⛔ **It edits the RAW INPUTS, never the derived numbers.** Gallons, solution used and dose come from
+`derive()` — one arithmetic in one file, imported by page and server alike. A "gallons" box would
+create a second definition of a number that goes to the State of Michigan, and the two would
+disagree the first time either changed. She edits what was OBSERVED; the arithmetic follows.
+
+A reason is required only when replacing something already on the record. Filling a gap is not an
+amendment, and demanding a justification for it is friction with no reader.
+
+### ⛔ 2 (High) — the day AFTER an edit was silently left wrong
+
+Every derived number hangs off the previous live reading. Editing or inserting a historical day
+invalidated the day that follows, which kept the interval it computed against a row that is no
+longer there. Day 1 = 100, day 2 = 150, day 3 = 200 stores 50 and 50; correct day 2 to 120 and day 2
+becomes 20 while **day 3 still says 50 instead of 80** — the month totals 70 against a true 100, and
+`build-mor.py` copies that straight into the filing.
+
+`rederiveSuccessor()` now recomputes the following day through the same `derive()`, in place, keeping
+its row id — a recomputation of stored arithmetic, so it supersedes nothing and needs no reason. It
+walks exactly ONE day forward on purpose: that day's own successor depends on it only through the
+meter and tank levels, which this does not touch. A successor that will not re-derive is **reported
+to her**, never left stale.
+
+### ⛔ 3 (High) — a filed month was open to anonymous writes
+
+The office boundary was decided entirely by the presence of `correction_reason`, and a reason was
+only demanded when a row for that date already existed. So a date with **no** row was an open crew
+write even inside a month already submitted to EGLE — an unauthenticated POST could add Well 3 on
+July 14 to a July filed weeks ago.
+
+Any operator write whose date falls in a filed month is now an office write. This narrows the crew's
+job by nothing — the round they enter is today's, in a month nobody has filed — and Michelle, who
+does the desk work, is signed in. Verified live: an anonymous write into filed July returns **403**
+with the reason; the same write into open August still reaches the crew path.
+
+### ⛔ 4 (High) — the filed-vs-held check compared samples by COUNT
+
+Distribution and bacti agreement was `filed.length === ours.length`. No date, no site, no residual.
+Since Michelle *"sometimes changes numbers slightly in the actual EGLE report"*, this comparison **is
+the record of where she deviated** — and a same-count/changed-value edit is exactly the shape of her
+edits. Counting rows was blind to her entire workflow.
+
+⚠ The two sides do not share field names, and assuming they did produced a first version that
+reported **every sample of every filed month** as a mismatch — 26 phantom differences on January
+alone. Caught before shipping by running it against all seven filed months. A filed row is
+`{date, free, total, ortho}` for distribution and `{date, location, free, total, result}` for bacti;
+ours are `sample_date` / `collected_date` / `site_name`. Identity is extracted per side, matched by
+regulatory identity rather than position, because one inserted sample would otherwise shift every
+later row into a false difference.
+
+The corrected version finds **one real deviation across seven filed months, with no false
+positives**: *July 17 — the report says 0.39 free, the records say 0.37.*
+
+### Bacti can finally be corrected (migration 051)
+
+`water_bacti_samples` was the one table with no supersede trio, so `submit_bacti` had no correction
+path — a second submission for the same site and date returned 409 and stopped. That is exactly
+backwards: **the results arrive by email a day after the sample is taken**, so a sample is routinely
+recorded before its result exists and the row has to be completed afterwards. The one table that
+could not be amended was the one whose values arrive late.
+
+### 5 (High) — partial months: answered by her role, not by a gate
+
+A month with one well-day still generates a filing-ready workbook. Keith's answer settles it:
+**Michelle is the completeness check** and adds what is missing before running the report. A hard
+block would fight the workflow — a partial month is a legitimate state while she is still working.
+The review page already counts missing well-days and warns on absent bacti. **Recorded as a
+deliberate decision rather than an unfixed finding**, so nobody re-opens it as a bug.
+
 ## Open Action Items
 
-- ⛔ **Codex review 2026-08-26: 9 of 15 findings still open** — see the section above. Four are
-  High-severity Water findings needing a decision from Keith (historical re-derivation, writes
-  into a filed month, the length-only filed-vs-held diff, and what completeness a month needs
-  before it can generate). Report:
+- **Codex review 2026-08-26: 5 of 15 findings open**, all medium/low and none needing a decision:
+  **6** truncation still drops passages that would fit and logs nothing · **7** shared-corpus RPC
+  failure is swallowed and the 1:1 merge is an unmeasured quota · **9** the three-word stripping
+  floor recreates the Bristol failure on short questions · **10** batched OCR can assign a whole
+  batch to page 1 · **15** `isDowngrade` ranks `mixed` equal to `ocr`. Report:
   `codex-reviews/reports/REVIEW_civicscope-muni-ask-and-water_2026-08-26.md`.
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The chips
   are verified against the live corpus (048); an ingest can retire one as easily as earn it.
