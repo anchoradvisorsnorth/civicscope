@@ -333,6 +333,12 @@ function invPaint(){
     + _viewing
     + ' &middot; ' + open.length + ' to review &middot; ' + fmt(val) + '</div>'
     + '<div class="sub">'
+    /* SAY WHAT THE TWO BUTTONS DO. Keith asked outright — *"Difference between save and approve?"* —
+       which is the evidence the screen never answered it. Approve flushes whatever is on the row
+       first (`invFlushPending`), so going straight to Approve is not a shortcut that loses work;
+       Save exists for stopping half-way. */
+    + 'Approve records that RYC owes it and clears the row &mdash; it saves your coding first, so '
+    + 'you can go straight to it. Save just keeps your work and leaves the row here. &middot; '
     + (hard.length ? '<b class="m-r">' + hard.length + ' need a look before they can be approved</b> &middot; ' : '')
     + done.length + ' done'
     + (who.scope === "pm"
@@ -471,8 +477,13 @@ function invJobPanel(g){
   var h = '<div class="panel"><div class="h">' + title
     + ' <span class="sub" style="font-weight:400">&middot; ' + g.rows.length + ' &middot; ' + fmt(g.total) + '</span></div>';
   if(!g.job){
-    h += '<div class="sub">Nothing on these documents said which job. Type a job number and it is '
-      + 'remembered &mdash; the next invoice from that vendor printing the same text classifies itself.</div>';
+    /* ⚠ THIS SENTENCE DESCRIBED A CONTROL THAT IS NO LONGER THERE. It said "Type a job number"
+       while the affordance underneath had become community chips, a split and a shared-cost
+       ending — and a caption that describes something absent is worse than no caption. The hint
+       store is still real and still learns, so that half stays; it just is not a text box any more. */
+    h += '<div class="sub">Nothing on these documents named a unit. Pick one, split it across '
+      + 'several, or send it to the shared job &mdash; and what you choose is remembered, so the '
+      + 'next invoice from that vendor printing the same text classifies itself.</div>';
   }
   h += '<table class="tbl"><tbody>';
   g.rows.forEach(function(r){ h += invRowHtml(r); });
@@ -1158,17 +1169,19 @@ function invSplitStart(id){
       + "Assign it to one job for now.");
     return;
   }
-  // Re-opening a stored split starts from what was stored, not from an empty form.
-  var units = [], amt = {};
+  // Re-opening a stored split starts from what was stored, not from an empty form — and those are
+  // real figures somebody decided, so the automatic fill is OFF from the outset.
+  var units = [], amt = {}, auto = true;
   if(r.lines && r.lines.length){
+    auto = false;
     r.lines.forEach(function(l){
       if(!l.job_no) return;
       units.push(l.job_no); amt[l.job_no] = (Number(l.amount)||0).toFixed(2);
     });
   } else if(r._unit){ units.push(r._unit); }
-  r._split = { units: units, amt: amt };
+  r._split = { units: units, amt: amt, auto: auto };
   r._unit = null;
-  invPaint();
+  if(auto && units.length) invSplitEven(id); else invPaint();
 }
 function invSplitCancel(id){
   var r = _inv.rows.filter(function(x){ return x.id === id; })[0];
@@ -1185,6 +1198,14 @@ function invSplitSync(id){
     if(el) r._split.amt[no] = el.value;
   });
 }
+/* ⛔ THE SPLIT OPENED ON "$0 of $670" IN RED — an error state before anyone had done anything
+   wrong, which is a bad first thing to show a PM who has just decided to do the right thing.
+   Keith, on the empty boxes: *"$0.00 gets entered into box."* Picking units now fills them evenly
+   straight away, so the default is a valid split he adjusts rather than a refusal he clears.
+   ⚠ IT ONLY EVER TOUCHES AMOUNTS NOBODY HAS TYPED. `_split.auto` stays true until a box is edited
+   by hand (or the split was re-opened from stored lines, which are real figures); after that,
+   adding a unit leaves the other amounts exactly as he set them and only the new one is blank.
+   Overwriting a typed allocation to keep it tidy would be the tool deciding how the money splits. */
 function invSplitToggle(id, jobNo){
   var r = _inv.rows.filter(function(x){ return x.id === id; })[0];
   if(!r || !r._split) return;
@@ -1192,6 +1213,14 @@ function invSplitToggle(id, jobNo){
   var i = r._split.units.indexOf(jobNo);
   if(i < 0) r._split.units.push(jobNo);
   else { r._split.units.splice(i, 1); delete r._split.amt[jobNo]; }
+  if(r._split.auto && r._split.units.length) invSplitEven(id);   // repaints
+  else invPaint();
+}
+/* A hand-typed amount ends the automatic fill, permanently for this split. */
+function invSplitTyped(id){
+  var r = _inv.rows.filter(function(x){ return x.id === id; })[0];
+  if(r && r._split) r._split.auto = false;
+  invSplitSync(id);
   invPaint();
 }
 /* An even split of an odd number of cents. The remainder goes onto the FIRST lines a cent at a
@@ -1207,6 +1236,8 @@ function invSplitEven(id){
   r._split.units.forEach(function(no, i){
     r._split.amt[no] = ((base + (i < extra ? 1 : 0)) / 100).toFixed(2);
   });
+  // Pressing Even is a statement that even is what he wants — so adding a unit re-evens.
+  r._split.auto = true;
   invPaint();
 }
 function invSplitTotal(r){
@@ -1238,7 +1269,7 @@ function invSplitPicker(r, fam){
       h += '<span style="white-space:nowrap"><span class="sub">' + esc(invUnitLabel(c.name))
         + '</span> <input id="sp-' + esc(id) + '-' + esc(no) + '" value="'
         + esc(sp.amt[no] == null ? "" : sp.amt[no]) + '" inputmode="decimal" '
-        + 'onchange="invSplitSync(' + invArg(id) + ');invPaint()" style="width:78px"></span>';
+        + 'onchange="invSplitTyped(' + invArg(id) + ')" style="width:78px"></span>';
     });
     h += '</div>';
   }

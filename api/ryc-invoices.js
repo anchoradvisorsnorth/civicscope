@@ -1589,6 +1589,53 @@ export default async function handler(req, res) {
                anything to check. */
             x.reconciled = t.docs > 0 && t.done === t.docs;
           }
+
+          /* ===== THE RETURN HALF: WHAT THE PM HAS DONE WITH IT ==========================
+             ⛔ THE BOARD SAID "5 of 5 outstanding" ON A BATCH THAT WAS SITTING ON LOGAN'S DESK, so
+             it read as waiting on the front office when it was waiting on him. Keith: *"Approve
+             moves it down - what it should do is move it to a batch for erica to reoncile as the
+             next step."*
+
+             ⚠ NO WORKER, AND NO SECOND BATCH OBJECT. He asked whether something collects the
+             approvals and presents them as a batch — it does not need to. The batch never left her
+             screen; it just never knew what was happening to it. Two objects representing one
+             folder is how the two sides start disagreeing, and this module has paid for that shape
+             three times. So this is a READ: the scan's register batch is found by the same
+             `scan:{id}` key `batch_to_desk` writes, and its payables are counted. */
+          const keys = rows.map(x => `scan:${x.id}`);
+          const rb = await sb('ryc_invoice_batches?company_id=eq.ryc&select=id,source_message_id'
+            + `&source_message_id=in.(${keys.map(k => `"${k}"`).join(',')})`);
+          if (rb.ok) {
+            const regBatches = await rb.json();
+            if (regBatches.length) {
+              const byScan = {};
+              for (const b of regBatches) byScan[String(b.source_message_id).slice(5)] = b.id;
+              const ir = await sb('ryc_invoices?company_id=eq.ryc'
+                + `&batch_id=in.(${regBatches.map(b => b.id).join(',')})`
+                + '&select=batch_id,review_state,assigned_pm,amount&limit=5000');
+              if (ir.ok) {
+                const per = {};
+                for (const i of await ir.json()) {
+                  const p = per[i.batch_id] || (per[i.batch_id] = { total: 0, decided: 0, pm: null });
+                  p.total++;
+                  /* `not_ap` and `rejected` are decisions too — a supporting document nobody has to
+                     approve must not hold the batch on his desk forever. */
+                  if (['approved', 'rejected', 'not_ap', 'duplicate'].includes(i.review_state)) p.decided++;
+                  if (i.assigned_pm && !p.pm) p.pm = i.assigned_pm;
+                }
+                for (const x of rows) {
+                  const p = per[byScan[x.id]];
+                  if (!p || !p.total) continue;
+                  x.pm = p.pm;
+                  x.payables = p.total;
+                  x.payables_decided = p.decided;
+                  /* The batch is his until every payable has an answer. Then it is hers, and the
+                     copy to the job folder — the thing that files it — happens at her reconcile. */
+                  x.awaiting_pm = p.decided < p.total;
+                }
+              }
+            }
+          }
         }
       }
       return res.status(200).json(id ? { ok: true, job: rows[0] || null } : { ok: true, jobs: rows });

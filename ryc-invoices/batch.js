@@ -98,10 +98,17 @@ function batchLoadRecent(){
        work; finished ones sit below under their own heading so the board reads as a queue
        rather than a log. */
     var jobs = r.data.jobs;
-    var openJobs = jobs.filter(function(j){ return !j.reconciled; });
+    /* ⛔ A BATCH ON A PM's DESK IS NOT WORK FOR THE FRONT OFFICE, AND THE BOARD SAID IT WAS.
+       Both Greencroft folders read "5 of 5 outstanding" under *Batches needing you* while every
+       payable in them was sitting on Logan Moore's desk waiting for him. Keith: *"Approve moves it
+       down - what it should do is move it to a batch for erica to reoncile as the next step."*
+       Three states, because "not reconciled" was hiding two completely different situations. */
+    var waiting  = jobs.filter(function(j){ return !j.reconciled && j.awaiting_pm; });
+    var openJobs = jobs.filter(function(j){ return !j.reconciled && !j.awaiting_pm; });
     var doneJobs = jobs.filter(function(j){ return j.reconciled; });
     var h = "";
     if(openJobs.length) h += batchRecentTable("Batches needing you", openJobs, false);
+    if(waiting.length)  h += batchRecentTable("With the PM", waiting, false);
     if(doneJobs.length) h += batchRecentTable("Complete", doneJobs, true);
     el.innerHTML = h;
   });
@@ -112,6 +119,11 @@ function batchRecentTable(title, jobs, done){
     + ' <span class="sub">' + jobs.length + '</span></div>'
     + (done ? '<div class="sub">Every payable in these is assigned to a job or marked RYC '
         + 'Expense. Nothing here is waiting on anybody.</div>' : '')
+    /* Say whose move it is. "With the PM" without naming him is the same ambiguity one layer up. */
+    + (title === "With the PM"
+        ? '<div class="sub">Ingested and read; the payables are on a PM’s desk. They come back '
+          + 'here to reconcile once every one of them has an answer — that is when the file is '
+          + 'copied to the job folder.</div>' : '')
     + '<table class="t" style="margin-top:6px"><tbody>';
   jobs.forEach(function(j){
       h += '<tr><td>' + esc(j.folder) + '<div class="sub">' + esc(j.filename) + '</div></td>'
@@ -121,7 +133,13 @@ function batchRecentTable(title, jobs, done){
         + (j.docs
             ? (j.reconciled
                 ? '<b class="m-g">&#10003; ' + j.docs + ' reconciled</b>'
-                : '<b class="m-a">' + (j.docs - j.docs_done) + ' of ' + j.docs + ' outstanding</b>')
+                /* A batch waiting on a PM must NOT report the front office's own counter. "5 of 5
+                   outstanding" is true of her reconciliation and says nothing about the state it
+                   is actually in, which is the confusion this whole section exists to end. */
+                : j.awaiting_pm
+                  ? '<b class="m-a">' + (j.payables - j.payables_decided) + ' of ' + j.payables
+                    + ' awaiting ' + esc(j.pm || "the PM") + '</b>'
+                  : '<b class="m-a">' + (j.docs - j.docs_done) + ' of ' + j.docs + ' outstanding</b>')
               + (j.docs_failed ? ' <span class="m-r">&middot; ' + j.docs_failed + ' failed</span>' : '')
             : '')
         + '</td>'
