@@ -406,6 +406,52 @@ invoice number across pages, a lien waiver or pay application naming the same am
 that should have been one is a visible duplicate on a PM's desk, while one payable that should have
 been two is a bill that silently never gets paid.`;
 
+/* ⛔ THE THIRD FAILURE CLASS: RIGHT PAGE COUNT, RIGHT TOTAL, WRONG OWNER.
+   Found 2026-08-26 on the front office's own batch. The yellow Henschen Oil delivery ticket (p7)
+   was swept onto the end of the Unum insurance invoice (p1-6), so Unum filed as p1-7 and Henschen
+   filed as p8-8 alone. Every one of the 42 pages was claimed exactly once, the amounts were both
+   correct, and the coverage rule — the check this whole pipeline leans on — passed cleanly,
+   because it asks whether a page is claimed ONCE and never whether it is claimed by the RIGHT
+   document. The reconciler could not have fixed it either: it only ever MERGES, and moving one
+   page from a document to its neighbour is neither a merge nor a split.
+
+   The cost is not the money — $1,149.77 was printed on both Henschen pages, so nothing was
+   double-counted or lost. The cost is that the page carrying the JOB NAME and the COST CODE ended
+   up inside an RYC Expense PDF, and the invoice that reached the job folder lost it.
+
+   So this asks the one question nothing else in the pipeline asks. */
+const BOUNDARY_SYSTEM = `You are checking ONE page boundary in a scanned accounts-payable batch.
+
+A sliding-window reader has already cut the stack into documents. You are shown the LAST page of
+one document — the page in question — with the page before it for context, and then the FIRST page
+of the document that follows. One question only: does the page in question belong to the document
+that currently claims it, or is it really the first page of the next one?
+
+This exists to catch a specific thing: a one-page delivery ticket, hand-written slip or carbon
+invoice sitting between two typed invoices gets swept onto the end of the document above it. Every
+page is still claimed exactly once, so no arithmetic and no coverage check can see it. The page is
+simply filed inside somebody else's PDF, and the payable it belonged to loses the page carrying its
+job name and cost code.
+
+Return ONE JSON object, nothing else, no prose, no code fence:
+{ "belongs_to": "current" | "next",
+  "vendor_on_page": "<the vendor printed on the page in question, exactly as printed, or null>",
+  "reason": "<what is printed on the page that settles it>" }
+
+Decide from what is PRINTED on the page in question:
+ - a different company's name, address or logo in its own header, matching the NEXT document's
+   vendor -> "next"
+ - an invoice or ticket number matching the next document's -> "next"
+ - its own grand total, matching the next document's amount rather than the current one's -> "next"
+ - "Page N of M", a continued total, a running invoice number, a remittance stub, a signature
+   block or a terms-and-conditions back page belonging to the document above -> "current"
+ - a grand total equal to the CURRENT document's amount -> "current"
+
+DEFAULT TO "current". Moving a page is only right when the page is visibly a different document.
+A genuine continuation page moved onto the next document strands its own invoice in exactly the way
+this check exists to prevent — the same damage, mirrored. If the page is blank, illegible, a
+separator, or you are weighing a resemblance rather than something printed, answer "current".`;
+
 async function claudeJson(system, content, maxTokens) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { status: 503, body: { error: 'Reader is not configured.' } };
@@ -474,6 +520,31 @@ async function adjudicateGroup(images, docs) {
   if (out.status !== 200) return out;
   if (typeof out.body.one_document !== 'boolean') {
     return { status: 502, body: { error: 'Adjudicator returned an unusable response.' } };
+  }
+  return { status: 200, body: out.body };
+}
+
+/* One boundary, one answer. Deliberately NOT batched over the whole stack: the reconciler already
+   demonstrates that a model shown everything at once reasons about the set, and the only thing
+   wanted here is a narrow judgement about one page with its immediate neighbours in view. */
+async function auditBoundary(images, current, next) {
+  const content = images.map(im => ({
+    type: 'image',
+    source: { type: 'base64', media_type: im.media_type || 'image/jpeg', data: im.data },
+  }));
+  content.push({
+    type: 'text',
+    text: 'The images above are, in order: the page before the one in question (when there is one),'
+      + ' THE PAGE IN QUESTION, then the first page of the next document.\n\n'
+      + `The document that currently claims it:\n${JSON.stringify(current, null, 1)}\n\n`
+      + `The next document:\n${JSON.stringify(next, null, 1)}\n\n`
+      + 'Return the ruling JSON.',
+  });
+  const out = await claudeJson(BOUNDARY_SYSTEM, content, 700);
+  if (out.status !== 200) return out;
+  const b = out.body.belongs_to;
+  if (b !== 'current' && b !== 'next') {
+    return { status: 502, body: { error: 'Boundary check returned an unusable response.' } };
   }
   return { status: 200, body: out.body };
 }
@@ -849,7 +920,7 @@ export default async function handler(req, res) {
        let it OCR a page; only one of them also lets it write invoices into the register. The
        narrower grant is the one that cannot create a payable. */
     'invoice-filer': new Set(['filing_queue', 'mark_filed', 'read',
-      'reconcile', 'adjudicate', 'batch_autoconfirm', 'batch_documents_register',
+      'reconcile', 'adjudicate', 'boundary', 'batch_autoconfirm', 'batch_documents_register',
       'doc_copy_claim', 'doc_copy_done', 'doc_rename_done',
       /* The VM publishes what folders SharePoint holds and reads back the overrides a person set.
          Neither creates a payable; both are the filer's own job. */
@@ -2528,6 +2599,31 @@ export default async function handler(req, res) {
         return res.status(413).json({ error: `Pages total ${Math.round(abytes / 1024)}KB, over the ${MAX_IMAGE_BYTES / 1024}KB limit.` });
       }
       const out = await adjudicateGroup(imgs, docs);
+      return res.status(out.status).json(out.status === 200 ? { ok: true, ...out.body } : out.body);
+    }
+
+    /* THE BOUNDARY AUDIT. Same gate as `adjudicate` — it reads pages and returns an opinion; it
+       writes nothing, files nothing and cannot create a payable. Whether a page actually MOVES is
+       decided on the VM, where the answer is corroborated against the printed vendor before
+       anything is applied. A model saying "next" is not on its own permission to re-cut a
+       document. */
+    if (action === 'boundary') {
+      if (!canRead) return res.status(403).json({ error: 'Front office only.' });
+      if (!READ_ENABLED) {
+        return res.status(503).json({ error: 'The document reader is switched off on this deployment.' });
+      }
+      const imgs = Array.isArray(body.images) ? body.images : [];
+      if (!imgs.length || !body.current || !body.next) {
+        return res.status(400).json({ error: 'Pages and both neighbouring documents are required.' });
+      }
+      if (imgs.length > MAX_IMAGES) {
+        return res.status(413).json({ error: `${imgs.length} pages sent; this endpoint reads up to ${MAX_IMAGES} at a time.` });
+      }
+      const bbytes = imgs.reduce((n, im) => n + String(im.data || '').length, 0);
+      if (bbytes > MAX_IMAGE_BYTES) {
+        return res.status(413).json({ error: `Pages total ${Math.round(bbytes / 1024)}KB, over the ${MAX_IMAGE_BYTES / 1024}KB limit.` });
+      }
+      const out = await auditBoundary(imgs, body.current, body.next);
       return res.status(out.status).json(out.status === 200 ? { ok: true, ...out.body } : out.body);
     }
 
