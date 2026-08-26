@@ -534,7 +534,7 @@ export default async function handler(req, res) {
       authority: (['Code of Ordinances', 'Zoning & Planning Commission',
         'Applications and Permits'].includes(h.collection)
         // Any unit noun: 'Village Website', 'Town Website', 'City Website', 'County Website'.
-        || /Website$/.test(String(h.collection || '')))
+        || /Website$/.test(String(h.collection || '')))
         ? 'primary' : 'secondary',
     })),
   });
