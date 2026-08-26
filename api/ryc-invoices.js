@@ -1940,6 +1940,13 @@ export default async function handler(req, res) {
       const bj = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${id}&select=*`);
       const batch = bj.ok ? (await bj.json())[0] : null;
       if (!batch) return res.status(404).json({ error: 'No such batch.' });
+      /* Somebody has stated this folder was already signed on paper (migration 057). Routing it to
+         a desk would ask the PM to approve his own signature a second time. */
+      if (batch.pm_approved_at) {
+        return res.status(200).json({ ok: true, flow: 'paper', pm: null,
+          skipped: `${batch.pm_approved_by || 'someone'} recorded that the PM already approved this `
+            + 'folder on paper' });
+      }
 
       const dr = await sb(`ryc_batch_documents?company_id=eq.ryc&batch_id=eq.${id}`
         + '&select=*&order=seq.asc');
@@ -2171,6 +2178,76 @@ export default async function handler(req, res) {
         replayed: results.filter(r => r.ok && r.replayed).length,
         failed: results.filter(r => !r.ok).length,
         results, supporting, placement, release });
+    }
+
+    /* ===== "THE PM ALREADY SIGNED THIS FOLDER ON PAPER" =================================
+       Keith, 2026-08-26: *"logan has already approved those ... in the future he will be approving
+       through the PM desk (no need to scan them in) ... Its a function worth build for the
+       possibility that logan manually approvoves a batch in the future for some one off reason."*
+
+       ⛔ THE DOCUMENTS CANNOT SETTLE THIS. A folder scanned INSTEAD of being walked over and one
+       scanned AFTER it was walked over hold identical paper; only the process differs, so a person
+       has to say which it was. Until they do, a digital-flow PM gets everything — the right default
+       while paper is still the norm and the pilot is the exception.
+
+       It does two things and refuses to do a third:
+         · records the statement, attributed (`pm_approved_by` is NOT NULL by constraint), and
+           `batch_to_desk` skips the batch from then on;
+         · DELETES the payables the routing created for it — but only those still undecided and
+           unfiled. That is the precedent set on 2026-08-13, when the original 17 were removed
+           because "that batch was one PM's paper folder, work already done".
+         · ⚠ it will not touch anything approved, rejected, marked not-payable or already filed.
+           Those are decisions somebody made and facts are not tidied away; they are counted and
+           reported back so the caller can see what was left standing. */
+    if (action === 'batch_paper_approved') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const id = String(body.id || '').trim();
+      const by = String(body.by || '').trim();
+      if (!id) return res.status(400).json({ error: 'A batch id is required.' });
+      if (!by) {
+        return res.status(400).json({
+          error: 'Who is stating that the PM already approved this folder? An unattributed answer '
+            + 'here is indistinguishable from a routing bug.' });
+      }
+
+      const bj = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${id}&select=id,folder,pm_approved_at`);
+      const batch = bj.ok ? (await bj.json())[0] : null;
+      if (!batch) return res.status(404).json({ error: 'No such batch.' });
+
+      /* The payables this batch's routing created, if any. */
+      let removed = 0, kept = [];
+      const rb = await sb('ryc_invoice_batches?company_id=eq.ryc&select=id'
+        + `&source_message_id=eq.${encodeURIComponent('scan:' + id)}`);
+      const regB = rb.ok ? (await rb.json())[0] : null;
+      if (regB) {
+        const ir = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${regB.id}`
+          + '&select=id,vendor_name,amount,review_state,file_state,filed_path&limit=1000');
+        if (ir.ok) {
+          const rows = await ir.json();
+          const UNDECIDED = ['new', 'ready', 'needs_info'];
+          const doomed = rows.filter(r => UNDECIDED.includes(r.review_state)
+            && !r.filed_path && (r.file_state === 'unfiled' || !r.file_state));
+          kept = rows.filter(r => !doomed.includes(r))
+            .map(r => ({ vendor: r.vendor_name, amount: r.amount, state: r.review_state }));
+          for (const r of doomed) {
+            const del = await sb(`ryc_invoices?id=eq.${r.id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+            if (del.ok) removed++;
+          }
+        }
+      }
+
+      const up = await sb(`ryc_batch_jobs?id=eq.${id}`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          pm_approved_at: new Date().toISOString(),
+          pm_approved_by: by,
+          pm_approved_note: body.note || null,
+        }),
+      });
+      if (!up.ok) return res.status(502).json({ error: `Could not mark the batch (${up.status}).` });
+
+      return res.status(200).json({ ok: true, batch: batch.folder, by,
+        payables_removed: removed, payables_kept: kept.length, kept });
     }
 
     /* ===== ASK THE MATCHER AGAIN — FOR ROWS IT ANSWERED ITSELF, AND ONLY THOSE ==========
