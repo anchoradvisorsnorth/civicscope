@@ -1896,6 +1896,13 @@ export default async function handler(req, res) {
             source: 'scan',
             label: batch.folder || batch.filename || key,
             page_count: batch.page_count || 0,
+            /* ⚠ A PM APPROVING MONEY HE CANNOT OPEN IS WORSE THAN THE PAPER HE IS REPLACING.
+               These pages are not in `ryc-invoice-scans` — they were split into the batch's own
+               SharePoint folder by the worker — so `pages` finds no `storage:` uri and correctly
+               reports `stored:false`. It already falls back to whatever link the batch carries, so
+               carrying the folder makes View open the folder holding the split documents, each
+               named for its vendor and amount. Not per-document, and honest about that. */
+            document_uri: batch.folder_url || null,
             source_message_id: key,
           }),
         });
