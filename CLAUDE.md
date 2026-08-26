@@ -1573,6 +1573,9 @@ hours have to come from the Town. Nothing in the code will produce them.
 
 ## Open Action Items
 
+- **Codex review requested 2026-08-26** — Ask (Bristol + Centreville) and Water.
+  `codex-reviews/requests/REVIEW-REQUEST_civicscope-muni-ask-and-water_2026-08-26.md`. Awaiting
+  the report; several reviewed scripts are uncommitted, which the request flags.
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The chips
   are verified against the live corpus (048); an ingest can retire one as easily as earn it.
   Done 2026-08-26 after the zoning-book restore. Its own traffic is tagged `verifier` (049) so it
@@ -1583,53 +1586,13 @@ hours have to come from the Town. Nothing in the code will produce them.
   Town and adding them to the corpus.
 - **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it. Bristol
   hotlinks the Town own PNG. Needs a logo file from the Village if Keith wants parity.
-- ✅ **Bristol R-1 setbacks ANSWER (2026-08-25)** — three defects: the town own name poisoning
-  retrieval, the shared corpus appended past the context budget, and `chunkSegments` putting the
-  table flag on the wrong pages. See the section above.
-- ✅ **Centreville re-ingest NOT needed (2026-08-25)** — measured: 0 of 23 segments ambiguous, 0
-  placed differently by the monotonic scan. Its tables are captioned so pages open distinctly. The
-  67% no-heading figure was newsletters, not law. See the section above.
-- ✅ **Two thresholds, settled (2026-08-26)** — `tabularPages` stays permissive for whole-document
-  detection; `isTablePage` (minRows 4 / minCells 5) judges a single page. See the table above.
 - ⚠ **6 segments across the corpora match no chunk exactly** (`reconcile-table-flags.mjs` reports
   them). Left alone rather than guessed at. Worth a look if a table ever goes missing.
-- ⛔ **`--force` overwrites a good ingest with a worse one when OCR fails.** It downgraded the
-  Elkhart ordinance from `mixed` to `text-layer` on a 401 and reported success. A partial ingest
-  should refuse to replace a document that was previously rescued.
-- **Check `minRows: 3 -> 2` in `tabularPages()` for false positives.** Changed to catch Elkhart
-  County continuation pages without measuring precision afterwards.
 - **Centreville is now a CLIENT PROJECT with its own folder — `Cowork\Centreville\CLAUDE.md`
   (2026-08-18).** Two live products for one village (`/centreville` + `/water`). Read that file
   alongside this one for anything Centreville-specific: the plant profile, corpus state, and what
   is owed to EGLE. ⛔ **The code stays multi-tenant here — Keith declined a separate Vercel
   project, Supabase project and Anthropic workspace the same day.** Village #2 is a config row.
-- ✅ **Corpus count RECONCILED 2026-08-18 — the gap was one collection, and the "full corpus"
-  claim was wrong.** `--list` against the live corpus, collection by collection:
-
-  | Collection | In Drive | Ingested | Missing |
-  |---|---|---|---|
-  | Code of Ordinances | 21 | 21 | — |
-  | Zoning & Planning Commission | 103 | 103 | — |
-  | Village Information | 201 | 201 | — |
-  | Redevelopment Ready Communities | 3 | 3 | — |
-  | Applications and Permits | 0 | 0 | — |
-  | **Village Voice & Calendar** | **277** | **28** | **249** |
-  | **TOTAL** | **605** | **356** | **249** |
-
-  Every collection that answers a question about the law is **complete**. The whole shortfall is
-  Village Voice & Calendar — the village newsletter — which is the least useful slice for
-  answering anything and is **deliberately left unfinished**: it was mid-ingest when the run was
-  stopped, because no commercial relationship with Centreville is recorded and further paid ingest
-  is gated on that (`Centreville\CLAUDE.md`). `muni_tenants.doc_count` corrected 21 → 356, and the
-  ingest now maintains it at the end of every run so it cannot drift again.
-- ✅ **Water Plant Daily Log — service worker and bacti capture SHIPPED** (verified live
-  2026-08-19: `/water-sw.js` 200 at root scope, bacti screen present). Left standing here as open
-  after they were built.
-- ✅ **2026 January–July is seeded (2026-08-19)** — 626 readings, 152 distribution samples, 14 bacti,
-  loaded from the year's paper records and cross-checked against the seven MORs actually filed with
-  EGLE (**meter 97.4%, tank 95.1% agreement**). Tooling in `scripts/`: `extract-mor.py`,
-  `transcribe-well-sheets.mjs`, `reconcile-well-sheets.mjs`, `reread-meter-column.mjs`,
-  `seed-water-2026.mjs`. Detail + findings: **`CentrevilleCLAUDE.md`**.
 - ⛔ **THE AMENDMENT PATH WAS BROKEN IN THREE PLACES AND NOTHING HAD EVER EXERCISED IT.** Seeding
   six months of paper was the first thing that ever tried to CORRECT stored data, and found: a
   correction could never be saved (the replacement row was inserted before the old one was
@@ -1637,17 +1600,8 @@ hours have to come from the Town. Nothing in the code will produce them.
   fixed `25049ea`), and `submit_bacti` had no already-recorded guard at all, so re-running a
   backfill multiplied the compliance record five-fold (fixed `73babb1`). **The ordinary path
   worked in every case; only amendment was broken — which is exactly what no smoke test walks.**
-- ✅ **THE FILED MORs ARE IN THE PRODUCT (2026-08-20)** — migration `017`, all seven 2026 workbooks
-  recorded, `/water/review` shows what went to EGLE and whether it still agrees with the records.
-  See **Reports filed** above. 🚩 **A correction fell out of it: July WAS submitted, on 2026-08-07.**
-  Its Cover tab carries that date. `Centreville\CLAUDE.md` had recorded July as *"not yet
-  submitted — three things block a clean signature"*, which was true of **our generated workbook**
-  and not of the village's own filing. Michelle filed July the old way while we were building the
-  replacement.
 - 🚨 **August 2026 is still being written on paper.** The tablet is live and nobody is using it;
   every day that runs is another day that has to be backfilled.
-- ✅ **Michelle generates the MOR from `/water/review` (2026-08-21)** — `api/build-mor.py`, output
-  byte-identical to the laptop generator. See **Michelle generates the MOR herself** above.
 - **"Mark as filed" is the last step of the loop, and it is HALF BUILT.** `record_filing` is open
   and working (it took all seven 2026 workbooks), but nothing on the page reaches it, so recording
   a filing still needs a script. Remaining: an `extract` action on `api/build-mor.py` returning
@@ -1655,9 +1609,6 @@ hours have to come from the Town. Nothing in the code will produce them.
   copied, since `api/water-ops.js` is Node and cannot read a .xls — then an upload + date control
   in the Reports filed panel. `record_filing` already accepts `source:'product'`, and nothing writes
   it yet, so the first report filed from here stays distinguishable from the seven that came before.
-- ✅ **THE VILLAGE WEBSITE IS A CORPUS SOURCE (2026-08-25)** — 8 pages, 26 passages, corpus 364/2,840.
-  See **The village's own website is a third source** above. Ask Centreville was paused for feature
-  work on 2026-08-18; Keith asked for this directly, which supersedes that for this item only.
 - 🚨 **THE WEBSITE CRAWL IS NOT SCHEDULED, AND IT IS THE ONE COLLECTION THAT GOES STALE.** Everything
   else in the corpus is a document that stays true; a meeting cancellation or an event date is wrong
   the moment the village edits the page. The gate fails the deploy once the newest page is over 45
@@ -1666,28 +1617,6 @@ hours have to come from the Town. Nothing in the code will produce them.
   the other pipelines, **not** in a lambda: the shared chunker lives in `scripts/lib/` and is not
   deployed, and putting a second copy in a deployable lib is the exact drift migrations 018–021 were
   spent on. Weekly is ample for a 12-page site.
-- ✅ **GOOGLE SIGN-IN IS LIVE (2026-08-25).** `/centreville` is gated; Michelle and Sheila are enrolled and the Google button renders. Verified in a browser: signed out, the product cards do not render at all. ⚠ Publishing an External consent screen required a **privacy policy**, which CivicScope did not have — the only one on this domain was The Pool’s. Written and live at `/privacy` (`civicscope-legal/privacy.html`), in the deploy manifest under the `signin` profile so the consent screen’s own link cannot quietly 404. **Keith should read it** — every claim was written against what the code does, but the entity line attributes it to Anchor Advisors North LLC. Superseded note:
-  Everything works and is gated behind `GOOGLE_SIGNIN_CLIENT_ID`, which does not exist yet — see
-  **Google sign-in** above for the exact recipe and why it must not go in `jbk-claude`. Until it is
-  set, `/centreville` opens for anyone with the link **and says so on the page**; the moment it is
-  set the gate is live with no code change. Then re-run
-  `node scripts/verify-google-signin.mjs --base https://app.civicscope.io` — it should go from
-  exit 3 to `SIGNIN-VERIFY-COMPLETE`, and the forged-token check tightens from "not configured" to a
-  real 401 out of the verifier.
-- ✅ **The crew tablet asks who is reading, first and required (2026-08-25).** Keith: *"the first
-  field (required) is for their name or initials… the person field should default to the blank"*,
-  because *"one person does it for a week and then someone else does it the next week"* on one
-  installed tablet. The name is now re-chosen **each day** — not each submission (three wells plus
-  two samples is one round, not five identifications) and not once forever, which is what the old
-  build did and which would have put the first week of Jeff's rotation on the record as Mark.
-  Roster corrected to the three real people: **Michelle Thibideau (MT), Jeff Derrikson (JD), Mark
-  Major (MM)**. 🚩 `SD` and `M` are off the picker and **unexplained** — see `Centreville\CLAUDE.md`.
-- ✅ **The review page's three-second stall is gone (2026-08-25).** Keith opened Well Testing from
-  the hub and got an empty skeleton for about three seconds. Nothing was slow: `load()` ran its
-  three requests **one after the other** for no reason, none of them needing anything from the
-  others. In parallel it is **~1.7s to the first well card, measured in a real browser**. The
-  section headings are also held back until there is something under them — empty headings read as
-  a page that finished and found nothing, which on this page means "no records".
 - **The crew tablet shows validation errors before anything is typed.** Opening a well greets the
   operator with *"Meter reading is required. Sodium hypochlorite 12.5% tank level is required.
   Aquadine tank level is required."* — three red-flavoured lines for someone who has done nothing
@@ -1699,11 +1628,6 @@ hours have to come from the Town. Nothing in the code will produce them.
 Forward-looking action queue. Source of truth for the CRM dashboard's "Across All Businesses → CivicScope" card. Curated at `/wrap`. Done items are removed, not strikethroughed — historical context lives in the `## Active Backlog` sections below.
 
 
-- ✅ **Municipal Documents — target village SETTLED: Centreville (Keith, 2026-08-18).** Keith's
-  original ask said `civicscope.io/constantine`, but the links supplied were Centreville's; he
-  confirmed same day that **Centreville is correct**. `/centreville` is the live route. No
-  Constantine corpus is planned — if that changes it is a `muni_tenants` row + a `CORPORA` entry +
-  an ingest run + one literal rewrite.
 - **Municipal Documents — 356 of 605 ingested; the remaining 249 are GATED on a Centreville
   commercial relationship.** All four collections that bear on the law are complete (ordinances,
   zoning, village information, RRC); what is left is the Village Voice newsletter. `--probe` put
@@ -1725,7 +1649,6 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 - **CivicScope QC process (built 2026-06-17)** — response to the June 16 silent outage. Now in place: **(1)** rebuilt `/qa-check` skill (`skills/qa-check/SKILL.md`) — model-alias/`max_tokens`-headroom/`maxDuration`/push-manifest guards as section 1; **(2)** **two-stage post-deploy gate** in `push_civicscope.ps1`, both **fail the deploy** so "fixed" can't be reported on a broken ship: **(2a)** backend smoke `scripts/smoke-test.js` (real full estimate per vertical vs `/api/claude`, validates a cost range), **(2b)** browser E2E `scripts/e2e-check.js` (puppeteer-core + local Chrome; drives the REAL page via `?qa=<preset>&autorun=1`, asserts a cost renders in `#costRange` — catches client-side breaks the backend smoke can't see); **(3)** **daily VM smoke** (`cs-smoke-daily`, 8am ET) catches truncation/timeout from model drift the 10-min cheap probe misses; **(4)** `cs-health` (every 10 min) as the always-on catastrophic watch. The tools' JSON parse was hardened (strict → outermost-`{…}` fallback) so occasional model prose no longer 500s. **Gate scripts are local-only** (`Civicscope/scripts/`, not in the deploy manifest; the gate runs on Keith's PC). **Still TODO:** external dead-man's-switch (heartbeat service) so a *dead* cs-health pages Keith — pending Keith's healthchecks.io/UptimeRobot signup + ping URL; Anthropic auto-reload (console toggle); model-retirement calendar.
 - **Activate the OpenAI fallback in `api/claude.js` (wired 2026-06-23, dormant).** After the June 23 Anthropic 529 "elevated error rate" outage, `api/claude.js` gained bounded **retry on 429/5xx/529** (live) + an **OpenAI-compatible fallback** that's OFF until `OPENAI_API_KEY` is set in CivicScope's Vercel. **To activate:** Keith provides a general-purpose OpenAI key (NOT Codex — it's a code model; fallback defaults to `gpt-4o`, override via `OPENAI_FALLBACK_MODEL`); Claude sets both env vars via the Vercel REST API (avoid the empty-string pipe gotcha) + redeploy. Can't be end-to-end tested without inducing an Anthropic failure — will self-validate on the next real 529. **New platform → add OpenAI to the tracker** (`opsStatus: watch` until proven).
 - **External dead-man's-switch for cs-health (NEW 2026-06-17)** — cs-health is one VM cron; if it dies (VM/cron/script), there are no checks AND no alert — only the weekly AAN email surfaces it (too slow). Need an independent heartbeat (healthchecks.io free tier or UptimeRobot heartbeat) that pages Keith when the 10-min ping goes missing. **Blocked on Keith:** 2-min signup → create one check → set alert target (email/SMS) → paste the ping URL; then ~5 lines on the VM (curl the ping URL at the end of each successful cs-health run). Closes the last "I can't be the last to know" gap.
-- ✅ **`scripts/test-deploy-harness.js` exit-255 aborts — FIXED 2026-08-08.** Two consecutive runs had died at a *different* scenario each time with **no FAIL assertions** — output simply stopped after a section header, and the Windows libuv abort `!(handle->flags & UV_HANDLE_CLOSING), src\win\async.c:94` pointed at the harness's `proc.kill()` of its mock servers. Diagnosis held: the same assertion had already been hit and fixed in `verify-routing.js` earlier that day, from the same root cause — **abrupt process teardown while libuv handles are still live**. Three unsafe patterns removed: (1) mocks were spawned with **piped stdio** and killed abruptly — they now inherit a *file* for stdout/stderr (the parent holds no pipe handles at all) and publish their port to a file; (2) teardown is now a graceful `/__shutdown` followed by an **awaited** exit, force-kill only as a backstop; (3) the runner ended with `process.exit()` — it now sets `process.exitCode` and lets the loop drain. **Belt and braces, because a crash can still come from outside this file:** every scenario is registered in `EXPECTED_SCENARIOS`, the summary prints `scenarios: N/M ran`, and the run emits **`HARNESS-COMPLETE`** *only* when every declared scenario ran and every assertion passed — otherwise `HARNESS-INCOMPLETE` + exit 1, naming the scenarios that never ran. **Require that marker; never trust a tail of PASSes or a bare exit code.** A `harness-teardown-stress` scenario (25 rapid start/stop cycles with live sockets) covers the regression directly.
 - **A NEW FILE MUST BE ADDED TO `push_civicscope.ps1`'s `$files` MANIFEST BEFORE IT CAN DEPLOY (hit 2026-08-09).** Declaring an undeclared path is refused at exit 10 — *"a path this script cannot ship must not look like it shipped."* Correct behaviour, but it is the one step that is easy to forget when adding a page: `pool/live.html` and `pool/scoring.js` had to be added to the manifest first. ⚠ After any tool rewrites that script, re-check it kept its **UTF-8 BOM** (verified 2026-08-09 — intact).
 - **A COMMA-SEPARATED `-Paths` STRING PASSED THROUGH `PUSH_CIVICSCOPE.bat` IS SPLIT BY cmd.exe (found 2026-08-09).** PowerShell only quotes an argument containing spaces, so `"a.html,b.html"` arrives unquoted and cmd treats the comma as an argument separator: only the first file was declared, and the deploy *message* landed in `-VerifyProfile` ("Unknown verification profile …"). **For a multi-file scope, call `push_civicscope.ps1` directly** rather than through the .bat.
 - **A best-effort catch that counts nothing is a silent-failure generator — audit the pool's SMS sends (found 2026-08-13).** The pool's "all picks are in" notice sent nothing to anyone on 2026-08-09 and left **no trace at all**: it swallowed every error, counted nothing, returned nothing, and the caller latched its "already notified" flag *before* calling it — so a total failure and a clean run were byte-identical, and the one-shot could never retry. It was only provable four days later by adding a read-only Twilio message log. Fixed for that path (`3.8.0-allinreceipt`), but **`notifyLock`, `notifyWinner` and both reminders still swallow individual send failures** — anything that does not report a per-channel count can fail the same way. Detail in `Pools/CLAUDE.md`.
