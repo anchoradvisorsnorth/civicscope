@@ -619,6 +619,16 @@ function reconRow(d){
   var doneAt = d.reconciled_at;
   var err = (d.copy_error && d.copy_error !== "working") ? d.copy_error : null;
   var working = d.copy_error === "working" || busy;
+  /* ⛔ TWELVE OF THIRTY-FOUR IN THIS BATCH WERE LOGAN'S, AND THE SCREEN OFFERED TO RECONCILE EVERY
+     ONE (2026-08-26). Erica scanned his stack into a general folder; because the folder is mixed
+     no single desk could be derived from it, so the whole thing fell to the paper flow and
+     $53,163.36 of work that belongs on his desk sat in her queue with the buttons live. Keith:
+     *"apparently erica scanned some of logans invoices is way trying to reconcile."*
+     A document waiting on a PM is not her work yet. The row says whose it is and what it is
+     waiting for, and the reconcile actions are withheld until he has answered — the same shape as
+     suppressing "Resolve without filing" on a refusal that just named a folder: the wrong option
+     removed and the reason given, rather than a choice offered and then regretted. */
+  var withPm = !doneAt && d.pm_awaiting && d.pm_desk;
 
   var name = '<div>' + esc(d.file_name) + '</div>'
     + '<div class="sub">' + (d.page_to - d.page_from + 1) + 'p'
@@ -730,6 +740,10 @@ function reconRow(d){
       ? '<span class="sub m-r">still copying &mdash; the filing worker has not answered. '
         + 'Reload to check.</span>'
       : '<span class="sub">copying to SharePoint&hellip;</span>';
+  } else if(withPm){
+    act = '<div class="sub"><b class="m-a">With ' + esc(d.pm_desk) + '</b>'
+      + '<div>Waiting on his approval. It comes back here to reconcile once he has answered &mdash; '
+      + 'nothing to do on this one yet.</div></div>';
   } else {
     rename = '<button class="pfill" onclick="reconRename(' + invArg(d.id) + ')">Edit name</button>';
     /* THE BUTTON SAYS WHAT THE CLICK WILL DO. With RYC Expense chosen, "File to job" describes
@@ -748,7 +762,11 @@ function reconRow(d){
      That text is the matcher's internal score narrated at a person. It says how the algorithm felt
      and names no next step, which is the same failure as a button that misdescribes its own effect:
      the screen is talking about itself instead of about her work. */
-  if(err){
+  /* ⚠ AND THE REFUSAL BELOW IS SUPPRESSED TOO WHILE A PM HAS IT. Every one of Logan's twelve
+     carries `no job folder resembles 'Greencroft NNNN WPC'` — true, and not her problem yet.
+     Showing it beside "With Logan Moore" would offer her two endings for a row she has not been
+     handed, which is exactly the choice-offered-is-choice-endorsed trap from 2026-08-26. */
+  if(err && !withPm){
     act += '<div class="sub m-r" style="margin-top:4px">' + reconWhy(err) + '</div>';
     if(!doneAt && !working){
       /* TWO REAL ANSWERS TO A REFUSAL, because there are two different reasons for one.

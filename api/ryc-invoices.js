@@ -1758,7 +1758,40 @@ export default async function handler(req, res) {
       const r = await sb(`ryc_batch_documents?company_id=eq.ryc&batch_id=eq.${id}`
         + '&select=*&order=seq.asc');
       if (!r.ok) return res.status(502).json({ error: 'Could not read the batch documents.' });
-      return res.status(200).json({ ok: true, documents: await r.json() });
+      const documents = await r.json();
+
+      /* ===== WHICH OF THESE ARE ON A PM's DESK RIGHT NOW ============================
+         ⛔ Twelve of Erica's thirty-four were Logan's, and her screen offered to reconcile every
+         one of them. The batch row cannot say so on its own — the payable lives in the register —
+         so the two are joined here, by the same `scan:{id}` key `batch_to_desk` writes. Matched on
+         (vendor, amount) because that is the pair `ryc_register_invoice` itself dedupes on; there
+         is no foreign key from a batch document to its payable, and inventing one now would be a
+         migration for a lookup that already has a natural key. */
+      try {
+        const rb = await sb('ryc_invoice_batches?company_id=eq.ryc&select=id'
+          + `&source_message_id=eq.${encodeURIComponent('scan:' + id)}`);
+        const regB = rb.ok ? (await rb.json())[0] : null;
+        if (regB) {
+          const ir = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${regB.id}`
+            + '&select=vendor_name,amount,review_state,assigned_pm,job_no&limit=1000');
+          if (ir.ok) {
+            const key = (v, a) => `${vendorKey(v)}|${amountKey(a)}`;
+            const byKey = {};
+            for (const i of await ir.json()) byKey[key(i.vendor_name, i.amount)] = i;
+            for (const d of documents) {
+              const i = byKey[key(d.vendor, d.amount)];
+              if (!i) continue;
+              d.pm_desk = i.assigned_pm || null;
+              d.pm_state = i.review_state;
+              /* Decided means the front office may finish it. `not_ap`, `rejected` and `duplicate`
+                 are decisions too — a supporting document nobody approves must not freeze the row. */
+              d.pm_awaiting = !['approved', 'rejected', 'not_ap', 'duplicate'].includes(i.review_state);
+            }
+          }
+        }
+      } catch { /* the batch screen still works without this; it just cannot say whose it is */ }
+
+      return res.status(200).json({ ok: true, documents });
     }
 
     /* The worker registers what it actually filed. THE JOB IS RESOLVED HERE, not on the VM, because
@@ -1918,10 +1951,41 @@ export default async function handler(req, res) {
       try { dir = await jobDirectory(); } catch { /* handled below */ }
       const pm = await batchDesk(docs, dir);
       const digital = await digitalPms();
-      if (!pm || !digital.has(pm)) {
+
+      /* ⛔ A MIXED FOLDER IS NOT A PAPER FOLDER, AND TREATING IT AS ONE PUT $53,163.36 OF LOGAN'S
+         WORK ON THE FRONT OFFICE'S SCREEN (found 2026-08-26). Erica scanned his stack into the
+         middle of a general batch: 34 documents — 13 Erik Parcell, **12 Logan Moore**, 8 unresolved,
+         1 Brad Yoder. `batchDesk()` requires unanimity, correctly refused to name a desk, and the
+         whole batch fell to paper — so twelve invoices she must not reconcile were sitting in her
+         queue with the reconcile buttons live. Keith: *"apparently erica scanned some of logans
+         invoices is way trying to reconcile."*
+
+         THE UNANIMITY RULE WAS RIGHT FOR THE WRONG SCOPE. It exists to answer "whose is a document
+         that names nobody" — and for that it must stay strict. But a document carrying its OWN
+         resolved job needs no vouching from its neighbours: `2518RO25 Greencroft 2047 WPC` is
+         Logan's whatever else is in the folder. So the desk is decided per DOCUMENT:
+           · a resolved job → that job's PM, the strongest signal there is;
+           · no job at all  → the batch's unanimous desk, if it has one.
+         Only documents landing on a DIGITAL PM's desk are registered. The rest of the folder is
+         untouched and stays exactly as paper always was — here, Erik's 13 and Brad's 1. */
+      const byNo = dir ? new Map([...dir.jobs, ...(dir.foundationOnly || [])].map(j => [j.no, j])) : new Map();
+      const deskFor = (d) => {
+        if (d.job_no) { const j = byNo.get(String(d.job_no).trim()); return (j && j.pm) || null; }
+        return pm;          // no job of its own — fall back to the batch, which may be null
+      };
+      const mine = docs.filter(d => { const p = deskFor(d); return p && digital.has(p); });
+      if (!mine.length) {
         /* The paper flow, which is every PM today. Nothing is created, nothing is changed. */
         return res.status(200).json({ ok: true, flow: 'paper', pm: pm || null,
-          skipped: pm ? `${pm} approves on paper` : 'no single desk could be derived from this batch' });
+          skipped: pm ? `${pm} approves on paper` : 'no document in this batch belongs to a digital desk' });
+      }
+      /* ⚠ ALREADY-RECONCILED DOCUMENTS ARE LEFT ALONE. The front office has finished with those and
+         the file has moved; turning one into a payable now would put a decision back in front of a
+         PM that the paper process already closed. Only open work is routed. */
+      const routable = mine.filter(d => !d.reconciled_at);
+      if (!routable.length) {
+        return res.status(200).json({ ok: true, flow: 'paper', pm: pm || null,
+          skipped: 'every document for a digital desk in this batch is already reconciled' });
       }
 
       /* Find or create the REGISTER's batch. `ryc_invoices.batch_id` points at
@@ -1972,7 +2036,7 @@ export default async function handler(req, res) {
       if (r0.ok) for (const x of await r0.json()) preexisting.add(x.id);
 
       const results = [];
-      for (const d of docs) {
+      for (const d of routable) {
         const out = await rpc('ryc_register_invoice', {
           p_batch_id: invBatchId,
           p_rec: {
@@ -2056,8 +2120,14 @@ export default async function handler(req, res) {
          `batch_id`, and the 54 unplaced invoices in Inbound have a different batch or none. */
       let inherited = null;
       try {
-        const nr = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${invBatchId}`
-          + '&released_at=is.null&staged_pm=is.null&select=id,version,vendor_name,amount,job_text');
+        /* ⚠ ONLY WHEN THE BATCH ITSELF HAS A UNANIMOUS DIGITAL DESK. In a mixed folder `pm` is null
+           by design, and a document that named nobody there genuinely belongs to nobody in
+           particular — inheriting a desk from a folder that holds three PMs' work would be the
+           confident wrong answer, at the one moment there is no evidence at all. */
+        const nr = (pm && digital.has(pm))
+          ? await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${invBatchId}`
+            + '&released_at=is.null&staged_pm=is.null&select=id,version,vendor_name,amount,job_text')
+          : { ok: true, json: async () => [] };
         const orphans = nr.ok ? await nr.json() : [];
         const took = [];
         for (const o of orphans) {
@@ -2091,6 +2161,11 @@ export default async function handler(req, res) {
       } catch (e) { release = { error: (e && e.message) || 'release failed' }; }
 
       return res.status(200).json({ ok: true, flow: 'digital', pm, inherited,
+        /* Say what was taken and what was deliberately left, because "digital" on a mixed folder
+           is only true of part of it and a count that hides that is the misleading half. */
+        of_documents: docs.length, routed: routable.length,
+        left_as_paper: docs.length - routable.length,
+        desks: [...new Set(routable.map(d => deskFor(d)))],
         register_batch: invBatchId,
         registered: results.filter(r => r.ok && !r.replayed).length,
         replayed: results.filter(r => r.ok && r.replayed).length,
