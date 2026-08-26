@@ -1735,14 +1735,80 @@ block would fight the workflow — a partial month is a legitimate state while s
 The review page already counts missing well-days and warns on absent bacti. **Recorded as a
 deliberate decision rather than an unfixed finding**, so nobody re-opens it as a bug.
 
+## Codex review CLOSED — the last five (2026-08-26)
+
+All 15 findings are now fixed. The five medium/low ones:
+
+### 6 — truncation abandoned passages that would have fitted
+
+The context loop used `break`, so the FIRST oversized passage ended it and every later passage was
+discarded whether or not it fitted. A printed table is one indivisible chunk of 3,000–7,000
+characters, so the oversized passage is routinely a table — and the thing thrown away behind it is
+routinely the small county passage that answers the question. Now `continue`.
+
+⛔ **And it says so.** Three production defects have been caused by this budget silently discarding
+passages, and every one was invisible because a truncated context and a complete one produce the
+same shaped answer, the same `hit_count` and the same outcome. `muni_questions.retrieval`
+(migration **052**) records `{ retrieved, used, dropped, chars, dropped_by_source }`.
+
+⚠ **`dropped_by_source` had to be tagged at the merge, not derived from the row.** `muni_search`
+returns no tenant column, so the first version could not tell the county from the town — and they
+both file under `Code of Ordinances`, which is exactly the pair the field exists to separate. Live
+now: `{"Code of Ordinances":6,"shared:elkhart-county":2}`.
+
+### 7 — a shared-corpus failure was swallowed
+
+For a tenant that DELEGATED its zoning the shared corpus is not an enhancement, it is the law.
+Bristol's own 719 documents contain no setback, no use table and no variance procedure. A failed
+county RPC was caught and ignored, so the answer came from the town's website and reported a
+confident `declined` — indistinguishable from a corpus that genuinely lacks the answer. The failure
+is now recorded as `shared_corpus_unavailable` in the retrieval record.
+
+### 9 — one query became two, because the name is noise in one corpus and poison in the other
+
+In the tenant's OWN corpus the municipality name is uninformative but can still be load-bearing — a
+question CONTRASTING two municipalities means something different without it. In the SHARED corpus
+it is destructive: the county ordinance never says "Bristol", so the word breaks the strict
+all-terms pass.
+
+The old three-word floor failed in both directions at once: `Bristol R-1 setbacks` leaves two words,
+so the floor kept the original and re-created the failure stripping exists to prevent; and
+`Does Centreville or Constantine regulate this parcel?` had Centreville removed although the
+comparison is the whole question. Now the shared query always drops the name; the own query drops it
+only when it is doing no work — a leading address phrase, or anywhere in a non-comparative question.
+
+⚠ Stripping the name alone left the preposition stranded (`"In Bristol, what…"` → `"In , what…"`),
+which is worse than leaving it: the tsquery gains a meaningless term and loses nothing. The leading
+phrase is consumed first. Four cases unit-tested, including both of Codex's.
+
+### 10 — a batch of OCR could be filed entirely under page 1
+
+The batch reply was split on `Page N` or form feeds, **neither of which the prompt ever asked for**.
+A continuous transcription produced ONE part, so the whole batch was assigned to the first page and
+the rest were skipped — the call succeeded, the spend was real, and eight pages of law were filed
+under one page's heading, section and citation.
+
+The prompt now requires `<<<PAGE n>>>` before every page. A reply without exactly one marker per
+requested page is not guessed at: the pages are retried ONE AT A TIME, where a single-page reply
+cannot be misattributed by construction. Costs more only in the case that was previously silently
+wrong.
+
+### 15 — `mixed` now outranks `ocr`
+
+They were equal because both mean "the unreadable pages were recovered". But `mixed` keeps the
+document's own text layer and transcribes only what a machine could not read, while `ocr` is the
+whole document rewritten by a vision model. Ranked equal, a later extraction that fell below the
+text-layer threshold could silently replace every verbatim page with transcription and
+`isDowngrade` would allow it. Now `needs-ocr` < `text-layer` < `ocr` < `mixed`.
+
+⚠ Both setback answers re-verified after all five: Bristol gives 50/75/120 ft by road class,
+Centreville gives 30/10/40 from Table 4-4.
+
 ## Open Action Items
 
-- **Codex review 2026-08-26: 5 of 15 findings open**, all medium/low and none needing a decision:
-  **6** truncation still drops passages that would fit and logs nothing · **7** shared-corpus RPC
-  failure is swallowed and the 1:1 merge is an unmeasured quota · **9** the three-word stripping
-  floor recreates the Bristol failure on short questions · **10** batched OCR can assign a whole
-  batch to page 1 · **15** `isDowngrade` ranks `mixed` equal to `ocr`. Report:
-  `codex-reviews/reports/REVIEW_civicscope-muni-ask-and-water_2026-08-26.md`.
+- ✅ **Codex review 2026-08-26 CLOSED — all 15 findings fixed.** Report:
+  `codex-reviews/reports/REVIEW_civicscope-muni-ask-and-water_2026-08-26.md`. Migrations 050–052
+  and the Water work are recorded in the sections above.
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The chips
   are verified against the live corpus (048); an ingest can retire one as easily as earn it.
   Done 2026-08-26 after the zoning-book restore. Its own traffic is tagged `verifier` (049) so it
