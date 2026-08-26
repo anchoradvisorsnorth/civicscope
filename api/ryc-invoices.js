@@ -1795,6 +1795,212 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, inserted: made.length, of: rows.length });
     }
 
+    /* ===== WHOSE FOLDER IS THIS, AND DOES HE APPROVE IN THE TOOL OR ON PAPER? ===========
+       Keith ruled out asking at upload: *"She doesnt need the optional selector - right now all
+       the other PM are manually doing the their approval then erica scan to reconcile."* Which is
+       correct — and it turns out the batch can say whose it is without being told, because a
+       scanned folder IS one PM's folder and its documents name his jobs.
+
+       ⚠ THE COMMUNITY COUNTS AS A SIGNAL, AND WITHOUT IT THIS WOULD FAIL ON THE BATCH THAT MATTERS
+       MOST. `approved 82626GC2` has FIVE documents and not one resolved job — deriving a desk from
+       resolved jobs alone would give nothing, and Logan would never see the batch that most needs
+       him. Two of those five reach Greencroft South Bend, whose units are all his. So a document
+       implies a desk if it resolves to a job OR to a community.
+
+       ⛔ UNANIMOUS OR NOTHING. One dissenting desk and the answer is null, which means paper, which
+       means today. A mixed folder is not something to resolve by majority — it is a reason to leave
+       a working process alone. */
+    async function batchDesk(docs, dir) {
+      if (!dir || !dir.jobs.length) return null;
+      const byNo = new Map([...dir.jobs, ...(dir.foundationOnly || [])].map(j => [j.no, j]));
+      const idx = __matcher.tokenIndex(dir.jobs);
+      const desks = new Set();
+      let signals = 0;
+      for (const d of docs) {
+        let pm = null;
+        if (d.job_no) { const j = byNo.get(String(d.job_no).trim()); pm = j && j.pm; }
+        if (!pm && String(d.job_text || '').trim()) {
+          const m = __matcher.matchJob(String(d.job_text), dir.jobs, idx, dir.foundationOnly);
+          if (m && m.job) pm = m.job.pm;
+          else if (m && m.family) pm = m.family.pm;
+        }
+        if (pm) { desks.add(pm); signals++; }
+      }
+      return (desks.size === 1 && signals > 0) ? [...desks][0] : null;
+    }
+
+    /* Absence of a row is the default, so the caller cannot forget to check a boolean. */
+    async function digitalPms() {
+      try {
+        const r = await rpc('ryc_digital_approval_pms', {});
+        return new Set(r.status === 200 && Array.isArray(r.body) ? r.body : []);
+      } catch { return new Set(); }
+    }
+
+    /* ===== A SCANNED FOLDER BECOMES PAYABLES ON A PM'S DESK ==============================
+       ⛔ THE SCANNED-BATCH PATH HAS NEVER CREATED A PAYABLE. `batch_documents_register` writes
+       `ryc_batch_documents` and stops, so nothing that arrives on paper has ever reached a desk —
+       measured 2026-08-26: the register held 21 invoices and every one came from the `ap@` mailbox,
+       while two Greencroft batches sat holding 10 documents and $26,142.31 that no PM could see.
+
+       This is the missing link, and it is gated on ONE condition: the batch's derived desk belongs
+       to a PM who has been explicitly moved onto the digital flow (migration 055, table ships
+       EMPTY). For every other PM this returns `skipped` and touches nothing — Erica's scan →
+       reconcile → file is byte-identical, which is the constraint Keith set while she is working.
+
+       Idempotent twice over: `open_batch`'s own `source_message_id` guard keyed to the scan, and a
+       per-document `request_id` that `ryc_register_invoice` replays on. Running it twice registers
+       nothing new — which matters, because the duplicate it would otherwise create is the exact
+       failure this whole module was built to catch. */
+    if (action === 'batch_to_desk') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const id = String(body.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'A batch id is required.' });
+
+      const bj = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${id}&select=*`);
+      const batch = bj.ok ? (await bj.json())[0] : null;
+      if (!batch) return res.status(404).json({ error: 'No such batch.' });
+
+      const dr = await sb(`ryc_batch_documents?company_id=eq.ryc&batch_id=eq.${id}`
+        + '&select=*&order=seq.asc');
+      if (!dr.ok) return res.status(502).json({ error: 'Could not read the batch documents.' });
+      const docs = await dr.json();
+      if (!docs.length) return res.status(200).json({ ok: true, skipped: 'no documents registered yet' });
+
+      let dir = null;
+      try { dir = await jobDirectory(); } catch { /* handled below */ }
+      const pm = await batchDesk(docs, dir);
+      const digital = await digitalPms();
+      if (!pm || !digital.has(pm)) {
+        /* The paper flow, which is every PM today. Nothing is created, nothing is changed. */
+        return res.status(200).json({ ok: true, flow: 'paper', pm: pm || null,
+          skipped: pm ? `${pm} approves on paper` : 'no single desk could be derived from this batch' });
+      }
+
+      /* Find or create the REGISTER's batch. `ryc_invoices.batch_id` points at
+         `ryc_invoice_batches`, a different table from the scanned `ryc_batch_jobs` — so the scan
+         gets an invoice batch of its own, keyed to it so a re-run finds the same one. */
+      const key = `scan:${id}`;
+      let invBatch = null;
+      const ex = await sb(`ryc_invoice_batches?company_id=eq.ryc`
+        + `&source_message_id=eq.${encodeURIComponent(key)}&select=*`);
+      if (ex.ok) invBatch = (await ex.json())[0] || null;
+      if (!invBatch) {
+        /* Inserted the same way `open_batch` does it — there is no RPC for this — including its
+           409 handling. A concurrent run losing the race is the CORRECT outcome: the winner's batch
+           is the one everything else keys to, and the loser must find it rather than make a second. */
+        const mk = await sb('ryc_invoice_batches', {
+          method: 'POST', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({
+            received_date: (batch.created_at || '').slice(0, 10) || new Date().toISOString().slice(0, 10),
+            source: 'scan',
+            label: batch.folder || batch.filename || key,
+            page_count: batch.page_count || 0,
+            source_message_id: key,
+          }),
+        });
+        if (mk.status === 409) {
+          const again = await sb(`ryc_invoice_batches?company_id=eq.ryc`
+            + `&source_message_id=eq.${encodeURIComponent(key)}&select=*`);
+          if (again.ok) invBatch = (await again.json())[0] || null;
+        } else if (mk.ok) {
+          invBatch = (await mk.json())[0] || null;
+        }
+        if (!invBatch) {
+          return res.status(502).json({ error: `Could not open a register batch (${mk.status}).` });
+        }
+      }
+      const invBatchId = invBatch && invBatch.id;
+      if (!invBatchId) return res.status(502).json({ error: 'no register batch id' });
+
+      const preexisting = new Set();
+      const r0 = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${invBatchId}&select=id`);
+      if (r0.ok) for (const x of await r0.json()) preexisting.add(x.id);
+
+      const results = [];
+      for (const d of docs) {
+        const out = await rpc('ryc_register_invoice', {
+          p_batch_id: invBatchId,
+          p_rec: {
+            vendor_name: d.vendor || null,
+            invoice_no: d.invoice_no || null,
+            amount: d.amount,
+            doc_type: d.doc_type || 'unknown',
+            job_text: d.job_text || null,
+            /* The job the batch screen already resolved travels with the document. A machine guess
+               is carried as `classifier`, never as a person's answer. */
+            job_no: d.job_no || null,
+            job_source: d.job_no ? (d.job_source === 'chosen' ? 'manual'
+              : d.job_source === 'hint' ? 'hint' : 'classifier') : null,
+            page_from: d.page_from, page_to: d.page_to,
+            /* The scan date is when the front office received the folder. The RECEIVED stamp is on
+               the paper and the reader does not capture it into this table; claiming today's date
+               would silently restart every discount and staleness window. */
+            received_date: (batch.created_at || '').slice(0, 10) || null,
+          },
+          p_request_id: `scan:${id}:${d.seq}`, p_actor: actor,
+        });
+        results.push(out.status === 200 ? { ok: true, seq: d.seq, ...out.body }
+          : { ok: false, seq: d.seq, error: out.body && out.body.error });
+      }
+
+      /* The package pass and the staging pass are the SAME functions the mailbox path uses. This
+         action deliberately re-implements neither — one rule expressed twice is how this module
+         has been bitten three separate times. */
+      let supporting = null;
+      try {
+        const rn = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${invBatchId}`
+          + '&select=id,version,doc_type,amount,vendor_name,review_state');
+        if (rn.ok) {
+          const fresh = (await rn.json()).filter(r => !preexisting.has(r.id));
+          const marks = supportingDocuments(fresh)
+            .filter(m => { const r = fresh.find(x => x.id === m.id); return r && (r.review_state === 'new' || r.review_state === 'ready'); });
+          const done = [];
+          for (const m of marks) {
+            const out = await rpc('ryc_review_invoice', {
+              p_id: m.id, p_decision: 'not_ap', p_reviewer: 'system',
+              p_note: `Supporting document (${m.doc_type}) — ${m.reason}. Registered and filed; not a payable. Reverse from the desk if this is wrong.`,
+              p_duplicate_of: null, p_identity_verified: false,
+              p_expected_version: m.version, p_request_id: `${rid}:sup:${m.id}`, p_actor: actor,
+            });
+            if (out.status === 200) done.push({ id: m.id, doc_type: m.doc_type, reason: m.reason });
+          }
+          supporting = { marked: done.length, of: fresh.length };
+        }
+      } catch (e) { supporting = { error: (e && e.message) || 'supporting-document pass failed' }; }
+
+      let placement = null;
+      try {
+        const p = await stagingPass({ force: false });
+        placement = p.error ? { error: p.error }
+          : { staged: p.staged, community: p.community || 0, unplaced: p.unplaced };
+      } catch (e) { placement = { error: (e && e.message) || 'staging failed' }; }
+
+      /* RELEASE IS WHAT PUTS IT ON HIS SCREEN, and it gates on the DESK, not the job — which is the
+         whole reason a Greencroft row with an unresolved unit can reach him at all. Anything with
+         no desk is held back and reported, exactly as in the mailbox path. */
+      let release = null;
+      try {
+        const rr = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${invBatchId}`
+          + '&released_at=is.null&staged_pm=not.is.null&select=id');
+        const ids = rr.ok ? (await rr.json()).map(x => x.id) : [];
+        if (ids.length) {
+          const out = await rpc('ryc_release_invoices', {
+            p_ids: ids, p_released_by: 'front office (scan ingest)',
+            p_request_id: `${rid}:rel`, p_actor: actor,
+          });
+          release = out.status === 200 ? out.body : { error: out.body && out.body.error };
+        } else release = { released: 0, held: 0, note: 'nothing staged with a desk' };
+      } catch (e) { release = { error: (e && e.message) || 'release failed' }; }
+
+      return res.status(200).json({ ok: true, flow: 'digital', pm,
+        register_batch: invBatchId,
+        registered: results.filter(r => r.ok && !r.replayed).length,
+        replayed: results.filter(r => r.ok && r.replayed).length,
+        failed: results.filter(r => !r.ok).length,
+        results, supporting, placement, release });
+    }
+
     /* ===== ASK THE MATCHER AGAIN — FOR ROWS IT ANSWERED ITSELF, AND ONLY THOSE ==========
        ⛔ `batch_documents_register` upserts with `resolution=ignore-duplicates`, which is what makes
        a worker re-run converge instead of duplicating the queue — and it also means a document
