@@ -850,7 +850,7 @@ export default async function handler(req, res) {
        narrower grant is the one that cannot create a payable. */
     'invoice-filer': new Set(['filing_queue', 'mark_filed', 'read',
       'reconcile', 'adjudicate', 'batch_autoconfirm', 'batch_documents_register',
-      'doc_copy_claim', 'doc_copy_done',
+      'doc_copy_claim', 'doc_copy_done', 'doc_rename_done',
       /* The VM publishes what folders SharePoint holds and reads back the overrides a person set.
          Neither creates a payable; both are the filer's own job. */
       'job_folders_publish', 'job_folder_map',
@@ -873,7 +873,7 @@ export default async function handler(req, res) {
     /* A page must never be able to assert that a document was filed into a live job folder, nor to
        register what "was filed" in the first place. Both are claims about SharePoint, and only the
        machine holding the SharePoint credential is in a position to make one. */
-    'batch_documents_register', 'doc_copy_claim', 'doc_copy_done',
+    'batch_documents_register', 'doc_copy_claim', 'doc_copy_done', 'doc_rename_done',
     /* WHICH FOLDERS EXIST is a claim about SharePoint. A page asserting it could put destinations
        in the picker that are not there, and the pin would then fail on the copy — relocating the
        failure instead of ending it. Reading the list back (`job_folders`) is the browser's route. */
@@ -1626,7 +1626,13 @@ export default async function handler(req, res) {
       const patch = {
         job_no: expense ? RYC_EXPENSE.no : jobNo, job_name, job_source: 'chosen',
         disposition: expense ? 'ryc_expense' : (noFiling ? 'job_unfiled' : 'job_folder'),
-        copy_error: null, updated_at: new Date().toISOString(),
+        /* ⛔ DO NOT BLANK A LEASE THE WORKER IS HOLDING. `copy_error` doubles as the claim lease,
+           and since migration 053 a row can be claimed for a RENAME before it has been reconciled
+           at all — so this write can now land while a worker is mid-rename. Clearing it there
+           would free the row for a second claim and let two workers touch one document. Clearing
+           a real error is still right: that is what re-arms a refused row when she settles it. */
+        copy_error: doc.copy_error === 'working' ? 'working' : null,
+        updated_at: new Date().toISOString(),
       };
       if (done) {
         patch.reconciled_at = new Date().toISOString();
@@ -1782,7 +1788,9 @@ export default async function handler(req, res) {
         history: past, retire_path: retire,
         job_no: expense ? RYC_EXPENSE.no : jobNo, job_name, job_source: 'chosen',
         disposition: expense ? 'ryc_expense' : 'job_folder',
-        copied_path: null, copied_url: null, copy_error: null,
+        copied_path: null, copied_url: null,
+        // Same reason as `doc_reconcile` above: never blank a lease a worker is holding.
+        copy_error: doc.copy_error === 'working' ? 'working' : null,
         reconciled_at: null, reconciled_by: null,
         updated_at: new Date().toISOString(),
       };
@@ -1958,13 +1966,23 @@ export default async function handler(req, res) {
          actually changed, so two workers cannot both win. `copy_error` doubles as the lease: a
          worker that dies leaves a visible "working" a human can see, rather than a row that
          silently re-runs and copies an invoice into a job folder twice. */
-      /* Two kinds of outstanding work now, and both are `reconciled_at is null`: a copy to make
-         (disposition job_folder) and a copy to RETIRE after a correction — including a correction
-         to RYC Expense, where the only work left is removing the file from the job folder it should
-         never have reached. `or=` rather than two polls, so one claim cannot starve the other. */
-      const r = await sb('ryc_batch_documents?company_id=eq.ryc'
-        + '&reconciled_at=is.null&copy_error=is.null'
-        + '&or=(disposition.eq.job_folder,retire_path.not.is.null)'
+      /* THREE kinds of outstanding work, in ONE claim so none of them can starve the others:
+           1. a copy to MAKE    — disposition job_folder, not yet reconciled
+           2. a copy to RETIRE  — after a correction, including a correction to RYC Expense, where
+                                  removing the file is the only work left
+           3. a rename to APPLY — `rename_pending`, migration 053
+
+         ⛔ (3) IS DELIBERATELY NOT CONSTRAINED TO `reconciled_at is null`, and that is the whole
+         point of it. `ryc_expense` and `job_unfiled` complete INLINE in `doc_reconcile` — there is
+         no copy to wait for — so a rename staged just before that click had nowhere to be executed
+         and was dropped on the floor: the archive copy kept the old name while the record asserted
+         the new one, and the #AScans mirror was never renamed under ANY ending. Claiming a finished
+         row for a rename is safe because the rename reports through `doc_rename_done`, which
+         cannot set `reconciled_at`. */
+      const r = await sb('ryc_batch_documents?company_id=eq.ryc&copy_error=is.null'
+        + '&or=(and(reconciled_at.is.null,disposition.eq.job_folder),'
+        + 'and(reconciled_at.is.null,retire_path.not.is.null),'
+        + 'rename_pending.is.true)'
         + '&order=updated_at.asc&limit=1', {
         method: 'PATCH', headers: { Prefer: 'return=representation' },
         body: JSON.stringify({ copy_error: 'working', updated_at: new Date().toISOString() }),
@@ -1974,10 +1992,19 @@ export default async function handler(req, res) {
       const doc = rows[0] || null;
       if (doc) {
         const b = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${doc.batch_id}`
-          + '&select=folder,received_date');
+          + '&select=folder,received_date,filed');
         if (b.ok) {
           const batch = (await b.json())[0];
-          if (batch) { doc.batch_folder = batch.folder; doc.received_date = batch.received_date; }
+          if (batch) {
+            doc.batch_folder = batch.folder; doc.received_date = batch.received_date;
+            /* WHERE THE #AScans MIRROR WENT — read off the batch's own verification record, never
+               recomputed from today's date. The daily folder is named for the day the scan was
+               PROCESSED, and a rename can land days later, so deriving it from now() would point
+               the worker at the wrong day's folder or at one that does not exist. Null is a
+               legitimate answer (a batch filed before the mirror existed, or one whose folder
+               could not be made): then there is nothing to rename, which is not a failure. */
+            doc.daily_folder = (batch.filed && batch.filed.daily_folder) || null;
+          }
         }
       }
       return res.status(200).json({ ok: true, document: doc });
@@ -2007,6 +2034,49 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, document: (await r.json())[0] || null });
     }
 
+    /* THE RENAME IS WORK IN ITS OWN RIGHT, AND IT DOES NOT FINISH A DOCUMENT.
+
+       ⛔ IT MUST NOT REPORT THROUGH `doc_copy_done`. That action sets `reconciled_at` from
+       evidence — a copy landed at this path, at this URL. A rename is evidence of nothing of the
+       kind: the row it is applied to may not even have a job yet, because she is free to fix a
+       name before deciding anything. Routing a rename through there would complete a
+       reconciliation nobody made, which is the worst single thing this table can be made to say.
+       So this is a second, narrower report: it writes what the file is NOW CALLED, releases the
+       lease, and touches nothing else. */
+    if (action === 'doc_rename_done') {
+      const docId = String(body.doc_id || '').trim();
+      if (!docId) return res.status(400).json({ error: 'A document id is required.' });
+      const failed = String(body.error || '').trim();
+      const nowName = String(body.sp_name || '').trim();
+      if (!failed && !nowName) {
+        return res.status(400).json({ error: 'A successful rename must say what the file is now called.' });
+      }
+      const patch = failed
+        ? { copy_error: failed.slice(0, 500), updated_at: new Date().toISOString() }
+        : { copy_error: null, sp_name: nowName, updated_at: new Date().toISOString() };
+
+      /* WHAT THE #AScans MIRROR DID IS RECORDED, AND ONLY WHEN IT WAS NOT A CLEAN SUCCESS.
+         A clean one needs no record — `sp_name` proves it, and appending on every rename would
+         bury the corrections this column exists to keep. The cases worth keeping forever are the
+         ones where the office's daily-scan copy did NOT follow the name, because a mirror that
+         quietly stops tracking is exactly how "we put them in #AScans too" stops being true
+         without anybody noticing. Same reasoning as `daily_failed` on the batch itself. */
+      if (!failed && body.daily_note) {
+        const cur = await sb(`ryc_batch_documents?company_id=eq.ryc&id=eq.${docId}&select=history`);
+        const row = cur.ok ? (await cur.json())[0] : null;
+        patch.history = [...(Array.isArray(row && row.history) ? row.history : []), {
+          at: new Date().toISOString(), action: 'daily_scan_rename',
+          from: String(body.was || '').slice(0, 200) || null,
+          to: nowName || null,
+          result: String(body.daily_note).slice(0, 300),
+        }];
+      }
+      const r = await sb(`ryc_batch_documents?id=eq.${docId}`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not record the rename.' });
+      return res.status(200).json({ ok: true, document: (await r.json())[0] || null });
+    }
     /* ---- the worker's two actions. Service token only (see SERVICE_ACTIONS). ---- */
     if (action === 'batch_claim') {
       /* Claim by PATCHing a row that is still in a claimable state, and let PostgREST return

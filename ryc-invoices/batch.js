@@ -685,8 +685,18 @@ function reconRow(d){
        repeating: it MOVES the file rather than filing a second copy, and the old placement is kept
        in the row's history. It sits in the completion column because it is what replaces it. */
     act = '<button class="pfill" onclick="reconCorrect(' + invArg(d.id) + ')">Change job</button>';
-    if((d.history || []).length){
-      act += '<div class="sub">corrected ' + d.history.length + '&times;</div>';
+    var fixes = (d.history || []).filter(function(h){ return h && h.corrected_at; });
+    if(fixes.length){
+      act += '<div class="sub">corrected ' + fixes.length + '&times;</div>';
+    }
+    /* THE #AScans MIRROR IS ALLOWED TO FAIL AND MUST THEREFORE SAY SO. The office keeps a dated
+       scan folder beside the archive; when she renames an invoice the worker renames that copy too,
+       and when it could not (the copy was never made, or something is already called that) the row
+       carries the reason. Reporting it here is the difference between a mirror that is known to
+       have drifted and one that is assumed to be fine. */
+    var dailyMiss = (d.history || []).filter(function(h){ return h && h.action === 'daily_scan_rename'; });
+    if(dailyMiss.length){
+      act += '<div class="sub m-a">#AScans: ' + esc(String(dailyMiss[dailyMiss.length-1].result || '').slice(0,120)) + '</div>';
     }
   } else if(working){
     act = _recon.stalled
