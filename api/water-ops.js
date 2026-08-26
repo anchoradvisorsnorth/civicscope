@@ -122,6 +122,64 @@ async function previousReading(entryPointId, date) {
   return { id: prev.id, reading_date: prev.reading_date, meter_reading: prev.meter_reading, feeds };
 }
 
+/* ⛔ THE DAY AFTER A CORRECTION IS ALSO WRONG, AND NOTHING USED TO RE-DERIVE IT.
+   Every derived number hangs off the previous live reading: gallons are this meter minus the
+   last one, chemical usage is this tank level against the last baseline. So editing or inserting
+   a HISTORICAL day silently invalidates the day that follows it, which keeps the interval it
+   computed against the row that is no longer there.
+
+   Worked example, and it is not an edge case: day 1 meter 100, day 2 150, day 3 200 — days 2 and
+   3 each store 50. Correct day 2 to 120 and day 2 becomes 20, but day 3 still says 50 instead of
+   80. The month totals 70 against a true 100, and `build-mor.py` copies those stored values
+   straight into the filing.
+
+   This is Michelle's ORDINARY workflow, not a corner: Keith, 2026-08-26 — *"if a reading is
+   missing, she will add it before running the report"*, and lab results for bacteria come back a
+   day later and get entered then. Inserting into the middle of a month is the normal case.
+
+   So a write re-derives its SUCCESSOR from the same shared derive(), in place, keeping the
+   successor's own row id — this is a recomputation of stored arithmetic, not a correction, so it
+   supersedes nothing and needs no reason. It walks exactly ONE day forward on purpose: that day's
+   own successor only depends on IT through its meter and tank levels, which this does not touch.
+*/
+async function rederiveSuccessor(supply, ep, afterDate) {
+  const rows = await sb(
+    `water_readings?entry_point_id=eq.${ep.id}&reading_date=gt.${afterDate}&superseded_at=is.null`
+      + '&select=id,reading_date&order=reading_date.asc&limit=1'
+  );
+  const next = rows && rows[0];
+  if (!next) return null;
+
+  // The successor's own raw inputs, replayed against its new baseline.
+  const [full] = await sb(`water_readings?id=eq.${next.id}&select=*`);
+  if (!full) return null;
+  const fr = await sb(`water_feed_readings?reading_id=eq.${next.id}&select=*`);
+  const input = {
+    meter_reading: full.meter_reading,
+    free_cl: full.free_cl, total_cl: full.total_cl, ortho: full.ortho,
+    feeds: (fr || []).map((x) => ({ feed_id: x.feed_id, tank_level: x.tank_level, refill_to: x.refill_to })),
+  };
+  const prev = await previousReading(ep.id, next.reading_date);
+  const out = derive({ entryPoint: ep, feeds: ep.feeds, prev, input,
+    context: { minFreeCl: supply.min_free_cl } });
+  /* A successor that will not re-derive is REPORTED, never silently left stale. It means the
+     edit made the following day impossible (a meter that now runs backwards, say), and the
+     person making the edit is the only one who can resolve it. */
+  if (!out.ok) return { id: next.id, date: next.reading_date, ok: false, errors: out.errors };
+
+  await sb(`water_readings?id=eq.${next.id}`, {
+    method: 'PATCH', headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ ...out.reading, flags: out.flags }),
+  });
+  for (const fd of out.feeds) {
+    await sb(`water_feed_readings?reading_id=eq.${next.id}&feed_id=eq.${fd.feed_id}`, {
+      method: 'PATCH', headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ solution_lbs: fd.solution_lbs, dose_mgl: fd.dose_mgl }),
+    }).catch(() => { /* a feed row that is not there cannot be stale */ });
+  }
+  return { id: next.id, date: next.reading_date, ok: true, derived: out.reading };
+}
+
 /* WHO IS ASKING. Returns the enrolled, ACTIVE app_users row behind the session cookie, or null.
    Re-read on every call rather than trusted from the cookie's own claims, because deactivating
    somebody has to take effect when it is done — not when their 30-day session happens to lapse.
@@ -286,6 +344,98 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
     }
   }
 
+  /* ⛔ SAMPLES WERE COMPARED BY COUNT ALONE, WHICH HIDES THE ONE THING THIS EXISTS TO CATCH.
+     Distribution and bacti agreement was `filed.length === ours.length`. No date, no site, no
+     residual, no result. So a filed free residual of 0.70 against a held 0.20 reported a clean
+     match as long as the number of samples was the same.
+
+     Keith, 2026-08-26: Michelle *"sometimes changes numbers slightly in the actual EGLE
+     report"*. That makes this comparison the RECORD OF WHERE SHE DEVIATED -- the single most
+     valuable thing it can show -- and a same-count/changed-value edit is exactly the shape of
+     her edits. Counting rows was blind to her entire workflow.
+
+     Matched by regulatory identity (date, and site where the form carries one), never by
+     position: a sample added or removed shifts every later row, and position matching would
+     turn one insertion into a page of false differences. */
+  /* ⚠ THE TWO SIDES DO NOT USE THE SAME FIELD NAMES, and assuming they did produced a comparison
+     that reported EVERY sample of every filed month as a mismatch. Measured before shipping:
+     26 phantom differences on January alone, with empty keys on the filed side.
+     A filed row is what was transcribed out of the workbook:
+         distribution  { date, free, total, ortho }          -- no site; the form has no column for one
+         bacti         { date, location, free, total, result }
+     Our rows are the database's own:
+         distribution  { sample_date, free, total, ortho, site_name }
+         bacti         { collected_date, site_name, free, total, result }
+     So identity is extracted per side, never by a shared field name. */
+  const num = (v) => (v == null || v === '' ? null : Number(v));
+  const txt = (v) => String(v == null ? '' : v).trim().toLowerCase();
+
+  const compareSamples = (label, filedRows, ourRows, filedKey, ourKey, valueFields, textFields) => {
+    /* Keyed by regulatory identity, never by position: one added sample shifts every later row,
+       and position matching would turn a single insertion into a page of false differences.
+       A repeated key keeps its rows in order and compares them pairwise. */
+    const group = (list, keyOf) => {
+      const m = new Map();
+      for (const x of list || []) {
+        const k = keyOf(x);
+        if (!m.has(k)) m.set(k, []);
+        m.get(k).push(x);
+      }
+      return m;
+    };
+    const fMap = group(filedRows, filedKey);
+    const oMap = group(ourRows, ourKey);
+    const dayOf = (k) => Number(String(k).slice(8, 10)) || 0;
+
+    for (const [k, ours] of oMap) {
+      const theirs = fMap.get(k) || [];
+      for (let i = 0; i < Math.max(ours.length, theirs.length); i++) {
+        const o = ours[i];
+        const fr = theirs[i];
+        if (o && !fr) {
+          rows.push({ day: dayOf(k), ep: label, field: label, kind: 'ours_only',
+            msg: `${label}: ${k.replace(/\|/g, ' ')} is in the records but not in the filed report.` });
+          continue;
+        }
+        if (!o && fr) {
+          rows.push({ day: dayOf(k), ep: label, field: label, kind: 'filed_only',
+            msg: `${label}: ${k.replace(/\|/g, ' ')} is in the filed report but not in the records.` });
+          continue;
+        }
+        for (const vf of valueFields) {
+          const fv = num(fr[vf]);
+          const ov = num(o[vf]);
+          if (fv == null && ov == null) continue;
+          if (fv == null || ov == null || !near(fv, ov, 0.001)) {
+            rows.push({ day: dayOf(k), ep: label, field: `${label}_${vf}`, kind: 'differs',
+              filed: fv, ours: ov,
+              msg: `${label} ${k.replace(/\|/g, ' ')}: the report says ${fv == null ? 'nothing' : fv} for ${vf}, the records say ${ov == null ? 'nothing' : ov}.` });
+          }
+        }
+        for (const tf of textFields || []) {
+          if (txt(fr[tf]) !== txt(o[tf])) {
+            rows.push({ day: dayOf(k), ep: label, field: `${label}_${tf}`, kind: 'differs',
+              filed: fr[tf], ours: o[tf],
+              msg: `${label} ${k.replace(/\|/g, ' ')}: the report says ${fr[tf] || 'nothing'} for ${tf}, the records say ${o[tf] || 'nothing'}.` });
+          }
+        }
+      }
+    }
+    for (const [k, theirs] of fMap) {
+      if (oMap.has(k)) continue;
+      for (let i = 0; i < theirs.length; i++) {
+        rows.push({ day: dayOf(k), ep: label, field: label, kind: 'filed_only',
+          msg: `${label}: ${k.replace(/\|/g, ' ')} is in the filed report but not in the records.` });
+      }
+    }
+  };
+
+  compareSamples('distribution', (filed && filed.distribution) || [], dist || [],
+    (x) => txt(x.date), (x) => txt(x.sample_date), ['free', 'total', 'ortho'], []);
+  compareSamples('bacti', (filed && filed.bacti) || [], bacti || [],
+    (x) => `${txt(x.date)}|${txt(x.location)}`, (x) => `${txt(x.collected_date)}|${txt(x.site_name)}`,
+    ['free', 'total'], ['result']);
+
   rows.sort((a, b) => a.day - b.day || String(a.ep).localeCompare(String(b.ep)));
   const mg = rows.filter((r) => r.field === 'million_gallons');
   const counts = {
@@ -301,7 +451,9 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
   return {
     rows,
     counts,
-    matches: rows.length === 0 && counts.dist_filed === counts.dist_ours && counts.bacti_filed === counts.bacti_ours,
+    /* `rows` now carries sample differences too, so the count equality that used to stand in for
+       agreement is redundant -- and was never sufficient. Kept in `counts` for the card. */
+    matches: rows.length === 0,
   };
 }
 
@@ -386,7 +538,38 @@ export default async function handler(req, res) {
 
   const codeOk = Boolean(OPS_CODE) && body.code === OPS_CODE;
   const isCorrection = Boolean(body.correction_reason);
-  const needsOffice = OFFICE_WRITES.has(action) || (OPERATOR_WRITES.has(action) && isCorrection);
+
+  /* ⛔ A MONTH THAT HAS BEEN FILED IS CLOSED, WHETHER OR NOT THE DAY ALREADY EXISTS.
+     The office boundary was decided entirely by the presence of `correction_reason`, and a
+     reason is only demanded when a row for that same date is already there. So a date with NO
+     row was an open crew write even inside a month already submitted to EGLE: an unauthenticated
+     POST could add Well 3 on July 14 to a July filed weeks ago, and `submit_bacti` had no
+     correction path at all. The workbook that went is unchanged, but the regulatory source
+     record moves after the fact and nothing records who moved it.
+
+     This does not narrow the crew's job by a day: the round they enter is today's, in a month
+     nobody has filed yet. It closes an anonymous write into a CLOSED period, which is desk work
+     by definition -- and Michelle, who does that work, is signed in (Keith, 2026-08-26: she has
+     oversight, adds missing readings, and enters lab results a day later). */
+  const writeDate = OPERATOR_WRITES.has(action)
+    ? String(body.reading_date || body.sample_date || body.collected_date || '').slice(0, 10)
+    : '';
+  let intoFiledMonth = false;
+  if (writeDate.length === 10) {
+    try {
+      const y = Number(writeDate.slice(0, 4));
+      const mo = Number(writeDate.slice(5, 7));
+      const sup = await sb(`water_supplies?wssn=eq.${encodeURIComponent(wssn)}&select=id&limit=1`);
+      if (sup && sup[0]) {
+        const filed = await sb(`water_mor_filings?supply_id=eq.${sup[0].id}&report_year=eq.${y}`
+          + `&report_month=eq.${mo}&superseded_at=is.null&select=id&limit=1`);
+        intoFiledMonth = Boolean(filed && filed[0]);
+      }
+    } catch { /* if the filing state cannot be read, fall back to the pre-existing rule */ }
+  }
+
+  const needsOffice = OFFICE_WRITES.has(action)
+    || (OPERATOR_WRITES.has(action) && (isCorrection || intoFiledMonth));
   const needsAdmin = !READ_ONLY.has(action) && !OPERATOR_WRITES.has(action) && !OFFICE_WRITES.has(action);
 
   /* Resolved once, and only when a decision actually depends on it — a crew tablet submitting a
@@ -408,7 +591,9 @@ export default async function handler(req, res) {
       return res.status(403).json({
         error: actor
           ? 'Your sign-in is not enrolled for this water supply.'
-          : (isCorrection
+          : (intoFiledMonth
+              ? 'That month has already been filed with EGLE. Changing what sits behind a submitted report needs you to be signed in.'
+              : isCorrection
               ? 'Correcting a recorded day needs you to be signed in — it supersedes a record behind a report signed under 1976 PA 399.'
               : 'Recording a filing needs you to be signed in.'),
         needsSignIn: !actor,
@@ -561,9 +746,13 @@ export default async function handler(req, res) {
             body: JSON.stringify(out.feeds.map((f) => ({ reading_id: row.id, ...f, kind: undefined }))),
           });
         }
+        /* The day after this one derived against whatever used to be here. Recompute it now, so a
+           corrected or back-filled day cannot leave a stale interval behind it in the filing. */
+        const after = await rederiveSuccessor(p.supply, ep, date).catch(() => null);
         return res.status(200).json({
           ok: true, id: row.id, derived: out.reading, feeds: out.feeds, flags: out.flags,
           ...(supersedes ? { corrected: supersedes.id } : {}),
+          ...(after ? { rederived: after } : {}),
         });
       }
 
