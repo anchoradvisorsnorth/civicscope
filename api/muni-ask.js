@@ -191,12 +191,40 @@ export default async function handler(req, res) {
     });
   }
 
+  /* ⛔ THE MUNICIPALITY'S OWN NAME IS NOISE IN ITS OWN CORPUS, AND ON BRISTOL IT WAS FATAL.
+     People write "In Bristol, what is the front setback in the R-1 district?" — naming the place is
+     the most natural way to ask. But every document in this tenant is already about that place, so
+     the word carries no information and enormous term frequency. Measured 2026-08-25, that one word
+     decided the whole answer:
+
+       with "Bristol"     the town's top 12 were the Farmers' Market (×5), Parks, the Fire Station,
+                          Water Bill Information and two history pages — 143 website pages carry the
+                          town's name, and ts_rank_cd rewards that without bound.
+       without "Bristol"  the top hits are ordinance sections, and the R-1 dimensional table ranks.
+
+     Worse across the shared corpus: the Elkhart County ordinance never says "Bristol", so including
+     it broke the strict all-terms pass and dropped the county to the OR fallback, where the R-1
+     Building Placement page loses to whatever repeats the common words most.
+
+     Stripped for RETRIEVAL only. The model still receives the question exactly as it was typed —
+     the reader's phrasing is theirs, and "In Bristol" may matter to how the answer reads. If
+     removal would leave almost nothing (somebody asking only about the name), the original stands. */
+  const placeName = String(tenant.label || '').split(',')[0]
+    .replace(new RegExp('^\\s*(Village|Town|City|County|Township)\\s+of\\s+', 'i'), '').trim();
+  let searchQuery = question;
+  if (placeName.length > 2) {
+    const stripped = question
+      .replace(new RegExp('\\b' + placeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi'), ' ')
+      .replace(/\s{2,}/g, ' ').trim();
+    if (stripped.split(/\s+/).filter(Boolean).length >= 3) searchQuery = stripped;
+  }
+
   // ---- retrieval -----------------------------------------------------------------------
   let hits;
   try {
     hits = await sb('rpc/muni_search', {
       method: 'POST',
-      body: JSON.stringify({ p_tenant: slug, p_query: question, p_limit: RETRIEVE }),
+      body: JSON.stringify({ p_tenant: slug, p_query: searchQuery, p_limit: RETRIEVE }),
     });
   } catch {
     return res.status(503).json({ error: 'Search is unavailable.' });
@@ -230,9 +258,30 @@ export default async function handler(req, res) {
     try {
       const shared = await sb('rpc/muni_search', {
         method: 'POST',
-        body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: question, p_limit: 6 }),
+        body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: searchQuery, p_limit: 6 }),
       });
-      if (shared && shared.length) hits = (hits || []).concat(shared);
+      /* ⛔ INTERLEAVED, NOT APPENDED — "the county is added" meant "added where the context budget
+         throws it away". The same failure the table guarantee documents below, one level up, and it
+         hid the R-1 setback for a week: the town's twelve own hits filled 25,292 of the 30,000-char
+         budget, so the loop broke before ANY county passage, and Bristol's zoning answer was
+         assembled from the Farmers' Market page.
+
+         ⚠ And they cannot simply be sorted by rank: the two arrays come from separate muni_search
+         calls that may have taken different passes, so the numbers are not on one scale. Measured
+         on the same question: the town's hits scored 2.5–7.5 (strict pass) while the county's
+         scored 0.015–0.05 (OR fallback) — sorting would have buried the county even deeper, and on
+         the previous phrasing it would have buried the town. Comparing them looks principled and is
+         not. Interleaving needs no such comparison: each corpus keeps its own ordering and is
+         guaranteed seats at the front, which is all this has ever needed. */
+      if (shared && shared.length) {
+        const own = hits || [];
+        const merged = [];
+        for (let i = 0; i < Math.max(own.length, shared.length); i++) {
+          if (own[i]) merged.push(own[i]);
+          if (shared[i]) merged.push(shared[i]);
+        }
+        hits = merged;
+      }
     } catch { /* the town's own corpus still answers */ }
   }
 
@@ -263,7 +312,7 @@ export default async function handler(req, res) {
            Table 4-1 — which states what each district is FOR and carries no dimensions — and the
            dimensional table is second. Guaranteeing only the top table hands the model a passage
            that mentions R-2 and answers nothing. */
-        body: JSON.stringify({ p_tenant: slug, p_query: question, p_limit: 2 }),
+        body: JSON.stringify({ p_tenant: slug, p_query: searchQuery, p_limit: 2 }),
       });
       /* ⛔ AND AGAINST THE COUNTY, when a town delegated its zoning there. Bristol is told what its
          setbacks are by the Elkhart County ordinance; guaranteeing a table only from Bristol s own
@@ -276,7 +325,7 @@ export default async function handler(req, res) {
              overlays and general provisions, so the specific one a question is about routinely sits
              third — R-1 Building Placement ranked #2 and #3 with the actual dimensional row at #3.
              The town own-corpus guarantee stays at two; a county book is simply a bigger haystack. */
-          body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: question, p_limit: 3 }),
+          body: JSON.stringify({ p_tenant: tenant.shares_corpus_with, p_query: searchQuery, p_limit: 3 }),
         }).catch(() => null);
         if (shTbl && shTbl.length) tbl.push(...shTbl);
       }
@@ -302,7 +351,7 @@ export default async function handler(req, res) {
            'Village Website', Bristol under 'Town Website'. Hardcoding 'Village' here would make
            this guarantee silently do nothing for every tenant that is not a village, and the
            only symptom would be worse answers. */
-        body: JSON.stringify({ p_tenant: slug, p_query: question, p_collection: websiteCollection, p_limit: 2 }),
+        body: JSON.stringify({ p_tenant: slug, p_query: searchQuery, p_collection: websiteCollection, p_limit: 2 }),
       });
       // Prepended for the same reason as the table above: the context budget truncates the tail.
       if (web && web.length) hits = web.concat(hits);
