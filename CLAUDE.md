@@ -1499,10 +1499,57 @@ table pages with the strict per-page test and demoting 78 of them. Restored.
 End state: Centreville 4 flagged tables (4-1 to 4-4, nothing else), Elkhart 106, Bristol 0 (it has
 no tables of its own — it reads the county ordinance). Both setback answers verified.
 
+### ⛔ THE USAGE REPORT WAS COUNTING ITS OWN ROBOT (migration 049, 2026-08-26)
+
+`muni-usage.mjs` exists to answer how STAFF use the tool. Re-verifying the chips after the corpus
+work, it reported **160 questions in two days, Bristol at 23% declined** — on a day Bristol’s
+retrieval had just been fixed and its answers demonstrably improved.
+
+Almost all of that was `verify-sample-questions.mjs`, which asks a 17-question candidate pool
+against every tenant and **is refused most of the time by design** — that is how it decides which
+chips are safe to show. So the instrument built to stop a metric lying had started lying the same
+way, and self-reinforcingly: every re-verification after an ingest makes the failure rate look
+worse while the corpus is getting better.
+
+`muni_questions.source` separates them — `web` by default, so a real question needs no cooperation
+to be counted. The report shows real readers only; `--all-sources` includes the probes.
+
+| | questions | Bristol declined |
+|---|---|---|
+| including verifier traffic | 160 | 19 (23%) |
+| **real readers only** | **89** | **5 (19%)** |
+
+⚠ **`source` is never read from the request body.** A public endpoint whose callers can label their
+own traffic has an opt-out from its own metrics, and the first thing that would hide is exactly the
+questions worth seeing. The verifier tags its rows afterwards with the service key.
+
+⚠ The 71 historical rows were tagged by exact match against the candidate pool, asked on or after
+2026-08-25. A resident could in principle type one word for word, so it is not certain — but the
+pool is phrased the way the script phrases it, and leaving several hundred robot questions in a
+report about staff usage is wrong in the direction that matters. Anything older, or not an exact
+match, stays `web`.
+
+### Chips re-verified after the corpus work (2026-08-26)
+
+| Bristol (Town) | Centreville (Village) |
+|---|---|
+| How tall can a fence be in a front yard? | How tall can a fence be in a front yard? |
+| How many dogs can I keep? | Are golf carts allowed on the streets? |
+| When is trash collected…? | Do I need a permit to build a shed? |
+| Do I need a permit to hold a garage sale? | How many dogs can I keep? |
+
+Centreville needed 6 candidates to find 4, against 11 the day before: golf carts and shed permits
+both moved from `partial` to `answered`. Consistent with the table restoration, though outcomes do
+vary at the margin run to run, so treat it as a snapshot rather than proof.
+
 ## Open Action Items
 
-- **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The Try:
-  chips are verified against the live corpus (048); an ingest can retire one as easily as earn it.
+- **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The chips
+  are verified against the live corpus (048); an ingest can retire one as easily as earn it.
+  Done 2026-08-26 after the zoning-book restore. Its own traffic is tagged `verifier` (049) so it
+  no longer pollutes the usage report.
+- ⛔ **Bristol cannot answer "What are the town hall hours?"** — 14 passages retrieved, none of
+  them the hours. A counter-level question and a real corpus gap, not a retrieval artefact.
 - **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it. Bristol
   hotlinks the Town own PNG. Needs a logo file from the Village if Keith wants parity.
 - ✅ **Bristol R-1 setbacks ANSWER (2026-08-25)** — three defects: the town own name poisoning
