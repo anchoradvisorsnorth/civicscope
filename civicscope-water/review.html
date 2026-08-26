@@ -63,6 +63,24 @@
   .banner.err{background:var(--errbg);border:1px solid #fecaca;color:var(--err)}
   .banner b{display:block;font-size:16px;margin-bottom:3px}
   table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+  /* The editor. Deliberately plain: this is a desk tool for one person who already knows what
+     the numbers mean, not a form to be discovered. */
+  .editbtn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:2px 8px;font-size:12px;
+    cursor:pointer;color:#334155;white-space:nowrap}
+  .editbtn:hover{border-color:#94a3b8;color:#0f172a}
+  .ed{background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:12px;margin:10px 0}
+  .ed h4{margin:0 0 8px;font-size:14px}
+  .ed .grid{display:flex;flex-wrap:wrap;gap:10px}
+  .ed label{display:block;font-size:11px;color:#64748b;margin:0 0 2px}
+  .ed input{width:110px;padding:5px 7px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px}
+  .ed input.wide{width:260px}
+  .ed .why{margin-top:10px}
+  .ed .act{margin-top:10px;display:flex;gap:8px;align-items:center}
+  .ed button.go{background:#0f172a;color:#fff;border:0;border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer}
+  .ed button.go[disabled]{opacity:.5;cursor:default}
+  .ed .msg{font-size:12.5px}
+  .ed .msg.err{color:#b91c1c}
+  .ed .msg.ok{color:#15803d}
   th,td{border-bottom:1px solid var(--line);padding:8px 9px;text-align:right;white-space:nowrap}
   th{background:#eef2f7;font-size:11.5px;font-weight:600;color:#334155;text-transform:uppercase;letter-spacing:.4px}
   td:first-child,th:first-child,td.l,th.l{text-align:left}
@@ -600,15 +618,18 @@ function paintRecords(mo, y, m, eps) {
 
   let head = '<tr><th class="l">Date</th><th>Time</th><th>Meter</th><th>Gallons</th>';
   for (const f of feeds) head += `<th>${esc(f.product_name || f.kind)}</th><th>Used</th><th>ppm</th>`;
-  head += '<th>Free</th><th>Total</th><th>PO₄</th><th class="l">By</th></tr>';
+  head += '<th>Free</th><th>Total</th><th>PO₄</th><th class="l">By</th><th></th></tr>';
 
   let body = '';
   for (let d = 1; d <= last; d++) {
     const r = byDay[d];
     const dow = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(undefined, { weekday: 'short', timeZone: 'UTC' });
     if (!r) {
+      /* A gap is where Michelle most often acts — Keith, 2026-08-26: *"if a reading is missing,
+         she will add it before running the report"*. So the gap itself carries the way to fill it. */
       body += `<tr><td class="l" style="color:#94a3b8">${d} ${dow}</td>`
-            + `<td colspan="${3 + feeds.length * 3 + 4}" class="l" style="color:#cbd5e1">not recorded</td></tr>`;
+            + `<td colspan="${3 + feeds.length * 3 + 3}" class="l" style="color:#cbd5e1">not recorded</td>`
+            + `<td>${ME ? `<button class="editbtn" data-edit="reading" data-date="${dayISO(y, m, d)}">Add</button>` : ''}</td></tr>`;
       continue;
     }
     const odd = r.tap_free != null && r.tap_total != null && Number(r.tap_free) > Number(r.tap_total);
@@ -621,26 +642,240 @@ function paintRecords(mo, y, m, eps) {
     }
     cells += `<td${odd ? ' style="color:#b91c1c;font-weight:700"' : ''}>${fmt(r.tap_free)}</td>`
            + `<td${odd ? ' style="color:#b91c1c;font-weight:700"' : ''}>${fmt(r.tap_total)}</td>`
-           + `<td>${fmt(r.tap_ortho)}</td><td class="l">${esc(r.operator_initials || '')}</td>`;
+           + `<td>${fmt(r.tap_ortho)}</td><td class="l">${esc(r.operator_initials || '')}</td>`
+           + `<td>${ME ? `<button class="editbtn" data-edit="reading" data-date="${r.reading_date}">Edit</button>` : ''}</td>`;
     body += `<tr>${cells}</tr>`;
   }
 
   const dist = mo.dist || [], bacti = mo.bacti || [];
   const distTable = dist.length ? `<div class="card scroll" style="margin-top:12px"><table>
-      <thead><tr><th class="l">Distribution sample</th><th class="l">Site</th><th>Free</th><th>Total</th><th>PO₄</th><th class="l">By</th></tr></thead><tbody>
+      <thead><tr><th class="l">Distribution sample</th><th class="l">Site</th><th>Free</th><th>Total</th><th>PO₄</th><th class="l">By</th><th></th></tr></thead><tbody>
       ${dist.map((s) => `<tr><td class="l">${esc(s.sample_date)}</td><td class="l">${esc(s.site_name || '')}</td>
-        <td>${fmt(s.free)}</td><td>${fmt(s.total)}</td><td>${fmt(s.ortho)}</td><td class="l">${esc(s.operator_initials || '')}</td></tr>`).join('')}
+        <td>${fmt(s.free)}</td><td>${fmt(s.total)}</td><td>${fmt(s.ortho)}</td><td class="l">${esc(s.operator_initials || '')}</td>
+        <td>${ME ? `<button class="editbtn" data-edit="dist" data-date="${s.sample_date}" data-site="${esc(s.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div>` : '';
   const bactiTable = bacti.length ? `<div class="card scroll" style="margin-top:12px"><table>
-      <thead><tr><th class="l">Bacti sample</th><th class="l">Site</th><th class="l">Result</th><th>Free</th><th>Total</th></tr></thead><tbody>
+      <thead><tr><th class="l">Bacti sample</th><th class="l">Site</th><th class="l">Result</th><th>Free</th><th>Total</th><th></th></tr></thead><tbody>
       ${bacti.map((b) => `<tr><td class="l">${esc(b.collected_date)}</td><td class="l">${esc(b.site_name || '')}</td>
-        <td class="l">${esc(b.result || '')}</td><td>${fmt(b.free)}</td><td>${fmt(b.total)}</td></tr>`).join('')}
+        <td class="l">${esc(b.result || '')}</td><td>${fmt(b.free)}</td><td>${fmt(b.total)}</td>
+        <td>${ME ? `<button class="editbtn" data-edit="bacti" data-date="${b.collected_date}" data-site="${esc(b.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div>` : '';
 
   $('records').innerHTML = `<div class="card scroll"><table>
       <thead>${head}</thead><tbody>${body}</tbody></table></div>
     <div class="muted" style="margin:8px 0 0">Gallons, Used and ppm are derived from the meter and tank levels — nobody types them.</div>
     ${distTable}${bactiTable}`;
+
+  /* The editor needs this month's rows and entry points. Held here rather than re-fetched so a
+     click opens against exactly what the page is showing. */
+  RECORDS_CTX = { mo, y, m, eps };
+  wireEditors();
+}
+
+let RECORDS_CTX = null;
+let EDITORS_WIRED = false;
+
+/* One delegated listener for the whole table, attached once. The rows are rebuilt on every
+   render, so per-button handlers would be re-bound each time and leak. */
+function wireEditors() {
+  if (EDITORS_WIRED) return;
+  EDITORS_WIRED = true;
+  $('records').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-edit]');
+    if (!b || !RECORDS_CTX) return;
+    openEditor(b.getAttribute('data-edit'), b.getAttribute('data-date'),
+      b.getAttribute('data-site') || '', RECORDS_CTX.mo, RECORDS_CTX.eps || []);
+  });
+}
+
+/* ── EDITING A LINE ────────────────────────────────────────────────────────────────────────────
+   Keith, 2026-08-26: Michelle has oversight of the monthly EGLE report. *"If a reading is missing,
+   she will add it before running the report"*; she personally handles the bacteria samples, sends
+   them to the lab and enters the results when they come back by email a day later; and she
+   *"sometimes changes numbers slightly in the actual EGLE report"*. So the review page needs to be
+   able to change a line, not only display it.
+
+   ⛔ IT EDITS THE RAW INPUTS, NEVER THE DERIVED NUMBERS. Gallons, solution used and dose are
+   computed by derive() from the meter and the tank levels, and the page has never been allowed to
+   compute them — one arithmetic, one file (civicscope-water/derive.js), imported by both sides.
+   Offering a "gallons" box would create a second definition of the number that goes to the state,
+   and the two would disagree the first time either changed. She edits what was OBSERVED; the
+   arithmetic follows.
+
+   ⚠ Every save here is an OFFICE write. A day that already exists is superseded rather than
+   overwritten (the old row survives, marked), which is why a reason is required and why the server
+   demands a signed-in person. A month already filed with EGLE is closed to anonymous writes
+   entirely, so this page is the only way in — by design.
+
+   The server also re-derives the FOLLOWING day after any save, because its gallons and dose were
+   computed against the row this edit just replaced. That result is reported back here rather than
+   left silent: an edit that makes the next day impossible is something she has to see.
+*/
+let EDITING = null;
+
+function dayISO(y, m, d) {
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/* What each kind of line is made of. Only raw, observed fields appear. */
+function editorFields(kind, row, eps) {
+  if (kind === "dist") {
+    return [
+      { k: "site_name", label: "Site", v: row ? row.site_name : "", wide: true, text: true },
+      { k: "free", label: "Free", v: row ? row.free : "" },
+      { k: "total", label: "Total", v: row ? row.total : "" },
+      { k: "ortho", label: "PO4", v: row ? row.ortho : "" },
+    ];
+  }
+  if (kind === "bacti") {
+    return [
+      { k: "site_name", label: "Site", v: row ? row.site_name : "", wide: true, text: true },
+      { k: "result", label: "Result (ND / TC+ / EC+)", v: row ? row.result : "", text: true },
+      { k: "free", label: "Free", v: row ? row.free : "" },
+      { k: "total", label: "Total", v: row ? row.total : "" },
+      { k: "lab_name", label: "Lab", v: row ? row.lab_name : "", wide: true, text: true },
+    ];
+  }
+  // a well-day: the meter, each feed tank, and the plant tap
+  const out = [{ k: "meter_reading", label: "Meter", v: row ? row.meter_reading : "" }];
+  for (const ep of eps) {
+    for (const fd of (ep.feeds || [])) {
+      const fr = row ? ((row.feeds || []).find((x) => x.feed_id === fd.id) || {}) : {};
+      out.push({ k: `feed:${fd.id}:tank_level`, label: `${fd.product_name || fd.kind} tank`, v: fr.tank_level });
+      out.push({ k: `feed:${fd.id}:refill_to`, label: `${fd.product_name || fd.kind} refill to`, v: fr.refill_to });
+    }
+  }
+  out.push({ k: "free_cl", label: "Tap free", v: row ? row.tap_free : "" });
+  out.push({ k: "total_cl", label: "Tap total", v: row ? row.tap_total : "" });
+  out.push({ k: "ortho", label: "Tap PO4", v: row ? row.tap_ortho : "" });
+  return out;
+}
+
+function openEditor(kind, date, site, mo, eps) {
+  const host = $("records");
+  const old = document.getElementById("editor");
+  if (old) old.remove();
+
+  let row = null;
+  let ep = null;
+  if (kind === "reading") {
+    // One entry point per edit. A plant with several wells edits the one whose row was clicked;
+    // with a single entry point there is nothing to choose.
+    ep = eps[0] || null;
+    row = (mo.readings || []).find((r) => r.reading_date === date && (!ep || r.entry_point_id === ep.id)) || null;
+  } else if (kind === "dist") {
+    row = (mo.dist || []).find((x) => x.sample_date === date && (x.site_name || "") === (site || "")) || null;
+  } else {
+    row = (mo.bacti || []).find((x) => x.collected_date === date && (x.site_name || "") === (site || "")) || null;
+  }
+
+  const fields = editorFields(kind, row, kind === "reading" && ep ? [ep] : eps);
+  const title = kind === "reading" ? (row ? `Edit the well day for ${date}` : `Add a well day for ${date}`)
+    : kind === "dist" ? `Edit the distribution sample for ${date}`
+    : `Edit the bacti sample for ${date}`;
+
+  const el = document.createElement("div");
+  el.className = "ed";
+  el.id = "editor";
+  el.innerHTML = `<h4>${esc(title)}</h4>`
+    + `<div class="grid">${fields.map((fl) => `<div><label>${esc(fl.label)}</label>`
+        + `<input data-k="${esc(fl.k)}" class="${fl.wide ? "wide" : ""}" value="${fl.v == null ? "" : esc(String(fl.v))}"></div>`).join("")}</div>`
+    + `<div class="why"><label>Why this changed — kept with the record${row ? " (required)" : ""}</label>`
+    + `<input id="edWhy" class="wide" style="width:100%" placeholder="${row ? "e.g. lab result corrected the free residual" : "e.g. missing day entered from the paper sheet"}"></div>`
+    + `<div class="act"><button class="go" id="edSave">Save</button>`
+    + `<button class="editbtn" id="edCancel">Cancel</button>`
+    + `<span class="msg" id="edMsg"></span></div>`;
+  host.prepend(el);
+  EDITING = { kind, date, site, row, ep };
+  document.getElementById("edCancel").onclick = () => { el.remove(); EDITING = null; };
+  document.getElementById("edSave").onclick = () => saveEditor(el);
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function saveEditor(el) {
+  if (!EDITING) return;
+  const msg = document.getElementById("edMsg");
+  const btn = document.getElementById("edSave");
+  const why = (document.getElementById("edWhy").value || "").trim();
+  /* A reason is required only when something already on the record is being replaced. Filling a
+     gap is not an amendment and demanding a justification for it would be friction with no reader. */
+  if (EDITING.row && !why) {
+    msg.className = "msg err";
+    msg.textContent = "Say why — this replaces a record that sits behind a filed report.";
+    return;
+  }
+  const vals = {};
+  for (const inp of el.querySelectorAll("input[data-k]")) {
+    const v = (inp.value || "").trim();
+    vals[inp.getAttribute("data-k")] = v === "" ? null : v;
+  }
+
+  const wssn = new URLSearchParams(location.search).get("wssn") || WSSN;
+  let payload;
+  if (EDITING.kind === "reading") {
+    const feeds = [];
+    const input = {};
+    for (const [k, v] of Object.entries(vals)) {
+      if (!k.startsWith("feed:")) { input[k] = v == null ? null : Number(v); continue; }
+      const [, id, which] = k.split(":");
+      let fd = feeds.find((x) => x.feed_id === id);
+      if (!fd) { fd = { feed_id: id }; feeds.push(fd); }
+      fd[which] = v == null ? null : Number(v);
+    }
+    input.feeds = feeds;
+    payload = { action: "submit_reading", wssn, reading_date: EDITING.date,
+      entry_point_id: EDITING.ep ? EDITING.ep.id : undefined, input,
+      source: "backfill", correction_reason: why || null };
+  } else if (EDITING.kind === "dist") {
+    payload = { action: "submit_dist", wssn, sample_date: EDITING.date,
+      site_name: vals.site_name,
+      input: { free: vals.free == null ? null : Number(vals.free),
+               total: vals.total == null ? null : Number(vals.total),
+               ortho: vals.ortho == null ? null : Number(vals.ortho) },
+      correction_reason: why || null };
+  } else {
+    // free/total live under `input` for this action — the server validates them there, and a
+    // top-level `free` reads as absent, which it refuses with "needs the free chlorine residual".
+    payload = { action: "submit_bacti", wssn, collected_date: EDITING.date,
+      site_name: vals.site_name, result: vals.result, lab_name: vals.lab_name,
+      input: { free: vals.free == null ? null : Number(vals.free),
+               total: vals.total == null ? null : Number(vals.total) },
+      correction_reason: why || null };
+  }
+
+  btn.disabled = true;
+  msg.className = "msg";
+  msg.textContent = "Saving…";
+  try {
+    const r = await fetch("/api/water-ops", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      msg.className = "msg err";
+      /* The server distinguishes a validation refusal from an authorisation one, and both are
+         worth showing verbatim: derive() refuses a meter that runs backwards, and that refusal is
+         the most useful thing the page can say. */
+      msg.textContent = (d.errors && d.errors.length ? d.errors.map((e) => e.msg).join(" ") : "")
+        || d.error || d.msg || `Could not save (${r.status}).`;
+      btn.disabled = false;
+      return;
+    }
+    /* The day AFTER this one derived against whatever used to be here. The server recomputes it;
+       say so, because a silently changed neighbouring day is exactly what nobody would look for. */
+    let extra = "";
+    if (d.rederived && d.rederived.ok) extra = ` The next recorded day (${d.rederived.date}) was recomputed.`;
+    else if (d.rederived && d.rederived.ok === false) {
+      extra = ` ⚠ The next day (${d.rederived.date}) can no longer be derived from this — check it.`;
+    }
+    msg.className = "msg ok";
+    msg.textContent = "Saved." + extra + " Reloading…";
+    setTimeout(() => location.reload(), extra ? 1600 : 600);
+  } catch (e) {
+    msg.className = "msg err";
+    msg.textContent = String(e.message || e);
+    btn.disabled = false;
+  }
 }
 
 /* ── WHO IS LOOKING ────────────────────────────────────────────────────────────────────────────
@@ -652,6 +887,11 @@ function paintRecords(mo, y, m, eps) {
 
    Deliberately non-blocking: it renders after the records, never in front of them, and a failure
    here leaves the page exactly as useful as it was before sign-in existed. */
+/* The editor is only offered to a signed-in person, because every write it makes is an office
+   write: amending a day supersedes a record behind a report signed under 1976 PA 399, and a
+   month already filed with EGLE is closed to anonymous writes entirely. */
+let ME = null;
+
 async function paintWho() {
   let me;
   try {
@@ -661,6 +901,7 @@ async function paintWho() {
     });
     me = await r.json();
   } catch { return; }
+  ME = me && me.signedIn && me.user ? me.user : null;
   const w = $('who');
   if (me && me.signedIn && me.user) {
     w.innerHTML = (me.user.picture ? `<img src="${esc(me.user.picture)}" alt="">` : '')
@@ -673,7 +914,14 @@ async function paintWho() {
   }
 }
 
-load().then((d) => { render(d); paintWho(); }).catch((e) => {
+/* ⛔ WHO IS SIGNED IN MUST BE KNOWN BEFORE THE TABLE IS BUILT. render() decides whether each row
+   carries an Edit control, and it reads ME — so resolving the session after rendering meant the
+   controls never appeared on first paint and only showed up if something re-rendered. Both are
+   started together and the render waits; a sign-in lookup that FAILS still renders the page,
+   read-only, which is what it was before any of this existed. */
+Promise.all([load(), paintWho().catch(() => null)])
+  .then(([d]) => { render(d); })
+  .catch((e) => {
   $('sections').hidden = true;
   $('top').innerHTML = `<div class="banner err"><b>Could not load</b>${esc(e.message)}</div>`;
   $('hdrSub').textContent = '';

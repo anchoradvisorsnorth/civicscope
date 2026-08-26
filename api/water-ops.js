@@ -842,10 +842,26 @@ export default async function handler(req, res) {
         const dupeSite = site ? site.name : String(body.site_name || '');
         const already = await sb(
           `water_bacti_samples?supply_id=eq.${p.supply.id}&site_name=eq.${encodeURIComponent(dupeSite)}` +
-            `&collected_date=eq.${String(body.collected_date || '').slice(0, 10)}&select=id`
+            `&collected_date=eq.${String(body.collected_date || '').slice(0, 10)}&superseded_at=is.null&select=id`
         );
-        if (already && already[0]) {
-          return res.status(409).json({ error: 'exists', msg: 'That site already has a bacti sample on this date.', id: already[0].id });
+        const supersedes = already && already[0];
+        /* ⛔ AND IT NEEDED A WAY THROUGH, not only a guard. The refusal above was right and
+           incomplete: this was the one table with no correction path (migration 051 gave it the
+           supersede trio its neighbours have), and it is the table that most needs one. Keith,
+           2026-08-26: Michelle sends the samples to the lab herself and the RESULTS COME BACK BY
+           EMAIL ABOUT 24 HOURS LATER. A sample is routinely recorded before its result exists,
+           so completing the row the next day is the normal case, not an amendment of a mistake. */
+        if (supersedes && !body.correction_reason) {
+          return res.status(409).json({ error: 'exists', msg: 'That site already has a bacti sample on this date. Send correction_reason to replace it.', id: supersedes.id });
+        }
+        // Stand the old row down FIRST — the partial unique index (051) is on live rows, and
+        // inserting the replacement first is what made corrections impossible on the other two
+        // tables until 2026-08-19.
+        if (supersedes) {
+          await sb(`water_bacti_samples?id=eq.${supersedes.id}`, {
+            method: 'PATCH', headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({ superseded_at: new Date().toISOString() }),
+          });
         }
         const ins = await sb('water_bacti_samples', {
           method: 'POST', headers: { Prefer: 'return=representation' },
@@ -863,9 +879,20 @@ export default async function handler(req, res) {
             free: Number(i.free),
             total: i.total == null || i.total === '' ? null : Number(i.total),
             notes: body.notes || null,
+            corrects: supersedes ? supersedes.id : null,
+            correction_reason: body.correction_reason || null,
           }]),
+        }).catch(async (e) => {
+          // Put the sample back. A superseded row with nothing replacing it deletes a record.
+          if (supersedes) {
+            await sb(`water_bacti_samples?id=eq.${supersedes.id}`, {
+              method: 'PATCH', headers: { Prefer: 'return=minimal' },
+              body: JSON.stringify({ superseded_at: null }),
+            });
+          }
+          throw e;
         });
-        return res.status(200).json({ ok: true, id: ins[0].id });
+        return res.status(200).json({ ok: true, id: ins[0].id, ...(supersedes ? { corrected: supersedes.id } : {}) });
       }
 
       // ---- the repository: everything recorded in one month, shaped like the paper sheets -----
@@ -892,7 +919,7 @@ export default async function handler(req, res) {
         );
         const bacti = await sb(
           `water_bacti_samples?supply_id=eq.${p.supply.id}&collected_date=gte.${from}&collected_date=lt.${to}` +
-            `&select=*&order=collected_date`
+            `&superseded_at=is.null&select=*&order=collected_date`
         );
         const byReading = {};
         for (const f of feedReadings) (byReading[f.reading_id] ||= []).push(f);
