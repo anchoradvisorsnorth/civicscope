@@ -156,6 +156,43 @@
 // Tenant comes from the path (/centreville), so one page serves every municipality.
 const SLUG = (location.pathname.replace(/^\/+|\/+$/g, '').split('/')[0] || '').toLowerCase();
 
+/* ── WHO IS ASKING (migration 059) ─────────────────────────────────────────────────────────────
+   Keith could not tell whether two questions four minutes apart were him or the town manager he
+   had just sent the link to. These two tags are the answer, and both are deliberately modest:
+
+   VISITOR  a random id kept in this browser's localStorage. It distinguishes browsers, not people,
+            and it is generated HERE rather than derived from anything about the visitor — no
+            fingerprint, no IP, nothing that resolves to a person. It turns "32 questions" into
+            "3 visitors, one of whom asked 22", which is the difference between a number you can
+            act on and one you cannot.
+
+   VIA      a label carried on a link you handed out — /bristol/ask?via=mike — and then remembered
+            for this browser so later visits stay attributed. Attribution BY CONSENT: you know who
+            somebody is because you labelled their link, not because you inferred it from traffic.
+            Untagged links stay anonymous, which is the right default for a public page.
+
+   ⚠ Both are wrapped in try/catch. Storage throws in Safari private mode and wherever cookies are
+   blocked, and an analytics tag must never be the reason a resident cannot ask their village a
+   question. Failure here degrades to null — "we do not know" — which the report already renders
+   honestly. */
+const WHO = (() => {
+  const KV = 'cs_visitor', KT = 'cs_via';
+  let visitor = null, via = null;
+  try {
+    visitor = localStorage.getItem(KV);
+    if (!visitor) {
+      visitor = 'v' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+        : Math.random().toString(36).slice(2, 12) + Date.now().toString(36));
+      localStorage.setItem(KV, visitor);
+    }
+    const q = new URLSearchParams(location.search).get('via');
+    const clean = q && /^[A-Za-z0-9._-]{1,40}$/.test(q) ? q : null;
+    if (clean) localStorage.setItem(KT, clean);
+    via = clean || localStorage.getItem(KT);
+  } catch { /* storage unavailable — stay anonymous rather than break the page */ }
+  return { visitor, via };
+})();
+
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -343,7 +380,7 @@ $('form').addEventListener('submit', async ev => {
     const r = await fetch('/api/muni-ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenant: SLUG, question }),
+      body: JSON.stringify({ tenant: SLUG, question, visitor: WHO.visitor, via: WHO.via }),
     });
     const d = await r.json();
     if (!r.ok) { fail(d.error || 'Something went wrong.'); return; }

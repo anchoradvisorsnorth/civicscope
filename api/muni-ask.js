@@ -37,6 +37,8 @@ const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
 const MODEL = 'claude-opus-5';
+import { sessionOf } from '../lib/session.js';
+
 const MAX_QUESTION = 500;
 const RETRIEVE = 12;          // passages pulled from Postgres
 const CONTEXT_CHARS = 30000;  // ceiling on what reaches the model.
@@ -169,6 +171,35 @@ export default async function handler(req, res) {
   if (question.length > MAX_QUESTION) {
     return res.status(400).json({ error: `Question is too long (max ${MAX_QUESTION} characters).` });
   }
+
+  /* ── WHO ASKED (migration 059) ───────────────────────────────────────────────────────────
+     Keith, on two questions four minutes apart: "I think I was the question at 9:47 but have been
+     Mike the town manager who I sent the link to after that - anyway to tell?" There was not. One
+     person asking twice and two people asking once were the same row shape, which makes a question
+     count unactionable — a town manager exploring the tool and a resident retrying a query that
+     keeps failing look identical and call for opposite responses.
+
+     ⛔ NO IP ADDRESS, deliberately (see migration 059). These are residents asking their own
+     government about setbacks and dog licences. `visitor` distinguishes BROWSERS and resolves to
+     nobody; `via` is a tag on a link you chose to hand out.
+
+     Both come from the browser and are therefore UNTRUSTED: length-bounded and
+     character-restricted before they go anywhere near the insert. A visitor id authorises nothing,
+     so a forged one costs a wrong count and nothing else — but an unbounded string on a logging
+     path is still an unbounded string. */
+  const tag = (v, max) => {
+    const s = String(v == null ? '' : v).trim().slice(0, max);
+    return s && /^[A-Za-z0-9._-]+$/.test(s) ? s : null;
+  };
+  const visitor = tag(body.visitor, 40);
+  const via = tag(body.via, 40);
+  /* The session cookie already carries the verified email (api/auth-google.js signs
+     {sub, email, uid}), so this costs no extra read. Null for Bristol and every public ask page —
+     auth_provider is 'none' there and always will be. */
+  const signedInEmail = (() => {
+    try { const s = sessionOf(req); return (s && typeof s.email === 'string') ? s.email : null; }
+    catch { return null; }
+  })();
 
   const started = Date.now();
   let tenant;
@@ -438,6 +469,10 @@ export default async function handler(req, res) {
         body: JSON.stringify([{
           tenant: slug, question, hit_count: hitCount, answered,
           duration_ms: Date.now() - started,
+          /* Null means WE DO NOT KNOW and has to keep meaning that. Nothing here infers an asker
+             from traffic, and pre-059 rows are never back-filled — inventing an identity is the
+             same failure 045, 046 and 050 were each spent removing from this table. */
+          visitor, via, signed_in: signedInEmail,
           ...extra,
         }]),
       });
