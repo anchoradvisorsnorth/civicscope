@@ -1,9 +1,9 @@
 {
- "generated": "2026-08-26T09:30:52.535Z",
+ "generated": "2026-08-27T09:30:50.800Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 132521110,
+ "totalActual": 132527654,
  "totalCommitted": 141564046,
- "subCount": 646,
+ "subCount": 647,
  "subs": [
   {
    "vendorNo": "3662",
@@ -13817,22 +13817,22 @@
   {
    "vendorNo": "3833",
    "name": "DW1",
-   "actualCost": 32880,
+   "actualCost": 33890,
    "actualJobs": 9,
    "committed": 0,
    "committedJobs": 0,
    "variance": null,
    "jobs": [
     {
-     "jobNo": "2507GP03",
-     "jobName": "Milford Water Utility Imp. Div",
-     "actual": 5755,
+     "jobNo": "2502GP10",
+     "jobName": "Ashley WWTP Improvements",
+     "actual": 6740,
      "committed": 0
     },
     {
-     "jobNo": "2502GP10",
-     "jobName": "Ashley WWTP Improvements",
-     "actual": 5730,
+     "jobNo": "2507GP03",
+     "jobName": "Milford Water Utility Imp. Div",
+     "actual": 5755,
      "committed": 0
     },
     {
@@ -14981,7 +14981,7 @@
   {
    "vendorNo": "3494",
    "name": "Indiana Michigan Power-ONLINE",
-   "actualCost": 22265,
+   "actualCost": 22264,
    "actualJobs": 4,
    "committed": 0,
    "committedJobs": 0,
@@ -14990,7 +14990,7 @@
     {
      "jobNo": "2513CO04",
      "jobName": "Helix Orchard Wallen Road",
-     "actual": 20036,
+     "actual": 20035,
      "committed": 0
     },
     {
@@ -17388,6 +17388,77 @@
    ]
   },
   {
+   "vendorNo": "1275",
+   "name": "Burns Rent-Alls  Inc",
+   "actualCost": 8277,
+   "actualJobs": 10,
+   "committed": 0,
+   "committedJobs": 0,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2307GO08",
+     "jobName": "So. Bend Fire Station No. 8",
+     "actual": 2375,
+     "committed": 0
+    },
+    {
+     "jobNo": "2419CO02",
+     "jobName": "Beardsley Disc. Ctr. Mddl. Grd",
+     "actual": 1550,
+     "committed": 0
+    },
+    {
+     "jobNo": "2502GP07",
+     "jobName": "So Bend-South Well Field WTP",
+     "actual": 1331,
+     "committed": 0
+    },
+    {
+     "jobNo": "2407GO07",
+     "jobName": "St Joe Cnty Salt Storage Bldg",
+     "actual": 739,
+     "committed": 0
+    },
+    {
+     "jobNo": "2413GO02",
+     "jobName": "PHM Fieldhouse",
+     "actual": 713,
+     "committed": 0
+    },
+    {
+     "jobNo": "2307GO09",
+     "jobName": "St. Joe County Garages - Combo",
+     "actual": 492,
+     "committed": 0
+    },
+    {
+     "jobNo": "2507GO04",
+     "jobName": "PHM Educational Svc Elevator",
+     "actual": 444,
+     "committed": 0
+    },
+    {
+     "jobNo": "2404CO05",
+     "jobName": "Beardsley Discovery Ctr Precon",
+     "actual": 344,
+     "committed": 0
+    },
+    {
+     "jobNo": "2303CO12",
+     "jobName": "Scooters Coffee Kiosk",
+     "actual": 182,
+     "committed": 0
+    },
+    {
+     "jobNo": "2303CO08",
+     "jobName": "Ceres-Rochester",
+     "actual": 106,
+     "committed": 0
+    }
+   ]
+  },
+  {
    "vendorNo": "3564",
    "name": "Diamond Steel Roofing LLC",
    "actualCost": 8230,
@@ -17491,77 +17562,6 @@
      "jobNo": "2303CO14",
      "jobName": "Prairie Camp Dining Hall Reno",
      "actual": 7900,
-     "committed": 0
-    }
-   ]
-  },
-  {
-   "vendorNo": "1275",
-   "name": "Burns Rent-Alls  Inc",
-   "actualCost": 7881,
-   "actualJobs": 10,
-   "committed": 0,
-   "committedJobs": 0,
-   "variance": null,
-   "jobs": [
-    {
-     "jobNo": "2307GO08",
-     "jobName": "So. Bend Fire Station No. 8",
-     "actual": 2375,
-     "committed": 0
-    },
-    {
-     "jobNo": "2419CO02",
-     "jobName": "Beardsley Disc. Ctr. Mddl. Grd",
-     "actual": 1550,
-     "committed": 0
-    },
-    {
-     "jobNo": "2502GP07",
-     "jobName": "So Bend-South Well Field WTP",
-     "actual": 1331,
-     "committed": 0
-    },
-    {
-     "jobNo": "2407GO07",
-     "jobName": "St Joe Cnty Salt Storage Bldg",
-     "actual": 739,
-     "committed": 0
-    },
-    {
-     "jobNo": "2307GO09",
-     "jobName": "St. Joe County Garages - Combo",
-     "actual": 492,
-     "committed": 0
-    },
-    {
-     "jobNo": "2507GO04",
-     "jobName": "PHM Educational Svc Elevator",
-     "actual": 444,
-     "committed": 0
-    },
-    {
-     "jobNo": "2404CO05",
-     "jobName": "Beardsley Discovery Ctr Precon",
-     "actual": 344,
-     "committed": 0
-    },
-    {
-     "jobNo": "2413GO02",
-     "jobName": "PHM Fieldhouse",
-     "actual": 317,
-     "committed": 0
-    },
-    {
-     "jobNo": "2303CO12",
-     "jobName": "Scooters Coffee Kiosk",
-     "actual": 182,
-     "committed": 0
-    },
-    {
-     "jobNo": "2303CO08",
-     "jobName": "Ceres-Rochester",
-     "actual": 106,
      "committed": 0
     }
    ]
@@ -18423,6 +18423,23 @@
      "jobNo": "2402GP09",
      "jobName": "Wakarusa WTP",
      "actual": 2576,
+     "committed": 0
+    }
+   ]
+  },
+  {
+   "vendorNo": "3988",
+   "name": "Mechanical Plumbing Solutions",
+   "actualCost": 5139,
+   "actualJobs": 1,
+   "committed": 0,
+   "committedJobs": 1,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "2504GO04",
+     "jobName": "Northern Heights Elementary HV",
+     "actual": 5139,
      "committed": 0
     }
    ]
@@ -21965,7 +21982,7 @@
   },
   {
    "vendorNo": "3964",
-   "name": "Enduro Composites Inc-BANKING",
+   "name": "Enduro Composites Inc-UPDATE",
    "actualCost": 0,
    "actualJobs": 0,
    "committed": 36197,
