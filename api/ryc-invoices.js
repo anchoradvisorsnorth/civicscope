@@ -1861,8 +1861,15 @@ export default async function handler(req, res) {
           + `&source_message_id=eq.${encodeURIComponent('scan:' + id)}`);
         const regB = rb.ok ? (await rb.json())[0] : null;
         if (regB) {
+          /* ⚠ NO `job_name` HERE. It is a column on `ryc_batch_documents`, NOT on `ryc_invoices` —
+             the register stores the number and resolves the name from the job directory. Selecting
+             it made PostgREST reject the whole request, and because this block is wrapped in a
+             try/catch whose whole point is that the batch screen still works without it, the failure
+             was SILENT: every row came back with `pm_desk`, `pm_state` and `pm_awaiting` undefined,
+             which reads as "no PM is involved" — the exact opposite of the truth. Caught in the
+             post-deploy end-to-end, not by any gate. */
           const ir = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${regB.id}`
-            + '&select=vendor_name,amount,review_state,assigned_pm,job_no,job_name,'
+            + '&select=vendor_name,amount,review_state,assigned_pm,job_no,'
             + 'cost_code,mat_or_sub,cost_month,reviewed_by,reviewed_at&limit=1000');
           /* Absence of a row means the batch is still his — see migration 060. */
           const sr = await sb('ryc_invoice_batch_submissions?company_id=eq.ryc'
@@ -1888,7 +1895,6 @@ export default async function handler(req, res) {
                  against is the same "go and look it up" the batch board exists to remove. */
               d.pm_coding = {
                 job_no: i.job_no || null,
-                job_name: i.job_name || null,
                 cost_code: i.cost_code || null,
                 mat_or_sub: i.mat_or_sub || null,
                 cost_month: i.cost_month || null,
@@ -3760,11 +3766,22 @@ export default async function handler(req, res) {
       const batchId = String(body.batch_id || '').trim();
       if (!batchId) return res.status(400).json({ error: 'A batch id is required.' });
 
+      /* ⚠ `job_name` IS NOT A COLUMN ON THIS TABLE — it lives on `ryc_batch_documents`. Selecting it
+         here made PostgREST reject the request and this endpoint answered a flat 502 "Could not read
+         the batch", which is true and tells nobody anything. The name is resolved from the job
+         directory below, which is where every other caller gets it. */
       const ir = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${batchId}`
         + `&assigned_pm=eq.${encodeURIComponent(pm)}`
-        + '&select=id,vendor_name,amount,review_state,job_no,job_name,cost_code,mat_or_sub,'
+        + '&select=id,vendor_name,amount,review_state,job_no,cost_code,mat_or_sub,'
         + 'cost_month,reviewed_by,reviewed_at,identity_verified&limit=1000');
-      if (!ir.ok) return res.status(502).json({ error: 'Could not read the batch.' });
+      if (!ir.ok) {
+        /* SAY WHAT POSTGREST SAID. A bare 502 on a read that cannot fail for an ordinary reason is
+           how the missing column above survived a deploy and four green gates. */
+        const detail = await ir.text().catch(() => '');
+        return res.status(502).json({
+          error: `Could not read the batch (${ir.status}).`,
+          detail: detail.slice(0, 300) || null });
+      }
       const mine = await ir.json();
       if (!mine.length) {
         return res.status(404).json({ error: 'Nothing in that batch is on your desk.' });
@@ -3813,6 +3830,12 @@ export default async function handler(req, res) {
         const src = bb.ok ? ((await bb.json())[0] || {}).source_message_id : null;
         const scanId = src && String(src).startsWith('scan:') ? String(src).slice(5) : null;
         if (scanId) {
+          /* The job NAME comes from the directory, the same place `batch_rematch` gets it. Read once
+             for the whole submit. A null name is survivable — the number is what files the document
+             — so a directory outage must not stop the handoff. */
+          let jdir = null;
+          try { jdir = await jobDirectory(); } catch { /* name stays null */ }
+          const nameFor = (no) => (jdir && jdir.names && jdir.names[no]) || null;
           const dr = await sb(`ryc_batch_documents?company_id=eq.ryc&batch_id=eq.${scanId}`
             + '&select=*&order=seq.asc');
           const docs = dr.ok ? await dr.json() : [];
@@ -3848,12 +3871,13 @@ export default async function handler(req, res) {
               updated_at: now,
             };
             if (i.job_no && i.job_no !== d.job_no) {
+              const jn = nameFor(i.job_no) || d.job_name || null;
               patch.job_no = i.job_no;
-              patch.job_name = i.job_name || d.job_name || null;
+              patch.job_name = jn;
               patch.job_source = 'pm';
               patch.history = [...(Array.isArray(d.history) ? d.history : []), {
                 at: now, by, action: 'pm_assigned_job',
-                job_no: i.job_no, job_name: i.job_name || null,
+                job_no: i.job_no, job_name: jn,
                 was: d.job_no || null, was_name: d.job_name || null,
                 was_source: d.job_source || null,
               }];
