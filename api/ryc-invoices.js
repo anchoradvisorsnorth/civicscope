@@ -1103,6 +1103,11 @@ export default async function handler(req, res) {
     'invoice-filer': new Set(['filing_queue', 'mark_filed', 'read',
       'reconcile', 'adjudicate', 'boundary', 'batch_autoconfirm', 'batch_documents_register',
       'doc_copy_claim', 'doc_copy_done', 'doc_rename_done',
+      /* The stamp queue (migration 060). Same shape and same reasoning as the copy queue: the page
+         says WHAT is eligible, the machine holding the SharePoint credential does the work and
+         reports what happened. Stamping rewrites a PDF in a live SharePoint folder, so a browser
+         must no more be able to claim one than to claim a copy. */
+      'doc_stamp_claim', 'doc_stamp_done',
       /* The VM publishes what folders SharePoint holds and reads back the overrides a person set.
          Neither creates a payable; both are the filer's own job. */
       'job_folders_publish', 'job_folder_map',
@@ -1126,6 +1131,9 @@ export default async function handler(req, res) {
        register what "was filed" in the first place. Both are claims about SharePoint, and only the
        machine holding the SharePoint credential is in a position to make one. */
     'batch_documents_register', 'doc_copy_claim', 'doc_copy_done', 'doc_rename_done',
+    /* A page must not be able to assert that a stamp was burned into a file in SharePoint, for the
+       same reason it cannot assert a copy: the claim is about a filing system it cannot see. */
+    'doc_stamp_claim', 'doc_stamp_done',
     /* WHICH FOLDERS EXIST is a claim about SharePoint. A page asserting it could put destinations
        in the picker that are not there, and the pin would then fail on the copy — relocating the
        failure instead of ending it. Reading the list back (`job_folders`) is the browser's route. */
@@ -1464,6 +1472,31 @@ export default async function handler(req, res) {
           }
         } catch { /* leave the rows as they are */ }
       }
+      /* WHICH OF THESE BATCHES HAS ALREADY BEEN HANDED OVER (migration 060). Without this the desk
+         only knows about a submission it performed in the current tab: a PM who submits, closes the
+         browser and comes back is shown a live Submit button on a folder already sitting with the
+         front office. Pressing it is harmless — the server answers `already` — but a control that
+         offers to do something already done is the same class of lie as the summary button it
+         replaced. */
+      if (rows.length) {
+        try {
+          const bids = [...new Set(rows.map(r => r.batch_id).filter(Boolean))];
+          if (bids.length) {
+            const sr = await sb('ryc_invoice_batch_submissions?company_id=eq.ryc'
+              + `&batch_id=in.(${bids.join(',')})&select=batch_id,pm,submitted_at,submitted_by`);
+            if (sr.ok) {
+              const by = {};
+              for (const s of await sr.json()) by[`${s.batch_id}|${s.pm}`] = s;
+              for (const r of rows) {
+                const s = by[`${r.batch_id}|${r.assigned_pm}`];
+                r.batch_submitted_at = s ? s.submitted_at : null;
+                r.batch_submitted_by = s ? s.submitted_by : null;
+              }
+            }
+          }
+        } catch { /* the desk still works without it; it just cannot say what was handed over */ }
+      }
+
       /* ROUTING SUGGESTION — front office only, and only for what has not been pushed yet.
          A PM never sees this: their queue is what was sent to them, and offering them a
          "suggested desk" would invite them to hand work sideways, which is the front office's
@@ -1598,18 +1631,27 @@ export default async function handler(req, res) {
       if (!id && rows.length) {
         const ids = rows.map(x => x.id).filter(Boolean);
         const dr = await sb(`ryc_batch_documents?company_id=eq.ryc&batch_id=in.(${ids.join(',')})`
-          + '&select=batch_id,reconciled_at,copy_error&limit=5000');
+          + '&select=batch_id,reconciled_at,copy_error,stamp_state&limit=5000');
         if (dr.ok) {
           const tally = {};
           for (const d of await dr.json()) {
-            const t = tally[d.batch_id] || (tally[d.batch_id] = { docs: 0, done: 0, failed: 0 });
+            const t = tally[d.batch_id]
+              || (tally[d.batch_id] = { docs: 0, done: 0, failed: 0, stamping: 0, stamped: 0, stamp_failed: 0 });
             t.docs++;
             if (d.reconciled_at) t.done++;
             else if (d.copy_error && d.copy_error !== 'working') t.failed++;
+            /* STAMPING IS PROGRESS, NOT A GATE (migration 060). It is counted here so the board can
+               say "stamping 3 of 5" while it happens — Keith, 2026-08-27: *"the user would expect
+               something onscreen letting them know the process is running."* Nothing below reads
+               these counts to decide whether the batch may be worked on. */
+            if (d.stamp_state === 'pending' || d.stamp_state === 'working') t.stamping++;
+            else if (d.stamp_state === 'done') t.stamped++;
+            else if (d.stamp_state === 'failed') t.stamp_failed++;
           }
           for (const x of rows) {
-            const t = tally[x.id] || { docs: 0, done: 0, failed: 0 };
+            const t = tally[x.id] || { docs: 0, done: 0, failed: 0, stamping: 0, stamped: 0, stamp_failed: 0 };
             x.docs = t.docs; x.docs_done = t.done; x.docs_failed = t.failed;
+            x.stamping = t.stamping; x.stamped = t.stamped; x.stamp_failed = t.stamp_failed;
             /* A batch with NO registered documents is not complete — it is a run that never got
                that far. Completion is a positive statement about payables, never the absence of
                anything to check. */
@@ -1627,7 +1669,16 @@ export default async function handler(req, res) {
              screen; it just never knew what was happening to it. Two objects representing one
              folder is how the two sides start disagreeing, and this module has paid for that shape
              three times. So this is a READ: the scan's register batch is found by the same
-             `scan:{id}` key `batch_to_desk` writes, and its payables are counted. */
+             `scan:{id}` key `batch_to_desk` writes, and its payables are counted.
+
+             ⛔ THE HANDOFF IS NO LONGER DERIVED FROM THE COUNT (migration 060, 2026-08-27). This
+             used to read `awaiting_pm = decided < total`, which meant a batch left the PM's desk
+             the instant its last payable happened to acquire a decision — nobody handed it over, it
+             simply stopped counting. Keith: *"when all invoices have been approved logan should need
+             to press a master submit button for the batch he is on."* So the question this asks is
+             now "is there a submission row", and the decided-count survives only to TELL HER how far
+             he has got: a batch he has half-worked reads "4 of 5 approved · not submitted" rather
+             than sitting under With the PM looking untouched. */
           const keys = rows.map(x => `scan:${x.id}`);
           const rb = await sb('ryc_invoice_batches?company_id=eq.ryc&select=id,source_message_id'
             + `&source_message_id=in.(${keys.map(k => `"${k}"`).join(',')})`);
@@ -1649,15 +1700,27 @@ export default async function handler(req, res) {
                   if (['approved', 'rejected', 'not_ap', 'duplicate'].includes(i.review_state)) p.decided++;
                   if (i.assigned_pm && !p.pm) p.pm = i.assigned_pm;
                 }
+                /* WHO HAS ACTUALLY HANDED IT OVER. Absence of a row is the default and it means
+                   "still his", which is what makes migration 060 a no-op for every batch in flight
+                   on the day it ships. */
+                const sub = {};
+                const sr = await sb('ryc_invoice_batch_submissions?company_id=eq.ryc'
+                  + `&batch_id=in.(${regBatches.map(b => b.id).join(',')})`
+                  + '&select=batch_id,pm,submitted_at,submitted_by&limit=1000');
+                if (sr.ok) for (const s of await sr.json()) sub[s.batch_id] = s;
                 for (const x of rows) {
                   const p = per[byScan[x.id]];
                   if (!p || !p.total) continue;
+                  const s = sub[byScan[x.id]] || null;
                   x.pm = p.pm;
                   x.payables = p.total;
                   x.payables_decided = p.decided;
-                  /* The batch is his until every payable has an answer. Then it is hers, and the
-                     copy to the job folder — the thing that files it — happens at her reconcile. */
-                  x.awaiting_pm = p.decided < p.total;
+                  x.submitted_at = s ? s.submitted_at : null;
+                  x.submitted_by = s ? s.submitted_by : null;
+                  /* The batch is his until HE SAYS it is hers. Then the copy to the job folder — the
+                     thing that files it — happens at her reconcile, on a document his submit has
+                     already stamped. */
+                  x.awaiting_pm = !s;
                 }
               }
             }
@@ -1799,7 +1862,12 @@ export default async function handler(req, res) {
         const regB = rb.ok ? (await rb.json())[0] : null;
         if (regB) {
           const ir = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${regB.id}`
-            + '&select=vendor_name,amount,review_state,assigned_pm,job_no&limit=1000');
+            + '&select=vendor_name,amount,review_state,assigned_pm,job_no,job_name,'
+            + 'cost_code,mat_or_sub,cost_month,reviewed_by,reviewed_at&limit=1000');
+          /* Absence of a row means the batch is still his — see migration 060. */
+          const sr = await sb('ryc_invoice_batch_submissions?company_id=eq.ryc'
+            + `&batch_id=eq.${regB.id}&select=pm,submitted_at,submitted_by&limit=10`);
+          const submitted = sr.ok ? ((await sr.json())[0] || null) : null;
           if (ir.ok) {
             const key = (v, a) => `${vendorKey(v)}|${amountKey(a)}`;
             const byKey = {};
@@ -1809,9 +1877,30 @@ export default async function handler(req, res) {
               if (!i) continue;
               d.pm_desk = i.assigned_pm || null;
               d.pm_state = i.review_state;
-              /* Decided means the front office may finish it. `not_ap`, `rejected` and `duplicate`
-                 are decisions too — a supporting document nobody approves must not freeze the row. */
-              d.pm_awaiting = !['approved', 'rejected', 'not_ap', 'duplicate'].includes(i.review_state);
+              /* ⛔ ONE PAYABLE'S DECISION NO LONGER RELEASES ONE ROW. It used to: `pm_awaiting` was
+                 per document, so a PM who approved three of five silently handed her three rows
+                 while his own board still said the batch was his. The batch is one act now — she
+                 gets all of it when he submits, or none of it. */
+              d.pm_awaiting = !submitted;
+              /* WHAT HE ACTUALLY DECIDED, ON HER ROW. Keith, 2026-08-27: *"she may need to look at
+                 his stamp for more detail during reconciliation."* The stamp is burned into the PDF
+                 at submit, but making her open a file to read a cost code she is about to file
+                 against is the same "go and look it up" the batch board exists to remove. */
+              d.pm_coding = {
+                job_no: i.job_no || null,
+                job_name: i.job_name || null,
+                cost_code: i.cost_code || null,
+                mat_or_sub: i.mat_or_sub || null,
+                cost_month: i.cost_month || null,
+                by: i.reviewed_by || null,
+                at: i.reviewed_at || null,
+              };
+            }
+          }
+          if (submitted) {
+            for (const d of documents) {
+              d.submitted_at = submitted.submitted_at;
+              d.submitted_by = submitted.submitted_by;
             }
           }
         }
@@ -2361,29 +2450,37 @@ export default async function handler(req, res) {
        A real job leaves `reconciled_at` NULL until the copy actually lands in SharePoint; a
        reconciliation that claimed to be done while the file was still on Vercel's side of the fence
        would be exactly the "green tick over an unknown" this module refuses elsewhere. */
-    if (action === 'doc_reconcile') {
-      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
-      const docId = String(body.doc_id || '').trim();
-      const jobNo = String(body.job_no || '').trim();
-      if (!docId || !jobNo) return res.status(400).json({ error: 'A document id and a job are required.' });
+    /* ⛔ ONE RECONCILIATION, EXPRESSED ONCE. Erica's screen submits a whole batch at a time now
+       (Keith, 2026-08-27: *"She should be able to reconcile multiple invoice (or the entire batch)
+       then click a master submit reconcialtion"*), and the obvious way to build that — a second
+       endpoint that loops and does the same writes — is exactly the shape this module has been
+       bitten by three times. So the single-document logic below is the only copy of it, and both
+       `doc_reconcile` and `docs_reconcile` call it.
+
+       `dir` is passed in so a fifty-document submit reads the job directory ONCE rather than fifty
+       times; everything else is per document. Declared as a function statement, so it is hoisted
+       above both callers regardless of where they sit in this if-chain. */
+    async function reconcileOneDoc(docId, jobNo, opts) {
+      opts = opts || {};
+      if (!docId || !jobNo) return { status: 400, body: { error: 'A document id and a job are required.' } };
 
       const cur = await sb(`ryc_batch_documents?company_id=eq.ryc&id=eq.${docId}&select=*`);
       const doc = cur.ok ? (await cur.json())[0] : null;
-      if (!doc) return res.status(404).json({ error: 'No such document.' });
+      if (!doc) return { status: 404, body: { error: 'No such document.' } };
       if (doc.reconciled_at) {
-        return res.status(409).json({
+        return { status: 409, body: {
           error: `"${doc.file_name}" was already reconciled on `
-            + `${String(doc.reconciled_at).slice(0, 10)} — it cannot be filed twice.` });
+            + `${String(doc.reconciled_at).slice(0, 10)} — it cannot be filed twice.` } };
       }
 
       const expense = jobNo.toUpperCase() === RYC_EXPENSE.no;
       let job_name = RYC_EXPENSE.name;
       if (!expense) {
-        let dir = null;
-        try { dir = await jobDirectory(); } catch { /* reported below */ }
-        if (!dir) return res.status(503).json({ error: 'The job list could not be read just now — try again.' });
+        let dir = opts.dir || null;
+        if (!dir) { try { dir = await jobDirectory(); } catch { /* reported below */ } }
+        if (!dir) return { status: 503, body: { error: 'The job list could not be read just now — try again.' } };
         const j = pickableJobs(dir).find(x => x.no === jobNo);
-        if (!j) return res.status(400).json({ error: `${jobNo} is not a job that can be filed to.` });
+        if (!j) return { status: 400, body: { error: `${jobNo} is not a job that can be filed to.` } };
         job_name = j.name;
       }
 
@@ -2403,10 +2500,10 @@ export default async function handler(req, res) {
          tell "the file is in the job folder" from "there is no job folder and we said so on
          purpose". The batch folder keeps the only copy either way, exactly as it does for an
          expense. */
-      const noFiling = body.no_filing === true && !expense;
-      if (body.no_filing === true && expense) {
-        return res.status(400).json({
-          error: 'RYC Expense already means nothing is copied — pick the job it belongs to instead.' });
+      const noFiling = opts.noFiling === true && !expense;
+      if (opts.noFiling === true && expense) {
+        return { status: 400, body: {
+          error: 'RYC Expense already means nothing is copied — pick the job it belongs to instead.' } };
       }
 
       const done = expense || noFiling;
@@ -2436,20 +2533,74 @@ export default async function handler(req, res) {
           action: 'resolved_without_filing',
           job_no: jobNo,
           job_name,
-          filer_said: String(body.reason || doc.copy_error || '').slice(0, 300) || null,
+          filer_said: String(opts.reason || doc.copy_error || '').slice(0, 300) || null,
         }];
       }
       const r = await sb(`ryc_batch_documents?id=eq.${docId}&reconciled_at=is.null`, {
         method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
       });
-      if (!r.ok) return res.status(502).json({ error: 'Could not record the reconciliation.' });
+      if (!r.ok) return { status: 502, body: { error: 'Could not record the reconciliation.' } };
       const rows = await r.json();
-      if (!rows.length) return res.status(409).json({ error: 'That document was reconciled a moment ago.' });
+      if (!rows.length) return { status: 409, body: { error: 'That document was reconciled a moment ago.' } };
       /* Also taught on completion, because a row whose job the MATCHER got right is never touched
          by `doc_update` — she just clicks Complete. Confirming a correct proposal is a
          confirmation too, and it is what raises `confirmations` on a hint that already exists. */
       const learned = expense ? null : await learnJobHint(rows[0], jobNo);
-      return res.status(200).json({ ok: true, document: rows[0], queued: !done, learned });
+      return { status: 200, body: { ok: true, document: rows[0], queued: !done, learned } };
+    }
+
+    if (action === 'doc_reconcile') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const out = await reconcileOneDoc(
+        String(body.doc_id || '').trim(), String(body.job_no || '').trim(),
+        { noFiling: body.no_filing === true, reason: body.reason });
+      return res.status(out.status).json(out.body);
+    }
+
+    /* ===== THE FRONT OFFICE SUBMITS A WHOLE BATCH ===================================
+       Keith, 2026-08-27, after watching Erica work: *"It seems that the fact that reconciliation is
+       by invoice (in that when she click to copy to folder) it actually does the function instantly
+       it can cause a delay. She should be able to reconcile multiple invoice (or the entire batch)
+       then click a master submit reconcialtion - and that when the workers fire to save."*
+
+       ⚠ WHAT THIS DOES NOT CHANGE. The copy was ALREADY asynchronous — Vercel does not hold the
+       SharePoint credential, so `doc_reconcile` has always queued the work for the VM. Ten invoices
+       still take the worker the same total time. What changes is that she is not made to watch each
+       one: she settles the whole board, presses once, and the queue drains behind her.
+
+       ⛔ ONE FAILURE MUST NOT DISCARD THE REST. Each document is independent — a job that has gone
+       missing from the directory, or a row somebody else finished thirty seconds ago, fails on its
+       own and is REPORTED BY NAME. Returning a single error for the batch would make her hunt for
+       which of forty rows it was, which is the "the screen is talking about itself" failure the
+       refusal messages were rewritten to end. */
+    if (action === 'docs_reconcile') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const items = Array.isArray(body.documents) ? body.documents : [];
+      if (!items.length) return res.status(400).json({ error: 'Nothing was selected.' });
+      if (items.length > 200) {
+        return res.status(400).json({ error: 'Too many documents in one submit (200 max).' });
+      }
+      /* Read ONCE for the whole submit. Forty documents used to mean forty directory fetches. */
+      let dir = null;
+      try { dir = await jobDirectory(); } catch { /* each row reports it if it needed the list */ }
+
+      const done = [], failed = [];
+      for (const it of items) {
+        const docId = String((it && it.doc_id) || '').trim();
+        const jobNo = String((it && it.job_no) || '').trim();
+        const out = await reconcileOneDoc(docId, jobNo, {
+          dir, noFiling: it && it.no_filing === true, reason: it && it.reason });
+        if (out.status === 200) {
+          done.push({ doc_id: docId, queued: !!out.body.queued,
+            file_name: out.body.document && out.body.document.file_name });
+        } else {
+          failed.push({ doc_id: docId, file_name: (it && it.file_name) || null,
+            error: (out.body && out.body.error) || `failed (${out.status})` });
+        }
+      }
+      return res.status(200).json({ ok: true,
+        submitted: done.length, queued: done.filter(d => d.queued).length,
+        failed: failed.length, results: done, errors: failed });
     }
 
     /* The master edit. Deliberately refused once a document is reconciled: the copy in the job
@@ -2800,6 +2951,83 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, map: out });
     }
 
+    /* ===== THE STAMP QUEUE (migration 060) ==========================================
+       Same claim → do → report shape as the copy queue below, and deliberately so: the machine
+       holding the SharePoint credential does the work, this endpoint owns the state.
+
+       WHAT IT IS FOR. `do_doc_copy()` stamps the PDF in memory on its way into the JOB folder, so
+       the copy in the BATCH folder — the one Erica opens while she reconciles — was never stamped
+       at all. Keith, 2026-08-27: *"she may need to look at his stamp for more detail during
+       reconciliation."* She cannot read a stamp that will not exist until after she has finished.
+       So the PM's submit burns it into the batch-folder copy, and the reconcile copy then carries an
+       already-stamped file rather than stamping a second one.
+
+       ⚠ THIS QUEUE IS NEVER A GATE. A batch reaches the front office because it was SUBMITTED. If
+       every stamp in a folder fails, she still reconciles and the money still reaches the job
+       folder — the failure is reported on the row and the copy path stamps as a fallback. An
+       accounts-payable freeze caused by a stamping outage would be far worse than an invoice
+       carrying no rubber stamp, which is what every invoice carried before 2026-08-26. */
+    if (action === 'doc_stamp_claim') {
+      /* PICK, THEN CLAIM — `limit=` does nothing on a PostgREST PATCH, and the copy queue has
+         already paid for that lesson once (nine rows leased, one copied, eight stranded). */
+      const pick = await sb('ryc_batch_documents?company_id=eq.ryc&stamp_state=eq.pending'
+        + '&select=id&order=updated_at.asc&limit=1');
+      if (!pick.ok) return res.status(502).json({ error: 'claim failed' });
+      const cand = (await pick.json())[0];
+      if (!cand) return res.status(200).json({ ok: true, document: null });
+      const r = await sb(`ryc_batch_documents?company_id=eq.ryc&id=eq.${cand.id}`
+        + '&stamp_state=eq.pending', {
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ stamp_state: 'working', updated_at: new Date().toISOString() }),
+        });
+      if (!r.ok) return res.status(502).json({ error: 'claim failed' });
+      // Zero rows = another worker claimed it between the pick and the PATCH. Poll again.
+      const doc = (await r.json())[0] || null;
+      if (doc) {
+        /* The file lives in the batch's own SharePoint folder under `sp_name`. The worker is told
+           where, never asked to work it out — resolving a folder from a displayed name is the
+           mistake the operating rules already forbid. */
+        const b = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${doc.batch_id}`
+          + '&select=folder,folder_url,received_date');
+        if (b.ok) {
+          const batch = (await b.json())[0];
+          if (batch) {
+            doc.batch_folder = batch.folder;
+            doc.batch_folder_url = batch.folder_url;
+            /* The stamp prints the RECEIVED date the office actually marked on the paper. Deriving
+               it from now() would restart every discount and staleness window on a page that has
+               been sitting in a folder for a week. */
+            doc.received_date = batch.received_date;
+          }
+        }
+      }
+      return res.status(200).json({ ok: true, document: doc });
+    }
+
+    /* The worker reports what actually happened to the page. A failure is RECORDED, not retried
+       forever: `failed` leaves the queue, stays visible on her row, and the copy path will still
+       stamp the job-folder copy as a fallback — so a stamping bug costs the batch-folder stamp and
+       nothing else. */
+    if (action === 'doc_stamp_done') {
+      const docId = String(body.doc_id || '').trim();
+      if (!docId) return res.status(400).json({ error: 'A document id is required.' });
+      const failed = String(body.error || '').trim();
+      const patch = failed
+        ? { stamp_state: 'failed', stamp_error: failed.slice(0, 500),
+            updated_at: new Date().toISOString() }
+        : { stamp_state: 'done', stamped_at: new Date().toISOString(), stamp_error: null,
+            updated_at: new Date().toISOString() };
+      /* Guarded on the lease this worker holds, so a late report from a dead worker cannot
+         overwrite a stamp a live one has since completed. */
+      const r = await sb(`ryc_batch_documents?id=eq.${docId}&stamp_state=eq.working`, {
+        method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not record the stamp.' });
+      const rows = await r.json();
+      if (!rows.length) return res.status(409).json({ error: 'That document is not claimed for stamping.' });
+      return res.status(200).json({ ok: true, document: rows[0] });
+    }
+
     if (action === 'doc_copy_claim') {
       /* Claim by PATCHing a row that is still claimable and letting PostgREST report what it
          actually changed, so two workers cannot both win. `copy_error` doubles as the lease: a
@@ -2878,8 +3106,15 @@ export default async function handler(req, res) {
                ⚠ IT CARRIES `identity_verified` THROUGH UNCHANGED. Until per-user sign-in that is
                false for everyone, and the stamp says so rather than implying a verified signature —
                a rubber stamp asserting more than the record holds is worse than no stamp. */
+            /* ⛔ AND NOT IF THE PAGE ALREADY CARRIES ONE (migration 060). Since the PM's submit
+               burns the stamp into the batch-folder copy, the file this worker is about to copy is
+               already stamped — stamping it again would print a second, overlapping mark on the same
+               page. `done` is the only state that proves it: `failed` deliberately falls THROUGH to
+               here, so a batch-folder stamp that could not be written still reaches the job folder
+               stamped by the old path. A stamp must never cost a filing, and it must never cost a
+               stamp either where there is a second chance to apply one. */
             let approval = null;
-            if (!batch.pm_approved_at) {
+            if (!batch.pm_approved_at && doc.stamp_state !== 'done') {
               try {
                 const rb = await sb('ryc_invoice_batches?company_id=eq.ryc&select=id'
                   + `&source_message_id=eq.${encodeURIComponent('scan:' + doc.batch_id)}`);
@@ -3488,6 +3723,160 @@ export default async function handler(req, res) {
     }
 
     /* ---------- the summary back to the front office ---------- */
+    /* ===== THE PM HANDS THE BATCH OVER =============================================
+       Keith, 2026-08-27: *"when all invoices have been approved logan should need to press a master
+       submit button for the batch he is on - at which point the stamp is added and his edits are
+       committed - which erica recives the batch for reconcilation it includes logans edits and
+       stamps."*
+
+       This REPLACES `close_batch` on the screen. That action only ever built a summary and told the
+       PM it was *"the summary the front office receives"* — which nobody received, because it sent
+       nothing anywhere. The summary itself was worth keeping, so it comes back as this action's
+       return value: pressing Submit shows him exactly what he just handed over.
+
+       It does four things, in an order chosen so a failure leaves a state a person can read:
+         1. refuses if anything on his desk in this batch is still undecided — the master button is
+            not a way to skip work, and the count says how much is left;
+         2. records the submission, attributed (`submitted_by` is NOT NULL by constraint). This is
+            the row `awaiting_pm` reads, and it is what moves the batch to the front office;
+         3. carries HIS answers onto the scan documents — the job he settled, and the coding frozen
+            as `stamp_approval`;
+         4. queues the stamp.
+
+       ⚠ 2 IS THE HANDOFF AND 3–4 ARE CONSEQUENCES. The submission is written FIRST and never rolled
+       back by a later failure: if the stamp queue cannot be written, Erica has still been handed a
+       batch a PM genuinely submitted, and an unstamped document is a visible, retryable defect. The
+       reverse order would let a stamping outage silently keep a finished batch on his desk.
+
+       ⚠ HIS JOB ANSWER OVERWRITES THE MATCHER'S, AND THAT IS THE POINT. Until now the desk's job
+       assignment never reached the front office at all — `batch_documents` read `job_no` off the
+       payable and threw it away — so Logan answered "which Greencroft unit" and Erica was then asked
+       the same question from scratch, with his answer one table away. Doing it HERE rather than in a
+       background join is what makes it honest: it happens at a moment he chose, it is recorded in
+       `history` with what it replaced, and `job_source` becomes `pm`, which `batch_rematch` already
+       refuses to overwrite. */
+    if (action === 'submit_batch') {
+      if (!pm) return res.status(400).json({ error: 'A PM is required to submit a batch.' });
+      const batchId = String(body.batch_id || '').trim();
+      if (!batchId) return res.status(400).json({ error: 'A batch id is required.' });
+
+      const ir = await sb(`ryc_invoices?company_id=eq.ryc&batch_id=eq.${batchId}`
+        + `&assigned_pm=eq.${encodeURIComponent(pm)}`
+        + '&select=id,vendor_name,amount,review_state,job_no,job_name,cost_code,mat_or_sub,'
+        + 'cost_month,reviewed_by,reviewed_at,identity_verified&limit=1000');
+      if (!ir.ok) return res.status(502).json({ error: 'Could not read the batch.' });
+      const mine = await ir.json();
+      if (!mine.length) {
+        return res.status(404).json({ error: 'Nothing in that batch is on your desk.' });
+      }
+
+      const DECIDED = ['approved', 'rejected', 'not_ap', 'duplicate'];
+      const open = mine.filter(i => !DECIDED.includes(i.review_state));
+      if (open.length) {
+        /* NAME WHAT IS LEFT. "3 still need a decision" sends him hunting; the vendors are what he
+           recognises on his own screen. */
+        return res.status(409).json({
+          error: `${open.length} of ${mine.length} still need a decision before this batch can be `
+            + `submitted: ${open.slice(0, 6).map(i => i.vendor_name || 'unnamed').join(', ')}`
+            + `${open.length > 6 ? '…' : ''}`,
+          outstanding: open.length, of: mine.length });
+      }
+
+      const approved = mine.filter(i => i.review_state === 'approved');
+      const by = who.scope === 'pm' ? pm : `front office on behalf of ${pm}`;
+      const ins = await sb('ryc_invoice_batch_submissions', {
+        method: 'POST', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          batch_id: batchId, pm, submitted_by: by,
+          invoice_count: mine.length, approved_count: approved.length,
+          note: body.note ? String(body.note).slice(0, 500) : null,
+        }),
+      });
+      /* Already submitted. A second press is not an error — it is a person checking, and the honest
+         answer is "you already did this, here is when". */
+      if (ins.status === 409) {
+        const ex = await sb('ryc_invoice_batch_submissions?company_id=eq.ryc'
+          + `&batch_id=eq.${batchId}&pm=eq.${encodeURIComponent(pm)}&select=*`);
+        const had = ex.ok ? (await ex.json())[0] : null;
+        return res.status(200).json({ ok: true, already: true, submission: had,
+          summary: { documents: mine.length, approved: approved.length,
+            held: mine.length - approved.length } });
+      }
+      if (!ins.ok) return res.status(502).json({ error: `Could not record the submission (${ins.status}).` });
+      const submission = (await ins.json())[0] || null;
+
+      /* ---- 3 + 4: his answers travel, and the stamp is queued ---- */
+      let carried = { documents: 0, jobs_set: 0, stamps_queued: 0, unmatched: [] };
+      try {
+        const bb = await sb(`ryc_invoice_batches?company_id=eq.ryc&id=eq.${batchId}`
+          + '&select=source_message_id');
+        const src = bb.ok ? ((await bb.json())[0] || {}).source_message_id : null;
+        const scanId = src && String(src).startsWith('scan:') ? String(src).slice(5) : null;
+        if (scanId) {
+          const dr = await sb(`ryc_batch_documents?company_id=eq.ryc&batch_id=eq.${scanId}`
+            + '&select=*&order=seq.asc');
+          const docs = dr.ok ? await dr.json() : [];
+          carried.documents = docs.length;
+          const key = (v, a) => `${vendorKey(v)}|${amountKey(a)}`;
+          const byKey = {};
+          for (const i of mine) byKey[key(i.vendor_name, i.amount)] = i;
+          const now = new Date().toISOString();
+          for (const d of docs) {
+            const i = byKey[key(d.vendor, d.amount)];
+            if (!i) { carried.unmatched.push({ seq: d.seq, vendor: d.vendor, amount: d.amount }); continue; }
+            /* ⚠ ONLY AN APPROVED PAYABLE IS STAMPED. A rejected invoice or a supporting document
+               marked `not_ap` is a decision, not an approval, and stamping one would print a claim
+               nobody made. Its row still tells her what he decided — `pm_state` carries that. */
+            if (i.review_state !== 'approved') continue;
+            /* ⛔ A DOCUMENT SHE HAS ALREADY FINISHED IS NEVER TOUCHED. Re-stamping or re-jobbing a
+               reconciled row would rewrite a file that has already been copied into a job folder. */
+            if (d.reconciled_at) continue;
+
+            const patch = {
+              stamp_state: 'pending',
+              stamp_approval: {
+                pm: i.reviewed_by || pm,
+                month: i.cost_month || null,
+                cost_code: i.cost_code || null,
+                mat_or_sub: i.mat_or_sub || null,
+                approved_at: i.reviewed_at || null,
+                /* Carried through unchanged. Until per-user sign-in this is false for everyone and
+                   the stamp says so rather than implying a verified signature. */
+                identity_verified: !!i.identity_verified,
+              },
+              stamp_error: null,
+              updated_at: now,
+            };
+            if (i.job_no && i.job_no !== d.job_no) {
+              patch.job_no = i.job_no;
+              patch.job_name = i.job_name || d.job_name || null;
+              patch.job_source = 'pm';
+              patch.history = [...(Array.isArray(d.history) ? d.history : []), {
+                at: now, by, action: 'pm_assigned_job',
+                job_no: i.job_no, job_name: i.job_name || null,
+                was: d.job_no || null, was_name: d.job_name || null,
+                was_source: d.job_source || null,
+              }];
+              carried.jobs_set++;
+            }
+            const up = await sb(`ryc_batch_documents?id=eq.${d.id}&reconciled_at=is.null`, {
+              method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(patch),
+            });
+            if (up.ok) carried.stamps_queued++;
+          }
+        } else {
+          carried.note = 'This batch has no scanned folder — nothing to stamp.';
+        }
+      } catch (e) {
+        /* The handoff already happened and must not be undone by this. Say what did not travel. */
+        carried.error = (e && e.message) || 'carrying the coding to the documents failed';
+      }
+
+      return res.status(200).json({ ok: true, submission, carried,
+        summary: { documents: mine.length, approved: approved.length,
+          held: mine.length - approved.length } });
+    }
+
     if (action === 'close_batch') {
       if (!pm) return res.status(400).json({ error: 'A PM is required to close a batch.' });
       const out = await rpc('ryc_close_invoice_batch', {

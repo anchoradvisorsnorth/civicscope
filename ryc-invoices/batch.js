@@ -42,7 +42,8 @@ function renderBatch(){
   _batch = { id:null, job:null, timer:null, sel:{}, recent:[] };
   // The reconcile panel is per-batch; leaving last batch's rows in memory would paint them under
   // the next one's header for the moment before the fetch returns.
-  _recon = { docs: [], targets: _recon ? _recon.targets : null, batchId: null, busy: {} };
+  _recon = { docs: [], targets: _recon ? _recon.targets : null, batchId: null, busy: {},
+             pick: {}, submitting: null, lastSubmit: null };
 
   /* ⛔ THIS SCREEN DID NOT OWN ITS OWN HEADER, so arriving from Inbound left the page titled
      "Inbound — Everything that has arrived and not yet been sent to a desk" over the batch
@@ -137,9 +138,24 @@ function batchRecentTable(title, jobs, done){
                    outstanding" is true of her reconciliation and says nothing about the state it
                    is actually in, which is the confusion this whole section exists to end. */
                 : j.awaiting_pm
-                  ? '<b class="m-a">' + (j.payables - j.payables_decided) + ' of ' + j.payables
-                    + ' awaiting ' + esc(j.pm || "the PM") + '</b>'
+                  /* ⛔ TWO DIFFERENT SITUATIONS WEAR THE SAME BADGE UNLESS THIS SPLITS THEM
+                     (2026-08-27). Since the handoff became an act rather than a count, a folder can
+                     sit on a PM's desk with every invoice already decided — he simply has not
+                     pressed Submit. Reporting that as "5 of 5 awaiting Logan Moore" is true and
+                     useless: it reads as untouched work when it is finished work nobody handed
+                     over, and that is precisely the batch somebody needs to chase. */
+                  ? (j.payables && j.payables_decided >= j.payables
+                      ? '<b class="m-a">' + j.payables + ' of ' + j.payables + ' approved &middot; '
+                        + esc(j.pm || "the PM") + ' has not submitted it yet</b>'
+                      : '<b class="m-a">' + (j.payables - j.payables_decided) + ' of ' + j.payables
+                        + ' awaiting ' + esc(j.pm || "the PM") + '</b>')
                   : '<b class="m-a">' + (j.docs - j.docs_done) + ' of ' + j.docs + ' outstanding</b>')
+              /* STAMPING IS PROGRESS AND SAYS SO — never a gate. A batch is hers because it was
+                 submitted; the pages catching up behind it is a running process, and a running
+                 process the screen does not mention is one a person assumes has hung. */
+              + (j.stamping ? ' <span class="sub m-a">&middot; stamping ' + j.stamping + '<\/span>' : '')
+              + (j.stamp_failed ? ' <span class="m-r">&middot; ' + j.stamp_failed
+                  + ' unstamped<\/span>' : '')
               + (j.docs_failed ? ' <span class="m-r">&middot; ' + j.docs_failed + ' failed</span>' : '')
             : '')
         + '</td>'
@@ -540,7 +556,10 @@ function batchConfirm(){
    PAY APPLICATIONS ARE SHOWN SEPARATELY because they are read differently: a pay app's amount is
    the money due THIS period, sitting on a face sheet beside four larger numbers that are not bills.
    A reviewer scanning a mixed list has to re-orient on every row. */
-var _recon = { docs: [], targets: null, batchId: null, busy: {} };
+var _recon = { docs: [], targets: null, batchId: null, busy: {},
+               /* docId -> true: rows she has marked ready for the next submit. Held here, never in the
+                  DOM, for the same reason the job selection is — every repaint rebuilds the rows. */
+               pick: {}, submitting: null, lastSubmit: null };
 
 function reconLoad(batchId, render){
   _recon.batchId = batchId;
@@ -578,6 +597,17 @@ function reconRender(){
     + '<div class="sub">Every invoice ends in one of two places: copied into its job&rsquo;s Vendor '
     + 'Invoices folder, or marked <b>RYC Expense</b> &mdash; an overhead cost that belongs to no job '
     + 'and is deliberately filed nowhere. The batch folder keeps its copy either way.</div>'
+    /* ⛔ SAY THAT SHE CAN STOP HALFWAY, WHERE SHE IS WORKING. Keith, 2026-08-27: *"It also should be
+       obvious to each that they can save their progress or obvious that its being auto saved - ie
+       they dont have to finish a batch in a single session."* Every job she picks is written to the
+       row the moment she picks it — that has been true since 2026-08-21, when three separate
+       repaints were found erasing her selections — and the screen has never once said so. A
+       thirty-four document folder is not one sitting, and a person who does not know her work is
+       saved will either rush it or start again. */
+    + '<div class="sub" style="margin-top:6px"><b>Your work is saved as you go.</b> Each job you '
+    + 'choose is stored against that invoice immediately &mdash; you can close this and come back '
+    + 'later, and the folder will be exactly as you left it. Nothing is copied into a job folder '
+    + 'until you press <b>Submit</b> below.</div>'
     + '<div style="margin-top:8px"><b>' + done + ' of ' + docs.length + ' done</b>'
     + (expense ? ' <span class="sub">&middot; ' + expense + ' RYC Expense</span>' : '')
     + (open ? ' <span class="m-a">&middot; ' + open + ' outstanding</span>' : '')
@@ -587,7 +617,123 @@ function reconRender(){
   var pay = docs.filter(reconIsPayApp), inv = docs.filter(function(d){ return !reconIsPayApp(d); });
   if(pay.length) h += reconGroup("Pay applications", pay);
   if(inv.length) h += reconGroup(inv.length === docs.length ? "Invoices" : "Invoices and other documents", inv);
+  /* The master submit lives at the BOTTOM because that is where she arrives after working down the
+     list, and it repaints on its own so ticking a row does not rebuild thirty-four rows underneath
+     her cursor. */
+  el.innerHTML = h + '<div id="reconSubmit"></div></div>';
+  reconPaintSubmit();
+}
+
+/* Which rows are genuinely submittable right now: open, not already being worked by the machine,
+   not still on a PM's desk, and carrying a destination. */
+function reconSubmittable(){
+  return _recon.docs.filter(function(d){
+    if(d.reconciled_at) return false;
+    if(d.copy_error === "working" || _recon.busy[d.id]) return false;
+    if(d.pm_awaiting && d.pm_desk) return false;
+    return !!d.job_no;
+  });
+}
+
+/* ⛔ THE PROGRESS THE SCREEN OWED HER. Keith, 2026-08-27: *"the user would expect something onscreen
+   letting them know the process is running."* A submit of thirty-four documents is thirty-four
+   server-side reconciliations before the answer comes back, and until this the page would simply
+   sit there. It now says what it is doing, how many, and — when it is finished — exactly which ones
+   failed and why, by file name rather than by id. */
+function reconPaintSubmit(){
+  var el = document.getElementById("reconSubmit");
+  if(!el) return;
+  var s = _recon.submitting;
+  if(s){
+    el.innerHTML = '<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line,#e3e6ea)">'
+      + '<button class="pfill" disabled>Submitting&hellip;</button>'
+      + '<div class="sub" style="margin-top:4px">Filing ' + s.total + ' document(s). '
+      + 'The copies are made by the filing worker on the VM, so this hands the whole set over at '
+      + 'once and then reports back &mdash; you do not need to wait on this screen.</div></div>';
+    return;
+  }
+
+  var ready = reconSubmittable().filter(function(d){ return _recon.pick[d.id]; });
+  var eligible = reconSubmittable();
+  var last = _recon.lastSubmit;
+  var h = '<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line,#e3e6ea)">';
+
+  if(eligible.length){
+    h += '<button class="pfill' + (ready.length ? ' on' : '') + '"'
+      + (ready.length ? ' onclick="reconSubmit()"' : ' disabled')
+      + '>Submit ' + (ready.length || '') + (ready.length === 1 ? ' reconciliation' : ' reconciliations')
+      + '</button>'
+      + ' <button class="pfill" onclick="reconPickAll()">Select all ' + eligible.length + '</button>'
+      + (ready.length ? ' <button class="pfill" onclick="reconPickNone()">Clear</button>' : '')
+      + '<div class="sub" style="margin-top:4px">'
+      + (ready.length
+          ? ready.length + ' of ' + eligible.length + ' marked ready. Submitting queues every one of '
+            + 'them at once; the rest stay here for later.'
+          : 'Tick the invoices you have finished, or Select all, then submit them together.')
+      + '</div>';
+  } else {
+    h += '<div class="sub">Nothing is ready to submit yet &mdash; choose a job or RYC Expense on the '
+      + 'rows above.</div>';
+  }
+
+  /* WHAT THE LAST SUBMIT ACTUALLY DID, kept on screen until the next one. A count that vanishes on
+     the next repaint is a count nobody read. */
+  if(last){
+    h += '<div class="sub" style="margin-top:8px"><b>' + last.submitted + ' submitted</b>'
+      + (last.queued ? ' &middot; ' + last.queued + ' copying to SharePoint now' : '')
+      + (last.failed ? ' &middot; <span class="m-r">' + last.failed + ' could not be filed</span>' : '')
+      + '</div>';
+    (last.errors || []).forEach(function(e){
+      h += '<div class="sub m-r">' + esc(e.file_name || e.doc_id) + ' &mdash; ' + esc(e.error) + '</div>';
+    });
+  }
   el.innerHTML = h + '</div>';
+}
+
+function reconTogglePick(id){
+  if(_recon.pick[id]) delete _recon.pick[id]; else _recon.pick[id] = true;
+  reconPaintSubmit();
+}
+function reconPickAll(){
+  reconSubmittable().forEach(function(d){ _recon.pick[d.id] = true; });
+  reconRender();
+}
+function reconPickNone(){ _recon.pick = {}; reconRender(); }
+
+/* ONE SUBMIT, ONE REQUEST. The server loops — see `docs_reconcile` — because looping HERE would
+   mean thirty-four round trips from a browser and a half-finished batch if the tab is closed on the
+   twentieth. */
+function reconSubmit(){
+  if(_recon.submitting) return;
+  var ready = reconSubmittable().filter(function(d){ return _recon.pick[d.id]; });
+  if(!ready.length) return;
+  var expense = ready.filter(function(d){ return d.job_no === "RYC-EXPENSE"; }).length;
+  if(!window.confirm("Submit " + ready.length + " reconciliation(s)?\n\n"
+      + (ready.length - expense) + " will be copied into their job folders"
+      + (expense ? ", " + expense + " marked RYC Expense (not copied anywhere)" : "")
+      + ".\n\nThis cannot be undone from here.")) return;
+
+  _recon.submitting = { total: ready.length };
+  _recon.lastSubmit = null;
+  reconPaintSubmit();
+  invPost("docs_reconcile", {
+    documents: ready.map(function(d){ return { doc_id: d.id, job_no: d.job_no, file_name: d.file_name }; }),
+  }).then(function(r){
+    _recon.submitting = null;
+    if(!r.ok || !r.data || r.data.error){
+      _recon.lastSubmit = { submitted: 0, queued: 0, failed: ready.length,
+        errors: [{ file_name: "the whole submit", error: (r.data && r.data.error) || r.error || "failed" }] };
+      reconPaintSubmit();
+      return;
+    }
+    _recon.lastSubmit = { submitted: r.data.submitted, queued: r.data.queued,
+      failed: r.data.failed, errors: r.data.errors || [] };
+    /* Only the ones that landed leave the selection. A row that failed stays ticked so a retry is
+       one press rather than a hunt back through the board for which ones did not go. */
+    (r.data.results || []).forEach(function(x){ delete _recon.pick[x.doc_id]; });
+    reconLoad(_recon.batchId);
+    if(r.data.queued) reconPoll(12);
+  });
 }
 
 function reconGroup(title, docs){
@@ -669,8 +815,38 @@ function reconRow(d){
           ? '<div class="sub m-r">' + esc(d.job_stage_error) + '</div>'
           : (d.job_no && d.job_source === "hint"
               ? '<div class="sub">you told the system this one before &mdash; confirm or change it</div>'
-              : (d.job_source === "matched" && d.job_no
-                  ? '<div class="sub">read off the invoice &mdash; confirm or change it</div>' : '')));
+              : (d.job_source === "pm" && d.job_no
+                  ? '<div class="sub m-g">' + esc((d.pm_coding && d.pm_coding.by) || d.pm_desk || "the PM")
+                    + ' assigned this on his desk</div>'
+                  : (d.job_source === "matched" && d.job_no
+                      ? '<div class="sub">read off the invoice &mdash; confirm or change it</div>' : ''))));
+  }
+
+  /* ⛔ WHAT THE PM DECIDED, ON HER ROW (Keith, 2026-08-27): *"she may need to look at his stamp for
+     more detail during reconciliation."* His submit burns the stamp into the copy in the batch
+     folder, so it IS on the page she opens — but making her open a PDF to read a cost code she is
+     about to file against is the "go and look it up" the board exists to remove. So the stamp's own
+     four fields are printed here, and View invoice remains for the page itself.
+
+     ⚠ IT IS SHOWN ONLY ONCE HE HAS ANSWERED. A coding block on a row still sitting on his desk
+     would be a half-filled stamp presented as a decision. */
+  var coding = "";
+  if(!withPm && d.pm_coding && (d.pm_coding.cost_code || d.pm_coding.mat_or_sub || d.pm_coding.by)){
+    var c = d.pm_coding;
+    coding = '<div class="sub" style="margin-top:4px">'
+      + '<b>' + esc(c.by || d.pm_desk || "PM") + ' approved</b>'
+      + (c.cost_code ? ' &middot; ' + esc(c.cost_code) : '')
+      + (c.mat_or_sub ? ' &middot; ' + esc(String(c.mat_or_sub).toUpperCase()) : '')
+      + (c.cost_month ? ' &middot; ' + esc(c.cost_month) : '')
+      /* THE STAMP IS ALLOWED TO FAIL AND MUST THEREFORE SAY SO — the same rule the #AScans mirror
+         already follows. A failed stamp does not stop her filing; it means the page she is about to
+         copy carries no rubber stamp, and she should know that rather than discover it. */
+      + (d.stamp_state === "pending" || d.stamp_state === "working"
+          ? ' <span class="m-a">&middot; stamping the page&hellip;</span>' : '')
+      + (d.stamp_state === "failed"
+          ? ' <span class="m-r">&middot; the page could not be stamped</span>' : '')
+      + '</div>';
+    job += coding;
   }
 
   /* ⛔ THE ROW IS ORDERED BY THE WORK, NOT BY THE DATA (Keith, 2026-08-20, after running a batch
@@ -746,14 +922,26 @@ function reconRow(d){
       + 'nothing to do on this one yet.</div></div>';
   } else {
     rename = '<button class="pfill" onclick="reconRename(' + invArg(d.id) + ')">Edit name</button>';
-    /* THE BUTTON SAYS WHAT THE CLICK WILL DO. With RYC Expense chosen, "File to job" describes
-       the opposite of what happens — nothing is copied anywhere. The label tracks the dropdown.
-       "Complete:" is the front office's own word for the end of the row (Keith, 2026-08-20) and it
-       carries through BOTH labels — dropping it on the expense branch would make the two endings
-       look like different kinds of act when they are the same one. */
+    /* ⛔ THE ROW NO LONGER FIRES THE WORKER BY ITSELF (Keith, 2026-08-27, after watching her
+       work): *"She should be able to reconcile multiple invoice (or the entire batch) then click a
+       master submit reconcialtion - and that when the workers fire to save."*
+
+       What she was feeling was never the copy — that has always been queued, because Vercel does
+       not hold the SharePoint credential and never could copy inline. It was that every single row
+       started its own poll and asked to be watched. So the ending becomes a TICK, the whole board
+       is submitted at once, and the queue drains behind her.
+
+       ⚠ THE TICK IS NOT AVAILABLE UNTIL A JOB IS CHOSEN, because "ready" has to mean something.
+       An unticked row with no job is the honest picture of unfinished work; a tick that means
+       "ready except for the one decision that matters" would put her back to checking each row. */
     var chosen = d.job_no || "";
-    act = '<button class="pfill" id="rb_' + esc(d.id) + '" onclick="reconFile(' + invArg(d.id) + ')">'
-      + reconFileLabel(chosen) + '</button>';
+    var on = !!_recon.pick[d.id];
+    act = '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">'
+      + '<input type="checkbox" id="rp_' + esc(d.id) + '"' + (on ? ' checked' : '')
+      + (chosen ? '' : ' disabled')
+      + ' onchange="reconTogglePick(' + invArg(d.id) + ')">'
+      + '<span id="rl_' + esc(d.id) + '"' + (chosen ? '' : ' class="sub"') + '>'
+      + esc(reconPickLabel(chosen)) + '</span></label>';
   }
   /* ⛔ A REFUSAL MUST HAND HER SOMETHING TO DO (Keith, 2026-08-21, reading
      *"only 1 distinctive word matched between 'Huntertown Wastewater Treatment Plan Expansion:
@@ -867,6 +1055,15 @@ function reconFolderUrl(fileUrl){
    control starts describing the wrong effect. */
 function reconFileLabel(jobNo){
   return jobNo === "RYC-EXPENSE" ? "Complete: Mark RYC Expense" : "Complete: File to Job";
+}
+
+/* The same rule said for a TICK rather than a button. The label still tracks the dropdown — that
+   was never about the control being a button, it was about the screen describing its own effect —
+   but "Complete:" belonged to a control that ended the row on click, and this one only marks it for
+   the submit that ends it. */
+function reconPickLabel(jobNo){
+  if(!jobNo) return "Choose a job first";
+  return jobNo === "RYC-EXPENSE" ? "Mark RYC Expense" : "File to job";
 }
 
 /* THE FILER'S REASON, SAID TO A PERSON. The raw strings are diagnostics written for whoever was
@@ -1036,35 +1233,12 @@ function reconNoFile(id){
     });
 }
 
-/* One click, one document. The button disappears the moment it is pressed and the server refuses a
-   second attempt anyway — `reconciled_at is null` guards the write, so a double-click cannot file
-   an invoice into a job folder twice. */
-function reconFile(id){
-  var d = reconDoc(id);
-  if(!d) return;
-  var sel = document.getElementById("rj_" + id);
-  var jobNo = sel ? sel.value : "";
-  if(!jobNo){ alert("Choose a job, or RYC Expense if this is not a job cost."); return; }
-  var t = (_recon.targets || []).filter(function(x){ return x.no === jobNo; })[0];
-  var label = t ? t.name : jobNo;
-  var msg = jobNo === "RYC-EXPENSE"
-    ? 'Mark "' + d.file_name + '" as RYC Expense?\n\nIt stays in the batch folder and is NOT copied '
-      + 'to any job folder. This cannot be undone from here.'
-    : 'File "' + d.file_name + '" to ' + label + '?\n\nA copy goes into that job’s Vendor '
-      + 'Invoices folder. The batch folder keeps its copy. This cannot be undone from here.';
-  if(!window.confirm(msg)) return;
-
-  _recon.busy[id] = true; reconRender();
-  invPost("doc_reconcile", { doc_id:id, job_no:jobNo }).then(function(r){
-    delete _recon.busy[id];
-    if(!r.ok){ alert(r.error || "Could not file it."); reconRender(); return; }
-    /* A job copy is QUEUED, not finished — the VM holds the SharePoint credential. Poll until the
-       worker reports where it landed, so the link Keith asked for appears on its own rather than
-       after a manual refresh. */
-    reconLoad(_recon.batchId);
-    if(r.data && r.data.queued) reconPoll(10);
-  });
-}
+/* ⛔ `reconFile` IS GONE (2026-08-27). It was the per-row ending: one click, one document,
+   one immediate queue entry, and its own poll. Erica now settles the whole board and submits it
+   in one act (`reconSubmit` -> `docs_reconcile`), and keeping a second path that ends a single
+   row would be two expressions of one rule — the exact shape this module has been bitten by
+   three times. `reconRefile` and `reconCorrect` survive because they are different acts: they
+   repair a row that has already ended, and neither is how an open row is finished. */
 
 /* ⚠ THIS USED TO GIVE UP AFTER 15 SECONDS AND SAY NOTHING. Six ticks at 2.5s, then the row kept
    reading "copying..." forever with nothing still watching it. `batch_worker.py` is a bare `nohup`
@@ -1124,10 +1298,24 @@ function reconRename(id){
 
 /* Keep the action button honest as the dropdown changes, and SAVE the choice. */
 function reconRelabel(id){
-  var sel = document.getElementById("rj_" + id), btn = document.getElementById("rb_" + id);
+  var sel = document.getElementById("rj_" + id);
   if(!sel) return;
-  if(btn) btn.textContent = reconFileLabel(sel.value);
+  var lab = document.getElementById("rl_" + id), box = document.getElementById("rp_" + id);
+  if(lab){
+    lab.textContent = reconPickLabel(sel.value);
+    lab.className = sel.value ? "" : "sub";
+  }
+  /* CHOOSING A JOB IS THE DECISION; TICKING IT IS BOOKKEEPING. Picking from the dropdown is the
+     act she came to the row to perform, so the row includes itself — otherwise every reconciliation
+     costs two clicks and the second one is a formality she will forget on row nineteen. Clearing
+     the job un-ticks it again, because a row with no destination is not ready by any definition. */
+  if(box){
+    box.disabled = !sel.value;
+    box.checked = !!sel.value;
+  }
+  if(sel.value) _recon.pick[id] = true; else delete _recon.pick[id];
   reconStageJob(id, sel.value);
+  reconPaintSubmit();
 }
 
 /* ⛔ THE JOB SHE PICKED LIVED ONLY IN THE DOM, AND THREE DIFFERENT THINGS PAINTED OVER IT (Keith,

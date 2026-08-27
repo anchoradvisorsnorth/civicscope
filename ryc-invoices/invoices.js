@@ -29,6 +29,11 @@ function jobByNo(no){ var n=_jobNames[no]; return n ? { name:n } : null; }
 var INV_URL = "/api/ryc-invoices";
 var _inv = { who:null, rows:[], codes:null, pm:null, busy:false, showDone:false, jobs:[],
              budget:{}, budgetBasis:null, budgetAsOf:null,
+             /* batch id -> the submission the server returned, and batch id -> true while one is in
+                flight. Held on `_inv` rather than in the markup for the same reason the success
+                messages are: every path here ends in a repaint that rebuilds the row with
+                `innerHTML =`, and anything living only in the DOM is destroyed by it. */
+             submitted:{}, submitting:{}, submitError:{},
              /* printed job_text -> the community it names, or null for "asked, no community".
                 Both answers are cached; see invLoadFamilies. */
              families:{},
@@ -307,6 +312,125 @@ function invJobName(no){
   return j ? (j.name || null) : null;
 }
 
+/* ---- grouping: BY BATCH, because that is what he is handed and what he hands back ----
+   Keith, 2026-08-27: *"the invoices dont present at batches in logans desk view - they should -
+   when all invoices have been approved logan should need to press a master submit button for the
+   batch he is on."*
+
+   Jobs remain the grouping INSIDE a batch — "what hit Shipshewana today" is still how the work is
+   read — but the batch is the unit of the handoff, so it has to be the unit on screen. A PM who
+   cannot see where one folder ends cannot be asked to submit one.
+
+   `batch_label` already travels on every queue row (`ryc_invoice_queue`), so this costs no request
+   and no schema. It was simply never used. */
+var INV_NOBATCH = "__nobatch__";
+function invBatches(rows){
+  var by = {}, order = [];
+  rows.forEach(function(r){
+    var k = r.batch_id || INV_NOBATCH;
+    if(!by[k]){
+      by[k] = { id: r.batch_id || null, label: r.batch_label || null, rows: [], total: 0 };
+      order.push(k);
+    }
+    by[k].rows.push(r);
+    by[k].total += Number(r.amount) || 0;
+  });
+  /* Oldest folder first. He works the one that has been waiting, and the order does not reshuffle
+     under him as rows leave — which sorting by "how much is left" would do on every approval. */
+  order.sort(function(a, b){
+    var ra = by[a].rows[0], rb = by[b].rows[0];
+    return String((ra && ra.received_date) || "").localeCompare(String((rb && rb.received_date) || ""));
+  });
+  return order.map(function(k){ return by[k]; });
+}
+
+/* ONE BATCH: everything in it, then the button that hands it over.
+   `openRows` are still to decide, `doneRows` already carry one. The submit gate is simply that
+   `openRows` is empty — the same question the server asks again on arrival, because a disabled
+   button is a courtesy and never the enforcement. */
+function invBatchPanel(b, openRows, doneRows){
+  /* THE SERVER IS THE AUTHORITY, the session cache is only for the moment between the answer and
+     the reload. A submission the queue reports outlives the tab; one held only in `_inv` does not. */
+  var fromRow = null;
+  b.rows.forEach(function(r){ if(!fromRow && r.batch_submitted_at) fromRow = r; });
+  var sub = _inv.submitted[b.id]
+    || (fromRow ? { submitted_at: fromRow.batch_submitted_at, summary: null } : null);
+  var busy = !!(_inv.submitting && _inv.submitting[b.id]);
+  var err = (_inv.submitError || {})[b.id] || null;
+  var label = b.label || (b.id ? "Batch " + String(b.id).slice(0, 8) : "Not from a batch");
+  var n = openRows.length + doneRows.length;
+
+  var h = '<div class="panel" style="border-left:3px solid var(--line,#d8dce3);padding-left:14px">'
+    + '<div class="h">' + esc(label)
+    + ' <span class="sub" style="font-weight:400">&middot; ' + n + ' invoice' + (n === 1 ? '' : 's')
+    + ' &middot; ' + fmt(b.total) + '</span></div>';
+
+  /* ⛔ SAY THAT NOTHING NEEDS SAVING, AND SAY IT WHERE THE WORK IS. Keith, 2026-08-27: *"It also
+     should be obvious to each that they can save their progress or obvious that its being auto
+     saved - ie they dont have to finish a batch in a single session."* It WAS true and it WAS
+     written down — at the very bottom of the page, under a heading called "Finish the batch",
+     which is the last place someone wondering whether they can stop halfway will look. It belongs
+     on the batch, beside the button that is the only thing that actually ends it. */
+  h += '<div class="sub" style="margin-bottom:8px">'
+    + '<b>Your work is saved as you go.</b> Every approval, cost code and unit is written the moment '
+    + 'you click it &mdash; you can close this and come back tomorrow and the batch will be exactly '
+    + 'as you left it. Nothing reaches the front office until you press <b>Submit batch</b>.'
+    + '</div>';
+
+  if(sub){
+    /* Already handed over. The panel stays — a PM looking for what he did yesterday should find it
+       where he left it, not discover it has vanished. */
+    h += '<div class="sub m-g" style="margin-bottom:8px">&#10003; Submitted '
+      + esc(invWhen(sub.submitted_at)) + ' &mdash; with the front office now.'
+      + (sub.summary
+          ? ' ' + sub.summary.approved + ' approved, ' + sub.summary.held + ' held.'
+          : '')
+      + '</div>';
+  }
+
+  invGroups(openRows).forEach(function(g){ h += invJobPanel(g); });
+
+  if(doneRows.length){
+    h += '<div class="sub" style="margin:6px 0 2px"><b>' + doneRows.length + ' decided</b> in this '
+      + 'batch &mdash; ' + doneRows.filter(function(r){ return r.review_state === "approved"; }).length
+      + ' approved.</div>';
+  }
+
+  /* ---- the master button ---- */
+  h += '<div id="invsub-' + esc(b.id || INV_NOBATCH) + '" style="margin-top:10px">';
+  if(!b.id){
+    h += '<div class="sub">These are not part of a scanned folder, so there is nothing to submit '
+      + '&mdash; approving them is the whole of the work.</div>';
+  } else if(busy){
+    /* THE PROGRESS THE SCREEN OWED HIM. Keith, 2026-08-27: *"the user would expect something
+       onscreen letting them know the process is running."* */
+    h += '<button class="pfill" disabled>Submitting&hellip;</button>'
+      + '<div class="sub" style="margin-top:4px">Stamping ' + (openRows.length + doneRows.length)
+      + ' document(s) and handing the batch to the front office&hellip;</div>';
+  } else if(sub){
+    h += '<button class="pfill" disabled>&#10003; Submitted</button>';
+  } else if(openRows.length){
+    h += '<button class="pfill" disabled title="Every invoice needs a decision first">Submit batch</button>'
+      + '<div class="sub" style="margin-top:4px"><b class="m-a">' + openRows.length + ' of ' + n
+      + ' still need a decision.</b> The batch goes over as one piece, so the front office never '
+      + 'receives half a folder.</div>';
+  } else {
+    h += '<button class="pfill on" onclick="invSubmitBatch(' + invArg(b.id) + ')">Submit batch</button>'
+      + '<div class="sub" style="margin-top:4px">Every invoice has a decision. Submitting stamps '
+      + 'each approved page with your coding and hands the folder to the front office to reconcile.</div>';
+  }
+  if(err) h += '<div class="sub m-r" style="margin-top:6px">' + esc(err) + '</div>';
+  h += '</div></div>';
+  return h;
+}
+
+/* Timestamps render in the viewer's own clock. An absolute instant against the wrong calendar is a
+   defect this stack has already shipped once. */
+function invWhen(ts){
+  if(!ts) return "";
+  try { return new Date(ts).toLocaleString(); } catch(e){ return String(ts).slice(0, 16); }
+}
+
 function invPaint(){
   var v = document.getElementById("view"), who = _inv.who || {};
   var _t = document.getElementById("view-title");
@@ -391,10 +515,10 @@ function invPaint(){
     }
     _all.forEach(function(p){
       var mine = open.filter(function(r){ return r.assigned_pm === p; });
-      var mdone = done.filter(function(r){ return r.assigned_pm === p; }).length;
-      h += invDeskHeading(p, mine, mdone
-        ? mdone + ' already done this period' : null);
-      invGroups(mine).forEach(function(g){ h += invJobPanel(g); });
+      var mdone = done.filter(function(r){ return r.assigned_pm === p; });
+      h += invDeskHeading(p, mine, mdone.length
+        ? mdone.length + ' already done this period' : null);
+      h += invBatchSections(mine, mdone);
     });
     // Anything released with no PM on it would otherwise be invisible on this screen.
     var orphans = open.filter(function(r){ return !r.assigned_pm; });
@@ -407,7 +531,7 @@ function invPaint(){
     v.innerHTML = h + '<div class="panel"><div class="sub">Nothing in the register for this period.</div></div>';
     return;
   } else {
-    invGroups(open).forEach(function(g){ h += invJobPanel(g); });
+    h += invBatchSections(open, done);
   }
 
   if(done.length){
@@ -429,20 +553,34 @@ function invPaint(){
     h += '</div>';
   }
 
-  h += '<div class="panel"><div class="h">Finish the batch</div>'
-    + '<div class="sub"><b>Nothing here needs saving.</b> Every Save, Approve, Investigate and '
-    + 'dismissal is written the moment you click it &mdash; close the tab and come back and it is '
-    + 'exactly as you left it. This button does not save; it produces the <b>summary the front '
-    + 'office receives</b>: what was approved, what is held and why, and what is still open.</div>';
-  if(_inv.pm || (who.scope === "pm")){
-    h += '<div style="margin-top:8px"><button class="pfill" onclick="invCloseBatch()">'
-      + 'Summary for ' + esc(_inv.pm || who.pm) + '</button></div>';
-  } else {
-    h += '<div class="sub" style="margin-top:8px">Pick a desk above to produce that desk&rsquo;s summary '
-      + '&mdash; a batch is finished per PM, not for everyone at once.</div>';
-  }
-  h += '<div id="invSummary"></div></div>';
+  /* ⛔ "FINISH THE BATCH" AND ITS SUMMARY BUTTON ARE GONE (Keith, 2026-08-27: *"We should remove
+     language at the bottom the screen and the summary button. Both are replaced by 'Submit
+     batch'."*). The button was labelled *"the summary the front office receives"* and the front
+     office received nothing — `close_batch` built a table on the PM's own screen and sent it
+     nowhere. A control that describes an effect it does not have is the defect this module keeps
+     paying for, and here it was inviting a PM to believe he had handed over a folder still sitting
+     on his desk. The summary survives as `submit_batch`'s return value, shown against the batch it
+     actually describes; the auto-save sentence moved up beside each Submit button, which is where
+     someone wondering whether they can stop halfway is actually looking. */
   v.innerHTML = h;
+}
+
+/* One desk's work, split into the folders it arrived in. */
+function invBatchSections(openRows, doneRows){
+  var h = "", byBatchDone = {};
+  (doneRows || []).forEach(function(r){
+    var k = r.batch_id || INV_NOBATCH;
+    (byBatchDone[k] || (byBatchDone[k] = [])).push(r);
+  });
+  /* A batch whose invoices are ALL decided has no open rows, so grouping the open ones alone would
+     make it disappear at the exact moment it becomes submittable. Both sets build the list. */
+  var all = (openRows || []).concat(doneRows || []);
+  invBatches(all).forEach(function(b){
+    var k = b.id || INV_NOBATCH;
+    var o = (openRows || []).filter(function(r){ return (r.batch_id || INV_NOBATCH) === k; });
+    h += invBatchPanel(b, o, byBatchDone[k] || []);
+  });
+  return h;
 }
 function invToggleDone(){ _inv.showDone = !_inv.showDone; invPaint(); }
 
@@ -1435,28 +1573,45 @@ function invReview(id, decision, ver){
       .then(function(x){ invAfter(id, x, x.ok && !(x.data && x.data.error) ? "Approved" : null); });
   });
 }
-function invCloseBatch(){
-  var el = document.getElementById("invSummary");
-  if(!el) return;
-  el.innerHTML = '<div class="sub">Building summary&hellip;</div>';
-  invPost("close_batch", {}).then(function(r){
+/* ===== HAND THE BATCH OVER ======================================================
+   This replaces `invCloseBatch`, which produced a summary and told the PM it was *"the summary the
+   front office receives"* while sending it nowhere.
+
+   ⛔ IT SAYS WHAT IT IS DOING WHILE IT DOES IT. Keith, 2026-08-27: *"the user would expect something
+   onscreen letting them know the process is running."* The submit writes a submission row, carries
+   his coding onto every document in the scanned folder and queues each page for stamping — several
+   round trips, and on a forty-document folder that is not instant. The button goes to "Submitting…"
+   before the request leaves, and the panel keeps saying so until the answer lands, because a button
+   that looks idle while work is happening is how a person presses it twice. */
+function invSubmitBatch(batchId){
+  if(!batchId || _inv.submitting[batchId]) return;
+  var n = _inv.rows.filter(function(r){ return r.batch_id === batchId; }).length;
+  if(!window.confirm("Submit this batch to the front office?\n\n" + n + " invoice(s). Each approved "
+      + "page is stamped with your coding, and the folder goes to Erica to reconcile.\n\n"
+      + "You cannot take it back from here.")) return;
+
+  _inv.submitting[batchId] = true;
+  invPaint();
+  invPost("submit_batch", { batch_id: batchId }).then(function(r){
+    delete _inv.submitting[batchId];
     if(!r.ok || !r.data || r.data.error){
-      el.innerHTML = '<div class="sub m-r">' + esc((r.data && r.data.error) || r.error) + '</div>';
+      /* ⛔ SAY IT ON THE BATCH, NOT IN AN ALERT THAT THE NEXT REPAINT ERASES THE CONTEXT OF. The
+         server's refusal names the vendors still outstanding — that is the useful half. */
+      _inv.submitError = _inv.submitError || {};
+      _inv.submitError[batchId] = (r.data && r.data.error) || r.error || "Could not submit the batch.";
+      invPaint();
       return;
     }
-    var s = r.data.summary || {};
-    var held = (Number(s.needs_info)||0) + (Number(s.duplicate)||0) + (Number(s.not_ap)||0);
-    el.innerHTML = '<table class="tbl" style="margin-top:8px"><tbody>'
-      + '<tr><td>Approved</td><td class="r">' + (s.approved||0) + '</td><td class="r">' + fmt(Number(s.approved_value)||0) + '</td></tr>'
-      + '<tr><td>Held / duplicate / not payable</td><td class="r">' + held + '</td><td class="r">' + fmt(Number(s.held_value)||0) + '</td></tr>'
-      + '<tr><td>Rejected</td><td class="r">' + (s.rejected||0) + '</td><td class="r">&mdash;</td></tr>'
-      + '<tr><td><b>Still open</b></td><td class="r"><b>' + (s.outstanding||0) + '</b></td><td class="r">&mdash;</td></tr>'
-      + '</tbody></table>'
-      + '<div class="sub" style="margin-top:6px">'
-      + (Number(s.outstanding) > 0
-          ? '<b class="m-a">' + s.outstanding + ' still unreviewed</b> — the summary says so rather than implying the batch is finished.'
-          : "Every document in this batch has a decision.")
-      + '</div>';
+    if(_inv.submitError) delete _inv.submitError[batchId];
+    _inv.submitted[batchId] = {
+      submitted_at: (r.data.submission && r.data.submission.submitted_at) || new Date().toISOString(),
+      summary: r.data.summary || null,
+      carried: r.data.carried || null,
+      already: !!r.data.already,
+    };
+    /* Reload rather than trusting the local copy: the submit moved server-side state (job numbers
+       carried onto documents, stamps queued) and the desk should show what is actually true. */
+    invLoad();
   });
 }
 
