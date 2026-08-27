@@ -351,8 +351,26 @@ cabinet with a URL: a clerk who wants the commercial-vehicle rule has to already
 twenty subject folders holds it, then read a 90-page PDF. This turns that into a question box that
 answers from the village's own documents and links the source every time.
 
-**Live:** `civicscope.io/centreville` (apex 307s to `www`, both resolve). Corpus = the Village of
-Centreville, MI **Code of Ordinances**: 21 documents, 547 passages.
+**Live:** `civicscope.io/centreville` (apex 307s to `www`, both resolve).
+
+> ### ✅ CORPUS STATE — verified against production 2026-08-27
+>
+> **Centreville is COMPLETE: 616 documents, 3,843 passages, 436 transcribed**, last ingest
+> 2026-08-26. Read live from `GET /api/muni-ask?tenant=centreville`, not from a note.
+> By collection: Code of Ordinances 21 · Zoning & Planning Commission 103 · Village
+> Information 204 · Redevelopment Ready Communities 3 · **Village Voice & Calendar 277** ·
+> Village Website 8.
+>
+> ⛔ **The "356 of 605, remaining 249 gated on a Centreville commercial relationship" claim
+> is SUPERSEDED and must not be repeated.** Village Voice finished 277/277, 0 failures,
+> **$7.02 on Centreville's own Anthropic key** on 2026-08-25 — against a ≈$7 estimate, and
+> not on Keith's key, so the commercial gate never applied to it. Two files remain genuinely
+> unreadable: a `.docx` the pipeline does not handle and a near-blank 2013 scan. **That
+> question is closed.** The historical 605/356 figures below are the record of how the
+> corpus was measured and built — they are not current state.
+
+Original scope at launch (2026-08-18) was the **Code of Ordinances** alone: 21 documents,
+547 passages.
 
 **⚠ THE CORPUS IS PARTLY SCANNED PAPER — that is the hard part of this product, not the AI.**
 `Environment.pdf` is 10.3 MB across 24 pages and `pdftotext` extracts **zero** characters from it.
@@ -1230,7 +1248,8 @@ the commit sha, the CDN cache header — all of which said production was runnin
 **They were right. The code was wrong in a way that could not be seen.** What found it:
 
 ```bash
-node -e "fs.readFileSync(f,'utf8').split(/?
+node -e "fs.readFileSync(f,'utf8').split(/
+?
 /).forEach((l,i)=>console.log(i+1, JSON.stringify(l)))"
 ```
 
@@ -2117,214 +2136,272 @@ text-layer threshold could silently replace every verbatim page with transcripti
 
 ⚠ Both setback answers re-verified after all five: Bristol gives 50/75/120 ft by road class,
 Centreville gives 30/10/40 from Table 4-4.
-
 ## Open Action Items
 
-- 🚩 **Bristol zoning answers 10 of 15 ordinary questions (`question-bank.mjs`, first run
-  2026-08-26).** The five gaps — shed permit, garage setback, house height, RV parking, lot
-  coverage — share one cause: **the district guarantee only fires when the reader names a
-  district**, and real questions ("how tall can a house be?") don't. Height and lot coverage are
-  columns in a table the corpus now retrieves correctly. Next fix: infer the district from the
-  question's subject, or guarantee the residential tables on any dimensional question.
-- **Run `node scripts/question-bank.mjs --tenant <t>` after any corpus change** — not on deploy
-  (real Anthropic spend, and outcomes drift at the margin).
-- **Tag the links you hand out.** `?via=<name>` on an Ask link is the only thing that puts a name
-  in the WHO ASKED panel — e.g. `civicscope.io/bristol/ask?via=mike`. Untagged visitors show as
-  `browser abc123`, which still tells you how many distinct people there were.
-- **Michelle has not used the new edit path yet.** The review page now offers Edit on every line and
-  Add on every gap; the server paths are verified but no human has exercised the UI.
-- **`/admin` now covers Ask and Well Testing** (2026-08-26) — three tabs, `muni_tenants` and
-  `water_supplies` editable, Ask usage over `muni_questions`. Two things it deliberately does NOT
-  do, because both are decisions rather than omissions: **`sample_questions` is read-only**
-  (`verify-sample-questions.mjs` is the only supported writer) and **`water_feeds` is read-only**
-  (its constants are multiplied into numbers filed with the State). Nothing has a delete —
-  retirement is `active=false`, because operator initials sit on readings behind filed reports.
-- ✅ **`CIVICSCOPE_ADMIN_SECRET` is set as a Windows User var (2026-08-26)** — the `api/admin.js`
-  contract now verifies and admin deploys reach exit 0. ⚠ It **cannot be recovered from Vercel**:
-  it is SENSITIVE-typed and `vercel env pull` returns it zero-length, so if this machine is rebuilt
-  the value has to come from Keith.
-  ⚠ Setting it via `SetEnvironmentVariable(name, '', 'User')` with an **empty** value DELETES the
-  variable rather than setting it, and reports no error — so a mistyped `Read-Host` looks exactly
-  like a successful set. Verify by reading the length back, never by the absence of an error.
-- ✅ **The two GC product cards had been throwing on every `/admin` load since they were built** —
-  found 2026-08-26 by driving the live page in Chrome. `loadProductData()` sets `dur-<key>` and
-  `time-<key>` for every product, but those two cards carry "Tenant" and "Access" meta fields
-  instead of "Avg Duration", so `getElementById('dur-gc-ext')` was null and the loop threw. The
-  `catch` logged and moved on, which is why nobody noticed — the exception aborted before the
-  `last-*` assignment, so **both cards' "Last Run" read "Loading…" forever**. Resolved the same day
-  by deleting the cards outright (GC white-label is dead). ⚠ Worth keeping as a pattern: a
-  `catch` that logs and continues turns a null-deref into a field that never fills, and nothing
-  about the page looks broken. Still open on that page: `/favicon.ico` 404s. Cosmetic.
-- 🚩 **THE ESTIMATING SMOKE GATE IS ALSO INTERMITTENTLY RED — and that is now TWO gates whose
-  remedy is "run it again" (2026-08-26).** The GC-removal deploy failed at exit 40 with
-  `Municipal — JSON UNPARSEABLE — likely truncation`, on a deploy touching only
-  `civicscope-admin/index.html` and `api/admin.js` — neither of which is in `/api/claude`'s code
-  path. Municipal had passed 35 minutes earlier and passed standalone immediately after; the
-  `-Resume` then went 3/3. So: real model-output variance, the same failure mode `max_tokens` was
-  raised for on 6/16 and the JSON parse was hardened for. **Do not diagnose a gate failure by
-  re-running it.** Ask first whether the changed files can even reach the failing path — that is a
-  structural answer, available in seconds, and it is the difference between a transient and a
-  regression. ⚠ Two flaky gates is the point at which "re-run and it went green" stops being
-  evidence of anything.
-- 🚩 **`scripts/test-deploy-harness.js` IS FLAKY — two resume scenarios failed one run and passed
-  the next on a byte-identical tree** (2026-08-26, detail in the admin section above). The remedy
-  for an INCOMPLETE run is currently "run it again", which is indistinguishable from waving through
-  a real regression. Fix the shared state in `partial-then-resume-no-duplicate` and
-  `foreign-journal-ignored`, or the certification line cannot mean what this file says it means.
-- **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The chips
-  are verified against the live corpus (048); an ingest can retire one as easily as earn it.
-  Done 2026-08-26 after the zoning-book restore. Its own traffic is tagged `verifier` (049) so it
-  no longer pollutes the usage report.
-- **Bristol town-hall hours: ask the Town.** Not a bug — verified 2026-08-26 that Bristol
-  publishes no counter hours on its own site, and the tool already answers with the address, the
-  meeting schedule and the Clerk number. Only Keith can close this, by getting the hours from the
-  Town and adding them to the corpus.
-- **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it. Bristol
-  hotlinks the Town own PNG. Needs a logo file from the Village if Keith wants parity.
-- ⚠ **6 segments across the corpora match no chunk exactly** (`reconcile-table-flags.mjs` reports
-  them). Left alone rather than guessed at. Worth a look if a table ever goes missing.
-- **Centreville is now a CLIENT PROJECT with its own folder — `Cowork\Centreville\CLAUDE.md`
-  (2026-08-18).** Two live products for one village (`/centreville` + `/water`). Read that file
-  alongside this one for anything Centreville-specific: the plant profile, corpus state, and what
-  is owed to EGLE. ⛔ **The code stays multi-tenant here — Keith declined a separate Vercel
-  project, Supabase project and Anthropic workspace the same day.** Village #2 is a config row.
-- ⛔ **THE AMENDMENT PATH WAS BROKEN IN THREE PLACES AND NOTHING HAD EVER EXERCISED IT.** Seeding
-  six months of paper was the first thing that ever tried to CORRECT stored data, and found: a
-  correction could never be saved (the replacement row was inserted before the old one was
-  superseded, colliding with the partial unique index — `submit_reading` and `submit_dist` both,
-  fixed `25049ea`), and `submit_bacti` had no already-recorded guard at all, so re-running a
-  backfill multiplied the compliance record five-fold (fixed `73babb1`). **The ordinary path
-  worked in every case; only amendment was broken — which is exactly what no smoke test walks.**
-- 🚨 **August 2026 is still being written on paper — MEASURED 2026-08-26: 1 of 78 well-days logged,
-  and the one that exists came from the tablet.** July was 93 of 93 and every single row was
-  `backfill`, i.e. paper transcribed afterwards. The tablet is live and nobody is using it; every
-  day that runs is another day that has to be backfilled. This now reports itself at the top of
-  `/admin` → **Water**, split by source, so it stops being a note in this file.
-- **"Mark as filed" is the last step of the loop, and it is HALF BUILT.** `record_filing` is open
-  and working (it took all seven 2026 workbooks), but nothing on the page reaches it, so recording
-  a filing still needs a script. Remaining: an `extract` action on `api/build-mor.py` returning
-  `{cover, filed}` from an uploaded workbook — the EGLE cell map must move there rather than being
-  copied, since `api/water-ops.js` is Node and cannot read a .xls — then an upload + date control
-  in the Reports filed panel. `record_filing` already accepts `source:'product'`, and nothing writes
-  it yet, so the first report filed from here stays distinguishable from the seven that came before.
-- 🚨 **THE WEBSITE CRAWL IS NOT SCHEDULED, AND IT IS THE ONE COLLECTION THAT GOES STALE.** Everything
-  else in the corpus is a document that stays true; a meeting cancellation or an event date is wrong
-  the moment the village edits the page. The gate fails the deploy once the newest page is over 45
-  days old, so this cannot rot silently — but a gate is not a schedule. Re-crawl is one free command
-  (`node scripts/ingest-muni-website.mjs --tenant centreville`) and belongs on the VM cron alongside
-  the other pipelines, **not** in a lambda: the shared chunker lives in `scripts/lib/` and is not
-  deployed, and putting a second copy in a deployable lib is the exact drift migrations 018–021 were
-  spent on. Weekly is ample for a 12-page site.
-- **The crew tablet shows validation errors before anything is typed.** Opening a well greets the
-  operator with *"Meter reading is required. Sodium hypochlorite 12.5% tank level is required.
-  Aquadine tank level is required."* — three red-flavoured lines for someone who has done nothing
-  wrong, in a one-handed app used in a concrete room. Suppress until first input or first submit.
-- **`Civicscope/scripts/` is gitignored except narrow re-includes**, so the water gate, the
-  backfill, the MOR generator and their fixtures are not under version control. Same one-line
-  decision as `migrations/` — they are secret-free by inspection.
+Forward-looking action queue, and the **source of truth for the CRM dashboard's "Across All
+Businesses → CivicScope" card**. Curated at `/wrap`.
 
-Forward-looking action queue. Source of truth for the CRM dashboard's "Across All Businesses → CivicScope" card. Curated at `/wrap`. Done items are removed, not strikethroughed — historical context lives in the `## Active Backlog` sections below.
+> **What belongs here.** Live product work with a concrete next action, in priority order. The
+> first five reach the AIOS Brief and the dashboard, so **the top five must be the five that
+> matter.** Completed and superseded records live in [`HISTORY.md`](HISTORY.md); the *lessons* they
+> paid for live under `### Operating rules` below and in `## Key Learnings`.
+>
+> `extractCivicScope()` (`Cowork/scripts/push_business_status.js`) reads **top-level bullets only**
+> and filters lines carrying ✅ ❌ ⏸ `PARKED` `STANDING RULE` or `LIVE-PROOF`. A disposition can
+> therefore stay written here without occupying a queue slot.
 
+### Live work — in priority order
 
-- **Municipal Documents — 356 of 605 ingested; the remaining 249 are GATED on a Centreville
-  commercial relationship.** All four collections that bear on the law are complete (ordinances,
-  zoning, village information, RRC); what is left is the Village Voice newsletter. `--probe` put
-  the whole corpus at **≈$21** (1,264 pages, 627 needing OCR) against a pre-measurement guess of
-  *several hundred dollars* — the scope question was never a real decision, only an unmeasured one
-  (Key Learnings). **But nothing records what Centreville has agreed to or pays**
-  (`Centreville\CLAUDE.md`), so the rest does not run on Keith's key until that exists.
-  Finish with: `--collection "Village Voice" --ocr --max-spend 12`.
-- **🚨 Municipal Documents — THE ZONING SETBACK TABLE IS NOT IN THE CORPUS (found 2026-08-18).**
-  The zoning book ingested "successfully" as a text-layer document, but its Site Development
-  Requirements grid (per-district setbacks, lot sizes, heights, coverage) did not survive
-  extraction — see **Municipal Documents** above. Those are the numbers a village is asked for most
-  often. **Do not describe zoning dimensions as covered.** Fix is per-page OCR of low-text-density
-  pages inside otherwise-textual documents; costs money, so it sits behind the same Centreville
-  commercial gate as the rest of the ingest.
-- **Municipal Documents — `Applications and Permits` returned 0 documents.** The folder is linked
-  from the village-info page and enumerates clean but is empty (or holds only non-document types).
-  Worth a look before telling a village the permit forms are covered.
-- **CivicScope QC process (built 2026-06-17)** — response to the June 16 silent outage. Now in place: **(1)** rebuilt `/qa-check` skill (`skills/qa-check/SKILL.md`) — model-alias/`max_tokens`-headroom/`maxDuration`/push-manifest guards as section 1; **(2)** **two-stage post-deploy gate** in `push_civicscope.ps1`, both **fail the deploy** so "fixed" can't be reported on a broken ship: **(2a)** backend smoke `scripts/smoke-test.js` (real full estimate per vertical vs `/api/claude`, validates a cost range), **(2b)** browser E2E `scripts/e2e-check.js` (puppeteer-core + local Chrome; drives the REAL page via `?qa=<preset>&autorun=1`, asserts a cost renders in `#costRange` — catches client-side breaks the backend smoke can't see); **(3)** **daily VM smoke** (`cs-smoke-daily`, 8am ET) catches truncation/timeout from model drift the 10-min cheap probe misses; **(4)** `cs-health` (every 10 min) as the always-on catastrophic watch. The tools' JSON parse was hardened (strict → outermost-`{…}` fallback) so occasional model prose no longer 500s. **Gate scripts are local-only** (`Civicscope/scripts/`, not in the deploy manifest; the gate runs on Keith's PC). **Still TODO:** external dead-man's-switch (heartbeat service) so a *dead* cs-health pages Keith — pending Keith's healthchecks.io/UptimeRobot signup + ping URL; Anthropic auto-reload (console toggle); model-retirement calendar.
-- **Activate the OpenAI fallback in `api/claude.js` (wired 2026-06-23, dormant).** After the June 23 Anthropic 529 "elevated error rate" outage, `api/claude.js` gained bounded **retry on 429/5xx/529** (live) + an **OpenAI-compatible fallback** that's OFF until `OPENAI_API_KEY` is set in CivicScope's Vercel. **To activate:** Keith provides a general-purpose OpenAI key (NOT Codex — it's a code model; fallback defaults to `gpt-4o`, override via `OPENAI_FALLBACK_MODEL`); Claude sets both env vars via the Vercel REST API (avoid the empty-string pipe gotcha) + redeploy. Can't be end-to-end tested without inducing an Anthropic failure — will self-validate on the next real 529. **New platform → add OpenAI to the tracker** (`opsStatus: watch` until proven).
-- **External dead-man's-switch for cs-health (NEW 2026-06-17)** — cs-health is one VM cron; if it dies (VM/cron/script), there are no checks AND no alert — only the weekly AAN email surfaces it (too slow). Need an independent heartbeat (healthchecks.io free tier or UptimeRobot heartbeat) that pages Keith when the 10-min ping goes missing. **Blocked on Keith:** 2-min signup → create one check → set alert target (email/SMS) → paste the ping URL; then ~5 lines on the VM (curl the ping URL at the end of each successful cs-health run). Closes the last "I can't be the last to know" gap.
-- **A NEW FILE MUST BE ADDED TO `push_civicscope.ps1`'s `$files` MANIFEST BEFORE IT CAN DEPLOY (hit 2026-08-09).** Declaring an undeclared path is refused at exit 10 — *"a path this script cannot ship must not look like it shipped."* Correct behaviour, but it is the one step that is easy to forget when adding a page: `pool/live.html` and `pool/scoring.js` had to be added to the manifest first. ⚠ After any tool rewrites that script, re-check it kept its **UTF-8 BOM** (verified 2026-08-09 — intact).
-- **A COMMA-SEPARATED `-Paths` STRING PASSED THROUGH `PUSH_CIVICSCOPE.bat` IS SPLIT BY cmd.exe (found 2026-08-09).** PowerShell only quotes an argument containing spaces, so `"a.html,b.html"` arrives unquoted and cmd treats the comma as an argument separator: only the first file was declared, and the deploy *message* landed in `-VerifyProfile` ("Unknown verification profile …"). **For a multi-file scope, call `push_civicscope.ps1` directly** rather than through the .bat.
-- **A best-effort catch that counts nothing is a silent-failure generator — audit the pool's SMS sends (found 2026-08-13).** The pool's "all picks are in" notice sent nothing to anyone on 2026-08-09 and left **no trace at all**: it swallowed every error, counted nothing, returned nothing, and the caller latched its "already notified" flag *before* calling it — so a total failure and a clean run were byte-identical, and the one-shot could never retry. It was only provable four days later by adding a read-only Twilio message log. Fixed for that path (`3.8.0-allinreceipt`), but **`notifyLock`, `notifyWinner` and both reminders still swallow individual send failures** — anything that does not report a per-channel count can fail the same way. Detail in `Pools/CLAUDE.md`.
-- **Gate expectations are part of the contract — update them deliberately, never relax them.** The 2026-08-09 scoring change (a push scores 0, not ½) was caught by `verify-pool-integrity.js` on the first deploy attempt, exactly as designed. The right response was to change the asserted numbers *with the reason recorded*, not to soften the assertion. Same run, a second gate failure was **my test data**, not the code (a half-point total can never land on the number) — the gate distinguishing those two is the whole value of it.
-- **The pool-integrity gate SKIPPED on every deploy from 2026-08-07 to 2026-08-08 — fixed, but read the lesson.** It exits **3 = "could not verify"** without `FOOTBALL_POOL_CODE`/`GOLF_POOL_CODE`, which were on no machine, so `push_civicscope.ps1` recorded SKIP and the deploy still reported cleanly. **A gate that skips is indistinguishable from a gate that passes in a summary line.** Both are now Windows User env vars (`infra/env-var-inventory.md`) and the verifier was rebuilt for the identity schema — 29/29. **Audit the other gates for the same shape:** any gate whose "cannot run" path is a soft skip needs the deploy result to *name* it, not just count it.
-- **A LOGIC GATE FOR THE AP MATCHER — `scripts/verify-ryc-invoice-matcher.mjs` (NEW 2026-08-13).**
-  The invoices matcher decides which desk an invoice is routed to, and it fails silently in BOTH
-  directions: too strict and every invoice reads "not placed" (the real state that morning — 0 of
-  16 placed, including "Ashley WWTP"); too loose and it names a confident wrong desk. Neither
-  shows up in a smoke test. The harness asserts **85 outcomes against the LIVE Procore +
-  Foundation feeds** — the traps that must refuse, the signals that must place, and a sweep where
-  all 53 job names must resolve to their own job — and emits `MATCHER-COMPLETE` or exits 2. Exit 3
-  = could not verify (feed unreadable), never a false red. It required exporting `__matcher` from
-  `api/ryc-invoices.js`; the matcher is the one piece of that module with real logic and no I/O,
-  so it is the one piece that can be tested exhaustively without touching production.
-  ⚠ **`.mjs`, not `.js`** — `Civicscope/package.json` has no `"type": "module"`, so an ESM gate
-  script here must carry the extension or it dies at `import`.
-- **`-AllowUndeclared` is the normal case in this tree, not an alarm.** Six deploys this session
-  each refused at exit 10 first, because `memory/context/infrastructure.md` and
-  `ryc-estimate/ryc-sub-pricing-benchmarks.json` differ from production — the latter is the VM's
-  own weekly benchmark push, i.e. expected drift, not another session's work. The flag ships ONLY
-  the declared files; the blast-radius report still names what it left alone, which is the part
-  worth reading.
-- **RYC Invoices — `ryc-invoices/` is PUBLIC-repo-safe by design, keep it that way.** RYC's 280
-  cost codes are served from Supabase (`ryc_cost_codes`) rather than shipped as an asset, because
-  this repo is public. ⚠ **Pre-existing and unresolved:** `ryc-estimate/lineitem-probe.html` and
-  the two `ryc-*-benchmarks.json` files DO carry RYC line codes / sub pricing in this public repo.
-  Decide deliberately whether that is acceptable or move them behind the API too.
-- **Schema files are versioned NOWHERE — PARTLY FIXED 2026-08-12.** New schema work now goes
-  through `migrations/` and IS versioned: `Civicscope/migrations/*.sql` + `scripts/db-migrate.js`
-  are narrowly re-included in Cowork's `.gitignore` (local-only repo, and verified absent from
-  `push_civicscope.ps1`'s manifest, so they cannot reach this public repo). **The 15 legacy
-  `schema_*.sql` files are still untracked** — the DDL defining production has no history, no diff
-  and no undo. Inventory (not applied, just recorded): `migrations/LEGACY_INVENTORY.md`. Bringing
-  them under version control is a separate decision: they are large and some carry RYC control
-  failures and dollar figures in their comments. ⚠ `schema_ryc_slice2e.sql` is still headed
-  `STATUS: STAGED — NOT APPLIED`.
-- **Fable review R1 — work the 19 leads (KEITH, ½ day)** — every lead ever captured sits at `contacted=false`, incl. four live .gov hand-raisers from Jun 22–30 (names/towns in the Fable review doc — deliberately NOT in this public-repo file). Triage all 19, reply to the warm ones, mark `contacted`. Then wire "N uncontacted leads" into the daily digest / Monday email so the loop can't silently stall again. Cheapest calibration of the 30-day plan.
-- **Fable review R2 — 30-day school-BOT plan Week 1** — ~50-district target list (agenda/BoardDocs mining tech already proven), Triage Memo template, outreach sequence. The schools wedge has ZERO organic pull (4 runs ever, ~all internal) — founder-led outreach is the only test. Plan: `work product/CivicScope_School_BOT_Pivot_30Day_Plan.md`, graded B+ in the Fable review.
-- **Fable review R6 — infra repeat-run variance** — two identical watermain runs 43s apart returned $1.05M–$1.55M vs $1.85M–$2.75M (±76% midpoint; municipal + schools were deterministic across repeats). Add a repeat-run stability probe to the QA harness; consider prompt grounding discipline.
-- **JBK-mention decision** — 3 live surfaces (for-schools, schools tool, infra tool) still name JBK Development despite the 2026-07-06 stay-neutral decision. Sweep for true neutrality or own deliberately — current state is drift.
-- ⏸️ **Groundwork (newsletter) — PAUSED / on hold (2026-06-11)** — entire backlog frozen (Resend send wiring, VM cron, PDF fallback for Mishawaka packets, Cost Lens integration, project-tracker dedup). Detail preserved in the **Groundwork — Architecture** section. Separate product from the Municipal Agenda Notifier — do not merge.
-- **Facebook Ads pixel** — create a CivicScope-specific Meta Pixel in Business Manager (separate from MTP/AAN pixel). Implementation plan at `Civicscope/FB_AD_IMPLEMENTATION_PLAN.md`.
-- **Move daily digest cron to VM** — Vercel cron is unreliable (missed April 9-10 digests). Move to VM cron as a `curl` trigger, same pattern as bookmarks pipeline. **Less urgent since 2026-08-11:** the digest now reports a *named ET calendar day*, so a missed day is no longer lost — re-send it with `POST /api/digest?date=YYYY-MM-DD`. Under the old rolling window a late cron silently dropped the uncovered hours forever.
-- **`CRON_SECRET` on CivicScope's Vercel is far too short for what it guards** (observed 2026-08-11 while wiring the digest gate — the value and its length are recorded in `infra/env-var-inventory.md`, deliberately not in this public repo). It protects an endpoint that sends mail and, since the `?dry=1` addition, answers with activity counts. Rotating it is a one-liner and cannot break the schedule — Vercel injects the same variable into its own cron call. **Not done unilaterally: it is a live credential change.**
-- ✅ **SCOPE SETTLED 2026-08-26 — ONLY GC DIED. NOTHING ELSE IS BEING SUNSET.** Keith, on the
-  teardown: *"I want CivicScope Free to live on. Everything else can be sunset."* Read in front of
-  the QA harness that lists Municipal / Schools / Infrastructure, that reads like an instruction to
-  keep one vertical and retire two. It was not. Asked before touching anything, and the answer was:
-  *"Stop. The product should remain for municipality, school, and infrastructure Estimator - free..
-  Also we are keeping ask and water."* **"CivicScope Free" is the FREE MODEL across all three
-  verticals, not the Municipal tool alone.** So: `/civicscope`, `/schools` and `/infrastructure`
-  all stay, Ask (`/centreville`, `/bristol`) stays, Well Testing (`/water`) stays. ⛔ **Do not
-  re-derive a sunset list from that sentence** — it was ambiguous, it was clarified, and the
-  clarification is the record.
-- ⛔ **GC public white-label — DEAD, and its admin is gone (2026-08-26).** Keith: *"you can blow away the GC as tenant thing. That is dead."* Removed from `/admin`: the GC Tenants tab, the tenant editor form, both GC product cards, the sidebar summary, the Overview tile, the ping targets, the smoke-test entries, and the `tenants` entry in `api/admin.js`'s table registry — **28,116 bytes out of the page**, and with them the null-deref that had been throwing on every load since those cards were built. Was PARKED after the 2026-07-08 Fable review (one demo tenant in four months; the real GC product is `/ryc/estimate`).
-  **AND THEN THE WHOLE PRODUCT WENT, the same day** — Keith: *"tear out the GC thing."* Removed:
-  `civicscope-gc/index.html`, `civicscope-gc/estimator/index.html`, `api/gc-config.js`,
-  `api/gc-log.js` (deleted from the repo through the Contents API — **the deploy script only ever
-  adds or updates blobs, it has no delete path**), both `vercel.json` rewrites, the manifest
-  entries, both `estimating` profile patterns, the `api/gc-config.js` contract and the
-  `api/gc-log.js` entry in the API registry, and the `/api/gc-config` responder in the deploy
-  mock server. Copies + rationale: `Cowork/archive/civicscope-gc-white-label-2026-08-26/`.
+1. 🚨 **THE WEBSITE CRAWL IS NOT SCHEDULED, AND IT IS THE ONE COLLECTION THAT GOES STALE.**
+   Everything else in a corpus is a document that stays true; a meeting cancellation or an event
+   date is wrong the moment the village edits the page. The deploy gate fails once the newest page
+   passes 45 days, so it cannot rot silently — **but a gate is not a schedule.** Re-crawl is one
+   free command (`node scripts/ingest-muni-website.mjs --tenant centreville`) and belongs on the VM
+   cron beside the other pipelines, **not** in a lambda: the shared chunker lives in `scripts/lib/`
+   and is not deployed, and a second copy in a deployable lib is the exact drift migrations 018–021
+   were spent on. Weekly is ample for a 12-page site. ⚠ **Verified absent from the VM crontab
+   2026-08-27** — this has never been scheduled. Claude can do the whole thing; per
+   `feedback_crontab_edit_protocol`: backup → edit file → verify → install.
+2. 🚨 **AUGUST 2026 IS STILL BEING WRITTEN ON PAPER — 1 of 78 well-days logged (measured
+   2026-08-26), and the one that exists came from the tablet.** July was 93 of 93 and every row was
+   `backfill`, i.e. paper transcribed afterwards. The tablet is live and nobody is using it; every
+   day that runs is another day that has to be backfilled. It now reports itself at the top of
+   `/admin` → **Water**, split by source. **The MOR reminder fires 2026-09-07 for August**, so
+   August has to be entered before then or the reminder tells Michelle her month is empty. Keith's
+   sequence is in `Centreville\CLAUDE.md` → **THE AUGUST PLAN**.
+3. 🚩 **TWO DEPLOY GATES ARE INTERMITTENTLY RED, AND FOR BOTH THE REMEDY IS "RUN IT AGAIN"
+   (2026-08-26).** (a) The **estimating smoke gate** failed at exit 40 with
+   `Municipal — JSON UNPARSEABLE — likely truncation` on a deploy touching only
+   `civicscope-admin/index.html` and `api/admin.js`, neither of which is in `/api/claude`'s code
+   path; Municipal had passed 35 minutes earlier and passed standalone straight after. Real model
+   output variance — the same failure mode `max_tokens` was raised for on 6/16. (b)
+   **`scripts/test-deploy-harness.js`** failed two resume scenarios one run and passed them the
+   next on a byte-identical tree. Fix the shared state in `partial-then-resume-no-duplicate` and
+   `foreign-journal-ignored`, or the certification line cannot mean what this file says it means.
+   ⚠ **Two flaky gates is the point at which "re-ran it and it went green" stops being evidence of
+   anything.**
+4. **"Mark as filed" is the last step of the water loop, and it is HALF BUILT.** `record_filing` is
+   open and working (it took all seven 2026 workbooks), but nothing on the page reaches it, so
+   recording a filing still needs a script. Remaining: an `extract` action on `api/build-mor.py`
+   returning `{cover, filed}` from an uploaded workbook — the EGLE cell map must **move** there
+   rather than being copied, since `api/water-ops.js` is Node and cannot read a .xls — then an
+   upload + date control in the Reports filed panel. `record_filing` already accepts
+   `source:'product'` and nothing writes it yet, so the first report filed from here stays
+   distinguishable from the seven that came before.
+5. 🚩 **Bristol zoning answers 10 of 15 ordinary questions** (`question-bank.mjs`, first run
+   2026-08-26). The five gaps — shed permit, garage setback, house height, RV parking, lot coverage
+   — share one cause: **the district guarantee only fires when the reader names a district**, and
+   real questions ("how tall can a house be?") don't. Height and lot coverage are columns in a
+   table the corpus now retrieves correctly. Next fix: infer the district from the question's
+   subject, or guarantee the residential tables on any dimensional question.
+6. **The crew tablet shows validation errors before anything is typed.** Opening a well greets the
+   operator with *"Meter reading is required. Sodium hypochlorite 12.5% tank level is required.
+   Aquadine tank level is required."* — three red-flavoured lines for someone who has done nothing
+   wrong, in a one-handed app used in a concrete room. Suppress until first input or first submit.
+7. **No entry-time validation on the water round.** The derivation engine already catches the five
+   defect classes found in July's paper (dose vs. flow, wrong-well flow, tank vs. gallons-added,
+   impossible residuals, missing bacti) — but only *after the fact*, when Keith runs it. Moving
+   those checks to the moment of entry is the highest-value build on the field side: it would have
+   caught the 7/21 wrong-well flow while the operator was still standing at the well.
+8. **Audit the pool's remaining best-effort SMS sends.** `notifyLock`, `notifyWinner` and both
+   reminders still swallow individual send failures — anything that does not report a per-channel
+   count can fail exactly the way the "all picks are in" notice did on 2026-08-09: sent nothing,
+   left no trace, and latched its own already-notified flag before calling. Fixed for that one path
+   (`3.8.0-allinreceipt`); the others are unaudited. Detail in `Pools/CLAUDE.md`.
+9. **Fable review R2 — 30-day school-BOT plan, Week 1.** ~50-district target list (the
+   agenda/BoardDocs mining technique is proven), Triage Memo template, outreach sequence. The
+   schools wedge has **zero organic pull** (4 runs ever, nearly all internal) — founder-led
+   outreach is the only test there is. Plan:
+   `work product/CivicScope_School_BOT_Pivot_30Day_Plan.md`, graded B+ in the Fable review.
+10. **Fable review R6 — repeat-run variance on the infrastructure vertical.** Two identical
+    watermain runs 43s apart returned $1.05M–$1.55M vs $1.85M–$2.75M (±76% on the midpoint);
+    municipal and schools were deterministic across repeats. Add a repeat-run stability probe to
+    the QA harness; consider prompt-grounding discipline.
+11. **Deploy-process findings still unresolved**
+    (`REVIEW_civicscope-deploy-process_2026-08-01.md`): readiness polling instead of the 75s sleep,
+    `pause` in the .bat, production-write tests. Finding #1 (blast radius) was fixed 2026-08-02 —
+    `push_civicscope.ps1` now requires `-Paths`.
+12. **Move the daily digest cron to the VM.** Vercel cron is unreliable (missed the April 9–10
+    digests). Same pattern as the bookmarks pipeline — a `curl` trigger. **Less urgent since
+    2026-08-11:** the digest now reports a *named ET calendar day*, so a missed day is no longer
+    lost — re-send it with `POST /api/digest?date=YYYY-MM-DD`. Under the old rolling window a late
+    cron silently dropped the uncovered hours forever.
+13. **A model-retirement calendar.** The last unbuilt piece of the 2026-06-17 QC programme (the
+    other two — the daily VM smoke and the always-on `cs-health` — are live). Nothing currently
+    warns before a pinned model alias retires under the product.
+14. **`Applications and Permits` returned 0 documents** on Centreville. The folder is linked from
+    the village-info page and enumerates clean but holds nothing indexable. **Check before telling
+    any village its permit forms are covered.**
+15. **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it (verified
+    live 2026-08-27: `logo_url: null`). Bristol hotlinks the Town's own PNG. Needs a logo file from
+    the Village if Keith wants parity — the Village has to supply it.
+16. **Bristol town-hall counter hours — only Keith can close this.** Not a bug: verified 2026-08-26
+    that Bristol publishes no counter hours on its own site, and the tool already answers with the
+    address, the meeting schedule and the Clerk's number. Closing it means getting the hours from
+    the Town and adding them to the corpus.
+17. **CivicScope restructure — loose ends (June 6).** Version comments on the Schools + Infra tool
+    footers; sweep the inert `.timeline-tease` / `.tease-*` dead CSS from the three tools; a final
+    end-to-end harness tire-kick of Schools + Infra (Municipal confirmed). The `Segment Hub Pages`
+    table near the top still lists Infrastructure as "coming soon".
+18. ⏸ **Groundwork (newsletter) — PARKED since 2026-06-11.** Entire backlog frozen: Resend send
+    wiring, VM cron, PDF fallback for Mishawaka packets, Cost Lens integration, project-tracker
+    dedup. Architecture preserved in **Groundwork — Architecture**. ⛔ Separate product from the
+    Municipal Agenda Notifier — **do not merge**. **Reactivation trigger: Keith restarts the
+    newsletter.**
+19. ⏸ **The `tenants` table and its `acme`/`ryc` rows are still in Supabase and nothing reads them
+    — PARKED deliberately.** Its DDL is one of the 15 legacy `schema_*.sql` files that were never
+    version controlled (`migrations/LEGACY_INVENTORY.md`), so a `DROP` has no undo. Historical
+    `tool_runs` rows with `product = 'gc-acme'` / `'gc-int-acme'` stay too — they are the record of
+    what ran, and `/admin`'s Activity feed still badges them correctly. **Reactivation trigger:
+    Keith asks for the drop; it is one migration.**
+20. ⏸ **6 segments across the corpora match no chunk exactly — PARKED.**
+    `reconcile-table-flags.mjs` reports them. Left alone rather than guessed at. **Reactivation
+    trigger: a table goes missing from an answer.**
 
-  **`/gc/*` 301s to `/`, the same treatment `/pro` got — NOT a 404, deliberately.** `/gc/ryc` and
-  `/gc/ryc-internal` were live (unlisted) and somebody holds those links; more to the point, a 404
-  there would be indistinguishable from a routing regression. `verify-routing.js` now asserts both
-  destinations, so the gate proves the product is *deliberately* gone rather than accidentally
-  broken. Verified live: `/gc/acme`, `/gc/ryc`, `/gc/ryc-internal`, `/gc/acme-internal` → 301 to
-  `/`; `/civicscope-gc/index.html`, `/api/gc-config`, `/api/gc-log` → 404.
+### Needs Keith — authority, a credential, or a judgement only he can make
 
-  ⚠ **THE `tenants` TABLE AND ITS `acme`/`ryc` ROWS ARE STILL IN SUPABASE, AND NOTHING READS THEM.**
-  Left deliberately: its DDL is one of the 15 legacy `schema_*.sql` files that were never version
-  controlled (`migrations/LEGACY_INVENTORY.md`), so a `DROP` has no undo. Dropping it is one
-  migration whenever Keith wants it. Historical `tool_runs` rows with `product = 'gc-acme'` /
-  `'gc-int-acme'` also stay — they are the record of what ran, and `/admin`'s Activity feed still
-  badges them correctly.
-- **CivicScope restructure — loose ends (June 6)** — add version comments to the Schools + Infra tool footers; sweep the inert `.timeline-tease`/`.tease-*` dead CSS from the 3 tools; final end-to-end harness tire-kick of Schools + Infra (Municipal confirmed). The `Segment Hub Pages` table near the top still lists Infrastructure as "coming soon" — update that row when convenient.
+- **External dead-man's-switch for `cs-health`.** `cs-health` is one VM cron; if it dies (VM, cron
+  or script) there are no checks *and* no alert, and only the weekly AAN email would surface it —
+  far too slow. Needs an independent heartbeat (healthchecks.io free tier or UptimeRobot). **Only
+  Keith can do the signup**: 2-min account → create one check → set the alert target (email/SMS) →
+  paste the ping URL. Claude then adds ~5 lines on the VM to curl it at the end of each successful
+  run. Closes the last "I can't be the last to know" gap.
+- **Activate the OpenAI fallback in `api/claude.js`** (wired 2026-06-23, dormant). Bounded retry on
+  429/5xx/529 is live; the OpenAI-compatible fallback is OFF until `OPENAI_API_KEY` is set in
+  CivicScope's Vercel. **Keith provides a general-purpose OpenAI key** — NOT a Codex key, that is a
+  code model; the fallback defaults to `gpt-4o`, override via `OPENAI_FALLBACK_MODEL`. Claude sets
+  both env vars via the Vercel REST API and redeploys. Cannot be tested end-to-end without inducing
+  an Anthropic failure — it self-validates on the next real 529. **New platform → add OpenAI to the
+  tracker** (`opsStatus: watch` until proven).
+- **Rotate `CRON_SECRET` on CivicScope's Vercel — it is far too short for what it guards.** Observed
+  2026-08-11; the value and its length are in `infra/env-var-inventory.md`, deliberately not in this
+  public repo. It protects an endpoint that sends mail and, since the `?dry=1` addition, answers
+  with activity counts. Rotating is a one-liner and cannot break the schedule (Vercel injects the
+  same variable into its own cron call). **Not done unilaterally — it is a live credential change.**
+- **Work the 19 captured leads (Fable review R1, ~½ day).** Every lead ever captured sits at
+  `contacted=false`, including four live .gov hand-raisers from Jun 22–30 (names and towns are in
+  the Fable review doc, deliberately not in this public-repo file). Triage all 19, reply to the warm
+  ones, mark `contacted`. Then wire "N uncontacted leads" into the daily digest / Monday email so
+  the loop cannot silently stall again. Cheapest calibration of the 30-day plan there is.
+- **The JBK-mention decision.** Three live surfaces (for-schools, the schools tool, the infra tool)
+  still name JBK Development despite the 2026-07-06 stay-neutral decision. Sweep for true
+  neutrality or own it deliberately — the current state is drift, and which way it goes is a
+  positioning call.
+- **RYC line codes and sub pricing in a PUBLIC repo.** `ryc-estimate/lineitem-probe.html` and the
+  two `ryc-*-benchmarks.json` files carry RYC line codes / sub pricing in `civicscope`, which is
+  public. Pre-existing and unresolved. The 280 cost codes were deliberately moved behind Supabase
+  (`ryc_cost_codes`) for exactly this reason; these three were not. **Decide whether that is
+  acceptable or move them behind the API too.** Bears on the RYC migration
+  ([[project_ryc_infrastructure_migration]]).
+- **Bring the 15 legacy `schema_*.sql` files under version control — or decide not to.** New schema
+  work goes through `migrations/` and IS versioned (`Civicscope/migrations/*.sql` +
+  `scripts/db-migrate.js`, narrowly re-included in Cowork's `.gitignore`, verified absent from
+  `push_civicscope.ps1`'s manifest so they cannot reach the public repo). **The 15 legacy files are
+  still untracked** — the DDL defining production has no history, no diff and no undo. Inventory
+  (recorded, not applied): `migrations/LEGACY_INVENTORY.md`. It is a decision because they are
+  large and some carry RYC control failures and dollar figures in their comments.
+  ⚠ `schema_ryc_slice2e.sql` is still headed `STATUS: STAGED — NOT APPLIED`.
+- **Create a CivicScope-specific Meta Pixel** in Business Manager, separate from the MTP/AAN pixel.
+  Implementation plan: `Civicscope/FB_AD_IMPLEMENTATION_PLAN.md`. Console work in Keith's account.
+- **Anthropic auto-reload** — a console toggle in Keith's Anthropic account. One Anthropic key with
+  an org spend limit runs the entire stack; a zero balance takes every tool down. The
+  `anthropic-key-health` VM watchdog alarms on a block every 15 minutes, but it cannot refill.
+  Memory [[reference_anthropic_shared_key_spof]].
+
+### Awaiting live proof — built, verified, not yet exercised by a human
+
+- **LIVE-PROOF — Michelle has not used the new edit path.** The review page offers Edit on every
+  line and Add on every gap; the server paths are verified but no human has driven the UI.
+- **LIVE-PROOF — the MOR reminder's first real send is 2026-09-07, for August.** Built and
+  deployed 2026-08-25: the 7th, for the 10th, to Michelle and Sheila, deep-linked to the month.
+- **LIVE-PROOF — Google sign-in per village is deployed and the hub is the gate.** Michelle and
+  Sheila are enrolled. ⏳ One Google Cloud console step outstanding (the OAuth client id); until it
+  lands the hub opens for anyone with the link **and says so**.
+
+### Operating rules that govern work here
+
+Invariants, not backlog. Each was paid for; the incident is in [`HISTORY.md`](HISTORY.md) or
+`## Key Learnings`.
+
+- **STANDING RULE — run `node scripts/question-bank.mjs --tenant <t>` after any corpus change, not
+  on deploy.** It costs real Anthropic spend and outcomes drift at the margin.
+- **STANDING RULE — re-run `node scripts/verify-sample-questions.mjs --all` after any corpus
+  ingest.** The chips are verified against the live corpus (048); an ingest can retire one as
+  easily as earn it. Its own traffic is tagged `verifier` (049) so it no longer pollutes the usage
+  report.
+- **STANDING RULE — tag the links you hand out.** `?via=<name>` on an Ask link is the only thing
+  that puts a name in the WHO ASKED panel — e.g. `civicscope.io/bristol/ask?via=mike`. Untagged
+  visitors show as `browser abc123`, which still tells you how many distinct people there were.
+- **STANDING RULE — a new file must be added to `push_civicscope.ps1`'s `$files` manifest before it
+  can deploy.** Declaring an undeclared path is refused at exit 10 — *"a path this script cannot
+  ship must not look like it shipped."* ⚠ After any tool rewrites that script, re-check it kept its
+  **UTF-8 BOM**.
+- **STANDING RULE — for a multi-file scope, call `push_civicscope.ps1` directly, not through the
+  .bat.** PowerShell only quotes an argument containing spaces, so a comma-separated `-Paths`
+  string arrives unquoted and cmd.exe treats the comma as an argument separator: only the first
+  file gets declared, and the deploy *message* lands in `-VerifyProfile`.
+- **STANDING RULE — `-AllowUndeclared` is the normal case in this tree, not an alarm.** It ships
+  ONLY the declared files; the blast-radius report still names what it left alone, and that is the
+  part worth reading. `memory/context/infrastructure.md` and
+  `ryc-estimate/ryc-sub-pricing-benchmarks.json` differ from production routinely — the latter is
+  the VM's own weekly benchmark push, i.e. expected drift, not another session's work.
+- **STANDING RULE — do not diagnose a gate failure by re-running it.** Ask first whether the
+  changed files can even reach the failing path. That is a structural answer, available in seconds,
+  and it is the difference between a transient and a regression.
+- **STANDING RULE — gate expectations are part of the contract; update them deliberately, never
+  relax them.** When the 2026-08-09 scoring change (a push scores 0, not ½) tripped
+  `verify-pool-integrity.js` on the first deploy attempt, the right response was to change the
+  asserted numbers *with the reason recorded*, not to soften the assertion. In the same run a
+  second failure turned out to be the test data, not the code — a gate that distinguishes those two
+  is the whole value of it.
+- **STANDING RULE — a gate that SKIPS is indistinguishable from a gate that passes in a summary
+  line.** `verify-pool-integrity.js` exited 3 = "could not verify" without
+  `FOOTBALL_POOL_CODE`/`GOLF_POOL_CODE`, which were on no machine, so every deploy from 2026-08-07
+  to 08-08 recorded SKIP and still reported cleanly. Both are now Windows User env vars
+  (`infra/env-var-inventory.md`). **Any gate whose "cannot run" path is a soft skip needs the
+  deploy result to *name* it, not just count it.**
+- **STANDING RULE — a `catch` that logs and continues turns a null-deref into a field that never
+  fills, and nothing about the page looks broken.** Both GC product cards had been throwing on
+  every `/admin` load since they were built; the exception aborted before the `last-*` assignment,
+  so their "Last Run" read "Loading…" forever and nobody noticed. Found only by driving the live
+  page in Chrome.
+- **STANDING RULE — a best-effort catch that counts nothing is a silent-failure generator.**
+  Anything that does not report a per-channel count can fail totally and look identical to a clean
+  run. See live item 8.
+- **STANDING RULE — the ordinary path working proves nothing about the amendment path.** Seeding
+  six months of Centreville paper was the first thing that ever tried to CORRECT stored data, and
+  found three defects at once: a correction could never be saved (`submit_reading` and
+  `submit_dist` both inserted the replacement before superseding the old row, colliding with the
+  partial unique index — fixed `25049ea`), and `submit_bacti` had no already-recorded guard at all,
+  so re-running a backfill multiplied the compliance record five-fold (fixed `73babb1`). **Only
+  amendment was broken — which is exactly what no smoke test walks.**
+- **STANDING RULE — setting a Windows User env var to an empty string DELETES it and reports no
+  error.** `SetEnvironmentVariable(name, '', 'User')` with an empty value looks exactly like a
+  successful set, so a mistyped `Read-Host` is indistinguishable from success. **Verify by reading
+  the length back, never by the absence of an error.** ⚠ `CIVICSCOPE_ADMIN_SECRET` is
+  SENSITIVE-typed in Vercel and `vercel env pull` returns it zero-length — **it cannot be recovered
+  from Vercel.** If this machine is rebuilt, the value has to come from Keith.
+- **STANDING RULE — an ESM gate script in this tree must be `.mjs`.** `Civicscope/package.json` has
+  no `"type": "module"`, so a `.js` ESM script dies at `import`.
+- **STANDING RULE — `Civicscope/scripts/` is gitignored except narrow re-includes**, so the water
+  gate, the backfill, the MOR generator and their fixtures are not under version control. Same
+  one-line decision as `migrations/` — they are secret-free by inspection.
+- **STANDING RULE — `ryc-invoices/` is PUBLIC-repo-safe by design; keep it that way.** RYC's 280
+  cost codes are served from Supabase (`ryc_cost_codes`) rather than shipped as an asset.
+- **STANDING RULE — `/admin` deliberately does NOT edit `sample_questions` or `water_feeds`, and
+  nothing has a delete.** `verify-sample-questions.mjs` is the only supported writer of the first;
+  `water_feeds` constants are multiplied into numbers filed with the State. Retirement is
+  `active=false`, because operator initials sit on readings behind filed reports. These are
+  decisions, not omissions.
+- **STANDING RULE — Centreville product changes go in `Civicscope\`, not in `Centreville\`.**
+  `Cowork\Centreville\CLAUDE.md` is the relationship, the plant profile, corpus state and what is
+  owed to EGLE. ⛔ **The code stays multi-tenant here** — Keith declined a separate Vercel project,
+  Supabase project and Anthropic workspace on 2026-08-18. Village #2 is a config row.
+- **STANDING RULE — CivicScope Free is the FREE MODEL across all three verticals, not the Municipal
+  tool alone.** `/civicscope`, `/schools` and `/infrastructure` all stay; Ask (`/centreville`,
+  `/bristol`) stays; Well Testing (`/water`) stays. ⛔ **Do not re-derive a sunset list** from the
+  2026-08-26 teardown sentence — it was ambiguous, it was clarified, and the clarification is the
+  record. Only the GC white-label died.
 
 ---
 
