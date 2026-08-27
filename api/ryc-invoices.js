@@ -267,6 +267,22 @@ RULES
   came from the instructions rather than from the invoice. There are now no example amounts here at
   all. If you cannot read a figure off this document, return null.
 
+- ⛔ IF THE FACE SHEET IS AN APPLICATION FOR PAYMENT, doc_type IS "pay_application". Nothing else
+  overrides this — not length, not an invoice number, not the word INVOICE appearing somewhere on
+  the page. The signals, any one of which settles it:
+    * a title reading "APPLICATION AND CERTIFICATE FOR PAYMENT", "APPLICATION FOR PAYMENT",
+      "CONTRACTOR'S APPLICATION FOR PAYMENT" or "CERTIFICATE FOR PAYMENT"
+    * an "APPLICATION #" / "APPLICATION NO" / "PAY APP" / "PA<number>" field
+    * the numbered G702 ladder — ORIGINAL CONTRACT SUM · NET CHANGE BY CHANGE ORDERS · CONTRACT SUM
+      TO DATE · TOTAL COMPLETED AND STORED TO DATE · RETAINAGE · TOTAL EARNED LESS RETAINAGE ·
+      LESS PREVIOUS CERTIFICATES · CURRENT PAYMENT DUE · BALANCE TO FINISH
+    * a G703 CONTINUATION SHEET with the Work Completed / Materials Stored columns
+  ⚠ A SUBCONTRACTOR OFTEN PRINTS THEIR OWN INVOICE NUMBER ON A PAY APPLICATION. Record it in
+  "invoice_no" and STILL return "pay_application" — the two are not alternatives.
+  This is written down because it was missed on a real document: The Bonilla Group's Application
+  #7 on The Orchard on Wallen, **28 pages, $202,066.41**, came back as "invoice" with pay_app null,
+  so the office found it in the invoice section and none of the figures below were ever read.
+
 - ⛔ A PAY APPLICATION'S FACE SHEET CARRIES SEVERAL LARGE NUMBERS AND MOST OF THEM ARE NOT A BILL.
   The contract sum, the total completed and stored to date, the amount eligible to date and the
   previous payments are the story of the job so far — RYC has already paid most of that. Two
@@ -1871,6 +1887,11 @@ export default async function handler(req, res) {
              free text where nothing could use it. See migration 024. */
           work_this_period: (d.work_this_period === null || d.work_this_period === undefined
             || d.work_this_period === '') ? null : Number(d.work_this_period),
+          /* G702 line 4 / column G grand total (migration 058). Kept BESIDE the period figure, not
+             instead of it: column E is a true zero on an application billing nothing but stored
+             materials, and then this is the only figure that describes the document at all. */
+          completed_and_stored: (d.completed_and_stored === null || d.completed_and_stored === undefined
+            || d.completed_and_stored === '') ? null : Number(d.completed_and_stored),
           job_text: d.job_text || null,
           job_no, job_name, job_source,
         };

@@ -810,6 +810,18 @@ function reconRow(d){
       + '<div style="margin-top:3px">' + fmt(period) + '</div>'
       + '<div class="sub">billed this period</div>';
   }
+  /* ⛔ "BILLED THIS PERIOD: $0.00" IS A TRUE STATEMENT THAT READS AS AN ERROR. Midwest Glass on
+     White Veterinary Clinic bills column E $0.00 because the whole $33,068.10 is column F,
+     Materials Stored — and $25,051.50 is genuinely due. Showing a zero beside a five-figure payable
+     invites someone to conclude the reader failed. Say what is actually there instead; the file is
+     named for this figure too (migration 058). */
+  var stored = d.completed_and_stored;
+  if(stored !== null && stored !== undefined && Number(period) === 0){
+    amountCell = '<div>' + fmt(d.amount) + '</div>'
+      + '<div class="sub">due after retainage</div>'
+      + '<div style="margin-top:3px">' + fmt(stored) + '</div>'
+      + '<div class="sub">stored materials &mdash; no work billed this period</div>';
+  }
 
   return '<tr><td>' + name + '</td>'
     + '<td class="r" style="width:110px">' + amountCell + '</td>'
