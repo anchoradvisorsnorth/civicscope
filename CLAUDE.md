@@ -631,7 +631,7 @@ both ways before choosing.
   hit was a 6,000–7,800-character general-provisions chunk beating a compact district table. Three
   thresholds had already been tuned on this problem; normalisation is bounded by construction.
 
-🚩 **STILL OPEN, HONESTLY.** Bristol answers *that* the county governs it, finds the **TC Town
+✅ **RESOLVED 2026-08-26** — see "R-1 SETBACKS ANSWER" below: the causes were the context-budget allocation and the district a question names carrying no ranking weight. The diagnosis history is left in place because it is the record of what was tried. *(Was: STILL OPEN.)* Bristol answers *that* the county governs it, finds the **TC Town
 Character Preservation Overlay** that applies specifically to Bristol, and quotes R-3's real
 setbacks. **R-1's dimensional row still does not reach the model** for setback phrasings — the chunk
 is correctly built, flagged and headed, and ranks #2–#3 among county tables, so this is ranking, not
@@ -2139,9 +2139,10 @@ Centreville gives 30/10/40 from Table 4-4.
   (`verify-sample-questions.mjs` is the only supported writer) and **`water_feeds` is read-only**
   (its constants are multiplied into numbers filed with the State). Nothing has a delete —
   retirement is `active=false`, because operator initials sit on readings behind filed reports.
-- **`CIVICSCOPE_ADMIN_SECRET` cannot be recovered from Vercel** — it is SENSITIVE-typed and
-  `vercel env pull` returns it zero-length. Until it is set as a Windows User var, the new
-  `api/admin.js` contract reports CANNOT RUN and any admin deploy lands at exit 50 rather than 0.
+- ✅ **`CIVICSCOPE_ADMIN_SECRET` is set as a Windows User var (2026-08-26)** — the `api/admin.js`
+  contract now verifies and admin deploys reach exit 0. ⚠ It **cannot be recovered from Vercel**:
+  it is SENSITIVE-typed and `vercel env pull` returns it zero-length, so if this machine is rebuilt
+  the value has to come from Keith.
   ⚠ Setting it via `SetEnvironmentVariable(name, '', 'User')` with an **empty** value DELETES the
   variable rather than setting it, and reports no error — so a mistyped `Read-Host` looks exactly
   like a successful set. Verify by reading the length back, never by the absence of an error.
