@@ -689,7 +689,7 @@ function reconRow(d){
       + 'style="text-decoration:none;padding:6px 10px;white-space:nowrap">View invoice</a>'
     : '<span class="sub">&mdash;</span>';
 
-  var rename = "", act = "";
+  var rename = "", act = "", why = "";
   if(doneAt){
     /* Done: there is nothing left to rename, so that cell carries WHERE IT LANDED instead. */
     /* ⛔ "OPEN IN JOB FOLDER" OPENED THE INVOICE (Keith, 2026-08-21): *"it should open the sharepoint
@@ -767,7 +767,7 @@ function reconRow(d){
      Showing it beside "With Logan Moore" would offer her two endings for a row she has not been
      handed, which is exactly the choice-offered-is-choice-endorsed trap from 2026-08-26. */
   if(err && !withPm){
-    act += '<div class="sub m-r" style="margin-top:4px">' + reconWhy(err) + '</div>';
+    why += '<div class="sub m-r" style="margin-bottom:0">' + reconWhy(err) + '</div>';
     if(!doneAt && !working){
       /* TWO REAL ANSWERS TO A REFUSAL, because there are two different reasons for one.
          "Point at the folder" is for a job whose folder exists and simply does not resemble its
@@ -779,15 +779,15 @@ function reconRow(d){
          how a $2,934.37 payable was resolved against a job whose folder existed and was named in
          the very message above the buttons. A choice offered is a choice endorsed. */
       var namedF = reconNamedFolders(err);
-      act += '<div style="margin-top:4px">'
+      why += '<div style="margin-top:7px">'
         + '<button class="pfill" onclick="reconPickFolder(' + invArg(d.id) + ')">'
         + 'Point at the folder</button>'
         + (namedF.length ? '' : ' <button class="pfill" onclick="reconNoFile(' + invArg(d.id) + ')">'
             + 'Resolve without filing</button>')
         + '</div>';
       if(namedF.length){
-        act += '<div class="sub">' + (namedF.length === 1 ? 'It found ' : 'It found ')
-          + '<b>' + esc(namedF.join('</b>, <b>')) + '</b> and would not choose'
+        why += '<div class="sub" style="margin-top:7px;margin-bottom:0">It found '
+          + '<b>' + namedF.map(function(f){ return esc(f); }).join('</b>, <b>') + '</b> and would not choose'
           + (namedF.length > 1 ? ' between them' : '') + '. Pick the right one &mdash; it is '
           + 'remembered for the job. <i>Resolve without filing</i> is not offered here: that answer '
           + 'means the job has no folder, and it has one.</div>';
@@ -828,12 +828,27 @@ function reconRow(d){
       + '<div class="sub">stored materials &mdash; no work billed this period</div>';
   }
 
+  /* ⛔ THE REFUSAL EXPLANATION DOES NOT BELONG IN THE ACTION CELL (Keith, 2026-08-27, from a
+       screenshot of the live screen: *"UI is wonkey when errors present ... perhaps a wider text
+       field so the original row is not disturbed"*). It was appended to the last <td>, which is
+       210px wide AND right-aligned, so a three-sentence refusal wrapped into a tall narrow column,
+       forced the whole <tr> to that height, and — because these tables carry no CSS at all, so td
+       vertical-align is the browser default 'middle' — left the name, amount and job picker
+       floating in the vertical centre of a mostly-empty row. The row above and below then read as
+       disturbed, which is exactly what he saw. The data row now keeps its natural height and the
+       explanation gets the full table width beneath it, where prose belongs. Recovery buttons
+       travel WITH the explanation: which endings are offered is decided above and is unchanged —
+       only where they render moved. */
   return '<tr><td>' + name + '</td>'
     + '<td class="r" style="width:110px">' + amountCell + '</td>'
     + '<td style="width:120px">' + view + '</td>'
     + '<td style="width:300px">' + job + '</td>'
     + '<td style="width:120px">' + rename + '</td>'
-    + '<td class="r" style="width:210px">' + act + '</td></tr>';
+    + '<td class="r" style="width:210px">' + act + '</td></tr>'
+    + (why ? '<tr><td colspan="6" style="padding:0 0 12px 0">'
+        + '<div style="border-left:3px solid #d64545;background:#fdf6f6;border-radius:0 6px 6px 0;'
+        + 'padding:9px 13px;max-width:920px;text-align:left">' + why + '</div>'
+        + '</td></tr>' : '');
 }
 
 /* The folder a filed copy sits in, from the file's own URL. Returns null rather than a half-URL if
