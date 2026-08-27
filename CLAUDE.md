@@ -1709,6 +1709,112 @@ including that `select=*` and `select=pin` on `water_operators` both come back w
 `muni_questions` and `water_readings` are **not** directly readable (usage goes through the
 aggregating action), and that a PATCH on a nonexistent slug is a 404.
 
+## ✅ R-1 SETBACKS ANSWER, AND THE TWO THINGS THAT WERE ACTUALLY WRONG (2026-08-26)
+
+Bristol now answers *"what is the front setback in the R-1 district?"* — **50 ft from the road
+centerline on a named road, 75 ft on a numbered county road**, side 10 ft, rear 15 ft — and it
+answers the same for every phrasing tried, and for R-2 lot size, and for any district a reader
+names. This closes the 🚩 that had stood since 2026-08-25.
+
+⚠ **BOTH OF MY FIRST TWO DIAGNOSES WERE WRONG, and each was wrong in an instructive way:**
+- I measured rank with the town name still in the query. `api/muni-ask.js` strips it before
+  retrieval, so I had reproduced the **pre-fix** condition and "the R-1 table ranks #8" was an
+  artefact of my own probe. **Measure through the path the product actually takes.**
+- I then dumped the chunk with a line filter requiring a word like *setback* or *yard*, and the
+  data rows read `Single-Family (w/o Sewer) A 50' 10' 15' 15,000 sq. ft.` — no such word anywhere.
+  I briefly concluded the rows were missing when they were sitting in front of me. **A grid's data
+  rows do not contain the grid's column headings.**
+
+### Defect 1 — the context ceiling was binding on EVERY R-1 question, and starving the corpus that held the answer
+
+Three live runs, before the fix:
+
+| Question | used | dropped | county dropped | chars | outcome |
+|---|---|---|---|---|---|
+| "In Bristol, what is the front setback in the R-1 district?" | 12 | 8 | **2** | 29,521 | answered |
+| "What is the minimum front yard setback for a house in R-1?" | 16 | 6 | **4** | 29,755 | **declined** |
+| "setback requirements R-1" | 9 | 11 | **3** | 29,818 | partial |
+
+Every run within 500 characters of the 30,000 ceiling; every run discarding county passages,
+including the two ranked **#1 and #2**. The declined one told the reader *"the passages don't
+contain the R-1 setback numbers"* while exactly those passages sat in the dropped list. That is
+also why the same question came back answered, partial and declined on consecutive attempts — the
+ordering was right and whether the winning chunk survived truncation was a coin flip.
+
+**The ordering was never the problem. The ALLOCATION was.** Bristol delegates all zoning to Elkhart
+County under IC 36-1-5-4, so for a zoning question the shared corpus *is* the law — yet it competed
+for budget on equal terms with Bristol's own Code of Ordinances, which contains no zoning at all.
+
+`SHARED_RESERVE = 12000` of the 30,000 is now held for a `shares_corpus_with` tenant, spent in
+**two passes**: pass 1 caps the tenant's own passages at `CONTEXT_CHARS - SHARED_RESERVE` while the
+shared corpus spends against the full ceiling; pass 2 reconsiders everything pass 1 could not fit
+against the full ceiling. ⚠ That second pass is what makes it a **floor, not a quota** — an unused
+reserve is handed straight back, and a tenant with no shared corpus is bit-for-bit unaffected.
+Measured after: **0 county passages dropped, on every question.**
+
+### Defect 2 — ⛔ THE DISTRICT A QUESTION NAMES CARRIED NO WEIGHT, AND M-1 MANUFACTURING OUTRANKED R-1
+
+With the budget fixed, R-1 still answered inconsistently. `muni_search_tables` against the county
+for *"what is the front setback in the R-1 district?"* returned, in order: 158.03, 158.04(E),
+**M-1 Limited Manufacturing**, 158.04, **M-2 Heavy Manufacturing**. The R-1 table was not in the
+top three the guarantee takes.
+
+**A zoning code is a set of near-identical documents that differ mainly in which district they
+describe.** Every district table is an almost equally good lexical match for a setback question,
+and the one token that disambiguates them — the district code — is two characters with no
+term-frequency advantage at all.
+
+⛔ **Not a weight.** Migrations 018–021 and 038 spent four attempts learning that a coefficient
+cannot fix a structural mismatch, and no constant makes `R-1` outweigh a manufacturing chapter that
+repeats "setback" thirty times. The district is now looked up **directly, by heading, with no
+ranking involved**, in both the tenant's corpus and its shared one, and **prepended** — the Cause-4
+lesson that a guaranteed seat at the back of a full room is not a seat. It fires only when the
+reader names a district, and silently does nothing on a corpus whose headings are not
+district-named (Centreville's are `Table 4-4`), which is correct — that corpus has its own working
+guarantee. ⚠ It also fails safe on a false positive: `M-86` is a road, the heading lookup finds
+nothing, and the guarantee simply does not fire.
+
+## "Game future questions in advance" — `scripts/question-bank.mjs` (NEW 2026-08-26)
+
+Keith: ***"we need to figure out how to game future questions in advance!"***
+
+48 questions a municipal counter and phone actually get, across zoning / nuisance / streets /
+utilities / permits / governance, weighted by **how ordinary the question is** — ★★★ = asked
+constantly. Every refusal is a finding, ranked so the most embarrassing gaps float to the top.
+
+⛔ **This is the OPPOSITE instrument to `verify-sample-questions.mjs` and must never be merged with
+it.** That one picks the four "Try:" chips and is a *publishing* gate — a candidate survives only
+if it comes back `answered`, and its refusals are expected and meaningless. This one is a *coverage*
+report where the refusals are the entire output. A bank tuned until it passes measures nothing,
+which is why the bank is version-controlled: its history is the record that it was not tuned.
+
+⚠ **Deliberately NOT a deploy gate.** Every run is real Anthropic spend and ~10–25s per question,
+and borderline questions drift between `answered` and `partial` run to run. Wiring that into
+`push_civicscope.ps1` buys a slow, flaky, expensive gate that fails deploys for reasons unrelated
+to the deploy. Run it when the **corpus** changes, not when code ships. Its traffic is tagged
+`source='verifier'` so it can never be counted as a village failing its residents (migration 049's
+lesson, one instrument later).
+
+```
+node scripts/question-bank.mjs --tenant bristol --dry        # list it, spend nothing
+node scripts/question-bank.mjs --tenant bristol --only zoning
+node scripts/question-bank.mjs --tenant centreville
+```
+
+### 🚩 FIRST RUN, BRISTOL ZONING: 10 of 15 answered, and the five gaps share ONE cause
+
+`declined`: *permit to build a shed* ★★★ · *how close to the property line can I build a garage*
+★★★ · *how tall can a house be* ★★ · *can I park an RV or boat in my driveway* ★★ · *maximum lot
+coverage* ★★.
+
+⛔ **Building height and lot coverage are BOTH columns in the R-1 table the fix just made
+retrievable** — `Building Height 30'`, `Lot Coverage 25%/30%`. They still fail because
+**the district guarantee only fires when the reader NAMES a district, and almost nobody does.**
+"How tall can a house be?" is how the question is really asked. The next fix is to infer the
+district from the question's subject — a house is residential — or to guarantee the residential
+district tables on any dimensional question. **This is exactly what the bank was built to find,
+and it found it on the first run.**
+
 ## WHO asked — attribution on Ask, and the clock that was lying (2026-08-26)
 
 Keith, reading the new Ask Usage tab: *"I think I was the question at 9:47 but have been Mike the
@@ -2014,6 +2120,14 @@ Centreville gives 30/10/40 from Table 4-4.
 
 ## Open Action Items
 
+- 🚩 **Bristol zoning answers 10 of 15 ordinary questions (`question-bank.mjs`, first run
+  2026-08-26).** The five gaps — shed permit, garage setback, house height, RV parking, lot
+  coverage — share one cause: **the district guarantee only fires when the reader names a
+  district**, and real questions ("how tall can a house be?") don't. Height and lot coverage are
+  columns in a table the corpus now retrieves correctly. Next fix: infer the district from the
+  question's subject, or guarantee the residential tables on any dimensional question.
+- **Run `node scripts/question-bank.mjs --tenant <t>` after any corpus change** — not on deploy
+  (real Anthropic spend, and outcomes drift at the margin).
 - **Tag the links you hand out.** `?via=<name>` on an Ask link is the only thing that puts a name
   in the WHO ASKED panel — e.g. `civicscope.io/bristol/ask?via=mike`. Untagged visitors show as
   `browser abc123`, which still tells you how many distinct people there were.
