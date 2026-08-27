@@ -1709,6 +1709,76 @@ including that `select=*` and `select=pin` on `water_operators` both come back w
 `muni_questions` and `water_readings` are **not** directly readable (usage goes through the
 aggregating action), and that a PATCH on a nonexistent slug is a 404.
 
+## WHO asked — attribution on Ask, and the clock that was lying (2026-08-26)
+
+Keith, reading the new Ask Usage tab: *"I think I was the question at 9:47 but have been Mike the
+town manager who I sent the link to after that - anyway to tell?"* — then, on being told there was
+not: ***"We should be able to learn from this."***
+
+### ⛔ THE TIMESTAMPS HE WAS READING WERE UTC, PRINTED AS IF LOCAL
+
+Before anything else: the reconstruction he was attempting could not have worked, because the
+column he was reading was four hours out. `String(created_at).slice(0, 16)` on
+`2026-08-26T11:31:46+00:00` renders **11:31**; the row was written at **07:31 Eastern**. The 09:47
+row he thought was his was **05:47 ET**.
+
+**This is the same defect as the daily digest headlining yesterday's numbers with today's date** —
+an absolute instant rendered against the wrong calendar — and it was shipped that morning in the
+very table whose job is *"who did what, when"*. Fixed: every timestamp on the page now renders in
+the viewer's own clock via `toLocaleString`, the column says **When (your time)**, and
+`dailyCounts()` buckets the volume series by **Eastern** calendar days rather than UTC ones —
+without which every question asked after 8pm local was drawn on the following day.
+⚠ `api/admin.js` passes `MUNI_TZ = 'America/New_York'`; every municipality this product serves is
+Eastern, Michigan villages and Indiana towns alike.
+
+### Migration 059 — three signals, and one that is deliberately absent
+
+| Column | What it is |
+|---|---|
+| `visitor` | An opaque random id minted in the browser and kept in `localStorage`. Distinguishes **browsers, not people** |
+| `via` | A tag carried on a link you handed out — `/bristol/ask?via=mike` — then remembered for that browser |
+| `signed_in` | The verified email from the session cookie, where the tenant has sign-in at all |
+
+⛔ **NO IP ADDRESS, and that is a decision, not an omission.** These are residents asking their own
+government about setbacks, dog licences and meeting times. An IP is identifying, it answers no
+question Keith actually has, and a table of *"who in this village asked what about their local
+law"* is not a thing this product should hold. `visitor` answers the real question — one person or
+three — and resolves to nobody, by us or by anyone who obtains the table.
+
+**`via` is the one that actually answers Keith's question, and it works by CONSENT.** You learn who
+somebody is because you labelled the link you gave them, not because the tool inferred it from
+their traffic. Hand the town manager `?via=mike` and every session from that browser is
+self-identifying; hand out an untagged link and you learn nothing about him — which is the correct
+default for a public page.
+
+`signed_in` costs no extra read: `api/auth-google.js` already signs `{sub, email, uid}` into the
+session cookie. It stays null forever on Bristol, which is `auth_provider='none'` and always will
+be for a public ask page.
+
+### ⚠ NULL MEANS "WE DO NOT KNOW", AND ALL 105 EXISTING ROWS ARE NULL
+
+Nothing is back-filled and nothing is inferred. The report counts unattributed rows in **their own
+bucket**, never merged into a single anonymous "visitor" — folding everyone we could not identify
+into one entry would invent one very busy person, which is the same shape of lie migrations 045,
+046 and 050 were each spent removing from this exact table. The verify file asserts the columns
+start **empty**, for that reason.
+
+⛔ **So the answer to the original question is: for those rows, no, and there never will be.** They
+predate 059. Attribution starts now.
+
+### Verified end to end on production
+
+Drove the real `/bristol/ask?via=e2eprobe` page in Chrome, asked a real question, read the row back
+through `/api/admin`: `visitor=vd526d6c82385488e`, `via=e2eprobe`, `signed_in=null`, grouped into
+the WHO ASKED panel as one visitor. The probe row was then set `source='verifier'` so it does not
+count as a real reader.
+
+⚠ **The first run of that test reported four failures and the feature was fine.** The wait condition
+was `/source|Sec\.|could not find|ordinance/` against `document.body.innerText` — and Bristol's own
+blurb contains the words *"with a link to the source every time"*, so it matched instantly, the
+browser closed before the answer returned, and the read raced the insert. **A page-text wait
+condition must match text the page cannot already be showing.**
+
 ## Codex review of Ask + Water — 2026-08-26
 
 Report: `codex-reviews/reports/REVIEW_civicscope-muni-ask-and-water_2026-08-26.md`. Verdict
@@ -1944,6 +2014,9 @@ Centreville gives 30/10/40 from Table 4-4.
 
 ## Open Action Items
 
+- **Tag the links you hand out.** `?via=<name>` on an Ask link is the only thing that puts a name
+  in the WHO ASKED panel — e.g. `civicscope.io/bristol/ask?via=mike`. Untagged visitors show as
+  `browser abc123`, which still tells you how many distinct people there were.
 - **Michelle has not used the new edit path yet.** The review page now offers Edit on every line and
   Add on every gap; the server paths are verified but no human has exercised the UI.
 - **`/admin` now covers Ask and Well Testing** (2026-08-26) — three tabs, `muni_tenants` and
