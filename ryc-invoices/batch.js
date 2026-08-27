@@ -815,8 +815,13 @@ function reconRow(d){
      Materials Stored — and $25,051.50 is genuinely due. Showing a zero beside a five-figure payable
      invites someone to conclude the reader failed. Say what is actually there instead; the file is
      named for this figure too (migration 058). */
+  /* ⚠ THE ZERO MUST BE AN ACTUAL READING, NOT AN ABSENT ONE. `Number(null)` and `Number(undefined
+     )` are 0 and NaN respectively, and treating a null period as zero would print "no work billed
+     this period" over a document whose column E was simply unreadable — stating as fact something
+     nobody read. Only an explicit 0 earns that sentence. */
   var stored = d.completed_and_stored;
-  if(stored !== null && stored !== undefined && Number(period) === 0){
+  if(stored !== null && stored !== undefined
+     && period !== null && period !== undefined && Number(period) === 0){
     amountCell = '<div>' + fmt(d.amount) + '</div>'
       + '<div class="sub">due after retainage</div>'
       + '<div style="margin-top:3px">' + fmt(stored) + '</div>'
