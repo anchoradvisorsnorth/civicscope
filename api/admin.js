@@ -22,6 +22,10 @@
 
 import { summarize, dailyCounts } from '../civicscope-admin/usage.js';
 
+/* The clock every reader of this data is actually on. Every municipality this product serves is
+   Eastern — Michigan villages and Indiana towns alike — and so is the operator reading /admin. */
+const MUNI_TZ = 'America/New_York';
+
 /*
  * key         — the primary key column PATCH targets. `muni_tenants` is keyed on `slug`, not `id`,
  *               and the old hardcoded `?id=eq.` would have silently matched nothing and reported
@@ -253,7 +257,7 @@ export default async function handler(req, res) {
         `created_at=gte.${since}`,
         tenant ? `tenant=eq.${encodeURIComponent(tenant)}` : '',
         allSources ? '' : 'source=eq.web',
-        'select=id,tenant,question,outcome,source,hit_count,used_table,cited_collections,duration_ms,retrieval,created_at',
+        'select=id,tenant,question,outcome,source,hit_count,used_table,cited_collections,duration_ms,retrieval,visitor,via,signed_in,created_at',
         'order=created_at.desc',
         'limit=4000',
       ].filter(Boolean).join('&');
@@ -263,8 +267,9 @@ export default async function handler(req, res) {
         tenant: tenant || null,
         allSources,
         rowCount: rows.length,
+        timezone: MUNI_TZ,
         summary: summarize(rows),
-        daily: dailyCounts(rows, days),
+        daily: dailyCounts(rows, days, MUNI_TZ),
         recent: rows.slice(0, 200),
       });
     }

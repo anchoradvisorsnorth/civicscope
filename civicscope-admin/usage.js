@@ -132,8 +132,40 @@ export function summarize(rows) {
       outcomes: [...new Set(v.map((x) => x.outcome || 'unknown'))],
     }));
 
+  /* ── WHO ASKED (migration 059) ──────────────────────────────────────────────────────────
+     One row per browser, newest first, so "32 questions" becomes something you can act on: a town
+     manager working through the tool and one resident retrying a failing query are the same count
+     and opposite situations.
+
+     ⛔ `unknown` IS ITS OWN BUCKET AND IS NEVER MERGED. Every row before 059 has no visitor, and
+     so does anyone with storage blocked. Folding those into a single anonymous "visitor" would
+     invent one very busy person out of everybody we could not identify — the same shape of lie
+     that 045, 046 and 050 were each spent removing from this table. */
+  const byVisitor = {};
+  let unattributed = 0;
+  for (const r of list) {
+    if (!r.visitor) { unattributed++; continue; }
+    const v = (byVisitor[r.visitor] ||= {
+      visitor: r.visitor, n: 0, via: null, signed_in: null,
+      first: r.created_at, last: r.created_at, tenants: new Set(), questions: [],
+    });
+    v.n++;
+    // A later-tagged link, or a sign-in, applies to the whole browser: keep whatever we ever saw.
+    if (r.via) v.via = r.via;
+    if (r.signed_in) v.signed_in = r.signed_in;
+    if (r.created_at < v.first) v.first = r.created_at;
+    if (r.created_at > v.last) v.last = r.created_at;
+    v.tenants.add(r.tenant);
+    if (v.questions.length < 5) v.questions.push(r.question);
+  }
+  const visitors = Object.values(byVisitor)
+    .map((v) => ({ ...v, tenants: [...v.tenants] }))
+    .sort((a, b) => (a.last < b.last ? 1 : -1));
+
   return {
     total,
+    visitors,
+    unattributed,
     byTenant: Object.entries(byTenant)
       .sort((a, b) => b[1].n - a[1].n)
       .map(([tenant, v]) => ({ tenant, ...v })),
@@ -148,14 +180,19 @@ export function summarize(rows) {
  * Empty days are the point: a gap is what "nobody used it on Tuesday" looks like, and a series
  * that silently omits them draws a flat busy line over a dead week.
  */
-export function dailyCounts(rows, days, endDateIso) {
+export function dailyCounts(rows, days, timeZone = 'UTC', endDateIso) {
   const n = Math.max(1, Number(days) || 30);
   const end = endDateIso ? new Date(endDateIso) : new Date();
-  const key = (d) => d.toISOString().slice(0, 10);
+  /* BUCKET BY THE READER'S CALENDAR DAY, NOT UTC's. Michiana is UTC-4/-5, so anything asked after
+     8pm local lands on the NEXT UTC day — a question at 8:57pm Monday was counted, and drawn, as
+     Tuesday. en-CA is the shortest route to a YYYY-MM-DD in a named zone. */
+  const key = (d) => new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
   const counts = {};
   for (const r of (Array.isArray(rows) ? rows : [])) {
-    const k = String(r.created_at || '').slice(0, 10);
-    if (k) counts[k] = (counts[k] || 0) + 1;
+    if (!r.created_at) continue;
+    const k = key(new Date(r.created_at));
+    counts[k] = (counts[k] || 0) + 1;
   }
   const out = [];
   for (let i = n - 1; i >= 0; i--) {

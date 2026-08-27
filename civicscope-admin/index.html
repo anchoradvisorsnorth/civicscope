@@ -260,6 +260,7 @@
 
   .stat-bar.six { grid-template-columns: repeat(6, 1fr); }
   .stat-bar.five { grid-template-columns: repeat(5, 1fr); }
+  .stat-bar.seven { grid-template-columns: repeat(7, 1fr); }
   .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
   .stack { display: flex; flex-direction: column; gap: 20px; }
 
@@ -646,13 +647,14 @@
       <span class="ts" id="usage-window">—</span>
     </div>
 
-    <div class="stat-bar six">
+    <div class="stat-bar seven">
       <div class="stat-cell"><div class="label">Asked</div><div class="value" id="u-asked">—</div><div class="sub" id="u-asked-sub">questions</div></div>
       <div class="stat-cell"><div class="label">Answered</div><div class="value oc-answered" id="u-answered">—</div><div class="sub">+ partial</div></div>
       <div class="stat-cell"><div class="label">Could Not Answer</div><div class="value oc-declined" id="u-failed">—</div><div class="sub">declined + no corpus</div></div>
       <div class="stat-cell"><div class="label">Referred</div><div class="value oc-referred" id="u-referred">—</div><div class="sub">correct, not a failure</div></div>
       <div class="stat-cell"><div class="label">Used a Table</div><div class="value" id="u-table">—</div><div class="sub">reached a real question</div></div>
       <div class="stat-cell"><div class="label">Keyword-style</div><div class="value" id="u-staff">—</div><div class="sub">looks like staff</div></div>
+      <div class="stat-cell"><div class="label">Visitors</div><div class="value" id="u-visitors">—</div><div class="sub" id="u-visitors-sub">distinct browsers</div></div>
     </div>
 
     <div class="note" style="margin:-14px 0 22px">
@@ -667,6 +669,7 @@
     <div class="card card-pad" style="margin-bottom:24px">
       <div class="spark" id="u-spark"></div>
       <div class="spark-axis"><span id="u-spark-from">—</span><span id="u-spark-peak"></span><span id="u-spark-to">—</span></div>
+      <div class="note" style="margin-top:10px">Days are <b>Eastern</b> calendar days, not UTC — a question asked at 9pm local belongs to that evening, not to the next morning.</div>
     </div>
 
     <div class="section-label">Outcomes by municipality</div>
@@ -687,6 +690,18 @@
           <div class="scroll-y" id="u-repeats"><div class="empty-state" style="padding:16px">—</div></div>
         </div>
       </div>
+    </div>
+
+    <div class="section-label">Who asked</div>
+    <div class="card" style="margin-bottom:8px"><div id="u-visitors-table"><div class="empty-state" style="padding:16px">—</div></div></div>
+    <div class="note" style="margin-bottom:24px">
+      A <b>visitor</b> is a browser, not a person — the same person on a phone and a laptop is two,
+      and a shared office machine is one. Nothing here is an IP address and nothing resolves to a
+      resident. <b>Tag a link you hand out</b> — <code>/bristol/ask?via=mike</code> — and that
+      browser stays attributed from then on; that is the only way this tells you a name, and it
+      tells you one because <i>you</i> labelled the link, not because the tool worked out who they
+      were. Rows asked before 2026-08-26 have no visitor at all and are counted separately as
+      <b>unattributed</b>, never merged into one busy anonymous person.
     </div>
 
     <div class="section-label">Every question, newest first</div>
@@ -1100,6 +1115,26 @@ const pctOf = (x, of) => of ? Math.round((x / of) * 100) + '%' : '—';
 const dash = (v) => (v === null || v === undefined || v === '') ? '<span class="dim">—</span>' : esc(v);
 const onoff = (b, on = 'live', off = 'off') =>
   `<span class="pill ${b ? 'on' : 'off'}">${b ? on : off}</span>`;
+/* TIMESTAMPS ARE STORED UTC AND MUST NOT BE PRINTED RAW. String(created_at).slice(0,16) renders
+   "11:31" for a row written at 07:31 Eastern, and a reader reconstructing who did what — which is
+   the whole purpose of this table — is then four hours out. Render in the viewer's clock. */
+const fmtWhen = (iso) => { const d = new Date(iso); return isNaN(d) ? '—'
+  : d.toLocaleString([], { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+const fmtDay = (iso) => { const d = new Date(iso); return isNaN(d) ? '—'
+  : d.toLocaleDateString([], { month: '2-digit', day: '2-digit' }); };
+const fmtDayFull = (iso) => { const d = new Date(iso); return isNaN(d) ? '—'
+  : d.toLocaleDateString([], { year: 'numeric', month: '2-digit', day: '2-digit' }); };
+
+/* One visitor id renders as the same short label everywhere, so two rows from the same browser are
+   recognisable at a glance without printing a 16-character token in a table cell. */
+const shortVisitor = (v) => v ? v.slice(1, 7) : null;
+const whoCell = (r) => {
+  if (r.signed_in) return '<span class="pill on" title="signed in">' + esc(r.signed_in.split('@')[0]) + '</span>';
+  if (r.via) return '<span class="pill info" title="tagged link: ?via=' + esc(r.via) + '">' + esc(r.via) + '</span>';
+  if (r.visitor) return '<span class="dim" title="' + esc(r.visitor) + '">' + esc(shortVisitor(r.visitor)) + '</span>';
+  return '<span class="dim" title="asked before visitor tagging existed, or storage blocked">—</span>';
+};
+
 const val = (id) => (document.getElementById(id)?.value ?? '').trim();
 const checked = (id) => Boolean(document.getElementById(id)?.checked);
 const numOrNull = (id) => { const v = val(id); return v === '' ? null : Number(v); };
@@ -1155,7 +1190,7 @@ function renderMuniList() {
       <td>${t.auth_provider === 'none' ? '<span class="dim">open</span>' : esc(t.auth_provider)}</td>
       <td>${t.shares_corpus_with ? `<span class="pill info">+${esc(t.shares_corpus_with)}</span>` : '<span class="dim">—</span>'}</td>
       <td>${t.water_wssn ? `<span class="pill info">WSSN ${esc(t.water_wssn)}</span>` : '<span class="dim">—</span>'}</td>
-      <td class="dim" style="font-size:10px">${t.last_ingest_at ? String(t.last_ingest_at).slice(0, 10) : '—'}</td>
+      <td class="dim" style="font-size:10px">${t.last_ingest_at ? fmtDayFull(t.last_ingest_at) : '—'}</td>
     </tr>`).join('');
   document.getElementById('muni-list').innerHTML = `
     <table class="dt">
@@ -1223,7 +1258,7 @@ function muniFormHtml(t, isNew) {
       <div class="hint">The NAME of an environment variable, never the key. A value that indexes process.env is not browser-writable.</div></div>
     <div class="f ro"><label>Shares corpus with</label><input type="text" value="${esc(t.shares_corpus_with || '—')}" disabled>
       <div class="hint">Changes what law a town is answered from — e.g. Bristol reads Elkhart County's ordinance.</div></div>
-    <div class="f ro"><label>Documents ingested</label><input type="text" value="${(t.doc_count || 0).toLocaleString()}${t.last_ingest_at ? '  ·  ' + String(t.last_ingest_at).slice(0, 10) : ''}" disabled>
+    <div class="f ro"><label>Documents ingested</label><input type="text" value="${(t.doc_count || 0).toLocaleString()}${t.last_ingest_at ? '  ·  ' + fmtDayFull(t.last_ingest_at) : ''}" disabled>
       <div class="hint">Written by the ingesters. A measurement, not a setting.</div></div>
     <div class="f ro wide">
       <label>Sample questions (the "Try:" chips)</label>
@@ -1282,7 +1317,7 @@ async function loadMuniCorpus(slug) {
           <tr><td>${esc(x.collection)}</td><td class="num">${x.docs}</td>
           <td class="num">${x.chunks.toLocaleString()}</td><td class="num">${x.pages || '<span class="dim">—</span>'}</td>
           <td class="num">${x.scans ? `<span class="pill warn">${x.scans}</span>` : '<span class="dim">0</span>'}</td>
-          <td class="dim" style="font-size:10px">${x.newest ? String(x.newest).slice(0, 10) : '—'}</td></tr>`).join('')
+          <td class="dim" style="font-size:10px">${x.newest ? fmtDayFull(x.newest) : '—'}</td></tr>`).join('')
         || '<tr><td colspan="6" class="dim">Nothing ingested yet.</td></tr>'}</tbody>
       </table>`;
   } catch (e) {
@@ -1330,6 +1365,27 @@ async function loadUsage() {
     document.getElementById('u-referred').textContent = t.referred;
     document.getElementById('u-table').textContent = t.n ? pctOf(t.table, t.n) : '—';
     document.getElementById('u-staff').textContent = t.n ? pctOf(t.staff, t.n) : '—';
+    document.getElementById('u-visitors').textContent = s.visitors.length;
+    document.getElementById('u-visitors-sub').textContent =
+      s.unattributed ? s.unattributed + ' unattributed' : 'distinct browsers';
+
+    document.getElementById('u-visitors-table').innerHTML = s.visitors.length ? `
+      <table class="dt">
+        <thead><tr><th>Who</th><th class="num">Asked</th><th>First seen</th><th>Last seen</th>
+        <th>Where</th><th>What they asked</th></tr></thead>
+        <tbody>${s.visitors.map(v => `
+          <tr><td>${v.signed_in ? '<span class="pill on">' + esc(v.signed_in) + '</span>'
+                : v.via ? '<span class="pill info">' + esc(v.via) + '</span>'
+                : '<span class="dim" title="' + esc(v.visitor) + '">browser ' + esc(shortVisitor(v.visitor)) + '</span>'}</td>
+          <td class="num">${v.n}</td>
+          <td class="dim">${fmtWhen(v.first)}</td>
+          <td class="dim">${fmtWhen(v.last)}</td>
+          <td>${esc(v.tenants.join(', '))}</td>
+          <td class="q-text dim" style="font-size:10px">${v.questions.map(q => esc(q)).join('<br>')}${v.n > v.questions.length ? '<br>…' : ''}</td></tr>`).join('')}
+        </tbody></table>`
+      : '<div class="empty-state" style="padding:16px">No attributed visitors in this window'
+        + (s.unattributed ? ' — all ' + s.unattributed + ' question(s) here predate visitor tagging (2026-08-26).' : '.')
+        + '</div>';
 
     // volume
     const max = Math.max(1, ...u.daily.map(d => d.n));
@@ -1365,7 +1421,7 @@ async function loadUsage() {
       `${s.failures.length} of ${t.n}` + (t.referred ? ` · ${t.referred} correct referral(s) not counted` : '');
     document.getElementById('u-failures').innerHTML = s.failures.length ? `
       <table class="dt"><tbody>${s.failures.map(f => `
-        <tr><td style="width:74px" class="dim">${String(f.created_at).slice(0, 10)}</td>
+        <tr><td style="width:64px" class="dim">${fmtDay(f.created_at)}</td>
         <td style="width:92px">${esc(f.tenant)}</td>
         <td><div class="q-text">${esc(f.question)}</div>
         <div class="dim" style="font-size:10px;margin-top:3px">${esc(f.why)}</div></td></tr>`).join('')}
@@ -1393,7 +1449,7 @@ async function loadUsage() {
     // recent
     document.getElementById('u-recent').innerHTML = u.recent.length ? `
       <table class="dt">
-        <thead><tr><th style="width:120px">When</th><th style="width:96px">Where</th><th>Question</th>
+        <thead><tr><th style="width:118px">When <span class="dim">(your time)</span></th><th style="width:96px">Where</th><th style="width:104px">Who</th><th>Question</th>
         <th style="width:96px">Outcome</th><th class="num" style="width:56px">Hits</th>
         <th style="width:88px">Dropped</th><th class="num" style="width:64px">Time</th></tr></thead>
         <tbody>${u.recent.map(r => {
@@ -1402,8 +1458,9 @@ async function loadUsage() {
           // you can see the ceiling biting, and a guaranteed table that never reached the model
           // looked exactly like a ranking problem for a week.
           const d = r.retrieval && r.retrieval.dropped;
-          return `<tr><td class="dim">${String(r.created_at).replace('T', ' ').slice(0, 16)}</td>
+          return `<tr><td class="dim">${fmtWhen(r.created_at)}</td>
           <td>${esc(r.tenant)}${r.source !== 'web' ? ' <span class="pill mute">bot</span>' : ''}</td>
+          <td>${whoCell(r)}</td>
           <td class="q-text">${esc(r.question)}</td>
           <td class="oc-${esc(r.outcome || 'none')}">${esc(r.outcome || 'pre-045')}</td>
           <td class="num">${r.hit_count ?? '—'}</td>
@@ -1695,7 +1752,7 @@ function renderWaterFilings(w) {
       <thead><tr><th>Period</th><th>Kind</th><th>Sent</th><th>Outcome</th><th>To</th></tr></thead>
       <tbody>${w.reminders.map(r => `
         <tr><td>${MON[r.report_month]} ${r.report_year}</td><td>${esc(r.kind)}</td>
-        <td class="dim">${String(r.sent_at).slice(0, 10)}</td>
+        <td class="dim">${fmtDayFull(r.sent_at)}</td>
         <td><span class="pill ${r.outcome === 'sent' ? 'on' : 'bad'}">${esc(r.outcome)}</span></td>
         <td class="dim" style="font-size:10px">${esc((r.recipients || []).join(', ')) || '<span class="dim">nobody</span>'}</td></tr>`).join('')}
       </tbody></table>`
