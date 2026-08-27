@@ -91,7 +91,6 @@
     background: var(--border2);
   }
   .tab.t-overview .tab-dot { background: var(--accent); }
-  .tab.t-tenants .tab-dot  { background: var(--warn); }
   .tab.t-activity .tab-dot { background: var(--accent2); }
 
   .header-right {
@@ -142,8 +141,6 @@
   .product-card.free::before   { background: var(--accent); }
   .product-card.schools::before { background: #2563eb; }
   .product-card.pro::before    { background: var(--accent2); }
-  .product-card.gc-ext::before { background: var(--warn); }
-  .product-card.gc-int::before { background: var(--purple); }
   .product-card.ryc::before    { background: #0d9488; }
 
   .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
@@ -222,162 +219,6 @@
   .lead-name { color: var(--text); font-weight: 500; }
   .lead-meta { color: var(--muted); font-size: 10px; margin-top: 2px; }
 
-  /* ── TENANTS TAB ── */
-  .tenants-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
-
-  /* Tenant list */
-  .tenant-list-card { background: var(--surface); border: 1px solid var(--border); }
-  .tenant-list-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 18px; border-bottom: 1px solid var(--border);
-  }
-  .tenant-list-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
-  .btn-add-tenant {
-    background: var(--accent); color: #000; border: none;
-    font-family: var(--mono); font-size: 10px; font-weight: 600;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 6px 14px; cursor: pointer; transition: opacity 0.15s;
-  }
-  .btn-add-tenant:hover { opacity: 0.85; }
-
-  .tenant-item {
-    padding: 14px 18px; border-bottom: 1px solid var(--border);
-    cursor: pointer; transition: background 0.12s;
-    display: flex; align-items: flex-start; justify-content: space-between;
-  }
-  .tenant-item:last-child { border-bottom: none; }
-  .tenant-item:hover { background: var(--surface2); }
-  .tenant-item.selected { background: var(--surface2); border-left: 2px solid var(--accent); }
-  .t-slug { font-size: 12px; font-weight: 600; color: var(--accent); }
-  .t-name { font-size: 11px; color: var(--text); margin-top: 2px; }
-  .t-warnings { font-size: 9px; color: var(--warn); margin-top: 4px; }
-  .t-badge {
-    font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-    padding: 2px 8px;
-  }
-  .t-badge.active { background: rgba(34,197,94,0.12); color: var(--green); }
-  .t-badge.inactive { background: rgba(107,122,148,0.12); color: var(--muted); }
-
-  /* Tenant form */
-  .tenant-form-card {
-    background: var(--surface); border: 1px solid var(--border);
-    max-height: calc(100vh - 120px); overflow-y: auto;
-  }
-  .form-header {
-    padding: 14px 18px; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; background: var(--surface); z-index: 10;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .form-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
-  .form-title span { color: var(--accent); }
-  .form-body { padding: 18px; }
-
-  .form-section {
-    margin-bottom: 20px;
-  }
-  .form-section-title {
-    font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 12px; padding-bottom: 6px;
-    border-bottom: 1px solid var(--border);
-  }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-  .form-row.full { grid-template-columns: 1fr; }
-  .form-group { display: flex; flex-direction: column; gap: 5px; }
-  .form-group label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-  .form-group input,
-  .form-group textarea,
-  .form-group select {
-    background: var(--surface2); border: 1px solid var(--border2);
-    color: var(--text); font-family: var(--mono); font-size: 12px;
-    padding: 8px 10px; outline: none; transition: border-color 0.15s;
-    width: 100%;
-  }
-  .form-group input:focus,
-  .form-group textarea:focus,
-  .form-group select:focus { border-color: var(--accent); }
-  .form-group textarea { resize: vertical; min-height: 70px; }
-  .form-group .hint { font-size: 9px; color: var(--muted); }
-
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
-  .toggle-label { font-size: 11px; color: var(--text); }
-  .toggle-sub { font-size: 10px; color: var(--muted); }
-  .toggle {
-    width: 36px; height: 20px; background: var(--border2);
-    border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s;
-    border: none; flex-shrink: 0;
-  }
-  .toggle.on { background: var(--accent); }
-  .toggle::after {
-    content: ''; position: absolute; top: 3px; left: 3px;
-    width: 14px; height: 14px; border-radius: 50%;
-    background: #fff; transition: transform 0.2s;
-  }
-  .toggle.on::after { transform: translateX(16px); }
-
-  .project-types-input { display: flex; flex-direction: column; gap: 6px; }
-  .pt-tags { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; }
-  .pt-tag {
-    background: var(--surface2); border: 1px solid var(--border2);
-    padding: 3px 8px; font-size: 11px; color: var(--text);
-    display: flex; align-items: center; gap: 6px;
-  }
-  .pt-tag .remove { color: var(--muted); cursor: pointer; font-size: 12px; line-height: 1; }
-  .pt-tag .remove:hover { color: var(--danger); }
-  .pt-add-row { display: flex; gap: 6px; }
-  .pt-add-row input { flex: 1; }
-  .btn-pt-add {
-    background: none; border: 1px solid var(--border2);
-    color: var(--muted); font-family: var(--mono); font-size: 11px;
-    padding: 6px 10px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
-  }
-  .btn-pt-add:hover { border-color: var(--accent); color: var(--accent); }
-
-  .brand-values-input { display: flex; flex-direction: column; gap: 6px; }
-  .bv-list { display: flex; flex-direction: column; gap: 4px; }
-  .bv-item { display: flex; align-items: center; gap: 6px; }
-  .bv-item input { flex: 1; }
-  .btn-bv-remove {
-    background: none; border: none; color: var(--muted); cursor: pointer;
-    font-size: 14px; padding: 0 4px; transition: color 0.15s;
-  }
-  .btn-bv-remove:hover { color: var(--danger); }
-  .btn-bv-add {
-    background: none; border: 1px dashed var(--border2);
-    color: var(--muted); font-family: var(--mono); font-size: 10px;
-    letter-spacing: 0.1em; padding: 6px; cursor: pointer; transition: all 0.15s;
-    text-align: center; text-transform: uppercase;
-  }
-  .btn-bv-add:hover { border-color: var(--accent); color: var(--accent); }
-
-  .color-row { display: flex; align-items: center; gap: 10px; }
-  .color-preview { width: 32px; height: 32px; border: 1px solid var(--border2); flex-shrink: 0; }
-  .color-row input[type="text"] { flex: 1; }
-
-  .form-actions {
-    display: flex; gap: 10px; padding: 14px 18px;
-    border-top: 1px solid var(--border);
-    position: sticky; bottom: 0; background: var(--surface);
-  }
-  .btn-save {
-    flex: 1; background: var(--accent); color: #000; border: none;
-    font-family: var(--mono); font-size: 11px; font-weight: 600;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 10px; cursor: pointer; transition: opacity 0.15s;
-  }
-  .btn-save:hover { opacity: 0.85; }
-  .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-cancel {
-    background: none; border: 1px solid var(--border2);
-    color: var(--muted); font-family: var(--mono); font-size: 11px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 10px 18px; cursor: pointer; transition: all 0.15s;
-  }
-  .btn-cancel:hover { border-color: var(--danger); color: var(--danger); }
-
-  .save-status { font-size: 11px; display: flex; align-items: center; }
-  .save-status.ok { color: var(--green); }
-  .save-status.err { color: var(--danger); }
-
   /* ── ACTIVITY TAB ── */
   .activity-full .feed-header { grid-template-columns: 80px 100px 1fr 110px 120px 90px; }
   .activity-full .feed-row    { grid-template-columns: 80px 100px 1fr 110px 120px 90px; }
@@ -418,6 +259,7 @@
   .tab.t-water .tab-dot { background: #22d3ee; }
 
   .stat-bar.six { grid-template-columns: repeat(6, 1fr); }
+  .stat-bar.five { grid-template-columns: repeat(5, 1fr); }
   .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
   .stack { display: flex; flex-direction: column; gap: 20px; }
 
@@ -564,9 +406,6 @@
       <button class="tab t-overview active" onclick="switchTab('overview')">
         <span class="tab-dot"></span> Overview
       </button>
-      <button class="tab t-tenants" onclick="switchTab('tenants')">
-        <span class="tab-dot"></span> GC Tenants
-      </button>
       <button class="tab t-ask" onclick="switchTab('ask')">
         <span class="tab-dot"></span> Ask
       </button>
@@ -588,7 +427,7 @@
 
   <!-- OVERVIEW TAB -->
   <div class="panel active" id="panel-overview">
-    <div class="stat-bar six">
+    <div class="stat-bar five">
       <div class="stat-cell">
         <div class="label">Total Runs</div>
         <div class="value" id="stat-runs">—</div>
@@ -603,11 +442,6 @@
         <div class="label">Sessions</div>
         <div class="value" id="stat-sessions">—</div>
         <div class="sub">unique</div>
-      </div>
-      <div class="stat-cell">
-        <div class="label">GC Tenants</div>
-        <div class="value" id="stat-tenants">—</div>
-        <div class="sub">white label · /gc/:slug</div>
       </div>
       <div class="stat-cell">
         <div class="label">Ask Pages</div>
@@ -718,50 +552,6 @@
         </div>
       </div>
 
-      <div class="product-card gc-ext">
-        <div class="card-top">
-          <div><div class="card-name">GC White Label — External</div><div class="card-tier">app.civicscope.io/gc/acme</div></div>
-          <div class="status-pill"><div class="dot checking" id="dot-gc-ext"></div><span id="status-gc-ext" style="color:var(--muted)">checking</span></div>
-        </div>
-        <div class="card-meta">
-          <div class="meta-item"><div class="mlabel">Version</div><div class="mval">v1.6.0-gc</div></div>
-          <div class="meta-item"><div class="mlabel">Runs (30d)</div><div class="mval loading" id="runs-gc-ext">—</div></div>
-          <div class="meta-item"><div class="mlabel">Tenant</div><div class="mval">ACME</div></div>
-          <div class="meta-item"><div class="mlabel">Gate</div><div class="mval" id="gate-gc-ext">—</div></div>
-        </div>
-        <div class="card-last-run">
-          <div class="clr-label">Last Run</div>
-          <div class="clr-project loading" id="last-gc-ext">Loading…</div>
-          <div class="clr-time" id="time-gc-ext">—</div>
-        </div>
-        <div class="card-actions">
-          <button class="btn-smoke" onclick="smokeTest('gc-ext','https://app.civicscope.io/gc/acme')">▶ Smoke Test</button>
-          <a class="btn-open" href="https://app.civicscope.io/gc/acme" target="_blank">↗ Open</a>
-        </div>
-      </div>
-
-      <div class="product-card gc-int">
-        <div class="card-top">
-          <div><div class="card-name">GC White Label — Internal</div><div class="card-tier">app.civicscope.io/gc/acme-internal</div></div>
-          <div class="status-pill"><div class="dot checking" id="dot-gc-int"></div><span id="status-gc-int" style="color:var(--muted)">checking</span></div>
-        </div>
-        <div class="card-meta">
-          <div class="meta-item"><div class="mlabel">Version</div><div class="mval">v1.4.0-gc-int</div></div>
-          <div class="meta-item"><div class="mlabel">Runs (30d)</div><div class="mval loading" id="runs-gc-int">—</div></div>
-          <div class="meta-item"><div class="mlabel">Tenant</div><div class="mval">ACME</div></div>
-          <div class="meta-item"><div class="mlabel">Access</div><div class="mval" style="color:var(--purple)">Internal Only</div></div>
-        </div>
-        <div class="card-last-run">
-          <div class="clr-label">Last Run</div>
-          <div class="clr-project loading" id="last-gc-int">Loading…</div>
-          <div class="clr-time" id="time-gc-int">—</div>
-        </div>
-        <div class="card-actions">
-          <button class="btn-smoke" onclick="smokeTest('gc-int','https://app.civicscope.io/gc/acme-internal')">▶ Smoke Test</button>
-          <a class="btn-open" href="https://app.civicscope.io/gc/acme-internal" target="_blank">↗ Open</a>
-        </div>
-      </div>
-
       <div class="product-card ryc">
         <div class="card-top">
           <div><div class="card-name">RYC Portfolio Dashboard</div><div class="card-tier">app.civicscope.io/ryc/dashboard</div></div>
@@ -792,38 +582,7 @@
           <div class="mini-title">Recent Leads</div>
           <div id="leads-list"><div class="empty-state">Loading…</div></div>
         </div>
-        <div class="mini-card">
-          <div class="mini-title">GC Tenants</div>
-          <div id="tenants-summary"><div class="empty-state">Loading…</div></div>
-        </div>
       </div>
-    </div>
-  </div>
-
-  <!-- TENANTS TAB -->
-  <div class="panel" id="panel-tenants">
-    <div class="tenants-layout">
-
-      <!-- Left: tenant list -->
-      <div class="tenant-list-card">
-        <div class="tenant-list-header">
-          <div class="tenant-list-title">GC Tenants</div>
-          <button class="btn-add-tenant" onclick="newTenant()">+ Add Tenant</button>
-        </div>
-        <div id="tenant-list-body"><div style="padding:16px;color:var(--muted);font-size:11px">Loading…</div></div>
-      </div>
-
-      <!-- Right: form -->
-      <div class="tenant-form-card" id="tenant-form-card">
-        <div class="form-header">
-          <div class="form-title">— <span id="form-mode-label">select a tenant to edit</span></div>
-          <div class="save-status" id="save-status"></div>
-        </div>
-        <div class="form-body" id="form-body">
-          <div style="color:var(--muted);font-size:11px;padding:20px 0">Select a tenant from the list to edit, or click + Add Tenant to create a new one.</div>
-        </div>
-      </div>
-
     </div>
   </div>
 
@@ -1092,7 +851,7 @@ async function sbWrite(table, body, id = null) {
 // ── LOAD ALL ─────────────────────────────────────────────────────
 async function loadAll() {
   document.getElementById('last-refresh').textContent = 'refreshed ' + new Date().toLocaleTimeString();
-  await Promise.allSettled([loadStats(), loadProductData(), loadFeed('overview'), loadFeed('activity'), loadLeads(), loadTenantList(), pingAll(),
+  await Promise.allSettled([loadStats(), loadProductData(), loadFeed('overview'), loadFeed('activity'), loadLeads(), pingAll(),
     // Only the Ask / Usage / Water tabs that have actually been opened. Refreshing a tab nobody
     // has looked at would put an 8-query water read and a 4,000-row aggregation on every ↺.
     askState.loaded ? loadAsk() : null,
@@ -1110,18 +869,16 @@ async function loadStats() {
        anywhere on this page, which is exactly the question Keith asked on 2026-08-26 — "where do
        the tenants for Ask Bristol and Ask Centreville and water testing live, I figured they were
        in here". Every tenant population this product has now has its own tile and its own noun. */
-    const [runs, leads, sessions, tenants, muni, water] = await Promise.all([
+    const [runs, leads, sessions, muni, water] = await Promise.all([
       sbRead('tool_runs?select=id'),
       sbRead('leads?select=id'),
       sbRead('sessions?select=id'),
-      sbRead('tenants?select=id&active=eq.true'),
       sbRead('muni_tenants?select=slug&active=eq.true'),
       sbRead('water_supplies?select=wssn&active=eq.true'),
     ]);
     document.getElementById('stat-runs').textContent = runs.length;
     document.getElementById('stat-leads').textContent = leads.length;
     document.getElementById('stat-sessions').textContent = sessions.length;
-    document.getElementById('stat-tenants').textContent = tenants.length;
     document.getElementById('stat-muni').textContent = muni.length;
     document.getElementById('stat-muni-sub').textContent =
       muni.map(t => '/' + t.slug).join(' · ') || 'none published';
@@ -1138,8 +895,6 @@ async function loadProductData() {
     { key: 'free',    product: 'free' },
     { key: 'schools', product: 'schools' },
     { key: 'pro',     product: 'pro' },
-    { key: 'gc-ext',  product: 'gc-acme' },
-    { key: 'gc-int',  product: 'gc-int-acme' },
   ];
   for (const pm of map) {
     try {
@@ -1166,15 +921,9 @@ async function loadProductData() {
       }
     } catch(e) { console.error(`Product data (${pm.key}):`, e); }
   }
-  try {
-    const t = await sbRead('tenants?select=gate_enabled&slug=eq.acme&limit=1');
-    if (t.length) {
-      const el = document.getElementById('gate-gc-ext');
-      el.textContent = t[0].gate_enabled ? 'On' : 'Off';
-      el.style.color = t[0].gate_enabled ? 'var(--green)' : 'var(--muted)';
-    }
-  } catch(e) {}
 }
+
+// ── FEED}
 
 // ── FEED ──────────────────────────────────────────────────────────
 async function loadFeed(target) {
@@ -1221,8 +970,6 @@ async function pingAll() {
   [['free','https://app.civicscope.io/civicscope'],
    ['schools','https://app.civicscope.io/schools'],
    ['pro','https://app.civicscope.io/civicscope-pro'],
-   ['gc-ext','https://app.civicscope.io/gc/acme'],
-   ['gc-int','https://app.civicscope.io/gc/acme-internal']
   ].forEach(([k,u]) => pingProduct(k,u));
 }
 async function pingProduct(key, url) {
@@ -1241,354 +988,11 @@ async function pingProduct(key, url) {
   }
 }
 
-// ── TENANT LIST ───────────────────────────────────────────────────
-let allTenants = [];
-async function loadTenantList() {
-  try {
-    allTenants = await sbRead('tenants?select=*&order=created_at.asc');
-    renderTenantList();
-    renderTenantSummary();
-  } catch(e) {
-    document.getElementById('tenant-list-body').innerHTML = '<div style="padding:16px;color:var(--danger);font-size:11px">Error loading tenants.</div>';
-  }
-}
-
-function renderTenantList() {
-  const el = document.getElementById('tenant-list-body');
-  if (!allTenants.length) { el.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:11px">No tenants yet.</div>'; return; }
-  el.innerHTML = allTenants.map(t => {
-    const warnings = [];
-    if (!t.notify_email) warnings.push('notify_email not set');
-    if (!t.brand_statement) warnings.push('brand not set');
-    return `<div class="tenant-item" id="ti-${t.slug}" onclick="selectTenant('${t.slug}')">
-      <div>
-        <div class="t-slug">${t.slug}</div>
-        <div class="t-name">${t.gc_name||'—'}</div>
-        ${warnings.length ? `<div class="t-warnings">⚠ ${warnings.join(' · ')}</div>` : ''}
-      </div>
-      <span class="t-badge ${t.active ? 'active' : 'inactive'}">${t.active ? 'Live' : 'Off'}</span>
-    </div>`;
-  }).join('');
-}
-
-function renderTenantSummary() {
-  const el = document.getElementById('tenants-summary');
-  if (!allTenants.length) { el.innerHTML = '<div class="empty-state">No tenants configured.</div>'; return; }
-  el.innerHTML = allTenants.map(t => {
-    const warnings = [];
-    if (!t.notify_email) warnings.push('⚠ notify_email');
-    if (!t.brand_statement) warnings.push('⚠ brand');
-    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="color:var(--accent);font-weight:600">${t.slug}</div>
-          <div style="color:var(--muted);font-size:10px;margin-top:2px">${t.gc_name||'—'}</div>
-          ${warnings.length ? `<div style="font-size:9px;color:var(--warn);margin-top:3px">${warnings.join(' · ')}</div>` : ''}
-        </div>
-        <span style="font-size:10px;font-weight:600;${t.active ? 'color:var(--green)' : 'color:var(--muted)'}">${t.active ? '● LIVE' : '○ OFF'}</span>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ── TENANT FORM ───────────────────────────────────────────────────
-let editingTenant = null; // null = new, string = slug (id lookup)
-let editingId = null;
-
-function newTenant() {
-  editingTenant = null;
-  editingId = null;
-  document.querySelectorAll('.tenant-item').forEach(el => el.classList.remove('selected'));
-  renderForm({});
-}
-
-function selectTenant(slug) {
-  const t = allTenants.find(x => x.slug === slug);
-  if (!t) return;
-  editingTenant = slug;
-  editingId = t.id;
-  document.querySelectorAll('.tenant-item').forEach(el => el.classList.remove('selected'));
-  const el = document.getElementById(`ti-${slug}`);
-  if (el) el.classList.add('selected');
-  renderForm(t);
-}
-
-function renderForm(t) {
-  document.getElementById('form-mode-label').textContent = t.slug ? `editing: ${t.slug}` : 'new tenant';
-  document.getElementById('save-status').textContent = '';
-  document.getElementById('save-status').className = 'save-status';
-
-  const pt = Array.isArray(t.project_types) ? t.project_types : (t.project_types ? JSON.parse(t.project_types) : []);
-  const bv = Array.isArray(t.brand_values) ? t.brand_values : (t.brand_values ? JSON.parse(t.brand_values) : ['']);
-
-  document.getElementById('form-body').innerHTML = `
-    <!-- IDENTITY -->
-    <div class="form-section">
-      <div class="form-section-title">Identity</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Slug <span style="color:var(--danger)">*</span></label>
-          <input type="text" id="f-slug" value="${t.slug||''}" placeholder="acme" ${t.slug ? 'readonly style="opacity:0.6"' : ''} />
-          <span class="hint">URL-safe, lowercase. Cannot change after creation.</span>
-        </div>
-        <div class="form-group">
-          <label>GC Name <span style="color:var(--danger)">*</span></label>
-          <input type="text" id="f-gc_name" value="${esc(t.gc_name||'')}" placeholder="ACME General Contractor" />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Primary Color</label>
-          <div class="color-row">
-            <div class="color-preview" id="color-preview" style="background:${t.primary_color||'#333844'}"></div>
-            <input type="text" id="f-primary_color" value="${t.primary_color||''}" placeholder="#d4232a" oninput="updateColorPreview(this.value)" />
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Region</label>
-          <input type="text" id="f-region" value="${esc(t.region||'')}" placeholder="Midwest (Indiana / Michigan)" />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Logo URL</label>
-          <input type="text" id="f-logo_url" value="${esc(t.logo_url||'')}" placeholder="https://…/logo.png" />
-        </div>
-      </div>
-    </div>
-
-    <!-- HERO -->
-    <div class="form-section">
-      <div class="form-section-title">Hero Copy</div>
-      <div class="form-row full">
-        <div class="form-group">
-          <label>Hero Headline</label>
-          <input type="text" id="f-hero_headline" value="${esc(t.hero_headline||'')}" placeholder="Fast, accurate project cost estimates" />
-        </div>
-      </div>
-      <div class="form-row full">
-        <div class="form-group">
-          <label>Hero Subhead</label>
-          <input type="text" id="f-hero_subhead" value="${esc(t.hero_subhead||'')}" placeholder="Before you hire an architect…" />
-        </div>
-      </div>
-    </div>
-
-    <!-- CTA -->
-    <div class="form-section">
-      <div class="form-section-title">CTA Block</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>CTA Headline</label>
-          <input type="text" id="f-cta_headline" value="${esc(t.cta_headline||'')}" placeholder="Ready to move forward?" />
-        </div>
-        <div class="form-group">
-          <label>CTA Button Label</label>
-          <input type="text" id="f-cta_button_label" value="${esc(t.cta_button_label||'')}" placeholder="Request a Formal Estimate" />
-        </div>
-      </div>
-      <div class="form-row full">
-        <div class="form-group">
-          <label>CTA Body</label>
-          <textarea id="f-cta_body" placeholder="Our team will review your project and provide a detailed proposal…">${esc(t.cta_body||'')}</textarea>
-        </div>
-      </div>
-      <div class="form-row full">
-        <div class="form-group">
-          <label>CTA Button URL</label>
-          <input type="text" id="f-cta_url" value="${esc(t.cta_url||'')}" placeholder="https://acme.com/contact" />
-        </div>
-      </div>
-    </div>
-
-    <!-- EMAILS -->
-    <div class="form-section">
-      <div class="form-section-title">Email Config</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Contact Email</label>
-          <input type="email" id="f-contact_email" value="${esc(t.contact_email||'')}" placeholder="contact@acme.com" />
-          <span class="hint">Shown to users in tool. Never sent to browser via gc-config.</span>
-        </div>
-        <div class="form-group">
-          <label>From Email</label>
-          <input type="email" id="f-from_email" value="${esc(t.from_email||'')}" placeholder="estimates@acme.com" />
-          <span class="hint">Sender name for GC emails. Never sent to browser.</span>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Notify Email</label>
-          <input type="email" id="f-notify_email" value="${esc(t.notify_email||'')}" placeholder="leads@acme.com" />
-          <span class="hint">Lead notifications go here. Keith BCC'd. If blank, Keith only.</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- PROJECT TYPES -->
-    <div class="form-section">
-      <div class="form-section-title">Project Types</div>
-      <div class="project-types-input">
-        <div class="pt-tags" id="pt-tags">
-          ${pt.map(p => ptTag(p)).join('')}
-        </div>
-        <div class="pt-add-row">
-          <input type="text" id="pt-new-input" placeholder="e.g. Municipal / Public" onkeydown="if(event.key==='Enter'){addPT();event.preventDefault();}" />
-          <button class="btn-pt-add" onclick="addPT()">+ Add</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- BRAND -->
-    <div class="form-section">
-      <div class="form-section-title">Brand Content ("Why [GC]" Section)</div>
-      <div class="form-row full">
-        <div class="form-group">
-          <label>Brand Statement</label>
-          <textarea id="f-brand_statement" placeholder="1–2 sentence GC positioning statement shown in the 'Why Us' section…">${esc(t.brand_statement||'')}</textarea>
-          <span class="hint">Hidden from tool until populated.</span>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Brand Values (3–5 short strings)</label>
-        <div class="brand-values-input">
-          <div class="bv-list" id="bv-list">
-            ${bv.map((v,i) => bvItem(v,i)).join('')}
-          </div>
-          <button class="btn-bv-add" onclick="addBV()">+ Add Value</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- TOGGLES -->
-    <div class="form-section">
-      <div class="form-section-title">Settings</div>
-      <div class="toggle-row">
-        <div>
-          <div class="toggle-label">Gate Enabled</div>
-          <div class="toggle-sub">Require email before showing results</div>
-        </div>
-        <button class="toggle ${t.gate_enabled ? 'on' : ''}" id="toggle-gate" onclick="this.classList.toggle('on')"></button>
-      </div>
-      <div class="toggle-row" style="margin-top:10px">
-        <div>
-          <div class="toggle-label">Active</div>
-          <div class="toggle-sub">Tenant is live and accessible</div>
-        </div>
-        <button class="toggle ${t.active !== false ? 'on' : ''}" id="toggle-active" onclick="this.classList.toggle('on')"></button>
-      </div>
-    </div>
-  `;
-
-  document.getElementById('form-body').insertAdjacentHTML('afterend', '');
-  // Inject form actions after body
-  const existingActions = document.querySelector('.form-actions');
-  if (existingActions) existingActions.remove();
-  document.getElementById('tenant-form-card').insertAdjacentHTML('beforeend', `
-    <div class="form-actions">
-      <button class="btn-save" id="btn-save" onclick="saveTenant()">
-        ${editingId ? '✓ Save Changes' : '+ Create Tenant'}
-      </button>
-      <button class="btn-cancel" onclick="cancelForm()">Cancel</button>
-    </div>
-  `);
-}
-
-function ptTag(val) {
-  return `<div class="pt-tag"><span>${esc(val)}</span><span class="remove" onclick="removePT(this)">×</span></div>`;
-}
-function bvItem(val, i) {
-  return `<div class="bv-item"><input type="text" value="${esc(val)}" placeholder="e.g. 30 years regional work" /><button class="btn-bv-remove" onclick="removeBV(this)">×</button></div>`;
-}
-function addPT() {
-  const inp = document.getElementById('pt-new-input');
-  if (!inp.value.trim()) return;
-  document.getElementById('pt-tags').insertAdjacentHTML('beforeend', ptTag(inp.value.trim()));
-  inp.value = '';
-}
-function removePT(el) { el.closest('.pt-tag').remove(); }
-function addBV() { document.getElementById('bv-list').insertAdjacentHTML('beforeend', bvItem('', document.querySelectorAll('.bv-item').length)); }
-function removeBV(el) { el.closest('.bv-item').remove(); }
-function updateColorPreview(val) {
-  const p = document.getElementById('color-preview');
-  if (p && /^#[0-9a-fA-F]{3,6}$/.test(val)) p.style.background = val;
-}
-function cancelForm() {
-  editingTenant = null; editingId = null;
-  document.querySelectorAll('.tenant-item').forEach(el => el.classList.remove('selected'));
-  document.getElementById('form-mode-label').textContent = 'select a tenant to edit';
-  document.getElementById('form-body').innerHTML = '<div style="color:var(--muted);font-size:11px;padding:20px 0">Select a tenant from the list to edit, or click + Add Tenant to create a new one.</div>';
-  const fa = document.querySelector('.form-actions');
-  if (fa) fa.remove();
-}
-
-async function saveTenant() {
-  const btn = document.getElementById('btn-save');
-  const status = document.getElementById('save-status');
-  btn.disabled = true;
-  btn.textContent = '…saving';
-  status.textContent = '';
-
-  // Collect project_types
-  const ptTags = [...document.querySelectorAll('#pt-tags .pt-tag span:first-child')].map(el => el.textContent.trim()).filter(Boolean);
-  // Collect brand_values
-  const bvVals = [...document.querySelectorAll('#bv-list .bv-item input')].map(el => el.value.trim()).filter(Boolean);
-
-  const payload = {
-    slug:              document.getElementById('f-slug')?.value.trim(),
-    gc_name:           document.getElementById('f-gc_name')?.value.trim(),
-    primary_color:     document.getElementById('f-primary_color')?.value.trim() || null,
-    region:            document.getElementById('f-region')?.value.trim() || null,
-    logo_url:          document.getElementById('f-logo_url')?.value.trim() || null,
-    hero_headline:     document.getElementById('f-hero_headline')?.value.trim() || null,
-    hero_subhead:      document.getElementById('f-hero_subhead')?.value.trim() || null,
-    cta_headline:      document.getElementById('f-cta_headline')?.value.trim() || null,
-    cta_body:          document.getElementById('f-cta_body')?.value.trim() || null,
-    cta_button_label:  document.getElementById('f-cta_button_label')?.value.trim() || null,
-    cta_url:           document.getElementById('f-cta_url')?.value.trim() || null,
-    contact_email:     document.getElementById('f-contact_email')?.value.trim() || null,
-    from_email:        document.getElementById('f-from_email')?.value.trim() || null,
-    notify_email:      document.getElementById('f-notify_email')?.value.trim() || null,
-    brand_statement:   document.getElementById('f-brand_statement')?.value.trim() || null,
-    brand_values:      bvVals.length ? bvVals : null,
-    project_types:     ptTags.length ? ptTags : null,
-    gate_enabled:      document.getElementById('toggle-gate')?.classList.contains('on'),
-    active:            document.getElementById('toggle-active')?.classList.contains('on'),
-  };
-
-  if (!payload.slug || !payload.gc_name) {
-    status.textContent = '✗ Slug and GC Name required';
-    status.className = 'save-status err';
-    btn.disabled = false;
-    btn.textContent = editingId ? '✓ Save Changes' : '+ Create Tenant';
-    return;
-  }
-
-  try {
-    await sbWrite('tenants', payload, editingId);
-    status.textContent = '✓ Saved';
-    status.className = 'save-status ok';
-    btn.textContent = '✓ Saved';
-    await loadTenantList();
-    if (!editingId) { editingId = allTenants.find(t => t.slug === payload.slug)?.id || null; editingTenant = payload.slug; }
-    document.getElementById('form-mode-label').textContent = `editing: ${payload.slug}`;
-    const saveBtn = document.getElementById('btn-save');
-    if (saveBtn) saveBtn.textContent = '✓ Save Changes';
-  } catch(e) {
-    status.textContent = `✗ ${e.message}`;
-    status.className = 'save-status err';
-    btn.textContent = editingId ? '✓ Save Changes' : '+ Create Tenant';
-  }
-  btn.disabled = false;
-}
-
 // ── SMOKE TEST ────────────────────────────────────────────────────
 const PRODUCTS = {
   'free':    { label: 'Free',        product_prefix: 'free' },
   'schools': { label: 'Schools',     product_prefix: 'schools' },
   'pro':     { label: 'Pro',         product_prefix: 'pro' },
-  'gc-ext':  { label: 'GC External', product_prefix: 'gc-acme' },
-  'gc-int':  { label: 'GC Internal', product_prefix: 'gc-int-acme' },
 };
 async function smokeTest(key, url) {
   const btn = event.target;
@@ -1601,7 +1005,6 @@ async function smokeTest(key, url) {
     { label: 'Page reachable', fn: () => fetch(url, { method:'HEAD', mode:'no-cors' }).then(() => 'reachable') },
     { label: 'Supabase REST reachable', fn: async () => { await sbRead('tool_runs?select=id&limit=1'); return 'connected'; }},
     { label: 'Recent runs in DB', fn: async () => { const rows = await sbRead(`tool_runs?select=id&product=eq.${PRODUCTS[key].product_prefix}&order=created_at.desc&limit=1`); if(!rows.length) throw new Error('no runs'); return `found`; }},
-    { label: 'gc-config API', fn: () => key.startsWith('gc') ? fetch('https://app.civicscope.io/api/gc-config?slug=acme').then(async r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); const d=await r.json(); if(!d.gc_name) throw new Error('empty config'); return d.gc_name; }) : Promise.resolve('skip') },
   ];
   let allPass = true;
   for (const c of checks) {
