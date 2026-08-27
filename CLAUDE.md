@@ -1672,6 +1672,34 @@ reports **CANNOT RUN → inconclusive**, which is the honest answer and still st
 "permanently unverifiable". It is the one entry in `infra/env-var-inventory.md` that cannot be
 recovered from the platform.
 
+### 🚩 THE DEPLOY HARNESS IS FLAKY, AND A FLAKY CERTIFICATION IS WORSE THAN A RED ONE
+
+Running it twice on the **byte-identical working tree**, with no code change between:
+
+| Run | Result |
+|---|---|
+| 1 | `HARNESS-INCOMPLETE: 5 failed check(s)` — 182/187 |
+| 2 | `HARNESS-COMPLETE: 187/187 checks, 45/45 scenarios, exit 0` |
+
+Both failures were in resume scenarios — `partial-then-resume-no-duplicate` and
+`foreign-journal-ignored` — and both took the same shape: **exit 10 REFUSED where 0 was expected**.
+Both pass every time under `--only`. So it is order- or timing-dependent state shared across
+scenarios (each of those two runs a deploy, then a second deploy against the same mock and journal),
+not a verdict on the tree.
+
+⛔ **This matters more than a normal flake.** `HARNESS-COMPLETE` is defined in this file as *the*
+certification, and the remedy for an INCOMPLETE run is now "run it again" — which is exactly how a
+genuine regression gets waved through. **Do not treat a second green as clearing a first red until
+the flake is fixed;** compare the failing check names against these two scenarios first, and if a
+failure is anywhere else, believe it.
+
+⚠ **AND `--only` CANNOT ATTRIBUTE A FULL-SUITE FAILURE.** Bisecting these two scenarios with
+`--only` — HEAD version vs working-tree version — returned PASS on *both* arms, which reads like a
+clean result and measures nothing, because `--only` passes regardless of the change. The runner
+already prints *"HARNESS-TARGET-COMPLETE … does NOT certify the suite"*; that warning is about
+coverage, and it applies just as hard to **attribution**. A full-suite failure can only be
+attributed by a full-suite run.
+
 25 assertions were driven against the real handler and the live database before shipping —
 including that `select=*` and `select=pin` on `water_operators` both come back without a PIN, that
 `muni_questions` and `water_readings` are **not** directly readable (usage goes through the
@@ -1923,6 +1951,14 @@ Centreville gives 30/10/40 from Table 4-4.
 - **`CIVICSCOPE_ADMIN_SECRET` cannot be recovered from Vercel** — it is SENSITIVE-typed and
   `vercel env pull` returns it zero-length. Until it is set as a Windows User var, the new
   `api/admin.js` contract reports CANNOT RUN and any admin deploy lands at exit 50 rather than 0.
+  ⚠ Setting it via `SetEnvironmentVariable(name, '', 'User')` with an **empty** value DELETES the
+  variable rather than setting it, and reports no error — so a mistyped `Read-Host` looks exactly
+  like a successful set. Verify by reading the length back, never by the absence of an error.
+- 🚩 **`scripts/test-deploy-harness.js` IS FLAKY — two resume scenarios failed one run and passed
+  the next on a byte-identical tree** (2026-08-26, detail in the admin section above). The remedy
+  for an INCOMPLETE run is currently "run it again", which is indistinguishable from waving through
+  a real regression. Fix the shared state in `partial-then-resume-no-duplicate` and
+  `foreign-journal-ignored`, or the certification line cannot mean what this file says it means.
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The chips
   are verified against the live corpus (048); an ingest can retire one as easily as earn it.
   Done 2026-08-26 after the zoning-book restore. Its own traffic is tagged `verifier` (049) so it
