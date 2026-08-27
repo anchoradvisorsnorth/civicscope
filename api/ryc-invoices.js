@@ -228,6 +228,16 @@ Each document:
                                        "THIS PERIOD" / "COMPLETED THIS PERIOD". Read the
                                        continuation sheet to get it. null if this document has no
                                        continuation sheet.
+    "completed_and_stored": <number|null>, "TOTAL COMPLETED AND STORED TO DATE" — line 4 on the
+                                       G702 face sheet, which is the GRAND TOTAL of column G on the
+                                       continuation sheet. Read it whenever the form shows it.
+                                       ⚠ THIS IS THE ONLY FIGURE THAT DESCRIBES A PAY APPLICATION
+                                       BILLING NOTHING BUT STORED MATERIALS. Midwest Glass on White
+                                       Veterinary Clinic reads column E (work this period) as a
+                                       TRUE $0.00 because the whole $33,068.10 sits in column F,
+                                       Materials Stored — so "work this period" describes it as
+                                       zero while $25,051.50 is genuinely due. Without line 4 there
+                                       is no honest number to put on that document.
     "eligible_to_date": <number|null>, "AMOUNT ELIGIBLE TO DATE" / "TOTAL EARNED LESS RETAINAGE"
                                        (line 6). null if the form does not show it.
     "less_previous": <number|null>,    "LESS PREVIOUS PAYMENTS" / "LESS PREVIOUS CERTIFICATES FOR
