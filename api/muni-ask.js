@@ -42,6 +42,23 @@ import { sessionOf } from '../lib/session.js';
 const MAX_QUESTION = 500;
 const RETRIEVE = 12;          // passages pulled from Postgres
 const CONTEXT_CHARS = 30000;  // ceiling on what reaches the model.
+/* ⛔ AND A FLOOR UNDER THE DELEGATED CORPUS. Measured 2026-08-26 on Bristol: every R-1 setback
+   question landed within 500 characters of the ceiling (29,521 / 29,755 / 29,818 of 30,000) and
+   every one of them dropped 2–4 county passages — including the two ranked #1 and #2, which hold
+   the answer. The same question came back answered, partial and declined on three consecutive
+   runs, and the declined one told the reader "the passages don't contain the R-1 setback numbers"
+   while those passages sat in the dropped list.
+
+   The ordering was already right. The ALLOCATION was not: Bristol delegates ALL of its zoning to
+   Elkhart County under IC 36-1-5-4, so for a zoning question the shared corpus is not a
+   supplement — it IS the law — yet it competed for budget on equal terms with Bristol's own Code
+   of Ordinances, which contains no zoning at all. The town's own passages won seats and ate the
+   ceiling.
+
+   So the delegated corpus gets a RESERVED share that the tenant's own passages may not spend.
+   Note this is a floor, not a quota: if the shared corpus returns less than its reserve, the
+   remainder is not wasted — the second pass hands it straight back to whoever else fits. */
+const SHARED_RESERVE = 12000;   // of CONTEXT_CHARS, held for a shares_corpus_with tenant
 // Raised from 24,000 on 2026-08-25. A printed table is now ONE chunk — Centreville's Table 4-4 is
 // 3,265 characters on its own — so the old ceiling was being reached by the ranked hits alone
 // (26,621 for a single setback question) and anything guaranteed afterwards was silently dropped.
@@ -385,6 +402,47 @@ export default async function handler(req, res) {
      fired for the setback question, because Table 4-1 (which merely states the PURPOSE of each
      district) had won a seat on its own. A table was present, the right table was not, and the
      answer was still "I don't have the dimensional table". */
+  /* ── THE DISTRICT THE QUESTION NAMES IS DECISIVE, AND RANKING DOES NOT KNOW THAT ────────────
+     Measured 2026-08-26. Asked "what is the front setback in the R-1 district?",
+     muni_search_tables against the county returned, in order: 158.03, 158.04(E),
+     **M-1 Limited Manufacturing**, 158.04, **M-2 Heavy Manufacturing**. The R-1 table was not in
+     the top three the guarantee takes. A zoning code is a set of near-identical documents that
+     differ mainly in WHICH district they describe, so every district table is an almost equally
+     good lexical match for a setback question — and the one token that disambiguates them, the
+     district code itself, is a two-character term with no term-frequency advantage whatsoever.
+
+     ⛔ NOT A WEIGHT. Migrations 018-021 and 038 spent four attempts learning that a coefficient
+     cannot fix a structural mismatch, and this is structural: no constant makes "R-1" outweigh a
+     manufacturing chapter that repeats "setback" thirty times. The district is looked up
+     DIRECTLY — by heading, exactly, no ranking involved — and given a seat at the front.
+
+     It fires only when the reader named a district, so an ordinary question is untouched. It also
+     silently does nothing on a corpus whose headings are not district-named — Centreville's are
+     "Table 4-4" — which is correct: that corpus already has its own working guarantee. */
+  const districtOf = (q) => {
+    const m = String(q).toUpperCase().match(/\b([ABEMR])-(\d{1,2})\b/);
+    return m ? `${m[1]}-${m[2]}` : null;
+  };
+  const namedDistrict = districtOf(question);
+  let districtHits = [];
+  if (namedDistrict) {
+    const lookup = async (t) => {
+      try {
+        return await sb(`muni_chunks?tenant=eq.${encodeURIComponent(t)}`
+          + `&heading=ilike.${encodeURIComponent(namedDistrict + '%')}`
+          + '&select=id,doc_id,heading,citation,content,is_table&limit=3');
+      } catch { return []; }
+    };
+    const own = await lookup(slug);
+    const shared = tenant.shares_corpus_with ? await lookup(tenant.shares_corpus_with) : [];
+    for (const h of shared) h._from = `shared:${tenant.shares_corpus_with}`;
+    /* Prefer the table — a district's prose section says what the district is FOR, the table says
+       what you may build. Both are kept when both exist; the table leads. */
+    districtHits = [...own, ...shared]
+      .sort((a, b) => Number(Boolean(b.is_table)) - Number(Boolean(a.is_table)))
+      .map((c) => ({ ...c, chunk: c.id, rank: null, _guaranteed: 'district' }));
+  }
+
   // Hoisted: the logging site below needs to know which passages were GUARANTEED rather than
   // ranked, so used_table cannot under-report a table that arrived through the guarantee.
   let tbl = null;
@@ -515,11 +573,37 @@ export default async function handler(req, res) {
     return isNaN(d) ? null : d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Detroit' });
   };
 
+  /* ⛔ PREPEND, NEVER APPEND. Cause 4 of the Centreville setback chain: a guaranteed passage added
+     at the END of a list that then meets a character ceiling is not guaranteed at all — the loop
+     broke before reaching it and the table never got to the model. Same mistake, one level up,
+     would waste this entire fix. */
+  if (districtHits.length) {
+    const already = new Set(hits.map((h) => h.chunk));
+    const add = districtHits.filter((d) => !already.has(d.chunk));
+    if (add.length) hits = [...add, ...hits];
+  }
+
   // Build the passage block, bounded so a broad question cannot send an unbounded prompt.
   const used = [];
   const dropped = [];
   let context = '';
-  for (const h of hits) {
+
+  /* TWO PASSES, and the order of the passes is the whole fix.
+     Pass 1 spends at most (CONTEXT_CHARS - SHARED_RESERVE) on everything, so the tenant's own
+     passages cannot consume the budget the delegated corpus needs. Pass 2 then reconsiders every
+     passage pass 1 could not fit, against the FULL ceiling — which is what keeps the reserve a
+     floor rather than a quota, and means a tenant with no shared corpus is completely unaffected:
+     its pass 1 stops early and pass 2 immediately gives the rest of the budget back.
+
+     ⚠ Ordering within each pass is untouched. The hits array already carries the interleave and the
+     guaranteed table/website seats at the front, and re-sorting here would silently undo three
+     migrations' worth of ranking work. */
+  const hasShared = Boolean(tenant.shares_corpus_with);
+  const isShared = (h) => typeof h._from === 'string' && h._from.startsWith('shared:');
+  const pass1Ceiling = hasShared ? CONTEXT_CHARS - SHARED_RESERVE : CONTEXT_CHARS;
+  const deferred = [];
+
+  const consider = (h, ceiling) => {
     const day = h.text_source === 'web' ? fmtDay(readAt[h.doc_id]) : null;
     /* ⛔ 'mixed' MUST READ AS A SCAN, NOT AS TEXT. A mixed document has a real text layer plus
        pages that were transcribed because pdftotext could not read them — and on the Centreville
@@ -540,9 +624,21 @@ export default async function handler(req, res) {
        passage carrying the answer never gets considered, with 1,500 characters still free.
        `continue` costs nothing — the loop is at most a few dozen passages — and the ordering that
        decides precedence is unchanged. */
-    if (context.length + block.length > CONTEXT_CHARS) { dropped.push(h); continue; }
+    if (context.length + block.length > ceiling) return false;
     context += block;
     used.push(h);
+    return true;
+  };
+
+  // Pass 1 — the shared corpus spends against the full ceiling; the tenant's own against the
+  // reduced one, so it physically cannot starve the corpus that holds this tenant's zoning.
+  for (const h of hits) {
+    const ceiling = (hasShared && isShared(h)) ? CONTEXT_CHARS : pass1Ceiling;
+    if (!consider(h, ceiling)) deferred.push(h);
+  }
+  // Pass 2 — hand back whatever the reserve did not need.
+  for (const h of deferred) {
+    if (!consider(h, CONTEXT_CHARS)) dropped.push(h);
   }
 
   /* ⛔ AND SAY SO. Three separate defects have now been caused by this budget quietly discarding
