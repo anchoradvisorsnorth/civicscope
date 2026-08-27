@@ -26,6 +26,11 @@
       "statusCode": 301
     },
     {
+      "source": "/gc/:slug*",
+      "destination": "/",
+      "statusCode": 301
+    },
+    {
       "source": "/golf",
       "destination": "/pool/golf",
       "statusCode": 301
@@ -252,10 +257,6 @@
       "destination": "/civicscope-water/sw.js"
     },
     {
-      "source": "/gc/acme-internal",
-      "destination": "/civicscope-gc/estimator/index.html"
-    },
-    {
       "source": "/privacy",
       "destination": "/civicscope-legal/privacy.html"
     },
@@ -266,10 +267,6 @@
     {
       "source": "/bristol/ask",
       "destination": "/civicscope-muni/index.html"
-    },
-    {
-      "source": "/gc/:slug",
-      "destination": "/civicscope-gc/index.html"
     }
   ]
 }
