@@ -35,9 +35,10 @@ const TABLES = {
   /* ⛔ NO `tenants` ENTRY. The GC white-label tenant registry was removed from this proxy on
      2026-08-26 — Keith: "you can blow away the GC as tenant thing. That is dead." The admin page
      no longer reads or writes it, so leaving a service-role write path open to a table nothing
-     manages is surface for no benefit. `api/gc-config.js` still reads that table with its own
-     credential to serve the surviving /gc/:slug routes; this endpoint simply has no business
-     there any more. Restoring it is one entry plus one name in WRITABLE. */
+     manages is surface for no benefit. Later the same day the whole product was torn out — the
+     pages, `api/gc-config.js`, `api/gc-log.js` and the /gc/:slug rewrites are gone and /gc/*
+     301s to /. **Nothing anywhere reads the `tenants` table now.** The table and its acme/ryc
+     rows survive only because its DDL was never versioned, so a DROP would have no undo. */
 
   // ── Ask <Municipality> ────────────────────────────────────────────────────────────────────
   muni_tenants: {
