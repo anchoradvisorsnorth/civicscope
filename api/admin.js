@@ -3,10 +3,13 @@
 // ships to the browser. Reads moved here 2026-07-13 when RLS was enabled
 // (tables were publicly readable via the anon key in the public repo).
 //
-// 2026-08-26 — Ask and Well Testing joined it. Until today the only tenant registry this endpoint
-// knew was `tenants`, the GC white-label one, so the admin page's "ACTIVE TENANTS 2" tile was
-// counting acme and ryc while the two LIVE municipal products (`muni_tenants`) and the water
-// supply (`water_supplies`) had no admin surface at all — they were rows edited by script.
+// 2026-08-26 — Ask and Well Testing joined it, and the GC white-label registry left it the same
+// day. Until that morning the only tenant registry this endpoint knew was `tenants`, the GC one,
+// so the admin page's "ACTIVE TENANTS 2" tile was counting acme and ryc while the two LIVE
+// municipal products (`muni_tenants`) and the water supply (`water_supplies`) had no admin
+// surface at all — they were rows edited by script. The GC product had been PARKED since the
+// 2026-07-08 Fable review (one demo tenant in four months); Keith called it dead, so the tile that
+// prompted all of this is gone rather than corrected.
 //
 // ⛔ A TABLE REGISTRY, NOT THREE MORE `if` BRANCHES. Every table here now declares its primary key,
 // which columns a browser may write, and which columns may be READ BACK. That last one is not
@@ -29,8 +32,12 @@ import { summarize, dailyCounts } from '../civicscope-admin/usage.js';
  * insert      — may this table take new rows at all.
  */
 const TABLES = {
-  // ── GC white label — unchanged from 2026-07-13 ────────────────────────────────────────────
-  tenants: { key: 'id', insert: true },
+  /* ⛔ NO `tenants` ENTRY. The GC white-label tenant registry was removed from this proxy on
+     2026-08-26 — Keith: "you can blow away the GC as tenant thing. That is dead." The admin page
+     no longer reads or writes it, so leaving a service-role write path open to a table nothing
+     manages is surface for no benefit. `api/gc-config.js` still reads that table with its own
+     credential to serve the surviving /gc/:slug routes; this endpoint simply has no business
+     there any more. Restoring it is one entry plus one name in WRITABLE. */
 
   // ── Ask <Municipality> ────────────────────────────────────────────────────────────────────
   muni_tenants: {
@@ -83,7 +90,7 @@ const TABLES = {
   water_feeds: { key: 'id', insert: false },
   water_mor_filings: { key: 'id', insert: false },
   water_mor_reminders: { key: 'id', insert: false },
-  // Legacy read-only analytics tables the Overview tab has always used.
+  // Read-only analytics tables the Overview tab has always used.
   leads: { key: 'id', insert: false },
   sessions: { key: 'id', insert: false },
   tool_runs: { key: 'id', insert: false },
@@ -100,7 +107,7 @@ const TABLES = {
   },
 };
 
-const WRITABLE = new Set(['tenants', 'muni_tenants', 'water_supplies', 'water_entry_points',
+const WRITABLE = new Set(['muni_tenants', 'water_supplies', 'water_entry_points',
   'water_sites', 'water_operators']);
 
 export default async function handler(req, res) {
