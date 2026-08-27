@@ -1571,6 +1571,112 @@ fact; name both readings; let the reader decide.
 ⚠ This is a **client** finding, not an engineering one: if Keith wants the tool to answer it, the
 hours have to come from the Town. Nothing in the code will produce them.
 
+## The admin grew an Ask tab, an Ask Usage tab and a Water tab — 2026-08-26
+
+Keith, looking at `/admin`: *"Where do the tenants for Ask Bristol and Ask Centerville and water
+testing live - I figured they were in here"* — then *"I need an admin for Ask and Well testing -
+need UI and want to track usage of Ask."*
+
+⛔ **THEY WERE NOT IN THERE, AND THE PAGE DID NOT SAY SO.** `api/admin.js` knew exactly one tenant
+registry — `tenants`, the GC white-label one — so the Overview tile read **ACTIVE TENANTS 2** while
+counting `acme` and `ryc`, and the two **live** municipal products plus the water supply had no
+admin surface at all. Every `muni_tenants` and `water_supplies` change since 2026-08-18 was made by
+script. A dashboard that reports a confident number for the wrong population is the same defect
+class as `answered` being true whenever the model produced prose: the number was never wrong about
+what it measured, it was wrong about what a reader would take it to mean. The tab is now labelled
+**GC Tenants**.
+
+**Three tabs, and the reason each exists.**
+
+| Tab | Serves | Writes through |
+|---|---|---|
+| **Ask** | `muni_tenants` — all 7 corpora incl. the unpublished `elkhart-county` pointer and the four `sd-*` research corpora, with a per-collection corpus breakdown (docs / passages / pages / scans) | `/api/admin` `write` |
+| **Ask Usage** | `muni_questions` — outcomes, volume, what could not be answered, what gets cited, what is asked twice, and every question verbatim | read-only |
+| **Water** | `water_supplies` + wells, feeds, operators, sites, filings, reminders | `/api/admin` `write` |
+
+### ⛔ THE ADMIN PROXY IS A TABLE REGISTRY NOW, BECAUSE THE OLD ONE HAD THREE LATENT TRAPS
+
+`api/admin.js` used a flat `ALLOWED_TABLES` / `READABLE_TABLES` pair and `?id=eq.${id}`. Adding two
+products to it surfaced three separate ways that shape fails, none of which would have thrown:
+
+1. **`?id=eq.` is wrong for `muni_tenants`, which is keyed on `slug`.** PostgREST answers a PATCH
+   that matched nothing with **200 and `[]`** — so every tenant edit would have reported success and
+   changed nothing. Each table now declares its key, and **a PATCH matching zero rows is a 404**
+   naming the key it looked for.
+2. **The read path forwarded the caller's own `select` verbatim.** `water_operators.pin` is a
+   4-digit code that unlocks the crew tablet; `select=*` would have published every one of them to
+   anyone holding the admin passphrase. Tables that declare `read` columns have their `select`
+   **replaced, not validated** — a guard that reasons about what the caller asked for has to be
+   right about every PostgREST projection syntax; overwriting it has to be right about one thing.
+   The PIN can be **set** here and can never be read back; `water_state` answers `has_pin` from a
+   `pin=not.is.null` query so the value never leaves the database.
+3. **Any allowed table took any column.** Four columns are deliberately not writable and each for
+   its own reason: **`anthropic_key_env`** names an environment variable (a value that indexes
+   `process.env` must not come from a form); **`auth_client_id`/`auth_provider`** are the audience
+   every ID token is verified against; **`sample_questions`** has exactly one supported writer,
+   `verify-sample-questions.mjs`, because a chip typed into a box is the unverified suggestion
+   migration 048 exists to prevent; **`doc_count`/`last_ingest_at`** are measurements, not settings.
+   A rejected column **refuses with a 400 rather than being dropped** — a form told its edit landed
+   when it did not is the same silent success as trap 1. The key column is settable on INSERT and
+   never on UPDATE, because renaming a live slug orphans every `muni_docs` row pointing at it.
+
+⛔ **`water_feeds` IS READ-ONLY ON THE PAGE AND IN THE REGISTRY.** `avail_fraction`, `ortho_factor`
+and `nsf_max_dose` are the constants `civicscope-water/derive.js` multiplies to produce numbers
+**filed with the State of Michigan under 1976 PA 399**. Changing 0.125 to 0.25 in a text box
+silently rewrites every dose the plant reports, and the derivation gate replays 93 real well-days
+against exactly those values. A genuine drum-strength change is a migration and a gate re-run.
+
+### The usage arithmetic moved to `civicscope-admin/usage.js` — ONE copy
+
+Three surfaces now report these numbers: `scripts/muni-usage.mjs`, the Ask Usage tab, and
+`api/admin.js` which serves it. **Same shape as `civicscope-water/derive.js`** — the arithmetic
+lives in one file and everything that renders it imports that file. `muni-usage.mjs` was rewritten
+to call `summarize()` and produced byte-identical output on the same window (105 questions,
+8 unanswered, centreville 73 / bristol 32). Ship it **with** `api/admin.js`; it is in the deploy
+manifest for that reason. Change a bucket **there**.
+
+Every bucket survives intact, including the two that exist because folding them into a neighbour
+hid something: `referred` is counted and never called a failure, and a **pre-045 row with no
+outcome is shown as unknown, never as answered**. Verifier traffic is excluded by default with a
+toggle, exactly as the CLI does.
+
+### ✅ "AUGUST IS STILL ON PAPER" IS A NUMBER ON A SCREEN NOW
+
+The Water tab's first section answers the only operational question that matters — *is the plant
+being logged in the product, or still on paper?* — as (well × day) slots logged against slots
+possible so far this month, **split by `source`**. Measured the moment it first ran:
+
+| Month | Logged | Source |
+|---|---|---|
+| 2026-08 | **1 of 78** | `tablet` 1 |
+| 2026-07 | 93 of 93 | `backfill` 93 |
+| 2026-06 | 85 of 90 | `backfill` 85 |
+
+**The source split is the whole point.** A month that is 100% `backfill` is a month the tablet did
+not run — paper transcribed after the fact — and a coverage bar alone would have shown July as a
+perfect green month. This is the standing open item below, stated by the product instead of by a
+note in this file.
+
+### Verification
+
+`api/admin.js` had a `noSafeContract` entry — *"admin-secret gated; GET is a 405 guard only"* — so
+an admin deploy could never reach exit 0. Same question as `api/pool-sms.js` on 2026-08-13: is
+there a read that proves the handler works? **`{action:'muni_corpus', tenant:'centreville'}`** —
+it resolves the credential, reads `muni_docs` with the service key and runs the rollup; it writes
+nothing and costs nothing. Deliberately **not** `auth_check`, which returns `{ok:true}` without
+touching Supabase and proves only that the guard is intact.
+
+⚠ **`CIVICSCOPE_ADMIN_SECRET` is SENSITIVE-typed in Vercel and `vercel env pull` returns it EMPTY**
+(verified 2026-08-26 — zero-length, not missing). Until it is set on the gate machine this contract
+reports **CANNOT RUN → inconclusive**, which is the honest answer and still strictly better than
+"permanently unverifiable". It is the one entry in `infra/env-var-inventory.md` that cannot be
+recovered from the platform.
+
+25 assertions were driven against the real handler and the live database before shipping —
+including that `select=*` and `select=pin` on `water_operators` both come back without a PIN, that
+`muni_questions` and `water_readings` are **not** directly readable (usage goes through the
+aggregating action), and that a PATCH on a nonexistent slug is a 404.
+
 ## Codex review of Ask + Water — 2026-08-26
 
 Report: `codex-reviews/reports/REVIEW_civicscope-muni-ask-and-water_2026-08-26.md`. Verdict
@@ -1808,6 +1914,15 @@ Centreville gives 30/10/40 from Table 4-4.
 
 - **Michelle has not used the new edit path yet.** The review page now offers Edit on every line and
   Add on every gap; the server paths are verified but no human has exercised the UI.
+- **`/admin` now covers Ask and Well Testing** (2026-08-26) — three tabs, `muni_tenants` and
+  `water_supplies` editable, Ask usage over `muni_questions`. Two things it deliberately does NOT
+  do, because both are decisions rather than omissions: **`sample_questions` is read-only**
+  (`verify-sample-questions.mjs` is the only supported writer) and **`water_feeds` is read-only**
+  (its constants are multiplied into numbers filed with the State). Nothing has a delete —
+  retirement is `active=false`, because operator initials sit on readings behind filed reports.
+- **`CIVICSCOPE_ADMIN_SECRET` cannot be recovered from Vercel** — it is SENSITIVE-typed and
+  `vercel env pull` returns it zero-length. Until it is set as a Windows User var, the new
+  `api/admin.js` contract reports CANNOT RUN and any admin deploy lands at exit 50 rather than 0.
 - **Re-run `node scripts/verify-sample-questions.mjs --all` after any corpus ingest.** The chips
   are verified against the live corpus (048); an ingest can retire one as easily as earn it.
   Done 2026-08-26 after the zoning-book restore. Its own traffic is tagged `verifier` (049) so it
@@ -1832,8 +1947,11 @@ Centreville gives 30/10/40 from Table 4-4.
   fixed `25049ea`), and `submit_bacti` had no already-recorded guard at all, so re-running a
   backfill multiplied the compliance record five-fold (fixed `73babb1`). **The ordinary path
   worked in every case; only amendment was broken — which is exactly what no smoke test walks.**
-- 🚨 **August 2026 is still being written on paper.** The tablet is live and nobody is using it;
-  every day that runs is another day that has to be backfilled.
+- 🚨 **August 2026 is still being written on paper — MEASURED 2026-08-26: 1 of 78 well-days logged,
+  and the one that exists came from the tablet.** July was 93 of 93 and every single row was
+  `backfill`, i.e. paper transcribed afterwards. The tablet is live and nobody is using it; every
+  day that runs is another day that has to be backfilled. This now reports itself at the top of
+  `/admin` → **Water**, split by source, so it stops being a note in this file.
 - **"Mark as filed" is the last step of the loop, and it is HALF BUILT.** `record_filing` is open
   and working (it took all seven 2026 workbooks), but nothing on the page reaches it, so recording
   a filing still needs a script. Remaining: an `extract` action on `api/build-mor.py` returning
