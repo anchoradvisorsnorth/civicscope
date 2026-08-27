@@ -1954,6 +1954,15 @@ Centreville gives 30/10/40 from Table 4-4.
   ⚠ Setting it via `SetEnvironmentVariable(name, '', 'User')` with an **empty** value DELETES the
   variable rather than setting it, and reports no error — so a mistyped `Read-Host` looks exactly
   like a successful set. Verify by reading the length back, never by the absence of an error.
+- **The two GC product cards on `/admin` → Overview have been throwing since they were built**
+  (found 2026-08-26 by driving the live page in Chrome). `loadProductData()` sets
+  `dur-<key>` and `time-<key>` for every product, but the **gc-ext and gc-int cards carry
+  "Tenant" and "Access" meta fields instead of "Avg Duration"** — so `getElementById('dur-gc-ext')`
+  is null and the loop throws. Its `catch` logs and moves on, which is why nobody noticed: the
+  exception aborts before the `last-*` assignment, so **both GC cards' "Last Run" read "Loading…"
+  forever**. A null-guard on those two writes fixes it. ⚠ Unrelated to the Ask/Usage/Water work —
+  recorded, not fixed, because it is a different tab and a separate paid deploy cycle.
+  (Also on that page: `/favicon.ico` 404s. Cosmetic.)
 - 🚩 **`scripts/test-deploy-harness.js` IS FLAKY — two resume scenarios failed one run and passed
   the next on a byte-identical tree** (2026-08-26, detail in the admin section above). The remedy
   for an INCOMPLETE run is currently "run it again", which is indistinguishable from waving through
