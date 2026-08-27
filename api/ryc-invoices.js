@@ -2431,10 +2431,28 @@ export default async function handler(req, res) {
       const cur = await sb(`ryc_batch_documents?company_id=eq.ryc&id=eq.${docId}&select=*`);
       const doc = cur.ok ? (await cur.json())[0] : null;
       if (!doc) return res.status(404).json({ error: 'No such document.' });
-      if (doc.reconciled_at) {
+      /* ===== A NAME CAN BE FIXED AFTER FILING. A JOB CANNOT. ==========================
+         ⛔ THIS GUARD AND THE RENAME ARM CONTRADICTED EACH OTHER. `doc_update` refused every edit
+         on a reconciled row — *"Edit it before filing, not after"* — while migration 053 built a
+         rename arm for exactly this and recorded that it is **"DELIBERATELY NOT SCOPED TO
+         `reconciled_at is null`"**, because a name fixed after filing still has to reach the
+         archive copy and the #AScans mirror. So the mechanism existed and nothing could ever
+         trigger it.
+         Found 2026-08-26 on two real documents: Midwest Glass PA#2 and PA#3 on Shipshewana were
+         filed carrying each other's billed figure. The front office could not correct them in the
+         tool — the only route left was renaming in SharePoint by hand, which leaves `file_name` and
+         `sp_name` disagreeing forever, the precise drift migration 014 exists to prevent.
+
+         ⚠ THE JOB STAYS LOCKED, AND THAT IS THE WHOLE POINT OF THE ORIGINAL GUARD. Changing where a
+         filed document belongs means MOVING it and retiring the old copy — that is `doc_recorrect`,
+         which does both and keeps the previous placement in the row's history. Letting `doc_update`
+         quietly repoint a filed row would leave the file sitting in the old folder with the record
+         claiming the new one. Only the NAME opens up here. */
+      if (doc.reconciled_at && body.job_no !== undefined) {
         return res.status(409).json({
           error: `"${doc.file_name}" is already filed to ${doc.job_name || doc.job_no}. `
-            + 'Edit it before filing, not after.' });
+            + 'Use Change job to move it — that retires the copy in the old folder; '
+            + 'editing here would leave the file where it is.' });
       }
       const patch = { updated_at: new Date().toISOString() };
       if (body.file_name !== undefined) {
@@ -2461,9 +2479,21 @@ export default async function handler(req, res) {
         }
         patch.job_source = 'chosen';
       }
-      const r = await sb(`ryc_batch_documents?id=eq.${docId}&reconciled_at=is.null`, {
-        method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
-      });
+      /* The `reconciled_at is null` filter is a RACE guard, not the policy — it stops a row being
+         edited in the instant between the read above and this write. On a row that is ALREADY
+         reconciled there is no race to lose, and keeping the filter would refuse the very rename
+         this action now exists to allow. */
+      /* ⚠ TWO LITERAL CALLS RATHER THAN ONE WITH A COMPUTED URL, DELIBERATELY. The first draft
+         built the path into a variable, and `verify-ryc-patch-limit.mjs` — which reads the URL out
+         of the call site — silently stopped counting it: 31 mutating calls checked became 30, with
+         nothing red. A lint that cannot see a call is indistinguishable from a lint that approves
+         it, which is the failure this module has met before. Keep the URL where the tool can read
+         it. */
+      const opts = { method: 'PATCH', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(patch) };
+      const r = doc.reconciled_at
+        ? await sb(`ryc_batch_documents?id=eq.${docId}`, opts)
+        : await sb(`ryc_batch_documents?id=eq.${docId}&reconciled_at=is.null`, opts);
       if (!r.ok) return res.status(502).json({ error: 'Could not update the document.' });
       const rows = await r.json();
       if (!rows.length) return res.status(409).json({ error: 'That document was reconciled a moment ago.' });
