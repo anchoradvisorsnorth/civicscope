@@ -411,6 +411,138 @@
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border2); }
+
+  /* ══ ASK / USAGE / WATER (2026-08-26) ══════════════════════════════════════════════════════ */
+  .tab.t-ask .tab-dot   { background: #38bdf8; }
+  .tab.t-usage .tab-dot { background: var(--purple); }
+  .tab.t-water .tab-dot { background: #22d3ee; }
+
+  .stat-bar.six { grid-template-columns: repeat(6, 1fr); }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .stack { display: flex; flex-direction: column; gap: 20px; }
+
+  /* generic data table */
+  .dt { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .dt th {
+    text-align: left; font-weight: 400; font-size: 9px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--muted); padding: 9px 10px;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  .dt td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .dt tr:last-child td { border-bottom: none; }
+  .dt tbody tr:hover { background: rgba(255,255,255,0.02); }
+  .dt tr.pick { cursor: pointer; }
+  .dt tr.pick.on { background: rgba(0,212,170,0.07); }
+  .dt .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .dt .dim { color: var(--muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); }
+  .card-pad { padding: 16px 18px; }
+  .card-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 13px 18px; border-bottom: 1px solid var(--border);
+  }
+  .card-head .t { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .scroll-y { max-height: 460px; overflow-y: auto; }
+
+  /* pills */
+  .pill {
+    display: inline-block; padding: 2px 7px; font-size: 9px; font-weight: 600;
+    letter-spacing: 0.07em; text-transform: uppercase; white-space: nowrap;
+  }
+  .pill.on    { background: rgba(34,197,94,0.13);  color: var(--green); }
+  .pill.off   { background: rgba(107,122,148,0.16); color: var(--muted); }
+  .pill.warn  { background: rgba(245,158,11,0.13); color: var(--warn); }
+  .pill.bad   { background: rgba(239,68,68,0.13);  color: var(--danger); }
+  .pill.info  { background: rgba(74,158,255,0.13); color: var(--accent2); }
+  .pill.mute  { background: rgba(167,139,250,0.13); color: var(--purple); }
+
+  /* outcome colours — one place, so the tab and the legend cannot disagree */
+  .oc-answered { color: var(--green); }
+  .oc-partial  { color: var(--warn); }
+  .oc-referred { color: var(--accent2); }
+  .oc-declined { color: var(--danger); }
+  .oc-no_corpus{ color: var(--danger); }
+  .oc-unknown  { color: var(--purple); }
+  .oc-error    { color: var(--danger); }
+  .oc-none     { color: var(--muted); }
+
+  /* editable field grid */
+  .fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; }
+  .fields .wide { grid-column: 1 / -1; }
+  .f label {
+    display: block; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 4px;
+  }
+  .f input[type=text], .f input[type=number], .f textarea, .f select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); font-family: var(--mono); font-size: 12px; padding: 7px 9px;
+    outline: none; border-radius: 0;
+  }
+  .f input:focus, .f textarea:focus, .f select:focus { border-color: var(--accent); }
+  .f textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
+  .f .hint { font-size: 9px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+  .f.ro input, .f.ro textarea { background: var(--bg); color: var(--muted); border-style: dashed; }
+  .chk { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+  .chk input { accent-color: var(--accent); }
+
+  .btn {
+    background: none; border: 1px solid var(--border2); color: var(--muted);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 6px 13px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .btn.primary:hover { opacity: 0.85; color: #000; }
+  .btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-row { display: flex; gap: 8px; align-items: center; margin-top: 16px; }
+
+  /* control strip */
+  .controls {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin: -6px 0 20px;
+  }
+  .controls .seg { display: flex; border: 1px solid var(--border2); }
+  .controls .seg button {
+    background: none; border: none; border-right: 1px solid var(--border2);
+    color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+    padding: 6px 12px; cursor: pointer; text-transform: uppercase;
+  }
+  .controls .seg button:last-child { border-right: none; }
+  .controls .seg button.on { background: var(--surface2); color: var(--accent); }
+  .controls select {
+    background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
+    font-family: var(--mono); font-size: 11px; padding: 6px 9px; outline: none;
+  }
+
+  /* daily volume bars */
+  .spark { display: flex; align-items: flex-end; gap: 2px; height: 76px; padding: 0 2px; }
+  .spark .b { flex: 1; min-width: 2px; background: var(--border2); position: relative; }
+  .spark .b.hit { background: var(--accent2); }
+  .spark .b:hover { background: var(--accent); }
+  .spark-axis { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin-top: 6px; }
+
+  /* month coverage */
+  .months { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .month { background: var(--surface); border: 1px solid var(--border); padding: 14px 16px; }
+  .month .m-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+  .month .m-name { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+  .month .m-big { font-size: 22px; font-weight: 600; line-height: 1; }
+  .month .m-sub { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .meter { height: 4px; background: var(--border2); margin: 10px 0 8px; }
+  .meter i { display: block; height: 100%; background: var(--green); }
+  .meter i.low { background: var(--danger); }
+  .meter i.mid { background: var(--warn); }
+
+  .note {
+    font-size: 10px; color: var(--muted); line-height: 1.6;
+    border-left: 2px solid var(--border2); padding: 2px 0 2px 11px; margin: 10px 0 0;
+  }
+  .note b { color: var(--text); font-weight: 500; }
+  .save-msg { font-size: 10px; letter-spacing: 0.08em; }
+  .save-msg.ok  { color: var(--green); }
+  .save-msg.err { color: var(--danger); }
+  .q-text { line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -433,7 +565,16 @@
         <span class="tab-dot"></span> Overview
       </button>
       <button class="tab t-tenants" onclick="switchTab('tenants')">
-        <span class="tab-dot"></span> Tenants
+        <span class="tab-dot"></span> GC Tenants
+      </button>
+      <button class="tab t-ask" onclick="switchTab('ask')">
+        <span class="tab-dot"></span> Ask
+      </button>
+      <button class="tab t-usage" onclick="switchTab('usage')">
+        <span class="tab-dot"></span> Ask Usage
+      </button>
+      <button class="tab t-water" onclick="switchTab('water')">
+        <span class="tab-dot"></span> Water
       </button>
       <button class="tab t-activity" onclick="switchTab('activity')">
         <span class="tab-dot"></span> Activity
@@ -447,7 +588,7 @@
 
   <!-- OVERVIEW TAB -->
   <div class="panel active" id="panel-overview">
-    <div class="stat-bar">
+    <div class="stat-bar six">
       <div class="stat-cell">
         <div class="label">Total Runs</div>
         <div class="value" id="stat-runs">—</div>
@@ -464,9 +605,19 @@
         <div class="sub">unique</div>
       </div>
       <div class="stat-cell">
-        <div class="label">Active Tenants</div>
+        <div class="label">GC Tenants</div>
         <div class="value" id="stat-tenants">—</div>
-        <div class="sub">GC white label</div>
+        <div class="sub">white label · /gc/:slug</div>
+      </div>
+      <div class="stat-cell">
+        <div class="label">Ask Pages</div>
+        <div class="value" id="stat-muni">—</div>
+        <div class="sub" id="stat-muni-sub">municipal documents</div>
+      </div>
+      <div class="stat-cell">
+        <div class="label">Water Supplies</div>
+        <div class="value" id="stat-water">—</div>
+        <div class="sub" id="stat-water-sub">well testing</div>
       </div>
     </div>
 
@@ -676,6 +827,178 @@
     </div>
   </div>
 
+  <!-- ══ ASK TAB — the municipal tenant registry (muni_tenants) ══════════════════════════════ -->
+  <div class="panel" id="panel-ask">
+    <div class="stat-bar">
+      <div class="stat-cell"><div class="label">Live Ask Pages</div><div class="value" id="ask-stat-live">—</div><div class="sub" id="ask-stat-live-sub">published</div></div>
+      <div class="stat-cell"><div class="label">Corpora</div><div class="value" id="ask-stat-tenants">—</div><div class="sub">incl. unpublished + research</div></div>
+      <div class="stat-cell"><div class="label">Documents</div><div class="value" id="ask-stat-docs">—</div><div class="sub">across every corpus</div></div>
+      <div class="stat-cell"><div class="label">Questions (30d)</div><div class="value" id="ask-stat-q">—</div><div class="sub">real readers</div></div>
+    </div>
+
+    <div class="split">
+      <div class="stack">
+        <div class="card">
+          <div class="card-head">
+            <div class="t">Municipalities &amp; Corpora</div>
+            <button class="btn" onclick="newMuniTenant()">+ Add</button>
+          </div>
+          <div id="muni-list"><div class="empty-state" style="padding:16px">Loading…</div></div>
+        </div>
+        <div class="note">
+          <b>active = false is not a draft — it is enforced server-side.</b> <code>api/muni-ask.js</code>
+          refuses an inactive tenant on every request, because the page is cached in browsers that are
+          already open. The <code>sd-*</code> rows are BoardDocs school-policy research corpora and are
+          deliberately never published. Going live also needs a literal rewrite in
+          <code>vercel.json</code> — a row alone does not create the route.
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card" id="muni-form-card">
+          <div class="card-head">
+            <div class="t" id="muni-form-title">select a municipality</div>
+            <div class="save-msg" id="muni-save-msg"></div>
+          </div>
+          <div class="card-pad" id="muni-form">
+            <div class="empty-state">Pick a row to edit it, or <b>+ Add</b> to register a new corpus.</div>
+          </div>
+        </div>
+        <div class="card" id="muni-corpus-card" style="display:none">
+          <div class="card-head"><div class="t">Corpus — what is actually in it</div><div class="t" id="muni-corpus-sum">—</div></div>
+          <div id="muni-corpus"><div class="empty-state" style="padding:16px">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ASK USAGE TAB ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="panel" id="panel-usage">
+    <div class="controls">
+      <select id="usage-tenant" onchange="loadUsage()"><option value="">all municipalities</option></select>
+      <div class="seg" id="usage-days">
+        <button data-days="7" onclick="setUsageDays(7)">7d</button>
+        <button data-days="30" class="on" onclick="setUsageDays(30)">30d</button>
+        <button data-days="90" onclick="setUsageDays(90)">90d</button>
+        <button data-days="365" onclick="setUsageDays(365)">1y</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="usage-all-sources" onchange="loadUsage()"> include verifier traffic</label>
+      <button class="btn" onclick="loadUsage()">↺ Reload</button>
+      <span class="ts" id="usage-window">—</span>
+    </div>
+
+    <div class="stat-bar six">
+      <div class="stat-cell"><div class="label">Asked</div><div class="value" id="u-asked">—</div><div class="sub" id="u-asked-sub">questions</div></div>
+      <div class="stat-cell"><div class="label">Answered</div><div class="value oc-answered" id="u-answered">—</div><div class="sub">+ partial</div></div>
+      <div class="stat-cell"><div class="label">Could Not Answer</div><div class="value oc-declined" id="u-failed">—</div><div class="sub">declined + no corpus</div></div>
+      <div class="stat-cell"><div class="label">Referred</div><div class="value oc-referred" id="u-referred">—</div><div class="sub">correct, not a failure</div></div>
+      <div class="stat-cell"><div class="label">Used a Table</div><div class="value" id="u-table">—</div><div class="sub">reached a real question</div></div>
+      <div class="stat-cell"><div class="label">Keyword-style</div><div class="value" id="u-staff">—</div><div class="sub">looks like staff</div></div>
+    </div>
+
+    <div class="note" style="margin:-14px 0 22px">
+      <b>Verifier traffic is excluded by default.</b> <code>verify-sample-questions.mjs</code> probes a
+      broad candidate pool and is refused most of the time <i>by design</i>; counting it made Bristol
+      read 23% declined on a day its corpus had just been fixed. <b>Rows from before migration 045
+      carry no outcome</b> and are shown as unknown — never folded into “answered”, which is the exact
+      falsehood this instrumentation replaced.
+    </div>
+
+    <div class="section-label">Volume</div>
+    <div class="card card-pad" style="margin-bottom:24px">
+      <div class="spark" id="u-spark"></div>
+      <div class="spark-axis"><span id="u-spark-from">—</span><span id="u-spark-peak"></span><span id="u-spark-to">—</span></div>
+    </div>
+
+    <div class="section-label">Outcomes by municipality</div>
+    <div class="card" style="margin-bottom:24px"><div id="u-bytenant"><div class="empty-state" style="padding:16px">Loading…</div></div></div>
+
+    <div class="split" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-head"><div class="t">⛔ Could not answer</div><div class="t" id="u-fail-count">—</div></div>
+        <div class="scroll-y" id="u-failures"><div class="empty-state" style="padding:16px">—</div></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <div class="card-head"><div class="t">What answers get cited</div></div>
+          <div id="u-collections"><div class="empty-state" style="padding:16px">—</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="t">Asked more than once</div></div>
+          <div class="scroll-y" id="u-repeats"><div class="empty-state" style="padding:16px">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Every question, newest first</div>
+    <div class="card"><div class="scroll-y" id="u-recent"><div class="empty-state" style="padding:16px">—</div></div></div>
+  </div>
+
+  <!-- ══ WATER TAB — Well Testing (water_supplies) ════════════════════════════════════════════ -->
+  <div class="panel" id="panel-water">
+    <div class="controls">
+      <select id="water-supply" onchange="loadWater()"></select>
+      <a class="btn-open" href="https://app.civicscope.io/water" target="_blank">↗ Crew tablet</a>
+      <a class="btn-open" href="https://civicscope.io/water/review" target="_blank">↗ OIC review</a>
+      <button class="btn" onclick="loadWater()">↺ Reload</button>
+    </div>
+
+    <div class="section-label">Is the plant being logged here, or still on paper?</div>
+    <div class="months" id="water-months"><div class="empty-state">Loading…</div></div>
+    <div class="note" style="margin-bottom:24px">
+      <b>logged</b> counts (well × day) slots with a live reading against the slots possible so far
+      this month. <b>The source split is the number that matters:</b> <code>tablet</code> is somebody
+      using the product; <code>backfill</code> and <code>import</code> are paper being transcribed
+      after the fact. A month that is 100% backfill is a month the tablet did not run.
+    </div>
+
+    <div class="split" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-head"><div class="t">Supply</div><div class="save-msg" id="water-save-msg"></div></div>
+        <div class="card-pad" id="water-supply-form"><div class="empty-state">Loading…</div></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <div class="card-head"><div class="t">Operators</div><button class="btn" onclick="newOperator()">+ Add</button></div>
+          <div id="water-operators"><div class="empty-state" style="padding:16px">—</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="t">Sampling sites</div><button class="btn" onclick="newSite()">+ Add</button></div>
+          <div id="water-sites"><div class="empty-state" style="padding:16px">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Wells / entry points</div>
+    <div class="card" style="margin-bottom:8px"><div id="water-eps"><div class="empty-state" style="padding:16px">—</div></div></div>
+    <div class="note" style="margin-bottom:24px">
+      One row here is one EntryPoint tab on the EGLE workbook and one column on the Pumpage tab.
+      The tap checkboxes decide what the tablet asks the operator for.
+    </div>
+
+    <div class="section-label">Chemical feeds — read only</div>
+    <div class="card" style="margin-bottom:8px"><div id="water-feeds"><div class="empty-state" style="padding:16px">—</div></div></div>
+    <div class="note" style="margin-bottom:24px">
+      ⛔ <b>Not editable here, deliberately.</b> <code>avail_fraction</code>, <code>ortho_factor</code>
+      and <code>nsf_max_dose</code> are the constants <code>civicscope-water/derive.js</code>
+      multiplies to produce numbers <b>filed with the State of Michigan under 1976 PA 399</b>.
+      Changing 0.125 to 0.25 in a text box silently rewrites every dose the plant reports, and the
+      derivation gate replays 93 real well-days against exactly these values. A genuine drum-strength
+      change is a deliberate act with a migration and a gate re-run, not an afternoon edit.
+    </div>
+
+    <div class="split">
+      <div class="card">
+        <div class="card-head"><div class="t">MOR filings</div></div>
+        <div id="water-filings"><div class="empty-state" style="padding:16px">—</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="t">Due-date reminders sent</div></div>
+        <div id="water-reminders"><div class="empty-state" style="padding:16px">—</div></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ACTIVITY TAB -->
   <div class="panel" id="panel-activity">
     <div class="section-label">All Runs</div>
@@ -769,22 +1092,42 @@ async function sbWrite(table, body, id = null) {
 // ── LOAD ALL ─────────────────────────────────────────────────────
 async function loadAll() {
   document.getElementById('last-refresh').textContent = 'refreshed ' + new Date().toLocaleTimeString();
-  await Promise.allSettled([loadStats(), loadProductData(), loadFeed('overview'), loadFeed('activity'), loadLeads(), loadTenantList(), pingAll()]);
+  await Promise.allSettled([loadStats(), loadProductData(), loadFeed('overview'), loadFeed('activity'), loadLeads(), loadTenantList(), pingAll(),
+    // Only the Ask / Usage / Water tabs that have actually been opened. Refreshing a tab nobody
+    // has looked at would put an 8-query water read and a 4,000-row aggregation on every ↺.
+    askState.loaded ? loadAsk() : null,
+    usageState.loaded ? loadUsage() : null,
+    waterState.loaded ? loadWater() : null,
+  ].filter(Boolean));
 }
 
 // ── STATS ─────────────────────────────────────────────────────────
 async function loadStats() {
   try {
-    const [runs, leads, sessions, tenants] = await Promise.all([
+    /* ⛔ THIS TILE ROW USED TO SAY "ACTIVE TENANTS 2" AND MEAN ONLY THE GC WHITE-LABEL ONES.
+       It was never wrong about what it measured and it was badly wrong about what a reader would
+       take it to mean: the two LIVE municipal Ask pages and the water supply were not counted
+       anywhere on this page, which is exactly the question Keith asked on 2026-08-26 — "where do
+       the tenants for Ask Bristol and Ask Centreville and water testing live, I figured they were
+       in here". Every tenant population this product has now has its own tile and its own noun. */
+    const [runs, leads, sessions, tenants, muni, water] = await Promise.all([
       sbRead('tool_runs?select=id'),
       sbRead('leads?select=id'),
       sbRead('sessions?select=id'),
       sbRead('tenants?select=id&active=eq.true'),
+      sbRead('muni_tenants?select=slug&active=eq.true'),
+      sbRead('water_supplies?select=wssn&active=eq.true'),
     ]);
     document.getElementById('stat-runs').textContent = runs.length;
     document.getElementById('stat-leads').textContent = leads.length;
     document.getElementById('stat-sessions').textContent = sessions.length;
     document.getElementById('stat-tenants').textContent = tenants.length;
+    document.getElementById('stat-muni').textContent = muni.length;
+    document.getElementById('stat-muni-sub').textContent =
+      muni.map(t => '/' + t.slug).join(' · ') || 'none published';
+    document.getElementById('stat-water').textContent = water.length;
+    document.getElementById('stat-water-sub').textContent =
+      water.map(w => 'WSSN ' + w.wssn).join(' · ') || 'none live';
   } catch(e) { console.error('Stats:', e); }
 }
 
@@ -1317,6 +1660,646 @@ function productLabel(p) {
   return p;
 }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   ASK · ASK USAGE · WATER          added 2026-08-26
+   ------------------------------------------------------------------------------------------
+   Until today this page knew ONE tenant registry — `tenants`, the GC white-label one — so the
+   Overview tile read "ACTIVE TENANTS 2" (acme, ryc) while the two LIVE municipal products and the
+   water supply had no admin surface at all and were edited by script.
+
+   Everything below reads and writes through /api/admin, which now carries a table registry:
+   per-table primary key, a writable-column allowlist, and a readable-column allowlist. That is
+   why, for instance, an operator's PIN can be SET from here and can never be read back.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+async function sbAction(action, payload = {}) {
+  const secret = sessionStorage.getItem('cs_admin_secret');
+  if (!secret) throw new Error('Not authenticated');
+  const r = await fetch('/api/admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
+    body: JSON.stringify({ action, ...payload })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `${r.status}`);
+  return j;
+}
+
+const flash = (id, msg, ok = true) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'save-msg ' + (ok ? 'ok' : 'err');
+  el.textContent = msg;
+  if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+};
+const pctOf = (x, of) => of ? Math.round((x / of) * 100) + '%' : '—';
+const dash = (v) => (v === null || v === undefined || v === '') ? '<span class="dim">—</span>' : esc(v);
+const onoff = (b, on = 'live', off = 'off') =>
+  `<span class="pill ${b ? 'on' : 'off'}">${b ? on : off}</span>`;
+const val = (id) => (document.getElementById(id)?.value ?? '').trim();
+const checked = (id) => Boolean(document.getElementById(id)?.checked);
+const numOrNull = (id) => { const v = val(id); return v === '' ? null : Number(v); };
+const textOrNull = (id) => { const v = val(id); return v === '' ? null : v; };
+
+/* ── TAB HOOK ────────────────────────────────────────────────────────────────────────────────
+   Lazily loaded. Ask Usage aggregates up to 4,000 question rows server-side and the water state
+   is eight queries; neither belongs in the every-refresh path just because a tab exists. */
+const _origSwitchTab = switchTab;
+switchTab = function (name) {
+  _origSwitchTab(name);
+  if (name === 'ask' && !askState.loaded) loadAsk();
+  if (name === 'usage' && !usageState.loaded) loadUsage();
+  if (name === 'water' && !waterState.loaded) loadWater();
+};
+
+/* ══ ASK ════════════════════════════════════════════════════════════════════════════════════ */
+const askState = { loaded: false, tenants: [], selected: null, creating: false };
+
+async function loadAsk() {
+  try {
+    const tenants = await sbRead('muni_tenants?select=*&order=slug');
+    askState.tenants = tenants; askState.loaded = true;
+    renderMuniList();
+    fillUsageTenantPicker();
+
+    const live = tenants.filter(t => t.active);
+    document.getElementById('ask-stat-live').textContent = live.length;
+    document.getElementById('ask-stat-live-sub').textContent =
+      live.map(t => '/' + t.slug).join(' · ') || 'none published';
+    document.getElementById('ask-stat-tenants').textContent = tenants.length;
+    document.getElementById('ask-stat-docs').textContent =
+      tenants.reduce((n, t) => n + (t.doc_count || 0), 0).toLocaleString();
+    sbAction('muni_usage', { days: 30 })
+      .then(u => { document.getElementById('ask-stat-q').textContent = u.rowCount; })
+      .catch(() => { document.getElementById('ask-stat-q').textContent = '?'; });
+  } catch (e) {
+    document.getElementById('muni-list').innerHTML =
+      `<div class="empty-state" style="padding:16px;color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+function renderMuniList() {
+  const rows = askState.tenants.map(t => `
+    <tr class="pick ${askState.selected === t.slug ? 'on' : ''}" onclick="selectMuni('${esc(t.slug)}')">
+      <td>
+        <div style="color:var(--text)">${esc(t.short_label || t.slug)}</div>
+        <div class="dim" style="font-size:10px">/${esc(t.slug)} · ${esc(t.unit_noun)}</div>
+      </td>
+      <td>${t.active ? onoff(true) : (t.slug.startsWith('sd-')
+        ? '<span class="pill mute">research</span>' : '<span class="pill off">unpublished</span>')}</td>
+      <td class="num">${(t.doc_count || 0).toLocaleString()}</td>
+      <td>${t.auth_provider === 'none' ? '<span class="dim">open</span>' : esc(t.auth_provider)}</td>
+      <td>${t.shares_corpus_with ? `<span class="pill info">+${esc(t.shares_corpus_with)}</span>` : '<span class="dim">—</span>'}</td>
+      <td>${t.water_wssn ? `<span class="pill info">WSSN ${esc(t.water_wssn)}</span>` : '<span class="dim">—</span>'}</td>
+      <td class="dim" style="font-size:10px">${t.last_ingest_at ? String(t.last_ingest_at).slice(0, 10) : '—'}</td>
+    </tr>`).join('');
+  document.getElementById('muni-list').innerHTML = `
+    <table class="dt">
+      <thead><tr><th>Municipality</th><th>State</th><th class="num">Docs</th><th>Sign-in</th>
+      <th>Shares corpus</th><th>Water</th><th>Last ingest</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="7" class="dim">No corpora.</td></tr>'}</tbody>
+    </table>`;
+}
+
+function newMuniTenant() {
+  askState.selected = null; askState.creating = true;
+  renderMuniList();
+  document.getElementById('muni-corpus-card').style.display = 'none';
+  document.getElementById('muni-form-title').textContent = 'new municipality';
+  document.getElementById('muni-form').innerHTML = muniFormHtml({ unit_noun: 'Village', active: false }, true);
+}
+
+function selectMuni(slug) {
+  const t = askState.tenants.find(x => x.slug === slug);
+  if (!t) return;
+  askState.selected = slug; askState.creating = false;
+  renderMuniList();
+  document.getElementById('muni-form-title').textContent = slug;
+  document.getElementById('muni-form').innerHTML = muniFormHtml(t, false);
+  loadMuniCorpus(slug);
+}
+
+function muniFormHtml(t, isNew) {
+  const u = ['Village', 'Town', 'City', 'County', 'Township'];
+  return `
+  <div class="fields">
+    <div class="f">
+      <label>Slug ${isNew ? '' : '(fixed)'}</label>
+      <input type="text" id="m-slug" value="${esc(t.slug || '')}" ${isNew ? '' : 'disabled'}>
+      <div class="hint">${isNew
+        ? 'The URL and the foreign key every document hangs off. Lowercase, hyphenated.'
+        : 'Not editable: renaming it would orphan every document and break the vercel.json rewrite.'}</div>
+    </div>
+    <div class="f">
+      <label>Unit noun</label>
+      <select id="m-unit">${u.map(x => `<option ${t.unit_noun === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
+      <div class="hint">Interpolated into every user-facing sentence. Indiana has towns; Michigan has villages.</div>
+    </div>
+    <div class="f wide"><label>Label</label><input type="text" id="m-label" value="${esc(t.label || '')}"></div>
+    <div class="f"><label>Short label</label><input type="text" id="m-short" value="${esc(t.short_label || '')}"></div>
+    <div class="f"><label>Site URL</label><input type="text" id="m-site" value="${esc(t.site_url || '')}"></div>
+    <div class="f wide"><label>Blurb</label><textarea id="m-blurb">${esc(t.blurb || '')}</textarea></div>
+    <div class="f wide">
+      <label>Logo URL</label><input type="text" id="m-logo" value="${esc(t.logo_url || '')}">
+      <div class="hint">The municipality's own published logo, hosted by them. Empty = show no mark rather than a generic one.</div>
+    </div>
+    <div class="f">
+      <label>Water supply WSSN</label><input type="text" id="m-wssn" value="${esc(t.water_wssn || '')}">
+      <div class="hint">Set it and the hub renders the Well Testing card. That is the whole of "product #2".</div>
+    </div>
+    <div class="f">
+      <label>Published</label>
+      <label class="chk" style="margin-top:6px"><input type="checkbox" id="m-active" ${t.active ? 'checked' : ''}> serve /${esc(t.slug || 'slug')}/ask</label>
+      <div class="hint">Enforced server-side in api/muni-ask.js. Still needs a literal rewrite in vercel.json.</div>
+    </div>
+
+    <div class="f ro"><label>Sign-in provider</label><input type="text" value="${esc(t.auth_provider || '')}" disabled>
+      <div class="hint">Per-village security config — the audience every ID token is verified against. Not a form field.</div></div>
+    <div class="f ro"><label>Anthropic key env</label><input type="text" value="${esc(t.anthropic_key_env || '(shared key)')}" disabled>
+      <div class="hint">The NAME of an environment variable, never the key. A value that indexes process.env is not browser-writable.</div></div>
+    <div class="f ro"><label>Shares corpus with</label><input type="text" value="${esc(t.shares_corpus_with || '—')}" disabled>
+      <div class="hint">Changes what law a town is answered from — e.g. Bristol reads Elkhart County's ordinance.</div></div>
+    <div class="f ro"><label>Documents ingested</label><input type="text" value="${(t.doc_count || 0).toLocaleString()}${t.last_ingest_at ? '  ·  ' + String(t.last_ingest_at).slice(0, 10) : ''}" disabled>
+      <div class="hint">Written by the ingesters. A measurement, not a setting.</div></div>
+    <div class="f ro wide">
+      <label>Sample questions (the "Try:" chips)</label>
+      <textarea disabled>${esc((t.sample_questions || []).join('\n') || '(none — falls back to the generic list)')}</textarea>
+      <div class="hint">Read-only on purpose. <b>scripts/verify-sample-questions.mjs is the only supported writer</b>
+      — nothing lands here that has not been asked against this corpus live and come back <i>answered</i>.
+      A chip typed into a box is the unverified suggestion migration 048 exists to prevent. Re-run it after any ingest.</div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn primary" onclick="saveMuni(${isNew})">${isNew ? 'Create' : 'Save'}</button>
+    ${isNew ? '<button class="btn" onclick="askState.creating=false;selectMuni(askState.tenants[0]?.slug)">Cancel</button>'
+      : `<a class="btn-open" href="https://civicscope.io/${esc(t.slug)}/ask" target="_blank">↗ Ask page</a>
+         <a class="btn-open" href="https://civicscope.io/${esc(t.slug)}" target="_blank">↗ Hub</a>`}
+  </div>`;
+}
+
+async function saveMuni(isNew) {
+  const payload = {
+    label: val('m-label'), short_label: textOrNull('m-short'), unit_noun: val('m-unit'),
+    site_url: textOrNull('m-site'), blurb: textOrNull('m-blurb'), logo_url: textOrNull('m-logo'),
+    water_wssn: textOrNull('m-wssn'), active: checked('m-active'),
+  };
+  try {
+    if (isNew) {
+      const slug = val('m-slug');
+      if (!/^[a-z0-9-]+$/.test(slug)) throw new Error('slug must be lowercase letters, digits and hyphens');
+      if (!payload.label) throw new Error('label is required');
+      await sbWrite('muni_tenants', { ...payload, slug });
+      flash('muni-save-msg', 'created');
+      askState.creating = false; askState.loaded = false;
+      await loadAsk(); selectMuni(slug);
+    } else {
+      await sbWrite('muni_tenants', payload, askState.selected);
+      flash('muni-save-msg', 'saved');
+      const t = askState.tenants.find(x => x.slug === askState.selected);
+      if (t) Object.assign(t, payload);
+      renderMuniList();
+    }
+  } catch (e) { flash('muni-save-msg', e.message, false); }
+}
+
+async function loadMuniCorpus(slug) {
+  const card = document.getElementById('muni-corpus-card');
+  card.style.display = 'block';
+  document.getElementById('muni-corpus').innerHTML = '<div class="empty-state" style="padding:16px">Loading…</div>';
+  try {
+    const c = await sbAction('muni_corpus', { tenant: slug });
+    document.getElementById('muni-corpus-sum').textContent =
+      `${c.docCount.toLocaleString()} docs · ${c.chunkCount.toLocaleString()} passages · ${c.scanned} scanned`;
+    document.getElementById('muni-corpus').innerHTML = `
+      <table class="dt">
+        <thead><tr><th>Collection</th><th class="num">Docs</th><th class="num">Passages</th>
+        <th class="num">Pages</th><th class="num">Scans</th><th>Newest</th></tr></thead>
+        <tbody>${c.collections.map(x => `
+          <tr><td>${esc(x.collection)}</td><td class="num">${x.docs}</td>
+          <td class="num">${x.chunks.toLocaleString()}</td><td class="num">${x.pages || '<span class="dim">—</span>'}</td>
+          <td class="num">${x.scans ? `<span class="pill warn">${x.scans}</span>` : '<span class="dim">0</span>'}</td>
+          <td class="dim" style="font-size:10px">${x.newest ? String(x.newest).slice(0, 10) : '—'}</td></tr>`).join('')
+        || '<tr><td colspan="6" class="dim">Nothing ingested yet.</td></tr>'}</tbody>
+      </table>`;
+  } catch (e) {
+    document.getElementById('muni-corpus').innerHTML =
+      `<div class="empty-state" style="padding:16px;color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+/* ══ ASK USAGE ══════════════════════════════════════════════════════════════════════════════ */
+const usageState = { loaded: false, days: 30 };
+
+function setUsageDays(d) {
+  usageState.days = d;
+  document.querySelectorAll('#usage-days button').forEach(b =>
+    b.classList.toggle('on', Number(b.dataset.days) === d));
+  loadUsage();
+}
+
+function fillUsageTenantPicker() {
+  const sel = document.getElementById('usage-tenant');
+  if (!sel || sel.dataset.filled) return;
+  const live = askState.tenants.filter(t => t.active);
+  sel.innerHTML = '<option value="">all municipalities</option>'
+    + live.map(t => `<option value="${esc(t.slug)}">${esc(t.short_label || t.slug)}</option>`).join('');
+  sel.dataset.filled = '1';
+}
+
+async function loadUsage() {
+  usageState.loaded = true;
+  try {
+    if (!askState.loaded) await loadAsk();
+    const u = await sbAction('muni_usage', {
+      days: usageState.days,
+      tenant: document.getElementById('usage-tenant')?.value || '',
+      allSources: checked('usage-all-sources'),
+    });
+    const s = u.summary, t = s.total;
+
+    document.getElementById('usage-window').textContent =
+      `${u.rowCount} question(s) · last ${u.days} days · ${u.allSources ? 'including verifier probes' : 'real readers only'}`;
+    document.getElementById('u-asked').textContent = t.n;
+    document.getElementById('u-asked-sub').textContent = t.unknown ? `${t.unknown} pre-045, no outcome` : 'questions';
+    document.getElementById('u-answered').textContent = t.n ? pctOf(t.answered + t.partial, t.n) : '—';
+    document.getElementById('u-failed').textContent = s.failures.length;
+    document.getElementById('u-referred').textContent = t.referred;
+    document.getElementById('u-table').textContent = t.n ? pctOf(t.table, t.n) : '—';
+    document.getElementById('u-staff').textContent = t.n ? pctOf(t.staff, t.n) : '—';
+
+    // volume
+    const max = Math.max(1, ...u.daily.map(d => d.n));
+    document.getElementById('u-spark').innerHTML = u.daily.map(d =>
+      `<div class="b ${d.n ? 'hit' : ''}" style="height:${d.n ? Math.max(4, (d.n / max) * 100) : 2}%" title="${d.date}: ${d.n}"></div>`).join('');
+    document.getElementById('u-spark-from').textContent = u.daily[0]?.date || '';
+    document.getElementById('u-spark-peak').textContent = `peak ${max}/day`;
+    document.getElementById('u-spark-to').textContent = u.daily[u.daily.length - 1]?.date || '';
+
+    // by tenant
+    document.getElementById('u-bytenant').innerHTML = `
+      <table class="dt">
+        <thead><tr><th>Municipality</th><th class="num">Asked</th><th class="num">Answered</th>
+        <th class="num">Partial</th><th class="num">Referred</th><th class="num">Declined</th>
+        <th class="num">No corpus</th><th class="num">No marker</th><th class="num">Used a table</th>
+        <th class="num">Keyword-style</th><th>Pre-045</th></tr></thead>
+        <tbody>${s.byTenant.map(v => `
+          <tr><td>${esc(v.tenant)}</td><td class="num">${v.n}</td>
+          <td class="num oc-answered">${v.answered} <span class="dim">${pctOf(v.answered, v.n)}</span></td>
+          <td class="num oc-partial">${v.partial}</td>
+          <td class="num oc-referred">${v.referred}</td>
+          <td class="num oc-declined">${v.declined} <span class="dim">${pctOf(v.declined, v.n)}</span></td>
+          <td class="num oc-declined">${v.nocorpus}</td>
+          <td class="num oc-unknown">${v.nomarker}</td>
+          <td class="num">${v.table} <span class="dim">${pctOf(v.table, v.n)}</span></td>
+          <td class="num">${v.staff} <span class="dim">${pctOf(v.staff, v.n)}</span></td>
+          <td class="dim">${v.unknown || '—'}</td></tr>`).join('')
+        || '<tr><td colspan="11" class="dim">No questions in this window.</td></tr>'}</tbody>
+      </table>`;
+
+    // failures
+    document.getElementById('u-fail-count').textContent =
+      `${s.failures.length} of ${t.n}` + (t.referred ? ` · ${t.referred} correct referral(s) not counted` : '');
+    document.getElementById('u-failures').innerHTML = s.failures.length ? `
+      <table class="dt"><tbody>${s.failures.map(f => `
+        <tr><td style="width:74px" class="dim">${String(f.created_at).slice(0, 10)}</td>
+        <td style="width:92px">${esc(f.tenant)}</td>
+        <td><div class="q-text">${esc(f.question)}</div>
+        <div class="dim" style="font-size:10px;margin-top:3px">${esc(f.why)}</div></td></tr>`).join('')}
+      </tbody></table>`
+      : '<div class="empty-state" style="padding:16px">Nothing went unanswered in this window.</div>';
+
+    // collections
+    document.getElementById('u-collections').innerHTML = s.collections.length ? `
+      <table class="dt"><tbody>${s.collections.map(c => `
+        <tr><td class="num" style="width:52px">${c.n}</td><td>${esc(c.collection)}</td></tr>`).join('')}
+      </tbody></table>`
+      : '<div class="empty-state" style="padding:16px">Nothing recorded — pre-045 rows carry no citations.</div>';
+
+    // repeats
+    document.getElementById('u-repeats').innerHTML = s.repeats.length ? `
+      <table class="dt"><tbody>${s.repeats.map(r => `
+        <tr><td class="num" style="width:42px">${r.n}×</td>
+        <td><div class="q-text">${esc(r.question)}</div>
+        <div style="font-size:10px;margin-top:3px">${r.outcomes.map(o =>
+          `<span class="oc-${esc(o)}">${esc(o)}</span>`).join(' <span class="dim">/</span> ')}
+          <span class="dim">· ${esc(r.tenants.join(', '))}</span></div></td></tr>`).join('')}
+      </tbody></table>`
+      : '<div class="empty-state" style="padding:16px">Nothing asked twice.</div>';
+
+    // recent
+    document.getElementById('u-recent').innerHTML = u.recent.length ? `
+      <table class="dt">
+        <thead><tr><th style="width:120px">When</th><th style="width:96px">Where</th><th>Question</th>
+        <th style="width:96px">Outcome</th><th class="num" style="width:56px">Hits</th>
+        <th style="width:88px">Dropped</th><th class="num" style="width:64px">Time</th></tr></thead>
+        <tbody>${u.recent.map(r => {
+          // migration 052: passages retrieval found and the character budget refused. Not itself a
+          // fault — a broad question legitimately finds more than fits — but it is the only place
+          // you can see the ceiling biting, and a guaranteed table that never reached the model
+          // looked exactly like a ranking problem for a week.
+          const d = r.retrieval && r.retrieval.dropped;
+          return `<tr><td class="dim">${String(r.created_at).replace('T', ' ').slice(0, 16)}</td>
+          <td>${esc(r.tenant)}${r.source !== 'web' ? ' <span class="pill mute">bot</span>' : ''}</td>
+          <td class="q-text">${esc(r.question)}</td>
+          <td class="oc-${esc(r.outcome || 'none')}">${esc(r.outcome || 'pre-045')}</td>
+          <td class="num">${r.hit_count ?? '—'}</td>
+          <td>${d ? `<span class="pill warn">${d} dropped</span>` : '<span class="dim">—</span>'}</td>
+          <td class="num dim">${r.duration_ms ? Math.round(r.duration_ms / 1000) + 's' : '—'}</td></tr>`;
+        }).join('')}
+        </tbody></table>`
+      : '<div class="empty-state" style="padding:16px">No questions in this window.</div>';
+  } catch (e) {
+    document.getElementById('u-bytenant').innerHTML =
+      `<div class="empty-state" style="padding:16px;color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+/* ══ WATER ══════════════════════════════════════════════════════════════════════════════════ */
+let waterState = { loaded: false, data: null };
+
+async function loadWater() {
+  waterState.loaded = true;
+  const sel = document.getElementById('water-supply');
+  try {
+    const w = await sbAction('water_state', { wssn: sel?.value || '' });
+    waterState.data = w;
+    if (!sel.dataset.filled) {
+      sel.innerHTML = w.supplies.map(s =>
+        `<option value="${esc(s.wssn)}" ${s.wssn === w.supply.wssn ? 'selected' : ''}>${esc(s.name)} · WSSN ${esc(s.wssn)}</option>`).join('');
+      sel.dataset.filled = '1';
+    }
+    renderWaterMonths(w);
+    renderWaterSupply(w);
+    renderWaterEntryPoints(w);
+    renderWaterFeeds(w);
+    renderWaterOperators(w);
+    renderWaterSites(w);
+    renderWaterFilings(w);
+  } catch (e) {
+    document.getElementById('water-months').innerHTML =
+      `<div class="empty-state" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+function renderWaterMonths(w) {
+  const MON = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  document.getElementById('water-months').innerHTML = w.months.map(m => {
+    const p = m.possible ? Math.round((m.logged / m.possible) * 100) : 0;
+    const cls = p >= 90 ? '' : p >= 50 ? 'mid' : 'low';
+    const src = Object.entries(m.bySource).map(([k, n]) =>
+      `<span class="pill ${k === 'tablet' ? 'on' : 'warn'}">${esc(k)} ${n}</span>`).join(' ')
+      || '<span class="pill bad">nothing logged</span>';
+    return `<div class="month">
+      <div class="m-top"><div class="m-name">${MON[m.month]} ${m.year}</div>
+        ${m.filed ? `<span class="pill on">filed ${esc(m.filedOn || '')}</span>` : '<span class="pill warn">not filed</span>'}</div>
+      <div class="m-big">${p}%</div>
+      <div class="meter"><i class="${cls}" style="width:${p}%"></i></div>
+      <div class="m-sub">${m.logged} of ${m.possible} well-days logged through day ${m.daysElapsed}<br>
+        ${m.daysWithAnyReading} of ${m.daysElapsed} days have any reading at all</div>
+      <div style="margin-top:9px;display:flex;gap:5px;flex-wrap:wrap">${src}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderWaterSupply(w) {
+  const s = w.supply;
+  document.getElementById('water-supply-form').innerHTML = `
+  <div class="fields">
+    <div class="f ro"><label>WSSN (fixed)</label><input type="text" value="${esc(s.wssn)}" disabled>
+      <div class="hint">The state supply number the tablet unlocks on, and the key every reading hangs off.</div></div>
+    <div class="f"><label>Name</label><input type="text" id="w-name" value="${esc(s.name)}"></div>
+    <div class="f"><label>County</label><input type="text" id="w-county" value="${esc(s.county || '')}"></div>
+    <div class="f"><label>State</label><input type="text" id="w-state" value="${esc(s.state || '')}"></div>
+    <div class="f"><label>System classification</label><input type="text" id="w-class" value="${esc(s.classification || '')}">
+      <div class="hint">Cover tab, System Classification.</div></div>
+    <div class="f"><label>Timezone</label><input type="text" id="w-tz" value="${esc(s.timezone || '')}"></div>
+    <div class="f"><label>Operator in charge</label><input type="text" id="w-oic" value="${esc(s.oic_name || '')}">
+      <div class="hint">Signs the MOR under 1976 PA 399. Printed on the Cover tab.</div></div>
+    <div class="f"><label>OIC certification</label><input type="text" id="w-oiccert" value="${esc(s.oic_cert || '')}"></div>
+    <div class="f wide"><label>EGLE district mailbox</label><input type="text" id="w-email" value="${esc(s.report_to_email || '')}">
+      <div class="hint">Where the monthly report is sent. Recorded on every filing as <code>submitted_to</code>.</div></div>
+    <div class="f"><label>Default bacti lab</label><input type="text" id="w-lab" value="${esc(s.lab_name || '')}"></div>
+    <div class="f"><label>Minimum free chlorine</label><input type="number" step="0.01" id="w-mincl" value="${s.min_free_cl ?? ''}">
+      <div class="hint">The distribution residual this supply watches. The tablet flags a reading below it.</div></div>
+    <div class="f wide"><label>Live</label>
+      <label class="chk" style="margin-top:6px"><input type="checkbox" id="w-active" ${s.active ? 'checked' : ''}> accept readings for this supply</label></div>
+    <div class="f ro wide"><label>MOR template</label><input type="text" value="${esc(s.mor_template || '(none)')}" disabled>
+      <div class="hint">Selects the workbook generator. Changing it changes what gets filed with the State — not a form field.</div></div>
+  </div>
+  <div class="btn-row"><button class="btn primary" onclick="saveWaterSupply()">Save</button>
+    <span class="dim" style="font-size:10px">${w.readings.live.toLocaleString()} live readings in the last 95 days${w.readings.superseded ? ` · ${w.readings.superseded} superseded` : ''} · latest ${esc(w.readings.latest || 'none')}</span></div>`;
+}
+
+async function saveWaterSupply() {
+  try {
+    await sbWrite('water_supplies', {
+      name: val('w-name'), county: textOrNull('w-county'), state: val('w-state'),
+      classification: textOrNull('w-class'), timezone: val('w-tz'),
+      oic_name: textOrNull('w-oic'), oic_cert: textOrNull('w-oiccert'),
+      report_to_email: textOrNull('w-email'), lab_name: textOrNull('w-lab'),
+      min_free_cl: numOrNull('w-mincl'), active: checked('w-active'),
+    }, waterState.data.supply.id);
+    flash('water-save-msg', 'saved');
+    waterState.loaded = false; loadWater();
+  } catch (e) { flash('water-save-msg', e.message, false); }
+}
+
+function renderWaterEntryPoints(w) {
+  const cb = (id, on) => `<input type="checkbox" id="${id}" ${on ? 'checked' : ''}>`;
+  document.getElementById('water-eps').innerHTML = `
+    <table class="dt">
+      <thead><tr><th>Code</th><th>Label</th><th class="num">Well #</th><th class="num">MOR tab</th>
+      <th>Meter</th><th class="num">Gal/unit</th><th>PSI</th><th>Temp</th>
+      <th>Free</th><th>Total</th><th>Ortho</th><th>Fluoride</th><th class="num">Sort</th><th>Live</th><th></th></tr></thead>
+      <tbody>${w.entryPoints.map(e => `
+        <tr>
+          <td><input type="text" id="ep-${e.id}-code" value="${esc(e.code)}" style="width:72px"></td>
+          <td><input type="text" id="ep-${e.id}-label" value="${esc(e.label)}" style="width:104px"></td>
+          <td class="num"><input type="number" id="ep-${e.id}-well" value="${e.well_no ?? ''}" style="width:52px"></td>
+          <td class="num"><input type="number" id="ep-${e.id}-sheet" value="${e.mor_sheet ?? ''}" style="width:52px"></td>
+          <td>${cb(`ep-${e.id}-meter`, e.has_meter)}</td>
+          <td class="num"><input type="number" id="ep-${e.id}-gpu" value="${e.meter_gallons_per_unit}" style="width:72px"></td>
+          <td>${cb(`ep-${e.id}-psi`, e.records_pressure)}</td>
+          <td>${cb(`ep-${e.id}-temp`, e.records_temp)}</td>
+          <td>${cb(`ep-${e.id}-free`, e.tap_free)}</td>
+          <td>${cb(`ep-${e.id}-total`, e.tap_total)}</td>
+          <td>${cb(`ep-${e.id}-ortho`, e.tap_ortho)}</td>
+          <td>${cb(`ep-${e.id}-fluoride`, e.tap_fluoride)}</td>
+          <td class="num"><input type="number" id="ep-${e.id}-sort" value="${e.sort_order}" style="width:48px"></td>
+          <td>${cb(`ep-${e.id}-active`, e.active)}</td>
+          <td><button class="btn" onclick="saveEp('${e.id}')">Save</button></td>
+        </tr>`).join('')}
+      </tbody></table>
+    <div class="card-pad" style="border-top:1px solid var(--border)"><span class="save-msg" id="ep-save-msg"></span></div>`;
+}
+
+async function saveEp(id) {
+  try {
+    await sbWrite('water_entry_points', {
+      code: val(`ep-${id}-code`), label: val(`ep-${id}-label`),
+      well_no: numOrNull(`ep-${id}-well`), mor_sheet: numOrNull(`ep-${id}-sheet`),
+      has_meter: checked(`ep-${id}-meter`), meter_gallons_per_unit: Number(val(`ep-${id}-gpu`)),
+      records_pressure: checked(`ep-${id}-psi`), records_temp: checked(`ep-${id}-temp`),
+      tap_free: checked(`ep-${id}-free`), tap_total: checked(`ep-${id}-total`),
+      tap_ortho: checked(`ep-${id}-ortho`), tap_fluoride: checked(`ep-${id}-fluoride`),
+      sort_order: Number(val(`ep-${id}-sort`)), active: checked(`ep-${id}-active`),
+    }, id);
+    flash('ep-save-msg', 'saved');
+  } catch (e) { flash('ep-save-msg', e.message, false); }
+}
+
+function renderWaterFeeds(w) {
+  const byEp = {};
+  for (const e of w.entryPoints) byEp[e.id] = e.label;
+  document.getElementById('water-feeds').innerHTML = w.feeds.length ? `
+    <table class="dt">
+      <thead><tr><th>Well</th><th>Kind</th><th>Product</th><th class="num">Available fraction</th>
+      <th class="num">Ortho factor</th><th>Unit</th><th class="num">NSF max dose</th>
+      <th class="num">Warn low</th><th class="num">Warn high</th><th>Tank tracked</th><th>Live</th></tr></thead>
+      <tbody>${w.feeds.map(f => `
+        <tr><td>${esc(byEp[f.entry_point_id] || '?')}</td><td>${esc(f.kind)}</td>
+        <td>${dash(f.product_name)}</td><td class="num">${f.avail_fraction}</td>
+        <td class="num">${f.ortho_factor ?? '<span class="dim">—</span>'}</td><td>${esc(f.unit_label)}</td>
+        <td class="num">${f.nsf_max_dose ?? '<span class="dim">—</span>'}</td>
+        <td class="num">${f.warn_min_dose ?? '<span class="dim">—</span>'}</td>
+        <td class="num">${f.warn_max_dose ?? '<span class="dim">—</span>'}</td>
+        <td>${f.tank_tracked ? 'yes' : 'no'}</td><td>${onoff(f.active)}</td></tr>`).join('')}
+      </tbody></table>`
+    : '<div class="empty-state" style="padding:16px">No feeds configured.</div>';
+}
+
+function renderWaterOperators(w) {
+  document.getElementById('water-operators').innerHTML = `
+    <table class="dt">
+      <thead><tr><th>Name</th><th>Initials</th><th>OIC</th><th>PIN</th><th>Live</th><th></th></tr></thead>
+      <tbody>${w.operators.map(o => `
+        <tr>
+          <td><input type="text" id="op-${o.id}-name" value="${esc(o.name)}" style="width:132px"></td>
+          <td><input type="text" id="op-${o.id}-init" value="${esc(o.initials)}" style="width:52px"></td>
+          <td><input type="checkbox" id="op-${o.id}-oic" ${o.is_oic ? 'checked' : ''}></td>
+          <td><input type="text" id="op-${o.id}-pin" placeholder="${o.has_pin ? '•••• set' : 'not set'}" maxlength="4" style="width:64px">
+            ${o.has_pin ? `<button class="btn danger" style="padding:3px 7px;margin-left:4px" onclick="clearPin('${o.id}')">clear</button>` : ''}</td>
+          <td><input type="checkbox" id="op-${o.id}-active" ${o.active ? 'checked' : ''}></td>
+          <td><button class="btn" onclick="saveOperator('${o.id}')">Save</button></td>
+        </tr>`).join('')}
+      </tbody></table>
+    <div class="card-pad" style="border-top:1px solid var(--border)">
+      <span class="save-msg" id="op-save-msg"></span>
+      <div class="hint" style="font-size:9px;color:var(--muted);margin-top:4px">
+        A PIN can be set here and never read back — leave the box empty to keep the existing one.
+        Retire an operator with the Live checkbox; nothing is deleted, because their initials are on
+        readings behind reports already filed with EGLE.</div>
+    </div>`;
+}
+
+async function saveOperator(id) {
+  const pin = val(`op-${id}-pin`);
+  try {
+    const payload = {
+      name: val(`op-${id}-name`), initials: val(`op-${id}-init`).toUpperCase(),
+      is_oic: checked(`op-${id}-oic`), active: checked(`op-${id}-active`),
+    };
+    if (pin) payload.pin = pin;
+    await sbWrite('water_operators', payload, id);
+    flash('op-save-msg', pin ? 'saved · PIN updated' : 'saved');
+    waterState.loaded = false; loadWater();
+  } catch (e) { flash('op-save-msg', e.message, false); }
+}
+
+async function clearPin(id) {
+  if (!confirm('Clear this operator’s PIN? They will not be able to sign a round until a new one is set.')) return;
+  try {
+    await sbWrite('water_operators', { pin: null }, id);
+    flash('op-save-msg', 'PIN cleared');
+    waterState.loaded = false; loadWater();
+  } catch (e) { flash('op-save-msg', e.message, false); }
+}
+
+async function newOperator() {
+  const name = prompt('Operator name?'); if (!name) return;
+  const initials = prompt('Initials, as written in the paper "Done by" column?'); if (!initials) return;
+  const pin = prompt('4-digit PIN (leave blank to set later):') || null;
+  try {
+    await sbWrite('water_operators', {
+      supply_id: waterState.data.supply.id, name: name.trim(),
+      initials: initials.trim().toUpperCase(), is_oic: false, active: true,
+      ...(pin ? { pin } : {}),
+    });
+    waterState.loaded = false; loadWater();
+  } catch (e) { flash('op-save-msg', e.message, false); }
+}
+
+function renderWaterSites(w) {
+  const KINDS = ['distribution', 'bacti_routine', 'bacti_other'];
+  document.getElementById('water-sites').innerHTML = `
+    <table class="dt">
+      <thead><tr><th>Site</th><th>Kind</th><th class="num">Sort</th><th>Live</th><th></th></tr></thead>
+      <tbody>${w.sites.map(s => `
+        <tr>
+          <td><input type="text" id="st-${s.id}-name" value="${esc(s.name)}" style="width:180px"></td>
+          <td><select id="st-${s.id}-kind">${KINDS.map(k => `<option ${s.kind === k ? 'selected' : ''}>${k}</option>`).join('')}</select></td>
+          <td class="num"><input type="number" id="st-${s.id}-sort" value="${s.sort_order}" style="width:48px"></td>
+          <td><input type="checkbox" id="st-${s.id}-active" ${s.active ? 'checked' : ''}></td>
+          <td><button class="btn" onclick="saveSite('${s.id}')">Save</button></td>
+        </tr>`).join('')}
+      </tbody></table>
+    <div class="card-pad" style="border-top:1px solid var(--border)"><span class="save-msg" id="st-save-msg"></span></div>`;
+}
+
+async function saveSite(id) {
+  try {
+    await sbWrite('water_sites', {
+      name: val(`st-${id}-name`), kind: val(`st-${id}-kind`),
+      sort_order: Number(val(`st-${id}-sort`)), active: checked(`st-${id}-active`),
+    }, id);
+    flash('st-save-msg', 'saved');
+  } catch (e) { flash('st-save-msg', e.message, false); }
+}
+
+async function newSite() {
+  const name = prompt('Sampling site name (e.g. "125 W. Main St (Courthouse)")?'); if (!name) return;
+  const kind = prompt('Kind — distribution / bacti_routine / bacti_other:', 'distribution');
+  if (!kind) return;
+  try {
+    await sbWrite('water_sites', {
+      supply_id: waterState.data.supply.id, name: name.trim(), kind: kind.trim(), active: true,
+    });
+    waterState.loaded = false; loadWater();
+  } catch (e) { flash('st-save-msg', e.message, false); }
+}
+
+function renderWaterFilings(w) {
+  const MON = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const live = w.filings.filter(f => !f.superseded_at);
+  document.getElementById('water-filings').innerHTML = live.length ? `
+    <table class="dt">
+      <thead><tr><th>Period</th><th>Submitted</th><th>Signed by</th><th>Source</th><th>Workbook</th></tr></thead>
+      <tbody>${live.map(f => `
+        <tr><td>${MON[f.report_month]} ${f.report_year}</td>
+        <td>${dash(f.submitted_date)}</td><td>${dash(f.signed_by)}</td>
+        <td><span class="pill ${f.source === 'product' ? 'on' : 'off'}">${esc(f.source)}</span></td>
+        <td class="dim" style="font-size:10px">${dash(f.workbook_name)}</td></tr>`).join('')}
+      </tbody></table>
+    <div class="card-pad" style="border-top:1px solid var(--border);font-size:10px;color:var(--muted);line-height:1.6">
+      <b>source = backfill</b> means the report was recorded here after being submitted the old way.
+      Nothing writes <b>product</b> yet — that value exists so the first report filed from CivicScope
+      stays distinguishable from the ones that came before it.</div>`
+    : '<div class="empty-state" style="padding:16px">No filings recorded.</div>';
+
+  document.getElementById('water-reminders').innerHTML = w.reminders.length ? `
+    <table class="dt">
+      <thead><tr><th>Period</th><th>Kind</th><th>Sent</th><th>Outcome</th><th>To</th></tr></thead>
+      <tbody>${w.reminders.map(r => `
+        <tr><td>${MON[r.report_month]} ${r.report_year}</td><td>${esc(r.kind)}</td>
+        <td class="dim">${String(r.sent_at).slice(0, 10)}</td>
+        <td><span class="pill ${r.outcome === 'sent' ? 'on' : 'bad'}">${esc(r.outcome)}</span></td>
+        <td class="dim" style="font-size:10px">${esc((r.recipients || []).join(', ')) || '<span class="dim">nobody</span>'}</td></tr>`).join('')}
+      </tbody></table>`
+    : `<div class="empty-state" style="padding:16px">No reminders sent yet.
+       <div style="margin-top:6px">A reminder with nobody to send it to is recorded as
+       <b>no_recipient</b> — not as a success — so an empty outcome column here would still be visible.</div></div>`;
+}
 </script>
 </body>
 </html>
