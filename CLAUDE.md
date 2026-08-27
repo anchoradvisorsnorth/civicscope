@@ -39,8 +39,8 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 | **Municipal (Free)** | app.civicscope.io/civicscope | Municipal employees + officials | **v2.2.0** |
 | **Schools** | app.civicscope.io/schools | K-12 district leaders | v1.0.0-schools |
 | **Infrastructure (NEW June 6)** | **app.civicscope.io/infrastructure** | **Public works / utility leaders** | **v1.0.0-infrastructure** |
-| GC External | app.civicscope.io/gc/:slug | GC prospective clients | v1.6.0-gc |
-| GC Internal | app.civicscope.io/gc/:slug-internal | GC estimating teams | v1.5.0-gc-int |
+| ~~GC External~~ | app.civicscope.io/gc/:slug | GC prospective clients | v1.6.0-gc — **routes still serve; NO admin** |
+| ~~GC Internal~~ | app.civicscope.io/gc/:slug-internal | GC estimating teams | v1.5.0-gc-int — **routes still serve; NO admin** |
 | **Village Hub** | **civicscope.io/:village** (live: `/centreville`) | **The village's own staff — one address for every product** | **v2.0.0-village** — Google sign-in gate |
 | **Ask &lt;Village&gt; (NEW 2026-08-18)** | **civicscope.io/:village/ask** (live: `/centreville/ask`) | **Village clerks + residents** | **v1.0.0-muni** ⏸ paused |
 | **Well Testing — crew tablet** | **app.civicscope.io/water** | **Water plant operators (no logins, by design)** | **v1.1.0-water** — name first, required, blank |
@@ -338,7 +338,7 @@ worktree-based comparison would match the stale deployment and pass a commit tha
 - Sandbox (START_SANDBOX.bat → localhost:8888) — retain for risky changes only
 - RYC Scheduler deploy is isolated — zero risk to civicscope.io
 - Acme = demo tenant only, never modify
-- **RYC = first REAL GC tenant — CREATED 2026-07-21** (slug `ryc`, id `ca502d19`, inserted via Supabase service key pulled from Vercel env — the admin secret is write-only "sensitive" type). `/gc/ryc` + `/gc/ryc-internal` LIVE but **unlisted** (leads notify keith@jbkdevelopment.com, NOT RYC — reveal held for Keith's dashboard-license conversation with Steve; see memory `project_ryc_dashboard_license_play`). Brand values/contact email pending Keith review in `/admin`. ⚠ Do NOT circulate `/gc/ryc-internal` inside RYC — the real internal estimator is `/ryc/estimate` (data-grounded); the generic white-label variant muddies that story. Command Center deliberately NOT tenant-wired until cutover auth or GC customer #2.
+- **RYC = first REAL GC tenant — CREATED 2026-07-21** (slug `ryc`, id `ca502d19`, inserted via Supabase service key pulled from Vercel env — the admin secret is write-only "sensitive" type). `/gc/ryc` + `/gc/ryc-internal` LIVE but **unlisted** (leads notify keith@jbkdevelopment.com, NOT RYC — reveal held for Keith's dashboard-license conversation with Steve; see memory `project_ryc_dashboard_license_play`). ⛔ **There is no longer an `/admin` surface for any of this** (2026-08-26, below): the GC Tenants tab, the tenant editor and the `tenants` table entry in `api/admin.js` were removed. The rows and the routes are untouched — editing one now means a script, the same way it was before 2026-04. ⚠ Do NOT circulate `/gc/ryc-internal` inside RYC — the real internal estimator is `/ryc/estimate` (data-grounded); the generic white-label variant muddies that story. Command Center deliberately NOT tenant-wired until cutover auth or GC customer #2.
 
 ---
 
@@ -1583,8 +1583,12 @@ counting `acme` and `ryc`, and the two **live** municipal products plus the wate
 admin surface at all. Every `muni_tenants` and `water_supplies` change since 2026-08-18 was made by
 script. A dashboard that reports a confident number for the wrong population is the same defect
 class as `answered` being true whenever the model produced prose: the number was never wrong about
-what it measured, it was wrong about what a reader would take it to mean. The tab is now labelled
-**GC Tenants**.
+what it measured, it was wrong about what a reader would take it to mean.
+
+**The tile was first relabelled `GC Tenants`, and then deleted the same day** — Keith, on seeing
+it: *"you can blow away the GC as tenant thing. That is dead."* So the population that caused the
+confusion is not disambiguated, it is gone. See the backlog item for exactly what was removed and,
+more importantly, what was not.
 
 **Three tabs, and the reason each exists.**
 
@@ -1954,15 +1958,26 @@ Centreville gives 30/10/40 from Table 4-4.
   ⚠ Setting it via `SetEnvironmentVariable(name, '', 'User')` with an **empty** value DELETES the
   variable rather than setting it, and reports no error — so a mistyped `Read-Host` looks exactly
   like a successful set. Verify by reading the length back, never by the absence of an error.
-- **The two GC product cards on `/admin` → Overview have been throwing since they were built**
-  (found 2026-08-26 by driving the live page in Chrome). `loadProductData()` sets
-  `dur-<key>` and `time-<key>` for every product, but the **gc-ext and gc-int cards carry
-  "Tenant" and "Access" meta fields instead of "Avg Duration"** — so `getElementById('dur-gc-ext')`
-  is null and the loop throws. Its `catch` logs and moves on, which is why nobody noticed: the
-  exception aborts before the `last-*` assignment, so **both GC cards' "Last Run" read "Loading…"
-  forever**. A null-guard on those two writes fixes it. ⚠ Unrelated to the Ask/Usage/Water work —
-  recorded, not fixed, because it is a different tab and a separate paid deploy cycle.
-  (Also on that page: `/favicon.ico` 404s. Cosmetic.)
+- ✅ **The two GC product cards had been throwing on every `/admin` load since they were built** —
+  found 2026-08-26 by driving the live page in Chrome. `loadProductData()` sets `dur-<key>` and
+  `time-<key>` for every product, but those two cards carry "Tenant" and "Access" meta fields
+  instead of "Avg Duration", so `getElementById('dur-gc-ext')` was null and the loop threw. The
+  `catch` logged and moved on, which is why nobody noticed — the exception aborted before the
+  `last-*` assignment, so **both cards' "Last Run" read "Loading…" forever**. Resolved the same day
+  by deleting the cards outright (GC white-label is dead). ⚠ Worth keeping as a pattern: a
+  `catch` that logs and continues turns a null-deref into a field that never fills, and nothing
+  about the page looks broken. Still open on that page: `/favicon.ico` 404s. Cosmetic.
+- 🚩 **THE ESTIMATING SMOKE GATE IS ALSO INTERMITTENTLY RED — and that is now TWO gates whose
+  remedy is "run it again" (2026-08-26).** The GC-removal deploy failed at exit 40 with
+  `Municipal — JSON UNPARSEABLE — likely truncation`, on a deploy touching only
+  `civicscope-admin/index.html` and `api/admin.js` — neither of which is in `/api/claude`'s code
+  path. Municipal had passed 35 minutes earlier and passed standalone immediately after; the
+  `-Resume` then went 3/3. So: real model-output variance, the same failure mode `max_tokens` was
+  raised for on 6/16 and the JSON parse was hardened for. **Do not diagnose a gate failure by
+  re-running it.** Ask first whether the changed files can even reach the failing path — that is a
+  structural answer, available in seconds, and it is the difference between a transient and a
+  regression. ⚠ Two flaky gates is the point at which "re-run and it went green" stops being
+  evidence of anything.
 - 🚩 **`scripts/test-deploy-harness.js` IS FLAKY — two resume scenarios failed one run and passed
   the next on a byte-identical tree** (2026-08-26, detail in the admin section above). The remedy
   for an INCOMPLETE run is currently "run it again", which is indistinguishable from waving through
@@ -2089,7 +2104,8 @@ Forward-looking action queue. Source of truth for the CRM dashboard's "Across Al
 - **Facebook Ads pixel** — create a CivicScope-specific Meta Pixel in Business Manager (separate from MTP/AAN pixel). Implementation plan at `Civicscope/FB_AD_IMPLEMENTATION_PLAN.md`.
 - **Move daily digest cron to VM** — Vercel cron is unreliable (missed April 9-10 digests). Move to VM cron as a `curl` trigger, same pattern as bookmarks pipeline. **Less urgent since 2026-08-11:** the digest now reports a *named ET calendar day*, so a missed day is no longer lost — re-send it with `POST /api/digest?date=YYYY-MM-DD`. Under the old rolling window a late cron silently dropped the uncovered hours forever.
 - **`CRON_SECRET` on CivicScope's Vercel is far too short for what it guards** (observed 2026-08-11 while wiring the digest gate — the value and its length are recorded in `infra/env-var-inventory.md`, deliberately not in this public repo). It protects an endpoint that sends mail and, since the `?dry=1` addition, answers with activity counts. Rotating it is a one-liner and cannot break the schedule — Vercel injects the same variable into its own cron call. **Not done unilaterally: it is a live credential change.**
-- ⏸️ **GC public white-label — PARKED (Fable review 2026-07-08)** — one demo tenant (acme) in 4 months; the real GC product lives at /ryc/estimate and is proving itself there. Revisit RYC-as-public-tenant only if a paying second tenant materializes.
+- ⛔ **GC public white-label — DEAD, and its admin is gone (2026-08-26).** Keith: *"you can blow away the GC as tenant thing. That is dead."* Removed from `/admin`: the GC Tenants tab, the tenant editor form, both GC product cards, the sidebar summary, the Overview tile, the ping targets, the smoke-test entries, and the `tenants` entry in `api/admin.js`'s table registry — **28,116 bytes out of the page**, and with them the null-deref that had been throwing on every load since those cards were built. Was PARKED after the 2026-07-08 Fable review (one demo tenant in four months; the real GC product is `/ryc/estimate`).
+  ⚠ **WHAT WAS NOT TOUCHED, DELIBERATELY:** the `/gc/:slug` and `/gc/:slug-internal` routes still serve, `api/gc-config.js` still reads the `tenants` table with its own credential, and the `acme` and `ryc` rows are still there. Removing an admin screen is a git revert; dropping live routes and production rows is not, and `/gc/ryc` is entangled with the RYC dashboard-license conversation (memory `project_ryc_dashboard_license_play`). **Tearing out the routes, the pages and the table is a separate, explicitly-authorised job.**
 - **CivicScope restructure — loose ends (June 6)** — add version comments to the Schools + Infra tool footers; sweep the inert `.timeline-tease`/`.tease-*` dead CSS from the 3 tools; final end-to-end harness tire-kick of Schools + Infra (Municipal confirmed). The `Segment Hub Pages` table near the top still lists Infrastructure as "coming soon" — update that row when convenient.
 
 ---
