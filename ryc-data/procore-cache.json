@@ -1,5 +1,5 @@
 {
-  "refreshed": "2026-08-27T04:09:34.099Z",
+  "refreshed": "2026-08-28T04:09:38.068Z",
   "jobCount": 53,
   "jobs": [
     {
@@ -17,7 +17,7 @@
       "projectedFinish": "2026-08-21T16:00:00Z",
       "completionDate": "2026-08-31",
       "sqft": null,
-      "pctComplete": 76.9,
+      "pctComplete": 76.8,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
@@ -33,7 +33,7 @@
         "original": 19281323.549999997,
         "revised": 20166460.33,
         "committed": 18670815.71,
-        "direct": 14248601.679999998,
+        "direct": 14234819.069999998,
         "lines": [
           {
             "code": "Div 1-01-001.BUR",
@@ -379,12 +379,12 @@
             "revised": 13877.5,
             "projectedBudget": 13877.5,
             "committed": 0,
-            "direct": 20036.11,
+            "direct": 20035.14,
             "invoicesErp": 0,
-            "jobToDate": 20036.11,
-            "projectedCost": 20036.11,
-            "estAtCompletion": 20036.11,
-            "overUnder": -6158.61
+            "jobToDate": 20035.14,
+            "projectedCost": 20035.14,
+            "estAtCompletion": 20035.14,
+            "overUnder": -6157.64
           },
           {
             "code": "Div 1-01-021.BUR",
@@ -1471,12 +1471,12 @@
             "revised": 61198.63,
             "projectedBudget": 61198.63,
             "committed": 84025.05,
-            "direct": 13781.64,
+            "direct": 0,
             "invoicesErp": 24392.6,
-            "jobToDate": 38174.24,
-            "projectedCost": 97806.69,
-            "estAtCompletion": 97806.69,
-            "overUnder": -36608.06
+            "jobToDate": 24392.6,
+            "projectedCost": 84025.05,
+            "estAtCompletion": 84025.05,
+            "overUnder": -22826.42
           },
           {
             "code": "Div 10-10-019.BUR",
@@ -2797,12 +2797,12 @@
             "revised": 459046,
             "projectedBudget": 459046,
             "committed": 459046,
-            "direct": 2380,
-            "invoicesErp": 209721,
+            "direct": 0,
+            "invoicesErp": 212101,
             "jobToDate": 212101,
-            "projectedCost": 461426,
-            "estAtCompletion": 461426,
-            "overUnder": -2380
+            "projectedCost": 459046,
+            "estAtCompletion": 459046,
+            "overUnder": 0
           },
           {
             "code": "Div 32-32-004.BUR",
@@ -4600,8 +4600,8 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:06:05.645Z",
-        "projectedCost": 19230145.77,
+        "linesAsOf": "2026-08-28T04:06:03.980Z",
+        "projectedCost": 19213983.16,
         "projectedBudget": 20106280.81,
         "projCostSuspect": false
       },
@@ -4972,7 +4972,7 @@
       "budget": {
         "original": 16017608.15,
         "revised": 16017608.150000002,
-        "committed": 13288840.850000001,
+        "committed": 13295486.850000001,
         "direct": 5921785.25,
         "lines": [
           {
@@ -7450,13 +7450,13 @@
             "name": null,
             "revised": 355286.28,
             "projectedBudget": 363686.28,
-            "committed": 351044.28,
+            "committed": 355028.28,
             "direct": 0,
             "invoicesErp": 156072.38,
             "jobToDate": 156072.38,
-            "projectedCost": 355286.28,
-            "estAtCompletion": 351044.28,
-            "overUnder": 12642
+            "projectedCost": 359270.28,
+            "estAtCompletion": 355028.28,
+            "overUnder": 8658
           },
           {
             "code": "Div 26-26-001.BUR",
@@ -7528,13 +7528,13 @@
             "name": null,
             "revised": 1047568.45,
             "projectedBudget": 1089179.45,
-            "committed": 1043703.45,
+            "committed": 1046365.45,
             "direct": -1153.9,
             "invoicesErp": 372244.7,
             "jobToDate": 371090.8,
-            "projectedCost": 1042549.55,
-            "estAtCompletion": 1042549.55,
-            "overUnder": 46629.9
+            "projectedCost": 1045211.55,
+            "estAtCompletion": 1045211.55,
+            "overUnder": 43967.9
           },
           {
             "code": "Div 3-03-002.BUR",
@@ -8910,7 +8910,7 @@
             "direct": 0,
             "invoicesErp": 16180.54,
             "jobToDate": 16180.54,
-            "projectedCost": 69420.04,
+            "projectedCost": 79245.04,
             "estAtCompletion": 69420.04,
             "overUnder": 9825
           },
@@ -9014,7 +9014,7 @@
             "direct": 0,
             "invoicesErp": 75172,
             "jobToDate": 75172,
-            "projectedCost": 198603.97,
+            "projectedCost": 213003.97,
             "estAtCompletion": 198603.97,
             "overUnder": 47740
           },
@@ -9794,7 +9794,7 @@
             "direct": 0,
             "invoicesErp": 14246,
             "jobToDate": 14246,
-            "projectedCost": 19939,
+            "projectedCost": 20339,
             "estAtCompletion": 19939,
             "overUnder": 3050
           },
@@ -10190,8 +10190,8 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:07:55.593Z",
-        "projectedCost": 13701930.33,
+        "linesAsOf": "2026-08-28T04:07:48.818Z",
+        "projectedCost": 13733201.33,
         "projectedBudget": 16305842.09,
         "projCostSuspect": false
       },
@@ -10201,7 +10201,7 @@
         "count": 31,
         "subcontracts": 24,
         "purchaseOrders": 7,
-        "committedTotal": 13288840.85,
+        "committedTotal": 13295486.85,
         "originalTotal": 13629654.58,
         "pendingTotal": 0,
         "invoicedTotal": 0,
@@ -10247,7 +10247,7 @@
             "title": "Photon Electric Subcontract",
             "vendor": "Photon Electric LLC",
             "status": "Approved",
-            "total": 1043703.45,
+            "total": 1046365.45,
             "original": 986955,
             "invoiced": 0
           },
@@ -10283,7 +10283,7 @@
             "title": "Current Mechanical Subcontract",
             "vendor": "Current Mechanical",
             "status": "Approved",
-            "total": 351044.28,
+            "total": 355028.28,
             "original": 339438,
             "invoiced": 0
           },
@@ -17846,7 +17846,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:08:38.969Z",
+        "linesAsOf": "2026-08-28T04:08:36.810Z",
         "projectedCost": 12580276.4,
         "projectedBudget": 16300714.72,
         "projCostSuspect": false
@@ -18282,7 +18282,7 @@
         "original": 15085716.219999999,
         "revised": 15842068.219999999,
         "committed": 15615929.19,
-        "direct": 16607038.27,
+        "direct": 16607525.990000002,
         "lines": [
           {
             "code": "Div 1-01-001.BUR",
@@ -19135,12 +19135,12 @@
             "revised": 17771.34,
             "projectedBudget": 17771.34,
             "committed": 0,
-            "direct": 6349.85,
+            "direct": 6745.19,
             "invoicesErp": 0,
-            "jobToDate": 6349.85,
-            "projectedCost": 6349.85,
-            "estAtCompletion": 6349.85,
-            "overUnder": 11421.49
+            "jobToDate": 6745.19,
+            "projectedCost": 6745.19,
+            "estAtCompletion": 6745.19,
+            "overUnder": 11026.15
           },
           {
             "code": "Div 1-01-028.BUR",
@@ -20123,12 +20123,12 @@
             "revised": 0,
             "projectedBudget": 0,
             "committed": 0,
-            "direct": 0,
+            "direct": 92.38,
             "invoicesErp": 0,
-            "jobToDate": 0,
-            "projectedCost": 0,
-            "estAtCompletion": 0,
-            "overUnder": 0
+            "jobToDate": 92.38,
+            "projectedCost": 92.38,
+            "estAtCompletion": 92.38,
+            "overUnder": -92.38
           },
           {
             "code": "Div 10-10-007.O",
@@ -23538,8 +23538,8 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:00:22.283Z",
-        "projectedCost": 17363292.64,
+        "linesAsOf": "2026-08-28T04:00:21.346Z",
+        "projectedCost": 17363780.36,
         "projectedBudget": 16375918.52,
         "projCostSuspect": false
       },
@@ -28314,7 +28314,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:06:20.799Z",
+        "linesAsOf": "2026-08-28T04:06:17.928Z",
         "projectedCost": 11907859.27,
         "projectedBudget": 11784347.1,
         "projCostSuspect": false
@@ -35009,7 +35009,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:09:10.385Z",
+        "linesAsOf": "2026-08-28T04:09:07.125Z",
         "projectedCost": 10088491.7,
         "projectedBudget": 10893232.76,
         "projCostSuspect": false
@@ -39987,7 +39987,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:01:18.660Z",
+        "linesAsOf": "2026-08-28T04:01:17.486Z",
         "projectedCost": 7241226.91,
         "projectedBudget": 8133763.42,
         "projCostSuspect": false
@@ -40281,7 +40281,7 @@
         "original": 7730460.510000001,
         "revised": 7730460.510000001,
         "committed": 4762313.08,
-        "direct": 707651.92,
+        "direct": 708736.9199999999,
         "lines": [
           {
             "code": "Div 1-01-001.BUR",
@@ -41056,12 +41056,12 @@
             "revised": 27300,
             "projectedBudget": 27300,
             "committed": 0,
-            "direct": 5820.44,
+            "direct": 6830.44,
             "invoicesErp": 0,
-            "jobToDate": 5820.44,
-            "projectedCost": 5820.44,
-            "estAtCompletion": 5820.44,
-            "overUnder": 21479.56
+            "jobToDate": 6830.44,
+            "projectedCost": 6830.44,
+            "estAtCompletion": 6830.44,
+            "overUnder": 20469.56
           },
           {
             "code": "Div 1-01-026.BUR",
@@ -41576,12 +41576,12 @@
             "revised": 5250,
             "projectedBudget": 5250,
             "committed": 0,
-            "direct": 568.65,
+            "direct": 643.65,
             "invoicesErp": 0,
-            "jobToDate": 568.65,
-            "projectedCost": 568.65,
-            "estAtCompletion": 568.65,
-            "overUnder": 4681.35
+            "jobToDate": 643.65,
+            "projectedCost": 643.65,
+            "estAtCompletion": 643.65,
+            "overUnder": 4606.35
           },
           {
             "code": "Div 1-01-033.O",
@@ -44809,8 +44809,8 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:00:44.703Z",
-        "projectedCost": 6417244.7,
+        "linesAsOf": "2026-08-28T04:00:44.154Z",
+        "projectedCost": 6418329.7,
         "projectedBudget": 7705897.51,
         "projCostSuspect": false
       },
@@ -51483,7 +51483,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:06:41.297Z",
+        "linesAsOf": "2026-08-28T04:06:38.832Z",
         "projectedCost": 12274791.29,
         "projectedBudget": 8706449.31,
         "projCostSuspect": true
@@ -56677,7 +56677,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:07:04.605Z",
+        "linesAsOf": "2026-08-28T04:06:59.741Z",
         "projectedCost": 3366722.43,
         "projectedBudget": 3582135.87,
         "projCostSuspect": false
@@ -60770,7 +60770,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:07:21.138Z",
+        "linesAsOf": "2026-08-28T04:07:14.378Z",
         "projectedCost": 3317432.88,
         "projectedBudget": 3418114.09,
         "projCostSuspect": false
@@ -62325,7 +62325,7 @@
             "direct": 5286.18,
             "invoicesErp": 25376.45,
             "jobToDate": 30662.63,
-            "projectedCost": 34789.59,
+            "projectedCost": 34845.86,
             "estAtCompletion": 33466.18,
             "overUnder": 8524.42
           },
@@ -63605,8 +63605,8 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:09:20.764Z",
-        "projectedCost": 4698090.27,
+        "linesAsOf": "2026-08-28T04:09:18.629Z",
+        "projectedCost": 4698146.54,
         "projectedBudget": 3434560.59,
         "projCostSuspect": true
       },
@@ -63791,7 +63791,7 @@
       "verifyStatus": false,
       "rfis": {
         "total": 35,
-        "open": 4
+        "open": 0
       },
       "submittals": {
         "total": 75,
@@ -66613,7 +66613,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:08:04.034Z",
+        "linesAsOf": "2026-08-28T04:08:00.095Z",
         "projectedCost": 3070305.04,
         "projectedBudget": 3083146.03,
         "projCostSuspect": false
@@ -71189,7 +71189,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:08:18.489Z",
+        "linesAsOf": "2026-08-28T04:08:15.267Z",
         "projectedCost": 7313740.59,
         "projectedBudget": 4232864.81,
         "projCostSuspect": true
@@ -72485,7 +72485,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:00:53.468Z",
+        "linesAsOf": "2026-08-28T04:00:54.810Z",
         "projectedCost": 2161959.04,
         "projectedBudget": 2488197.5,
         "projCostSuspect": false
@@ -72892,14 +72892,14 @@
             "code": "Div 1-01-001.L",
             "name": null,
             "revised": 15600,
-            "projectedBudget": 15600,
+            "projectedBudget": 16265.6,
             "committed": 0,
             "direct": 0,
             "invoicesErp": 0,
             "jobToDate": 0,
             "projectedCost": 0,
             "estAtCompletion": 0,
-            "overUnder": 15600
+            "overUnder": 16265.6
           },
           {
             "code": "Div 1-01-001.M",
@@ -73009,14 +73009,14 @@
             "code": "Div 1-01-002.S",
             "name": null,
             "revised": 0,
-            "projectedBudget": 0,
+            "projectedBudget": 1331.2,
             "committed": 0,
             "direct": 0,
             "invoicesErp": 0,
             "jobToDate": 0,
             "projectedCost": 0,
             "estAtCompletion": 0,
-            "overUnder": 0
+            "overUnder": 1331.2
           },
           {
             "code": "Div 1-01-012.BUR",
@@ -75114,15 +75114,15 @@
           {
             "code": "DIV 46-46-008.S",
             "name": null,
-            "revised": 879554,
-            "projectedBudget": 879554,
+            "revised": 900108,
+            "projectedBudget": 921689.7,
             "committed": 868446,
             "direct": 0,
             "invoicesErp": 859000,
             "jobToDate": 859000,
             "projectedCost": 868446,
             "estAtCompletion": 868446,
-            "overUnder": 11108
+            "overUnder": 53243.7
           },
           {
             "code": "Div 5-05-002.BUR",
@@ -75750,9 +75750,9 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:01:04.747Z",
+        "linesAsOf": "2026-08-28T04:01:05.852Z",
         "projectedCost": 2010021.51,
-        "projectedBudget": 2191320.38,
+        "projectedBudget": 2235452.88,
         "projCostSuspect": false
       },
       "contractValue": 2519230,
@@ -75895,11 +75895,11 @@
         ]
       },
       "changeOrders": {
-        "count": 10,
-        "netValue": 9243.96,
+        "count": 11,
+        "netValue": 29797.96,
         "byType": {
-          "Allowance": 2,
-          "TBD": 8
+          "TBD": 9,
+          "Allowance": 2
         }
       },
       "pm": {
@@ -75928,13 +75928,13 @@
       "projectedFinish": "2027-05-18T21:00:00Z",
       "completionDate": "2027-04-06",
       "sqft": null,
-      "pctComplete": 15.7,
+      "pctComplete": 17.8,
       "costOverrun": false,
       "commitmentsTracked": true,
       "verifyStatus": false,
       "rfis": {
-        "total": 14,
-        "open": 1
+        "total": 15,
+        "open": 2
       },
       "submittals": {
         "total": 143,
@@ -75944,7 +75944,7 @@
         "original": 2071633.13,
         "revised": 2079795.5,
         "committed": 1568274.3,
-        "direct": 357536.03,
+        "direct": 406766.16000000003,
         "lines": [
           {
             "code": "Div 1-01-001.L",
@@ -76758,12 +76758,12 @@
             "revised": 3000,
             "projectedBudget": 3000,
             "committed": 0,
-            "direct": 0,
+            "direct": 450,
             "invoicesErp": 0,
-            "jobToDate": 0,
-            "projectedCost": 0,
-            "estAtCompletion": 0,
-            "overUnder": 3000
+            "jobToDate": 450,
+            "projectedCost": 450,
+            "estAtCompletion": 450,
+            "overUnder": 2550
           },
           {
             "code": "Div 1-01-027.BUR",
@@ -77200,12 +77200,12 @@
             "revised": 2500,
             "projectedBudget": 2500,
             "committed": 0,
-            "direct": 1532.3,
+            "direct": 1598.43,
             "invoicesErp": 0,
-            "jobToDate": 1532.3,
-            "projectedCost": 1532.3,
-            "estAtCompletion": 1532.3,
-            "overUnder": 967.7
+            "jobToDate": 1598.43,
+            "projectedCost": 1598.43,
+            "estAtCompletion": 1598.43,
+            "overUnder": 901.57
           },
           {
             "code": "Div 1-01-033.O",
@@ -78553,8 +78553,8 @@
             "projectedBudget": 258473,
             "committed": 258173,
             "direct": 0,
-            "invoicesErp": 17087,
-            "jobToDate": 17087,
+            "invoicesErp": 52738,
+            "jobToDate": 52738,
             "projectedCost": 258173,
             "estAtCompletion": 258173,
             "overUnder": 300
@@ -79304,14 +79304,14 @@
             "code": "Div 6-06-002.M",
             "name": null,
             "revised": 38146,
-            "projectedBudget": 38471,
+            "projectedBudget": 39278.38,
             "committed": 32285.22,
             "direct": 1261.95,
             "invoicesErp": 17556.04,
             "jobToDate": 18817.99,
             "projectedCost": 33547.17,
             "estAtCompletion": 33547.17,
-            "overUnder": 4923.83
+            "overUnder": 5731.21
           },
           {
             "code": "Div 6-06-002.O",
@@ -79330,14 +79330,14 @@
             "code": "Div 6-06-002.S",
             "name": null,
             "revised": 49750,
-            "projectedBudget": 49750,
+            "projectedBudget": 51350,
             "committed": 49750,
             "direct": 0,
             "invoicesErp": 38840,
             "jobToDate": 38840,
             "projectedCost": 49750,
             "estAtCompletion": 49750,
-            "overUnder": 0
+            "overUnder": 1600
           },
           {
             "code": "Div 6-06-005.BUR",
@@ -79645,8 +79645,8 @@
             "projectedBudget": 10600,
             "committed": 10600,
             "direct": 0,
-            "invoicesErp": 0,
-            "jobToDate": 0,
+            "invoicesErp": 2000,
+            "jobToDate": 2000,
             "projectedCost": 10600,
             "estAtCompletion": 10600,
             "overUnder": 0
@@ -79697,8 +79697,8 @@
             "projectedBudget": 54014.05,
             "committed": 55014.05,
             "direct": 0,
-            "invoicesErp": 0,
-            "jobToDate": 0,
+            "invoicesErp": 11063,
+            "jobToDate": 11063,
             "projectedCost": 55014.05,
             "estAtCompletion": 55014.05,
             "overUnder": -1000
@@ -80277,9 +80277,9 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:09:32.738Z",
-        "projectedCost": 1684942.98,
-        "projectedBudget": 2100485.88,
+        "linesAsOf": "2026-08-28T04:09:36.614Z",
+        "projectedCost": 1685459.11,
+        "projectedBudget": 2102893.26,
         "projCostSuspect": false
       },
       "contractValue": 2280743,
@@ -80557,10 +80557,10 @@
         ]
       },
       "changeOrders": {
-        "count": 20,
-        "netValue": 64267.5,
+        "count": 21,
+        "netValue": 66674.88,
         "byType": {
-          "Allowance": 20
+          "Allowance": 21
         }
       },
       "pm": {
@@ -84119,7 +84119,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:08:50.983Z",
+        "linesAsOf": "2026-08-28T04:08:48.360Z",
         "projectedCost": 856195.2,
         "projectedBudget": 1395974.55,
         "projCostSuspect": false
@@ -86947,7 +86947,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:07:29.561Z",
+        "linesAsOf": "2026-08-28T04:07:22.700Z",
         "projectedCost": 621745.46,
         "projectedBudget": 840977.79,
         "projCostSuspect": false
@@ -89339,7 +89339,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:06:49.536Z",
+        "linesAsOf": "2026-08-28T04:06:47.234Z",
         "projectedCost": 640210.34,
         "projectedBudget": 790970.77,
         "projCostSuspect": false
@@ -90827,7 +90827,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:01:33.221Z",
+        "linesAsOf": "2026-08-28T04:01:31.636Z",
         "projectedCost": 511842,
         "projectedBudget": 561272.01,
         "projCostSuspect": false
@@ -94196,7 +94196,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:05:24.088Z",
+        "linesAsOf": "2026-08-28T04:05:23.854Z",
         "projectedCost": 73872.35,
         "projectedBudget": 449441.63,
         "projCostSuspect": false
@@ -97001,7 +97001,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:01:41.314Z",
+        "linesAsOf": "2026-08-28T04:01:39.579Z",
         "projectedCost": 171701.42,
         "projectedBudget": 382800.95,
         "projCostSuspect": false
@@ -97258,7 +97258,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:05:40.451Z",
+        "linesAsOf": "2026-08-28T04:05:40.985Z",
         "projectedCost": 24051.74,
         "projectedBudget": 32281.67,
         "projCostSuspect": false
@@ -100894,7 +100894,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:05:33.789Z",
+        "linesAsOf": "2026-08-28T04:05:34.573Z",
         "projectedCost": 144159.98,
         "projectedBudget": 335173.62,
         "projCostSuspect": false
@@ -103570,7 +103570,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:01:49.820Z",
+        "linesAsOf": "2026-08-28T04:01:48.121Z",
         "projectedCost": 190235.67,
         "projectedBudget": 314169.69,
         "projCostSuspect": false
@@ -107003,7 +107003,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:05:04.268Z",
+        "linesAsOf": "2026-08-28T04:05:03.240Z",
         "projectedCost": 219737.6,
         "projectedBudget": 352783.61,
         "projCostSuspect": false
@@ -109977,7 +109977,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:02:27.690Z",
+        "linesAsOf": "2026-08-28T04:02:25.717Z",
         "projectedCost": 383793.57,
         "projectedBudget": 299515.71,
         "projCostSuspect": false
@@ -110554,7 +110554,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:00:30.407Z",
+        "linesAsOf": "2026-08-28T04:00:29.020Z",
         "projectedCost": 226751.89,
         "projectedBudget": 289123.9,
         "projCostSuspect": false
@@ -113719,7 +113719,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:05:48.677Z",
+        "linesAsOf": "2026-08-28T04:05:49.672Z",
         "projectedCost": 197738.15,
         "projectedBudget": 314071.84,
         "projCostSuspect": false
@@ -116395,7 +116395,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:04:05.335Z",
+        "linesAsOf": "2026-08-28T04:04:00.614Z",
         "projectedCost": 179647.5,
         "projectedBudget": 298048.37,
         "projCostSuspect": false
@@ -119369,7 +119369,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:03:02.994Z",
+        "linesAsOf": "2026-08-28T04:02:58.736Z",
         "projectedCost": 285729.43,
         "projectedBudget": 294957.74,
         "projCostSuspect": false
@@ -122081,7 +122081,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:04:38.435Z",
+        "linesAsOf": "2026-08-28T04:04:34.467Z",
         "projectedCost": 368447.69,
         "projectedBudget": 297160.4,
         "projCostSuspect": false
@@ -124889,7 +124889,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:03:55.873Z",
+        "linesAsOf": "2026-08-28T04:03:51.383Z",
         "projectedCost": 202002.57,
         "projectedBudget": 284619.62,
         "projCostSuspect": false
@@ -127596,7 +127596,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:03:11.080Z",
+        "linesAsOf": "2026-08-28T04:03:06.476Z",
         "projectedCost": 416683.04,
         "projectedBudget": 288127.84,
         "projCostSuspect": true
@@ -130359,7 +130359,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:02:53.953Z",
+        "linesAsOf": "2026-08-28T04:02:50.302Z",
         "projectedCost": 281927.51,
         "projectedBudget": 286782.53,
         "projCostSuspect": false
@@ -133178,7 +133178,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:02:36.065Z",
+        "linesAsOf": "2026-08-28T04:02:33.787Z",
         "projectedCost": 320087.54,
         "projectedBudget": 284367.42,
         "projCostSuspect": false
@@ -136005,7 +136005,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:04:13.429Z",
+        "linesAsOf": "2026-08-28T04:04:08.956Z",
         "projectedCost": 193551.39,
         "projectedBudget": 285014.87,
         "projCostSuspect": false
@@ -138831,7 +138831,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:04:21.773Z",
+        "linesAsOf": "2026-08-28T04:04:16.705Z",
         "projectedCost": 161443.53,
         "projectedBudget": 283810.62,
         "projCostSuspect": false
@@ -141648,7 +141648,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:03:29.715Z",
+        "linesAsOf": "2026-08-28T04:03:23.273Z",
         "projectedCost": 364951.51,
         "projectedBudget": 289929.15,
         "projCostSuspect": false
@@ -144484,7 +144484,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:03:20.387Z",
+        "linesAsOf": "2026-08-28T04:03:15.019Z",
         "projectedCost": 350179.07,
         "projectedBudget": 273590.59,
         "projCostSuspect": false
@@ -147346,7 +147346,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:04:30.124Z",
+        "linesAsOf": "2026-08-28T04:04:26.527Z",
         "projectedCost": 326556.19,
         "projectedBudget": 279288.39,
         "projCostSuspect": false
@@ -150163,7 +150163,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:04:46.273Z",
+        "linesAsOf": "2026-08-28T04:04:43.350Z",
         "projectedCost": 333093.27,
         "projectedBudget": 286903.09,
         "projCostSuspect": false
@@ -153009,7 +153009,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:02:44.924Z",
+        "linesAsOf": "2026-08-28T04:02:42.224Z",
         "projectedCost": 293727.99,
         "projectedBudget": 273282.29,
         "projCostSuspect": false
@@ -154257,7 +154257,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:01:25.956Z",
+        "linesAsOf": "2026-08-28T04:01:24.826Z",
         "projectedCost": 206153.01,
         "projectedBudget": 281728.03,
         "projCostSuspect": false
@@ -156946,7 +156946,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:03:38.270Z",
+        "linesAsOf": "2026-08-28T04:03:33.288Z",
         "projectedCost": 264363.66,
         "projectedBudget": 272886.31,
         "projCostSuspect": false
@@ -159791,7 +159791,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:03:47.856Z",
+        "linesAsOf": "2026-08-28T04:03:42.598Z",
         "projectedCost": 262633.06,
         "projectedBudget": 299469.79,
         "projCostSuspect": false
@@ -162610,7 +162610,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:04:54.591Z",
+        "linesAsOf": "2026-08-28T04:04:52.197Z",
         "projectedCost": 377544.66,
         "projectedBudget": 272795.3,
         "projCostSuspect": true
@@ -164656,7 +164656,7 @@
           }
         ],
         "linesSource": "erp_detail_rows",
-        "linesAsOf": "2026-08-27T04:07:37.149Z",
+        "linesAsOf": "2026-08-28T04:07:32.530Z",
         "projectedCost": 233424.01,
         "projectedBudget": 200889.87,
         "projCostSuspect": false
