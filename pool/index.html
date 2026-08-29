@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
 <title>The Pool</title>
-<!-- hub v2.0.0 | 2026-08-25 — football season standings lead; golf ordered by state, not hardcoded -->
+<!-- hub v2.1.0 | 2026-08-29 — The Open archived off the hub; golf section ships empty and hidden -->
 <style>
   :root{--navy:#0a2240;--green:#14532d;--gold:#c8a24b;--line:#e4e7ec;--muted:#667085;--bg:#f8f7f4;--red:#b42318}
   *{box-sizing:border-box} body{margin:0;font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:#101828}
@@ -110,22 +110,20 @@
 
   <!-- ══ 4 · FINISHED COMPETITIONS ═════════════════════════════════════════════════════════
        Keith 2026-08-25: "the main page should move the Bob won golf down below."
-       It sat at the top of this page for five weeks after the tournament ended, which is the
-       same mistake the golf tracker itself made — a finished competition is a RECORD, and a
-       record does not get the position a live thing has earned.
+       Keith 2026-08-29: "can you hide the past golf result please."
+       It sat at the TOP for five weeks after the tournament ended, then spent four days as a
+       record down here, and now it comes off the hub altogether. A finished competition is a
+       RECORD — and once the next season is running, a record does not need a card at all.
 
-       ⚠ The Open card below is written into the HTML rather than fetched. That is deliberate:
-       if the golf API is slow or unreachable the page still renders the correct, finished
-       result, exactly as it does today. The script REPLACES this block only on a successful
-       read, never on a failure. -->
-  <div class="sechead" id="golf-head">⛳ Golf — the record</div>
-  <div class="big" id="golf-records">
-    <a class="tile champ" href="/pool/golf">
-      <div class="status live">FINAL</div>
-      <div class="t">⛳ The Open 2026 — BOB wins</div>
-      <div class="s">$3,654,372 · beat NICK by $882,892 · Royal Birkdale. Full board →</div>
-    </a>
-  </div>
+       ⛔ THIS SECTION IS EMPTY AND HIDDEN BY DEFAULT, AND THAT IS THE WHOLE MECHANISM.
+       The Open card used to be written into the HTML as a fallback, so a slow or failed golf
+       API still rendered the finished result. Hiding it in script alone would therefore have
+       left it on screen for exactly the readers whose fetch failed — visible precisely when
+       nothing could correct it. The markup now ships blank; script only ever ADDS a card.
+       Nothing is deleted: The Open stays in GOLF_POOLS (flagged `archived`), the result stays
+       on its row, and /pool/golf still serves the full board. One word brings it back. -->
+  <div class="sechead" id="golf-head" style="display:none">⛳ Golf — the record</div>
+  <div class="big" id="golf-records" style="display:none"></div>
 
   <div class="card" style="margin-top:16px">
     <h2>Champions</h2>
@@ -157,7 +155,23 @@ const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt
     let weeks=await(await fetch('/api/football-pool?list='+season,{cache:'no-store'})).json();
     if((!Array.isArray(weeks)||!weeks.length)&&new Date().getMonth()<2)
       weeks=await(await fetch('/api/football-pool?list='+(season-1),{cache:'no-store'})).json();
-    if(!Array.isArray(weeks)||!weeks.length) return;
+    /* ⛔ AN EMPTY SEASON LEFT THIS CARD READING "Loading the season…" FOREVER (2026-08-29).
+       This used to `return`, on the reasoning that a dead API should leave the served copy
+       alone — but the served copy is a LOADING state, so the fail-silent path was indistinguishable
+       from a page still working. It never showed while the preseason weeks existed; the moment
+       they were wiped for the regular season it became what every visitor saw, with nothing
+       naming the cause. An empty season is now a STATE WITH ITS OWN SENTENCE, and the two
+       reasons for emptiness are told apart: nothing built yet vs. we could not ask. */
+    const body0=document.getElementById('fb-body');
+    if(!Array.isArray(weeks)){
+      body0.innerHTML='<div class="lempty">Couldn\'t load the season just now — open the board for the latest.</div>';
+      return;
+    }
+    if(!weeks.length){
+      body0.innerHTML='<div class="lempty">The season hasn\'t started yet — Week 1 goes up when the commissioner builds it.<br>'+
+        '<b>$'+WEEKLY_STAKE+' a week</b>, winner takes the pot, ties split it.</div>';
+      return;
+    }
 
     const open=weeks.find(w=>w.slateLocked&&!w.finalized);
     const st=document.getElementById('fb-status');
@@ -199,13 +213,23 @@ const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt
    ONE line below. Everything after that is automatic — a pool without `final` is promoted to
    the live slot at the top, a pool with `final` renders as a record down here.
 
-   A failed or slow fetch changes nothing: the static record above stays exactly as served. */
+   `archived:true` takes a pool off THE HUB and nothing else (Keith 2026-08-29, "hide the past
+   golf result"). It is not fetched, not counted and not rendered here — while its row, its
+   recorded result and /pool/golf are all untouched, so the record still exists and unhiding it
+   is deleting one word. Deliberately a property of the DECLARED ENTRY rather than a switch on
+   the section: the section still has to work. Keith 2026-08-25: "there might be a new golf pool
+   running while we are still in the football season" — the next major is one line here and it
+   promotes itself to the live slot exactly as before, with The Open still hidden.
+
+   A failed or slow fetch now renders NOTHING rather than a stale card: this block only ever adds
+   to an empty, hidden section. */
 const GOLF_POOLS=[
-  {slug:'open-2026', label:'The Open 2026', where:'Royal Birkdale', href:'/pool/golf'},
+  {slug:'open-2026', label:'The Open 2026', where:'Royal Birkdale', href:'/pool/golf', archived:true},
 ];
 (async()=>{
   try{
-    const got=await Promise.all(GOLF_POOLS.map(async g=>{
+    const ACTIVE=GOLF_POOLS.filter(g=>!g.archived);
+    const got=await Promise.all(ACTIVE.map(async g=>{
       try{
         const j=await(await fetch('/api/golf-pool?slug='+encodeURIComponent(g.slug),{cache:'no-store'})).json();
         return (j&&j.data)?{...g,data:j.data}:null;
@@ -232,6 +256,8 @@ const GOLF_POOLS=[
     if(done.length){
       document.getElementById('golf-head').textContent=
         done.length>1?'⛳ Golf — the records':'⛳ Golf — the record';
+      document.getElementById('golf-head').style.display='';
+      document.getElementById('golf-records').style.display='';
       document.getElementById('golf-records').innerHTML=done.map(g=>{
         const f=g.data.finalResult||{};
         const sub=f.winner
