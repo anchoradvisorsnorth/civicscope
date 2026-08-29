@@ -76,7 +76,7 @@
     #ptable.edit,#ptable.edit tbody{display:block;width:100%}
     #ptable.edit thead{display:none}
     #ptable.edit tbody tr{display:grid;grid-template-columns:1fr auto;
-      grid-template-areas:"nm rm" "mo mo" "em em" "pn pn" "no no";
+      grid-template-areas:"nm rm" "mo mo" "em em" "pn pn" "pl pl" "no no";
       gap:7px 10px;padding:13px 2px;border-bottom:1px solid var(--line)}
     #ptable.edit tbody tr:last-child{border-bottom:none}
     #ptable.edit tbody td{display:flex;align-items:center;gap:8px;padding:0;border:none;min-width:0}
@@ -89,7 +89,9 @@
     #ptable.edit tbody td.c-no{flex-wrap:wrap;white-space:normal}
     #ptable.edit tbody td.c-no>div{flex:1 1 100%;margin-left:70px}
     .c-nm{grid-area:nm}.c-ph{grid-area:mo}.c-em{grid-area:em}
-    .c-no{grid-area:no}.c-pn{grid-area:pn}.c-rm{grid-area:rm}
+    .c-no{grid-area:no}.c-pn{grid-area:pn}.c-rm{grid-area:rm}.c-pl{grid-area:pl}
+    #ptable.edit tbody td.c-pl{flex-wrap:wrap;white-space:normal}
+    #ptable.edit tbody td.c-pl>div{flex:1 1 100%;margin-left:70px}
   }
   .msg{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:10px;padding:10px 18px;font-size:14px;display:none;z-index:5}
   .muted{color:var(--muted);font-size:12px}
@@ -119,7 +121,7 @@
 
   <div class="card"><h2>1 · Players <span><span id="pstate" style="font-size:12px;font-weight:400;color:#b9c6da;margin-right:10px"></span><button class="btn gray" id="editbtn" onclick="toggleEdit()">&#9998; Edit roster</button></span></h2>
     <div class="body">
-      <table id="ptable"><thead><tr><th>Name</th><th>Mobile</th><th>Email</th><th>Notify</th><th>PIN</th><th></th></tr></thead><tbody></tbody></table>
+      <table id="ptable"><thead><tr><th>Name</th><th>Mobile</th><th>Email</th><th>Plays</th><th>Notify</th><th>PIN</th><th></th></tr></thead><tbody></tbody></table>
       <div id="joinbanner" style="display:none;margin-top:12px;padding:12px 14px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a"></div>
       <div class="row" style="margin-top:10px" id="editonly">
         <button class="btn gray" onclick="addPlayer()">+ New person</button>
@@ -340,7 +342,7 @@ function renderPlayers(){
     document.querySelector('#ptable tbody').innerHTML=players.length?players.map((p,i)=>{
       const s=statusOf(p);
       return `<tr><td style="padding:11px 10px">
-        <div style="font-weight:700;font-size:14px">${esc(p.name)}${p.role==='commissioner'?' <span class="meta" style="font-weight:400">· commissioner</span>':''}</div>
+        <div style="font-weight:700;font-size:14px">${esc(p.name)}${p.role==='commissioner'?' <span class="meta" style="font-weight:400">· commissioner</span>':''}${p.role==='observer'?' <span class="meta" style="font-weight:400">· notify only, not playing</span>':''}</div>
         <div class="meta">${p.phone?esc(p.phone):'no mobile'}${p.email?' · '+esc(p.email):''} · PIN ${esc(p.pin||'—')}</div></td>
         <td style="text-align:right;white-space:nowrap">
           <span class="pill" style="background:${s.b};color:${s.c}">${s.t}</span>
@@ -353,6 +355,10 @@ function renderPlayers(){
     <tr><td class="c-nm" data-label="Name"><input value="${esc(p.name)}" class="i-nm" onchange="players[${i}].name=this.value.toUpperCase();markDirty()"></td>
     <td class="c-ph" data-label="Mobile"><input value="${esc(p.phone||'')}" class="i-ph" placeholder="mobile" onchange="players[${i}].phone=this.value;markDirty()"></td>
     <td class="c-em" data-label="Email"><input value="${esc(p.email||'')}" class="i-em" placeholder="email (backup)" onchange="players[${i}].email=this.value;markDirty()"></td>
+    <td class="c-pl" data-label="Plays">
+      <label style="font-size:12px"><input type="checkbox" ${p.role!=='observer'?'checked':''} ${p.role==='commissioner'?'disabled':''} onchange="players[${i}].role=this.checked?'participant':'observer';renderPlayers();markDirty()"> Plays this pool</label>
+      <div style="font-size:11px;margin-top:2px;color:var(--muted)">${p.role==='commissioner'?'Commissioner — always a player.':(p.role==='observer'?'<b>Notify only</b> — gets every text and email, is not scored, pays nothing, no column on the board.':'Untick for someone who should get the notifications but not play.')}</div>
+    </td>
     <td class="c-no" data-label="Notify" style="white-space:nowrap">
       <label style="font-size:12px;margin-right:8px"><input type="checkbox" ${p.notify?.sms!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{sms:this.checked});markDirty()"> Text</label>
       <label style="font-size:12px"><input type="checkbox" ${p.notify?.email!==false?'checked':''} onchange="players[${i}].notify=Object.assign({email:true,sms:true},players[${i}].notify,{email:this.checked});markDirty()"> Email</label>
@@ -935,7 +941,13 @@ async function saveWeek(){
 let sittingOut=new Set();
 function renderWhosIn(){
   const wrap=document.getElementById('whosinwrap');
-  const withIds=players.filter(p=>p&&p.id&&String(p.name||'').trim());
+  /* Observers are not offered here at all (migration 061). This list decides who the week WAITS
+     ON before it opens the board; an observer cannot pick, so ticking him would stall every week
+     and unticking him would be a chore with one possible answer. He is excluded server-side too —
+     lock_slate builds the snapshot from the players — so this is the UI agreeing with the rule,
+     not the UI enforcing it. */
+  const withIds=players.filter(p=>p&&p.id&&String(p.name||'').trim()&&p.role!=='observer');
+  const notifyOnly=players.filter(p=>p&&p.role==='observer'&&String(p.name||'').trim()).map(p=>p.name);
   if(slateLocked||!withIds.length){ if(wrap) wrap.style.display='none'; return; }
   wrap.style.display='';
   document.getElementById('whosin').innerHTML=withIds.map(p=>
@@ -943,10 +955,13 @@ function renderWhosIn(){
     `<input type="checkbox" data-pid="${esc(p.id)}" ${sittingOut.has(String(p.id))?'':'checked'} onchange="toggleIn(this)"> `+
     `<span style="font-weight:${sittingOut.has(String(p.id))?'400':'700'};color:${sittingOut.has(String(p.id))?'var(--muted)':'inherit'}">${esc(p.name)}</span></label>`).join('');
   const out=withIds.filter(p=>sittingOut.has(String(p.id))).map(p=>p.name);
-  document.getElementById('whosinnote').innerHTML=out.length
+  const nOnly=notifyOnly.length
+    ? `<div style="margin-top:6px">${esc(notifyOnly.join(', '))} ${notifyOnly.length===1?'is':'are'} notify-only and ${notifyOnly.length===1?'is':'are'} not listed here — ${notifyOnly.length===1?'he gets':'they get'} every message and plays no weeks.</div>`
+    : '';
+  document.getElementById('whosinnote').innerHTML=(out.length
     ? `<b>${esc(out.join(', '))}</b> ${out.length===1?'is':'are'} sitting this week out — the week won't wait on ${out.length===1?'them':'them'} to open the board. `+
       `${out.length===1?'They':'They'} can still pick; doing so puts ${out.length===1?'them':'them'} back in.`
-    : 'Everyone is in. Untick anyone who is not playing this week — otherwise the board waits on them before it opens to the group.';
+    : 'Everyone is in. Untick anyone who is not playing this week — otherwise the board waits on them before it opens to the group.')+nOnly;
 }
 function toggleIn(el){
   const id=String(el.getAttribute('data-pid'));
