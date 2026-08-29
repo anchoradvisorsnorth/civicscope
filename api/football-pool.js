@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.13.0-participants';  // the week carries WHO IS IN IT; a non-player no longer blocks the reveal
+const VER = '3.14.0-observer';  // a roster member can be notify-only: told everything, scored in nothing
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -122,6 +122,14 @@ export default async function handler(req, res) {
       pin: m.pool_people.pin || '',
       role: m.role,
       globalRole: m.pool_people.global_role,
+      /* OBSERVER = on the roster for NOTIFICATIONS, not for play (migration 061, Keith 2026-08-29:
+         "I wont be one of the players … is it possible to include me in the notifications despite
+         not being a player"). The notify loops below iterate the whole roster on purpose — one
+         roster, one trigger, one place where "who gets told" is decided — so an observer receives
+         everything a player receives. Everything that SCORES, CHARGES or REVEALS filters to
+         players instead. Anything unrecognised counts as a player: the conservative direction is
+         to include someone in the game, never to silently drop them out of it. */
+      isPlayer: m.role !== 'observer',
       smsConsent: m.pool_people.sms_consent === true && m.pool_people.sms_opted_out !== true,
       notifySms: m.pool_people.notify_sms !== false,
       notifyEmail: m.pool_people.notify_email !== false,
@@ -231,12 +239,25 @@ export default async function handler(req, res) {
      has since left the roster, `participants` would be empty — and an empty list makes
      `outstandingFor` empty, which would throw the board open to the public. Falling back to the
      roster is the conservative direction; revealing is not. */
+  /* The roster members who actually play. An observer (migration 061) is on the roster to be
+     TOLD things and for no other reason, so every set that decides scoring, pricing, reveal or
+     "who are we waiting on" is built from this rather than from the roster. */
+  const playersOf = (roster) => (roster || []).filter(p => p.isPlayer !== false);
   const participantsOf = (wk, roster) => {
+    const players = playersOf(roster);
     const ids = wk && wk.participants;
-    if (!Array.isArray(ids) || !ids.length) return roster || [];
+    /* ⛔ THE DEFAULT IS THE PLAYERS, NOT THE WHOLE ROSTER (061). An observer left in the default
+       set would be auto-ticked at lock, the week would wait forever for a card he is refused
+       permission to file, the all-picks-in notice would never fire and the board would only open
+       at the deadline — every week, silently. That is precisely the fault 3.13.0-participants was
+       built to remove, re-entering through a role that did not exist when it was written. */
+    if (!Array.isArray(ids) || !ids.length) return players;
     const want = new Set(ids.map(String));
-    const chosen = (roster || []).filter(p => want.has(String(p.id)));
-    return chosen.length ? chosen : (roster || []);
+    /* A stored snapshot is still filtered to players: a week locked BEFORE 061 has the observer's
+       id baked into it, and honouring that would resurrect the same stall on exactly the weeks
+       nobody would think to check. */
+    const chosen = players.filter(p => want.has(String(p.id)));
+    return chosen.length ? chosen : players;
   };
   // Everyone IN THIS WEEK has a locked pick — fires the "all picks are in" notice and the reveal.
   // Keyed by person id now — a rename can no longer detach someone's entry from their identity.
@@ -302,8 +323,14 @@ export default async function handler(req, res) {
      Keeping the conservative set here costs nothing that matters: by the time the week is open,
      every participant has locked by definition, so every actual player already sees the board.
      The only reader still held out is someone who has not picked — which is the point. */
+  /* ⛔ AN OBSERVER IS NOT OUTSTANDING, AND LEAVING HIM HERE WOULD CLOSE THE BOARD FOREVER (061).
+     This set is "who could still put a card in". An observer never can — `save_picks` refuses him
+     outright — so he has no pick to protect and would otherwise sit here permanently, meaning the
+     set is never empty, meaning the board never becomes public again for anybody. The 08-25 rule
+     that this is the ROSTER and not the participants is untouched: a player added mid-week is
+     still held out until he picks. The only thing removed is someone who cannot pick at all. */
   const outstandingFor = (wk, roster) => (pastDeadline(wk) ? []
-    : (roster || []).filter(p => !(wk.picks && wk.picks[p.id] && wk.picks[p.id].locked)));
+    : playersOf(roster).filter(p => !(wk.picks && wk.picks[p.id] && wk.picks[p.id].locked)));
 
   /* Cover vs the FROZEN line — identical rule to the board's coverOf() and the sim's cover().
      Kept server-side so scoring never depends on what a browser computed. */
@@ -596,8 +623,13 @@ export default async function handler(req, res) {
       }
       // players roster — id + name only, never pins/emails/phones
       if (req.query.players !== undefined) {
+        /* This feeds the sign-in name list on /pool/football/picks, so it is PLAYERS only (061).
+           Listing an observer here would offer him a name to pick under and then have save_picks
+           403 him at the end of a filled-in card — the exact "first learn the PIN was wrong when
+           save_picks 403'd" shape that verify_pin was added to remove. The commissioner's own
+           view of the full roster, observers included, is `get_players_full`. */
         const roster = await loadRoster(req.query.week || '');
-        return res.status(200).json({ players: roster.map(p => ({ id: p.id, name: p.name })) });
+        return res.status(200).json({ players: playersOf(roster).map(p => ({ id: p.id, name: p.name })) });
       }
       // one week
       const slug = cleanSlug(req.query.week);
@@ -788,7 +820,12 @@ export default async function handler(req, res) {
         candidates.sort((a, b) => Date.parse(a.data.deadline) - Date.parse(b.data.deadline));
         const wkRow = candidates[0], wk = wkRow.data;
         const roster = await loadRoster(wkRow.slug);
-        const outstanding = roster.filter(p => !(wk.picks || {})[p.id]?.locked);
+        /* Players only — nudging an observer to "make your picks" would be telling him to do the
+           one thing save_picks refuses him, and it would hand him a PIN prompt for a card he
+           cannot file. ⚠ Note for a later session: this still nudges a player the commissioner
+           UNTICKED from the week, who is not in participantsOf() and whom allLocked() does not
+           wait for. Pre-existing, out of scope here, and worth closing. */
+        const outstanding = playersOf(roster).filter(p => !(wk.picks || {})[p.id]?.locked);
         if (!outstanding.length) {
           return res.status(200).json({ nudged: false, reason: 'everyone is already locked in', slug: wkRow.slug });
         }
@@ -980,13 +1017,31 @@ export default async function handler(req, res) {
           const keep = people.map(p => p.id);
 
           await sb(`pool_memberships?pool_id=eq.${pool.id}&person_id=not.in.(${keep.join(',')})`, { method: 'DELETE' });
+          /* ⛔ THIS USED TO RECOMPUTE EVERY ROLE ON EVERY SAVE, AND THAT SILENTLY UNDID 'observer'.
+             The line was `role: p.global_role === 'commissioner' ? 'commissioner' : 'participant'`
+             — derived purely from the person's GLOBAL role, so any per-pool role was overwritten
+             the next time the commissioner touched the roster for an unrelated reason. An observer
+             would have become a full player with no announcement: scored, charged the weekly $50
+             and rendered as a column, discovered only by someone noticing an extra name on the
+             board. A per-pool fact must not be rebuilt from a global one.
+             The existing role is now carried forward, and derivation only fills in someone who has
+             no membership yet. `incomingRole` lets the commissioner change it deliberately from
+             /pool/commish, which is the only way it should ever move. */
+          const roleNow = new Map(cur.map(p => [String(p.id), p.role]));
+          const roleWanted = new Map((req.body.players || [])
+            .filter(p => p.id && (p.role === 'observer' || p.role === 'participant'))
+            .map(p => [String(p.id), p.role]));
           await sb('pool_memberships?on_conflict=pool_id,person_id', {
             method: 'POST',
             headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-            body: JSON.stringify(people.map(p => ({
-              pool_id: pool.id, person_id: p.id,
-              role: p.global_role === 'commissioner' ? 'commissioner' : 'participant',
-            }))),
+            body: JSON.stringify(people.map(p => {
+              const held = roleNow.get(String(p.id));
+              // The commissioner never demotes himself by editing the roster.
+              const role = held === 'commissioner' || p.global_role === 'commissioner'
+                ? 'commissioner'
+                : (roleWanted.get(String(p.id)) || held || 'participant');
+              return { pool_id: pool.id, person_id: p.id, role };
+            })),
           });
           /* CONSENT IS PER PERSON AND PERMANENT — never ask twice (Keith 2026-08-07).
              Once someone has opted in, being added to a LATER pool is not a new consent event; it
@@ -1122,7 +1177,9 @@ export default async function handler(req, res) {
              Ids are validated against the real roster — an unknown id is dropped rather than
              stored, so a stale browser cannot write a participant who does not exist. */
           {
-            const rosterNow = await loadRoster(slug);
+            // Observers are never in the snapshot — they cannot pick, so a week that waited on
+            // one would never declare itself open. See participantsOf() and migration 061.
+            const rosterNow = playersOf(await loadRoster(slug));
             let chosen = rosterNow;
             if (Array.isArray(req.body.participants)) {
               const want = new Set(req.body.participants.map(String));
@@ -1427,6 +1484,18 @@ export default async function handler(req, res) {
         const roster = await loadRoster(slug);
         const me = roster.find(p => p.name.toUpperCase() === name && String(p.pin) === pin);
         if (!me) return res.status(403).json({ error: 'bad name or PIN' });
+        /* ⛔ AN OBSERVER CANNOT PICK, AND THIS IS THE ONLY PLACE THAT CAN STOP HIM (061).
+           Everything downstream is permissive by design: the block below JOINS a picker to the
+           week, the ledger prices a week from whoever holds a card, and the board renders whatever
+           sits in wk.picks. So one accepted card would put a non-player into the participant
+           snapshot, onto the board and into the money — quietly, and correctly according to every
+           rule after this line. It has to be refused here, where the role is known. */
+        if (me.isPlayer === false) {
+          return res.status(403).json({
+            error: 'you are set up for notifications only, not as a player in this pool',
+            hint: 'The commissioner can switch you to a player on /pool/commish if you want to pick.',
+          });
+        }
         /* Read → modify → CONDITIONAL write, retried on contention. Only this member's entry
            is touched; if anyone else's save landed in between, the write is rejected and we
            start over from their revision instead of overwriting it. */
