@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.14.0-observer';  // a roster member can be notify-only: told everything, scored in nothing
+const VER = '3.15.0-live-lines';  // spreads re-pull live at lock; a saved draft never locks a stale number
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -570,6 +570,83 @@ export default async function handler(req, res) {
       } catch (e) { notes.push(`${lg}: ${e.message}`); }
     }
     return { scores: out, notes };
+  }
+
+  /* ⛔ THE SPREAD A WEEK LOCKS AT MUST BE THE SPREAD AT LOCK TIME (Keith 2026-08-30: "The pick
+     should reflect the live spread at the time of the lock regardless of when they were saved").
+     It did not. `slate.push({...g})` in commish.html copies ESPN's numbers at the moment a game
+     is ADDED, "Save draft" persists that copy, and openWeek() reads it straight back — nothing
+     re-fetched odds, ever, and no timestamp was stored so nobody could see how old a number was.
+     Build the slate Sunday, lock Wednesday, and the crew played Sunday's line while the lock
+     screen said "freezes every spread as shown". Now the server re-pulls at lock and overwrites.
+     Mirrors parseOdds() in commish.html exactly — same endpoint shape as fetchFinals(), same
+     id + AWAY@HOME keying, because a hand-built slate carries our own ids. */
+  function parseOddsServer(c) {
+    const o = ((c || {}).odds || [])[0];
+    if (!o) return null;
+    const ou = (o.overUnder != null && isFinite(+o.overUnder)) ? +o.overUnder : null;
+    if (!o.details || o.details === 'EVEN') return ou == null ? null : { favAbbrev: null, line: null, spreadText: null, overUnder: ou };
+    const m = String(o.details).match(/^([A-Z&\.\-']+)\s+(-?\d+(\.\d+)?)/i);
+    if (!m) return ou == null ? null : { favAbbrev: null, line: null, spreadText: null, overUnder: ou };
+    return { favAbbrev: m[1].toUpperCase(), line: Math.abs(parseFloat(m[2])), spreadText: o.details, overUnder: ou };
+  }
+
+  async function fetchLines(games) {
+    const out = {};
+    const notes = [];
+    for (const lg of ['nfl', 'cfb']) {
+      const mine = (games || []).filter(g => g.league === lg);
+      if (!mine.length) continue;
+      const span = datesSpan(mine);
+      if (!span) continue;
+      const url = `${SB_SERVER[lg]}?dates=${span}${lg === 'cfb' ? '&groups=80' : ''}`;
+      try {
+        const r = await fetch(url, { headers: { 'User-Agent': 'the-pool/1.0' } });
+        if (!r.ok) { notes.push(`${lg}: HTTP ${r.status}`); continue; }
+        const j = await r.json();
+        for (const e of (j.events || [])) {
+          const c = (e.competitions || [])[0];
+          if (!c) continue;
+          const odds = parseOddsServer(c);
+          if (!odds) continue;
+          const home = (c.competitors || []).find(x => x.homeAway === 'home');
+          const away = (c.competitors || []).find(x => x.homeAway === 'away');
+          out[String(e.id)] = odds;
+          if (home && away) out[`${away.team.abbreviation}@${home.team.abbreviation}`] = odds;
+        }
+      } catch (e) { notes.push(`${lg}: ${e.message}`); }
+    }
+    return { lines: out, notes };
+  }
+
+  /* Refresh in place. Returns what moved and what could not be refreshed.
+     LEFT ALONE ON PURPOSE:
+       · `manual` — the commissioner typed that number himself; a live line must not silently
+         overwrite a deliberate choice.
+       · `pickem` — PK is a decision to score the game straight up (see commish.html "if there is
+         no line just make it a pick em"). A line appearing later does not undo it.
+     Everything else is re-read: spreads take favAbbrev/line/spreadText, totals take the O/U. */
+  function refreshLines(games, lines, stampedAt) {
+    const moved = [], stale = [];
+    for (const g of (games || [])) {
+      if (g.manual || g.pickem) continue;
+      const fresh = lines[String(g.id)] || lines[`${g.awayAbbrev}@${g.homeAbbrev}`];
+      if (!fresh) { stale.push(g); continue; }
+      const before = g.spreadText || null;
+      if (g.market === 'total') {
+        if (fresh.overUnder == null) { stale.push(g); continue; }
+        g.total = fresh.overUnder;
+        g.spreadText = 'O/U ' + fresh.overUnder;
+      } else {
+        if (fresh.line == null || !fresh.favAbbrev) { stale.push(g); continue; }
+        g.favAbbrev = fresh.favAbbrev;
+        g.line = fresh.line;
+        g.spreadText = fresh.spreadText;
+      }
+      g.capturedAt = stampedAt;
+      if (before !== g.spreadText) moved.push({ game: g.short, from: before, to: g.spreadText });
+    }
+    return { moved, stale };
   }
 
   try {
@@ -1148,6 +1225,29 @@ export default async function handler(req, res) {
             });
           }
           if (!(wk.games || []).length) return res.status(400).json({ error: 'no games in slate' });
+          /* RE-PULL THE LINES BEFORE ANYTHING ELSE LOOKS AT THEM (Keith 2026-08-30). This runs
+             ahead of the validation below on purpose: a game saved days ago with no line may well
+             be priced by now, and validating the stale copy would reject a slate that is actually
+             fine. It also runs ahead of the notification build, so the locked-slate email and text
+             carry the numbers the week actually locked at — they read wk.games. */
+          const lockStamp = new Date().toISOString();
+          const fetched = await fetchLines(wk.games);
+          const { moved, stale } = refreshLines(wk.games, fetched.lines, lockStamp);
+          /* Locking on a number we could not verify is the exact bug this fixes, so it is refused
+             rather than done quietly — but ESPN being unreachable must not strand the commissioner
+             on a Saturday morning. Same shape as confirmWipe and relock: name what is wrong, and
+             give one explicit way through. A manual spread or a PK is not stale; it was never in
+             the refresh set. */
+          if (stale.length && !req.body.acceptStale) {
+            return res.status(409).json({
+              error: 'could not refresh the live spread for: ' + stale.map(g => g.short).join(', '),
+              hint: 'These would lock at the number saved earlier, which may be out of date. Re-add the game to re-price it, type the spread yourself, tap PK — or lock anyway if you know the saved number is the one you want.',
+              stale: stale.map(g => ({ game: g.short, holding: g.spreadText || null, capturedAt: g.capturedAt || null })),
+              notes: fetched.notes,
+              acceptStale: true,
+            });
+          }
+          wk.linesRefreshedAt = lockStamp;
           /* Every game must carry a scoreable market: a spread, a pick'em, or a total. */
           const noTotal = wk.games.filter(g => g.market === 'total' && !(typeof g.total === 'number' && isFinite(g.total)));
           if (noTotal.length) return res.status(400).json({
@@ -1259,6 +1359,11 @@ export default async function handler(req, res) {
           }
           return res.status(200).json({
             slug, locked: true, deadline: wk.deadline, deadlineReason: wk.deadlineReason, emailed, texted,
+            /* What the re-pull changed. The commissioner has just frozen the week for everybody;
+               if a line moved between his draft and this moment he should see it here rather than
+               discover it on the board. Empty array = the saved numbers were already current. */
+            linesRefreshedAt: wk.linesRefreshedAt, movedLines: moved,
+            ...(stale.length ? { lockedStale: stale.map(g => g.short) } : {}),
             /* Say it out loud when the Saturday cadence did NOT apply. A commissioner who expects
                "picks due Saturday 10am" and gets Thursday evening needs to be told which game
                pulled it in, not left to notice later. */

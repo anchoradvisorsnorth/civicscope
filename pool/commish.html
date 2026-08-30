@@ -211,7 +211,7 @@
            text went out, and the toast only ever counted emails. -->
       <!-- This paragraph explains the Save/Lock controls, so it has to disappear with them. Left
            visible under a locked week it describes an action the page is no longer offering. -->
-      <div class="muted" style="margin-top:6px" id="slatehelp">Locking freezes every spread as shown, sets the pick deadline to <b>Saturday 10:00 AM ET</b> — or to the first kickoff if a game starts before that, which it will in preseason — and (if checked) <b>texts and emails every player</b> their PIN, the deadline, the games and their picks link. A member is texted only if they texted JOIN themselves; everyone else gets the email. <b>You can only lock a week once.</b></div>
+      <div class="muted" style="margin-top:6px" id="slatehelp"><b>Locking re-pulls every spread live and freezes it at that number</b> — not at the number you saw when you built the slate, which may be days old. Anything you typed yourself or set to PK is left exactly as you set it. You'll be told which lines moved. It also sets the pick deadline to <b>Saturday 10:00 AM ET</b> — or to the first kickoff if a game starts before that, which it will in preseason — and (if checked) <b>texts and emails every player</b> their PIN, the deadline, the games and their picks link. A member is texted only if they texted JOIN themselves; everyone else gets the email. <b>You can only lock a week once.</b></div>
     </div>
   </div>
 
@@ -975,7 +975,9 @@ async function lockSlate(){
   const inThisWeek=withIds.filter(p=>!sittingOut.has(String(p.id)));
   if(!inThisWeek.length){toast('Nobody is ticked for this week');return;}
   const sittingNames=withIds.filter(p=>sittingOut.has(String(p.id))).map(p=>p.name);
-  if(!confirm('Lock the slate? Spreads freeze exactly as shown and '+(document.getElementById('notify').checked?'the group gets TEXTED and EMAILED':'NO texts or emails go out')+'.'
+  if(!confirm('Lock the slate? Every spread is re-pulled LIVE right now and frozen at that number — '
+    +'so it may differ from what is on screen if the line has moved since you built this. '
+    +(document.getElementById('notify').checked?'The group gets TEXTED and EMAILED':'NO texts or emails go out')+'.'
     +(sittingNames.length?'\n\nSitting out this week: '+sittingNames.join(', ')+'.':'')))return;
   let j=null;
   try{
@@ -983,8 +985,22 @@ async function lockSlate(){
     /* `participants` is sent ONLY when somebody is actually sitting out. Omitting it lets the
        server apply its own default (everyone), so the common case cannot be broken by a stale
        or half-loaded roster in this tab. */
-    j=await post({action:'lock_slate',code:code(),slug:slug(),notify:document.getElementById('notify').checked,
-      ...(sittingNames.length?{participants:inThisWeek.map(p=>p.id)}:{})});
+    const lockBody={action:'lock_slate',code:code(),slug:slug(),notify:document.getElementById('notify').checked,
+      ...(sittingNames.length?{participants:inThisWeek.map(p=>p.id)}:{})};
+    try{
+      j=await post(lockBody);
+    }catch(stale){
+      /* The server refused because it could not re-price some games (ESPN unreachable, or the
+         fixture is no longer on the scoreboard). It named them; the commissioner is the only one
+         who knows whether the saved number is still the one he wants. Manual spreads and PKs are
+         never in this list — they were never in the refresh set. */
+      if(!(stale.payload&&stale.payload.acceptStale))throw stale;
+      const held=(stale.payload.stale||[]).map(s=>'  • '+s.game+' — holding '+(s.holding||'no line')).join('\n');
+      if(!confirm('Could not get a live spread for:\n\n'+held
+        +'\n\nEvery other game re-priced fine. Lock anyway and freeze the saved numbers for these?'
+        +'\n\nCancel to go back — you can re-add the game to re-price it, type the spread yourself, or tap PK.'))return;
+      j=await post({...lockBody,acceptStale:true});
+    }
     slateLocked=true;
     lockedSummary='Picks close '+new Date(j.deadline).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET · '
       +(document.getElementById('notify').checked?`${j.texted} text${j.texted===1?'':'s'} + ${j.emailed} email${j.emailed===1?'':'s'} sent.`:'no notifications sent.');
@@ -1008,6 +1024,14 @@ async function lockSlate(){
     toast(document.getElementById('notify').checked
       ? `🔒 Locked — picks due ${dl} ET · ${j.texted} text${j.texted===1?'':'s'} + ${j.emailed} email${j.emailed===1?'':'s'} sent`
       : `🔒 Locked — picks due ${dl} ET · no notifications sent`, 9000);
+    /* WHAT THE RE-PULL CHANGED. He has just frozen the week for everybody; a line that moved
+       between his draft and this moment is something he should be told, not discover on the board.
+       Silence here means the saved numbers were already current. */
+    if(j.movedLines&&j.movedLines.length){
+      toast('📈 '+j.movedLines.length+' line'+(j.movedLines.length===1?'':'s')+' moved since you saved: '
+        +j.movedLines.map(m=>m.game+' '+(m.from||'no line')+' → '+m.to).join(' · '),14000);
+    }
+    if(j.lockedStale&&j.lockedStale.length)toast('⚠ Locked at the saved number for: '+j.lockedStale.join(', '),12000);
     if(j.note)toast('⚠ '+j.note,12000);
   }catch(e){}
 }
