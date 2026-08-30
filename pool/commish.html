@@ -990,15 +990,15 @@ async function lockSlate(){
     try{
       j=await post(lockBody);
     }catch(stale){
-      /* The server refused because it could not re-price some games (ESPN unreachable, or the
-         fixture is no longer on the scoreboard). It named them; the commissioner is the only one
-         who knows whether the saved number is still the one he wants. Manual spreads and PKs are
-         never in this list — they were never in the refresh set. */
+      /* The ODDS FEED did not answer — so nothing was re-checked and locking now would freeze
+         whatever was saved days ago. Not the same as a game ESPN simply does not price (hand-built
+         fixtures, unpriced preseason games): those hold their saved number, are reported after the
+         lock, and never block it. */
       if(!(stale.payload&&stale.payload.acceptStale))throw stale;
-      const held=(stale.payload.stale||[]).map(s=>'  • '+s.game+' — holding '+(s.holding||'no line')).join('\n');
-      if(!confirm('Could not get a live spread for:\n\n'+held
-        +'\n\nEvery other game re-priced fine. Lock anyway and freeze the saved numbers for these?'
-        +'\n\nCancel to go back — you can re-add the game to re-price it, type the spread yourself, or tap PK.'))return;
+      const held=(stale.payload.holding||[]).map(s=>'  • '+s.game+' — holding '+(s.holding||'no line')).join('\n');
+      if(!confirm('Could not reach the live odds feed, so these spreads were NOT re-checked:\n\n'+held
+        +'\n\nLocking now freezes whatever was saved earlier, which may be out of date.'
+        +'\n\nOK to lock anyway · Cancel to try again in a minute.'))return;
       j=await post({...lockBody,acceptStale:true});
     }
     slateLocked=true;
@@ -1031,7 +1031,7 @@ async function lockSlate(){
       toast('📈 '+j.movedLines.length+' line'+(j.movedLines.length===1?'':'s')+' moved since you saved: '
         +j.movedLines.map(m=>m.game+' '+(m.from||'no line')+' → '+m.to).join(' · '),14000);
     }
-    if(j.lockedStale&&j.lockedStale.length)toast('⚠ Locked at the saved number for: '+j.lockedStale.join(', '),12000);
+    if(j.heldAtSaved&&j.heldAtSaved.length)toast('ℹ No live line available for '+j.heldAtSaved.join(', ')+' — locked at the saved number.',12000);
     if(j.note)toast('⚠ '+j.note,12000);
   }catch(e){}
 }

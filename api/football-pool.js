@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.15.0-live-lines';  // spreads re-pull live at lock; a saved draft never locks a stale number
+const VER = '3.15.1-live-lines';  // spreads re-pull live at lock; a saved draft never locks a stale number
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -627,18 +627,18 @@ export default async function handler(req, res) {
          no line just make it a pick em"). A line appearing later does not undo it.
      Everything else is re-read: spreads take favAbbrev/line/spreadText, totals take the O/U. */
   function refreshLines(games, lines, stampedAt) {
-    const moved = [], stale = [];
+    const moved = [], unpriced = [];
     for (const g of (games || [])) {
       if (g.manual || g.pickem) continue;
       const fresh = lines[String(g.id)] || lines[`${g.awayAbbrev}@${g.homeAbbrev}`];
-      if (!fresh) { stale.push(g); continue; }
+      if (!fresh) { unpriced.push(g); continue; }
       const before = g.spreadText || null;
       if (g.market === 'total') {
-        if (fresh.overUnder == null) { stale.push(g); continue; }
+        if (fresh.overUnder == null) { unpriced.push(g); continue; }
         g.total = fresh.overUnder;
         g.spreadText = 'O/U ' + fresh.overUnder;
       } else {
-        if (fresh.line == null || !fresh.favAbbrev) { stale.push(g); continue; }
+        if (fresh.line == null || !fresh.favAbbrev) { unpriced.push(g); continue; }
         g.favAbbrev = fresh.favAbbrev;
         g.line = fresh.line;
         g.spreadText = fresh.spreadText;
@@ -646,7 +646,7 @@ export default async function handler(req, res) {
       g.capturedAt = stampedAt;
       if (before !== g.spreadText) moved.push({ game: g.short, from: before, to: g.spreadText });
     }
-    return { moved, stale };
+    return { moved, unpriced };
   }
 
   try {
@@ -1232,18 +1232,24 @@ export default async function handler(req, res) {
              carry the numbers the week actually locked at — they read wk.games. */
           const lockStamp = new Date().toISOString();
           const fetched = await fetchLines(wk.games);
-          const { moved, stale } = refreshLines(wk.games, fetched.lines, lockStamp);
-          /* Locking on a number we could not verify is the exact bug this fixes, so it is refused
-             rather than done quietly — but ESPN being unreachable must not strand the commissioner
-             on a Saturday morning. Same shape as confirmWipe and relock: name what is wrong, and
-             give one explicit way through. A manual spread or a PK is not stale; it was never in
-             the refresh set. */
-          if (stale.length && !req.body.acceptStale) {
+          const { moved, unpriced } = refreshLines(wk.games, fetched.lines, lockStamp);
+          /* ⛔ "NOT ON ESPN" AND "ESPN DID NOT ANSWER" ARE DIFFERENT, AND CONFLATING THEM BROKE THE
+             LOCK (caught by the pool-integrity gate on the first deploy of this change, 2026-08-30).
+             The first version refused whenever any game came back unrefreshed — which is every
+             hand-built game (`pre1-DET-CIN`, and the whole 16-game Preseason Week 1), every
+             preseason fixture ESPN carries with no odds, and every sandbox slate the gate builds.
+             A game ESPN does not price cannot be re-priced by anybody, so blocking the lock helps
+             nobody: it holds its saved number and is REPORTED, exactly like a manual spread.
+             What genuinely warrants a refusal is the other case — ESPN did not answer at all, so
+             the live numbers for games that DO have them were never read, and locking now would
+             silently freeze stale ones. That is what `notes` records. */
+          const fetchFailed = fetched.notes.length > 0 && wk.games.some(g => !g.manual && !g.pickem);
+          if (fetchFailed && !req.body.acceptStale) {
             return res.status(409).json({
-              error: 'could not refresh the live spread for: ' + stale.map(g => g.short).join(', '),
-              hint: 'These would lock at the number saved earlier, which may be out of date. Re-add the game to re-price it, type the spread yourself, tap PK — or lock anyway if you know the saved number is the one you want.',
-              stale: stale.map(g => ({ game: g.short, holding: g.spreadText || null, capturedAt: g.capturedAt || null })),
+              error: 'could not reach the live odds feed, so the spreads on this slate were not re-checked',
+              hint: 'Locking now would freeze whatever was saved earlier, which may be out of date. Try again in a minute — or lock anyway if you know the saved numbers are the ones you want.',
               notes: fetched.notes,
+              holding: wk.games.filter(g => !g.manual && !g.pickem).map(g => ({ game: g.short, holding: g.spreadText || null })),
               acceptStale: true,
             });
           }
@@ -1363,7 +1369,7 @@ export default async function handler(req, res) {
                if a line moved between his draft and this moment he should see it here rather than
                discover it on the board. Empty array = the saved numbers were already current. */
             linesRefreshedAt: wk.linesRefreshedAt, movedLines: moved,
-            ...(stale.length ? { lockedStale: stale.map(g => g.short) } : {}),
+            ...(unpriced.length ? { heldAtSaved: unpriced.map(g => g.short) } : {}),
             /* Say it out loud when the Saturday cadence did NOT apply. A commissioner who expects
                "picks due Saturday 10am" and gets Thursday evening needs to be told which game
                pulled it in, not left to notice later. */
