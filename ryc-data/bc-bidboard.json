@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-29T09:30:12.965Z",
+ "generatedAt": "2026-08-30T09:30:12.444Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -241,23 +241,6 @@
      ]
     },
     {
-     "id": "69a70f671e2ea8632c1dbb80",
-     "name": "Flooring",
-     "number": "09",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Carpet Service Outlet"
-     ]
-    },
-    {
      "id": "69a70f671e2ea832d11dbb85",
      "name": "Fire Protection",
      "number": "21",
@@ -273,6 +256,23 @@
      "biddingSubs": [
       "F.E. Moran, Inc. GROUP",
       "Ryan Fireprotection Inc."
+     ]
+    },
+    {
+     "id": "69a70f671e2ea8632c1dbb80",
+     "name": "Flooring",
+     "number": "09",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Carpet Service Outlet"
      ]
     },
     {
@@ -509,6 +509,20 @@
      ]
     },
     {
+     "id": "6a021d9b0b9343200b33a5f4",
+     "name": "Masonry",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 0,
+     "undecided": 3,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
+    },
+    {
      "id": "6a021d2288ed57c2a441b604",
      "name": "Concrete",
      "number": null,
@@ -524,20 +538,6 @@
      "biddingSubs": [
       "Jess Concrete INC"
      ]
-    },
-    {
-     "id": "6a021d9b0b9343200b33a5f4",
-     "name": "Masonry",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 0,
-     "undecided": 3,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
     },
     {
      "id": "6a022d0bae28a07b4d475101",
@@ -1179,11 +1179,11 @@
    "value": null,
    "isPublic": false,
    "packages": 24,
-   "covered": 14,
-   "atRisk": 10,
+   "covered": 15,
+   "atRisk": 9,
    "invites": 91,
-   "bidding": 19,
-   "undecided": 68,
+   "bidding": 20,
+   "undecided": 67,
    "bidsReceived": 7,
    "pkgs": [
     {
@@ -1206,26 +1206,6 @@
       "Fort Wayne Awning",
       "BH Awning",
       "U.S. Sign Crafters"
-     ]
-    },
-    {
-     "id": "6a84564a763be05070409391",
-     "name": "Site Work",
-     "number": "31-0",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-01T16:00:00.000Z",
-     "invites": 4,
-     "bidding": 0,
-     "undecided": 4,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Elf Excavating",
-      "Martin Forestry and Excavating LLC.",
-      "Dana Bontrager Excavating & Trucking Inc",
-      "Hill Excavation, Inc."
      ]
     },
     {
@@ -1418,6 +1398,23 @@
      "viewed": 2,
      "bidsReceived": 1,
      "awardedCompany": null
+    },
+    {
+     "id": "6a84564a763be05070409391",
+     "name": "Site Work",
+     "number": "31-0",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-01T16:00:00.000Z",
+     "invites": 4,
+     "bidding": 1,
+     "undecided": 3,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Martin Forestry and Excavating LLC."
+     ]
     },
     {
      "id": "6a84708a7d2411805cc6f251",
@@ -1628,12 +1625,12 @@
    "value": null,
    "isPublic": false,
    "packages": 34,
-   "covered": 20,
-   "atRisk": 14,
+   "covered": 21,
+   "atRisk": 13,
    "invites": 325,
    "bidding": 32,
    "undecided": 260,
-   "bidsReceived": 2,
+   "bidsReceived": 3,
    "pkgs": [
     {
      "id": "6a83753d2ba9964d2a0e5101",
@@ -1934,26 +1931,6 @@
      ]
     },
     {
-     "id": "6a7cbd070e273a5f495aef13",
-     "name": "Flagpoles",
-     "number": "10-05",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-02T16:00:00.000Z",
-     "invites": 4,
-     "bidding": 0,
-     "undecided": 4,
-     "notBidding": 0,
-     "viewed": 3,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "Flags International Inc",
-      "Wilco Distributing",
-      "Eder Flagpole Company",
-      "Lee Company"
-     ]
-    },
-    {
      "id": "6a7cbf8595f7ee1ac2de3b97",
      "name": "Earthwork",
      "number": "31-01",
@@ -2122,6 +2099,20 @@
      "biddingSubs": [
       "The Insulation Guys, LLC"
      ]
+    },
+    {
+     "id": "6a7cbd070e273a5f495aef13",
+     "name": "Flagpoles",
+     "number": "10-05",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-02T16:00:00.000Z",
+     "invites": 4,
+     "bidding": 0,
+     "undecided": 4,
+     "notBidding": 0,
+     "viewed": 3,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a7cbd537d151e77e6a20444",
@@ -2441,7 +2432,7 @@
    "invites": 213,
    "bidding": 58,
    "undecided": 112,
-   "bidsReceived": 5,
+   "bidsReceived": 6,
    "pkgs": [
     {
      "id": "6a836b9b2215138e0d564938",
@@ -2724,23 +2715,6 @@
      ]
     },
     {
-     "id": "6a843d292631cef74351c382",
-     "name": "Flagpoles",
-     "number": "32-2",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-08T17:00:00.000Z",
-     "invites": 5,
-     "bidding": 1,
-     "undecided": 4,
-     "notBidding": 0,
-     "viewed": 4,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Lee Company"
-     ]
-    },
-    {
      "id": "6a8367979047754fda3d1c95",
      "name": "Painting",
      "number": "09-2",
@@ -2868,6 +2842,23 @@
       "Lee Company",
       "Mica Shop",
       "LUE Manufacturing"
+     ]
+    },
+    {
+     "id": "6a843d292631cef74351c382",
+     "name": "Flagpoles",
+     "number": "32-2",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-08T17:00:00.000Z",
+     "invites": 5,
+     "bidding": 1,
+     "undecided": 4,
+     "notBidding": 0,
+     "viewed": 4,
+     "bidsReceived": 2,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Lee Company"
      ]
     },
     {
