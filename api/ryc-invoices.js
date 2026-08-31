@@ -1197,7 +1197,7 @@ export default async function handler(req, res) {
        can still carry a plain URL and this action simply declines. */
     if (action === 'pages') {
       const r = await sb(`ryc_invoices?id=eq.${encodeURIComponent(String(body.id || ''))}`
-        + `&company_id=eq.ryc&select=page_from,page_to,batch_id,assigned_pm`);
+        + `&company_id=eq.ryc&select=page_from,page_to,batch_id,assigned_pm,vendor_name,amount`);
       if (!r.ok) return res.status(502).json({ error: 'Could not read the document.' });
       const rows = await r.json();
       if (!rows.length) return res.status(404).json({ error: 'Document not found.' });
@@ -1206,13 +1206,58 @@ export default async function handler(req, res) {
       if (who.scope === 'pm' && inv.assigned_pm !== who.pm) {
         return res.status(404).json({ error: 'Document not found.' });
       }
-      const br = await sb(`ryc_invoice_batches?id=eq.${inv.batch_id}&select=document_uri`);
+      const br = await sb(`ryc_invoice_batches?id=eq.${inv.batch_id}`
+        + '&select=document_uri,source_message_id');
       const batch = br.ok ? (await br.json())[0] : null;
       const uri = batch && batch.document_uri;
       const m = /^storage:([^/]+)\/(.+)$/.exec(uri || '');
       if (!m) {
-        return res.status(200).json({ ok: true, stored: false, uri: uri || null,
-          note: 'This batch has no stored scan; its document_uri is a plain link.' });
+        /* ⛔ THE FOLDER IS NOT THE INVOICE. Keith, 2026-08-31, walking Logan through his first
+           batch: *"the View button opens the sharepoint folder where the batch lives - it should
+           open the actual invoice preview."* A scanned batch's `document_uri` is the Invoice Desk
+           FOLDER, so this returned the folder and the desk dutifully opened it — handing a PM
+           being asked to approve $670 a directory listing to hunt through, on the one screen
+           where the point is looking at the page in front of you.
+
+           The link he wants already exists and always did: every row in `ryc_batch_documents`
+           carries `sp_url`, the direct link to its own PDF. Nothing here had ever read it.
+
+           ⚠ AN AMBIGUOUS MATCH OPENS NOTHING. Handing a PM the WRONG invoice while he is
+           approving money is worse than handing him the folder, so a document is resolved only
+           when exactly one candidate survives: first on the page range, which partitions a batch
+           in both shapes (an email PDF split into ranges, and a scan folder numbered 1..n), then
+           on this module's own vendor+amount key. Two identical Arctic invoices for $71,620.92
+           are sitting in this register right now — that is precisely the collision the second key
+           cannot settle, and on a tie this falls back to the folder and says so. */
+        let docUrl = null, docName = null, note = null;
+        const src = batch && batch.source_message_id;
+        const scanId = src && String(src).startsWith('scan:') ? String(src).slice(5) : null;
+        if (scanId) {
+          const dr = await sb(`ryc_batch_documents?company_id=eq.ryc&batch_id=eq.${scanId}`
+            + '&select=seq,page_from,page_to,vendor,amount,sp_name,sp_url&order=seq.asc');
+          if (dr.ok) {
+            const docs = (await dr.json()).filter(d => d.sp_url);
+            let hit = null;
+            const byPage = docs.filter(d => d.page_from === inv.page_from
+                                         && d.page_to === inv.page_to);
+            if (byPage.length === 1) hit = byPage[0];
+            if (!hit) {
+              const want = `${vendorKey(inv.vendor_name)}|${amountKey(inv.amount)}`;
+              const byKey = docs.filter(d => `${vendorKey(d.vendor)}|${amountKey(d.amount)}` === want);
+              if (byKey.length === 1) hit = byKey[0];
+              else if (byKey.length > 1) {
+                note = `${byKey.length} documents in this batch have the same vendor and amount — `
+                  + 'opened the batch folder rather than risk the wrong page.';
+              }
+            }
+            if (hit) { docUrl = hit.sp_url; docName = hit.sp_name || null; }
+          }
+        }
+        return res.status(200).json({ ok: true, stored: false,
+          uri: docUrl || uri || null,
+          is_document: !!docUrl,
+          file_name: docName,
+          note: note || (docUrl ? null : 'This batch has no stored scan; its document_uri is a plain link.') });
       }
       const [, bucket, prefix] = m;
       const from = inv.page_from || 1, to = inv.page_to || inv.page_from || 1;

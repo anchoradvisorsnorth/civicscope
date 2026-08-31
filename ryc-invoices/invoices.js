@@ -1060,9 +1060,19 @@ function invViewDoc(id){
       return;
     }
     if(!r.data.stored){
-      // No stored scan — fall back to whatever link the batch does carry, honestly labelled.
-      if(r.data.uri){ if(w) w.location = r.data.uri; }
-      else { if(w) w.close(); if(el) el.innerHTML = ' <span class="sub">no scan stored</span>'; }
+      /* THE DOCUMENT ITSELF WHEN THE SERVER COULD NAME IT, the batch folder only when it could
+         not — and it SAYS which. Keith, 2026-08-31, walking Logan through his first batch:
+         *"the View button opens the sharepoint folder where the batch lives - it should open the
+         actual invoice preview."* A folder opening silently is indistinguishable from a broken
+         button; a folder opening with a reason beside it is a fallback. */
+      if(r.data.uri){
+        if(w) w.location = r.data.uri;
+        if(el) el.innerHTML = r.data.is_document ? ""
+          : ' <span class="sub m-r">' + esc(r.data.note
+              || "opened the batch folder — no direct link to this page") + '</span>';
+      }
+      else { if(w) w.close(); if(el) el.innerHTML = ' <span class="sub">'
+        + esc(r.data.note || "no scan stored") + '</span>'; }
       return;
     }
     var pages = r.data.pages || [];
