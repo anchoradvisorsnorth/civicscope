@@ -635,8 +635,18 @@ function reconSubmittable(){
        number is true of it — so a readiness test that only asked for `job_no` held back exactly
        the pages a PM had already answered in the most detail. Keith, 2026-08-31: *"Looks like the
        split invoice are not carrying over properly to ericas reconcilation screen."* */
-    return !!d.job_no || reconSplit(d).length > 0;
+    return reconReady(d);
   });
+}
+
+/* ⛔ ONE EXPRESSION OF "THIS ROW HAS A DESTINATION". It was written twice — once here for the
+   submit set and once in the row for the tick — and the two disagreed the moment a split page
+   appeared: the footer counted Beer & Slabaugh in "Select all 4" while its own tick sat disabled
+   saying "Choose a job first", on a row that was showing five chosen jobs directly above it.
+   Keith, 2026-08-31: *"What is Beer and Slaughbuagh asking erica to select a job."*
+   Nothing here is new logic; it is the same rule with only one place to change. */
+function reconReady(d){
+  return !!d.job_no || reconSplit(d).length > 0;
 }
 
 /* The PM's split as a usable list, or empty. Every entry must name a job: a half-answered split is
@@ -990,13 +1000,17 @@ function reconRow(d){
        An unticked row with no job is the honest picture of unfinished work; a tick that means
        "ready except for the one decision that matters" would put her back to checking each row. */
     var chosen = d.job_no || "";
+    /* A SPLIT PAGE ALREADY HAS ITS DESTINATIONS, so the tick is available on it: the decision the
+       gate exists to insist on has been made, in more detail than a single job could express. */
+    var nsplit = reconSplit(d).length;
+    var ready = reconReady(d);
     var on = !!_recon.pick[d.id];
     act = '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">'
       + '<input type="checkbox" id="rp_' + esc(d.id) + '"' + (on ? ' checked' : '')
-      + (chosen ? '' : ' disabled')
+      + (ready ? '' : ' disabled')
       + ' onchange="reconTogglePick(' + invArg(d.id) + ')">'
-      + '<span id="rl_' + esc(d.id) + '"' + (chosen ? '' : ' class="sub"') + '>'
-      + esc(reconPickLabel(chosen)) + '</span></label>';
+      + '<span id="rl_' + esc(d.id) + '"' + (ready ? '' : ' class="sub"') + '>'
+      + esc(reconPickLabel(chosen, nsplit)) + '</span></label>';
   }
   /* ⛔ A REFUSAL MUST HAND HER SOMETHING TO DO (Keith, 2026-08-21, reading
      *"only 1 distinctive word matched between 'Huntertown Wastewater Treatment Plan Expansion:
@@ -1116,8 +1130,10 @@ function reconFileLabel(jobNo){
    was never about the control being a button, it was about the screen describing its own effect —
    but "Complete:" belonged to a control that ended the row on click, and this one only marks it for
    the submit that ends it. */
-function reconPickLabel(jobNo){
-  if(!jobNo) return "Choose a job first";
+function reconPickLabel(jobNo, splitCount){
+  /* No single job AND a split is not "undecided" — it is decided several times over, and the tick
+     has to say what pressing Submit will actually do to this page. */
+  if(!jobNo) return splitCount ? "File to all " + splitCount + " jobs" : "Choose a job first";
   return jobNo === "RYC-EXPENSE" ? "Mark RYC Expense" : "File to job";
 }
 
@@ -1356,19 +1372,26 @@ function reconRelabel(id){
   var sel = document.getElementById("rj_" + id);
   if(!sel) return;
   var lab = document.getElementById("rl_" + id), box = document.getElementById("rp_" + id);
+  /* ⚠ CLEARING THE PICKER ON A SPLIT PAGE RETURNS IT TO THE SPLIT, NOT TO NOTHING. The dropdown on
+     one of those rows reads "or file it to one job instead" — it is an override, and taking the
+     override back leaves the PM's five jobs standing. Treating an empty dropdown as "no
+     destination" would disable the tick on a row that has more destinations than any other. */
+  var cur = (_recon.docs || []).filter(function(x){ return x.id === id; })[0];
+  var nsplit = cur ? reconSplit(cur).length : 0;
+  var ready = !!sel.value || nsplit > 0;
   if(lab){
-    lab.textContent = reconPickLabel(sel.value);
-    lab.className = sel.value ? "" : "sub";
+    lab.textContent = reconPickLabel(sel.value, nsplit);
+    lab.className = ready ? "" : "sub";
   }
   /* CHOOSING A JOB IS THE DECISION; TICKING IT IS BOOKKEEPING. Picking from the dropdown is the
      act she came to the row to perform, so the row includes itself — otherwise every reconciliation
      costs two clicks and the second one is a formality she will forget on row nineteen. Clearing
      the job un-ticks it again, because a row with no destination is not ready by any definition. */
   if(box){
-    box.disabled = !sel.value;
-    box.checked = !!sel.value;
+    box.disabled = !ready;
+    box.checked = ready;
   }
-  if(sel.value) _recon.pick[id] = true; else delete _recon.pick[id];
+  if(ready) _recon.pick[id] = true; else delete _recon.pick[id];
   reconStageJob(id, sel.value);
   reconPaintSubmit();
 }
