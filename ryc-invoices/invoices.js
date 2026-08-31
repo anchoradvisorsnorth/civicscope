@@ -27,7 +27,7 @@ function jobByNo(no){ var n=_jobNames[no]; return n ? { name:n } : null; }
    THE SILO: /api/ryc-invoices derives the PM from the CREDENTIAL. There is no `pm` parameter
    this page can send to widen its own scope. Only a front-office credential is scope 'all'. */
 var INV_URL = "/api/ryc-invoices";
-var _inv = { who:null, rows:[], codes:null, pm:null, busy:false, showDone:false, jobs:[],
+var _inv = { who:null, rows:[], codes:null, pm:null, busy:false, showDone:{}, jobs:[],
              budget:{}, budgetBasis:null, budgetAsOf:null,
              /* batch id -> the submission the server returned, and batch id -> true while one is in
                 flight. Held on `_inv` rather than in the markup for the same reason the success
@@ -390,10 +390,21 @@ function invBatchPanel(b, openRows, doneRows){
 
   invGroups(openRows).forEach(function(g){ h += invJobPanel(g); });
 
+  /* ⛔ THE DECIDED ROWS LIVE IN THEIR OWN BATCH NOW. Keith, 2026-08-31, looking at a finished
+     batch with a global "Done · 5 / Show" panel sitting under it: *"the done 5 at the bottom seems
+     redundant with the batch we just approved right above."* It was the same five invoices
+     described twice, and the two descriptions had nothing on screen tying them together — the
+     batch panel counted them, and a separate panel at the foot of the page listed them, pooled
+     across every batch on the desk. With two batches open, that pool belonged to neither.
+     The count IS the toggle now, so a decided row is one click from the batch it arrived in. */
   if(doneRows.length){
+    var dk = b.id || INV_NOBATCH;
     h += '<div class="sub" style="margin:6px 0 2px"><b>' + doneRows.length + ' decided</b> in this '
       + 'batch &mdash; ' + doneRows.filter(function(r){ return r.review_state === "approved"; }).length
-      + ' approved.</div>';
+      + ' approved. '
+      + '<button class="pfill" style="padding:1px 7px" onclick="invToggleDone(' + invArg(dk) + ')">'
+      + (_inv.showDone[dk] ? "Hide" : "Show") + '</button></div>';
+    if(_inv.showDone[dk]) h += invDoneTable(doneRows);
   }
 
   /* ---- the master button ---- */
@@ -534,10 +545,17 @@ function invPaint(){
     });
     // Anything released with no PM on it would otherwise be invisible on this screen.
     var orphans = open.filter(function(r){ return !r.assigned_pm; });
-    if(orphans.length){
-      h += invDeskHeading("No desk", orphans, null,
+    var orphansDone = done.filter(function(r){ return !r.assigned_pm; });
+    if(orphans.length || orphansDone.length){
+      h += invDeskHeading("No desk", orphans,
+        orphansDone.length ? orphansDone.length + ' already decided' : null,
         'Released without a PM on it. Assign a desk in Inbound before releasing, or reassign here.');
       invGroups(orphans).forEach(function(g){ h += invJobPanel(g); });
+      /* ⚠ A DECIDED ROW WITH NO DESK HAD NOWHERE LEFT TO GO once the global Done panel came out:
+         it belongs to no PM section, and this branch renders job panels rather than batch panels.
+         Shown plainly here instead of silently disappearing — removing a duplicate must not
+         remove the only copy of anything. */
+      if(orphansDone.length) h += '<div class="panel">' + invDoneTable(orphansDone) + '</div>';
     }
   } else if(!rows.length){
     v.innerHTML = h + '<div class="panel"><div class="sub">Nothing in the register for this period.</div></div>';
@@ -546,24 +564,10 @@ function invPaint(){
     h += invBatchSections(open, done);
   }
 
-  if(done.length){
-    h += '<div class="panel"><div class="h">Done &middot; ' + done.length + '</div>'
-      + '<div style="margin-bottom:6px"><button class="pfill" onclick="invToggleDone()">'
-      + (_inv.showDone ? "Hide" : "Show") + '</button></div>';
-    if(_inv.showDone){
-      h += '<table class="tbl"><tbody>';
-      done.forEach(function(r){
-        h += '<tr><td><b>' + esc(r.vendor_name||"") + '</b> <span class="sub">' + esc(r.invoice_no||"") + '</span></td>'
-          + '<td class="r">' + fmt(Number(r.amount)||0) + '</td>'
-          + '<td class="sub">' + esc(INV_STATE[r.review_state]||r.review_state)
-          + (r.reviewed_by ? ' &middot; ' + esc(r.reviewed_by) : '') + '</td>'
-          + '<td>' + invDocBtn(r)
-          + ' <button class="pfill" onclick="invReview(' + invArg(r.id) + ",'reopen'," + r.version + ')">Reopen</button></td></tr>';
-      });
-      h += '</tbody></table>';
-    }
-    h += '</div>';
-  }
+  /* The global Done panel is GONE — every decided row is now shown inside the batch it arrived in,
+     one click behind that batch's own "N decided" line. Nothing is hidden by this: a row with no
+     batch still has a panel of its own (INV_NOBATCH), and the All-desks branch above routes
+     decided rows with no PM through the same sections rather than dropping them. */
 
   /* ⛔ "FINISH THE BATCH" AND ITS SUMMARY BUTTON ARE GONE (Keith, 2026-08-27: *"We should remove
      language at the bottom the screen and the summary button. Both are replaced by 'Submit
@@ -594,7 +598,23 @@ function invBatchSections(openRows, doneRows){
   });
   return h;
 }
-function invToggleDone(){ _inv.showDone = !_inv.showDone; invPaint(); }
+/* One decided row, in the batch it arrived in. Kept as its own function because the batch panel is
+   now the only caller and the markup is the part worth not duplicating. Reopen stays available —
+   a decision made in error is corrected here, and it is the same audited operation either way. */
+function invDoneTable(rows){
+  var h = '<table class="tbl"><tbody>';
+  rows.forEach(function(r){
+    h += '<tr><td><b>' + esc(r.vendor_name||"") + '</b> <span class="sub">' + esc(r.invoice_no||"") + '</span></td>'
+      + '<td class="r">' + fmt(Number(r.amount)||0) + '</td>'
+      + '<td class="sub">' + esc(INV_STATE[r.review_state]||r.review_state)
+      + (r.reviewed_by ? ' &middot; ' + esc(r.reviewed_by) : '') + '</td>'
+      + '<td>' + invDocBtn(r)
+      + ' <button class="pfill" onclick="invReview(' + invArg(r.id) + ",'reopen'," + r.version + ')">Reopen</button></td></tr>';
+  });
+  return h + '</tbody></table>';
+}
+/* Per batch, not per page: with two batches on a desk one shared flag opened both. */
+function invToggleDone(k){ _inv.showDone[k] = !_inv.showDone[k]; invPaint(); }
 
 /* A DESK TITLE MUST OWN WHAT FOLLOWS IT. Rendered as a panel it came out the same size, weight
    and colour as the job panel beneath it, with equal space above and below — so "Chris Crothers"
