@@ -410,16 +410,28 @@ function invBatchPanel(b, openRows, doneRows){
   } else if(sub){
     h += '<button class="pfill" disabled>&#10003; Submitted</button>';
   } else if(openRows.length){
-    h += '<button class="pfill" disabled title="Every invoice needs a decision first">Submit batch</button>'
+    h += '<button class="pfill" disabled title="Every invoice needs a decision first">Submit batch '
+      + '&mdash; ' + esc(label) + '</button>'
       + '<div class="sub" style="margin-top:4px"><b class="m-a">' + openRows.length + ' of ' + n
       + ' still need a decision.</b> The batch goes over as one piece, so the front office never '
       + 'receives half a folder.</div>';
   } else {
-    h += '<button class="pfill on" onclick="invSubmitBatch(' + invArg(b.id) + ')">Submit batch</button>'
+    /* ⛔ THE BUTTON NAMES ITS OWN BATCH. Keith, 2026-08-31: *"I dont like th UI with two submit
+       batch buttons on the same screen."* There is one button per batch and a desk routinely
+       carries two, so the screen ended in two identical orange buttons whose only distinguishing
+       mark was a folder name at the top of a panel long enough to have scrolled off. Naming the
+       batch on the button costs nothing and removes the entire class of wrong-batch press. */
+    h += '<button class="pfill on" onclick="invSubmitBatch(' + invArg(b.id) + ')">Submit batch '
+      + '&mdash; ' + esc(label) + '</button>'
       + '<div class="sub" style="margin-top:4px">Every invoice has a decision. Submitting stamps '
       + 'each approved page with your coding and hands the folder to the front office to reconcile.</div>';
   }
-  if(err) h += '<div class="sub m-r" style="margin-top:6px">' + esc(err) + '</div>';
+  /* ⛔ A REFUSAL IS NOT A FOOTNOTE. Keith, 2026-08-31, watching Logan press Submit on a finished
+     batch: *"nothing happened."* Something did happen — the server refused, and the reason was
+     rendered as one line of small grey-red text below a paragraph of explanation, which is
+     indistinguishable from a dead button. */
+  if(err) h += '<div class="m-r" style="margin-top:8px;padding:7px 10px;border:1px solid currentColor;'
+    + 'border-radius:4px"><b>Not submitted.</b> ' + esc(err) + '</div>';
   h += '</div></div>';
   return h;
 }
@@ -1595,14 +1607,47 @@ function invReview(id, decision, ver){
    that looks idle while work is happening is how a person presses it twice. */
 function invSubmitBatch(batchId){
   if(!batchId || _inv.submitting[batchId]) return;
-  var n = _inv.rows.filter(function(r){ return r.batch_id === batchId; }).length;
-  if(!window.confirm("Submit this batch to the front office?\n\n" + n + " invoice(s). Each approved "
-      + "page is stamped with your coding, and the folder goes to Erica to reconcile.\n\n"
-      + "You cannot take it back from here.")) return;
+  var rows = _inv.rows.filter(function(r){ return r.batch_id === batchId; });
+  var n = rows.length;
+  var label = (rows[0] && rows[0].batch_label) || String(batchId).slice(0, 8);
+
+  /* ⛔ WHOSE DESK IS BEING HANDED OVER. The API takes the PM from the credential for a PM and from
+     `body.pm` for the front office — *"everything downstream reads `pm`, never body.pm"* — and this
+     function never sent one. So a PM submitting his own batch worked, and the front office standing
+     at a PM's desk got a flat "A PM is required to submit a batch." with the desk switcher plainly
+     showing whose desk it was. Keith, 2026-08-31, watching Logan finish all five: *"clicked the
+     submit batch at the bottom of the page - and nothing happened."*
+
+     The selected desk answers it. With no desk selected ("All desks") the batch's own rows do —
+     but only when they agree: a batch spanning two desks is submitted one PM at a time, because
+     that is exactly what the server does (`assigned_pm=eq.pm`), and silently submitting half of it
+     would report a handover that did not happen. */
+  var pm = _inv.pm;
+  if(!pm){
+    var pms = [];
+    rows.forEach(function(r){
+      if(r.assigned_pm && pms.indexOf(r.assigned_pm) < 0) pms.push(r.assigned_pm);
+    });
+    if(pms.length === 1){ pm = pms[0]; }
+    else {
+      _inv.submitError = _inv.submitError || {};
+      _inv.submitError[batchId] = pms.length
+        ? "This batch is split across " + pms.length + " desks (" + pms.join(", ") + "). "
+          + "Choose one desk above and submit it, then the other — a batch is handed over one PM "
+          + "at a time."
+        : "No PM owns these invoices yet, so there is no desk to hand over. Route them first.";
+      invPaint();
+      return;
+    }
+  }
+
+  if(!window.confirm("Submit " + label + " to the front office?\n\n" + n + " invoice(s) from "
+      + pm + "'s desk. Each approved page is stamped with the coding, and the folder goes to Erica "
+      + "to reconcile.\n\nYou cannot take it back from here.")) return;
 
   _inv.submitting[batchId] = true;
   invPaint();
-  invPost("submit_batch", { batch_id: batchId }).then(function(r){
+  invPost("submit_batch", { batch_id: batchId, pm: pm }).then(function(r){
     delete _inv.submitting[batchId];
     if(!r.ok || !r.data || r.data.error){
       /* ⛔ SAY IT ON THE BATCH, NOT IN AN ALERT THAT THE NEXT REPAINT ERASES THE CONTEXT OF. The
