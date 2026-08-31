@@ -642,6 +642,14 @@ function reconSubmittable(){
 /* The PM's split as a usable list, or empty. Every entry must name a job: a half-answered split is
    not a destination list, and treating one as ready would file the page against some of the units
    that owe for it and silently drop the rest. */
+/* A job number is what the register stores; a job name is what the front office recognises. The
+   split carries numbers because the PM's lines carry numbers, and the pickable-jobs list she is
+   already looking at has the names — so resolve here rather than denormalising a name onto every
+   split entry, where it would go stale the day a job is renamed. */
+function reconJobName(no){
+  var t = (_recon.targets || []).filter(function(x){ return x.no === no; })[0];
+  return t ? t.name : null;
+}
 function reconSplit(d){
   var s = (d && d.split_jobs) || null;
   if(!s || !s.length) return [];
@@ -822,8 +830,8 @@ function reconRow(d){
         + '<div class="sub">' + madeCopies.map(function(c){
             return c.url
               ? '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">'
-                + esc(c.job_no || "?") + '</a>'
-              : esc(c.job_no || "?");
+                + esc(reconJobName(c.job_no) || c.job_no || "?") + '</a>'
+              : esc(reconJobName(c.job_no) || c.job_no || "?");
           }).join(" &middot; ")
         + '<br>filed ' + esc(String(doneAt).slice(0,10)) + '</div>';
     } else {
@@ -843,7 +851,8 @@ function reconRow(d){
         + esc((d.pm_coding && d.pm_coding.by) || d.pm_desk || "the PM")
         + ' split this on his desk. It will be copied into every one of them.'
         + '<div>' + sp.map(function(s){
-            return esc(s.job_name || s.job_no) + (s.amount != null ? " " + fmt(Number(s.amount)||0) : "");
+            return esc(s.job_name || reconJobName(s.job_no) || s.job_no)
+                 + (s.amount != null ? " " + fmt(Number(s.amount)||0) : "");
           }).join(" &middot; ") + '</div></div>';
     }
     var opts = '<option value="">&mdash; ' + (sp.length ? 'or file it to one job instead'
