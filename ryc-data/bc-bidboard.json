@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-30T09:30:12.444Z",
+ "generatedAt": "2026-08-31T09:30:12.885Z",
  "source": "BuildingConnected (Autodesk APS, read-only)",
  "published": [
   {
@@ -44,23 +44,6 @@
      ]
     },
     {
-     "id": "69a71a7957b080769f6b0957",
-     "name": "Awnings",
-     "number": "06-02",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 1,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "undecidedSubs": [
-      "BH Awning"
-     ]
-    },
-    {
      "id": "69a7158c18d056078e1fb9bf",
      "name": "Demolition",
      "number": "02",
@@ -75,6 +58,23 @@
      "awardedCompany": null,
      "undecidedSubs": [
       "Michiana Recycling and Disposal"
+     ]
+    },
+    {
+     "id": "69a71a7957b080769f6b0957",
+     "name": "Awnings",
+     "number": "06-02",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 1,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "undecidedSubs": [
+      "BH Awning"
      ]
     },
     {
@@ -241,6 +241,23 @@
      ]
     },
     {
+     "id": "69a70f671e2ea8632c1dbb80",
+     "name": "Flooring",
+     "number": "09",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-04-08T19:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 1,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Carpet Service Outlet"
+     ]
+    },
+    {
      "id": "69a70f671e2ea832d11dbb85",
      "name": "Fire Protection",
      "number": "21",
@@ -256,23 +273,6 @@
      "biddingSubs": [
       "F.E. Moran, Inc. GROUP",
       "Ryan Fireprotection Inc."
-     ]
-    },
-    {
-     "id": "69a70f671e2ea8632c1dbb80",
-     "name": "Flooring",
-     "number": "09",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-04-08T19:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 1,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Carpet Service Outlet"
      ]
     },
     {
@@ -509,20 +509,6 @@
      ]
     },
     {
-     "id": "6a021d9b0b9343200b33a5f4",
-     "name": "Masonry",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 0,
-     "undecided": 3,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "6a021d2288ed57c2a441b604",
      "name": "Concrete",
      "number": null,
@@ -540,21 +526,18 @@
      ]
     },
     {
-     "id": "6a022d0bae28a07b4d475101",
-     "name": "Electrical",
+     "id": "6a021d9b0b9343200b33a5f4",
+     "name": "Masonry",
      "number": null,
      "state": "PUBLISHED",
      "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
+     "invites": 3,
+     "bidding": 0,
+     "undecided": 3,
      "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "D&D Electrical Contractors"
-     ]
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a022cf0c3591c68c7a3215e",
@@ -571,6 +554,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Dynamic Mechanical Services, Inc."
+     ]
+    },
+    {
+     "id": "6a022d0bae28a07b4d475101",
+     "name": "Electrical",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "D&D Electrical Contractors"
      ]
     },
     {
@@ -605,20 +605,6 @@
      "awardedCompany": null
     },
     {
-     "id": "6a022160e2751b37f7554aa8",
-     "name": "Building Insulation",
-     "number": null,
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-05-25T16:00:00.000Z",
-     "invites": 1,
-     "bidding": 0,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 1,
-     "bidsReceived": 1,
-     "awardedCompany": null
-    },
-    {
      "id": "6a02212e44826dba5a600a30",
      "name": "PEMB Insulation",
      "number": null,
@@ -634,6 +620,20 @@
      "biddingSubs": [
       "Silvercote"
      ]
+    },
+    {
+     "id": "6a022160e2751b37f7554aa8",
+     "name": "Building Insulation",
+     "number": null,
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-05-25T16:00:00.000Z",
+     "invites": 1,
+     "bidding": 0,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 1,
+     "bidsReceived": 1,
+     "awardedCompany": null
     },
     {
      "id": "6a022a285e266905149cee3c",
@@ -907,7 +907,7 @@
    "atRisk": 5,
    "invites": 244,
    "bidding": 14,
-   "undecided": 166,
+   "undecided": 165,
    "bidsReceived": 1,
    "pkgs": [
     {
@@ -1111,8 +1111,8 @@
      "bidsDueAt": "2026-09-01T15:00:00.000Z",
      "invites": 79,
      "bidding": 2,
-     "undecided": 61,
-     "notBidding": 16,
+     "undecided": 60,
+     "notBidding": 17,
      "viewed": 20,
      "bidsReceived": 0,
      "awardedCompany": null,
@@ -1182,8 +1182,8 @@
    "covered": 15,
    "atRisk": 9,
    "invites": 91,
-   "bidding": 20,
-   "undecided": 67,
+   "bidding": 21,
+   "undecided": 66,
    "bidsReceived": 7,
    "pkgs": [
     {
@@ -1352,23 +1352,6 @@
      ]
     },
     {
-     "id": "6a846f1f350d5b4c8b97b66c",
-     "name": "Masonry",
-     "number": "04-01",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-01T16:00:00.000Z",
-     "invites": 7,
-     "bidding": 1,
-     "undecided": 6,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Tony's Stone Brick and Block LLC"
-     ]
-    },
-    {
      "id": "6a845b0a29ab0b6ab44a8bfa",
      "name": "Landscaping and Seeding",
      "number": "32-03",
@@ -1417,23 +1400,6 @@
      ]
     },
     {
-     "id": "6a84708a7d2411805cc6f251",
-     "name": "Curbing",
-     "number": "03-03",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-01T16:00:00.000Z",
-     "invites": 3,
-     "bidding": 1,
-     "undecided": 2,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Jess Concrete INC"
-     ]
-    },
-    {
      "id": "6a84725327fc3795b9bc758a",
      "name": "Site Staking",
      "number": "01-01",
@@ -1451,6 +1417,23 @@
      ]
     },
     {
+     "id": "6a84708a7d2411805cc6f251",
+     "name": "Curbing",
+     "number": "03-03",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-01T16:00:00.000Z",
+     "invites": 3,
+     "bidding": 1,
+     "undecided": 2,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Jess Concrete INC"
+     ]
+    },
+    {
      "id": "6a846b43b4fcb30ef86926cb",
      "name": "Doors, Frames & Hardware",
      "number": "08-01",
@@ -1465,6 +1448,24 @@
      "awardedCompany": null,
      "biddingSubs": [
       "Central Indiana Hardware"
+     ]
+    },
+    {
+     "id": "6a846f1f350d5b4c8b97b66c",
+     "name": "Masonry",
+     "number": "04-01",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-01T16:00:00.000Z",
+     "invites": 7,
+     "bidding": 2,
+     "undecided": 5,
+     "notBidding": 0,
+     "viewed": 3,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Vander Wey Sons Mason Contractors",
+      "Tony's Stone Brick and Block LLC"
      ]
     },
     {
@@ -1629,7 +1630,7 @@
    "atRisk": 13,
    "invites": 325,
    "bidding": 32,
-   "undecided": 260,
+   "undecided": 258,
    "bidsReceived": 3,
    "pkgs": [
     {
@@ -1938,8 +1939,8 @@
      "bidsDueAt": "2026-09-02T16:00:00.000Z",
      "invites": 15,
      "bidding": 1,
-     "undecided": 12,
-     "notBidding": 2,
+     "undecided": 11,
+     "notBidding": 3,
      "viewed": 11,
      "bidsReceived": 0,
      "awardedCompany": null,
@@ -2057,9 +2058,9 @@
      "bidsDueAt": "2026-09-02T16:00:00.000Z",
      "invites": 8,
      "bidding": 1,
-     "undecided": 6,
-     "notBidding": 1,
-     "viewed": 4,
+     "undecided": 5,
+     "notBidding": 2,
+     "viewed": 5,
      "bidsReceived": 0,
      "awardedCompany": null,
      "biddingSubs": [
@@ -2614,23 +2615,6 @@
      ]
     },
     {
-     "id": "6a836a3f2014ccc930c456d2",
-     "name": "Scoreboards",
-     "number": "11-2",
-     "state": "PUBLISHED",
-     "bidsDueAt": "2026-09-08T17:00:00.000Z",
-     "invites": 2,
-     "bidding": 1,
-     "undecided": 1,
-     "notBidding": 0,
-     "viewed": 2,
-     "bidsReceived": 0,
-     "awardedCompany": null,
-     "biddingSubs": [
-      "Nevco"
-     ]
-    },
-    {
      "id": "6a8369d022c292f5ee53ec80",
      "name": "Athletic Equipment",
      "number": "11-1",
@@ -2645,6 +2629,23 @@
      "awardedCompany": null,
      "biddingSubs": [
       "PYT Sports, Inc."
+     ]
+    },
+    {
+     "id": "6a836a3f2014ccc930c456d2",
+     "name": "Scoreboards",
+     "number": "11-2",
+     "state": "PUBLISHED",
+     "bidsDueAt": "2026-09-08T17:00:00.000Z",
+     "invites": 2,
+     "bidding": 1,
+     "undecided": 1,
+     "notBidding": 0,
+     "viewed": 2,
+     "bidsReceived": 0,
+     "awardedCompany": null,
+     "biddingSubs": [
+      "Nevco"
      ]
     },
     {
@@ -2707,7 +2708,7 @@
      "bidding": 1,
      "undecided": 3,
      "notBidding": 1,
-     "viewed": 3,
+     "viewed": 4,
      "bidsReceived": 1,
      "awardedCompany": null,
      "biddingSubs": [
