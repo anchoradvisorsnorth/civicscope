@@ -1580,18 +1580,36 @@ function invRepaintCode(id){
    ⚠ THIS NO LONGER LISTS WHICH CONTROLS. It calls `invFlushPending`, the one place that knows what
    is pending, precisely because the first version of this fix enumerated the cost code and Mat/Sub
    and was therefore silently wrong the day a unit chip and a split were added. */
+/* WHOSE DECISION THIS IS. A PM's own credential names him and `body.reviewer` is ignored, so this
+   only ever speaks for the front office — and the API is explicit that it may: *"Only the front
+   office may name someone else, and that is recorded as such."* It was never wired, so every
+   approval made while standing at a PM's desk was recorded as `front office`, and that is the name
+   burned into the stamp on the page.
+
+   Keith, 2026-08-31, having walked Logan through all five of his own invoices: *"Logans name."*
+
+   ⚠ THE DESK, NOT THE VIEWER. The invoice's own `assigned_pm` is the answer — the desk switcher is
+   only the fallback — so an unrouted invoice with no desk still records `front office` rather than
+   borrowing the name of whichever desk happened to be on screen. And the fact-event actor stays
+   `front office` either way (`actorFor`), so the trail shows who clicked while the register shows
+   whose decision it was. Those are two different questions and they now get two different answers. */
+function invReviewerFor(r){ return (r && r.assigned_pm) || _inv.pm || null; }
+
 function invReview(id, decision, ver){
   if(_inv.busy) return;
+  var row = _inv.rows.filter(function(x){ return x.id === id; })[0];
+  var reviewer = invReviewerFor(row);
   if(decision !== "approved"){
     _inv.busy = true;
-    invPost("review", { id:id, decision:decision, version:ver }).then(function(r2){ invAfter(id, r2); });
+    invPost("review", { id:id, decision:decision, version:ver, reviewer:reviewer })
+      .then(function(r2){ invAfter(id, r2); });
     return;
   }
   _inv.busy = true;
   invFlushPending(id, ver, false).then(function(f){
     if(f.error){ _inv.busy = false; invErr(id, f.error); return; }
     if(f.failed){ invAfter(id, f.failed); return; }
-    return invPost("review", { id:id, decision:decision, version:f.version })
+    return invPost("review", { id:id, decision:decision, version:f.version, reviewer:reviewer })
       .then(function(x){ invAfter(id, x, x.ok && !(x.data && x.data.error) ? "Approved" : null); });
   });
 }
