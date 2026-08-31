@@ -631,8 +631,24 @@ function reconSubmittable(){
     if(d.reconciled_at) return false;
     if(d.copy_error === "working" || _recon.busy[d.id]) return false;
     if(d.pm_awaiting && d.pm_desk) return false;
-    return !!d.job_no;
+    /* A SPLIT PAGE CARRIES ITS OWN DESTINATIONS. `job_no` is null on one by design — no single
+       number is true of it — so a readiness test that only asked for `job_no` held back exactly
+       the pages a PM had already answered in the most detail. Keith, 2026-08-31: *"Looks like the
+       split invoice are not carrying over properly to ericas reconcilation screen."* */
+    return !!d.job_no || reconSplit(d).length > 0;
   });
+}
+
+/* The PM's split as a usable list, or empty. Every entry must name a job: a half-answered split is
+   not a destination list, and treating one as ready would file the page against some of the units
+   that owe for it and silently drop the rest. */
+function reconSplit(d){
+  var s = (d && d.split_jobs) || null;
+  if(!s || !s.length) return [];
+  for(var i = 0; i < s.length; i++){
+    if(!s[i] || !String(s[i].job_no || "").trim()) return [];
+  }
+  return s;
 }
 
 /* ⛔ THE PROGRESS THE SCREEN OWED HER. Keith, 2026-08-27: *"the user would expect something onscreen
@@ -798,15 +814,45 @@ function reconRow(d){
     if(d.disposition === "ryc_expense") ended = "RYC Expense &middot; not filed to a job folder";
     else if(d.disposition === "job_unfiled") ended = "resolved &middot; this job has no SharePoint folder, "
       + "so nothing was copied";
+    /* WHERE A SPLIT PAGE ACTUALLY WENT — every folder, read off `copies`, not asserted. One line
+       per destination is the only honest ending for a document that had five. */
+    var madeCopies = (d.copies || []).filter(function(c){ return c && !c.error; });
+    if(madeCopies.length > 1){
+      job = '<div>Split across ' + madeCopies.length + ' jobs</div>'
+        + '<div class="sub">' + madeCopies.map(function(c){
+            return c.url
+              ? '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">'
+                + esc(c.job_no || "?") + '</a>'
+              : esc(c.job_no || "?");
+          }).join(" &middot; ")
+        + '<br>filed ' + esc(String(doneAt).slice(0,10)) + '</div>';
+    } else {
     job = '<div>' + esc(d.job_name || d.job_no || "") + '</div>'
       + '<div class="sub">' + ended + '</div>';
+    }
   } else {
-    var opts = '<option value="">&mdash; choose a job &mdash;</option>';
+    /* ⛔ HIS ANSWER FIRST, HER PICKER SECOND. A split page reached her looking untouched — an empty
+       "choose a job" and a "Choose a job first" tick she could not clear — while the PM had already
+       attributed every dollar of it. The units are shown as what they are, an answer she confirms,
+       and the picker stays underneath because an explicit choice by the person doing the filing
+       must always be able to win. */
+    var sp = reconSplit(d);
+    if(sp.length){
+      job = '<div class="sub m-g" style="margin-bottom:4px"><b>Split across ' + sp.length
+        + ' jobs</b> &mdash; '
+        + esc((d.pm_coding && d.pm_coding.by) || d.pm_desk || "the PM")
+        + ' split this on his desk. It will be copied into every one of them.'
+        + '<div>' + sp.map(function(s){
+            return esc(s.job_name || s.job_no) + (s.amount != null ? " " + fmt(Number(s.amount)||0) : "");
+          }).join(" &middot; ") + '</div></div>';
+    }
+    var opts = '<option value="">&mdash; ' + (sp.length ? 'or file it to one job instead'
+                                                        : 'choose a job') + ' &mdash;</option>';
     (_recon.targets || []).forEach(function(t){
       opts += '<option value="' + esc(t.no) + '"' + (t.no === d.job_no ? ' selected' : '') + '>'
         + esc(t.name) + (t.no === "RYC-EXPENSE" ? "" : " (" + esc(t.no) + ")") + '</option>';
     });
-    job = '<select id="rj_' + esc(d.id) + '" class="pfill" style="max-width:260px"'
+    job += '<select id="rj_' + esc(d.id) + '" class="pfill" style="max-width:260px"'
       + (working ? ' disabled' : '') + ' onchange="reconRelabel(' + invArg(d.id) + ')">'
       + opts + '</select>'
       /* WHY a job is already selected, because "matched" and "someone taught me this" are

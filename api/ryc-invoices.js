@@ -2513,7 +2513,7 @@ export default async function handler(req, res) {
        above both callers regardless of where they sit in this if-chain. */
     async function reconcileOneDoc(docId, jobNo, opts) {
       opts = opts || {};
-      if (!docId || !jobNo) return { status: 400, body: { error: 'A document id and a job are required.' } };
+      if (!docId) return { status: 400, body: { error: 'A document id is required.' } };
 
       const cur = await sb(`ryc_batch_documents?company_id=eq.ryc&id=eq.${docId}&select=*`);
       const doc = cur.ok ? (await cur.json())[0] : null;
@@ -2524,9 +2524,38 @@ export default async function handler(req, res) {
             + `${String(doc.reconciled_at).slice(0, 10)} — it cannot be filed twice.` } };
       }
 
-      const expense = jobNo.toUpperCase() === RYC_EXPENSE.no;
+      /* ===== A SPLIT PAGE ARRIVES WITH ITS OWN DESTINATIONS ==========================
+         The PM already answered — one job per line, carried onto this row as `split_jobs` at
+         submit — so there is nothing for her to pick and `job_no` stays null because no single
+         number is true. She may still override by choosing a job, and that wins: an explicit
+         choice by the person doing the filing beats a list carried from another screen.
+
+         ⚠ EVERY ENTRY, OR IT IS NOT A SPLIT. A `split_jobs` array with a blank job in it would
+         file the page against some of the units that owe for it and quietly drop the others, so a
+         malformed list falls through to "a job is required" and she is asked, which is a question
+         rather than a wrong answer. */
+      const splitAll = Array.isArray(doc.split_jobs) ? doc.split_jobs : null;
+      const splitOk = !!(splitAll && splitAll.length
+        && splitAll.every(s => s && String(s.job_no || '').trim()));
+      const useSplit = !jobNo && splitOk;
+      if (!jobNo && !useSplit) {
+        return { status: 400, body: { error: 'A document id and a job are required.' } };
+      }
+
+      const expense = !useSplit && jobNo.toUpperCase() === RYC_EXPENSE.no;
       let job_name = RYC_EXPENSE.name;
-      if (!expense) {
+      if (useSplit) {
+        job_name = null;
+        /* "Resolve without filing" says the job has no folder to copy into. A split says the
+           opposite — it names several — so the two cannot both be true of one page, and guessing
+           which she meant would either skip a filing she wanted or claim one she did not. */
+        if (opts.noFiling === true) {
+          return { status: 400, body: {
+            error: `"${doc.file_name}" is split across ${splitAll.length} jobs. Resolve without `
+              + 'filing applies to one job with no folder — choose a single job first if that is '
+              + 'what you meant.' } };
+        }
+      } else if (!expense) {
         let dir = opts.dir || null;
         if (!dir) { try { dir = await jobDirectory(); } catch { /* reported below */ } }
         if (!dir) return { status: 503, body: { error: 'The job list could not be read just now — try again.' } };
@@ -2559,7 +2588,12 @@ export default async function handler(req, res) {
 
       const done = expense || noFiling;
       const patch = {
-        job_no: expense ? RYC_EXPENSE.no : jobNo, job_name, job_source: 'chosen',
+        job_no: useSplit ? null : (expense ? RYC_EXPENSE.no : jobNo),
+        job_name: useSplit ? null : job_name,
+        /* `chosen` means a person picked this job on this screen. On a split she confirmed a list
+           the PM made, so the provenance stays his — overwriting it would erase the only record
+           that the units were his answer rather than hers. */
+        job_source: useSplit ? (doc.job_source || 'pm') : 'chosen',
         disposition: expense ? 'ryc_expense' : (noFiling ? 'job_unfiled' : 'job_folder'),
         /* ⛔ DO NOT BLANK A LEASE THE WORKER IS HOLDING. `copy_error` doubles as the claim lease,
            and since migration 053 a row can be claimed for a RENAME before it has been reconciled
@@ -2596,7 +2630,10 @@ export default async function handler(req, res) {
       /* Also taught on completion, because a row whose job the MATCHER got right is never touched
          by `doc_update` — she just clicks Complete. Confirming a correct proposal is a
          confirmation too, and it is what raises `confirmations` on a hint that already exists. */
-      const learned = expense ? null : await learnJobHint(rows[0], jobNo);
+      /* Nothing is taught from a split: the hint table maps printed text to ONE job, and the whole
+         fact about this page is that its text maps to several. Teaching any one of them would make
+         the next Beer & Slabaugh dumpster classify itself into a single unit. */
+      const learned = (expense || useSplit) ? null : await learnJobHint(rows[0], jobNo);
       return { status: 200, body: { ok: true, document: rows[0], queued: !done, learned } };
     }
 
@@ -3216,16 +3253,48 @@ export default async function handler(req, res) {
       const docId = String(body.doc_id || '').trim();
       if (!docId) return res.status(400).json({ error: 'A document id is required.' });
       const failed = String(body.error || '').trim();
-      const patch = failed
-        ? { copy_error: failed.slice(0, 500), updated_at: new Date().toISOString() }
-        : {
-            copy_error: null, copied_path: body.path || null, copied_url: body.url || null,
+
+      /* ===== A SPLIT PAGE HAS SEVERAL DESTINATIONS AND IS FINISHED ONLY WHEN ALL OF THEM LAND ===
+         The worker reports one entry per destination. Four of five is NOT a reconciliation: a
+         reconciled row is refused all further physical work by design, so completing a partial
+         copy would strand the missing folders permanently and report success while doing it.
+         So `copies` is recorded either way — that is what makes a retry safe, because the worker
+         skips a destination already recorded as landed and `upload()` uses conflictBehavior=fail —
+         and `reconciled_at` is set only when nothing is outstanding.
+
+         ⚠ `copied_path` / `copied_url` KEEP THEIR OLD MEANING: one copy, the first that landed.
+         Erica's screen links to them, and a link that silently changed shape would break the one
+         control she uses to check a filing. `copies` says where else it went. */
+      const copies = Array.isArray(body.copies) ? body.copies.filter(Boolean) : null;
+      const landed = copies ? copies.filter(c => !c.error) : null;
+      const missed = copies ? copies.filter(c => c.error) : null;
+      const complete = !failed && (!copies || missed.length === 0);
+      const stamp = new Date().toISOString();
+
+      const patch = complete
+        ? {
+            copy_error: null,
+            copied_path: (landed && landed.length ? landed[0].path : body.path) || null,
+            copied_url: (landed && landed.length ? landed[0].url : body.url) || null,
+            ...(copies ? { copies } : {}),
             sp_name: body.sp_name || undefined,
             // The retirement is only finished once the worker says so; clearing it here is what
             // takes a corrected document back out of the work queue.
             retire_path: null,
-            reconciled_at: new Date().toISOString(), reconciled_by: 'front office',
-            updated_at: new Date().toISOString(),
+            reconciled_at: stamp, reconciled_by: 'front office',
+            updated_at: stamp,
+          }
+        : {
+            /* NAME WHAT IS MISSING, NOT JUST THAT SOMETHING IS. The retry clears `copy_error`, so
+               this sentence is the whole of what a person has to work from. */
+            copy_error: (failed || `filed to ${landed.length} of ${copies.length} job folder(s) — `
+              + `still owed: ${missed.map(c => `${c.job_no || '?'} (${c.error})`).join('; ')}`
+            ).slice(0, 500),
+            ...(copies ? { copies } : {}),
+            ...(landed && landed.length
+              ? { copied_path: landed[0].path || null, copied_url: landed[0].url || null }
+              : {}),
+            updated_at: stamp,
           };
       const r = await sb(`ryc_batch_documents?id=eq.${docId}&reconciled_at=is.null`, {
         method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
@@ -3889,6 +3958,48 @@ export default async function handler(req, res) {
           const byKey = {};
           for (const i of mine) byKey[key(i.vendor_name, i.amount)] = i;
           const now = new Date().toISOString();
+
+          /* ===== THE SPLIT TRAVELS TOO ==============================================
+             Keith, 2026-08-31: *"The split invoice needs to be copied to all of the jobs
+             folders."* A split page's answer is not on the payable — `job_no` is null on it by
+             design — it is one row per unit in `ryc_invoice_lines`. So the carry below, which
+             reads `i.job_no`, moved nothing for exactly the documents that were hardest to place,
+             and Erica received a $670 page with an empty job cell after Logan had already
+             attributed every dollar of it.
+
+             ⚠ EVERY LINE, OR NOTHING. Migration 062 will not approve a split whose lines do not
+             all name a job, so an approved split is already whole — and this re-checks it anyway
+             rather than trusting that, because carrying a partial split would file a page against
+             some of the jobs that owe for it and silently drop the rest. A page that cannot be
+             carried keeps its empty job cell, which is a question on her screen; a page filed to
+             three of five folders is a wrong answer nobody is asked to look at. */
+          const splitByInv = new Map();
+          const needLines = mine.filter(i => i.review_state === 'approved' && !i.job_no).map(i => i.id);
+          if (needLines.length) {
+            const lr = await sb(`ryc_invoice_lines?invoice_id=in.(${needLines.join(',')})`
+              + '&select=invoice_id,seq,job_no,amount&order=seq.asc');
+            if (lr.ok) {
+              const all = new Map();
+              for (const l of await lr.json()) {
+                const a = all.get(l.invoice_id) || [];
+                a.push(l);
+                all.set(l.invoice_id, a);
+              }
+              for (const [invId, lines] of all) {
+                if (!lines.length) continue;
+                if (lines.some(l => !String(l.job_no || '').trim())) {
+                  carried.partial_splits = (carried.partial_splits || 0) + 1;
+                  continue;                     // not whole — leave the question on her screen
+                }
+                splitByInv.set(invId, lines.map(l => ({
+                  job_no: String(l.job_no).trim(),
+                  amount: l.amount,
+                })));
+              }
+            } else {
+              carried.split_read_error = `could not read the coded lines (${lr.status})`;
+            }
+          }
           for (const d of docs) {
             const i = byKey[key(d.vendor, d.amount)];
             if (!i) { carried.unmatched.push({ seq: d.seq, vendor: d.vendor, amount: d.amount }); continue; }
@@ -3927,6 +4038,23 @@ export default async function handler(req, res) {
                 was_source: d.job_source || null,
               }];
               carried.jobs_set++;
+            } else if (!i.job_no && splitByInv.has(i.id)) {
+              /* ⚠ `job_no` STAYS NULL ON A SPLIT, DELIBERATELY. There is no single job, and
+                 inventing one — the largest line, the first line, the community bucket — would put
+                 a number on the record that no person chose and that the money contradicts.
+                 `split_jobs` is the answer, and it is the filing destination list. */
+              const sp = splitByInv.get(i.id).map(s => ({
+                job_no: s.job_no, job_name: nameFor(s.job_no) || null, amount: s.amount,
+              }));
+              patch.split_jobs = sp;
+              patch.job_source = 'pm';
+              patch.history = [...(Array.isArray(d.history) ? d.history : []), {
+                at: now, by, action: 'pm_split_job',
+                jobs: sp.map(s => s.job_no),
+                was: d.job_no || null, was_name: d.job_name || null,
+                was_source: d.job_source || null,
+              }];
+              carried.splits_set = (carried.splits_set || 0) + 1;
             }
             const up = await sb(`ryc_batch_documents?id=eq.${d.id}&reconciled_at=is.null`, {
               method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(patch),
