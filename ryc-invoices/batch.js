@@ -586,12 +586,15 @@ function reconRender(){
   var docs = _recon.docs;
   if(!docs.length){ el.innerHTML = ""; return; }
 
-  var done = 0, expense = 0, failedN = 0;
+  var done = 0, expense = 0, failedN = 0, filingN = 0;
   docs.forEach(function(d){
     if(d.reconciled_at){ done++; if(d.disposition === "ryc_expense") expense++; }
     else if(d.copy_error && d.copy_error !== "working") failedN++;
+    else if(reconFiling(d)) filingN++;
   });
-  var open = docs.length - done;
+  /* WORK SHE HAS ALREADY HANDED OVER IS NOT OUTSTANDING WORK. Counting it as such told her, in the
+     one line she reads to know where she is, that submitting had achieved nothing. */
+  var open = docs.length - done - filingN;
 
   var h = '<div class="panel"><div class="h">Reconcile &middot; ' + docs.length + ' document(s)</div>'
     + '<div class="sub">Every invoice ends in one of two places: copied into its job&rsquo;s Vendor '
@@ -610,6 +613,7 @@ function reconRender(){
     + 'until you press <b>Submit</b> below.</div>'
     + '<div style="margin-top:8px"><b>' + done + ' of ' + docs.length + ' done</b>'
     + (expense ? ' <span class="sub">&middot; ' + expense + ' RYC Expense</span>' : '')
+    + (filingN ? ' <span class="sub">&middot; ' + filingN + ' filing now</span>' : '')
     + (open ? ' <span class="m-a">&middot; ' + open + ' outstanding</span>' : '')
     + (failedN ? ' <span class="m-r">&middot; ' + failedN + ' failed</span>' : '')
     + '</div>';
@@ -630,6 +634,7 @@ function reconSubmittable(){
   return _recon.docs.filter(function(d){
     if(d.reconciled_at) return false;
     if(d.copy_error === "working" || _recon.busy[d.id]) return false;
+    if(reconFiling(d)) return false;          // already handed over — not hers to submit twice
     if(d.pm_awaiting && d.pm_desk) return false;
     /* A SPLIT PAGE CARRIES ITS OWN DESTINATIONS. `job_no` is null on one by design — no single
        number is true of it — so a readiness test that only asked for `job_no` held back exactly
@@ -647,6 +652,22 @@ function reconSubmittable(){
    Nothing here is new logic; it is the same rule with only one place to change. */
 function reconReady(d){
   return !!d.job_no || reconSplit(d).length > 0;
+}
+
+/* ⛔ SUBMITTED IS A STATE, AND THE BOARD HAD NO WAY TO DRAW IT. Keith, 2026-08-31, watching Erica
+   submit: *"Not a great UI experience while the reconcilations process."*
+
+   Between her Submit and the worker claiming the row there is a real interval — she hands over the
+   whole set at once and the VM works them one at a time — and during it the row carried
+   `disposition = job_folder`, `reconciled_at = null`, `copy_error = null`: indistinguishable, on
+   screen, from a row she had not touched. So a submitted invoice still showed a live tick, still
+   counted as "outstanding" in the header, and the poll below stopped after one pass because its
+   only test was whether a worker was HOLDING something right then.
+
+   `job_folder` with no `reconciled_at` is the honest test: it is set the moment she submits and
+   cleared only when the copy has landed, so it covers queued and in-flight alike. */
+function reconFiling(d){
+  return !d.reconciled_at && d.disposition === "job_folder";
 }
 
 /* The PM's split as a usable list, or empty. Every entry must name a job: a half-answered split is
@@ -766,7 +787,12 @@ function reconSubmit(){
        one press rather than a hunt back through the board for which ones did not go. */
     (r.data.results || []).forEach(function(x){ delete _recon.pick[x.doc_id]; });
     reconLoad(_recon.batchId);
-    if(r.data.queued) reconPoll(12);
+    /* ⚠ THE BUDGET HAS TO COVER THE WHOLE QUEUE, NOT ONE DOCUMENT. The worker takes these one at a
+       time and a split page is several uploads on its own, so a thirty-four document folder can
+       run for minutes. Twelve passes with the backoff below expire in about eighty seconds — the
+       board would simply stop updating partway through a normal run and look stalled. Scaled to
+       what was actually handed over, with a floor for the small case. */
+    if(r.data.queued) reconPoll(Math.max(20, r.data.queued * 3));
   });
 }
 
@@ -798,7 +824,9 @@ function reconRow(d){
   var busy = !!_recon.busy[d.id];
   var doneAt = d.reconciled_at;
   var err = (d.copy_error && d.copy_error !== "working") ? d.copy_error : null;
-  var working = d.copy_error === "working" || busy;
+  var claimed = d.copy_error === "working" || busy;   // a worker is holding it right now
+  var filing = reconFiling(d);                        // handed over: queued, or being copied
+  var working = claimed || filing;
   /* ⛔ TWELVE OF THIRTY-FOUR IN THIS BATCH WERE LOGAN'S, AND THE SCREEN OFFERED TO RECONCILE EVERY
      ONE (2026-08-26). Erica scanned his stack into a general folder; because the folder is mixed
      no single desk could be derived from it, so the whole thing fell to the paper flow and
@@ -977,10 +1005,18 @@ function reconRow(d){
       act += '<div class="sub m-a">#AScans: ' + esc(String(dailyMiss[dailyMiss.length-1].result || '').slice(0,120)) + '</div>';
     }
   } else if(working){
+    /* THREE DIFFERENT THINGS, AND THEY ARE NOT THE SAME NEWS. "Queued" means the handover worked
+       and nothing is wrong; "copying" means it is happening now; "not answered" means something
+       is. Saying all three as one sentence is how a normal wait reads as a fault. */
+    var nfold = reconSplit(d).length;
     act = _recon.stalled
       ? '<span class="sub m-r">still copying &mdash; the filing worker has not answered. '
         + 'Reload to check.</span>'
-      : '<span class="sub">copying to SharePoint&hellip;</span>';
+      : claimed
+        ? '<span class="sub">copying to SharePoint&hellip;'
+          + (nfold ? ' <br>' + nfold + ' job folders' : '') + '</span>'
+        : '<span class="sub">submitted &mdash; waiting for the filing worker'
+          + (nfold ? ', ' + nfold + ' job folders' : '') + '&hellip;</span>';
   } else if(withPm){
     act = '<div class="sub"><b class="m-a">With ' + esc(d.pm_desk) + '</b>'
       + '<div>Waiting on his approval. It comes back here to reconcile once he has answered &mdash; '
@@ -1324,7 +1360,12 @@ function reconPoll(left, wait){
     invPost("batch_documents", { id:_recon.batchId }).then(function(r){
       if(r.ok) _recon.docs = r.data.documents || [];
       if(!reconBusyEditing()) reconRender();
-      var pending = _recon.docs.some(function(d){ return d.copy_error === "working"; });
+      /* WAS `copy_error === "working"` ALONE, which is true only while a worker holds a row. A
+         set she has just submitted is queued and held by nobody, so the first pass saw nothing
+         pending and the board stopped refreshing until she reloaded it herself. */
+      var pending = _recon.docs.some(function(d){
+        return d.copy_error === "working" || reconFiling(d);
+      });
       if(pending) reconPoll(left - 1, Math.min(Math.round(wait * 1.5), 9000));
     });
   }, wait);
@@ -1332,7 +1373,7 @@ function reconPoll(left, wait){
 
 /* "Nothing came back" is a state to draw, not a reason to stop drawing. */
 function reconStall(){
-  if(!_recon.docs.some(function(d){ return d.copy_error === "working"; })) return;
+  if(!_recon.docs.some(function(d){ return d.copy_error === "working" || reconFiling(d); })) return;
   _recon.stalled = true;
   if(!reconBusyEditing()) reconRender();
 }
