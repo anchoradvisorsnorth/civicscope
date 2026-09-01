@@ -1885,6 +1885,44 @@ export default async function handler(req, res) {
        ⛔ EVERY WRITE HERE GUARDS ON `reconciled_at is null`, so a second click changes zero rows and
        is told so. A retry after a FAILED copy is still allowed — that is the difference between
        "not done yet" and "done" — but nothing can be reconciled twice. See migration 013. */
+    /* ===== LOOK AT THE SCAN WHILE CONFIRMING IT ==================================
+       Keith, 2026-09-01, on the confirm screen: *"I clicked view and see this - but no way to
+       actually view the scan..."* The screen asks the one question only the paper can answer —
+       where does each document start and end — and offered no way to see the paper. Every other
+       screen in this module has a View: the PM desk opens the page, the reconcile board opens the
+       filed PDF. The screen whose entire job is a boundary decision had none.
+
+       ⚠ THE RENDERED PAGES DO NOT EXIST TO SERVE. `do_render` rasterises in memory, ships the
+       images to the reader and drops them — nothing is stored per page, so there is no `pages`
+       equivalent here. What IS stored is the source PDF, in the same private bucket, which is
+       better for this purpose anyway: she needs to see pages either side of a proposed boundary,
+       not one page in isolation.
+
+       Same shape as the link minted for the worker: a short-lived signed URL for ONE object,
+       front office only, and the bucket stays private. */
+    if (action === 'batch_scan') {
+      if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
+      const id = String(body.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'A batch id is required.' });
+      const r = await sb(`ryc_batch_jobs?company_id=eq.ryc&id=eq.${id}&select=source_path,filename,page_count`);
+      if (!r.ok) return res.status(502).json({ error: 'Could not read the batch.' });
+      const job = (await r.json())[0];
+      if (!job) return res.status(404).json({ error: 'No such batch.' });
+      if (!job.source_path) {
+        return res.status(404).json({ error: 'This batch has no stored scan to open.' });
+      }
+      const sign = await fetch(`${SB_URL}/storage/v1/object/sign/${SCAN_BUCKET}/${job.source_path}`, {
+        method: 'POST',
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiresIn: 900 }),          // 15 minutes
+      });
+      if (!sign.ok) return res.status(502).json({ error: `Could not sign the scan (${sign.status}).` });
+      const s = await sign.json();
+      if (!s.signedURL) return res.status(502).json({ error: 'The scan could not be signed.' });
+      return res.status(200).json({ ok: true, url: `${SB_URL}/storage/v1${s.signedURL}`,
+        filename: job.filename || null, page_count: job.page_count || null });
+    }
+
     if (action === 'batch_documents') {
       if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
       const id = String(body.id || '').trim();

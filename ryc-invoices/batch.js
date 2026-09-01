@@ -27,7 +27,7 @@
      · M. W. Chupp 13841 — one $43,875 payable read as three.
    So the bar runs the whole chain and stops on ONE screen. Merging is one click. */
 
-var _batch = { id:null, job:null, timer:null, sel:{}, recent:[] };
+var _batch = { id:null, job:null, timer:null, sel:{}, recent:[], scan:null };
 
 function batchStop(){ if(_batch.timer){ clearInterval(_batch.timer); _batch.timer = null; } }
 
@@ -39,7 +39,7 @@ function batchSuggestFolder(){
 
 function renderBatch(){
   batchStop();
-  _batch = { id:null, job:null, timer:null, sel:{}, recent:[] };
+  _batch = { id:null, job:null, timer:null, sel:{}, recent:[], scan:null };
   // The reconcile panel is per-batch; leaving last batch's rows in memory would paint them under
   // the next one's header for the moment before the fetch returns.
   _recon = { docs: [], targets: _recon ? _recon.targets : null, batchId: null, busy: {},
@@ -374,13 +374,16 @@ function batchConfirmPanel(j){
     + 'page, or a pay application scanned with its own lien waiver. The first ticked row is kept.</div>'
     + '<div style="margin:8px 0"><button class="pfill" onclick="batchMerge()">Merge selected</button> '
     + '<button class="pfill" onclick="batchReset()">Start over</button> '
+    + '<button class="pfill" onclick="batchViewPages(0)">View the whole scan</button> '
     + '<span id="batchCov" class="sub">' + (cov.ok ? "" : '<span class="m-r">coverage not clean</span>') + '</span></div>'
     + '<table class="t"><tbody>';
   docs.forEach(function(d, i){
     var span = d.page_from === d.page_to ? ("p" + d.page_from) : ("p" + d.page_from + "–" + d.page_to);
     h += '<tr><td style="width:26px"><input type="checkbox" ' + (_batch.sel[i] ? "checked " : "")
       + 'onchange="batchSel(' + i + ',this.checked)"></td>'
-      + '<td class="sub" style="width:74px">' + esc(span) + '</td>'
+      + '<td class="sub" style="width:74px">' + esc(span)
+      + '<div style="margin-top:3px"><button class="pfill" style="padding:1px 7px" '
+      + 'onclick="batchViewPages(' + Number(d.page_from) + ')">View</button></div></td>'
       + '<td>' + batchVendorCell(d, i)
       + '<div class="sub">' + esc(d.doc_type || "")
       + (d.invoice_no ? " &middot; " + esc(d.invoice_no) : "")
@@ -406,6 +409,42 @@ function batchConfirmPanel(j){
     + '<div style="margin-top:10px"><button class="pfill" id="batchFileBtn" onclick="batchConfirm()">'
     + 'File to SharePoint</button> <span id="batchConfErr" class="sub m-r"></span></div></div>';
   return h;
+}
+
+/* ⛔ THE SCREEN THAT ASKS A QUESTION ABOUT PAPER MUST SHOW THE PAPER. Keith, 2026-09-01:
+   *"I clicked view and see this - but no way to actually view the scan..."* Confirming boundaries
+   is the one decision in this module that CANNOT be made from metadata — "is p47 the back of the
+   Builders Mart invoice or the front of something else" is answerable only by looking — and this
+   screen was asking it with nothing to look at.
+
+   ⚠ IT OPENS THE SOURCE PDF, NOT A PAGE IMAGE, because no page image exists: `do_render`
+   rasterises in memory for the reader and stores nothing. That is the better artefact here anyway
+   — a boundary is a question about a page AND ITS NEIGHBOURS, and the PDF opens at the right page
+   with the rest one scroll away. `#page=N` is honoured by the browser's own viewer.
+
+   The window is opened FIRST and navigated when the URL arrives: opening it inside the callback is
+   an async popup and browsers block it — the same reason `invViewDoc` is written this way. The
+   signed link is reused for 12 minutes of a 15-minute lease so working down a forty-row batch does
+   not mint forty links. */
+function batchViewPages(page){
+  var w = window.open("", "_blank");
+  var j = _batch.job;
+  if(!j){ if(w) w.close(); return; }
+  var at = function(url){ if(w) w.location = url + (page ? "#page=" + page : ""); };
+  if(_batch.scan && _batch.scan.id === j.id && (Date.now() - _batch.scan.at) < 12 * 60 * 1000){
+    at(_batch.scan.url);
+    return;
+  }
+  invPost("batch_scan", { id: j.id }).then(function(r){
+    if(!r.ok || !r.data || !r.data.url){
+      if(w) w.close();
+      var el = document.getElementById("batchConfErr");
+      if(el) el.textContent = (r.data && r.data.error) || r.error || "The scan could not be opened.";
+      return;
+    }
+    _batch.scan = { id: j.id, url: r.data.url, at: Date.now() };
+    at(r.data.url);
+  });
 }
 
 function batchCancel(id){
