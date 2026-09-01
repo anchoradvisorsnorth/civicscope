@@ -369,10 +369,18 @@ function batchConfirmPanel(j){
           + twins.map(function(o){ return '“' + esc(o.folder) + '”'; }).join(", ")
           + '.</b> Filing both puts this same stack in two folders — cancel the one you do not want.</div>'
         : '')
-    + '<div class="sub">Every page must belong to exactly one document. Tick two or more rows and '
-    + '<b>Merge</b> where the reader has split one payable — a "Continued" page, a supporting-detail '
-    + 'page, or a pay application scanned with its own lien waiver. The first ticked row is kept.</div>'
-    + '<div style="margin:8px 0"><button class="pfill" onclick="batchMerge()">Merge selected</button> '
+    /* ⛔ SAY WHAT SHE IS HERE TO DO. Keith, 2026-09-01: *"I still dont know what action Erica is
+       supposed to take on this screen."* Every word of this paragraph explained MERGE — the
+       exception — and none of it named the action she performs on every batch: check each row
+       against the scan, then file. On a one-document batch the only controls offered were a Merge
+       that cannot act and a File the server was always going to refuse. */
+    + '<div class="sub"><b>Check each row against the scan, then press File to SharePoint.</b> '
+    + '<b>View</b> opens the page it came from. If the reader split one payable across two rows '
+    + '&mdash; a "Continued" page, a supporting-detail page, or a pay application scanned with its '
+    + 'own lien waiver &mdash; tick both and <b>Merge</b>; the first ticked row is kept.</div>'
+    + '<div style="margin:8px 0"><button class="pfill" onclick="batchMerge()"'
+    + (docs.length < 2 ? ' disabled title="There is only one document - nothing to merge"' : '')
+    + '>Merge selected</button> '
     + '<button class="pfill" onclick="batchReset()">Start over</button> '
     + '<button class="pfill" onclick="batchViewPages(0)">View the whole scan</button> '
     + '<span id="batchCov" class="sub">' + (cov.ok ? "" : '<span class="m-r">coverage not clean</span>') + '</span></div>'
@@ -406,9 +414,53 @@ function batchConfirmPanel(j){
   var total = docs.reduce(function(a,d){ return a + (Number(d.amount)||0); }, 0);
   h += '</tbody></table>'
     + '<div class="sub" style="margin-top:6px">' + docs.length + ' document(s) &middot; ' + fmt(total) + '</div>'
+    + '<div id="batchReady" style="margin-top:8px">' + batchReadyHtml(docs, j.page_count || 0) + '</div>'
     + '<div style="margin-top:10px"><button class="pfill" id="batchFileBtn" onclick="batchConfirm()">'
     + 'File to SharePoint</button> <span id="batchConfErr" class="sub m-r"></span></div></div>';
   return h;
+}
+
+/* ⛔ THE SCREEN SAYS WHAT IS STOPPING IT, BEFORE SHE PRESSES. `validateManifest` has always refused
+   a document with no vendor name — the PDF is NAMED for it — and one with no amount. Both refusals
+   are correct and both arrived only AFTER a press, worded for whoever wrote the server. Same rules,
+   said in advance, beside the control that fixes them. */
+function batchBlockers(docs, pages){
+  var out = [];
+  docs.forEach(function(d){
+    var span = d.page_from === d.page_to ? ("p" + d.page_from) : ("p" + d.page_from + "-" + d.page_to);
+    if(!String(d.vendor_canonical || d.vendor_name || "").trim()){
+      out.push(span + " has no name on it - type who it is from.");
+    }
+    if(d.amount === null || d.amount === undefined || d.amount === "" || !isFinite(Number(d.amount))){
+      out.push(span + " has no amount - merge it into the document it continues, or give it one.");
+    }
+  });
+  var cov = batchCoverage(docs, pages);
+  if(cov.dupes.length) out.push("Page " + cov.dupes[0] + " is claimed by two documents.");
+  if(cov.missing.length) out.push("Claimed by no document: p" + cov.missing.join(", p") + ".");
+  return out;
+}
+
+function batchReadyHtml(docs, pages){
+  var b = batchBlockers(docs, pages);
+  if(!b.length){
+    return '<div class="sub m-g"><b>Ready to file.</b> ' + docs.length + ' document(s) into one '
+      + 'SharePoint folder, each as its own PDF named for its vendor, amount and date.</div>';
+  }
+  return '<div class="m-a"><b>Not ready to file yet:</b></div>'
+    + b.map(function(x){ return '<div class="sub m-a">&middot; ' + esc(x) + '</div>'; }).join("");
+}
+
+/* Repaint the ending ALONE. A full repaint would tear the vendor box out from under her while she
+   is typing in it - the 2026-08-21 defect, one screen over. */
+function batchPaintReady(){
+  var j = _batch.job;
+  if(!j) return;
+  var docs = j.proposed || [];
+  var el = document.getElementById("batchReady");
+  if(el) el.innerHTML = batchReadyHtml(docs, j.page_count || 0);
+  var btn = document.getElementById("batchFileBtn");
+  if(btn) btn.disabled = batchBlockers(docs, j.page_count || 0).length > 0;
 }
 
 /* ⛔ THE SCREEN THAT ASKS A QUESTION ABOUT PAPER MUST SHOW THE PAPER. Keith, 2026-09-01:
@@ -503,9 +555,19 @@ function batchVendorCell(d, i){
         + esc(d.vendor_name || "—") + ' — as printed</option>';
     }
     h += '</select>';
+  } else if(!String(chosen).trim()){
+    /* ⛔ NO NAME AT ALL, AND THE FILE IS NAMED FROM THIS. The cell rendered "—  new vendor — filed
+       as printed", which reads like a decision the screen had already made; in fact nothing could
+       be filed and there was nowhere to type. The employee reimbursement in `approved 83126` is the
+       shape: an online-order screenshot with no letterhead, where the "vendor" is the person owed. */
+    h += '<input id="bv_' + i + '" class="pfill" style="max-width:230px" '
+      + 'placeholder="Who is this from?" value="" '
+      + 'oninput="batchVendorType(' + i + ',this.value)">'
+      + '<div class="sub m-a">No name is printed on this one. It is what the PDF gets called, so it '
+      + 'cannot be filed until you say.</div>';
   } else {
-    h += esc(chosen || "—");
-    if(!opts.length) h += ' <span class="sub">new vendor — filed as printed</span>';
+    h += esc(chosen);
+    if(!opts.length) h += ' <span class="sub">new vendor &mdash; filed as printed</span>';
   }
   if(chosen !== d.vendor_name){
     h += '<div class="sub">read off the document as “' + esc(d.vendor_name || "") + '”</div>';
@@ -516,6 +578,15 @@ function batchVendorCell(d, i){
 function batchVendorPick(i, spelling){
   var docs = (_batch.job && _batch.job.proposed) || [];
   if(docs[i]) docs[i].vendor_canonical = spelling;
+  batchPaintReady();
+}
+
+/* Typed, not picked - the document had no name to offer. Updates state and the ending only; never
+   a full repaint, or the box loses focus mid-word. */
+function batchVendorType(i, value){
+  var docs = (_batch.job && _batch.job.proposed) || [];
+  if(docs[i]) docs[i].vendor_canonical = String(value || "").trim();
+  batchPaintReady();
 }
 
 function batchSel(i, on){ _batch.sel[i] = on; }
@@ -559,11 +630,13 @@ function batchCoverage(docs, pages){
 function batchConfirm(){
   var j = _batch.job, docs = j.proposed || [];
   var errEl = document.getElementById("batchConfErr");
-  var cov = batchCoverage(docs, j.page_count || 0);
-  if(!cov.ok){
-    errEl.innerHTML = cov.dupes.length
-      ? "Page " + cov.dupes[0] + " is claimed by two documents."
-      : "Pages claimed by no document: " + cov.missing.join(", ");
+  /* ONE LIST, CHECKED IN ONE PLACE. This tested coverage only, so a missing vendor or a null
+     amount reached the server and came back in the server's words after the press. */
+  var blockers = batchBlockers(docs, j.page_count || 0);
+  if(blockers.length){
+    errEl.innerHTML = esc(blockers[0])
+      + (blockers.length > 1 ? ' (and ' + (blockers.length - 1) + ' more above)' : '');
+    batchPaintReady();
     return;
   }
   var btn = document.getElementById("batchFileBtn");
