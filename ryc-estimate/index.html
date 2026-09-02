@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.50.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.50.0">
-<script src="/ryc-shell/shell.js?v1.50.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.51.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.51.0">
+<script src="/ryc-shell/shell.js?v1.51.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -375,7 +375,7 @@
            documents is doing. They are opening a pursuit. It is a peer button now, and it
            creates the pursuit. -->
       <div id="docsActions" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <button class="btn" id="createBtn" onclick="createPursuitFromDocs()">Create pursuit &amp; read documents</button>
+      <button class="btn" id="createBtn" onclick="createPursuitFromDocs()">Read the documents</button>
       <button type="button" class="btn ghost" id="manualBtn" onclick="manualPursuit()">Create pursuit manually</button>
       </div>
     </div>
@@ -655,7 +655,7 @@ function syncUploadBusy() {
   // Never fight the reader for the button — createPursuitFromDocs owns it while reading.
   if (btn.dataset.reading === '1') return;
   btn.disabled = busy;
-  btn.textContent = busy ? 'Processing documents…' : 'Create pursuit & read documents';
+  btn.textContent = busy ? 'Processing documents…' : 'Read the documents';
 }
 
 async function handleFiles(fileList) {
@@ -669,6 +669,38 @@ async function handleFiles(fileList) {
   }
 }
 
+/* THE ORIGINALS ARE KEPT NOW (2026-09-02). They used to be read once for their page images and
+   dropped, so the file the estimator chose existed only as lossy JPEGs inside this tab: nothing
+   was filed, nothing was auditable, and re-running meant dragging the same 60MB in again. These
+   File handles are what get uploaded to the job folder and what the VM takes off. A File is a
+   handle to bytes on disk, not a copy in memory, so holding them is free. */
+let originalDocs = [];
+
+/* Rendering here is now ONLY for the cover-sheet autofill, which samples at most 16 pages
+   (readDocuments). Rendering all 200 of a spec book to canvas cost minutes of the estimator's
+   time before they could even press Generate, to build images the server run does not use. The
+   FULL set still gets read — at full fidelity, from the original PDF, on the VM. */
+const AUTOFILL_PAGES_PER_DOC = 6;
+
+async function renderPdfPages(file, from, to) {
+  const jpegQuality = 0.55, maxImageWidth = 1400;
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const out = [];
+  const last = Math.min(to, pdf.numPages);
+  for (let p = from; p <= last; p++) {
+    const page = await pdf.getPage(p);
+    const vp = page.getViewport({ scale: 1 });
+    const scale = Math.min(maxImageWidth / vp.width, 2);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const base64 = canvas.toDataURL('image/jpeg', jpegQuality).split(',')[1];
+    out.push({ name: `${file.name} (p${p})`, size: Math.round(base64.length * 0.75), base64 });
+  }
+  return { pages: out, numPages: pdf.numPages };
+}
+
 async function handleFilesInner(fileList) {
   const errEl = document.getElementById('uploadError'); errEl.style.display = 'none';
   const allowed = ['application/pdf', 'image/png', 'image/jpeg'];
@@ -678,30 +710,45 @@ async function handleFilesInner(fileList) {
     if (file.size > 50 * 1024 * 1024) { errEl.textContent = `"${file.name}" exceeds 50 MB.`; errEl.style.display = 'block'; continue; }
     try {
       if (file.type === 'application/pdf') {
-        const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
-        const pages = Math.min(pdf.numPages, 200);
-        if (pdf.numPages > 20) { errEl.textContent = `"${file.name}" — ${pdf.numPages} pages; analyzed in batches.`; errEl.style.display = 'block'; }
-        for (let p = 1; p <= pages; p++) {
-          const page = await pdf.getPage(p);
-          const vp = page.getViewport({ scale: 1 });
-          const scale = Math.min(maxImageWidth / vp.width, 2);
-          const viewport = page.getViewport({ scale });
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width; canvas.height = viewport.height;
-          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-          const base64 = canvas.toDataURL('image/jpeg', jpegQuality).split(',')[1];
-          uploadedFiles.push({ name: `${file.name} (p${p})`, size: Math.round(base64.length * 0.75), base64 });
+        const { pages, numPages } = await renderPdfPages(file, 1, AUTOFILL_PAGES_PER_DOC);
+        originalDocs.push({ name: file.name, file, numPages, bytes: file.size });
+        pages.forEach(p => uploadedFiles.push(p));
+        if (numPages > AUTOFILL_PAGES_PER_DOC) {
+          errEl.textContent = `"${file.name}" — ${numPages} pages. All of them go to the job folder `
+            + `and the server takeoff; only the first ${AUTOFILL_PAGES_PER_DOC} are read here to fill the form.`;
+          errEl.style.display = 'block';
         }
         renderFileList();
       } else {
         const base64 = await compressImage(file, maxImageWidth, jpegQuality);
+        originalDocs.push({ name: file.name, file, numPages: 1, bytes: file.size });
         uploadedFiles.push({ name: file.name, size: Math.round(base64.length * 0.75), base64 });
         renderFileList();
       }
+      markFormDirty();
     } catch (err) { errEl.textContent = `Error on "${file.name}": ${err.message || 'unknown'}`; errEl.style.display = 'block'; }
   }
   fileInput.value = '';
-  // Reading now happens on "Create pursuit", not on drop — the user is still adding documents here.
+  // Reading now happens on "Read the documents", not on drop — the user is still adding here.
+}
+
+/* The browser takeoff is the FALLBACK now (the server intake being unconfigured or unreachable),
+   and it needs the pages the autofill sample did not render. Re-rendered from the originals we
+   kept, so a fallback run is never quietly a worse estimate than it used to be — it is the same
+   estimate, just built in the tab. */
+async function renderRemainingPages(cap) {
+  const have = new Set(uploadedFiles.map(f => f.name));
+  for (const doc of originalDocs) {
+    if (doc.file.type !== 'application/pdf') continue;
+    if (doc.numPages <= AUTOFILL_PAGES_PER_DOC) continue;
+    if (uploadedFiles.length >= cap) break;
+    loadLabel(`Rendering ${doc.name} (${doc.numPages} pages)…`);
+    const { pages } = await renderPdfPages(doc.file, AUTOFILL_PAGES_PER_DOC + 1,
+      Math.min(doc.numPages, AUTOFILL_PAGES_PER_DOC + (cap - uploadedFiles.length)));
+    pages.forEach(p => { if (!have.has(p.name)) uploadedFiles.push(p); });
+  }
+  // Page order per document must follow the sheets, not the order two render passes finished in.
+  uploadedFiles.sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
 }
 
 /* ===== cover-sheet autofill (2026-07-22) — the plans carry the project name, owner, architect,
@@ -1416,15 +1463,31 @@ function compressImage(file, maxWidth, quality) {
     img.src = URL.createObjectURL(file);
   });
 }
-function removeFile(i) { uploadedFiles.splice(i, 1); renderFileList(); }
+/* Remove the DOCUMENT, not one rendered page. The list used to be one row per page — a 200-page
+   spec book was 200 rows with 200 ✕ buttons — and now that the originals are what actually get
+   filed and taken off, removing a page row would have left its original still queued to upload:
+   the estimator deletes something from the screen and it lands in the job folder anyway. */
+function removeDoc(i) {
+  const doc = originalDocs[i];
+  if (!doc) return;
+  originalDocs.splice(i, 1);
+  const stem = doc.name;
+  uploadedFiles = uploadedFiles.filter(f => String(f.name).replace(/\s*\(p\d+\)\s*$/, '') !== stem);
+  markFormDirty();
+  renderFileList();
+}
 function renderFileList() {
   const list = document.getElementById('fileList'), prompt = document.getElementById('uploadPrompt');
   if (!list || !prompt) return;
-  if (!uploadedFiles.length) { list.innerHTML = ''; uploadZone.classList.remove('has-files'); prompt.style.display = 'block'; return; }
+  if (!originalDocs.length) { list.innerHTML = ''; uploadZone.classList.remove('has-files'); prompt.style.display = 'block'; return; }
   uploadZone.classList.add('has-files'); prompt.style.display = 'none';
-  list.innerHTML = uploadedFiles.map((f, i) => {
-    const size = f.size > 1048576 ? (f.size / 1048576).toFixed(1) + ' MB' : Math.round(f.size / 1024) + ' KB';
-    return `<div class="file-item"><span>📄</span><span class="file-item-name">${esc(f.name)}</span><span class="file-item-size">${size}</span><button class="file-item-remove" onclick="event.stopPropagation(); removeFile(${i})">✕</button></div>`;
+  list.innerHTML = originalDocs.map((d, i) => {
+    const b = d.bytes || 0;
+    const size = b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB';
+    const pp = d.numPages > 1 ? `${d.numPages} pages · ` : '';
+    return `<div class="file-item"><span>📄</span><span class="file-item-name">${esc(d.name)}</span>`
+      + `<span class="file-item-size">${pp}${size}</span>`
+      + `<button class="file-item-remove" onclick="event.stopPropagation(); removeDoc(${i})">✕</button></div>`;
   }).join('');
 }
 
@@ -1503,11 +1566,163 @@ Use null/[] for anything not stated. Do not invent constraints not on these page
   } catch (e) { return null; }
 }
 function scopeConstraintText(...a) { return _core().scopeConstraintText(...a); }
+/* ===== server intake: the plans go to the job folder, the takeoff runs on the VM ===========
+   (2026-09-02, Keith: the upload is how this tool actually gets used.)
+
+   What this replaces: 290 pages rendered in the tab, 30 sequential model calls over half an hour,
+   any one of which could 504 and destroy the lot — and originals discarded, so a $4.9M number had
+   no retrievable source. Now the ORIGINAL files are filed into a real RYC job folder and takeoff.js
+   reads them server-side, detached, surviving a closed tab. */
+const UPLOAD_API = '/api/ryc-desk-upload';
+const UPLOAD_CHUNK_RAW = 2.5 * 1024 * 1024;   // -> ~3.4MB base64, under the 4.5MB body ceiling
+
+async function uploadCall(stage, extra) {
+  const r = await fetch(UPLOAD_API, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ pw: RYCAuth.gate(), stage }, extra || {})),
+  });
+  const d = await r.json().catch(() => null);
+  return { status: r.status, ok: r.ok && d && d.ok !== false, data: d || {} };
+}
+
+/* btoa() takes a binary string, and String.fromCharCode(...bytes) on a 2.5MB slice overflows the
+   argument stack. Walk it in 32KB windows. */
+function arrayBufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  const STEP = 0x8000;
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += STEP) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + STEP));
+  }
+  return btoa(bin);
+}
+
+async function uploadOneDoc(uploadId, doc, onPct) {
+  const buf = await doc.file.arrayBuffer();
+  const total = Math.max(1, Math.ceil(buf.byteLength / UPLOAD_CHUNK_RAW));
+  let seq = 0, guard = 0;
+  while (seq < total) {
+    if (++guard > total * 3 + 10) throw new Error(`upload of "${doc.name}" is not making progress`);
+    const slice = buf.slice(seq * UPLOAD_CHUNK_RAW, (seq + 1) * UPLOAD_CHUNK_RAW);
+    const c = await uploadCall('chunk', { uploadId, file: doc.name, seq, data: arrayBufferToBase64(slice) });
+    if (!c.ok) {
+      /* The server tracks which slice it is waiting for and says so on a 409. Resuming from ITS
+         count is what makes a dropped connection recoverable instead of a restart — and it is the
+         only safe answer, since appending the wrong slice corrupts the PDF silently. */
+      if (c.status === 409 && Number.isInteger(c.data.expected)) { seq = c.data.expected; continue; }
+      throw new Error(c.data.error || `upload failed on "${doc.name}" (HTTP ${c.status})`);
+    }
+    seq++;
+    if (onPct) onPct(Math.round((seq / total) * 100));
+  }
+}
+
+async function serverIntake(inp) {
+  /* The pursuit must exist BEFORE the takeoff, because the VM saves its run onto it. This is also
+     what finally makes the drop path honest: a pursuit appears when the estimator commits, not
+     40 minutes later if a chain of model calls happens to survive. */
+  let pid = window._pursuitId;
+  if (!pid) {
+    const r = await RYCAuth.post('create_pursuit', { name: inp.name, location: inp.loc || null, source: 'upload' });
+    if (!r.ok || !r.data || !r.data.pursuit) throw new Error((r.data && r.data.error) || r.error || 'The pursuit could not be created.');
+    pid = r.data.pursuit.id;
+    window._pursuitId = pid;
+  }
+  const locBits = String(inp.loc || '').split(',').map(s => s.trim());
+  const project = { name: inp.name, city: locBits[0] || null, state: locBits[1] || null,
+    client_type: inp.ct, work_type: inp.wt, size_sf: inp.sf, target_budget: inp.target, scope: inp.scope };
+
+  loadLabel('Creating the job folder in SharePoint…');
+  const b = await uploadCall('begin', { name: inp.name, pursuit_id: pid, project });
+  if (!b.ok) {
+    const e = new Error(b.data.error || `could not create the job folder (HTTP ${b.status})`);
+    // Not configured on this deployment is the ONE case where running in the tab is still right.
+    e.fallback = b.data.kind === 'not_configured' || b.status === 503;
+    e.kind = b.data.kind;
+    throw e;
+  }
+  const uploadId = b.data.uploadId;
+
+  const totalBytes = originalDocs.reduce((n, d) => n + (d.bytes || 0), 0);
+  let doneBytes = 0;
+  for (const doc of originalDocs) {
+    await uploadOneDoc(uploadId, doc, (pct) => {
+      const overall = Math.round(((doneBytes + (doc.bytes || 0) * (pct / 100)) / Math.max(1, totalBytes)) * 100);
+      loadLabel(`Uploading to the job folder — ${overall}% (${doc.name})`);
+    });
+    doneBytes += doc.bytes || 0;
+  }
+
+  loadLabel('Filing the documents and starting the takeoff…');
+  const f = await uploadCall('finish', { uploadId, pursuit_id: pid, project });
+  if (!f.ok) throw new Error(f.data.error || `filing failed (HTTP ${f.status})`);
+
+  return { uploadId, pursuitId: pid, folder: f.data.folder, filed: (f.data.uploaded || []).length,
+           failed: (f.data.failed || []).length, takeoffStarted: !!f.data.takeoffStarted };
+}
+
+/* Watch the detached run. Deliberately a toast rather than a blocking screen: the work is on the
+   VM now, so the estimator is free to leave — and the poll re-attaches to a run that is already
+   going, rather than being the thing that keeps it alive. */
+function watchUploadTakeoff(uploadId, pursuitId, name) {
+  const key = 'upl' + uploadId;
+  const started = Date.now();
+  const tick = async () => {
+    const s = await uploadCall('status', { uploadId });
+    const d = s.data || {};
+    if (d.takeoff) {
+      const money = d.takeoff.total ? '$' + Number(d.takeoff.total).toLocaleString() : '—';
+      toast(key, { kind: 'ok', title: `${name} — takeoff complete`,
+        body: `${d.takeoff.divisions} packages, rollup ${esc(money)}, from ${d.takeoff.pages} pages.`
+          + (d.takeoff.cappedAt ? ` <b>Capped at ${d.takeoff.cappedAt} pages.</b>` : '')
+          + (d.workbook && d.workbook.webUrl
+            ? ` <a href="${esc(d.workbook.webUrl)}" target="_blank" rel="noopener">The workbook ↗</a> is filed in the job folder.` : ''),
+        action: { label: 'Open the pursuit', fn: `openPursuitById('${pursuitId}')` } });
+      historyCache = null;
+      return;
+    }
+    if (d.autoError) {
+      toast(key, { kind: 'warn', title: `${name} — the takeoff stopped`, body: esc(String(d.autoError).slice(0, 300)) });
+      return;
+    }
+    const p = d.progress || {};
+    const mins = Math.round((Date.now() - started) / 60000);
+    toast(key, { title: `${name} — ${p.label || 'running the takeoff'}`,
+      body: `${p.pct != null ? p.pct + '% · ' : ''}${mins} min · this runs on the server, you can close the tab.`,
+      autoDismiss: 60000 });
+    setTimeout(tick, 15000);
+  };
+  tick();
+}
+
 async function runEstimate() {
   const inp = getInputs();
   document.getElementById('errorMsg').style.display = 'none';
   if (!inp.name) return showErr('Project name is required.');
   if (uploadedFiles.length === 0 && !inp.scope) return showErr('Upload plans/specs or enter scope notes (ideally both).');
+
+  /* Documents present -> the server path. It files the originals and takes them off on the VM;
+     nothing about the estimate depends on this tab staying open. Only a deployment without the
+     intake configured falls back to running it here. */
+  if (originalDocs.length) {
+    setLoading(true);
+    try {
+      const out = await serverIntake(inp);
+      setLoading(false);
+      clearFormDirty();
+      const folderLink = out.folder && out.folder.webUrl
+        ? ` <a href="${esc(out.folder.webUrl)}" target="_blank" rel="noopener">Open the job folder ↗</a>` : '';
+      toast('upl' + out.uploadId, { title: `${inp.name} — ${out.filed} document(s) filed`,
+        body: `The takeoff is running on the server. You can close this tab.${folderLink}` });
+      if (out.failed) showErr(`${out.failed} document(s) could not be filed — check the job folder.`);
+      watchUploadTakeoff(out.uploadId, out.pursuitId, inp.name);
+      return;
+    } catch (e) {
+      if (!e.fallback) { setLoading(false); return showErr(e.message || 'The documents could not be filed.'); }
+      loadLabel('Server intake unavailable — running the takeoff here instead…');
+      await renderRemainingPages(200);
+    }
+  }
 
   const bm = segBenchmarks(inp);
   setLoading(true);
@@ -3472,7 +3687,7 @@ function submitDetails() { return window._manualMode && !window._pursuitId ? cre
 function refine() { document.getElementById('resultsPanel').style.display = 'none'; document.getElementById('inputPanel').style.display = 'block'; showStep('details'); syncInputMode(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 function resetAll() {
   ['f-name', 'f-loc', 'f-sf', 'f-target', 'f-scope'].forEach(id => document.getElementById(id).value = '');
-  uploadedFiles = []; renderFileList();
+  uploadedFiles = []; originalDocs = []; renderFileList();
   window._autofillDone = false; window._ctTouched = false; window._wtTouched = false; window._rfpMeta = null;
   const note = document.getElementById('autofillNote');
   if (note) { note.style.display = 'none'; note.textContent = ''; }
@@ -4001,7 +4216,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.50.0';
+const TOOL_VERSION = 'v1.51.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
@@ -4050,6 +4265,7 @@ async function saveRun(inp, p, batches, durationMs) {
     const meta = document.getElementById('resMeta');
     if (r.ok && d && d.ok) {
       window._runId = d.id;
+      clearFormDirty();   // the work is persisted; leaving is now safe
       const hadPursuit = !!window._pursuitId;
       if (d.pursuit_id) window._pursuitId = d.pursuit_id;
       // A fresh generation that landed on an EXISTING pursuit (same name) adopts its stored
@@ -4651,6 +4867,19 @@ async function openRun(id) {
   }
 }
 try { const ini = localStorage.getItem('ryc-est-initials'); if (ini) document.getElementById('f-est').value = ini; } catch {}
+
+/* THE UNSAVED-WORK GUARD WAS DEAD CODE (found 2026-09-02). markFormDirty() was defined,
+   confirmLeaveForm() and a beforeunload handler were both written against it — and NOTHING ever
+   called it, so _formDirty was permanently false and isDirtyForm() always returned false. Every
+   protection built here was inert: navigating to another view, clicking "＋ New pursuit" (which
+   calls resetAll) or refreshing discarded a dropped plan set without a word. An estimator lost 50
+   rendered pages that way. Wiring it is the whole fix; the guards were already correct. */
+['f-name', 'f-loc', 'f-sf', 'f-target', 'f-scope', 'f-ct', 'f-wt'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', markFormDirty);
+  el.addEventListener('change', markFormDirty);
+});
 
 // Auto-unlock an already-authenticated session. Deliberately the LAST statement in the script:
 // unlock() opens the Estimating Desk, and the desk's helpers include `const` declarations that
