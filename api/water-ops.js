@@ -65,7 +65,7 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.4.0-waterops';
+export const VER = '1.5.0-waterops';
 
 import { derive, normalOf, outOfFamily, DOSE_OUT_OF_FAMILY, LBS_PER_MILLION_GALLONS } from '../civicscope-water/derive.js';
 /* Re-exported so a gate importing "what the server uses" gets the server's own copy, not a second
@@ -195,7 +195,7 @@ const contextFor = (supply, normals) => ({
    supersedes nothing and needs no reason. It walks exactly ONE day forward on purpose: that day's
    own successor only depends on IT through its meter and tank levels, which this does not touch.
 */
-async function rederiveSuccessor(supply, ep, afterDate) {
+async function planSuccessor(supply, ep, afterDate, newRow, newFeeds) {
   const rows = await sb(
     `water_readings?entry_point_id=eq.${ep.id}&reading_date=gt.${afterDate}&superseded_at=is.null`
       + '&select=id,reading_date&order=reading_date.asc&limit=1'
@@ -203,27 +203,35 @@ async function rederiveSuccessor(supply, ep, afterDate) {
   const next = rows && rows[0];
   if (!next) return null;
 
-  /* ⛔ THIS FUNCTION HAD NEVER RE-DERIVED A SINGLE DAY (found 2026-09-02). It was written to stop
-     a corrected day leaving a stale interval behind it, and it carried three defects that between
-     them made it either inert or destructive — in the one path that exists to protect a record
-     behind a report signed under 1976 PA 399.
+  /* ⛔ THIS FUNCTION HAD NEVER RE-DERIVED A SINGLE DAY (found 2026-09-02). Written to stop a
+     corrected day leaving a stale interval behind it, it carried three defects that between them
+     made it either inert or destructive — in the one path that exists to protect a record behind a
+     report signed under 1976 PA 399.
 
      1. `feeds` was built as an ARRAY. derive() indexes it by feed id (`input.feeds[f.id]`), which
         on an array is undefined — so every feed looked like a missing tank level, derive() raised
-        "tank level is required", `out.ok` was false and the function returned before writing
-        anything. On an ordinary day it therefore did nothing at all, silently.
+        "tank level is required", `out.ok` was false and it returned before writing anything. On an
+        ordinary day it therefore did nothing at all, silently.
      2. The residuals were read as `free_cl` / `total_cl` / `ortho`. Those columns do not exist —
         water_readings stores `tap_free` / `tap_total` / `tap_ortho` — and pressure and temp were
         not carried at all. So on the one day defect 1 did NOT block (a zero-flow successor, where
         the tank level is legitimately absent) the PATCH wrote `{...out.reading}` with every one of
         those fields null and ERASED the operator's plant-tap sample, pressure and temperature.
      3. The feed PATCH wrote `dose_mgl: fd.dose_mgl` — wrong on both sides. derive() returns
-        `dose_mg_l` so the value was undefined, and `dose_mgl` is not a column so the write would
-        have been rejected anyway. `ortho_mg_l` and `avail_lbs` were never in the PATCH at all.
-        A successor's solution_lbs could move while its dose stayed as computed against a baseline
-        that no longer exists — and build-mor.py copies stored values straight into the filing.
+        `dose_mg_l` so the value was undefined, and `dose_mgl` is not a column, so the write would
+        have been rejected anyway. A successor's solution_lbs could move while its dose stayed as
+        computed against a baseline that no longer exists — and build-mor.py copies stored values
+        straight into the filing.
 
-     Read the successor's own observed inputs back in the shape derive() actually takes. */
+     ⛔ IT NO LONGER WRITES ANYTHING (migration 064, 2026-09-02). It PLANS the successor and hands
+     the result to `water_submit_reading()`, which commits this day and the recomputed one in a
+     single transaction. That is what closes Codex finding 1: there is no longer a boundary between
+     the two writes for a process to die in.
+
+     ⚠ The baseline it derives against is the row that is ABOUT TO BE INSERTED, not one read back
+     from the database — which is the whole reason this can be planned before the write. `prev` is
+     assembled from the caller's own derived values; a well's next day depends on this one only
+     through its meter reading and its tank levels, all of which are already known here. */
   const [full] = await sb(`water_readings?id=eq.${next.id}&select=*`);
   if (!full) return null;
   const fr = await sb(`water_feed_readings?reading_id=eq.${next.id}&select=*`);
@@ -236,23 +244,28 @@ async function rederiveSuccessor(supply, ep, afterDate) {
       (fr || []).map((x) => [x.feed_id, { tank_level: x.tank_level, refill_to: x.refill_to }])
     ),
   };
-  const prev = await previousReading(ep.id, next.reading_date);
+  const prev = {
+    meter_reading: newRow.meter_reading,
+    feeds: Object.fromEntries(
+      (newFeeds || []).map((f) => [f.feed_id, { tank_level: f.tank_level, refill_to: f.refill_to }])
+    ),
+  };
   const normals = await plantNormals(ep, next.reading_date);
   const out = derive({ entryPoint: ep, feeds: ep.feeds, prev, input,
     context: contextFor(supply, normals) });
-  /* A successor that will not re-derive is REPORTED, never silently left stale. It means the
-     edit made the following day impossible (a meter that now runs backwards, say), and the
-     person making the edit is the only one who can resolve it. */
+
+  /* A successor that will not re-derive is REPORTED, never silently left stale. It means the edit
+     made the following day impossible (a meter that now runs backwards, say), and the person
+     making the edit is the only one who can resolve it. Reported BEFORE anything is written, so
+     the caller can refuse the whole submit rather than commit half of it. */
   if (!out.ok) return { id: next.id, date: next.reading_date, ok: false, errors: out.errors };
 
   /* ⛔ RE-DERIVING MUST NOT ERASE WHAT THE OPERATOR WAS SHOWN (Codex finding 6, 2026-09-02).
-     This PATCHed `flags: out.flags` outright, so a later backfill that moved the trailing median
-     could silently delete a `dose_high` from a day nobody had reopened — destroying the only
-     evidence used to decide whether a value is fit to file. The current flags still have to be
-     current (a `no_flow` genuinely stops being true when the baseline moves), so the row keeps the
-     freshly computed set AND an audit entry carrying what it replaced.
-     ⚠ This is the in-row form of the fix. The full answer is a separate immutable
-     submission-time record — see `## Open Action Items` — and it needs a migration. */
+     This replaced `flags` outright, so a later backfill that moved the trailing median could
+     silently delete a `dose_high` from a day nobody had reopened — destroying the only evidence
+     used to decide whether a value is fit to file. The current flags still have to be current (a
+     `no_flow` genuinely stops being true when the baseline moves), so the row keeps the freshly
+     computed set AND an audit entry carrying what it replaced. */
   const priorFlags = Array.isArray(full.flags) ? full.flags : [];
   const changed = JSON.stringify(priorFlags.map((f) => f.code).sort())
                !== JSON.stringify(out.flags.map((f) => f.code).sort());
@@ -265,42 +278,9 @@ async function rederiveSuccessor(supply, ep, afterDate) {
     });
   }
 
-  /* ⛔ `return=minimal` CANNOT TELL A SUCCESSFUL UPDATE FROM ONE THAT MATCHED NO ROW (Codex
-     finding 1). Both come back 204. Every PATCH here now returns its representation and the
-     affected row count is asserted, because "I updated the successor" and "I updated nothing"
-     must not look the same to a caller that is about to report success. */
-  const writeErrors = [];
-  const patched = await sb(`water_readings?id=eq.${next.id}`, {
-    method: 'PATCH', headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({ ...out.reading, flags }),
-  }).catch((e) => { writeErrors.push({ row: 'reading', msg: String((e && e.message) || e) }); return null; });
-  if (patched && patched.length !== 1) {
-    writeErrors.push({ row: 'reading', msg: `expected 1 row updated, got ${patched.length}` });
-  }
-
-  /* Every derived column moves together or the row is internally inconsistent: solution_lbs
-     against a fresh baseline with a dose computed against the old one is worse than either. */
-  for (const fd of out.feeds) {
-    const r = await sb(`water_feed_readings?reading_id=eq.${next.id}&feed_id=eq.${fd.feed_id}`, {
-      method: 'PATCH', headers: { Prefer: 'return=representation' },
-      body: JSON.stringify({
-        solution_lbs: fd.solution_lbs, avail_lbs: fd.avail_lbs,
-        dose_mg_l: fd.dose_mg_l, ortho_mg_l: fd.ortho_mg_l,
-      }),
-      /* ⚠ The blanket `.catch(() => {})` that used to sit here reasoned that "a feed row that is
-         not there cannot be stale" — true, but it also swallowed the rejected write caused by
-         defect 3 above, which is why a dead column name survived in a compliance path. A failure
-         is now REPORTED with the row it belongs to. */
-    }).catch((e) => { writeErrors.push({ feed_id: fd.feed_id, msg: String((e && e.message) || e) }); return null; });
-    if (r && r.length !== 1) {
-      writeErrors.push({ feed_id: fd.feed_id, msg: `expected 1 feed row updated, got ${r.length}` });
-    }
-  }
-
   return {
-    id: next.id, date: next.reading_date, ok: writeErrors.length === 0,
-    derived: out.reading, feeds: out.feeds,
-    ...(writeErrors.length ? { writeErrors } : {}),
+    id: next.id, date: next.reading_date, ok: true,
+    reading: out.reading, feeds: out.feeds, flags,
   };
 }
 
@@ -830,92 +810,82 @@ export default async function handler(req, res) {
            The old row is now stood down FIRST. If the insert then fails the correction is put back,
            because a superseded day with nothing replacing it would silently delete a record that
            is behind a report signed under 1976 PA 399. */
-        if (supersedes) {
-          await sb(`water_readings?id=eq.${supersedes.id}`, {
-            method: 'PATCH', headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ superseded_at: new Date().toISOString() }),
-          });
-        }
-        let inserted;
-        try {
-          inserted = await sb('water_readings', {
-          method: 'POST',
-          headers: { Prefer: 'return=representation' },
-          body: JSON.stringify([{
-            supply_id: p.supply.id,
-            entry_point_id: ep.id,
-            reading_date: date,
-            reading_time: body.reading_time || null,
-            operator_id: operator ? operator.id : null,
-            operator_initials: operator ? operator.initials : (body.operator_initials || null),
-            ...out.reading,
-            notes: body.notes || null,
-            flags: out.flags,
-            source: body.source === 'backfill' ? 'backfill' : 'tablet',
-            corrects: supersedes ? supersedes.id : null,
-            correction_reason: body.correction_reason || null,
-          }]),
-          });
-        } catch (e) {
-          // Put the day back exactly as it was. A correction that fails must leave the record it
-          // was trying to amend still standing.
-          if (supersedes) {
-            await sb(`water_readings?id=eq.${supersedes.id}`, {
-              method: 'PATCH', headers: { Prefer: 'return=minimal' },
-              body: JSON.stringify({ superseded_at: null }),
-            });
-          }
-          throw e;
-        }
-        const row = inserted[0];
+        /* ⛔ ONE VISIT IS ONE WRITE (migration 064, 2026-09-02).
+           This used to be FOUR PostgREST calls with no transaction between them — supersede,
+           insert reading, insert feeds, recompute the next day — and every boundary was somewhere
+           the record could be left half-made. Codex measured both halves of that (findings 1 and
+           2): a failed feed insert left a live reading carrying pumpage and no chemical usage while
+           the complete row it superseded stayed stood down; a half-updated successor ended up with
+           chlorine on the new baseline and phosphate on the old one, and build-mor.py copies stored
+           values straight into the filing. A compensating rollback in JS narrowed that window; it
+           could not close it, because a lambda that dies mid-sequence leaves nobody to compensate.
 
-        /* ⛔ A READING WITHOUT ITS CHEMICAL ROWS IS AN INCOMPLETE REGULATORY RECORD (Codex
-           finding 2). The rollback above covers a failed reading insert only: if the feed insert
-           then failed, the replacement row stayed live with no feed children while the complete
-           row it superseded stayed stood down. The whole graph is now put back.
-           ⚠ This is a compensating rollback, not a transaction — the real fix is one Postgres
-           function doing supersede + insert + feeds + successor atomically, which needs a
-           migration and is in `## Open Action Items`. */
-        if (out.feeds.length) {
-          try {
-            await sb('water_feed_readings', {
-              method: 'POST', headers: { Prefer: 'return=minimal' },
-              body: JSON.stringify(out.feeds.map((f) => ({ reading_id: row.id, ...f, kind: undefined }))),
-            });
-          } catch (e) {
-            await sb(`water_readings?id=eq.${row.id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } })
-              .catch(() => { /* reported below either way */ });
-            if (supersedes) {
-              await sb(`water_readings?id=eq.${supersedes.id}`, {
-                method: 'PATCH', headers: { Prefer: 'return=minimal' },
-                body: JSON.stringify({ superseded_at: null }),
-              }).catch(() => {});
-            }
-            return res.status(500).json({
-              error: 'feed_write_failed', saved: false,
-              msg: 'The chemical rows could not be written, so the whole day was rolled back and nothing was changed. Try again.',
-            });
-          }
-        }
-        /* The day after this one derived against whatever used to be here. Recompute it now, so a
-           corrected or back-filled day cannot leave a stale interval behind it in the filing. */
-        const after = await rederiveSuccessor(p.supply, ep, date)
+           `water_submit_reading()` does all four in one transaction and asserts an affected-row
+           count on every statement. It performs NO arithmetic — everything below is derived here
+           first, by the one derive() both ends import, and handed over as values. Putting the dose
+           formula in PL/pgSQL to win atomicity would recreate the exact defect this product exists
+           to remove, in the last place anyone would look for it. */
+        const successor = await planSuccessor(p.supply, ep, date, out.reading, out.feeds)
           .catch((e) => ({ ok: false, threw: String((e && e.message) || e) }));
 
-        /* ⛔ `ok: true` USED TO MEAN "THE READING SAVED" AND WAS READ AS "EVERYTHING WORKED"
-           (Codex finding 1). A successor that half-updated still came back 200 / ok:true and the
-           tablet closed the form on it. `ok` now covers the WHOLE operation and a partial result
-           answers 207, which is still 2xx — deliberately, because the reading itself IS committed
-           and a non-2xx would make the offline queue re-send it and collide with itself.
-           `saved` is the flag a client uses to decide whether to re-queue; `ok` is the flag it
-           uses to decide whether to say "done". */
-        const partial = !!(after && after.ok === false);
-        return res.status(partial ? 207 : 200).json({
-          ok: !partial, saved: true,
-          id: row.id, derived: out.reading, feeds: out.feeds, flags: out.flags,
+        /* A successor that cannot be recomputed is refused BEFORE anything is written, rather than
+           committed and reported afterwards. The edit has made the following day impossible — a
+           meter that now runs backwards, say — and writing this day anyway would leave the month
+           inconsistent in a way only a person can resolve. */
+        if (successor && successor.ok === false) {
+          return res.status(409).json({
+            error: 'successor_blocked', saved: false,
+            msg: `Saving this day would make ${successor.date || 'the day after it'} impossible to recompute, so nothing was written. `
+               + `That day has to be corrected first.`,
+            successor,
+          });
+        }
+
+        let result;
+        try {
+          result = await sb('rpc/water_submit_reading', {
+            method: 'POST',
+            headers: { Prefer: 'return=representation' },
+            body: JSON.stringify({
+              p_supersedes: supersedes ? supersedes.id : null,
+              p_reading: {
+                supply_id: p.supply.id,
+                entry_point_id: ep.id,
+                reading_date: date,
+                reading_time: body.reading_time || null,
+                operator_id: operator ? operator.id : null,
+                operator_initials: operator ? operator.initials : (body.operator_initials || null),
+                ...out.reading,
+                notes: body.notes || null,
+                flags: out.flags,
+                source: body.source === 'backfill' ? 'backfill' : 'tablet',
+                corrects: supersedes ? supersedes.id : null,
+                correction_reason: body.correction_reason || null,
+              },
+              // `kind` is derive()'s label for the caller, not a column. The function REFUSES any
+              // key that is not a real column rather than dropping it silently, so it must go.
+              p_feeds: out.feeds.map(({ kind, ...f }) => f),
+              p_successor: successor
+                ? { id: successor.id, reading: successor.reading, feeds: successor.feeds, flags: successor.flags }
+                : null,
+            }),
+          });
+        } catch (e) {
+          /* The transaction rolled back, so there is nothing to undo and nothing was half-written.
+             `saved: false` is what tells the tablet's offline queue this one may be re-sent. */
+          return res.status(500).json({
+            error: 'write_failed', saved: false,
+            msg: 'Nothing was written — the whole day was rolled back. Try again.',
+            detail: String((e && e.message) || e).slice(0, 300),
+          });
+        }
+
+        const written = Array.isArray(result) ? result[0] : result;
+        return res.status(200).json({
+          ok: true, saved: true,
+          id: written && written.id, derived: out.reading, feeds: out.feeds, flags: out.flags,
           ...(supersedes ? { corrected: supersedes.id } : {}),
-          ...(after ? { rederived: after } : {}),
-          ...(partial ? { msg: `This day saved, but ${after.date || 'the following day'} could not be fully recomputed against it. Its stored numbers may not match this change — tell Keith before the month is filed.` } : {}),
+          ...(successor ? { rederived: { id: successor.id, date: successor.date, ok: true } } : {}),
         });
       }
 
