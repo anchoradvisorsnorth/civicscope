@@ -66,7 +66,18 @@ export function outOfFamily(value, normal) {
 //               what happened for the whole life of the product until 2026-09-02.
 //
 // Returns { ok, errors[], flags[], reading{}, feeds[] }. `errors` block the submit; `flags` are
-// shown to the operator, acknowledged, and stored on the row.
+// shown to the operator and stored on the row.
+//
+// ⚠ THEY ARE NOT ACKNOWLEDGED, AND THIS COMMENT USED TO SAY THEY WERE (Codex finding 4,
+// 2026-09-02). `ok` depends only on `errors`, so the Submit button is live the moment the form is
+// valid however loud the warning is, and nothing records that the operator read it, reread the
+// tank, or accepted it deliberately. A mistyped tank level giving a dose nine times the plant
+// median is therefore warned about and filed with equal ease.
+// Whether a high-consequence flag should REQUIRE an "I reread and confirm" — and be stored with
+// the actor and the time — is a live product decision for Keith, not something to slip in: turning
+// every advisory into a hard stop at a well house is how an operator learns to defeat the app.
+// Tracked in `Civicscope/CLAUDE.md` → `## Open Action Items`. Until then this comment tells the
+// truth about what the flag does, which is: it is displayed, and it is stored.
 // ---------------------------------------------------------------------------------------------
 export function derive({ entryPoint, feeds = [], prev = null, input = {}, context = {} }) {
   const errors = [];
