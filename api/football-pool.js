@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.16.0-slate-order';  // the lock email lists games in kickoff order, like the picks card
+const VER = '3.16.1-slate-order';  // the lock email lists games in kickoff order, dated, like the picks card
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1349,7 +1349,7 @@ export default async function handler(req, res) {
             const isTest = !!wk.isTest || isSandbox(slug);
             const tag = isTest ? '[TEST — no action needed] ' : '';
             const gameRows = slateOrder(wk.games).map(g =>
-              `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085">${new Date(g.date).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET</td></tr>`).join('');
+              `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085">${new Date(g.date).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET</td></tr>`).join('');
             for (const p of players) {
               // Channel choice is per member. Email defaults on; a member who turned it off is skipped.
               if (p.email && p.wantsEmail) {

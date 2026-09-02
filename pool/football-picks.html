@@ -87,6 +87,14 @@
 <script src="/pool/scoring.js"></script>
 <script>
 const API='/api/football-pool';
+/* ⛔ A KICKOFF LABEL NEEDS THE DATE, NOT JUST THE WEEKDAY (found 2026-09-02 while ordering the
+   card — the ordering is what made it matter). Every game row read "Sun 1:00 PM ET". Real Week 1
+   holds CFB on Sat Sep 5 / Sun Sep 6 AND the NFL opener on Sun Sep 13, so THREE different days
+   render as two indistinguishable weekday names, and once the card is sorted by kickoff it reads
+   "Sun 7:30 PM" above "Sun 1:00 PM" — which looks like the sort is broken when it is exactly
+   right. A label that cannot distinguish the days cannot justify the order. */
+const fmtKick=d=>new Date(d).toLocaleString('en-US',
+  {timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET';
 let me=null,pin=null,myId=null,week=null,slugName=null,picks={},lockedMine=false;
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 function toast(t,ms){const m=document.getElementById('msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(()=>m.style.display='none',ms||3000);}
@@ -277,11 +285,11 @@ function render(){
       +' <span class="lab">'+(w==='OVER'?'more than ':'less than ')+g.total+'</span></button>';
     if(g.market==='total'){
       return '<div class="game"><div class="ghead"><span>'+esc(g.short)+' · OVER/UNDER</span><span>'+
-        new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET · total: <b>'+g.total+'</b></span></div>'+
+        fmtKick(g.date)+' · total: <b>'+g.total+'</b></span></div>'+
         '<div class="sides">'+ouSide('OVER')+ouSide('UNDER')+'</div></div>';
     }
     return '<div class="game"><div class="ghead"><span>'+esc(g.short)+' · '+g.league.toUpperCase()+'</span><span>'+
-      new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET · '+(g.pickem?'<b>PICK &rsquo;EM</b> — straight up':'line: '+esc(g.spreadText))+'</span></div>'+
+      fmtKick(g.date)+' · '+(g.pickem?'<b>PICK &rsquo;EM</b> — straight up':'line: '+esc(g.spreadText))+'</span></div>'+
       '<div class="sides">'+side(g.awayAbbrev)+side(g.homeAbbrev)+'</div></div>';
   }).join('');
   document.getElementById('content').innerHTML='<div class="dl" id="deadline" style="display:none"></div>'

@@ -209,7 +209,12 @@ let weeks=[],viewSlug=null,liveSlug=null;
 let pinnedSlug=null;
 try{const q=new URLSearchParams(location.search).get('week');if(q&&/^[a-z0-9-]{1,40}$/i.test(q))pinnedSlug=q;}catch(e){}
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-const fmtDT=d=>new Date(d).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET';
+/* The DATE is part of a kickoff, not decoration (2026-09-02). boardOrder interleaves the two
+   codes by time, and a Week 1 slate can hold college on Sat Sep 5 / Sun Sep 6 and the NFL opener
+   on Sun Sep 13 — three days, two weekday names. Without the date the board shows two rows both
+   labelled "Sun" in an order the reader cannot verify. Also used for the deadline note, where it
+   is just as welcome. */
+const fmtDT=d=>new Date(d).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET';
 
 /* Scoring, market labels and the ESPN live-score fetch now live in ONE place shared with the
    bookmarkable live tracker — /pool/scoring.js. A third copy of the cover rule was exactly the

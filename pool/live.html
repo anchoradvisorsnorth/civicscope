@@ -72,7 +72,8 @@
 <script>
 const API='/api/football-pool';
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-const fmtDT=d=>new Date(d).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})+' ET';
+// Weekday alone cannot tell Sun Sep 6 from Sun Sep 13 — see football.html (2026-09-02).
+const fmtDT=d=>new Date(d).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' ET';
 let timer=null,allWeeks=[];
 
 /* THE SEASON, IN DOLLARS (Keith 2026-08-25). Points answer "how is this week going"; the ledger
