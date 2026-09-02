@@ -2070,6 +2070,18 @@ export default async function handler(req, res) {
              materials, and then this is the only figure that describes the document at all. */
           completed_and_stored: (d.completed_and_stored === null || d.completed_and_stored === undefined
             || d.completed_and_stored === '') ? null : Number(d.completed_and_stored),
+          /* The G702 to-date ladder — migration 065. The reader has always returned all four and
+             nothing kept them, so the office re-derives retainage by hand: 330 per-vendor workbooks
+             in SharePoint whose one live column is "what are we holding on this sub, on this job".
+             ⛔ ALL FOUR ARE CUMULATIVE, not per-period. `retainage` is TOTAL held to date, so it is
+             never summed across a vendor's applications — ryc_retainage_v takes the latest. Only
+             `work_this_period` and `amount` describe a single period.
+             `less_previous` is the term that makes a catch-up application legible: Legacy Plumbing
+             billed 96,105.00 this period and was due 41,790.04, which is not a retainage rate at
+             any percentage and reads as a bad number without line 7. */
+          ...Object.fromEntries(['retainage', 'eligible_to_date', 'less_previous',
+            'completed_to_date'].map((k) => [k,
+            (d[k] === null || d[k] === undefined || d[k] === '') ? null : Number(d[k])])),
           job_text: d.job_text || null,
           job_no, job_name, job_source,
         };
