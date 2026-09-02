@@ -2199,7 +2199,22 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    `/admin` → **Water**, split by source. **The MOR reminder fires 2026-09-07 for August**, so
    August has to be entered before then or the reminder tells Michelle her month is empty. Keith's
    sequence is in `Centreville\CLAUDE.md` → **THE AUGUST PLAN**.
-2. 🚩 **TWO DEPLOY GATES ARE INTERMITTENTLY RED, AND FOR BOTH THE REMEDY IS "RUN IT AGAIN"
+2. 🚨 **THE WATER WRITE PATH IS NOT ATOMIC, AND A COMPENSATING ROLLBACK IS NOT A TRANSACTION**
+   (Codex findings 1, 2 and 6, 2026-09-02). `submit_reading` supersedes the old row, inserts the
+   replacement, inserts its feed rows, then re-derives the successor — **four separate PostgREST
+   calls with no transaction.** 2026-09-02 closed the worst of it: a failed feed insert now rolls
+   the whole day back, every PATCH asserts an exact affected-row count, and a half-updated
+   successor answers **207** instead of `ok:true`. But a crash between calls can still leave a
+   partial graph, and the client-visible contract is doing work the database should do.
+   **The fix is one Postgres function** (`migrations/NNN_water_submit_txn.sql` + its `.verify.sql`,
+   through `node scripts/db-migrate.js apply`) doing supersede → insert reading → insert feeds →
+   re-derive successor in a single transaction. The same migration should add the **immutable
+   submission-time flag record** Codex asked for — today the successor's re-derived flags carry an
+   in-row `rederived` audit entry holding what they replaced, which preserves the evidence but
+   keeps it in the same mutable jsonb column as the live flags. ⚠ **The derivation gate cannot see
+   any of this** — it is pure-function only and never exercises a REST write, which is why Codex
+   found it and the gate did not. A mock-REST harness for the write paths belongs with it.
+3. 🚩 **TWO DEPLOY GATES ARE INTERMITTENTLY RED, AND FOR BOTH THE REMEDY IS "RUN IT AGAIN"
    (2026-08-26).** (a) The **estimating smoke gate** failed at exit 40 with
    `Municipal — JSON UNPARSEABLE — likely truncation` on a deploy touching only
    `civicscope-admin/index.html` and `api/admin.js`, neither of which is in `/api/claude`'s code
@@ -2210,7 +2225,15 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    `foreign-journal-ignored`, or the certification line cannot mean what this file says it means.
    ⚠ **Two flaky gates is the point at which "re-ran it and it went green" stops being evidence of
    anything.**
-3. **"Mark as filed" is the last step of the water loop, and it is HALF BUILT.** `record_filing` is
+4. 🚩 **`/api/muni-ask` HAS NO RATE LIMIT IN FRONT OF A PAID ANTHROPIC CALL** (Codex finding 9).
+   Any POST with a valid tenant and a question of permitted length runs retrieval and then invokes
+   Anthropic. No per-IP, per-session or per-tenant throttle, no concurrency cap, no daily abuse
+   budget. **Public access is the point; unmetered paid inference is not**, and one Anthropic key
+   with an org spend limit runs the entire stack ([[reference_anthropic_shared_key_spof]]) — so a
+   bot on Centreville's question box is a way to take down CivicScope, CRM and the RYC tooling at
+   once. Needs a tenant-aware limit plus a bounded daily budget and a resident-friendly retry
+   message. ⚠ A hidden URL and a browser sign-in are not API protection — the route is open.
+5. **"Mark as filed" is the last step of the water loop, and it is HALF BUILT.** `record_filing` is
    open and working (it took all seven 2026 workbooks), but nothing on the page reaches it, so
    recording a filing still needs a script. Remaining: an `extract` action on `api/build-mor.py`
    returning `{cover, filed}` from an uploaded workbook — the EGLE cell map must **move** there
@@ -2218,66 +2241,128 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    upload + date control in the Reports filed panel. `record_filing` already accepts
    `source:'product'` and nothing writes it yet, so the first report filed from here stays
    distinguishable from the seven that came before.
-4. 🚩 **Bristol zoning answers 10 of 15 ordinary questions** (`question-bank.mjs`, first run
+6. 🚩 **Bristol zoning answers 10 of 15 ordinary questions** (`question-bank.mjs`, first run
    2026-08-26). The five gaps — shed permit, garage setback, house height, RV parking, lot coverage
    — share one cause: **the district guarantee only fires when the reader names a district**, and
    real questions ("how tall can a house be?") don't. Height and lot coverage are columns in a
    table the corpus now retrieves correctly. Next fix: infer the district from the question's
    subject, or guarantee the residential tables on any dimensional question.
-5. **Audit the pool's remaining best-effort SMS sends.** `notifyLock`, `notifyWinner` and both
+7. 🚩 **ASK CAN PRESENT PLANNING COMMISSION MINUTES AS ADOPTED AUTHORITY** (Codex finding 10).
+   `api/muni-ask.js` hard-codes **every** document in the `Zoning & Planning Commission` collection
+   as `primary`, while the comment three lines above says minutes and plans are secondary *because
+   they record discussion rather than enactment*. The client then sorts primary citations ahead of
+   background and **omits the "discussed or planned, not adopted" divider** for them. That
+   collection holds 103 Centreville documents. **Authority is a property of the document, not of
+   the folder it was filed in** — minutes stay secondary even when they sit beside enacted zoning
+   material. ⚠ Codex flagged this as *possible*: it confirmed the code contradiction but did not
+   run a paid Ask query to prove a specific minutes document is cited that way.
+8. **`cited_collections` logs what was RETRIEVED, not what was CITED** (Codex finding 11, Low).
+   `api/muni-ask.js` builds it from every passage in `used`; the UI derives real citations from the
+   `[n]` markers in the answer. So an answer citing only the Code logs Code + Website + minutes as
+   relied upon, and the corpus-repair analytics report reliance that never happened. Parse the
+   markers server-side once and log from those.
+9. **Audit the pool's remaining best-effort SMS sends.** `notifyLock`, `notifyWinner` and both
    reminders still swallow individual send failures — anything that does not report a per-channel
    count can fail exactly the way the "all picks are in" notice did on 2026-08-09: sent nothing,
    left no trace, and latched its own already-notified flag before calling. Fixed for that one path
    (`3.8.0-allinreceipt`); the others are unaudited. Detail in `Pools/CLAUDE.md`.
-6. **Fable review R2 — 30-day school-BOT plan, Week 1.** ~50-district target list (the
+10. **Fable review R2 — 30-day school-BOT plan, Week 1.** ~50-district target list (the
    agenda/BoardDocs mining technique is proven), Triage Memo template, outreach sequence. The
    schools wedge has **zero organic pull** (4 runs ever, nearly all internal) — founder-led
    outreach is the only test there is. Plan:
    `work product/CivicScope_School_BOT_Pivot_30Day_Plan.md`, graded B+ in the Fable review.
-7. **Fable review R6 — repeat-run variance on the infrastructure vertical.** Two identical
+11. **Fable review R6 — repeat-run variance on the infrastructure vertical.** Two identical
     watermain runs 43s apart returned $1.05M–$1.55M vs $1.85M–$2.75M (±76% on the midpoint);
     municipal and schools were deterministic across repeats. Add a repeat-run stability probe to
     the QA harness; consider prompt-grounding discipline.
-8. **Deploy-process findings still unresolved**
+12. **Deploy-process findings still unresolved**
     (`REVIEW_civicscope-deploy-process_2026-08-01.md`): readiness polling instead of the 75s sleep,
     `pause` in the .bat, production-write tests. Finding #1 (blast radius) was fixed 2026-08-02 —
     `push_civicscope.ps1` now requires `-Paths`.
-9. **Move the daily digest cron to the VM.** Vercel cron is unreliable (missed the April 9–10
+13. **Move the daily digest cron to the VM.** Vercel cron is unreliable (missed the April 9–10
     digests). Same pattern as the bookmarks pipeline — a `curl` trigger. **Less urgent since
     2026-08-11:** the digest now reports a *named ET calendar day*, so a missed day is no longer
     lost — re-send it with `POST /api/digest?date=YYYY-MM-DD`. Under the old rolling window a late
     cron silently dropped the uncovered hours forever.
-10. **A model-retirement calendar.** The last unbuilt piece of the 2026-06-17 QC programme (the
+14. **A model-retirement calendar.** The last unbuilt piece of the 2026-06-17 QC programme (the
     other two — the daily VM smoke and the always-on `cs-health` — are live). Nothing currently
     warns before a pinned model alias retires under the product.
-11. **`Applications and Permits` returned 0 documents** on Centreville. The folder is linked from
+15. **`Applications and Permits` returned 0 documents** on Centreville. The folder is linked from
     the village-info page and enumerates clean but holds nothing indexable. **Check before telling
     any village its permit forms are covered.**
-12. **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it (verified
+16. **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it (verified
     live 2026-08-27: `logo_url: null`). Bristol hotlinks the Town's own PNG. Needs a logo file from
     the Village if Keith wants parity — the Village has to supply it.
-13. **Bristol town-hall counter hours — only Keith can close this.** Not a bug: verified 2026-08-26
+17. **Bristol town-hall counter hours — only Keith can close this.** Not a bug: verified 2026-08-26
     that Bristol publishes no counter hours on its own site, and the tool already answers with the
     address, the meeting schedule and the Clerk's number. Closing it means getting the hours from
     the Town and adding them to the corpus.
-14. **CivicScope restructure — loose ends (June 6).** Version comments on the Schools + Infra tool
+18. **CivicScope restructure — loose ends (June 6).** Version comments on the Schools + Infra tool
     footers; sweep the inert `.timeline-tease` / `.tease-*` dead CSS from the three tools; a final
     end-to-end harness tire-kick of Schools + Infra (Municipal confirmed). The `Segment Hub Pages`
     table near the top still lists Infrastructure as "coming soon".
-15. ⏸ **Groundwork (newsletter) — PARKED since 2026-06-11.** Entire backlog frozen: Resend send
+19. ⏸ **Groundwork (newsletter) — PARKED since 2026-06-11.** Entire backlog frozen: Resend send
     wiring, VM cron, PDF fallback for Mishawaka packets, Cost Lens integration, project-tracker
     dedup. Architecture preserved in **Groundwork — Architecture**. ⛔ Separate product from the
     Municipal Agenda Notifier — **do not merge**. **Reactivation trigger: Keith restarts the
     newsletter.**
-16. ⏸ **The `tenants` table and its `acme`/`ryc` rows are still in Supabase and nothing reads them
+20. ⏸ **The `tenants` table and its `acme`/`ryc` rows are still in Supabase and nothing reads them
     — PARKED deliberately.** Its DDL is one of the 15 legacy `schema_*.sql` files that were never
     version controlled (`migrations/LEGACY_INVENTORY.md`), so a `DROP` has no undo. Historical
     `tool_runs` rows with `product = 'gc-acme'` / `'gc-int-acme'` stay too — they are the record of
     what ran, and `/admin`'s Activity feed still badges them correctly. **Reactivation trigger:
     Keith asks for the drop; it is one migration.**
-17. ⏸ **6 segments across the corpora match no chunk exactly — PARKED.**
+21. ⏸ **6 segments across the corpora match no chunk exactly — PARKED.**
     `reconcile-table-flags.mjs` reports them. Left alone rather than guessed at. **Reactivation
     trigger: a table goes missing from an answer.**
+
+### ✅ Closed 2026-09-02 (round 2) — Codex adversarial review of Ask + Water
+
+Report: `codex-reviews/reports/REVIEW_water-entry-validation_2026-09-02.md`. Verdict was **"fix
+before relying on tablet submissions for the MOR"** — 12 findings, 4 High. Shipped in `3af8b2a`,
+gates green. **What Codex confirmed about the morning's work:** `rederiveSuccessor()`'s
+one-day-forward walk is correct in shape; `normalOf()`'s positive-only filter moved five medians by
+0.02–0.26 mg/L and **changed no out-of-family flag in any filed 2026 month** (March 1 still reads
+~9× normal); the 5% dose tolerance was not widened; there is no per-keystroke server-call
+regression. **What it caught that the gate could not** — and the reason it could not is worth
+keeping: the gate is pure-function only and never exercises a REST write.
+
+- ✅ **A partial successor re-derive reported itself as complete success** (F1, High). `ok:true`
+  meant "the reading saved" and was read as "everything worked", and the tablet closed the form on
+  it. `ok` now covers the whole operation, a partial answers **207**, and every PATCH asserts an
+  exact affected-row count — `Prefer: return=minimal` returns 204 for a successful update *and* for
+  one that matched no row, so the two were indistinguishable. `saved` is now the separate flag the
+  offline queue uses to decide whether to re-send, so an honest failure can never cause a duplicate.
+- ✅ **A failed feed insert left a live reading with no chemical rows** (F2, High) — and on a
+  correction, the complete row it superseded stayed stood down. The whole graph is now put back.
+  ⚠ **Compensating rollback, not a transaction** — the real fix is item 2 above.
+- ✅ **Re-derivation erased the successor's original flags** (F6, Medium) — a backfill that moved
+  the trailing median could delete a `dose_high` from a day nobody had reopened, destroying the
+  evidence used to judge whether a value is fit to file. The row now keeps current flags **plus** a
+  `rederived` audit entry carrying what they replaced. The immutable record is item 2.
+- ✅ **The offline queue silently deleted field observations** (F5, Medium). Every 409/422 was
+  treated as disposable — the tablet records Well 1 offline, the office backfills that day
+  differently, the tablet reconnects, gets a 409, and the operator's own observation vanishes with
+  no message while the office value stands as the sole record. Rejected items now leave the send
+  queue but persist in a visible `rejected` list with the server's reason.
+- ✅ **"Up to date" while two of three wells were stale** (F7, Medium, confirmed on the live page).
+  The banner took the newest reading from **any** well: it read *"Up to date — 2026-09-01"* above
+  three cards showing Well 1 eight days old and Well 3 with nothing on file. Recency is now
+  per-entry-point and the plant goes green only when every well is current. Verified live after the
+  fix: *"2 of 3 wells are behind — Well 1, Well 3."*
+- ✅ **`no_flow` buried the actionable items** (F8, Medium, confirmed live). May 2026 showed **57**
+  attention rows, 55 of them routine idle-well notices, with a genuine low-chlorine alert among
+  them. A well that did not run is expected, is deliberately recorded, and is **not an exception**.
+  Summarised to one row per well (April's tower-down month is why it is summarised rather than
+  suppressed), and the queue now sorts severity-first with the count split into "to look at" and
+  "for information".
+- ✅ **The comment claiming flags are "acknowledged" was false** (F4). Corrected to say what the
+  code does. **The behaviour is unchanged and is now a Keith decision — see below.**
+- ✅ **Office Add buttons were 39×20 px on a tablet** (F12, Low) — under the ~44 px minimum, on the
+  control Michelle taps repeatedly while backfilling. The target is enlarged, the label is not.
+
+**Left open deliberately:** F3 (open write surface) and F4's behaviour are Keith decisions, below.
+F9/F10/F11 are Ask defects and are items 4, 7 and 8 above.
 
 ### ✅ Closed 2026-09-02 — the well-testing pass before the Centreville meeting
 
@@ -2320,6 +2405,34 @@ out of the dashboard and the AIOS Brief without them having to leave the file.
   three are pinned by new assertions in the gate (569 → 586 checks).
 
 ### Needs Keith — authority, a credential, or a judgement only he can make
+
+- 🚨 **ANYONE WHO CAN REACH `/water` CAN WRITE A COMPLIANCE RECORD IN SOMEBODY ELSE'S NAME —
+  AND THAT IS THE DESIGN YOU CHOSE, SO ONLY YOU CAN CHANGE IT** (Codex finding 3, High,
+  2026-09-02). `submit_reading` / `submit_dist` / `submit_bacti` are open by decision — *"this is
+  the wellhouse app, it needs to be super simple"*, *"each inspector should just need to add their
+  initials"*, no login, no plant access code. The consequences Codex spelled out: `operator_id` is
+  optional; when supplied, its PIN is checked **only if the caller also supplies a PIN**; when
+  omitted, arbitrary `operator_initials` are stored. The filed-month and correction guards do not
+  cover **today's open date**. So an unauthenticated POST can create a plausible September row
+  initialled `MT`, and it stands until somebody notices — after which the real crew's submission
+  for that well-day collides with it.
+  ⚠ **The counter-argument is real and it is yours:** attribution at a well house has always been
+  initials on paper, and what makes the record trustworthy is Michelle's review and signature under
+  1976 PA 399. The exposure is not that the crew are unverified — it is that **the internet** is.
+  Middle options, cheapest first: bind writes to an enrolled device token baked into the tablet's
+  bookmark (`/water?k=<signed>`), which keeps zero-friction for the crew and closes the open
+  internet; or require an operator to be selected and reject a bare `operator_initials` string.
+  **Not changed unilaterally — it would alter the crew's daily workflow, and that is your call.**
+- 🚩 **SHOULD A HIGH-CONSEQUENCE WARNING REQUIRE THE OPERATOR TO ACKNOWLEDGE IT?** (Codex finding
+  4, High.) Today a flag is **displayed and stored, and nothing more** — `ok` depends only on
+  hard errors, so Submit is live however loud the warning. A mistyped tank level giving a dose nine
+  times the plant median is warned about and filed with equal ease, and nothing records that
+  anybody reread the tank. *(The source comment claiming flags are "acknowledged" was false and was
+  corrected 2026-09-02 — the behaviour was not changed.)* Codex's fix is an explicit "I reread and
+  confirm" persisted with actor and time. ⚠ **It is a judgement call, not a bug fix**: turning
+  every advisory into a hard stop in a concrete room is how an operator learns to defeat the app,
+  and genuine operating exceptions must stay possible. Which flags — if any — earn a confirmation
+  is yours.
 
 - **External dead-man's-switch for `cs-health`.** `cs-health` is one VM cron; if it dies (VM, cron
   or script) there are no checks *and* no alert, and only the weekly AAN email would surface it —
