@@ -4509,6 +4509,85 @@ export default async function handler(req, res) {
     }
 
     /* Every release on one vendor+job, voided ones included — the record is the point. */
+    /* ===== THE THING ANNETTE'S WORKBOOK IS ACTUALLY FOR ==================================
+       Keith, 2026-09-02, looking at the first version: *"where does she see history, it seems the
+       payapp to payapp from week to week is the important insight her spreadsheet offers."*
+
+       Correct, and the first version threw it away. Her tabs are a ROW PER PAY APPLICATION —
+       `Date | This Period | X% Ret | Current Due` — and the running story down that column is the
+       point; the total at the bottom is a by-product. A screen that shows only the latest aggregate
+       replaces the by-product and loses the thing she keeps the file for.
+
+       ⛔ RELEASES ARE INTERLEAVED INTO THE SAME TIMELINE, because that is how she records them: a
+       row in the same table whose date cell reads `pd retainage` or `Final Retention`. Keeping them
+       in a separate list would make this screen's shape differ from the one the office already
+       reads, for no reason.
+
+       `retainage_this_period` IS HER `X% Ret` COLUMN, AND IT IS DERIVED THE OTHER WAY ROUND.
+       She computes it forward: this period times the rate. The register reads G702 line 5, which is
+       retainage held TO DATE, so the per-period figure is the DIFFERENCE between one application's
+       line 5 and the previous one's. Two independent routes to the same number — hers from the rate,
+       this one from the paper — which is why they are worth having side by side. Null when either
+       application did not print a legible line 5: unknown, never zero. */
+    if (action === 'retainage_detail') {
+      if (who.scope !== 'all') return res.status(403).json({ error: 'Front office only.' });
+      const vendor = String(body.vendor || '').trim();
+      const jobNo = String(body.job_no || '').trim();
+      if (!vendor || !jobNo) return res.status(400).json({ error: 'Vendor and job are required.' });
+
+      const dr = await sb('ryc_batch_documents?select=id,batch_id,seq,file_name,invoice_no,amount,'
+        + 'work_this_period,completed_and_stored,completed_to_date,retainage,eligible_to_date,'
+        + 'less_previous,page_from,page_to,sp_url,copied_url,disposition,created_at,'
+        + 'ryc_batch_jobs(received_date)'
+        + `&company_id=eq.ryc&doc_type=eq.pay_application&vendor=eq.${encodeURIComponent(vendor)}`
+        + `&job_no=eq.${encodeURIComponent(jobNo)}`);
+      if (!dr.ok) return res.status(502).json({ error: 'Could not read the pay applications.' });
+      const docs = await dr.json();
+
+      /* Oldest first — the direction her sheet reads, and the only order in which a per-period
+         difference means anything. */
+      const apps = docs.map((d) => ({
+        id: d.id,
+        at: (d.ryc_batch_jobs && d.ryc_batch_jobs.received_date) || String(d.created_at).slice(0, 10),
+        invoice_no: d.invoice_no,
+        pages: (d.page_to && d.page_from) ? `${d.page_from}-${d.page_to}` : null,
+        work_this_period: d.work_this_period,
+        amount: d.amount,
+        retainage: d.retainage,
+        eligible_to_date: d.eligible_to_date,
+        less_previous: d.less_previous,
+        completed_to_date: (d.completed_and_stored === null || d.completed_and_stored === undefined)
+          ? d.completed_to_date : d.completed_and_stored,
+        url: d.copied_url || d.sp_url,
+        disposition: d.disposition,
+      })).sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+
+      let prev = null;
+      for (const a of apps) {
+        /* The delta only means something between two applications that BOTH printed line 5.
+           Treating a missing one as zero would invent a period with no retainage withheld. */
+        a.retainage_this_period = (a.retainage === null || a.retainage === undefined || prev === null)
+          ? null : Math.round((Number(a.retainage) - Number(prev)) * 100) / 100;
+        /* And the rate the paper implies for THIS period, which is what the office recognises:
+           5, 7, 10 or 3 percent. Only where both figures exist and the period is non-zero. */
+        a.rate_this_period = (a.retainage_this_period === null
+          || a.work_this_period === null || a.work_this_period === undefined
+          || Number(a.work_this_period) === 0)
+          ? null
+          : Math.round((a.retainage_this_period / Number(a.work_this_period)) * 10000) / 10000;
+        if (a.retainage !== null && a.retainage !== undefined) prev = a.retainage;
+      }
+
+      const rr = await sb('ryc_retainage_releases?select=id,amount,released_on,method,source,note,'
+        + 'recorded_by,created_at,voided_at,voided_by,void_reason'
+        + `&company_id=eq.ryc&vendor=eq.${encodeURIComponent(vendor)}`
+        + `&job_no=eq.${encodeURIComponent(jobNo)}&order=released_on.asc`);
+      if (!rr.ok) return res.status(502).json({ error: 'Could not read the releases.' });
+
+      return res.status(200).json({ ok: true, vendor, job_no: jobNo,
+        applications: apps, releases: await rr.json() });
+    }
+
     if (action === 'retainage_releases') {
       if (who.scope !== 'all') return res.status(403).json({ error: 'Front office only.' });
       const vendor = String(body.vendor || '').trim();

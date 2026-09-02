@@ -96,19 +96,22 @@ function retOpenRelease(i){
   _ret.history = null; _ret.msg = "";
   retPaint();
 }
+/* THE DRILL-DOWN IS THE POINT, NOT A DETAIL VIEW.
+   Keith: *"where does she see history, it seems the payapp to payapp from week to week is the
+   important insight her spreadsheet offers."* Her tab is a row per pay application and the running
+   story down it is what she keeps the file for; the total at the bottom is a by-product. */
 function retOpenHistory(i){
   if(_ret.history === i){ _ret.history = null; retPaint(); return; }
   var x = retRowAt(i);
   if(!x) return;
   _ret.history = i; _ret.releasing = null; _ret.msg = "";
-  _ret.historyRows = null;
+  _ret.detail = null;
   retPaint();
-  invPost("retainage_releases", { vendor: x.vendor, job_no: x.job_no }).then(function(r){
-    _ret.historyRows = (r.ok && r.data && r.data.rows) ? r.data.rows : [];
+  invPost("retainage_detail", { vendor: x.vendor, job_no: x.job_no }).then(function(r){
+    _ret.detail = (r.ok && r.data && r.data.ok) ? r.data : { applications: [], releases: [] };
     if(_ret.history === i) retPaint();
   });
 }
-
 function retSaveRelease(i, confirmOver){
   var x = retRowAt(i);
   if(!x) return;
@@ -165,6 +168,96 @@ function retVoidRelease(id, i){
   });
 }
 
+/* THE TIMELINE — Annette's tab, rebuilt from the register.
+   Applications and releases INTERLEAVED, oldest first, because that is how she keeps it: a release
+   is a row in the same table whose date cell reads `pd retainage` or `Final Retention`. Splitting
+   them into two lists would make this differ in shape from the thing the office already reads. */
+function retTimeline(x){
+  var d = _ret.detail;
+  if(!d){ return '<div class="sub">Loading&hellip;</div>'; }
+  var apps = d.applications || [], rels = d.releases || [];
+  if(!apps.length && !rels.length){ return '<div class="sub">Nothing on file.</div>'; }
+
+  var ev = [];
+  apps.forEach(function(a){ ev.push({ at: a.at, kind: "app", a: a }); });
+  rels.forEach(function(r){ ev.push({ at: r.released_on, kind: "rel", r: r }); });
+  ev.sort(function(p, q){ return p.at < q.at ? -1 : p.at > q.at ? 1 : 0; });
+
+  var h = '<div class="sub" style="margin:2px 0 8px">'
+    + '<b>' + esc(x.vendor) + '</b> &middot; ' + esc(x.job_name || x.job_no)
+    + ' &mdash; every pay application on file, oldest first. <b>Retainage this period</b> is the '
+    + 'difference between one application&rsquo;s line&nbsp;5 and the previous one&rsquo;s; '
+    + 'Annette derives the same figure the other way, as this period &times; the rate, so the two '
+    + 'are independent reads of one number.</div>';
+
+  h += '<div class="ptable-wrap"><table class="ptable"><thead><tr>'
+    + '<th>Date</th><th>Doc</th><th class="r">This period</th>'
+    + '<th class="r">Retainage this period</th><th class="r">Rate</th>'
+    + '<th class="r">Retainage to date</th><th class="r">Current due</th>'
+    + '<th class="r">Completed to date</th><th></th>'
+    + '</tr></thead><tbody>';
+
+  ev.forEach(function(e){
+    if(e.kind === "rel"){
+      var r = e.r;
+      /* Her own convention: the release sits in the date column where a date would be. */
+      h += '<tr class="static"><td class="sub">' + esc(fmtDate(r.released_on) || "") + '</td>'
+        + '<td class="sub"><b>' + (r.voided_at ? "release (voided)" : "retainage released")
+        + '</b></td>'
+        + '<td class="r sub"></td>'
+        + '<td class="r">' + (r.voided_at
+            ? '<s class="sub">-' + retMoney(r.amount) + '</s>'
+            : '<span class="m-a">-' + retMoney(r.amount) + '</span>') + '</td>'
+        + '<td class="r sub"></td><td class="r sub"></td>'
+        + '<td class="r sub">' + (r.voided_at ? '' : retMoney(r.amount)) + '</td>'
+        + '<td class="r sub"></td>'
+        + '<td class="sub">' + esc(r.method || "") + (r.note ? " &middot; " + esc(r.note) : "")
+          + (r.voided_at ? ' &middot; <span class="m-r">voided</span>: '
+              + esc(r.void_reason || "") : '')
+        + '</td></tr>';
+      return;
+    }
+    var a = e.a;
+    var dash = '<span class="sub">&mdash;</span>';
+    h += '<tr class="static"><td class="sub">' + esc(fmtDate(a.at) || "") + '</td>'
+      + '<td class="sub">' + (a.url
+          ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">'
+            + esc(a.invoice_no || "application") + '</a>'
+          : esc(a.invoice_no || "application"))
+        + (a.pages ? ' <span class="sub">p' + esc(a.pages) + '</span>' : '')
+      + '</td>'
+      + '<td class="r">' + (a.work_this_period === null ? dash : retMoney(a.work_this_period))
+        + '</td>'
+      /* ⛔ NULL, NOT ZERO. A missing line 5 on either end makes the difference unknowable, and
+         showing 0 would assert a period in which nothing was withheld. */
+      + '<td class="r">' + (a.retainage_this_period === null ? dash
+          : retMoney(a.retainage_this_period)) + '</td>'
+      + '<td class="r sub">' + (a.rate_this_period === null ? "" : retPct(a.rate_this_period))
+        + '</td>'
+      + '<td class="r sub">' + (a.retainage === null ? dash : retMoney(a.retainage)) + '</td>'
+      + '<td class="r">' + (a.amount === null ? dash : retMoney(a.amount)) + '</td>'
+      + '<td class="r sub">' + (a.completed_to_date === null ? dash
+          : retMoney(a.completed_to_date)) + '</td>'
+      + '<td class="sub">'
+        + ((a.amount !== null && Number(a.amount) < 0)
+            ? '<span class="m-r">negative payable &mdash; misread face sheet</span>' : '')
+      + '</td></tr>';
+  });
+  h += '</tbody></table></div>';
+
+  if(rels.length){
+    h += '<div style="margin-top:6px">';
+    rels.forEach(function(r){
+      if(r.voided_at) return;
+      h += '<button class="pfill" onclick="retVoidRelease(\'' + esc(r.id) + '\','
+        + _ret.history + ')">Void ' + retMoney(r.amount) + ' of '
+        + esc(fmtDate(r.released_on) || "") + '</button> ';
+    });
+    h += '</div>';
+  }
+  return h;
+}
+
 function retPaint(){
   var v = document.getElementById("view"), s = _ret.summary;
 
@@ -188,9 +281,6 @@ function retPaint(){
   _ret.view = rows;
 
   var byJob = (_ret.by === "job");
-  /* A column nobody can fill is noise. Released is empty on every row until the first release is
-     recorded, and sitting between "Held (paper)" and "Rate" it made the header read as one
-     mangled label. It appears when there is something to put in it. */
   var showReleased = rows.some(function(x){ return Number(x.released_total) > 0; });
   var shownOut = rows.reduce(function(a, x){ return a + retOut(x); }, 0);
 
@@ -206,9 +296,6 @@ function retPaint(){
           + ' pair(s)' : '')
     + '</div>';
 
-  /* Only conditions that are TRUE OF THE DATA IN FRONT OF YOU belong up here. The standing
-     limitations moved to a footnote under the table: a permanent caveat repeated above every
-     screenful is one people stop reading, and it was crowding out the three that change. */
   var warn = [];
   if(s.paper_unrecorded_rows){
     warn.push('<b class="m-a">' + s.paper_unrecorded_rows + '</b> pair(s) show line&nbsp;5 coming '
@@ -238,8 +325,6 @@ function retPaint(){
   }
 
   h += '<div style="margin-top:10px">'
-    /* `.pfill.on` is the shell's own selected state. The first version used `disabled`, which
-       renders almost identically to an idle button — you could click By job and not see it take. */
     + '<button class="pfill' + (byJob ? '' : ' on') + '" onclick="retSetBy(\'vendor\')">'
       + 'By subcontractor</button> '
     + '<button class="pfill' + (byJob ? ' on' : '') + '" onclick="retSetBy(\'job\')">'
@@ -249,15 +334,12 @@ function retPaint(){
     + (_ret.q ? ' <span class="sub">' + rows.length + ' shown &middot; '
         + retMoney(shownOut) + ' outstanding</span>' : '')
     + '</div>'
-    /* THE ROW ACTION HAS TO SAY WHAT IT DOES BEFORE IT IS PRESSED. "Release" alone reads like it
-       might pay somebody. It records, against this subcontractor and job, that retainage already
-       went back — it moves no money and touches nothing in SharePoint. */
     + '<div class="sub" style="margin-top:8px">'
-    + '<b>Record release</b> writes down that retainage was paid back to that subcontractor on that '
-    + 'job. It lowers <b>Outstanding</b>; it does not move money, change the pay application, or '
-    + 'touch <b>Held (paper)</b>, which is always what the last face sheet said. A release dated on '
-    + 'or before that application is treated as already shown in its line&nbsp;5 and is not '
-    + 'subtracted twice. Releases are kept and can be voided, never deleted.'
+    + '<b>History</b> opens every pay application on file for that subcontractor and job, oldest '
+    + 'first &mdash; the week-to-week table Annette keeps, with retainage per period alongside the '
+    + 'to-date figure off the paper. <b>Record release</b> writes down that retainage was paid back: '
+    + 'it lowers <b>Outstanding</b>, moves no money, and does not touch <b>Held</b>, which is always '
+    + 'what the last face sheet said.'
     + '</div>'
     + (_ret.msg ? '<div class="sub" style="margin-top:6px"><b>' + esc(_ret.msg) + '</b></div>' : '')
     + '</div>';
@@ -267,18 +349,23 @@ function retPaint(){
     return;
   }
 
-  var NUM = ' style="text-align:right;white-space:nowrap"';
-  var cols = 4 + (byJob ? 0 : 1) + (showReleased ? 1 : 0) + 2;   // +Check +action
+  /* ⛔ `.ptable`, NOT `.tbl`. `.tbl` is not defined in ANY stylesheet in this app — the first
+     version used it throughout, so the table had no padding, no header treatment and no column
+     separation at all, which is why the headers ran together into "Outstanding Held (paper) Rate
+     Last app Check". `.ptable` is the real one: padded cells, small-caps sticky headers, tabular
+     numerals, `.r` for right alignment, row hover. */
+  var cols = 6 + (byJob ? 0 : 1) + (showReleased ? 1 : 0);
 
-  h += '<div class="panel"><table class="tbl"><tbody>';
-  h += '<tr><th>Subcontractor</th>'
+  h += '<div class="ptable-wrap"><table class="ptable"><thead><tr>'
+    + '<th>Subcontractor</th>'
     + (byJob ? '' : '<th>Job</th>')
-    + '<th' + NUM + '>Outstanding</th>'
-    + '<th' + NUM + '>Held (paper)</th>'
-    + (showReleased ? '<th' + NUM + '>Released</th>' : '')
-    + '<th' + NUM + '>Rate</th>'
-    + '<th style="white-space:nowrap">Last app</th>'
-    + '<th>Check</th><th></th></tr>';
+    + '<th class="r">Outstanding</th>'
+    + '<th class="r">Held (paper)</th>'
+    + (showReleased ? '<th class="r">Released</th>' : '')
+    + '<th class="r">Rate</th>'
+    + '<th>Last app</th>'
+    + '<th class="r">Apps</th>'
+    + '<th></th></tr></thead><tbody>';
 
   var lastJob = null;
   rows.forEach(function(x, i){
@@ -288,21 +375,17 @@ function retPaint(){
         lastJob = jk;
         var inJob = rows.filter(function(y){ return (y.job_name || y.job_no || "") === jk; });
         var jobTotal = inJob.reduce(function(a, y){ return a + retOut(y); }, 0);
-        /* A SUBTOTAL THAT EXCLUDES ROWS MUST SAY SO. A bare "$0.00 outstanding" on a job header
-           reads as "we hold nothing here", the same misleading zero one level up. */
         var notCounted = inJob.filter(function(y){ return y.stated_status !== "ok"; }).length;
-        h += '<tr><td colspan="' + cols + '" class="sub" style="padding-top:12px"><b>' + esc(jk)
-          + '</b> &middot; ' + retMoney(jobTotal) + ' outstanding'
+        h += '<tr class="static"><td colspan="' + cols + '" style="background:#f7f9fc">'
+          + '<b>' + esc(jk) + '</b> &middot; ' + retMoney(jobTotal) + ' outstanding'
           + (notCounted ? ' <span class="m-a">&middot; ' + notCounted + ' of ' + inJob.length
               + ' not counted</span>' : '')
           + '</td></tr>';
       }
     }
 
-    /* THREE STATES AND THEY MUST NOT LOOK ALIKE. An em dash means nobody knows. A figure marked ?
-       means the page disagrees with itself and is in no total. A plain figure means the face sheet
-       foots. Printing $0.00 for an unknown would say RYC holds nothing on a subcontractor it may be
-       holding plenty on. */
+    /* THREE STATES AND THEY MUST NOT LOOK ALIKE. Em dash = nobody knows. A figure marked ? = the
+       page disagrees with itself and is in no total. A plain figure = the face sheet foots. */
     var cell = function(val){
       if(x.stated_status === "unstated" || val === null || val === undefined){
         return '<span class="sub">&mdash;</span>';
@@ -315,6 +398,9 @@ function retPaint(){
     var outCell = (x.stated_status === "ok")
       ? '<b>' + retMoney(x.retainage_outstanding) + '</b>' : cell(x.retainage_outstanding);
 
+    /* The flags ride UNDER the subcontractor name rather than in a column of their own. They are
+       rare, they are prose, and a dedicated column for them was empty on almost every row while
+       squeezing the figures. */
     var checks = [];
     if(x.release_status === "paper_unrecorded"){
       checks.push('<span class="m-a">paper shows ' + retMoney(x.paper_released)
@@ -335,29 +421,31 @@ function retPaint(){
         + ' read</span>');
     }
 
-    h += '<tr>'
-      + '<td>' + esc(x.vendor || "") + '</td>'
-      + (byJob ? '' : '<td class="sub">' + esc(x.job_name || x.job_no || "") + '</td>')
-      + '<td' + NUM + '>' + outCell + '</td>'
-      + '<td' + NUM + ' class="sub">' + cell(x.retainage_stated) + '</td>'
+    h += '<tr class="static">'
+      + '<td><div class="jname" style="max-width:230px">' + esc(x.vendor || "") + '</div>'
+        + (checks.length ? '<div class="sub" style="white-space:normal;max-width:230px">'
+            + checks.join(' &middot; ') + '</div>' : '')
+      + '</td>'
+      + (byJob ? '' : '<td class="sub"><div style="max-width:220px;overflow:hidden;'
+          + 'text-overflow:ellipsis">' + esc(x.job_name || x.job_no || "") + '</div></td>')
+      + '<td class="r">' + outCell + '</td>'
+      + '<td class="r sub">' + cell(x.retainage_stated) + '</td>'
       + (showReleased
-          ? '<td' + NUM + ' class="sub">'
+          ? '<td class="r sub">'
             + ((Number(x.released_total) > 0) ? retMoney(x.released_total) : '') + '</td>' : '')
-      + '<td' + NUM + ' class="sub">' + retPct(x.retainage_rate_stated) + '</td>'
-      + '<td class="sub" style="white-space:nowrap">' + esc(fmtDate(x.last_app_at) || "") + '</td>'
-      + '<td class="sub">' + (checks.join(' &middot; ') || '') + '</td>'
-      + '<td style="text-align:right;white-space:nowrap">'
+      + '<td class="r sub">' + retPct(x.retainage_rate_stated) + '</td>'
+      + '<td class="sub">' + esc(fmtDate(x.last_app_at) || "") + '</td>'
+      + '<td class="r sub">' + (x.apps || 0) + '</td>'
+      + '<td class="r">'
+        + '<button class="pfill' + (_ret.history === i ? ' on' : '')
+          + '" onclick="retOpenHistory(' + i + ')">History</button> '
         + '<button class="pfill' + (_ret.releasing === i ? ' on' : '')
-        + '" onclick="retOpenRelease(' + i + ')">Record release</button>'
-        + (Number(x.releases_count) > 0
-            ? ' <button class="pfill' + (_ret.history === i ? ' on' : '')
-              + '" onclick="retOpenHistory(' + i + ')">'
-              + x.releases_count + ' release' + (x.releases_count > 1 ? 's' : '') + '</button>' : '')
+          + '" onclick="retOpenRelease(' + i + ')">Record release</button>'
       + '</td></tr>';
 
     if(_ret.releasing === i){
       var today = new Date().toISOString().slice(0, 10);
-      h += '<tr><td colspan="' + cols + '">'
+      h += '<tr class="static"><td colspan="' + cols + '" style="white-space:normal">'
         + '<div class="sub" style="margin-bottom:6px">Retainage returned to <b>'
         + esc(x.vendor) + '</b> on <b>' + esc(x.job_name || x.job_no) + '</b>. '
         + 'Dated on or before the last application (' + esc(fmtDate(x.last_app_at) || "")
@@ -379,41 +467,19 @@ function retPaint(){
     }
 
     if(_ret.history === i){
-      h += '<tr><td colspan="' + cols + '">';
-      if(!_ret.historyRows){
-        h += '<div class="sub">Loading releases&hellip;</div>';
-      } else if(!_ret.historyRows.length){
-        h += '<div class="sub">No releases recorded.</div>';
-      } else {
-        h += '<table class="tbl"><tbody>';
-        _ret.historyRows.forEach(function(r2){
-          h += '<tr><td class="sub" style="white-space:nowrap">'
-              + esc(fmtDate(r2.released_on) || "") + '</td>'
-            + '<td' + NUM + '>' + (r2.voided_at
-                ? '<s class="sub">' + retMoney(r2.amount) + '</s>' : retMoney(r2.amount)) + '</td>'
-            + '<td class="sub">' + esc(r2.method || "") + ' &middot; ' + esc(r2.source || "")
-              + '</td>'
-            + '<td class="sub">' + esc(r2.note || "") + '</td>'
-            + '<td class="sub">' + (r2.voided_at
-                ? '<span class="m-r">voided</span> &middot; ' + esc(r2.void_reason || "")
-                : '<button class="pfill" onclick="retVoidRelease(\'' + esc(r2.id) + '\','
-                  + i + ')">Void</button>') + '</td></tr>';
-        });
-        h += '</tbody></table>';
-      }
-      h += '</td></tr>';
+      h += '<tr class="static"><td colspan="' + cols + '" style="white-space:normal;'
+        + 'background:#fbfcfe">' + retTimeline(x) + '</td></tr>';
     }
   });
 
-  h += '</tbody></table>'
-    /* The standing limitations live here, once, under the data — not above it. They are true every
-       day and never change, and a permanent warning printed above every screenful is one people
-       learn to scroll past, taking the three that DO change with it. */
+  h += '</tbody></table></div>'
+    /* The standing limitations live here, once, under the data. A permanent warning printed above
+       every screenful is one people learn to scroll past, taking the ones that change with it. */
     + '<div class="sub" style="margin-top:10px">'
     + '<b>Held (paper)</b> is G702 line&nbsp;5 from the latest filed application; <b>Outstanding</b> '
     + 'is that figure less releases recorded after it. Not captured: the G703 <b>scope-line grid</b>, '
     + 'and pay-application <b>numbers</b> &mdash; so a missing application in a sequence cannot be '
     + 'detected here.'
-    + '</div></div>';
+    + '</div>';
   v.innerHTML = h;
 }
