@@ -992,6 +992,27 @@ SheetJS community strips styles on write, and a state form that loses its format
 form. Proven before it was trusted: a branch build confirmed Vercel resolves Python 3.12 and
 installs all four libraries without disturbing the Node build.
 
+⛔ **EVERY MOR THIS PRODUCT GENERATED SAID "JUL" — FOUND 2026-09-02 BY ACTUALLY TESTING A SECOND
+MONTH.** The Cover's Month cell is what EGLE reads to know which period a report covers. **Nothing
+wrote it.** It came through from the stored template, which carries `Jul`, so August generated as a
+July report — correct in every other cell, and a false statement to a state regulator about the one
+thing that identifies the filing.
+
+**It was invisible for exactly one reason: the only month ever generated was July.** The
+byte-for-byte proof on 2026-08-21 compared July against July; the `mor-filings` deploy gate
+generates July on every water deploy; the July workbook Michelle filed says `Jul`. The template's
+stale value was right in the single case anybody looked at.
+
+Fixed: `COVER_MONTH = (11, 6)` and `COVER_YEAR = (14, 6)` are written from the requested period —
+format taken from Michelle's own filed workbooks (`Jul`, `Apr`, `Feb`: a three-letter
+abbreviation), not guessed. ⚠ **And the generator now READS THE PERIOD BACK OUT OF THE SAVED FILE
+and refuses to return a workbook whose Cover does not match what it reports.** Same doctrine as the
+bacti stats: assert what reached the workbook, never what was intended. `cover_month`/`cover_year`
+join the returned stats.
+
+> **The generalisable lesson: a gate that only ever exercises one input cannot see a defect that
+> input happens to satisfy.** July was the fixture *and* the answer key.
+
 ⛔ **`api/build-mor.py` IS THE ONLY COPY OF THE FILL LOGIC.** `scripts/build-mor.py` is now a thin
 client that posts to it and saves the bytes; its `--template` argument is gone. Two copies of this
 rule on two machines is the same defect the whole product exists to remove. **Byte-for-byte
