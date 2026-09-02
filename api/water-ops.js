@@ -65,10 +65,12 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.3.0-waterops';
+export const VER = '1.4.0-waterops';
 
-import { derive, LBS_PER_MILLION_GALLONS } from '../civicscope-water/derive.js';
-export { derive };
+import { derive, normalOf, outOfFamily, DOSE_OUT_OF_FAMILY, LBS_PER_MILLION_GALLONS } from '../civicscope-water/derive.js';
+/* Re-exported so a gate importing "what the server uses" gets the server's own copy, not a second
+   import of derive.js that could drift from it. */
+export { derive, normalOf, outOfFamily, DOSE_OUT_OF_FAMILY };
 
 /* Google sign-in, shared with api/auth-google.js through the ONE copy of the session rule. Reading
    the cookie here rather than re-implementing it is the same discipline derive.js enforces on the
@@ -122,6 +124,57 @@ async function previousReading(entryPointId, date) {
   return { id: prev.id, reading_date: prev.reading_date, meter_reading: prev.meter_reading, feeds };
 }
 
+/* THIS PLANT'S OWN NORMALS — the only thing that can answer "is this like every other day".
+   Computed ONCE, server-side, and handed to every derive() call including the tablet's, because
+   the well house and the office must not answer that question with two different numbers.
+
+   Three deliberate choices, each of which was wrong the obvious way round:
+   - MEDIAN, NOT MEAN. The outlier this exists to catch is precisely what drags a mean toward
+     itself and raises the threshold meant to trip on it.
+   - DAYS THE WELL DID NOT RUN ARE EXCLUDED. A recorded 0 is a real fact, but a well idle half the
+     month would halve its own "normal" and turn ordinary days into warnings. Not hypothetical
+     here: April 2026 ran only Well 3 while the tower was down for repair.
+   - TOO LITTLE HISTORY RETURNS NULL, NEVER A GUESS. A threshold computed from three days is
+     noise, and a false warning at a well house is how an operator learns to ignore warnings. */
+const NORMALS_WINDOW_DAYS = 120;
+async function plantNormals(ep, beforeDate) {
+  const since = new Date(`${beforeDate}T00:00:00Z`);
+  since.setUTCDate(since.getUTCDate() - NORMALS_WINDOW_DAYS);
+  const from = since.toISOString().slice(0, 10);
+  try {
+    const rows = await sb(
+      `water_readings?entry_point_id=eq.${ep.id}&reading_date=lt.${beforeDate}&reading_date=gte.${from}` +
+        `&superseded_at=is.null&select=id,gallons_pumped&order=reading_date.desc&limit=200`
+    );
+    const live = rows || [];
+    const typicalGallons = normalOf(live.map((r) => r.gallons_pumped));
+    const typicalDose = {};
+    if (live.length) {
+      const ids = live.map((r) => r.id).join(',');
+      const fr = await sb(`water_feed_readings?reading_id=in.(${ids})&select=feed_id,dose_mg_l`);
+      const byFeed = {};
+      for (const f of fr || []) (byFeed[f.feed_id] ||= []).push(f.dose_mg_l);
+      for (const [fid, series] of Object.entries(byFeed)) {
+        const m = normalOf(series);
+        if (m !== null) typicalDose[fid] = m;
+      }
+    }
+    return { typicalGallons, typicalDose };
+  } catch {
+    // A normals lookup that fails must never block a reading. No normals = those flags do not
+    // fire, which is the behaviour every reading before 2026-09-02 already had.
+    return { typicalGallons: null, typicalDose: {} };
+  }
+}
+
+// every derive() in this file builds its context here, so a check can never be live on one route
+// and dead on another — which is exactly how typicalGallons stayed unreachable for a month.
+const contextFor = (supply, normals) => ({
+  minFreeCl: supply.min_free_cl,
+  typicalGallons: normals ? normals.typicalGallons : null,
+  typicalDose: normals ? normals.typicalDose : {},
+});
+
 /* ⛔ THE DAY AFTER A CORRECTION IS ALSO WRONG, AND NOTHING USED TO RE-DERIVE IT.
    Every derived number hangs off the previous live reading: gallons are this meter minus the
    last one, chemical usage is this tank level against the last baseline. So editing or inserting
@@ -150,18 +203,43 @@ async function rederiveSuccessor(supply, ep, afterDate) {
   const next = rows && rows[0];
   if (!next) return null;
 
-  // The successor's own raw inputs, replayed against its new baseline.
+  /* ⛔ THIS FUNCTION HAD NEVER RE-DERIVED A SINGLE DAY (found 2026-09-02). It was written to stop
+     a corrected day leaving a stale interval behind it, and it carried three defects that between
+     them made it either inert or destructive — in the one path that exists to protect a record
+     behind a report signed under 1976 PA 399.
+
+     1. `feeds` was built as an ARRAY. derive() indexes it by feed id (`input.feeds[f.id]`), which
+        on an array is undefined — so every feed looked like a missing tank level, derive() raised
+        "tank level is required", `out.ok` was false and the function returned before writing
+        anything. On an ordinary day it therefore did nothing at all, silently.
+     2. The residuals were read as `free_cl` / `total_cl` / `ortho`. Those columns do not exist —
+        water_readings stores `tap_free` / `tap_total` / `tap_ortho` — and pressure and temp were
+        not carried at all. So on the one day defect 1 did NOT block (a zero-flow successor, where
+        the tank level is legitimately absent) the PATCH wrote `{...out.reading}` with every one of
+        those fields null and ERASED the operator's plant-tap sample, pressure and temperature.
+     3. The feed PATCH wrote `dose_mgl: fd.dose_mgl` — wrong on both sides. derive() returns
+        `dose_mg_l` so the value was undefined, and `dose_mgl` is not a column so the write would
+        have been rejected anyway. `ortho_mg_l` and `avail_lbs` were never in the PATCH at all.
+        A successor's solution_lbs could move while its dose stayed as computed against a baseline
+        that no longer exists — and build-mor.py copies stored values straight into the filing.
+
+     Read the successor's own observed inputs back in the shape derive() actually takes. */
   const [full] = await sb(`water_readings?id=eq.${next.id}&select=*`);
   if (!full) return null;
   const fr = await sb(`water_feed_readings?reading_id=eq.${next.id}&select=*`);
   const input = {
     meter_reading: full.meter_reading,
-    free_cl: full.free_cl, total_cl: full.total_cl, ortho: full.ortho,
-    feeds: (fr || []).map((x) => ({ feed_id: x.feed_id, tank_level: x.tank_level, refill_to: x.refill_to })),
+    tap_free: full.tap_free, tap_total: full.tap_total,
+    tap_ortho: full.tap_ortho, tap_fluoride: full.tap_fluoride,
+    pressure_psi: full.pressure_psi, temp_f: full.temp_f,
+    feeds: Object.fromEntries(
+      (fr || []).map((x) => [x.feed_id, { tank_level: x.tank_level, refill_to: x.refill_to }])
+    ),
   };
   const prev = await previousReading(ep.id, next.reading_date);
+  const normals = await plantNormals(ep, next.reading_date);
   const out = derive({ entryPoint: ep, feeds: ep.feeds, prev, input,
-    context: { minFreeCl: supply.min_free_cl } });
+    context: contextFor(supply, normals) });
   /* A successor that will not re-derive is REPORTED, never silently left stale. It means the
      edit made the following day impossible (a meter that now runs backwards, say), and the
      person making the edit is the only one who can resolve it. */
@@ -171,13 +249,27 @@ async function rederiveSuccessor(supply, ep, afterDate) {
     method: 'PATCH', headers: { Prefer: 'return=minimal' },
     body: JSON.stringify({ ...out.reading, flags: out.flags }),
   });
+  /* Every derived column moves together or the row is internally inconsistent: solution_lbs
+     against a fresh baseline with a dose computed against the old one is worse than either. */
+  const feedErrors = [];
   for (const fd of out.feeds) {
     await sb(`water_feed_readings?reading_id=eq.${next.id}&feed_id=eq.${fd.feed_id}`, {
       method: 'PATCH', headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({ solution_lbs: fd.solution_lbs, dose_mgl: fd.dose_mgl }),
-    }).catch(() => { /* a feed row that is not there cannot be stale */ });
+      body: JSON.stringify({
+        solution_lbs: fd.solution_lbs, avail_lbs: fd.avail_lbs,
+        dose_mg_l: fd.dose_mg_l, ortho_mg_l: fd.ortho_mg_l,
+      }),
+      /* ⚠ The blanket `.catch(() => {})` that used to sit here reasoned that "a feed row that is
+         not there cannot be stale" — true, but it also swallowed the rejected write caused by
+         defect 3 above, which is why a dead column name survived in a compliance path. A failure
+         is now REPORTED with the row it belongs to. */
+    }).catch((e) => feedErrors.push({ feed_id: fd.feed_id, msg: String((e && e.message) || e) }));
   }
-  return { id: next.id, date: next.reading_date, ok: true, derived: out.reading };
+  return {
+    id: next.id, date: next.reading_date, ok: feedErrors.length === 0,
+    derived: out.reading, feeds: out.feeds,
+    ...(feedErrors.length ? { feedErrors } : {}),
+  };
 }
 
 /* WHO IS ASKING. Returns the enrolled, ACTIVE app_users row behind the session cookie, or null.
@@ -636,11 +728,15 @@ export default async function handler(req, res) {
         const ep = p.entryPoints.find((e) => e.id === body.entry_point_id);
         if (!ep) return bad(res, 404, 'unknown entry point');
         const prev = await previousReading(ep.id, body.reading_date);
+        const normals = await plantNormals(ep, body.reading_date);
         const out = derive({
           entryPoint: ep, feeds: ep.feeds, prev, input: body.input || {},
-          context: { minFreeCl: p.supply.min_free_cl },
+          context: contextFor(p.supply, normals),
         });
-        return res.status(200).json({ ...out, previous: prev });
+        /* `normals` goes back to the tablet so its live derive() runs the same context this route
+           did. The page must never compute them itself: the well house and the server would then
+           be answering "is this normal" from two different windows of history. */
+        return res.status(200).json({ ...out, previous: prev, normals });
       }
 
       // ---- commit a visit ---------------------------------------------------------------------
@@ -676,9 +772,10 @@ export default async function handler(req, res) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return bad(res, 400, 'reading_date required (YYYY-MM-DD)');
 
         const prev = await previousReading(ep.id, date);
+        const normals = await plantNormals(ep, date);
         const out = derive({
           entryPoint: ep, feeds: ep.feeds, prev, input: body.input || {},
-          context: { minFreeCl: p.supply.min_free_cl },
+          context: contextFor(p.supply, normals),
         });
         if (!out.ok) return res.status(422).json({ error: 'validation', errors: out.errors, flags: out.flags });
 
