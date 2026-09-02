@@ -256,7 +256,11 @@ function render(){
   // Locked is final: the controls go away rather than offering an undo that no longer exists.
   document.getElementById('lockbtn').style.display=lockedMine?'none':'';
   document.getElementById('savebtn').style.display=lockedMine?'none':'';
-  const html=(week.games||[]).map(g=>{
+  /* IN THE ORDER THE GAMES ARE PLAYED (Keith 2026-09-02). The stored slate is the order the
+     commissioner BUILT it in — he loads NFL and college separately, so a mixed week arrives
+     grouped by league and chronological only by luck. slateOrder() lives in scoring.js with the
+     board's own rule so the two can never drift; the lock email sorts the same way. */
+  const html=slateOrder(week.games).map(g=>{
     const mine=picks[g.id];
     /* PICK 'EM HAS NO LINE, so the old `('+'+g.line)` rendered a literal "+null" under every team
        on a preseason slate — 16 games of it. A pick'em is scored straight up, so the side carries

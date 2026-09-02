@@ -133,6 +133,40 @@ const marketLabel = g => g.market === 'total' ? ('O/U ' + g.total) : (g.pickem ?
    SORTED COPY and never mutates the week. Nothing here may change a score, and no server change
    is required — which is the whole reason it is safe to derive on the client on every paint.
    ───────────────────────────────────────────────────────────────────────────── */
+/* SAME KICKOFF. Two entries for ONE fixture (spread + its `#ou` twin) must stay adjacent in
+   EVERY mode — splitting a game away from its own over/under would be worse than the order it
+   replaced. Group by base id, spread above total, then by id so the sort is total and the paint
+   never jitters between refreshes. */
+function pairAdjacent(a, b) {
+  const ida = String(a.id).split('#')[0], idb = String(b.id).split('#')[0];
+  if (ida !== idb) return ida < idb ? -1 : 1;
+  const ma = a.market === 'total' ? 1 : 0, mb = b.market === 'total' ? 1 : 0;
+  if (ma !== mb) return ma - mb;
+  return String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
+}
+
+/* ⛔ THE CARD READS FORWARDS — FIRST GAME TO LAST (Keith, 2026-09-02, from the Week 1 picks page
+   on his phone: "when picking games these should present in the order of games, first to last").
+   What he was looking at was Sunday 7:30pm at the top, Saturday 3:30pm second, then two Sunday
+   1:00pm games — i.e. **the order the commissioner built the slate in**, which is grouped by the
+   league he loaded (CFB then NFL) and is chronological only by accident.
+
+   A CARD YOU ARE FILLING IN IS A SCHEDULE, NOT A RESULT. boardOrder's newest-finished-first rule
+   answers "what just happened", which is the right question for a board with scores on it and the
+   wrong one for a page where nothing has kicked off yet — there, the only order that means
+   anything is the one the games are played in. That is also the order the lock email lists them
+   in (api/football-pool.js), so the email and the card cannot disagree about which game is first.
+
+   ⚠ It takes NO scores and makes no ESPN call, deliberately: the picks page has no reason to
+   fetch a scoreboard, and ESPN 403s this network anyway. Ordering by our stored `g.date` is the
+   whole rule. Display only, and it returns a SORTED COPY — same contract as boardOrder. */
+function slateOrder(games) {
+  return (games || []).slice().sort((a, b) => {
+    const ka = Date.parse(a.date) || 0, kb = Date.parse(b.date) || 0;
+    return ka !== kb ? ka - kb : pairAdjacent(a, b);
+  });
+}
+
 function boardOrder(games, scores, finalized) {
   const bucket = (g) => {
     const st = (scoreFor(g, scores) || {}).state;
@@ -142,17 +176,7 @@ function boardOrder(games, scores, finalized) {
     const sc = scoreFor(g, scores) || {};
     return sc.kickoff || Date.parse(g.date) || 0;
   };
-  /* SAME KICKOFF. Two entries for ONE fixture (spread + its `#ou` twin) must stay adjacent in
-     BOTH modes — splitting a game away from its own over/under would be worse than the order it
-     replaced. Group by base id, spread above total, then by id so the sort is total and the paint
-     never jitters between refreshes. */
-  const pair = (a, b) => {
-    const ida = String(a.id).split('#')[0], idb = String(b.id).split('#')[0];
-    if (ida !== idb) return ida < idb ? -1 : 1;
-    const ma = a.market === 'total' ? 1 : 0, mb = b.market === 'total' ? 1 : 0;
-    if (ma !== mb) return ma - mb;
-    return String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
-  };
+  const pair = pairAdjacent;
   return (games || []).slice().sort((a, b) => {
     const ka = kickOf(a), kb = kickOf(b);
     // A FINALIZED WEEK IS A RECORD — read it forwards, and never mind the buckets (by the time a
@@ -358,7 +382,7 @@ function fmtMoney(n) {
    client-side ordering. `module` is undefined in a browser, so this is inert there. */
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    coverOf, scoreFor, marketLabel, weekPoints, boardOrder,
+    coverOf, scoreFor, marketLabel, weekPoints, boardOrder, slateOrder,
     WEEKLY_STAKE, weekWinners, weekEntrants, seasonLedger, fmtMoney,
   };
 }
