@@ -2209,13 +2209,18 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
 
 ### Live work — in priority order
 
-1. 🚨 **AUGUST 2026 IS STILL BEING WRITTEN ON PAPER — 1 of 78 well-days logged (measured
-   2026-08-26), and the one that exists came from the tablet.** July was 93 of 93 and every row was
-   `backfill`, i.e. paper transcribed afterwards. The tablet is live and nobody is using it; every
-   day that runs is another day that has to be backfilled. It now reports itself at the top of
-   `/admin` → **Water**, split by source. **The MOR reminder fires 2026-09-07 for August**, so
-   August has to be entered before then or the reminder tells Michelle her month is empty. Keith's
-   sequence is in `Centreville\CLAUDE.md` → **THE AUGUST PLAN**.
+1. 🚨 **AUGUST IS LOADED BUT CANNOT BE SIGNED — THERE IS NO BACTI, AND THE REMINDER FIRES
+   2026-09-07.** ✅ The month went in 2026-09-02: **92 of 93 well-days and 20 distribution samples**,
+   through the live API with `source:'backfill'`, and **every well closes exactly on its own meter**
+   (Well 1 1,192,000 · Well 3 1,446,000 · Well 4 1,295,000 gal, each equal to its meter span). That
+   closure is the only independent check August had — unlike January–July there is **no filed MOR**
+   to reconcile against. What remains is not entry, it is three things only the village can answer:
+   **bacti is 0** (it appears on no daily sheet and a month without it cannot be signed cleanly);
+   **Well 3 8/30** is missing because its tank cell is struck through and illegible, so 8/31 carries
+   two days of pumpage; and **8/19's distribution sample was refused** as physically impossible
+   (free 0.17 above total 0.15). 🚩 Separately, **eight distribution days fell below 0.20 mg/L free
+   chlorine**, two of them badly (8/13 at 0.06, 8/28 at 0.10) — July had seven and they were flagged
+   because EGLE will see them. Detail: `Centreville\CLAUDE.md` → **AUGUST 2026 IS LOADED**.
 2. 🚩 **TWO DEPLOY GATES ARE INTERMITTENTLY RED, AND FOR BOTH THE REMEDY IS "RUN IT AGAIN"
    (2026-08-26).** (a) The **estimating smoke gate** failed at exit 40 with
    `Municipal — JSON UNPARSEABLE — likely truncation` on a deploy touching only
