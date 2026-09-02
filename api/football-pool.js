@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.15.1-live-lines';  // spreads re-pull live at lock; a saved draft never locks a stale number
+const VER = '3.16.0-slate-order';  // the lock email lists games in kickoff order, like the picks card
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -216,6 +216,30 @@ export default async function handler(req, res) {
     if (sat && sat < firstKick) return { deadline: sat, reason: 'schedule', firstKick };
     return { deadline: firstKick, reason: 'kickoff', firstKick };
   };
+  /* ⛔ THE LOCKED-SLATE EMAIL LISTS THE GAMES IN THE ORDER THEY ARE PLAYED (Keith 2026-09-02:
+     "when picking games these should present in the order of games, first to last — same thing
+     for the email that goes out to tell people that picks are locked").
+
+     `wk.games` is stored in the order the commissioner BUILT the slate, and he loads NFL and
+     college separately, so a mixed week arrives grouped by league and is chronological only by
+     accident. Week 1 went out with Sunday 7:30pm at the top and Saturday 3:30pm second.
+
+     ⚠ THIS IS THE SERVER'S COPY OF `slateOrder()` IN pool/scoring.js, and it exists for exactly
+     the reason coverOf() is duplicated below: the browser and this function cannot share a module
+     here. The card the player fills in and the email telling him to fill it in MUST agree about
+     which game is first, so if one of these two changes the other has to move with it. Display
+     only — it returns a SORTED COPY, and scoring iterates `wk.games`, which is order-independent.
+
+     The `#ou` twin stays beside its own fixture (spread above total), same rule as the board. */
+  const slateOrder = (games) => (games || []).slice().sort((a, b) => {
+    const ka = Date.parse(a.date) || 0, kb = Date.parse(b.date) || 0;
+    if (ka !== kb) return ka - kb;
+    const ida = String(a.id).split('#')[0], idb = String(b.id).split('#')[0];
+    if (ida !== idb) return ida < idb ? -1 : 1;
+    const ma = a.market === 'total' ? 1 : 0, mb = b.market === 'total' ? 1 : 0;
+    if (ma !== mb) return ma - mb;
+    return String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
+  });
   /* ⛔ WHO IS IN *THIS WEEK* — NOT WHO IS ON THE ROSTER (Keith 2026-08-25).
      "There will usually be 6 players, I won't be playing — that said they may have the occasional
      random person join for a week."
@@ -1324,7 +1348,7 @@ export default async function handler(req, res) {
                line. Cheap, and it removes a whole class of false alarm. */
             const isTest = !!wk.isTest || isSandbox(slug);
             const tag = isTest ? '[TEST — no action needed] ' : '';
-            const gameRows = wk.games.map(g =>
+            const gameRows = slateOrder(wk.games).map(g =>
               `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085">${new Date(g.date).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET</td></tr>`).join('');
             for (const p of players) {
               // Channel choice is per member. Email defaults on; a member who turned it off is skipped.
