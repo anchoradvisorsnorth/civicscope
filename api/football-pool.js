@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.16.1-slate-order';  // the lock email lists games in kickoff order, dated, like the picks card
+const VER = '3.17.0-long-dates';  // lock email: kickoff order + long-form dates (Saturday, September 5)
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1348,15 +1348,31 @@ export default async function handler(req, res) {
                line. Cheap, and it removes a whole class of false alarm. */
             const isTest = !!wk.isTest || isSandbox(slug);
             const tag = isTest ? '[TEST — no action needed] ' : '';
+            /* ⛔ LONG-FORM DATES IN THE EMAIL (Keith 2026-09-02, after Mike built Week 1 without
+               realising it spanned two weekends: "lets put the long form date on the email so
+               it's easy to tell if this happened again").
+
+               The email is the artifact the commissioner and all six players read side by side,
+               so it is the right place to spend the characters. `Saturday, September 5, 12:00 PM
+               ET` cannot be confused with `Sunday, September 13` — abbreviated weekdays could,
+               and did: eleven college games on Sep 5-6 and seven NFL games on Sep 13 all read as
+               "Sat" or "Sun", and nothing on the page or in the mail said otherwise.
+               The picks CARD stays short-form — it is read on a phone, one game per row, where
+               `Sat, Sep 5` already distinguishes the days and the full name would wrap. */
+            const longWhen = (d) => new Date(d).toLocaleString('en-US',
+              { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
             const gameRows = slateOrder(wk.games).map(g =>
-              `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085">${new Date(g.date).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET</td></tr>`).join('');
+              `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085;white-space:nowrap">${longWhen(g.date)} ET</td></tr>`).join('');
             for (const p of players) {
               // Channel choice is per member. Email defaults on; a member who turned it off is skipped.
               if (p.email && p.wantsEmail) {
               const html = `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#101828">
                 <div style="background:linear-gradient(135deg,#0a2240,#14532d);color:#fff;padding:18px 22px;border-radius:10px 10px 0 0">
                   <div style="font-size:20px;font-weight:800">🏈 ${wk.label || slug} slate is LOCKED — make your picks</div>
-                  <div style="font-size:13px;color:#b9c6da;margin-top:3px">Picks close at first kickoff: ${new Date(wk.deadline).toLocaleString('en-US', { timeZone: 'America/New_York' })} ET</div>
+                  <!-- "Picks close at first kickoff" was asserted unconditionally, and it is
+                       usually FALSE: the group plays to Saturday 10:00 ET and deadlineFor() only
+                       pulls it earlier when a game kicks before that. Say which one applied. -->
+                  <div style="font-size:13px;color:#b9c6da;margin-top:3px">Picks close ${wk.deadlineReason === 'kickoff' ? 'at first kickoff' : ''}: ${longWhen(wk.deadline)} ET</div>
                 </div>
                 <div style="border:1px solid #e4e7ec;border-top:none;border-radius:0 0 10px 10px;padding:18px 22px;background:#fff">
                   <table style="font-size:14px;border-collapse:collapse;margin-bottom:14px">${gameRows}</table>
