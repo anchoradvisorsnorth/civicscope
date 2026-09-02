@@ -4361,7 +4361,7 @@ export default async function handler(req, res) {
         + 'first_app_at,last_app_at,period_billed_total,paid_total,retainage_stated,'
         + 'retainage_implied,retainage_implied_apps,retainage_delta,completed_to_date_stated,'
         + 'eligible_to_date_stated,less_previous_stated,retainage_rate_stated,face_sheet_residual,'
-        + 'apps_excluded_unsound,implied_status';
+        + 'apps_excluded_unsound,implied_status,stated_status';
       const r = await sb(`ryc_retainage_v?select=${cols}&order=retainage_stated.desc.nullslast`);
       if (!r.ok) return res.status(502).json({ error: 'Could not read the retainage view.' });
       const rows = await r.json();
@@ -4373,9 +4373,20 @@ export default async function handler(req, res) {
         apps: rows.reduce((a, x) => a + n(x.apps), 0),
         /* COVERAGE IS PUBLISHED, NOT ASSUMED. A row whose applications carried no legible line 5
            has retainage_stated null, and null is NOT zero: reporting it as zero would say RYC holds
-           nothing on a subcontractor it may be holding plenty on. The screen shows both counts. */
-        stated_rows: rows.filter((x) => x.retainage_stated !== null).length,
-        held: rows.reduce((a, x) => a + n(x.retainage_stated), 0),
+           nothing on a subcontractor it may be holding plenty on. The screen shows every count. */
+        stated_rows: rows.filter((x) => x.stated_status === 'ok').length,
+        /* ⛔ THE TOTAL SUMS ONLY FIGURES WHOSE OWN PAGE FOOTS (migration 068, stated_status).
+           A contradicted figure is neither added nor dropped: it is counted and subtotalled
+           separately so the front office can see there is a document to go and look at.
+           OscarWLarson on INDOT Roselawn reads line 5 as 0.00 while line 4 minus line 6 on the same
+           sheet is 1,708.80 — adding that zero would quietly understate the portfolio, and hiding
+           the row would quietly lose the question. */
+        held: Math.round(rows.filter((x) => x.stated_status === 'ok')
+          .reduce((a, x) => a + n(x.retainage_stated), 0) * 100) / 100,
+        contradicted_rows: rows.filter((x) => x.stated_status === 'contradicted').length,
+        contradicted_held: Math.round(rows.filter((x) => x.stated_status === 'contradicted')
+          .reduce((a, x) => a + n(x.retainage_stated), 0) * 100) / 100,
+        unstated_rows: rows.filter((x) => x.stated_status === 'unstated').length,
         /* Rows carrying a pay application the register cannot treat as sound — today that is a
            negative payable, which is a misread face sheet. Surfaced, never filtered away. */
         excluded_rows: rows.filter((x) => n(x.apps_excluded_unsound) > 0).length,

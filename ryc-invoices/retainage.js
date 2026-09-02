@@ -27,6 +27,17 @@
 
 var _ret = { rows: [], summary: {}, by: "vendor", q: "" };
 
+/* ONE RULE, ONE EXPRESSION. What may be added into a total: only a figure whose own face sheet
+   foots (stated_status 'ok'). This is the SAME rule the server applies to `summary.held`, and it
+   is a function rather than three copies of a ternary because the header total, the filtered
+   total and the per-job subtotal were three places for it to drift — teaching one about
+   contradicted figures and not the others is how a board ends up contradicting itself in plain
+   sight. */
+function retHeld(x){
+  return (x && x.stated_status === "ok" && x.retainage_stated !== null)
+    ? Number(x.retainage_stated) : 0;
+}
+
 function retPct(x){
   if(x === null || x === undefined) return "";
   var p = Number(x) * 100;
@@ -80,15 +91,14 @@ function retPaint(){
     return (b.retainage_stated || 0) - (a.retainage_stated || 0);
   });
 
-  var shownHeld = rows.reduce(function(a, x){
-    return a + (x.retainage_stated === null ? 0 : Number(x.retainage_stated));
-  }, 0);
+  // Only figures whose own face sheet foots. Same rule as the server's `held` — see stated_status.
+  var shownHeld = rows.reduce(function(a, x){ return a + retHeld(x); }, 0);
 
   var h = '<div class="panel">'
     + '<div class="h">Retainage held &middot; ' + fmt(s.held || 0) + '</div>'
     + '<div class="sub">'
     + '<b>' + (s.stated_rows || 0) + '</b> of <b>' + (s.rows || 0)
-    + '</b> vendor&ndash;job pairs have a figure off the paper'
+    + '</b> vendor&ndash;job pairs have a figure whose own page foots'
     + ' &middot; ' + (s.vendors || 0) + ' subcontractors &middot; ' + (s.jobs || 0) + ' jobs'
     + ' &middot; ' + (s.apps || 0) + ' pay applications'
     + '</div>';
@@ -96,19 +106,21 @@ function retPaint(){
   /* THE HONEST CAVEATS RIDE ON THE SCREEN, not in a doc nobody opens. Each of these is a real
      condition with a real cause, and each is the reason a number below might be wrong. */
   var warn = [];
-  if((s.rows || 0) - (s.stated_rows || 0) > 0){
-    warn.push('<b class="m-a">' + ((s.rows || 0) - (s.stated_rows || 0)) + '</b> pair(s) show '
-      + '&mdash; because no application behind them printed a legible line 5. '
+  if(s.unstated_rows){
+    warn.push('<b class="m-a">' + s.unstated_rows + '</b> pair(s) show '
+      + '&mdash; because no application behind them printed a legible line&nbsp;5. '
       + '<b>That is unknown, not zero.</b>');
+  }
+  if(s.contradicted_rows){
+    warn.push('<b class="m-a">' + s.contradicted_rows + '</b> pair(s) are marked <b>?</b> because '
+      + 'the face sheet disagrees with itself &mdash; line&nbsp;4 &minus; line&nbsp;5 does not equal '
+      + 'line&nbsp;6. Their ' + fmt(s.contradicted_held) + ' is <b>not</b> in the total above; go '
+      + 'and look at the document.');
   }
   if(s.excluded_rows){
     warn.push('<b class="m-r">' + s.excluded_rows + '</b> pair(s) contain a pay application with a '
       + 'negative payable &mdash; a misread face sheet. It is excluded from the arithmetic and the '
       + 'row is left visible rather than filtered away.');
-  }
-  if(s.residual_rows){
-    warn.push('<b class="m-a">' + s.residual_rows + '</b> face sheet(s) do not foot: '
-      + 'line&nbsp;4 &minus; line&nbsp;5 does not equal line&nbsp;6 on the page itself.');
   }
   warn.push('Retainage <b>release</b> is not tracked here. A job whose retainage has been paid '
     + 'back still shows its last application&rsquo;s line&nbsp;5 &mdash; check the last-application '
@@ -144,18 +156,28 @@ function retPaint(){
         lastJob = jk;
         var jobTotal = rows.filter(function(y){
           return (y.job_name || y.job_no || "") === jk;
-        }).reduce(function(a, y){
-          return a + (y.retainage_stated === null ? 0 : Number(y.retainage_stated));
-        }, 0);
+        }).reduce(function(a, y){ return a + retHeld(y); }, 0);
         h += '<tr><td colspan="7" class="sub" style="padding-top:10px"><b>' + esc(jk)
           + '</b> &middot; ' + fmt(jobTotal) + ' held</td></tr>';
       }
     }
 
-    // ⛔ Em dash, never $0, when the paper did not say.
-    var held = (x.retainage_stated === null)
-      ? '<span class="sub">&mdash;</span>'
-      : '<b>' + fmt(x.retainage_stated) + '</b>';
+    /* THREE STATES, NOT TWO, AND THEY MUST LOOK DIFFERENT.
+         unstated     — the paper did not say. An em dash, never $0.
+         contradicted — the paper said, and the same paper disagrees with itself. The figure is
+                        shown because it is what was read, but it is NOT set in bold like a settled
+                        number: OscarWLarson reads $0.00 against $1,708.80 implied by line 4 minus
+                        line 6 on that very sheet, and a confident "$0.00 held" is the more
+                        dangerous of the two readings.
+         ok           — the face sheet foots. This is the only one that sums into the total. */
+    var held;
+    if(x.stated_status === "unstated" || x.retainage_stated === null){
+      held = '<span class="sub">&mdash;</span>';
+    } else if(x.stated_status === "contradicted"){
+      held = '<span class="m-a">' + fmt(x.retainage_stated) + '&#8239;?</span>';
+    } else {
+      held = '<b>' + fmt(x.retainage_stated) + '</b>';
+    }
 
     var checks = [];
     if(x.apps_excluded_unsound > 0){
