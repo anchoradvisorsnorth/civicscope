@@ -76,6 +76,16 @@ MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July',
 #   B=1 metered million gallons | D=3 chlorine solution lbs | G=6 EP free | H=7 EP total
 #   I=8 phosphate solution lbs  | M=12 ortho analysis at the entry point
 # Distribution: sample rows Excel 7..37 -> 0-based 6..36 ; B=1 date, C=2 free, D=3 total, E=4 ortho
+# ⛔ THE COVER'S MONTH IS THE CELL EGLE READS TO KNOW WHICH PERIOD THIS REPORT COVERS, AND NOTHING
+# WROTE IT UNTIL 2026-09-02. It came through from the stored template, which carries `Jul` — so
+# every month this product generated said July. It was invisible for exactly one reason: the only
+# month ever generated and compared was JULY, where the template's value is correct. The
+# byte-for-byte proof on 2026-08-21 and the mor-filings deploy gate both test July.
+# Format taken from Michelle's own filed workbooks, not guessed: Cover r11c6 reads 'Jul', 'Apr',
+# 'Feb' — a three-letter abbreviation — and r14c6 carries the year as a number.
+COVER_MONTH = (11, 6)
+COVER_YEAR = (14, 6)
+
 PUMPAGE_ROW0 = 7
 EP_ROW0 = 8
 DIST_ROW0 = 6
@@ -328,6 +338,11 @@ def build(data, raw_template, formulas):
                 if col is not None:
                     put(sheet, r0, col, fr.get('solution_lbs'))
 
+    # The reporting period. Written before the data so a refusal later cannot leave a workbook
+    # that is correctly filled and wrongly labelled.
+    put('Cover', COVER_MONTH[0], COVER_MONTH[1], MONTHS[data['month']][:3])
+    put('Cover', COVER_YEAR[0], COVER_YEAR[1], data['year'])
+
     clear_block('Distribution', DIST_ROW0, DIST_ROWS, DIST_COLS)
     for i, s in enumerate(sorted(data['dist'], key=lambda x: x['sample_date'])):
         if i >= DIST_ROWS:
@@ -344,10 +359,31 @@ def build(data, raw_template, formulas):
 
     out = io.BytesIO()
     wb.save(out)
+
+    # ⛔ READ THE PERIOD BACK OUT OF THE SAVED FILE AND REFUSE IF IT IS WRONG.
+    # Same doctrine as the bacti stats below: report — and here, assert — what REACHED THE
+    # WORKBOOK, never what was intended. A mislabelled MOR is a false statement to a state
+    # regulator about which month is being reported, and it is the one defect that looks
+    # completely normal in every other cell. Cheap: one parse of a ~250 KB file.
+    want_month, want_year = MONTHS[data['month']][:3], int(data['year'])
+    try:
+        back = xlrd.open_workbook(file_contents=out.getvalue()).sheet_by_name('Cover')
+        got_month = str(back.cell_value(*COVER_MONTH)).strip()
+        got_year = int(float(back.cell_value(*COVER_YEAR) or 0))
+    except Exception as e:
+        raise Refuse(500, f'the generated workbook could not be read back to check its '
+                          f'reporting period: {e}')
+    if got_month != want_month or got_year != want_year:
+        raise Refuse(500, f'the generated workbook is labelled {got_month} {got_year} but reports '
+                          f'{want_month} {want_year}; it was not returned. This is the defect found '
+                          f'2026-09-02, when nothing wrote the Cover period and every month '
+                          f'inherited the July that sits in the template.')
+
     # stats report what REACHED THE WORKBOOK, not what was fetched. Reporting len(data['bacti'])
     #    while writing none of it is what let the omission run unnoticed: review.html prints this
     #    count beside the download, so the product asserted '2 bacti' about a file containing zero.
     return out.getvalue(), {'formulas_restored': restored, 'formulas_skipped': skipped,
+                            'cover_month': got_month, 'cover_year': got_year,
                             'well_days': len(data['readings']), 'distribution': len(data['dist']),
                             'bacti': bacti_written['routine'] + bacti_written['repeat'],
                             'bacti_routine': bacti_written['routine'],
