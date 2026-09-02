@@ -2078,7 +2078,7 @@ export default async function handler(req, res) {
              `work_this_period` and `amount` describe a single period.
              `less_previous` is the term that makes a catch-up application legible: Legacy Plumbing
              billed 96,105.00 this period and was due 41,790.04, which is not a retainage rate at
-             any percentage and reads as a bad number without line 7. */
+             any percentage and reads as a bad number without line 7.
              ⚠ WRITTEN AS FOUR LITERAL KEYS, NOT A LOOP OVER A LIST. The first version of this
              built them with Object.fromEntries over an array of names, which is shorter and is
              exactly the wrong property for the line a gate has to inspect: this whole incident is
