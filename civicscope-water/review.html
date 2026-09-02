@@ -160,6 +160,11 @@
 </main>
 
 <script type="module">
+/* "Is this dose like every other day here" is now ONE rule in ONE file, imported by this page, by
+   the crew tablet and by api/water-ops.js. It lived here alone from 2026-08-20, which meant the
+   office could call a dose out of family and the well house — the only place someone could still
+   walk back and re-read the tank — had no opinion at all. */
+import { normalOf, outOfFamily, DOSE_OUT_OF_FAMILY, DOSE_NORMAL_MIN_SAMPLES } from '/civicscope-water/derive.js';
 const API = '/api/water-ops';
 const WSSN = new URLSearchParams(location.search).get('wssn') || '01310';
 const $ = (id) => document.getElementById(id);
@@ -344,19 +349,24 @@ function renderMonth(mo, y, m, eps) {
   for (const r of readings) for (const f of (r.feeds || [])) {
     if (f.dose_mg_l != null) (doseByFeed[f.feed_id] ||= []).push(Number(f.dose_mg_l));
   }
-  const medianOf = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
   const feedName = (id) => {
     for (const e of eps) { const f = (e.feeds || []).find((x) => x.id === id); if (f) return f.product_name || f.kind; }
     return 'chemical';
   };
+  /* normalOf() enforces the same DOSE_NORMAL_MIN_SAMPLES floor this page used to hard-code as 8,
+     and outOfFamily() the same DOSE_OUT_OF_FAMILY multiple it hard-coded as 4. The window still
+     differs on purpose and that is the ONE thing that is not shared: the office compares a day
+     against the month it is signing, while the well house has no month yet and compares against
+     the plant's trailing history. Same rule, same constants, different span — stated rather than
+     left for a reader to infer from two numbers that happen to match. */
   for (const r of readings) for (const f of (r.feeds || [])) {
-    const series = doseByFeed[f.feed_id];
-    if (f.dose_mg_l == null || !series || series.length < 8) continue;
-    const med = medianOf(series);
-    if (med > 0 && Number(f.dose_mg_l) > med * 4) {
+    if (f.dose_mg_l == null) continue;
+    const med = normalOf(doseByFeed[f.feed_id]);
+    const multiple = outOfFamily(f.dose_mg_l, med);
+    if (multiple !== null) {
       quantified.add(`${r.reading_date}|${r.entry_point_id}`);
       rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'warn',
-        what: `${feedName(f.feed_id)} dose ${fmt(f.dose_mg_l)} mg/L — about ${Math.round(Number(f.dose_mg_l) / med)}× this plant's normal (${fmt(med)}). Usually a tank level read wrong on this day or the one before it.`,
+        what: `${feedName(f.feed_id)} dose ${fmt(f.dose_mg_l)} mg/L — about ${Math.round(multiple)}× this plant's normal (${fmt(med)}). Usually a tank level read wrong on this day or the one before it.`,
         who: r.operator_initials });
     }
   }

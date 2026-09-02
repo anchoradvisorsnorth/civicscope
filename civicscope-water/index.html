@@ -61,6 +61,9 @@
   .msg.warn{background:var(--warnbg);border:1px solid #fcd34d;color:var(--warn)}
   .msg.err{background:var(--errbg);border:1px solid #fecaca;color:var(--err)}
   .msg.ok{background:#f0fdfa;border:1px solid #99f6e4;color:var(--ok)}
+  /* what is still outstanding, stated once and quietly. NOT red: nothing is wrong yet — he has
+     simply not got to it, and the submit button being disabled is the actual constraint. */
+  .msg.pend{background:#f8fafc;border:1px dashed #cbd5e1;color:#475569}
   table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
   th,td{border:1px solid #cbd5e1;padding:4px 5px;text-align:right;white-space:nowrap}
   th{background:#eef2f7;font-size:11px;font-weight:600;color:#334155}
@@ -446,7 +449,14 @@ async function openEntry(ep){
   const sec = $('tabEntry'); sec.classList.remove('hide');
   const date = today();
   let prev = null;
-  try{ const pv = await api('preview', { entry_point_id: ep.id, reading_date: date, input:{} }); prev = pv.previous; }catch{}
+  /* This plant's own medians, computed server-side and handed down with the baseline. The page
+     deliberately does NOT work them out for itself — if the well house and the server each built
+     their own idea of "normal" they would warn on different days, which is the drift derive.js
+     exists to prevent. Absent (offline, or too little history), the "is this normal" checks simply
+     do not fire and everything else still works. */
+  let normals = null;
+  try{ const pv = await api('preview', { entry_point_id: ep.id, reading_date: date, input:{} });
+       prev = pv.previous; normals = pv.normals || null; }catch{}
 
   const feedFields = ep.feeds.map(f=>{
     const base = prev && prev.feeds && prev.feeds[f.id];
@@ -494,10 +504,38 @@ async function openEntry(ep){
   </div>`;
 
   $('e_back').onclick = () => { sec.classList.add('hide'); $('tabRound').classList.remove('hide'); refreshRound(); };
+
+  /* ⛔ AN OPERATOR WHO HAS TYPED NOTHING HAS DONE NOTHING WRONG.
+     Opening a well used to greet him with three red lines — "Meter reading is required. Sodium
+     hypochlorite 12.5% tank level is required. Aquadine tank level is required." — because
+     recompute() runs once on open and an empty form is, correctly, an invalid one. In a one-handed
+     app used in a concrete room that is the first thing the product ever says to him, and it is a
+     telling-off for opening the screen.
+
+     A required field is only ERRED once he has touched it. What is still outstanding is stated
+     once, quietly, at the bottom — because the submit button stays disabled until the form is
+     valid and a disabled button with no explanation is the worse failure of the two. */
+  const touched = new Set();
+  const unlocks = (elm) => {
+    const id = elm.id || '';
+    if (id === 'e_meter') return ['meter_reading'];
+    // free and total are read as a pair and the error lands on total, so either one unlocks both
+    if (id === 'e_free' || id === 'e_total') return ['tap_free', 'tap_total'];
+    for (const key of ['data-feed','data-refill','data-refillto']) {
+      const fid = elm.getAttribute(key);
+      if (fid) return ['feed:' + fid];
+    }
+    return [];
+  };
+  const markTouched = (elm) => { for (const k of unlocks(elm)) touched.add(k); };
+
   sec.querySelectorAll('[data-refill]').forEach(cb=>{
-    cb.onchange = () => { $('rt_'+cb.dataset.refill).classList.toggle('hide', !cb.checked); recompute(); };
+    cb.onchange = () => { markTouched(cb); $('rt_'+cb.dataset.refill).classList.toggle('hide', !cb.checked); recompute(); };
   });
-  sec.querySelectorAll('input').forEach(i=> i.addEventListener('input', recompute));
+  sec.querySelectorAll('input').forEach(i=> i.addEventListener('input', () => { markTouched(i); recompute(); }));
+
+  // "Sodium hypochlorite 12.5% tank level is required." -> "Sodium hypochlorite 12.5% tank level"
+  const stillNeeded = (err) => err.msg.replace(/\s+is required\.?$/, '');
 
   function collect(){
     const feeds = {};
@@ -523,7 +561,11 @@ async function openEntry(ep){
     const input = collect();
     const out = derive({
       entryPoint: ep, feeds: ep.feeds, prev, input,
-      context: { minFreeCl: S.profile.supply.min_free_cl },
+      context: {
+        minFreeCl: S.profile.supply.min_free_cl,
+        typicalGallons: normals && normals.typicalGallons,
+        typicalDose: (normals && normals.typicalDose) || {},
+      },
     });
     const r = out.reading;
     const lines = [
@@ -537,10 +579,14 @@ async function openEntry(ep){
       lines.push([`${def.product_name||def.kind} dose`, f.dose_mg_l==null?'—':`${fmt(f.dose_mg_l)} mg/L`]);
     }
     $('e_derived').innerHTML = lines.map(([k,v])=>`<div class="d"><span class="muted">${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
+    // An error he can act on is one about a field he has actually filled in.
+    const shown   = out.errors.filter(e => touched.has(e.field));
+    const pending = out.errors.filter(e => !touched.has(e.field));
     $('e_msg').innerHTML =
-      out.errors.map(e=>`<div class="msg err">${esc(e.msg)}</div>`).join('') +
+      shown.map(e=>`<div class="msg err">${esc(e.msg)}</div>`).join('') +
       out.flags.filter(f=>f.level!=='info').map(f=>`<div class="msg warn">${esc(f.msg)}</div>`).join('') +
-      out.flags.filter(f=>f.level==='info').map(f=>`<div class="msg ok">${esc(f.msg)}</div>`).join('');
+      out.flags.filter(f=>f.level==='info').map(f=>`<div class="msg ok">${esc(f.msg)}</div>`).join('') +
+      (pending.length ? `<div class="msg pend">Still to fill in: ${pending.map(e=>esc(stillNeeded(e))).join(' · ')}</div>` : '');
     $('e_submit').disabled = !out.ok;
     return out;
   }
