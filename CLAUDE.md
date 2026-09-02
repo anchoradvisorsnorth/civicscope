@@ -310,6 +310,23 @@ worktree-based comparison would match the stale deployment and pass a commit tha
   was genuinely waiting — so retyping the right command failed too.
 - **Duplicate-deploy guard:** if every declared file already matches production the script refuses
   to commit (`-AllowEmpty` forces it). A timed-out run resumes; it does not re-ship.
+- ⛔ **"VERSION-CONTROLLED" WAS NOT TRUE OF EVERY GATE, AND THE ASSERTION THAT CHECKS IT WAS A HAND
+  LIST (fixed 2026-09-02).** `verify-water-derivation.mjs` — the gate this file cites as proof that
+  `derive()` reproduces Centreville's paper record, and whose 5% dose tolerance carries *"do not
+  widen it to make a run go green"* — **had no git history, no diff and no undo**, on the file that
+  certifies numbers filed with the State of Michigan. Nor did `verify-mor-filings.mjs`,
+  `verify-google-signin.mjs` or `verify-muni-website-source.mjs`. The harness scenario meant to
+  catch this (`F4-gitignore-tracks-gates`) asserted a **hand-written array**, which drifts from the
+  gates exactly as fast as gates get added. It now **derives the list from what
+  `push_civicscope.ps1` declares**, so a gate added to a profile is required to be tracked with
+  nobody remembering to edit anything. 17 gates asserted, up from 8.
+  🚩 **Four RYC gates are still untracked and are now NAMED debt rather than silence** — a
+  `knownUntracked` carve-out that the harness proves is still accurate in both directions (each
+  entry must still be a declared gate AND still be ignored, so a fixed one cannot linger).
+  ⚠ **`verify-ryc-dashboard.js` hardcodes the access code `ryc2026`** — it must be changed to read
+  from the environment, the way `verify-pool-integrity.js` was on 2026-08-08, **before** it is
+  tracked. Committing a credential literal is the one step editing cannot undo. The other three are
+  unaudited; only a public-URL default has been seen so far.
 - Gate + harness scripts live in `scripts/` — **version-controlled but deliberately NOT in the
   deploy manifest** (they run on Keith's PC, they never ship): `smoke-test.js`, `e2e-check.js`,
   `verify-deployed-content.js`, `verify-api-endpoints.js`, `verify-routing.js`,
@@ -2210,17 +2227,27 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    `foreign-journal-ignored`, or the certification line cannot mean what this file says it means.
    ⚠ **Two flaky gates is the point at which "re-ran it and it went green" stops being evidence of
    anything.**
-   🚨 **UPDATED 2026-09-02 — IT IS WORSE THAN FLAKY. `HARNESS-COMPLETE` IS CURRENTLY UNREACHABLE.**
-   A full run measured **185/187, 45/45 scenarios, `HARNESS-INCOMPLETE`**, and both failures are in
-   **`R2-F2-config-only-success`** — a *third* scenario, not either of the two named above. It
-   returns **exit 40** (a gate failed) where the harness expects 0, and it does so **consistently**,
-   reproducing 3 times out of 3 including under `--only`. The two known-flaky resume scenarios
-   *passed* in that same run. ⚠ **Established as PRE-EXISTING, not caused by the water work:** the
-   failure reproduces identically with the 2026-09-02 `push_civicscope.ps1` edits mechanically
-   reversed. So this file's rule that `HARNESS-COMPLETE` is "the only certification" currently
-   cannot be satisfied by anybody, which makes it a rule nobody can follow — the exact condition
-   that gets a gate quietly ignored. Fix the scenario or state plainly what the certification means
-   while it is red.
+   ✅ **THE THIRD ONE IS FIXED, AND IT WAS NEVER FLAKY — 2026-09-02.** A full run measured
+   **185/187, `HARNESS-INCOMPLETE`**, with both failures in **`R2-F2-config-only-success`** — a
+   scenario neither of the two named above — failing **deterministically**, 3 runs out of 3
+   including under `--only`, while the two genuinely flaky resume scenarios *passed*.
+   **Cause:** the GC teardown of 2026-08-26 deleted the pages and both APIs, pointed `vercel.json`
+   at a `/gc/*` → `/` 301, and correctly taught `verify-routing.js` to assert it — but nobody
+   updated `scripts/deploy-mock-server.js`. `/gc/acme` and `/gc/ryc` fell through its redirect
+   table to a file lookup and answered **404 where the gate expects 301**. Measured directly
+   against the mock: **12 of 14 routes green, those two red.** Fixed with a `/^gc(\/|$)/` wildcard
+   rather than two literal keys, because `vercel.json` redirects the subtree and two keys would
+   404 again the moment the gate probes a third `/gc/` path.
+   ⛔ **THE REAL LESSON IS THE MISDIAGNOSIS, NOT THE ROUTE.** This entry told every future session
+   the harness was *intermittent* and that the remedy was to *run it again*. It was deterministic,
+   in a different scenario, and had made `HARNESS-COMPLETE` — which this file calls "the only
+   certification" — **unreachable by anybody for seven days**. "Re-ran it and it went green" was
+   describing the two resume scenarios while this one failed every single time. **A suite whose red
+   is assumed to be noise has stopped being a gate.** Before recording anything as flaky again,
+   run it twice and say which scenario moved.
+   ⚠ Still open: the two ORIGINAL flaky resume scenarios (`partial-then-resume-no-duplicate`,
+   `foreign-journal-ignored`) share state and remain genuinely intermittent. That is now the whole
+   of this item.
 3. 🚩 **`/api/muni-ask` HAS NO RATE LIMIT IN FRONT OF A PAID ANTHROPIC CALL** (Codex finding 9).
    Any POST with a valid tenant and a question of permitted length runs retrieval and then invokes
    Anthropic. No per-IP, per-session or per-tenant throttle, no concurrency cap, no daily abuse
