@@ -154,11 +154,19 @@ function retPaint(){
       var jk = x.job_name || x.job_no || "";
       if(jk !== lastJob){
         lastJob = jk;
-        var jobTotal = rows.filter(function(y){
-          return (y.job_name || y.job_no || "") === jk;
-        }).reduce(function(a, y){ return a + retHeld(y); }, 0);
+        var inJob = rows.filter(function(y){ return (y.job_name || y.job_no || "") === jk; });
+        var jobTotal = inJob.reduce(function(a, y){ return a + retHeld(y); }, 0);
+        /* ⛔ A SUBTOTAL THAT EXCLUDES ROWS MUST SAY SO. INDOT Roselawn has exactly one
+           subcontractor, whose figure is contradicted, so its subtotal is $0.00 — and a bare
+           "$0.00 held" on a job header reads as "we hold nothing here", which is the same
+           misleading zero this screen exists to avoid, one level up. The count of rows the
+           subtotal could not use rides beside it. */
+        var notCounted = inJob.filter(function(y){ return y.stated_status !== "ok"; }).length;
         h += '<tr><td colspan="7" class="sub" style="padding-top:10px"><b>' + esc(jk)
-          + '</b> &middot; ' + fmt(jobTotal) + ' held</td></tr>';
+          + '</b> &middot; ' + fmt(jobTotal) + ' held'
+          + (notCounted ? ' <span class="m-a">&middot; ' + notCounted + ' of ' + inJob.length
+              + ' not counted</span>' : '')
+          + '</td></tr>';
       }
     }
 
