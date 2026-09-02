@@ -65,8 +65,15 @@
   table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
   /* The editor. Deliberately plain: this is a desk tool for one person who already knows what
      the numbers mean, not a form to be discovered. */
-  .editbtn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:2px 8px;font-size:12px;
-    cursor:pointer;color:#334155;white-space:nowrap}
+  /* ⚠ Measured at 39x20 px on a 768x1024 tablet (Codex finding 12, 2026-09-02) — under the ~44px
+     minimum, and this is the control Michelle taps repeatedly while backfilling a month on a
+     tablet. The TARGET is enlarged, not the label: the visible chip stays small and desk-like,
+     and the tappable area is grown around it with padding plus a transparent ::after overlay so
+     the table's row rhythm does not change. */
+  .editbtn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:6px 10px;font-size:12px;
+    cursor:pointer;color:#334155;white-space:nowrap;position:relative;min-height:32px}
+  .editbtn::after{content:'';position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+    height:44px;min-width:44px}
   .editbtn:hover{border-color:#94a3b8;color:#0f172a}
   .ed{background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:12px;margin:10px 0}
   .ed h4{margin:0 0 8px;font-size:14px}
@@ -249,15 +256,32 @@ function render({ cur, prev, y, m, target, deepLinked }) {
   /* ── the headline. The most important thing this page can say is that nothing has come in — a
      month recorded on paper while the tablet sits unused is exactly how Centreville arrived here,
      and it is invisible unless something says it out loud. */
+  /* ⛔ THE PLANT IS ONLY UP TO DATE IF EVERY WELL IS (Codex finding 7, 2026-09-02).
+     This took the newest reading from ANY well and went green on it. Measured live that day, the
+     banner read "Up to date — Last reading 2026-09-01" while Well 1 was eight days old and Well 3
+     said "no readings on file"; only Well 4 had reported. The green banner sat directly above the
+     three cards contradicting it, and it is the one line an OIC reads before deciding whether she
+     needs to chase anybody. A plant-wide status computed from the best well is not a status. */
   const newest = all.map((r) => r.reading_date).sort().pop();
   const gap = newest ? daysAgo(newest) : null;
+  const behind = eps.map((ep) => {
+    const r = latestFor(ep);
+    return { label: ep.label, date: r ? r.reading_date : null, gap: r ? daysAgo(r.reading_date) : null };
+  }).filter((w) => w.date === null || w.gap >= 2);
+  const nameList = (ws) => ws.map((w) => esc(w.label) + (w.date ? ` (${w.gap} days)` : ' (none on file)')).join(', ');
+
   let top = '';
   if (!newest) {
     top = `<div class="banner err"><b>No readings on file at all</b>Nothing has been recorded for this supply.</div>`;
   } else if (gap >= 2) {
     top = `<div class="banner err"><b>Nothing recorded for ${gap} days</b>The last reading from any well was ${esc(newest)}. If the round is being walked, it is being written somewhere other than here — and every day of that has to be re-entered later.</div>`;
+  } else if (behind.length) {
+    // Something came in recently, but not from everywhere. Name the wells rather than going green.
+    top = `<div class="banner err"><b>${behind.length} of ${eps.length} wells ${behind.length === 1 ? 'is' : 'are'} behind</b>`
+        + `Something was recorded ${gap === 0 ? 'today' : 'yesterday'}, but ${nameList(behind)} ${behind.length === 1 ? 'has' : 'have'} not reported. `
+        + `Every day a well is missed is a day that has to be re-entered before the month can be filed.</div>`;
   } else {
-    top = `<div class="banner ok"><b>Up to date</b>Last reading ${esc(newest)}${gap === 1 ? ' (yesterday)' : ' (today)'}.</div>`;
+    top = `<div class="banner ok"><b>Up to date</b>All ${eps.length} wells reporting — last reading ${esc(newest)}${gap === 1 ? ' (yesterday)' : ' (today)'}.</div>`;
   }
   $('top').innerHTML = top;
 
@@ -372,9 +396,21 @@ function renderMonth(mo, y, m, eps) {
   }
 
 
+  /* ⛔ AN EXPECTED EVENT IS NOT AN EXCEPTION (Codex finding 8, 2026-09-02).
+     Every stored `info` flag went into this queue one row per day, and `no_flow` — a well that did
+     not run, which is ordinary and is deliberately recorded rather than left blank — is the
+     commonest flag there is. Measured live: **May 2026 showed 57 attention items**, nearly all of
+     them idle-well notices, with one genuine low-distribution-chlorine alert among them. A queue
+     that reports the normal alongside the actionable is a queue an OIC skims, and she skims it in
+     the minutes before signing under 1976 PA 399.
+     It is summarised to ONE row per well instead of suppressed: how many days a well stood idle is
+     a real fact about the month, and April 2026 (tower down, only Well 3 running) is the case that
+     proves it belongs on the page — just not thirty times. */
+  const idleDays = {};
   for (const r of readings) {
     for (const f of (r.flags || [])) {
       if (/^dose_(high|low)$/.test(f.code || '') && quantified.has(`${r.reading_date}|${r.entry_point_id}`)) continue;
+      if ((f.code || '') === 'no_flow') { (idleDays[r.entry_point_id] ||= []).push(r.reading_date); continue; }
       rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: f.level === 'warn' ? 'warn' : 'info',
                   what: f.msg || f.code, who: r.operator_initials });
     }
@@ -388,6 +424,17 @@ function renderMonth(mo, y, m, eps) {
       rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'info',
                   what: `Corrected: ${r.correction_reason}`, who: r.operator_initials });
     }
+  }
+
+  // one line per well for the idle days collected above, dated to the month so it sorts with it
+  for (const [epId, dates] of Object.entries(idleDays)) {
+    rows.push({
+      date: `${y}-${String(m).padStart(2, '0')}`, where: epName(epId), level: 'info',
+      what: `${dates.length} day${dates.length === 1 ? '' : 's'} the well did not run (meter unchanged) — ${
+        dates.length > 6 ? dates.slice(0, 6).map((d) => d.slice(8)).join(', ') + `, +${dates.length - 6} more`
+                         : dates.map((d) => d.slice(8)).join(', ')}`,
+      who: '',
+    });
   }
 
   // Days nobody visited a well that normally runs — a gap in the record, not a quiet day.
@@ -415,8 +462,16 @@ function renderMonth(mo, y, m, eps) {
     }
   }
 
-  rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-  $('attnCount').textContent = rows.length ? `— ${rows.length} in ${MN[m]}` : `— nothing in ${MN[m]}`;
+  /* Severity first, then date. Chronological alone buries a bacti failure on the 3rd under
+     everything that happened after it — and the reader is scanning to decide whether the month is
+     fit to sign, not reading a diary. */
+  const RANK = { err: 0, warn: 1, info: 2 };
+  rows.sort((a, b) => (RANK[a.level] ?? 2) - (RANK[b.level] ?? 2)
+                   || (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const actionable = rows.filter((r) => r.level !== 'info').length;
+  $('attnCount').textContent = rows.length
+    ? `— ${actionable} to look at${rows.length > actionable ? `, ${rows.length - actionable} for information` : ''} in ${MN[m]}`
+    : `— nothing in ${MN[m]}`;
   $('attn').innerHTML = rows.length
     ? `<div class="card scroll"><table><thead><tr><th class="l">Date</th><th class="l">Where</th><th class="l">What</th><th class="l">Who</th></tr></thead><tbody>`
       + rows.map((r) => `<tr><td class="l">${esc(r.date)}</td><td class="l">${esc(r.where)}</td>

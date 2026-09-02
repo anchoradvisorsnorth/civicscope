@@ -235,7 +235,9 @@ const fmt = (v,d=2) => (v==null||!isFinite(v) ? '—' : Number(v).toFixed(d));
    what makes one round three wells and two samples rather than five identifications, and it is
    gone the moment the app is reopened.
    Only the supply and the offline queue are durable. */
-function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,queue:S.queue})); }
+// `rejected` persists for the same reason `queue` does: a record this tablet captured and could
+// not file must survive the app being closed, or closing it becomes the way to lose evidence.
+function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,queue:S.queue,rejected:S.rejected||[]})); }
 function load(){
   try{ Object.assign(S, JSON.parse(localStorage.getItem(LS)||'{}')); }catch{}
   S.queue ||= [];
@@ -261,17 +263,50 @@ async function api(action, payload={}, opts={}){
 function enqueue(action, payload){ S.queue.push({action,payload,at:Date.now()}); save(); paintQueue(); }
 function paintQueue(){
   const bar = $('queueBar');
-  if(!S.queue.length){ bar.classList.add('hide'); return; }
+  const rej = (S.rejected||[]).length;
+  if(!S.queue.length && !rej){ bar.classList.add('hide'); return; }
   bar.classList.remove('hide');
-  bar.textContent = `${S.queue.length} record${S.queue.length>1?'s':''} waiting to send — tap to retry`;
+  const parts = [];
+  if(S.queue.length) parts.push(`${S.queue.length} record${S.queue.length>1?'s':''} waiting to send — tap to retry`);
+  if(rej) parts.push(`⚠ ${rej} could not be sent — the server already has that day. Tap to see.`);
+  bar.textContent = parts.join('  ·  ');
 }
-$('queueBar').onclick = flush;
+$('queueBar').onclick = () => { if((S.rejected||[]).length) showRejected(); else flush(); };
+
+/* ⛔ A FIELD OBSERVATION IS NEVER SILENTLY DISCARDED (Codex finding 5, 2026-09-02).
+   This loop treated every 409 and 422 as disposable — `continue`, then rebuild the queue from the
+   survivors — so a reading taken at the well simply vanished off the tablet with no message. The
+   real case: the tablet records Well 1 offline, the office backfills the same day with different
+   numbers, the tablet reconnects, gets a 409, and the operator's own observation disappears while
+   the office's value stays as the sole live record.
+   A rejected item leaves the SEND queue (it will never succeed unmodified) and moves to a visible
+   rejected list, which is the tablet's honest statement that something it captured is not in the
+   record. Reconciling it is an office job — a correction needs a reason and a sign-in. */
+function showRejected(){
+  const lines = (S.rejected||[]).map(r =>
+    `• ${esc(r.payload.reading_date || r.payload.sample_date || r.payload.collected_date || '')} `
+    + `${esc(r.action.replace('submit_',''))} — ${esc(r.reason)}`).join('<br>');
+  alert((S.rejected||[]).length + ' record(s) this tablet captured are NOT in the record:\n\n'
+    + (S.rejected||[]).map(r => `${r.payload.reading_date || r.payload.sample_date || ''} ${r.action.replace('submit_','')} — ${r.reason}`).join('\n')
+    + '\n\nThe server already holds that day, or refused the values. Give these to the office to reconcile — do not re-enter them here.');
+  void lines;
+}
 async function flush(){
   if(!S.queue.length || !navigator.onLine) return;
-  const still=[];
+  const still=[]; S.rejected = S.rejected || [];
   for(const item of S.queue){
-    try{ await api(item.action, item.payload); }
-    catch(e){ if(e.status===422||e.status===409) continue; still.push(item); }
+    try{
+      const r = await api(item.action, item.payload);
+      // 207: it committed, but something downstream did not. Do NOT re-queue — it is saved.
+      if(r && r.ok === false) S.rejected.push({...item, reason: r.msg || 'saved with a warning'});
+    }
+    catch(e){
+      if(e.status===422||e.status===409){
+        S.rejected.push({...item, reason: (e.payload && (e.payload.msg || (e.payload.errors||[])[0]?.msg)) || ('http '+e.status)});
+        continue;
+      }
+      still.push(item);
+    }
   }
   S.queue = still; save(); paintQueue();
   if(!still.length) refreshRound();
@@ -602,7 +637,17 @@ async function openEntry(ep){
     };
     $('e_submit').disabled = true; $('e_submit').textContent = 'Sending…';
     try{
-      await api('submit_reading', payload);
+      const r = await api('submit_reading', payload);
+      /* ⛔ A 2xx IS NOT "EVERYTHING WORKED" (Codex finding 1, 2026-09-02). The server answers 207
+         when the reading committed but the following day could not be fully recomputed against it.
+         Closing the form on that told the operator his round was clean while the record behind the
+         next day's filing was inconsistent. The reading IS saved, so it is never re-queued — but
+         he is not told "done" either. */
+      if (r && r.ok === false) {
+        $('e_msg').innerHTML = `<div class="msg warn">${esc(r.msg || 'Saved, but the following day could not be recomputed. Tell Keith before the month is filed.')}</div>`;
+        $('e_submit').textContent = 'Saved with a warning';
+        return;
+      }
       sec.classList.add('hide'); $('tabRound').classList.remove('hide'); refreshRound();
     }catch(e){
       if(e.status===422 || e.status===409 || e.status===403){

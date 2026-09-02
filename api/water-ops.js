@@ -245,16 +245,44 @@ async function rederiveSuccessor(supply, ep, afterDate) {
      person making the edit is the only one who can resolve it. */
   if (!out.ok) return { id: next.id, date: next.reading_date, ok: false, errors: out.errors };
 
-  await sb(`water_readings?id=eq.${next.id}`, {
-    method: 'PATCH', headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({ ...out.reading, flags: out.flags }),
-  });
+  /* ⛔ RE-DERIVING MUST NOT ERASE WHAT THE OPERATOR WAS SHOWN (Codex finding 6, 2026-09-02).
+     This PATCHed `flags: out.flags` outright, so a later backfill that moved the trailing median
+     could silently delete a `dose_high` from a day nobody had reopened — destroying the only
+     evidence used to decide whether a value is fit to file. The current flags still have to be
+     current (a `no_flow` genuinely stops being true when the baseline moves), so the row keeps the
+     freshly computed set AND an audit entry carrying what it replaced.
+     ⚠ This is the in-row form of the fix. The full answer is a separate immutable
+     submission-time record — see `## Open Action Items` — and it needs a migration. */
+  const priorFlags = Array.isArray(full.flags) ? full.flags : [];
+  const changed = JSON.stringify(priorFlags.map((f) => f.code).sort())
+               !== JSON.stringify(out.flags.map((f) => f.code).sort());
+  const flags = [...out.flags];
+  if (changed) {
+    flags.push({
+      level: 'info', code: 'rederived',
+      msg: `Recomputed after ${afterDate} was entered or corrected — the baseline this day measures from changed.`,
+      at: new Date().toISOString(), after: afterDate, superseded_flags: priorFlags,
+    });
+  }
+
+  /* ⛔ `return=minimal` CANNOT TELL A SUCCESSFUL UPDATE FROM ONE THAT MATCHED NO ROW (Codex
+     finding 1). Both come back 204. Every PATCH here now returns its representation and the
+     affected row count is asserted, because "I updated the successor" and "I updated nothing"
+     must not look the same to a caller that is about to report success. */
+  const writeErrors = [];
+  const patched = await sb(`water_readings?id=eq.${next.id}`, {
+    method: 'PATCH', headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ ...out.reading, flags }),
+  }).catch((e) => { writeErrors.push({ row: 'reading', msg: String((e && e.message) || e) }); return null; });
+  if (patched && patched.length !== 1) {
+    writeErrors.push({ row: 'reading', msg: `expected 1 row updated, got ${patched.length}` });
+  }
+
   /* Every derived column moves together or the row is internally inconsistent: solution_lbs
      against a fresh baseline with a dose computed against the old one is worse than either. */
-  const feedErrors = [];
   for (const fd of out.feeds) {
-    await sb(`water_feed_readings?reading_id=eq.${next.id}&feed_id=eq.${fd.feed_id}`, {
-      method: 'PATCH', headers: { Prefer: 'return=minimal' },
+    const r = await sb(`water_feed_readings?reading_id=eq.${next.id}&feed_id=eq.${fd.feed_id}`, {
+      method: 'PATCH', headers: { Prefer: 'return=representation' },
       body: JSON.stringify({
         solution_lbs: fd.solution_lbs, avail_lbs: fd.avail_lbs,
         dose_mg_l: fd.dose_mg_l, ortho_mg_l: fd.ortho_mg_l,
@@ -263,12 +291,16 @@ async function rederiveSuccessor(supply, ep, afterDate) {
          not there cannot be stale" — true, but it also swallowed the rejected write caused by
          defect 3 above, which is why a dead column name survived in a compliance path. A failure
          is now REPORTED with the row it belongs to. */
-    }).catch((e) => feedErrors.push({ feed_id: fd.feed_id, msg: String((e && e.message) || e) }));
+    }).catch((e) => { writeErrors.push({ feed_id: fd.feed_id, msg: String((e && e.message) || e) }); return null; });
+    if (r && r.length !== 1) {
+      writeErrors.push({ feed_id: fd.feed_id, msg: `expected 1 feed row updated, got ${r.length}` });
+    }
   }
+
   return {
-    id: next.id, date: next.reading_date, ok: feedErrors.length === 0,
+    id: next.id, date: next.reading_date, ok: writeErrors.length === 0,
     derived: out.reading, feeds: out.feeds,
-    ...(feedErrors.length ? { feedErrors } : {}),
+    ...(writeErrors.length ? { writeErrors } : {}),
   };
 }
 
@@ -837,19 +869,53 @@ export default async function handler(req, res) {
         }
         const row = inserted[0];
 
+        /* ⛔ A READING WITHOUT ITS CHEMICAL ROWS IS AN INCOMPLETE REGULATORY RECORD (Codex
+           finding 2). The rollback above covers a failed reading insert only: if the feed insert
+           then failed, the replacement row stayed live with no feed children while the complete
+           row it superseded stayed stood down. The whole graph is now put back.
+           ⚠ This is a compensating rollback, not a transaction — the real fix is one Postgres
+           function doing supersede + insert + feeds + successor atomically, which needs a
+           migration and is in `## Open Action Items`. */
         if (out.feeds.length) {
-          await sb('water_feed_readings', {
-            method: 'POST', headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify(out.feeds.map((f) => ({ reading_id: row.id, ...f, kind: undefined }))),
-          });
+          try {
+            await sb('water_feed_readings', {
+              method: 'POST', headers: { Prefer: 'return=minimal' },
+              body: JSON.stringify(out.feeds.map((f) => ({ reading_id: row.id, ...f, kind: undefined }))),
+            });
+          } catch (e) {
+            await sb(`water_readings?id=eq.${row.id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } })
+              .catch(() => { /* reported below either way */ });
+            if (supersedes) {
+              await sb(`water_readings?id=eq.${supersedes.id}`, {
+                method: 'PATCH', headers: { Prefer: 'return=minimal' },
+                body: JSON.stringify({ superseded_at: null }),
+              }).catch(() => {});
+            }
+            return res.status(500).json({
+              error: 'feed_write_failed', saved: false,
+              msg: 'The chemical rows could not be written, so the whole day was rolled back and nothing was changed. Try again.',
+            });
+          }
         }
         /* The day after this one derived against whatever used to be here. Recompute it now, so a
            corrected or back-filled day cannot leave a stale interval behind it in the filing. */
-        const after = await rederiveSuccessor(p.supply, ep, date).catch(() => null);
-        return res.status(200).json({
-          ok: true, id: row.id, derived: out.reading, feeds: out.feeds, flags: out.flags,
+        const after = await rederiveSuccessor(p.supply, ep, date)
+          .catch((e) => ({ ok: false, threw: String((e && e.message) || e) }));
+
+        /* ⛔ `ok: true` USED TO MEAN "THE READING SAVED" AND WAS READ AS "EVERYTHING WORKED"
+           (Codex finding 1). A successor that half-updated still came back 200 / ok:true and the
+           tablet closed the form on it. `ok` now covers the WHOLE operation and a partial result
+           answers 207, which is still 2xx — deliberately, because the reading itself IS committed
+           and a non-2xx would make the offline queue re-send it and collide with itself.
+           `saved` is the flag a client uses to decide whether to re-queue; `ok` is the flag it
+           uses to decide whether to say "done". */
+        const partial = !!(after && after.ok === false);
+        return res.status(partial ? 207 : 200).json({
+          ok: !partial, saved: true,
+          id: row.id, derived: out.reading, feeds: out.feeds, flags: out.flags,
           ...(supersedes ? { corrected: supersedes.id } : {}),
           ...(after ? { rederived: after } : {}),
+          ...(partial ? { msg: `This day saved, but ${after.date || 'the following day'} could not be fully recomputed against it. Its stored numbers may not match this change — tell Keith before the month is filed.` } : {}),
         });
       }
 
