@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <link id="favicon" rel="icon" href="/ryc-estimate/RYC_Shield_Orange.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="/ryc-estimate/estimating-core.js?v1.51.0"></script>
-<link rel="stylesheet" href="/ryc-shell/shell.css?v1.51.0">
-<script src="/ryc-shell/shell.js?v1.51.0"></script>
+<script src="/ryc-estimate/estimating-core.js?v1.52.0"></script>
+<link rel="stylesheet" href="/ryc-shell/shell.css?v1.52.0">
+<script src="/ryc-shell/shell.js?v1.52.0"></script>
 <style>
   :root { --accent:#ea580c; --ink:#1c1917; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   * { box-sizing:border-box; }
@@ -1968,7 +1968,72 @@ function bcDivisions() {
 function bcResetCard() {
   const b = document.getElementById('bcBody');
   if (b) b.innerHTML = `<button class="btn" onclick="bcPreview(this)">Preview packages &amp; bidders</button>
-    <span class="note" style="margin-left:10px">Step 1 of 2 — nothing is created yet</span>`;
+    <span class="note" style="margin-left:10px">Step 1 of 2 — nothing is created yet</span>`
+    + bcLinkRow();
+}
+
+/* LINK A BC PROJECT THAT ALREADY EXISTS (Erik Parcell, 2026-09-02: "Is there a way to link my
+   current BuildingConnected project to it? currently it looks like there is just an option to
+   create a draft project in BC.").
+
+   He was right — the Desk only offered to CREATE a draft, which is the wrong move for a job
+   already set up in BC: it produces a second project and splits the bid history across both. The
+   server side needed nothing; `link_bc` has always accepted an arbitrary BC id (it is what the
+   create path calls once BC hands back a project), and it already protects a pursuit's Dodge
+   origin by moving it to workflow.source_id before BC claims that column. Only the control was
+   missing. Once linked, bc-readback mirrors packages, invites and bids back onto the pursuit. */
+function bcLinkRow(relink) {
+  return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+      <div class="note" style="margin-bottom:6px">${relink
+        ? 'Linked to the wrong project? Paste the right one — this replaces the link, and creates nothing in BuildingConnected.'
+        : 'Already have this job in BuildingConnected? Link it instead of creating a draft — the Desk then mirrors its packages, invitations and bids. Nothing is created in BC.'}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="bcLinkUrl" placeholder="Paste the BuildingConnected project link"
+               style="flex:1;min-width:280px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px">
+        <button class="btn-sm" onclick="bcLinkExisting(this)">${relink ? 'Re-link' : 'Link this project'}</button>
+      </div>
+      <div id="bcLinkNote" class="note" style="margin-top:6px;display:none"></div>
+    </div>`;
+}
+
+async function bcLinkExisting(btn) {
+  const el = document.getElementById('bcLinkUrl');
+  const note = document.getElementById('bcLinkNote');
+  const say = (msg, bad) => {
+    if (!note) return;
+    note.style.display = 'block';
+    note.innerHTML = msg;
+    note.style.color = bad ? '#b91c1c' : 'var(--muted)';
+  };
+  const raw = ((el && el.value) || '').trim();
+  /* A BC project id is 24 hex. Accept the whole URL (what someone actually copies out of the
+     address bar) or a bare id, and refuse anything else rather than recording a link that will
+     404 for the next person who clicks it. */
+  const id = ((raw.match(/([0-9a-f]{24})/i) || [])[1] || '').toLowerCase();
+  if (!id) return say('That does not look like a BuildingConnected project link — open the project in BC and copy the address bar.', true);
+  if (!window._pursuitId) return say('Save or open this pursuit first — a BC link belongs to the pursuit.', true);
+  const url = /^https?:\/\//i.test(raw) ? raw : 'https://app.buildingconnected.com/projects/' + id;
+
+  const label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Linking…'; }
+  try {
+    const r = await RYCAuth.post('link_bc', { pursuit_id: window._pursuitId, id: window._runId || null,
+      bc_project_id: id, bc_url: url });
+    if (!r.ok || !r.data || r.data.ok === false) {
+      /* BC linkage is exclusive by design — one BC project cannot belong to two pursuits — so a
+         409 here is a real answer, not a fault, and it names the pursuit that already holds it. */
+      throw new Error((r.data && r.data.error) || r.error || 'the link could not be saved');
+    }
+    window._bcLoaded = { url, id };
+    if (window._pursuitVersion != null && r.data.version != null) window._pursuitVersion = r.data.version;
+    bcLoadedCard();
+    historyCache = null;   // the board's ↗BC chip reads from the pursuit
+    say(`✓ Linked. Packages, invitations and bids mirror in at the next read-back (12:00 and 20:00 UTC).`);
+  } catch (e) {
+    say(esc(e.message || 'the link could not be saved'), true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
 }
 // Hard block: this estimate already has a BC draft — never offer to create another from here.
 /* What BuildingConnected itself reports, mirrored by bc-readback.js. Before this the Desk went
@@ -2000,10 +2065,14 @@ function bcLoadedCard() {
   const b = document.getElementById('bcBody');
   if (!b) return;
   const u = (window._bcLoaded && window._bcLoaded.url) || null;
+  /* "A draft project was created from this estimate" was the only story this card told, and it
+     became untrue the moment a pursuit could be linked to a project that already existed in BC.
+     The wording is now neutral about how the connection came to be — what matters here is that
+     there IS one, and that creating a second from the Desk stays blocked either way. */
   b.innerHTML = bcMirror() +
-    `<div style="font-size:14px;margin-bottom:8px">✓ <strong>Already loaded to BuildingConnected.</strong> A draft project was created from this estimate — to prevent a duplicate, it can't be loaded again from here.</div>`
+    `<div style="font-size:14px;margin-bottom:8px">✓ <strong>Connected to BuildingConnected.</strong> This pursuit is tied to a BC project — to prevent a duplicate, a draft can't be created from here.</div>`
     + (u ? `<a class="btn-sm" href="${esc(u)}" target="_blank" rel="noopener">Open in BuildingConnected →</a>` : `<span class="note">BC link not recorded on this run — find it in BuildingConnected.</span>`)
-    + `<div class="note" style="margin-top:6px">Need a fresh draft after major scope changes? Create it directly in BuildingConnected.</div>`;
+    + bcLinkRow(true);
 }
 async function bcPreview(btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Building preview…'; }
@@ -4216,7 +4285,7 @@ async function runQuickCheck() {
    Supabase via /api/ryc-estimate-log (gate pw verified server-side, service key stays server-side).
    Past Estimates tab lists runs grouped by project; opening one re-renders the full results panel
    from stored JSON — including the BC draft loader — without re-burning a takeoff. */
-const TOOL_VERSION = 'v1.51.0';
+const TOOL_VERSION = 'v1.52.0';
 const LOG_API = '/api/ryc-estimate-log';
 function fileSummary() {
   const agg = {};
