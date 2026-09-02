@@ -341,7 +341,13 @@ async function renderWeek(slug){
   }
   document.getElementById('content').innerHTML=html;
   setPrintHead(wk,slug,revealed,games.length);
+  /* ⛔ AN UNLOCKED WEEK IS NOT "PICKS OPEN" (2026-09-02). The status line had two states for
+     three, so a week with a slate built but not yet locked announced "picks open — hidden until
+     all lock" directly above the draft note saying picks are NOT open and the spreads can still
+     move. The page contradicted itself on one screen. It went unseen because build-to-lock is
+     normally minutes; Week 1 sat in it for days after the NFL half was pulled off the slate. */
   const state=revealed?(wk.finalized?'final':'live')
+    :!wk.slateLocked?'draft — the commissioner hasn’t locked the slate yet'
     :boardOpen?'board open — lock your picks to see it'
     :'picks open — hidden until all lock';
   document.getElementById('status').innerHTML='<b>'+esc(wk.label||slug)+'</b> · '+state+'<br>Updated '+new Date().toLocaleTimeString();
