@@ -5,43 +5,42 @@
  * Company Share/Accounting Office/Annette's Files/Vendors — one .xlsx per vendor, a worksheet tab
  * per job, 160 of them edited in 2026, maintained by four people. Each tab is
  * `Date | This Period | X% Ret | Current Due` with a totals row, and the live answer is that one
- * total: retainage held. Getting a job's exposure means opening every vendor file that ever
- * worked it.
+ * total. Getting a JOB's exposure means opening every vendor file that ever worked it.
  *
- * WHAT IT DOES NOT REPLACE, AND THE SCREEN SAYS SO RATHER THAN IMPLYING OTHERWISE:
- *   · the G703 scope-line grid she rebuilds in the lower half of each tab (earthwork, sanitary,
- *     storm, water…) with an `O = C - SUM(F:N)` check she works to zero — the reader takes the
- *     column E grand total and nothing finer;
- *   · release. Her sheets record it IN BAND, as a pay-app row whose date cell reads `pd retainage`
- *     or `Final Retention`. The register has no release event, so a job whose retainage has been
- *     paid back still shows the last application's line 5 — which is what the FORM says and is why
- *     the last-application date is on every row here;
- *   · `don't hold retainage`, which she writes per application and then deletes that row's formula.
- *     A rate read off the page gets this right by construction; nothing here needs the note.
+ * ⛔ TWO DIFFERENT NUMBERS, AND OUTSTANDING IS THE ONE PEOPLE MEAN.
+ *   Held        G702 line 5 from the latest filed application — what the PAPER last said.
+ *   Outstanding that figure less releases dated AFTER that application — what we STILL hold.
+ * They are identical until retainage starts coming back. Retainage billed ON a final application is
+ * already inside its line 5, which is why a release dated on or before the last application is
+ * counted but not subtracted again (migrations 069/070). This screen leads with Outstanding.
  *
- * ⛔ NULL IS NOT ZERO, AND THIS FILE NEVER PRINTS $0 FOR AN UNKNOWN. A vendor+job whose
- * applications carried no legible line 5 renders as an em dash with its coverage beside it.
- * Printing zero would tell the front office RYC holds nothing on a subcontractor it may be holding
- * plenty on — the single most expensive thing this screen could get wrong.
+ * ⛔ NULL IS NOT ZERO, AND A CONTRADICTED FIGURE IS NOT SETTLED. Three states, and they must not
+ * look alike — see `stated_status`. An em dash means nobody knows; a bold figure means the face
+ * sheet foots; a figure marked `?` means the page disagrees with itself and is excluded from every
+ * total. Printing $0.00 for an unknown would tell the front office RYC holds nothing on a
+ * subcontractor it may be holding plenty on.
+ *
+ * WHAT IT STILL DOES NOT CAPTURE, said on the screen rather than implied away: the G703 scope-line
+ * grid Annette rebuilds in the lower half of each tab, with the `O = C - SUM(F:N)` check she works
+ * to zero; and pay-application NUMBERS, which the reader uses to classify a document and discards —
+ * so a missing application in a sequence still cannot be detected.
  */
 
-var _ret = { rows: [], summary: {}, by: "vendor", q: "" };
-
-/* ONE RULE, ONE EXPRESSION. What may be added into a total: only a figure whose own face sheet
-   foots (stated_status 'ok'). This is the SAME rule the server applies to `summary.held`, and it
-   is a function rather than three copies of a ternary because the header total, the filtered
-   total and the per-job subtotal were three places for it to drift — teaching one about
-   contradicted figures and not the others is how a board ends up contradicting itself in plain
-   sight. */
-function retHeld(x){
-  return (x && x.stated_status === "ok" && x.retainage_stated !== null)
-    ? Number(x.retainage_stated) : 0;
-}
+var _ret = { rows: [], view: [], summary: {}, by: "vendor", q: "", releasing: null,
+             history: null, msg: "" };
 
 function retPct(x){
   if(x === null || x === undefined) return "";
-  var p = Number(x) * 100;
-  return (Math.round(p * 100) / 100) + "%";
+  return (Math.round(Number(x) * 10000) / 100) + "%";
+}
+
+/* ONE RULE, ONE EXPRESSION. What may be added into a total: only a figure whose own face sheet
+   foots. The header total, the filtered total and the per-job subtotal were three places for this
+   to drift — teaching one about contradicted figures and not the others is how a board contradicts
+   itself in plain sight. Mirrors the server's `summary.outstanding`. */
+function retOut(x){
+  return (x && x.stated_status === "ok" && x.retainage_outstanding !== null)
+    ? Number(x.retainage_outstanding) : 0;
 }
 
 function renderRetainage(){
@@ -49,11 +48,15 @@ function renderRetainage(){
   var ti = document.getElementById("view-title");
   if(ti) ti.textContent = "Retainage";
   document.getElementById("view-ctx").innerHTML =
-    "What we are holding, per subcontractor per job &middot; read off each pay application's "
-    + "G702 line 5, never derived";
+    "What we still hold, per subcontractor per job &middot; read off each pay application's "
+    + "G702 line&nbsp;5, less what has been released";
   v.innerHTML = '<div class="panel"><div class="sub">Loading retainage&hellip;</div></div>';
+  retLoad();
+}
 
-  invPost("retainage", {}).then(function(r){
+function retLoad(){
+  return invPost("retainage", {}).then(function(r){
+    var v = document.getElementById("view");
     if(!r.ok || !r.data || r.data.error){
       v.innerHTML = '<div class="panel"><div class="sub m-r">'
         + esc((r.data && r.data.error) || r.error || "Could not load retainage.")
@@ -66,8 +69,88 @@ function renderRetainage(){
   });
 }
 
-function retSetBy(k){ _ret.by = k; retPaint(); }
+function retSetBy(k){ _ret.by = k; _ret.releasing = null; _ret.history = null; retPaint(); }
 function retSearch(el){ _ret.q = (el.value || "").toLowerCase(); retPaint(); }
+
+/* Rows are addressed by their index in the CURRENTLY PAINTED list, never by name. Vendor names in
+   this register include `Midwest Glass & Mirror` and `Circle "R" Electric, Inc.` — putting either
+   into an onclick attribute is a quoting bug waiting to happen, and the register's own history has
+   a defect from HTML built by concatenation and escaped afterwards. An integer cannot break. */
+function retRowAt(i){ return _ret.view[i] || null; }
+
+function retOpenRelease(i){
+  _ret.releasing = (_ret.releasing === i) ? null : i;
+  _ret.history = null; _ret.msg = "";
+  retPaint();
+}
+function retOpenHistory(i){
+  if(_ret.history === i){ _ret.history = null; retPaint(); return; }
+  var x = retRowAt(i);
+  if(!x) return;
+  _ret.history = i; _ret.releasing = null; _ret.msg = "";
+  _ret.historyRows = null;
+  retPaint();
+  invPost("retainage_releases", { vendor: x.vendor, job_no: x.job_no }).then(function(r){
+    _ret.historyRows = (r.ok && r.data && r.data.rows) ? r.data.rows : [];
+    if(_ret.history === i) retPaint();
+  });
+}
+
+function retSaveRelease(i, confirmOver){
+  var x = retRowAt(i);
+  if(!x) return;
+  var amt = parseFloat((document.getElementById("rel-amt") || {}).value);
+  var on = ((document.getElementById("rel-on") || {}).value || "").trim();
+  var method = ((document.getElementById("rel-method") || {}).value || "check");
+  var note = ((document.getElementById("rel-note") || {}).value || "").trim();
+  var msg = document.getElementById("rel-msg");
+  if(!(amt > 0)){ if(msg) msg.innerHTML = '<span class="m-r">Amount must be more than zero.</span>'; return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(on)){
+    if(msg) msg.innerHTML = '<span class="m-r">A release needs the date the money moved.</span>';
+    return;
+  }
+  if(msg) msg.textContent = "Recording…";
+  invPost("retainage_release", { vendor: x.vendor, job_no: x.job_no, amount: amt,
+                                 released_on: on, method: method, note: note,
+                                 confirm_over: !!confirmOver })
+    .then(function(r){
+      if(r.ok && r.data && r.data.ok){
+        _ret.releasing = null;
+        _ret.msg = "Recorded " + fmt(amt) + " released to " + x.vendor + ".";
+        retLoad();
+        return;
+      }
+      var e = (r.data && r.data.error) || r.error || "Could not record it.";
+      /* A screen that refuses must offer the control that satisfies it, in the same words the
+         server used. Over-releasing is possible — the paper can be out of date — so it is
+         confirmed, not forbidden. */
+      if(r.data && r.data.needs_confirm){
+        if(msg){
+          msg.innerHTML = '<span class="m-a">' + esc(e) + '</span> '
+            + '<button class="pfill" onclick="retSaveRelease(' + i + ',true)">'
+            + 'Record it anyway</button>';
+        }
+        return;
+      }
+      if(msg) msg.innerHTML = '<span class="m-r">' + esc(e) + '</span>';
+    });
+}
+
+function retVoidRelease(id, i){
+  var reason = window.prompt("Why is this release being voided? (it is kept, not deleted)");
+  if(reason === null) return;
+  if(!reason.trim()){ return; }
+  invPost("retainage_release_void", { id: id, reason: reason.trim() }).then(function(r){
+    if(r.ok && r.data && r.data.ok){
+      _ret.msg = "Release voided.";
+      _ret.history = null;
+      retLoad();
+    } else {
+      _ret.msg = (r.data && r.data.error) || r.error || "Could not void it.";
+      retPaint();
+    }
+  });
+}
 
 function retPaint(){
   var v = document.getElementById("view"), s = _ret.summary;
@@ -79,52 +162,60 @@ function retPaint(){
         .toLowerCase().indexOf(_ret.q) >= 0;
     });
   }
-  /* Two orderings because they are two different questions. BY VENDOR is Annette's own model —
-     one file per subcontractor. BY JOB is the one her filing cannot answer without opening every
-     vendor file that ever worked it, and it is what close-out actually asks. */
+  /* Two orderings because they are two different questions. BY SUBCONTRACTOR is Annette's own
+     model — one file per sub. BY JOB is what close-out asks and what her filing cannot answer
+     without opening every vendor file that ever touched it. */
   rows.sort(function(a, b){
     if(_ret.by === "job"){
       var j = (a.job_name || a.job_no || "").localeCompare(b.job_name || b.job_no || "");
       if(j) return j;
-      return (b.retainage_stated || 0) - (a.retainage_stated || 0);
     }
-    return (b.retainage_stated || 0) - (a.retainage_stated || 0);
+    return retOut(b) - retOut(a);
   });
+  _ret.view = rows;
 
-  // Only figures whose own face sheet foots. Same rule as the server's `held` — see stated_status.
-  var shownHeld = rows.reduce(function(a, x){ return a + retHeld(x); }, 0);
+  var shownOut = rows.reduce(function(a, x){ return a + retOut(x); }, 0);
 
   var h = '<div class="panel">'
-    + '<div class="h">Retainage held &middot; ' + fmt(s.held || 0) + '</div>'
+    + '<div class="h">Outstanding retainage &middot; ' + fmt(s.outstanding || 0) + '</div>'
     + '<div class="sub">'
     + '<b>' + (s.stated_rows || 0) + '</b> of <b>' + (s.rows || 0)
     + '</b> vendor&ndash;job pairs have a figure whose own page foots'
     + ' &middot; ' + (s.vendors || 0) + ' subcontractors &middot; ' + (s.jobs || 0) + ' jobs'
     + ' &middot; ' + (s.apps || 0) + ' pay applications'
+    + ((s.released_total || 0) > 0
+        ? ' &middot; ' + fmt(s.released_total) + ' released on ' + (s.released_rows || 0) + ' pair(s)'
+        : '')
     + '</div>';
 
-  /* THE HONEST CAVEATS RIDE ON THE SCREEN, not in a doc nobody opens. Each of these is a real
-     condition with a real cause, and each is the reason a number below might be wrong. */
+  /* THE CAVEATS RIDE ON THE SCREEN, not in a doc nobody opens. Each names a real condition with a
+     real cause, and each is a reason a number below might be wrong. */
   var warn = [];
+  if(s.paper_unrecorded_rows){
+    warn.push('<b class="m-a">' + s.paper_unrecorded_rows + '</b> pair(s) show line&nbsp;5 coming '
+      + '<b>down</b> between applications with nothing recording why &mdash; retainage was almost '
+      + 'certainly released. Record it so the outstanding figure is right.');
+  }
+  if(s.over_released_rows){
+    warn.push('<b class="m-r">' + s.over_released_rows + '</b> pair(s) have releases totalling more '
+      + 'than the paper says is held.');
+  }
   if(s.unstated_rows){
-    warn.push('<b class="m-a">' + s.unstated_rows + '</b> pair(s) show '
-      + '&mdash; because no application behind them printed a legible line&nbsp;5. '
-      + '<b>That is unknown, not zero.</b>');
+    warn.push('<b class="m-a">' + s.unstated_rows + '</b> pair(s) show &mdash; because no '
+      + 'application behind them printed a legible line&nbsp;5. <b>Unknown, not zero.</b>');
   }
   if(s.contradicted_rows){
     warn.push('<b class="m-a">' + s.contradicted_rows + '</b> pair(s) are marked <b>?</b> because '
       + 'the face sheet disagrees with itself &mdash; line&nbsp;4 &minus; line&nbsp;5 does not equal '
-      + 'line&nbsp;6. Their ' + fmt(s.contradicted_held) + ' is <b>not</b> in the total above; go '
-      + 'and look at the document.');
+      + 'line&nbsp;6. Their ' + fmt(s.contradicted_held) + ' is <b>not</b> in the total above.');
   }
   if(s.excluded_rows){
     warn.push('<b class="m-r">' + s.excluded_rows + '</b> pair(s) contain a pay application with a '
-      + 'negative payable &mdash; a misread face sheet. It is excluded from the arithmetic and the '
-      + 'row is left visible rather than filtered away.');
+      + 'negative payable &mdash; a misread face sheet, excluded from the arithmetic and left '
+      + 'visible rather than filtered away.');
   }
-  warn.push('Retainage <b>release</b> is not tracked here. A job whose retainage has been paid '
-    + 'back still shows its last application&rsquo;s line&nbsp;5 &mdash; check the last-application '
-    + 'date before treating a figure as outstanding.');
+  warn.push('The G703 <b>scope-line grid</b> and pay-application <b>numbers</b> are not captured, '
+    + 'so a missing application in a sequence cannot be detected here.');
   h += '<div class="sub" style="margin-top:6px">&#9888; ' + warn.join('<br>&#9888; ') + '</div>';
 
   h += '<div style="margin-top:8px">'
@@ -135,8 +226,10 @@ function retPaint(){
     + '<input id="ret-q" placeholder="Filter vendor or job" oninput="retSearch(this)" '
     + 'value="' + esc(_ret.q) + '" style="margin-left:8px">'
     + (_ret.q ? ' <span class="sub">' + rows.length + ' shown &middot; '
-        + fmt(shownHeld) + '</span>' : '')
-    + '</div></div>';
+        + fmt(shownOut) + ' outstanding</span>' : '')
+    + '</div>'
+    + (_ret.msg ? '<div class="sub" style="margin-top:6px">' + esc(_ret.msg) + '</div>' : '')
+    + '</div>';
 
   if(!rows.length){
     v.innerHTML = h + '<div class="panel"><div class="sub">Nothing matches.</div></div>';
@@ -144,50 +237,51 @@ function retPaint(){
   }
 
   h += '<div class="panel"><table class="tbl"><tbody>';
-  h += '<tr><th>Subcontractor</th><th>Job</th><th style="text-align:right">Held</th>'
-    + '<th style="text-align:right">Rate</th><th style="text-align:right">Apps</th>'
-    + '<th>Last app</th><th>Check</th></tr>';
+  h += '<tr><th>Subcontractor</th><th>Job</th><th style="text-align:right">Outstanding</th>'
+    + '<th style="text-align:right">Held (paper)</th><th style="text-align:right">Released</th>'
+    + '<th style="text-align:right">Rate</th><th>Last app</th><th>Check</th><th></th></tr>';
 
   var lastJob = null;
-  rows.forEach(function(x){
+  rows.forEach(function(x, i){
     if(_ret.by === "job"){
       var jk = x.job_name || x.job_no || "";
       if(jk !== lastJob){
         lastJob = jk;
         var inJob = rows.filter(function(y){ return (y.job_name || y.job_no || "") === jk; });
-        var jobTotal = inJob.reduce(function(a, y){ return a + retHeld(y); }, 0);
-        /* ⛔ A SUBTOTAL THAT EXCLUDES ROWS MUST SAY SO. INDOT Roselawn has exactly one
-           subcontractor, whose figure is contradicted, so its subtotal is $0.00 — and a bare
-           "$0.00 held" on a job header reads as "we hold nothing here", which is the same
-           misleading zero this screen exists to avoid, one level up. The count of rows the
-           subtotal could not use rides beside it. */
+        var jobTotal = inJob.reduce(function(a, y){ return a + retOut(y); }, 0);
+        /* ⛔ A SUBTOTAL THAT EXCLUDES ROWS MUST SAY SO. A bare "$0.00 outstanding" on a job header
+           reads as "we hold nothing here", which is the same misleading zero this screen exists to
+           avoid, one level up. */
         var notCounted = inJob.filter(function(y){ return y.stated_status !== "ok"; }).length;
-        h += '<tr><td colspan="7" class="sub" style="padding-top:10px"><b>' + esc(jk)
-          + '</b> &middot; ' + fmt(jobTotal) + ' held'
+        h += '<tr><td colspan="9" class="sub" style="padding-top:10px"><b>' + esc(jk)
+          + '</b> &middot; ' + fmt(jobTotal) + ' outstanding'
           + (notCounted ? ' <span class="m-a">&middot; ' + notCounted + ' of ' + inJob.length
               + ' not counted</span>' : '')
           + '</td></tr>';
       }
     }
 
-    /* THREE STATES, NOT TWO, AND THEY MUST LOOK DIFFERENT.
-         unstated     — the paper did not say. An em dash, never $0.
-         contradicted — the paper said, and the same paper disagrees with itself. The figure is
-                        shown because it is what was read, but it is NOT set in bold like a settled
-                        number: OscarWLarson reads $0.00 against $1,708.80 implied by line 4 minus
-                        line 6 on that very sheet, and a confident "$0.00 held" is the more
-                        dangerous of the two readings.
-         ok           — the face sheet foots. This is the only one that sums into the total. */
-    var held;
-    if(x.stated_status === "unstated" || x.retainage_stated === null){
-      held = '<span class="sub">&mdash;</span>';
-    } else if(x.stated_status === "contradicted"){
-      held = '<span class="m-a">' + fmt(x.retainage_stated) + '&#8239;?</span>';
-    } else {
-      held = '<b>' + fmt(x.retainage_stated) + '</b>';
-    }
+    var money = function(val){
+      if(x.stated_status === "unstated" || val === null || val === undefined){
+        return '<span class="sub">&mdash;</span>';
+      }
+      if(x.stated_status === "contradicted"){
+        return '<span class="m-a">' + fmt(val) + '&#8239;?</span>';
+      }
+      return fmt(val);
+    };
+    var outCell = (x.stated_status === "ok")
+      ? '<b>' + fmt(x.retainage_outstanding) + '</b>' : money(x.retainage_outstanding);
 
     var checks = [];
+    if(x.release_status === "paper_unrecorded"){
+      checks.push('<span class="m-a">paper shows ' + fmt(x.paper_released)
+        + ' released &mdash; unrecorded</span>');
+    }
+    if(x.release_status === "over_released"){ checks.push('<span class="m-r">over-released</span>'); }
+    if(x.release_status === "in_paper"){
+      checks.push('<span class="sub">release already in the paper</span>');
+    }
     if(x.apps_excluded_unsound > 0){
       checks.push('<span class="m-r">' + x.apps_excluded_unsound + ' unsound</span>');
     }
@@ -198,25 +292,70 @@ function retPaint(){
       checks.push('<span class="sub">' + x.apps_with_stated_retainage + ' of ' + x.apps
         + ' read</span>');
     }
-    /* The office's own arithmetic, shown ONLY where the view judged it sound and where it
-       disagrees with the paper by more than a dollar. It covers just the applications this
-       register has seen, so on a contract older than the register a difference is expected and
-       says nothing — which is exactly why it is a quiet note and not a flag. */
-    if(x.implied_status === "ok" && x.retainage_delta !== null
-       && Math.abs(Number(x.retainage_delta)) > 1){
-      checks.push('<span class="sub">paper vs register: ' + fmt(x.retainage_delta) + ' over '
-        + x.retainage_implied_apps + ' app(s)</span>');
-    }
 
     h += '<tr>'
-      + '<td>' + esc(x.vendor || "&mdash;") + '</td>'
-      + '<td class="sub">' + esc(x.job_name || x.job_no || "&mdash;") + '</td>'
-      + '<td style="text-align:right">' + held + '</td>'
+      + '<td>' + esc(x.vendor || "") + '</td>'
+      + '<td class="sub">' + esc(x.job_name || x.job_no || "") + '</td>'
+      + '<td style="text-align:right">' + outCell + '</td>'
+      + '<td style="text-align:right" class="sub">' + money(x.retainage_stated) + '</td>'
+      + '<td style="text-align:right" class="sub">'
+        + ((Number(x.released_total) > 0) ? fmt(x.released_total) : '') + '</td>'
       + '<td style="text-align:right" class="sub">' + retPct(x.retainage_rate_stated) + '</td>'
-      + '<td style="text-align:right" class="sub">' + (x.apps || 0) + '</td>'
       + '<td class="sub">' + esc(fmtDate(x.last_app_at) || "") + '</td>'
       + '<td class="sub">' + (checks.join(' &middot; ') || '') + '</td>'
-      + '</tr>';
+      + '<td style="text-align:right"><button class="pfill" onclick="retOpenRelease(' + i + ')">'
+        + 'Release</button>'
+        + (Number(x.releases_count) > 0
+            ? ' <button class="pfill" onclick="retOpenHistory(' + i + ')">'
+              + x.releases_count + '</button>' : '')
+      + '</td></tr>';
+
+    if(_ret.releasing === i){
+      var today = new Date().toISOString().slice(0, 10);
+      h += '<tr><td colspan="9">'
+        + '<div class="sub" style="margin-bottom:4px">Record retainage returned to <b>'
+        + esc(x.vendor) + '</b> on <b>' + esc(x.job_name || x.job_no) + '</b>. '
+        + 'A release dated on or before the last application (' + esc(fmtDate(x.last_app_at) || "")
+        + ') is treated as already shown in that application&rsquo;s line&nbsp;5 and is not '
+        + 'subtracted again.</div>'
+        + '<input id="rel-amt" type="number" step="0.01" placeholder="Amount" style="width:120px"> '
+        + '<input id="rel-on" type="date" value="' + today + '"> '
+        + '<select id="rel-method">'
+          + '<option value="check">Check</option>'
+          + '<option value="final_application">Billed on the final application</option>'
+          + '<option value="credit">Credit</option>'
+          + '<option value="other">Other</option>'
+        + '</select> '
+        + '<input id="rel-note" placeholder="Note (check no., reference)" style="width:220px"> '
+        + '<button class="pfill" onclick="retSaveRelease(' + i + ')">Record</button> '
+        + '<button class="pfill" onclick="retOpenRelease(' + i + ')">Cancel</button>'
+        + '<div id="rel-msg" class="sub" style="margin-top:6px"></div>'
+        + '</td></tr>';
+    }
+
+    if(_ret.history === i){
+      h += '<tr><td colspan="9">';
+      if(!_ret.historyRows){
+        h += '<div class="sub">Loading releases&hellip;</div>';
+      } else if(!_ret.historyRows.length){
+        h += '<div class="sub">No releases recorded.</div>';
+      } else {
+        h += '<table class="tbl"><tbody>';
+        _ret.historyRows.forEach(function(r2){
+          h += '<tr><td class="sub">' + esc(fmtDate(r2.released_on) || "") + '</td>'
+            + '<td>' + (r2.voided_at ? '<s class="sub">' + fmt(r2.amount) + '</s>' : fmt(r2.amount))
+            + '</td>'
+            + '<td class="sub">' + esc(r2.method || "") + ' &middot; ' + esc(r2.source || "") + '</td>'
+            + '<td class="sub">' + esc(r2.note || "") + '</td>'
+            + '<td class="sub">' + (r2.voided_at
+                ? '<span class="m-r">voided</span> &middot; ' + esc(r2.void_reason || "")
+                : '<button class="pfill" onclick="retVoidRelease(\'' + esc(r2.id) + '\','
+                  + i + ')">Void</button>') + '</td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</td></tr>';
+    }
   });
 
   h += '</tbody></table></div>';

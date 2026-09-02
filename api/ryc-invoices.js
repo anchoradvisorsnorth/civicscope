@@ -4361,7 +4361,9 @@ export default async function handler(req, res) {
         + 'first_app_at,last_app_at,period_billed_total,paid_total,retainage_stated,'
         + 'retainage_implied,retainage_implied_apps,retainage_delta,completed_to_date_stated,'
         + 'eligible_to_date_stated,less_previous_stated,retainage_rate_stated,face_sheet_residual,'
-        + 'apps_excluded_unsound,implied_status,stated_status';
+        + 'apps_excluded_unsound,implied_status,stated_status,retainage_peak,paper_released,'
+        + 'releases_count,released_total,released_after_last_app,last_release_on,'
+        + 'retainage_outstanding,release_status';
       const r = await sb(`ryc_retainage_v?select=${cols}&order=retainage_stated.desc.nullslast`);
       if (!r.ok) return res.status(502).json({ error: 'Could not read the retainage view.' });
       const rows = await r.json();
@@ -4393,8 +4395,131 @@ export default async function handler(req, res) {
         /* The page's own arithmetic disagreeing with itself: line 4 - line 5 - line 6 should be 0. */
         residual_rows: rows.filter((x) => x.face_sheet_residual !== null
           && Math.abs(Number(x.face_sheet_residual)) > 1).length,
+        /* ⛔ OUTSTANDING IS THE ANSWER TO "WHAT DO WE STILL HOLD"; `held` answers "what did the
+           paper last say". They differ once retainage starts coming back, and the screen leads with
+           outstanding. Both sum only rows whose stated figure is usable (stated_status 'ok'). */
+        outstanding: Math.round(rows.filter((x) => x.stated_status === 'ok')
+          .reduce((a, x) => a + n(x.retainage_outstanding), 0) * 100) / 100,
+        released_total: Math.round(rows.reduce((a, x) => a + n(x.released_total), 0) * 100) / 100,
+        released_rows: rows.filter((x) => n(x.releases_count) > 0).length,
+        /* The filed applications show line 5 coming DOWN and nothing records why. Derived evidence
+           only — a person records the release; the register never invents a payment. */
+        paper_unrecorded_rows: rows.filter((x) => x.release_status === 'paper_unrecorded').length,
+        over_released_rows: rows.filter((x) => x.release_status === 'over_released').length,
       };
       return res.status(200).json({ ok: true, rows, summary });
+    }
+
+    /* ===== RECORD THAT RETAINAGE WENT BACK ============================================
+       Annette keeps this in band — a pay-app row whose date cell reads `pd retainage`, or one
+       labelled `Final Retention`. Here it is a durable fact with a date, because the date is what
+       decides whether the filed paper already reflects it (migration 069/070).
+
+       ⛔ THE PAIR MUST ALREADY EXIST. A release is recorded against a vendor+job the register has
+       pay applications for; anything else is a typo or a job the register has never seen, and an
+       orphan release would be invisible in `ryc_retainage_v` (which is built from applications) —
+       money recorded as returned that no screen can ever show. Refuse it at the door rather than
+       write a row nothing reads. */
+    if (action === 'retainage_release') {
+      if (who.scope !== 'all') return res.status(403).json({ error: 'Front office only.' });
+      const vendor = String(body.vendor || '').trim();
+      const jobNo = String(body.job_no || '').trim();
+      const amount = Number(body.amount);
+      const releasedOn = String(body.released_on || '').trim();
+      const method = String(body.method || 'check').trim();
+
+      if (!vendor || !jobNo) return res.status(400).json({ error: 'Vendor and job are required.' });
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({ error: 'Amount must be a positive number.' });
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(releasedOn)) {
+        return res.status(400).json({ error: 'A release needs the date the money moved (YYYY-MM-DD).' });
+      }
+      if (!['final_application', 'check', 'credit', 'other'].includes(method)) {
+        return res.status(400).json({ error: 'Unknown method.' });
+      }
+
+      const pr = await sb(`ryc_retainage_v?vendor=eq.${encodeURIComponent(vendor)}`
+        + `&job_no=eq.${encodeURIComponent(jobNo)}`
+        + '&select=vendor,job_no,job_name,retainage_stated,retainage_outstanding,stated_status,'
+        + 'released_after_last_app,last_app_at');
+      if (!pr.ok) return res.status(502).json({ error: 'Could not check the vendor and job.' });
+      const pair = (await pr.json())[0];
+      if (!pair) {
+        return res.status(409).json({
+          error: `The register holds no pay applications for ${vendor} on ${jobNo}, so a release `
+            + 'recorded against it would never appear anywhere. Check the vendor and job.' });
+      }
+
+      /* A screen that refuses must offer the control that satisfies it. Over-releasing is a real
+         possibility — the stated figure can be stale — so it is not forbidden, it is CONFIRMED.
+         The refusal names the numbers and the flag that lifts it. */
+      const stated = pair.retainage_stated === null ? null : Number(pair.retainage_stated);
+      const already = Number(pair.released_after_last_app || 0);
+      if (!body.confirm_over && pair.stated_status === 'ok' && stated !== null
+          && already + amount > stated + 0.005) {
+        return res.status(409).json({
+          error: `That is more than the paper says is held. Line 5 on the last application `
+            + `(${pair.last_app_at}) is ${stated.toFixed(2)}`
+            + (already ? `, of which ${already.toFixed(2)} is already recorded as released` : '')
+            + `, and this would take the total to ${(already + amount).toFixed(2)}. `
+            + 'Record it anyway with confirm_over if the paper is out of date.',
+          needs_confirm: true, stated, already, would_be: already + amount });
+      }
+
+      const ins = await sb('ryc_retainage_releases', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify([{
+          company_id: 'ryc', vendor, job_no: jobNo, amount, released_on: releasedOn, method,
+          source: 'person',
+          note: (body.note ? String(body.note).slice(0, 500) : null),
+          evidence: body.evidence || null,
+          recorded_by: 'front office',
+        }]),
+      });
+      if (!ins.ok) return res.status(502).json({ error: 'Could not record the release.' });
+      return res.status(200).json({ ok: true, release: (await ins.json())[0] });
+    }
+
+    /* Voided, never deleted — the original assertion and its correction both stay readable.
+       A void with no reason removes money from every total and leaves nobody able to say what
+       happened, which is why the table refuses one. */
+    if (action === 'retainage_release_void') {
+      if (who.scope !== 'all') return res.status(403).json({ error: 'Front office only.' });
+      const id = String(body.id || '').trim();
+      const reason = String(body.reason || '').trim();
+      if (!id) return res.status(400).json({ error: 'Which release?' });
+      if (!reason) return res.status(400).json({ error: 'A void has to say why.' });
+      /* Conditional on it not already being void: `limit=` does nothing on a PostgREST PATCH, so
+         the state condition IS the narrowing, and a second click cannot rewrite the first void's
+         reason. */
+      const r = await sb(`ryc_retainage_releases?id=eq.${encodeURIComponent(id)}&voided_at=is.null`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          voided_at: new Date().toISOString(), voided_by: 'front office',
+          void_reason: reason.slice(0, 500),
+        }),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not void the release.' });
+      const rows2 = await r.json();
+      if (!rows2.length) return res.status(409).json({ error: 'That release is already voided.' });
+      return res.status(200).json({ ok: true, release: rows2[0] });
+    }
+
+    /* Every release on one vendor+job, voided ones included — the record is the point. */
+    if (action === 'retainage_releases') {
+      if (who.scope !== 'all') return res.status(403).json({ error: 'Front office only.' });
+      const vendor = String(body.vendor || '').trim();
+      const jobNo = String(body.job_no || '').trim();
+      if (!vendor || !jobNo) return res.status(400).json({ error: 'Vendor and job are required.' });
+      const r = await sb('ryc_retainage_releases?select=id,vendor,job_no,amount,released_on,method,'
+        + 'source,note,recorded_by,created_at,voided_at,voided_by,void_reason'
+        + `&company_id=eq.ryc&vendor=eq.${encodeURIComponent(vendor)}`
+        + `&job_no=eq.${encodeURIComponent(jobNo)}&order=released_on.desc`);
+      if (!r.ok) return res.status(502).json({ error: 'Could not read the releases.' });
+      return res.status(200).json({ ok: true, rows: await r.json() });
     }
 
     if (action === 'register') {
