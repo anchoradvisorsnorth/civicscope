@@ -190,13 +190,15 @@ function retTimeline(x){
     + 'one batch). <b>Retainage this period</b> is the '
     + 'difference between one application&rsquo;s line&nbsp;5 and the previous one&rsquo;s; '
     + 'Annette derives the same figure the other way, as this period &times; the rate, so the two '
-    + 'are independent reads of one number.</div>';
+    + 'are independent reads of one number. The rate is taken on <b>Earned</b> (the increase in '
+    + 'line&nbsp;4), not on column&nbsp;E &mdash; they differ whenever a sub bills stored '
+    + 'materials.</div>';
 
   h += '<div class="ptable-wrap"><table class="ptable"><thead><tr>'
-    + '<th>Date</th><th>Doc</th><th class="r">This period</th>'
+    + '<th>Date</th><th>Doc</th><th class="r">This period<br><span class="sub">col E</span></th>'
+    + '<th class="r">Earned<br><span class="sub">incl. stored</span></th>'
     + '<th class="r">Retainage this period</th><th class="r">Rate</th>'
-    + '<th class="r">Retainage to date</th><th class="r">Current due</th>'
-    + '<th class="r">Completed to date</th><th></th>'
+    + '<th class="r">Retainage to date</th><th class="r">Current due</th><th></th>'
     + '</tr></thead><tbody>';
 
   ev.forEach(function(e){
@@ -206,13 +208,12 @@ function retTimeline(x){
       h += '<tr class="static"><td class="sub">' + esc(fmtDate(r.released_on) || "") + '</td>'
         + '<td class="sub"><b>' + (r.voided_at ? "release (voided)" : "retainage released")
         + '</b></td>'
-        + '<td class="r sub"></td>'
+        + '<td class="r sub"></td><td class="r sub"></td>'
         + '<td class="r">' + (r.voided_at
             ? '<s class="sub">-' + retMoney(r.amount) + '</s>'
             : '<span class="m-a">-' + retMoney(r.amount) + '</span>') + '</td>'
         + '<td class="r sub"></td><td class="r sub"></td>'
         + '<td class="r sub">' + (r.voided_at ? '' : retMoney(r.amount)) + '</td>'
-        + '<td class="r sub"></td>'
         + '<td class="sub">' + esc(r.method || "") + (r.note ? " &middot; " + esc(r.note) : "")
           + (r.voided_at ? ' &middot; <span class="m-r">voided</span>: '
               + esc(r.void_reason || "") : '')
@@ -240,8 +241,13 @@ function retTimeline(x){
           : esc(a.invoice_no || "application"))
         + (a.pages ? ' <span class="sub">p' + esc(a.pages) + '</span>' : '')
       + '</td>'
-      + '<td class="r">' + (a.work_this_period === null ? dash : retMoney(a.work_this_period))
-        + '</td>'
+      + '<td class="r sub">' + (a.work_this_period === null ? dash
+          : retMoney(a.work_this_period)) + '</td>'
+      /* G703 column E excludes stored materials; the increase in line 4 does not. They differ
+         exactly when a sub bills materials on site, and that difference is the whole reason the
+         rate was reading 16% on a 5% contract. */
+      + '<td class="r">' + (a.completed_this_period === null ? dash
+          : retMoney(a.completed_this_period)) + '</td>'
       /* ⛔ NULL, NOT ZERO. A missing line 5 on either end makes the difference unknowable, and
          showing 0 would assert a period in which nothing was withheld. */
       + '<td class="r">' + (a.retainage_this_period === null ? dash
@@ -250,8 +256,6 @@ function retTimeline(x){
         + '</td>'
       + '<td class="r sub">' + (a.retainage === null ? dash : retMoney(a.retainage)) + '</td>'
       + '<td class="r">' + (a.amount === null ? dash : retMoney(a.amount)) + '</td>'
-      + '<td class="r sub">' + (a.completed_to_date === null ? dash
-          : retMoney(a.completed_to_date)) + '</td>'
       + '<td class="sub">'
         + ((a.amount !== null && Number(a.amount) < 0)
             ? '<span class="m-r">negative payable &mdash; misread face sheet</span>' : '')

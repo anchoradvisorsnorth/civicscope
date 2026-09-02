@@ -4588,37 +4588,47 @@ export default async function handler(req, res) {
         return 0;
       });
 
-      let prev = null;          // previous application's line 5, for the per-period difference
-      let prevElig = null;      // previous application's line 6, for the chain check
+      let prevA = null;   // the previous application, whole — deltas are between two documents
       for (const a of apps) {
-        /* Consecutive when this application's line 7 is the previous one's line 6. Null — not
-           false — when either figure is missing: "we cannot tell" is a different answer from
-           "there is a gap", and printing the second for the first would send somebody hunting for
-           a document that does not exist. */
-        a.follows_previous = (prevElig === null || a.less_previous === null
-          || a.less_previous === undefined)
-          ? null
-          : Math.abs(Number(a.less_previous) - Number(prevElig)) <= 0.01;
+        const num = (x) => (x === null || x === undefined ? null : Number(x));
+        const pElig = prevA ? num(prevA.eligible_to_date) : null;
+        const pRet = prevA ? num(prevA.retainage) : null;
+
+        /* Consecutive when this application line 7 is the previous one line 6. Null — not false —
+           when either figure is missing: "we cannot tell" is a different answer from "there is a
+           gap", and printing the second for the first sends somebody hunting for a document that
+           does not exist. */
+        a.follows_previous = (pElig === null || num(a.less_previous) === null)
+          ? null : Math.abs(num(a.less_previous) - pElig) <= 0.01;
 
         /* The delta only means something between two applications that BOTH printed line 5.
            Treating a missing one as zero would invent a period with no retainage withheld. */
-        a.retainage_this_period = (a.retainage === null || a.retainage === undefined || prev === null)
-          ? null : Math.round((Number(a.retainage) - Number(prev)) * 100) / 100;
-        /* The rate the paper implies for THIS period — 3, 5, 7 or 10 percent in this register.
-           ⚠ Suppressed across a break in the chain: the difference then spans an application the
-           register does not hold, so dividing it by THIS period's work is a rate for a span that
-           does not correspond to the numerator. */
-        a.rate_this_period = (a.retainage_this_period === null
-          || a.follows_previous === false
-          || a.work_this_period === null || a.work_this_period === undefined
-          || Number(a.work_this_period) === 0)
-          ? null
-          : Math.round((a.retainage_this_period / Number(a.work_this_period)) * 10000) / 10000;
+        a.retainage_this_period = (num(a.retainage) === null || pRet === null)
+          ? null : Math.round((num(a.retainage) - pRet) * 100) / 100;
 
-        if (a.retainage !== null && a.retainage !== undefined) prev = a.retainage;
-        if (a.eligible_to_date !== null && a.eligible_to_date !== undefined) {
-          prevElig = a.eligible_to_date;
-        }
+        /* ⛔ THE DENOMINATOR IS THE INCREASE IN LINE 4, NOT G703 COLUMN E.
+           Column E is work completed this period and EXCLUDES stored materials. Midwest Glass on
+           Shipshewana billed 7,650.00 of column E while retainage rose 1,232.50 — that reads as a
+           16.11% rate, and the office would know at a glance it is wrong. The form settles it:
+           line 4 = line 5 + line 6, so the true amount earned this period is the increase in
+           (line 6 + line 5) = 24,650.00, and 1,232.50 of that is exactly 5.00%. That is the rate on
+           the contract and the one Annette carries in her own column heading. */
+        const completedNow = (num(a.eligible_to_date) === null || num(a.retainage) === null)
+          ? null : num(a.eligible_to_date) + num(a.retainage);
+        const completedPrev = (pElig === null || pRet === null) ? null : pElig + pRet;
+        a.completed_this_period = (completedNow === null || completedPrev === null)
+          ? null : Math.round((completedNow - completedPrev) * 100) / 100;
+
+        /* ⚠ Suppressed across a break in the chain: the difference then spans an application the
+           register does not hold, so it is a rate for a period the numerator does not describe. */
+        a.rate_this_period = (a.retainage_this_period === null
+          || a.completed_this_period === null
+          || a.completed_this_period === 0
+          || a.follows_previous === false)
+          ? null
+          : Math.round((a.retainage_this_period / a.completed_this_period) * 10000) / 10000;
+
+        prevA = a;
       }
 
       const rr = await sb('ryc_retainage_releases?select=id,amount,released_on,method,source,note,'
