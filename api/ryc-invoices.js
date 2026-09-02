@@ -4544,8 +4544,6 @@ export default async function handler(req, res) {
       if (!dr.ok) return res.status(502).json({ error: 'Could not read the pay applications.' });
       const docs = await dr.json();
 
-      /* Oldest first — the direction her sheet reads, and the only order in which a per-period
-         difference means anything. */
       const apps = docs.map((d) => ({
         id: d.id,
         at: (d.ryc_batch_jobs && d.ryc_batch_jobs.received_date) || String(d.created_at).slice(0, 10),
@@ -4560,22 +4558,67 @@ export default async function handler(req, res) {
           ? d.completed_to_date : d.completed_and_stored,
         url: d.copied_url || d.sp_url,
         disposition: d.disposition,
-      })).sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+      }));
 
-      let prev = null;
+      /* ⛔ DATE DOES NOT ORDER PAY APPLICATIONS, AND ORDERING IS THE WHOLE PREMISE OF THE DELTA.
+         Midwest Glass on Shipshewana filed applications #2 and #3 in ONE scanned batch, so both
+         carry the same received date. Sorted by date alone they came back #3 then #2, and
+         "retainage this period" read -$1,232.50 at -102.71% — valid arithmetic on a wrong premise,
+         the same shape as the Niblock defect.
+
+         THE FORM ORDERS ITSELF. G702 line 7 (LESS PREVIOUS CERTIFICATES) on one application is
+         line 6 (TOTAL EARNED LESS RETAINAGE) on the one before it. Measured on that very pair:
+         #2's line 6 is 10,584.90 and #3's line 7 is 10,584.90, to the cent. Both are cumulative and
+         only increase, so ordering by line 6 puts them in the sequence the subcontractor filed them
+         in — no application number required, which matters because the reader discards it.
+
+         AND THE SAME IDENTITY FINDS A MISSING ONE. If application n's line 7 does not equal
+         application n-1's line 6, an application between them is not in the register. That is the
+         "a missing application in a sequence cannot be detected" limitation, retired — by the paper
+         rather than by a field nobody captures. */
+      const pos = (a) => {
+        const v = [a.eligible_to_date, a.completed_to_date, a.less_previous]
+          .find((n) => n !== null && n !== undefined);
+        return v === undefined ? null : Number(v);
+      };
+      apps.sort((p, q) => {
+        const pp = pos(p), qq = pos(q);
+        if (pp !== null && qq !== null && pp !== qq) return pp - qq;
+        if (p.at !== q.at) return p.at < q.at ? -1 : 1;
+        return 0;
+      });
+
+      let prev = null;          // previous application's line 5, for the per-period difference
+      let prevElig = null;      // previous application's line 6, for the chain check
       for (const a of apps) {
+        /* Consecutive when this application's line 7 is the previous one's line 6. Null — not
+           false — when either figure is missing: "we cannot tell" is a different answer from
+           "there is a gap", and printing the second for the first would send somebody hunting for
+           a document that does not exist. */
+        a.follows_previous = (prevElig === null || a.less_previous === null
+          || a.less_previous === undefined)
+          ? null
+          : Math.abs(Number(a.less_previous) - Number(prevElig)) <= 0.01;
+
         /* The delta only means something between two applications that BOTH printed line 5.
            Treating a missing one as zero would invent a period with no retainage withheld. */
         a.retainage_this_period = (a.retainage === null || a.retainage === undefined || prev === null)
           ? null : Math.round((Number(a.retainage) - Number(prev)) * 100) / 100;
-        /* And the rate the paper implies for THIS period, which is what the office recognises:
-           5, 7, 10 or 3 percent. Only where both figures exist and the period is non-zero. */
+        /* The rate the paper implies for THIS period — 3, 5, 7 or 10 percent in this register.
+           ⚠ Suppressed across a break in the chain: the difference then spans an application the
+           register does not hold, so dividing it by THIS period's work is a rate for a span that
+           does not correspond to the numerator. */
         a.rate_this_period = (a.retainage_this_period === null
+          || a.follows_previous === false
           || a.work_this_period === null || a.work_this_period === undefined
           || Number(a.work_this_period) === 0)
           ? null
           : Math.round((a.retainage_this_period / Number(a.work_this_period)) * 10000) / 10000;
+
         if (a.retainage !== null && a.retainage !== undefined) prev = a.retainage;
+        if (a.eligible_to_date !== null && a.eligible_to_date !== undefined) {
+          prevElig = a.eligible_to_date;
+        }
       }
 
       const rr = await sb('ryc_retainage_releases?select=id,amount,released_on,method,source,note,'

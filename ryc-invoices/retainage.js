@@ -185,7 +185,9 @@ function retTimeline(x){
 
   var h = '<div class="sub" style="margin:2px 0 8px">'
     + '<b>' + esc(x.vendor) + '</b> &middot; ' + esc(x.job_name || x.job_no)
-    + ' &mdash; every pay application on file, oldest first. <b>Retainage this period</b> is the '
+    + ' &mdash; every pay application on file, in the order the FORM gives them (line&nbsp;7 on one '
+    + 'is line&nbsp;6 on the one before; the scan date does not order them &mdash; two can arrive in '
+    + 'one batch). <b>Retainage this period</b> is the '
     + 'difference between one application&rsquo;s line&nbsp;5 and the previous one&rsquo;s; '
     + 'Annette derives the same figure the other way, as this period &times; the rate, so the two '
     + 'are independent reads of one number.</div>';
@@ -219,6 +221,18 @@ function retTimeline(x){
     }
     var a = e.a;
     var dash = '<span class="sub">&mdash;</span>';
+    /* A BREAK IN THE CHAIN GETS A ROW OF ITS OWN, WHERE THE MISSING APPLICATION BELONGS.
+       G702 line 7 on one application is line 6 on the one before it. When they do not meet, an
+       application between them is not in the register — so the running story has a hole in it, and
+       the reader has to see the hole rather than a difference that silently spans it. */
+    if(a.follows_previous === false){
+      h += '<tr class="static"><td colspan="9" class="m-a" style="white-space:normal">'
+        + '&#9888; <b>An application is missing between these.</b> This one says '
+        + retMoney(a.less_previous) + ' was previously certified, and the application above it '
+        + 'ends at a different figure &mdash; so at least one in between never reached the '
+        + 'register. The per-period retainage below spans it.'
+        + '</td></tr>';
+    }
     h += '<tr class="static"><td class="sub">' + esc(fmtDate(a.at) || "") + '</td>'
       + '<td class="sub">' + (a.url
           ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">'
@@ -477,9 +491,10 @@ function retPaint(){
        every screenful is one people learn to scroll past, taking the ones that change with it. */
     + '<div class="sub" style="margin-top:10px">'
     + '<b>Held (paper)</b> is G702 line&nbsp;5 from the latest filed application; <b>Outstanding</b> '
-    + 'is that figure less releases recorded after it. Not captured: the G703 <b>scope-line grid</b>, '
-    + 'and pay-application <b>numbers</b> &mdash; so a missing application in a sequence cannot be '
-    + 'detected here.'
+    + 'is that figure less releases recorded after it. Applications are ordered by the form&rsquo;s own '
+    + 'chain &mdash; line&nbsp;7 on one is line&nbsp;6 on the one before &mdash; not by the date '
+    + 'they were scanned, and <b>History</b> says so when that chain breaks and an application is '
+    + 'missing. Not captured: the G703 <b>scope-line grid</b>.'
     + '</div>';
   v.innerHTML = h;
 }
