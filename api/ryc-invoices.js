@@ -4341,6 +4341,51 @@ export default async function handler(req, res) {
       return res.status(out.status).json(out.body);
     }
 
+    /* ===== RETAINAGE HELD, PER VENDOR PER JOB ==========================================
+       The screen that replaces 330 per-vendor workbooks in SharePoint under
+       Company Share/Accounting Office/Annette's Files/Vendors — one .xlsx per subcontractor, a
+       worksheet tab per job, whose entire live column is "how much are we holding on this sub".
+
+       FRONT OFFICE ONLY, deliberately. This is accounting's whole-portfolio question, and a PM
+       scope would either show one desk's slice — which is not the question anyone asks here — or
+       leak every vendor's position to a link-holder. A PM gets a clear refusal rather than a
+       partial view that reads like the whole one.
+
+       The view does the judging (migrations 066/067); this action does NOT re-derive any of it.
+       It sums only `retainage_stated`, which is G702 line 5 taken from each vendor+job's LATEST
+       application — a to-date figure, so the portfolio total is a sum ACROSS vendor+job pairs and
+       never a sum across a vendor's own applications. */
+    if (action === 'retainage') {
+      if (who.scope !== 'all') return res.status(403).json({ error: 'Front office only.' });
+      const cols = 'company_id,vendor,job_no,job_name,apps,apps_with_stated_retainage,'
+        + 'first_app_at,last_app_at,period_billed_total,paid_total,retainage_stated,'
+        + 'retainage_implied,retainage_implied_apps,retainage_delta,completed_to_date_stated,'
+        + 'eligible_to_date_stated,less_previous_stated,retainage_rate_stated,face_sheet_residual,'
+        + 'apps_excluded_unsound,implied_status';
+      const r = await sb(`ryc_retainage_v?select=${cols}&order=retainage_stated.desc.nullslast`);
+      if (!r.ok) return res.status(502).json({ error: 'Could not read the retainage view.' });
+      const rows = await r.json();
+      const n = (x) => (x === null || x === undefined ? 0 : Number(x));
+      const summary = {
+        rows: rows.length,
+        vendors: new Set(rows.map((x) => x.vendor)).size,
+        jobs: new Set(rows.map((x) => x.job_no)).size,
+        apps: rows.reduce((a, x) => a + n(x.apps), 0),
+        /* COVERAGE IS PUBLISHED, NOT ASSUMED. A row whose applications carried no legible line 5
+           has retainage_stated null, and null is NOT zero: reporting it as zero would say RYC holds
+           nothing on a subcontractor it may be holding plenty on. The screen shows both counts. */
+        stated_rows: rows.filter((x) => x.retainage_stated !== null).length,
+        held: rows.reduce((a, x) => a + n(x.retainage_stated), 0),
+        /* Rows carrying a pay application the register cannot treat as sound — today that is a
+           negative payable, which is a misread face sheet. Surfaced, never filtered away. */
+        excluded_rows: rows.filter((x) => n(x.apps_excluded_unsound) > 0).length,
+        /* The page's own arithmetic disagreeing with itself: line 4 - line 5 - line 6 should be 0. */
+        residual_rows: rows.filter((x) => x.face_sheet_residual !== null
+          && Math.abs(Number(x.face_sheet_residual)) > 1).length,
+      };
+      return res.status(200).json({ ok: true, rows, summary });
+    }
+
     if (action === 'register') {
       if (!canIntake) return res.status(403).json({ error: 'Front office only.' });
       const docs = Array.isArray(body.documents) ? body.documents : [];

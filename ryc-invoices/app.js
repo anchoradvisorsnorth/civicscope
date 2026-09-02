@@ -43,9 +43,9 @@ document.getElementById("gate-input").addEventListener("keydown", function(e){
    the credential. Dropping the search on a pushState would silently sign the user out on the first
    rail click, and an emailed ?k= link would stop working the moment its holder looked at anything
    else. */
-var INV_VIEWS = { inbound:"inbound", invoices:"desks", batch:"batch" };
+var INV_VIEWS = { inbound:"inbound", invoices:"desks", batch:"batch", retainage:"retainage" };
 var INV_BY_PATH = { inbound:"inbound", desks:"invoices", batch:"batch",
-                    "pm-desks":"invoices", invoices:"invoices" };
+                    "pm-desks":"invoices", invoices:"invoices", retainage:"retainage" };
 
 function invBasePath(){
   // Works under /ryc/invoices and the bare /invoices alias without hard-coding either.
@@ -67,6 +67,7 @@ function invPushView(key, replace){
 function invRender(key){
   if(key === "inbound") renderInbound();
   else if(key === "batch") renderBatch();
+  else if(key === "retainage") renderRetainage();
   else renderInvoices();
 }
 function invGoTo(key, push){
@@ -79,7 +80,7 @@ function init(){
   if(typeof RYCShell !== "undefined"){
     RYCShell.mount({
       workspace: "invoices",
-      version: "v1.5.0",
+      version: "v1.6.0",
       active: "batch",
       /* TWO destinations, because they are two different people's work (Keith, 2026-08-13).
          Inbound is the front office: everything that has arrived and not yet been sent to a desk.
@@ -96,12 +97,21 @@ function init(){
         { key:"batch",    label:"Batch process", icon:"&#128196;" },
         { key:"inbound",  label:"Inbound",       icon:"&#128229;" },
         { key:"invoices", label:"PM Desks",      icon:"&#129534;" },
+        /* FOURTH: accounting's question, not a PM's. Retainage held per subcontractor per job —
+           the screen that replaces 330 per-vendor workbooks in SharePoint. Mounted HIDDEN and
+           revealed below only for the front office, because the action refuses any other scope
+           and a rail item that answers "Front office only." is worse than no rail item. */
+        { key:"retainage", label:"Retainage",    icon:"&#128176;" },
       ] }],
       /* setActive is not automatic — the rail keeps whatever `active` was mounted with, which is
          why clicking Inbound left "Daily batch" highlighted. */
       onSelect: function(key){ invGoTo(key); },
       onLock: function(){ sessionStorage.removeItem("ryc_inv_auth"); location.reload(); }
     });
+    /* CLOSED UNTIL PROVEN OPEN. The rail mounts before whoami answers, so hiding it here rather
+       than only revealing it later means a slow, failed or refused whoami leaves the door shut
+       instead of flashing a tab a PM cannot use. */
+    RYCShell.setItemVisible("retainage", false);
   }
   // Never store a URL-borne credential in the session: the address IS the credential, so a
   // shared machine does not silently inherit the last PM who used it.
@@ -118,6 +128,16 @@ function init(){
     var who = (r && r.ok && r.data) ? r.data : null;
     if(who){ _inv.who = who; _inv.pm = who.pm || null; }
     var pm = who && who.scope === "pm";
+    /* Retainage is whole-portfolio accounting work. Reveal it only for the front office — the
+       server refuses every other scope, so showing it to a PM would offer a door that does not
+       open. Hidden by default at mount, so a slow or failed whoami leaves it closed rather than
+       open. */
+    if(typeof RYCShell !== "undefined"){
+      RYCShell.setItemVisible("retainage", !!(who && who.scope === "all"));
+    }
+    /* And an address is not a permission: a PM who types /invoices/retainage is sent to their own
+       desk rather than to a screen whose every request will be refused. */
+    if(pm && invViewFromPath() === "retainage"){ invPushView("invoices", true); }
     /* AN EXPLICIT ADDRESS BEATS THE DEFAULT. A bookmark is a statement about where its owner wants
        to be, so it wins over the who-am-I heuristic; without a path we still ask the server rather
        than guessing, so an admin code lands on Inbound and an emailed ?k= link lands on that PM's
