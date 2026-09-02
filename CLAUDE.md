@@ -841,8 +841,48 @@ an EntryPoint tab per entry point, blank columns for chemicals that do not apply
 the old one `superseded_at`; the unique indexes are **partial** (`where superseded_at is null`) or
 a corrected day could never be re-entered.
 
-**The gate: `node scripts/verify-water-derivation.mjs` → 569 checks, `WATER-DERIVE-COMPLETE`.**
-It replays all 93 July well-days through the real `derive()` against the scans, and pins the
+### ⛔ A SAFEGUARD NOBODY SUPPLIES CONTEXT TO IS UNREACHABLE CODE (2026-09-02)
+
+`derive()` has always carried `flow_high` — *"this is far outside this well's normal day, re-read
+the meter"* — reading `context.typicalGallons`. **Nothing ever supplied it.** Not the tablet, not
+`api/water-ops.js`, not the preview route. `undefined > 0` is false, so the branch was false on
+every reading ever taken: documented, tested by eye, and incapable of firing. The queue had it
+filed as *"no entry-time validation — the highest-value build left on the field side"*, which
+described a missing feature; it was a wired feature with its plug out.
+
+**This plant's own normals are now computed once, server-side, and handed to both ends.**
+`plantNormals(ep, date)` medians the trailing 120 days; `contextFor(supply, normals)` builds the
+context for **every** `derive()` call in `api/water-ops.js`, so a check can never be live on one
+route and dead on another again — which is precisely how this survived. `preview` returns
+`normals` and the tablet passes them straight back into its own `derive()`; **the page must never
+compute them itself**, or the well house and the server warn on different days.
+
+Three choices in `plantNormals()`, each of which is wrong the obvious way round:
+- **Median, never mean.** The outlier this exists to catch is what drags a mean toward itself and
+  raises the threshold meant to trip on it. Once 2026-03-01's 11.53 mg/L is in the window the mean
+  moves the bar from 5.00 to 9.12 mg/L — high enough to pass the *next* bad day. Gated.
+- **Days the well did not run are excluded.** A recorded `0` is a real fact, but a well idle half
+  the month halves its own "normal". Not hypothetical: April 2026 ran only Well 3, tower down.
+- **Too little history returns `null`, never a guess.** Under `DOSE_NORMAL_MIN_SAMPLES` (8) nothing
+  is compared. A false warning at a well house is how an operator learns to ignore warnings.
+
+**"Out of family for this plant" is a different question from "over the ceiling", and it now lives
+in `derive.js` where both ends can ask it.** `/water/review` grew that check on 2026-08-20 and kept
+it to itself — so the office could call a dose nine times normal while the well house, the only
+place someone could still walk back and re-read the tank, had no opinion. `DOSE_OUT_OF_FAMILY`,
+`normalOf()` and `outOfFamily()` are exported from `derive.js` and **`review.html` imports them**.
+The one thing deliberately NOT shared is the window: the office compares a day against the month it
+is signing, the well house against trailing history, because mid-month there is no month yet.
+
+Live on production 2026-09-02 — Well 1/3/4 medians **39,000 / 51,000 / 48,000 gal**; a 200,000-gal
+interval on Well 3 returns *"about 4x this well's normal day … check you are on the right well's
+screen."*
+
+**The gate: `node scripts/verify-water-derivation.mjs` → 586 checks, `WATER-DERIVE-COMPLETE`.**
+It replays all 93 July well-days through the real `derive()` against the scans, **pins the
+"is this normal" checks both ways — they must fire with the plant's normals and stay silent
+without them** (the regression that hid an unreachable safeguard for the life of the product),
+pins the shape `rederiveSuccessor()` reads a stored row back in, and pins the
 refusals the clipboard never made. It also **names** the five places July's paper disagrees with
 itself rather than smoothing them over — a gate that hid them would be lying about the source.
 ⚠ The dose tolerance is **5%**, set from the evidence (median gap 3.4%, 88 of 89 rows ≤4.5%); the
@@ -2152,24 +2192,14 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
 
 ### Live work — in priority order
 
-1. 🚨 **THE WEBSITE CRAWL IS NOT SCHEDULED, AND IT IS THE ONE COLLECTION THAT GOES STALE.**
-   Everything else in a corpus is a document that stays true; a meeting cancellation or an event
-   date is wrong the moment the village edits the page. The deploy gate fails once the newest page
-   passes 45 days, so it cannot rot silently — **but a gate is not a schedule.** Re-crawl is one
-   free command (`node scripts/ingest-muni-website.mjs --tenant centreville`) and belongs on the VM
-   cron beside the other pipelines, **not** in a lambda: the shared chunker lives in `scripts/lib/`
-   and is not deployed, and a second copy in a deployable lib is the exact drift migrations 018–021
-   were spent on. Weekly is ample for a 12-page site. ⚠ **Verified absent from the VM crontab
-   2026-08-27** — this has never been scheduled. Claude can do the whole thing; per
-   `feedback_crontab_edit_protocol`: backup → edit file → verify → install.
-2. 🚨 **AUGUST 2026 IS STILL BEING WRITTEN ON PAPER — 1 of 78 well-days logged (measured
+1. 🚨 **AUGUST 2026 IS STILL BEING WRITTEN ON PAPER — 1 of 78 well-days logged (measured
    2026-08-26), and the one that exists came from the tablet.** July was 93 of 93 and every row was
    `backfill`, i.e. paper transcribed afterwards. The tablet is live and nobody is using it; every
    day that runs is another day that has to be backfilled. It now reports itself at the top of
    `/admin` → **Water**, split by source. **The MOR reminder fires 2026-09-07 for August**, so
    August has to be entered before then or the reminder tells Michelle her month is empty. Keith's
    sequence is in `Centreville\CLAUDE.md` → **THE AUGUST PLAN**.
-3. 🚩 **TWO DEPLOY GATES ARE INTERMITTENTLY RED, AND FOR BOTH THE REMEDY IS "RUN IT AGAIN"
+2. 🚩 **TWO DEPLOY GATES ARE INTERMITTENTLY RED, AND FOR BOTH THE REMEDY IS "RUN IT AGAIN"
    (2026-08-26).** (a) The **estimating smoke gate** failed at exit 40 with
    `Municipal — JSON UNPARSEABLE — likely truncation` on a deploy touching only
    `civicscope-admin/index.html` and `api/admin.js`, neither of which is in `/api/claude`'s code
@@ -2180,7 +2210,7 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    `foreign-journal-ignored`, or the certification line cannot mean what this file says it means.
    ⚠ **Two flaky gates is the point at which "re-ran it and it went green" stops being evidence of
    anything.**
-4. **"Mark as filed" is the last step of the water loop, and it is HALF BUILT.** `record_filing` is
+3. **"Mark as filed" is the last step of the water loop, and it is HALF BUILT.** `record_filing` is
    open and working (it took all seven 2026 workbooks), but nothing on the page reaches it, so
    recording a filing still needs a script. Remaining: an `extract` action on `api/build-mor.py`
    returning `{cover, filed}` from an uploaded workbook — the EGLE cell map must **move** there
@@ -2188,75 +2218,106 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    upload + date control in the Reports filed panel. `record_filing` already accepts
    `source:'product'` and nothing writes it yet, so the first report filed from here stays
    distinguishable from the seven that came before.
-5. 🚩 **Bristol zoning answers 10 of 15 ordinary questions** (`question-bank.mjs`, first run
+4. 🚩 **Bristol zoning answers 10 of 15 ordinary questions** (`question-bank.mjs`, first run
    2026-08-26). The five gaps — shed permit, garage setback, house height, RV parking, lot coverage
    — share one cause: **the district guarantee only fires when the reader names a district**, and
    real questions ("how tall can a house be?") don't. Height and lot coverage are columns in a
    table the corpus now retrieves correctly. Next fix: infer the district from the question's
    subject, or guarantee the residential tables on any dimensional question.
-6. **The crew tablet shows validation errors before anything is typed.** Opening a well greets the
-   operator with *"Meter reading is required. Sodium hypochlorite 12.5% tank level is required.
-   Aquadine tank level is required."* — three red-flavoured lines for someone who has done nothing
-   wrong, in a one-handed app used in a concrete room. Suppress until first input or first submit.
-7. **No entry-time validation on the water round.** The derivation engine already catches the five
-   defect classes found in July's paper (dose vs. flow, wrong-well flow, tank vs. gallons-added,
-   impossible residuals, missing bacti) — but only *after the fact*, when Keith runs it. Moving
-   those checks to the moment of entry is the highest-value build on the field side: it would have
-   caught the 7/21 wrong-well flow while the operator was still standing at the well.
-8. **Audit the pool's remaining best-effort SMS sends.** `notifyLock`, `notifyWinner` and both
+5. **Audit the pool's remaining best-effort SMS sends.** `notifyLock`, `notifyWinner` and both
    reminders still swallow individual send failures — anything that does not report a per-channel
    count can fail exactly the way the "all picks are in" notice did on 2026-08-09: sent nothing,
    left no trace, and latched its own already-notified flag before calling. Fixed for that one path
    (`3.8.0-allinreceipt`); the others are unaudited. Detail in `Pools/CLAUDE.md`.
-9. **Fable review R2 — 30-day school-BOT plan, Week 1.** ~50-district target list (the
+6. **Fable review R2 — 30-day school-BOT plan, Week 1.** ~50-district target list (the
    agenda/BoardDocs mining technique is proven), Triage Memo template, outreach sequence. The
    schools wedge has **zero organic pull** (4 runs ever, nearly all internal) — founder-led
    outreach is the only test there is. Plan:
    `work product/CivicScope_School_BOT_Pivot_30Day_Plan.md`, graded B+ in the Fable review.
-10. **Fable review R6 — repeat-run variance on the infrastructure vertical.** Two identical
+7. **Fable review R6 — repeat-run variance on the infrastructure vertical.** Two identical
     watermain runs 43s apart returned $1.05M–$1.55M vs $1.85M–$2.75M (±76% on the midpoint);
     municipal and schools were deterministic across repeats. Add a repeat-run stability probe to
     the QA harness; consider prompt-grounding discipline.
-11. **Deploy-process findings still unresolved**
+8. **Deploy-process findings still unresolved**
     (`REVIEW_civicscope-deploy-process_2026-08-01.md`): readiness polling instead of the 75s sleep,
     `pause` in the .bat, production-write tests. Finding #1 (blast radius) was fixed 2026-08-02 —
     `push_civicscope.ps1` now requires `-Paths`.
-12. **Move the daily digest cron to the VM.** Vercel cron is unreliable (missed the April 9–10
+9. **Move the daily digest cron to the VM.** Vercel cron is unreliable (missed the April 9–10
     digests). Same pattern as the bookmarks pipeline — a `curl` trigger. **Less urgent since
     2026-08-11:** the digest now reports a *named ET calendar day*, so a missed day is no longer
     lost — re-send it with `POST /api/digest?date=YYYY-MM-DD`. Under the old rolling window a late
     cron silently dropped the uncovered hours forever.
-13. **A model-retirement calendar.** The last unbuilt piece of the 2026-06-17 QC programme (the
+10. **A model-retirement calendar.** The last unbuilt piece of the 2026-06-17 QC programme (the
     other two — the daily VM smoke and the always-on `cs-health` — are live). Nothing currently
     warns before a pinned model alias retires under the product.
-14. **`Applications and Permits` returned 0 documents** on Centreville. The folder is linked from
+11. **`Applications and Permits` returned 0 documents** on Centreville. The folder is linked from
     the village-info page and enumerates clean but holds nothing indexable. **Check before telling
     any village its permit forms are covered.**
-15. **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it (verified
+12. **Centreville has no `logo_url`** — the hub and the Ask page both show no mark for it (verified
     live 2026-08-27: `logo_url: null`). Bristol hotlinks the Town's own PNG. Needs a logo file from
     the Village if Keith wants parity — the Village has to supply it.
-16. **Bristol town-hall counter hours — only Keith can close this.** Not a bug: verified 2026-08-26
+13. **Bristol town-hall counter hours — only Keith can close this.** Not a bug: verified 2026-08-26
     that Bristol publishes no counter hours on its own site, and the tool already answers with the
     address, the meeting schedule and the Clerk's number. Closing it means getting the hours from
     the Town and adding them to the corpus.
-17. **CivicScope restructure — loose ends (June 6).** Version comments on the Schools + Infra tool
+14. **CivicScope restructure — loose ends (June 6).** Version comments on the Schools + Infra tool
     footers; sweep the inert `.timeline-tease` / `.tease-*` dead CSS from the three tools; a final
     end-to-end harness tire-kick of Schools + Infra (Municipal confirmed). The `Segment Hub Pages`
     table near the top still lists Infrastructure as "coming soon".
-18. ⏸ **Groundwork (newsletter) — PARKED since 2026-06-11.** Entire backlog frozen: Resend send
+15. ⏸ **Groundwork (newsletter) — PARKED since 2026-06-11.** Entire backlog frozen: Resend send
     wiring, VM cron, PDF fallback for Mishawaka packets, Cost Lens integration, project-tracker
     dedup. Architecture preserved in **Groundwork — Architecture**. ⛔ Separate product from the
     Municipal Agenda Notifier — **do not merge**. **Reactivation trigger: Keith restarts the
     newsletter.**
-19. ⏸ **The `tenants` table and its `acme`/`ryc` rows are still in Supabase and nothing reads them
+16. ⏸ **The `tenants` table and its `acme`/`ryc` rows are still in Supabase and nothing reads them
     — PARKED deliberately.** Its DDL is one of the 15 legacy `schema_*.sql` files that were never
     version controlled (`migrations/LEGACY_INVENTORY.md`), so a `DROP` has no undo. Historical
     `tool_runs` rows with `product = 'gc-acme'` / `'gc-int-acme'` stay too — they are the record of
     what ran, and `/admin`'s Activity feed still badges them correctly. **Reactivation trigger:
     Keith asks for the drop; it is one migration.**
-20. ⏸ **6 segments across the corpora match no chunk exactly — PARKED.**
+17. ⏸ **6 segments across the corpora match no chunk exactly — PARKED.**
     `reconcile-table-flags.mjs` reports them. Left alone rather than guessed at. **Reactivation
     trigger: a table goes missing from an answer.**
+
+### ✅ Closed 2026-09-02 — the well-testing pass before the Centreville meeting
+
+Kept here rather than in `HISTORY.md` because three of them were the top of this queue two hours
+earlier and the fourth was never on it at all. All carry ✅, so `extractCivicScope()` filters them
+out of the dashboard and the AIOS Brief without them having to leave the file.
+
+- ✅ **The website crawl was ALREADY SCHEDULED, and this queue said it was not.** Item #1 read
+  *"verified absent from the VM crontab 2026-08-27"* and rode the dashboard and the Brief as the
+  single most urgent CivicScope item. It is on the VM: `10 8 * * 0` Centreville, `20 8 * * 0`
+  Bristol, both with `heartbeat.sh` escalation, and both **ran clean on Sunday 2026-08-30**
+  (Centreville 8 pages unchanged, Bristol 142 written / 327 passages, `WEBSITE-INGEST-COMPLETE`).
+  ⚠ **The lesson is about the queue, not the crawl:** a dated "verified absent" is evidence about
+  the day it was taken and nothing else, and it went on being read out as current for six days
+  after somebody fixed it. Re-check the machine before promoting an infrastructure claim.
+- ✅ **The tablet no longer tells off an operator who has typed nothing** (was #6). Errors for a
+  required field are held until he has touched it; what is outstanding is one quiet grey line, not
+  three red ones, because the submit button is disabled anyway and a disabled button with no
+  explanation is the worse of the two failures.
+- ✅ **"Is this normal" now fires AT THE WELL** (was #7 — *"the highest-value build left on the
+  field side"*). The cause was smaller and worse than the item described: **`derive()` already had
+  the flow check and nothing had ever supplied `context.typicalGallons`** — not the tablet, not
+  `api/water-ops.js`, not the preview route — so `undefined > 0` was false on every reading ever
+  taken and the safeguard was unreachable code. `api/water-ops.js` now computes this plant's own
+  medians once (`plantNormals()`), passes them through `contextFor()` to **every** `derive()` call,
+  and returns them to the tablet so the well house and the server answer the question with the same
+  number. The dose half — out of family for this plant, as distinct from over the NSF ceiling —
+  moved out of `review.html` into `derive.js` and `review.html` now imports it. Proven live on
+  production: Well 1/3/4 medians 39,000 / 51,000 / 48,000 gal, and a 200,000-gal interval on Well 3
+  comes back `flow_high: about 4x this well's normal day`.
+- ✅ **`rederiveSuccessor()` had never re-derived a single day** — not in this queue at all, found
+  while wiring the above. Three defects: `feeds` built as an array where `derive()` indexes by feed
+  id (so `out.ok` was false and it wrote nothing on an ordinary day); residuals read as
+  `free_cl`/`total_cl`/`ortho` against a table holding `tap_free`/`tap_total`/`tap_ortho`, with
+  pressure and temp not carried at all (so on a zero-flow day, where defect 1 does not block, the
+  PATCH **erased** the operator's plant-tap sample); and a feed PATCH writing `dose_mgl` — a
+  property `derive()` does not return, to a column that does not exist — under a blanket
+  `.catch(() => {})` that swallowed the rejection. ⚠ **This is the amendment path, which is
+  Michelle's ordinary workflow and is exactly what THE AUGUST PLAN is about to exercise.** All
+  three are pinned by new assertions in the gate (569 → 586 checks).
 
 ### Needs Keith — authority, a credential, or a judgement only he can make
 
