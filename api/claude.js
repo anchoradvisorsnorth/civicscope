@@ -14,9 +14,18 @@
 // { content: [{ type:'text', text }] } shape so NO client/tool change is needed.
 //
 // Give the proxy headroom: a single Sonnet estimate (esp. Schools/Infra
-// renovation scenarios) can generate ~1,300 output tokens / ~20s. 120s on
-// Vercel Pro (max 300s) — the cap is free; billing is on actual execution time.
-export const config = { maxDuration: 120 };
+// renovation scenarios) can generate ~1,300 output tokens / ~20s. The cap is
+// free; billing is on actual execution time.
+//
+// RAISED 120 -> 300 (Vercel Pro max) on 2026-09-02. 120s was measured against
+// TEXT estimates and never against a plan-set batch: the RYC Desk takeoff posts
+// 10 rendered plan pages at up to 4096 output tokens, and one of those alone can
+// run past a minute. On 2026-09-02T16:17:28Z an estimator's takeoff died on
+// "Vercel Runtime Timeout Error: Task timed out after 120 seconds" — the caller
+// gets a bodyless 504, and the Desk's runEstimate() catch kills the entire run,
+// losing every batch already paid for. See also the deadline logic below: the
+// cap alone was never the whole bug.
+export const config = { maxDuration: 300 };
 
 const RETRIABLE = new Set([429, 500, 502, 503, 529]);
 const MAX_ATTEMPTS = Number(process.env.CLAUDE_PROXY_RETRIES || 3); // total Anthropic tries
@@ -81,8 +90,24 @@ export default async function handler(req, res) {
 
   let last = { status: 502, data: { error: { message: 'No upstream response' } } };
 
+  /* THE RETRY LOOP HAD NO IDEA HOW MUCH TIME IT HAD (fixed 2026-09-02).
+     MAX_ATTEMPTS unbounded fetches plus two backoff sleeps all ran inside ONE function budget,
+     so a slow first attempt guaranteed the second would be killed mid-flight. When that happened
+     the invocation died and the caller got a 504 with NO BODY — not the upstream error, not a
+     retryable signal, nothing the client could act on or resume from. Raising maxDuration alone
+     would only have bought a longer walk to the same cliff.
+
+     Now every attempt is bounded by what remains of the budget, and an attempt that cannot
+     plausibly finish is never started — the last REAL upstream error is returned instead. */
+  const startedAt = Date.now();
+  const BUDGET_MS = Number(process.env.CLAUDE_PROXY_BUDGET_MS || 285000); // under maxDuration 300
+  const MIN_ATTEMPT_MS = 20000;   // below this an attempt is not worth starting
+  const remaining = () => BUDGET_MS - (Date.now() - startedAt);
+  let ranOutOfTime = false;
+
   // 1) Anthropic, with bounded retry on transient failures.
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    if (remaining() < MIN_ATTEMPT_MS) { ranOutOfTime = true; break; }
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -92,6 +117,9 @@ export default async function handler(req, res) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify(body),
+        // Leave a margin so the abort lands as OUR error with a message, rather than as the
+        // platform killing the invocation and erasing the response entirely.
+        signal: AbortSignal.timeout(Math.max(MIN_ATTEMPT_MS, remaining() - 3000)),
       });
       const data = await response.json();
 
@@ -101,11 +129,20 @@ export default async function handler(req, res) {
       if (!RETRIABLE.has(response.status)) break; // 4xx (bad request, auth) — don't retry/fallback
     } catch (err) {
       // Network/timeout — treat as transient.
-      last = { status: 503, data: { error: { message: `Anthropic request failed: ${err.message || 'unknown'}` } } };
+      const aborted = /abort|timeout/i.test(err.name || err.message || '');
+      if (aborted) ranOutOfTime = true;
+      last = { status: aborted ? 504 : 503, data: { error: { message: aborted
+        ? `Anthropic did not answer within the time this request had left (${Math.round(BUDGET_MS / 1000)}s). `
+          + 'For a plan-set takeoff this usually means the batch is too large — send fewer pages per batch.'
+        : `Anthropic request failed: ${err.message || 'unknown'}` } } };
     }
 
     if (attempt < MAX_ATTEMPTS - 1) {
-      await sleep(BACKOFF_MS[attempt] + Math.floor(Math.random() * 250));
+      const wait = BACKOFF_MS[attempt] + Math.floor(Math.random() * 250);
+      // Never sleep into the wall: a backoff that leaves no room for the attempt it precedes
+      // spends the remaining budget doing nothing.
+      if (remaining() - wait < MIN_ATTEMPT_MS) { ranOutOfTime = true; break; }
+      await sleep(wait);
     }
   }
 
@@ -125,6 +162,16 @@ export default async function handler(req, res) {
 
   // 3) Nothing worked — relay the last Anthropic error verbatim (preserves status/body
   //    so the existing tool error handling + cs-health see the true cause).
+  //
+  //    A budget exhaustion must still answer IN JSON. The whole point of the deadline is that the
+  //    client gets a readable cause instead of the platform's bodyless 504, so a run that has
+  //    already paid for several batches can report which one died and why.
+  if (ranOutOfTime && last.status === 502) {
+    return res.status(504).json({ error: { message:
+      `The request ran out of time (${Math.round(BUDGET_MS / 1000)}s) before Anthropic answered. `
+      + 'For a plan-set takeoff this usually means the batch is too large — send fewer pages per batch.',
+      elapsed_ms: Date.now() - startedAt } });
+  }
   return res.status(last.status).json(last.data);
 }
 
