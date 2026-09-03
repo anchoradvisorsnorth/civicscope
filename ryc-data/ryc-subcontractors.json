@@ -1,7 +1,7 @@
 {
- "generated": "2026-09-02T09:30:47.409Z",
+ "generated": "2026-09-03T09:30:48.459Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
- "totalActual": 133403378,
+ "totalActual": 133653736,
  "totalCommitted": 141923703,
  "subCount": 647,
  "subs": [
@@ -2112,6 +2112,23 @@
    ]
   },
   {
+   "vendorNo": "3804",
+   "name": "Peterman Brothers",
+   "actualCost": 930905,
+   "actualJobs": 1,
+   "committed": 1304340,
+   "committedJobs": 1,
+   "variance": 373435,
+   "jobs": [
+    {
+     "jobNo": "2513CO04",
+     "jobName": "Helix Orchard Wallen Road",
+     "actual": 930905,
+     "committed": 1304340
+    }
+   ]
+  },
+  {
    "vendorNo": "2249",
    "name": "Midwest Glass & Mirror Co",
    "actualCost": 929441,
@@ -3003,23 +3020,6 @@
      "jobName": "PHM Fieldhouse",
      "actual": 318494,
      "committed": 185500
-    }
-   ]
-  },
-  {
-   "vendorNo": "3804",
-   "name": "Legacy Plumbing, Heating,",
-   "actualCost": 680547,
-   "actualJobs": 1,
-   "committed": 1304340,
-   "committedJobs": 1,
-   "variance": 623793,
-   "jobs": [
-    {
-     "jobNo": "2513CO04",
-     "jobName": "Helix Orchard Wallen Road",
-     "actual": 680547,
-     "committed": 1304340
     }
    ]
   },
