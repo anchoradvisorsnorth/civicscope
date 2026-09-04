@@ -1009,6 +1009,86 @@ function supportingDocuments(rows) {
   return out;
 }
 
+/* An invoice number as an identity: the vendors print `#62371`, `62371`, `INV-62371` for one
+   document, and the front office types whichever it sees. */
+function invoiceNoKey(no) {
+  return String(no || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/* ⛔ A RE-SCANNED INVOICE WAS BEING CAUGHT BY SHAREPOINT OR NOT AT ALL, AND BOTH ENDINGS ARE BAD.
+   Measured 2026-09-03: the `approved 9326gc` batch re-scanned two Leatherman invoices the
+   `approved 82626GC2` batch had already filed on 08-31. #62371 travelled the whole pipeline — read,
+   reconciled, filed to the batch folder, routed to a job, submitted — and was stopped only by an
+   HTTP 409 forty minutes later, surfaced as "REFUSED — a file already exists" with no mention of
+   the batch that put it there. `check_duplicates()` has existed in file_invoice.py the whole time,
+   against three years of the archive, and nothing on this path calls it.
+
+   ⛔ AND THE 409 CANNOT BE RELIED ON, BECAUSE IT COMPARES NAMES. The other duplicate in that same
+   batch, #62316 for $980.72, had been filed as SIX share-renamed copies (`163.46`, `163.45`…) —
+   so re-filing it whole would upload `Leatherman Supply  980.72  08-24-26.pdf`, a name that exists
+   in none of those folders, and land silently. The guard that saved the first invoice was
+   structurally unable to save the second. This asks the question the filename cannot: is this
+   vendor's document already in the register, filed, from another batch.
+
+   A MATCH IS A QUESTION, NEVER A VERDICT — the same doctrine `check_duplicates` is written under.
+   `exact` means the invoice numbers agree and is strong enough to withhold the tick; `possible`
+   means the vendor, amount and date agree with no invoice number to confirm it, and only warns.
+   A vendor genuinely billing the same amount twice is real (recurring dumpster and supply charges
+   run to the cent), so refusing outright would be wrong.
+
+   Pure: `documents` is this batch, `prior` is already-reconciled rows from OTHER batches. */
+function priorFilings(documents, prior) {
+  const byKey = new Map();
+  for (const p of prior) {
+    if (!p || p.reconciled_at === null || p.reconciled_at === undefined) continue;
+    const ak = amountKey(p.amount);
+    if (ak === null) continue;
+    const k = `${vendorKey(p.vendor)}|${ak}`;
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k).push(p);
+  }
+  const out = {};
+  for (const d of documents) {
+    if (!d || d.reconciled_at) continue;          // a settled row is not being filed again
+    const ak = amountKey(d.amount);
+    if (ak === null) continue;
+    const cands = byKey.get(`${vendorKey(d.vendor)}|${ak}`) || [];
+    /* Same batch is not a duplicate: a two-page scan legitimately produces two rows, and the
+       split-vs-whole question inside one batch is the reconciler's job, not this one's. */
+    const others = cands.filter(p => String(p.batch_id) !== String(d.batch_id));
+    if (!others.length) continue;
+    const mine = invoiceNoKey(d.invoice_no);
+    const exact = mine ? others.find(p => invoiceNoKey(p.invoice_no) === mine) : null;
+    /* Without invoice numbers on both sides, the file name's own date is the only other thing the
+       archive convention carries. Same vendor + same amount + same date is a question worth asking;
+       same vendor + same amount alone is not, and would flag every recurring charge in the batch. */
+    const dated = exact ? null : others.find(p => nameDate(p.file_name)
+      && nameDate(p.file_name) === nameDate(d.file_name));
+    const hit = exact || dated;
+    if (!hit) continue;
+    const paths = (Array.isArray(hit.copies) ? hit.copies : [])
+      .filter(c => c && !c.error && c.path).map(c => c.path);
+    out[d.id] = {
+      strength: exact ? 'exact' : 'possible',
+      invoice_no: hit.invoice_no || null,
+      file_name: hit.file_name || null,
+      batch_folder: hit.batch_folder || null,
+      reconciled_at: hit.reconciled_at || null,
+      disposition: hit.disposition || null,
+      paths: paths.slice(0, 8),
+    };
+  }
+  return out;
+}
+
+/* The `MM-DD-YY` the archive convention puts in every filed name. Read off the name rather than a
+   column because it is what the office looks a file up by, and it is stable across the register's
+   several date fields (received stamp, batch date, invoice date) which are deliberately not equal. */
+function nameDate(name) {
+  const m = String(name || '').match(/\b(\d{2}-\d{2}-\d{2})\b/);
+  return m ? m[1] : null;
+}
+
 /* Exported for the regression harness (scripts/verify-ryc-invoice-matcher.mjs). Not a route.
    The matcher, the desk rule and the payable classifier are the pieces of this module with real
    logic and no I/O, so they are the pieces that can be tested exhaustively without touching
@@ -1057,6 +1137,10 @@ export const __matcher = { matchJob, tokenIndex, jobTokens, jobNoKey };
 export const __family = { familyMatch, familyDesk, aliasText, FAMILIES, COMMUNITY_ALIASES };
 export const __pm = { resolveJobPm, resolveJobPmSource };
 export const __payable = { supportingDocuments, vendorKey, NEVER_PAYABLE };
+/* Pure and I/O-free on purpose, so scripts/verify-ryc-duplicate-scan.mjs drives the REAL function
+   rather than re-deriving the rule beside it — a test that re-implements what it guards guards
+   nothing, which this module has now paid for twice. */
+export const __dupes = { priorFilings, invoiceNoKey, nameDate };
 /* The batch coverage rule. `batch_confirm` (a person confirmed these boundaries) and
    `batch_autoconfirm` (the reconciler resolved them) both call this ONE function, so the machine
    route can never reach SharePoint through a laxer door than the human one. Exported so the gate
@@ -1994,6 +2078,45 @@ export default async function handler(req, res) {
           }
         }
       } catch { /* the batch screen still works without this; it just cannot say whose it is */ }
+
+      /* ===== HAS THIS DOCUMENT ALREADY BEEN FILED, FROM AN EARLIER BATCH? ==================
+         Scoped by AMOUNT rather than swept whole: the amounts in this batch are a short numeric
+         list, they need no quoting, and it keeps the query proportional to the batch instead of to
+         the archive. A null amount cannot be matched on and is left out.
+
+         ⚠ WRAPPED, AND DELIBERATELY SILENT ON FAILURE — but never silently WRONG. If this read
+         fails the board renders exactly as it did before, with no duplicate warnings; it must not
+         be able to take down the screen she reconciles on. The one thing it must not do is report
+         "no duplicates" as though it had looked, so the flag is only ever attached, never cleared. */
+      try {
+        const amounts = [...new Set(documents
+          .map(d => (d.amount === null || d.amount === undefined ? null : Number(d.amount)))
+          .filter(a => a !== null && Number.isFinite(a)))];
+        if (amounts.length) {
+          const pr = await sb('ryc_batch_documents?company_id=eq.ryc&reconciled_at=not.is.null'
+            + `&amount=in.(${amounts.join(',')})&batch_id=neq.${id}`
+            + '&select=id,batch_id,file_name,vendor,amount,invoice_no,copies,disposition,reconciled_at'
+            + '&order=reconciled_at.desc&limit=1000');
+          if (pr.ok) {
+            const prior = await pr.json();
+            /* The batch a prior filing came from is the thing she recognises — "approved 82626GC2",
+               the folder she worked that morning. It lives on ryc_batch_jobs, so it is joined on
+               here and handed to the pure function rather than looked up inside it. */
+            const bids = [...new Set(prior.map(p => p.batch_id).filter(Boolean))];
+            if (bids.length) {
+              const fr = await sb('ryc_batch_jobs?company_id=eq.ryc&select=id,folder'
+                + `&id=in.(${bids.join(',')})&limit=1000`);
+              if (fr.ok) {
+                const folders = {};
+                for (const b of await fr.json()) folders[b.id] = b.folder;
+                for (const p of prior) p.batch_folder = folders[p.batch_id] || null;
+              }
+            }
+            const dupes = priorFilings(documents, prior);
+            for (const d of documents) if (dupes[d.id]) d.prior_filing = dupes[d.id];
+          }
+        }
+      } catch { /* no warning is a safe outcome; a screen that will not load is not */ }
 
       return res.status(200).json({ ok: true, documents });
     }

@@ -43,6 +43,9 @@ function renderBatch(){
   // The reconcile panel is per-batch; leaving last batch's rows in memory would paint them under
   // the next one's header for the moment before the fetch returns.
   _recon = { docs: [], targets: _recon ? _recon.targets : null, batchId: null, busy: {},
+             /* Per-batch like `pick` — an override she gave on last batch's duplicate must not
+                travel to this one, where it would silence a warning she has never seen. */
+             dupOk: {},
              pick: {}, submitting: null, lastSubmit: null };
 
   /* ⛔ THIS SCREEN DID NOT OWN ITS OWN HEADER, so arriving from Inbound left the page titled
@@ -669,6 +672,8 @@ function batchConfirm(){
    the money due THIS period, sitting on a face sheet beside four larger numbers that are not bills.
    A reviewer scanning a mixed list has to re-orient on every row. */
 var _recon = { docs: [], targets: null, batchId: null, busy: {},
+               /* docId -> true: a duplicate warning she has read and deliberately overridden. */
+               dupOk: {},
                /* docId -> true: rows she has marked ready for the next submit. Held here, never in the
                   DOM, for the same reason the job selection is — every repaint rebuilds the rows. */
                pick: {}, submitting: null, lastSubmit: null };
@@ -763,6 +768,7 @@ function reconSubmittable(){
    Keith, 2026-08-31: *"What is Beer and Slaughbuagh asking erica to select a job."*
    Nothing here is new logic; it is the same rule with only one place to change. */
 function reconReady(d){
+  if(reconDupeBlocks(d)) return false;
   return !!d.job_no || reconSplit(d).length > 0;
 }
 
@@ -778,8 +784,36 @@ function reconReady(d){
 
    `job_folder` with no `reconciled_at` is the honest test: it is set the moment she submits and
    cleared only when the copy has landed, so it covers queued and in-flight alike. */
+/* ⛔ AND A ROW THAT FAILED IS NOT A ROW THAT IS FILING (2026-09-03). `copy_error` set,
+   `reconciled_at` null, `disposition` still `job_folder` — the state a refusal leaves behind —
+   satisfied the test below, so the board told Erica "submitted — waiting for the filing worker…"
+   directly underneath its own REFUSED banner. It waits forever: `doc_copy_claim` picks
+   `copy_error=is.null`, so the worker it names is excluded by definition from ever taking it.
+   The same wrong `true` also suppressed the two controls that answer a refusal (`!doneAt &&
+   !working` gates them) and kept the poll running against a row nothing would ever change —
+   one missing clause, three symptoms. `"working"` is the claim LEASE, not an error: a row a
+   worker is holding right now genuinely is filing. */
 function reconFiling(d){
+  if(d.copy_error && d.copy_error !== "working") return false;
   return !d.reconciled_at && d.disposition === "job_folder";
+}
+
+/* ⛔ AN INVOICE ALREADY FILED FROM AN EARLIER BATCH DOES NOT GET A TICK UNTIL SHE SAYS SO.
+   `prior_filing` is attached by the server (`priorFilings`); `exact` means the invoice numbers
+   agree, which is strong enough to hold the row. Withheld-with-a-reason rather than refused: a
+   vendor really can bill the same amount twice, so "File it anyway" sits beside the warning. Same
+   shape as suppressing the reconcile actions on a document that is still on a PM's desk. */
+function reconDupeBlocks(d){
+  var p = d && d.prior_filing;
+  return !!(p && p.strength === "exact" && !_recon.dupOk[d.id]);
+}
+
+/* She has read the warning and means it. Held here, not in the DOM, for the same reason every
+   other per-row decision on this board is — a repaint rebuilds the rows. Never sent to the server:
+   it withholds a tick, it does not change what filing means. */
+function reconDupeAck(id){
+  _recon.dupOk[id] = true;
+  reconRender();
 }
 
 /* The PM's split as a usable list, or empty. Every entry must name a job: a half-answered split is
@@ -1153,12 +1187,17 @@ function reconRow(d){
     var nsplit = reconSplit(d).length;
     var ready = reconReady(d);
     var on = !!_recon.pick[d.id];
+    /* The tick has to say what pressing Submit will do to THIS page, and on a held duplicate the
+       answer is "nothing yet" — a label reading "File to job" over a disabled box is the control
+       misdescribing its own effect. */
+    var label = reconDupeBlocks(d) ? "Already filed — read below"
+                                   : reconPickLabel(chosen, nsplit);
     act = '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">'
       + '<input type="checkbox" id="rp_' + esc(d.id) + '"' + (on ? ' checked' : '')
       + (ready ? '' : ' disabled')
       + ' onchange="reconTogglePick(' + invArg(d.id) + ')">'
       + '<span id="rl_' + esc(d.id) + '"' + (ready ? '' : ' class="sub"') + '>'
-      + esc(reconPickLabel(chosen, nsplit)) + '</span></label>';
+      + esc(label) + '</span></label>';
   }
   /* ⛔ A REFUSAL MUST HAND HER SOMETHING TO DO (Keith, 2026-08-21, reading
      *"only 1 distinctive word matched between 'Huntertown Wastewater Treatment Plan Expansion:
@@ -1171,8 +1210,52 @@ function reconRow(d){
      carries `no job folder resembles 'Greencroft NNNN WPC'` — true, and not her problem yet.
      Showing it beside "With Logan Moore" would offer her two endings for a row she has not been
      handed, which is exactly the choice-offered-is-choice-endorsed trap from 2026-08-26. */
+  /* ===== THIS DOCUMENT LOOKS LIKE ONE THAT IS ALREADY FILED ==============================
+     Rendered ABOVE the refusal, because when both are present the duplicate is the cause and the
+     refusal is the symptom — and reading them the other way round is what sent 2026-09-03 chasing
+     a SharePoint fault. It names the batch she worked, the date, and where the copy went, because
+     "a file already exists" answers none of those and every one of them is one query away.
+     Suppressed while a PM holds the row, for the same reason the refusal is: not her work yet. */
+  if(d.prior_filing && !doneAt && !withPm){
+    var pf = d.prior_filing;
+    var exactDup = pf.strength === "exact";
+    why += '<div class="sub m-r" style="margin-bottom:0"><b>'
+      + (exactDup ? "This invoice is already filed." : "This may already be filed.")
+      + '</b> ' + (exactDup && pf.invoice_no
+          ? 'Invoice <b>#' + esc(pf.invoice_no) + '</b> for the same vendor and amount was '
+          : 'The same vendor, amount and date were ')
+      + 'reconciled on <b>' + esc(String(pf.reconciled_at || "").slice(0, 10)) + '</b>'
+      + (pf.batch_folder ? ' from batch <b>' + esc(pf.batch_folder) + '</b>' : '')
+      + (pf.disposition === "job_unfiled"
+          ? ', and was resolved without filing (that job has no folder).'
+          : pf.disposition === "ryc_expense" ? ', as RYC Expense.' : '.')
+      + '</div>';
+    if(pf.paths && pf.paths.length){
+      why += '<div class="sub" style="margin-top:5px;margin-bottom:0">It went to '
+        + pf.paths.map(function(p){ return '<b>' + esc(p) + '</b>'; }).join('<br>') + '</div>';
+    }
+    if(exactDup && !_recon.dupOk[d.id]){
+      /* ⛔ TWO HONEST ENDINGS, AND THE RIGHT ONE FIRST. If it really is the same paper the copy is
+         already in the folder, so "Resolve without filing" is the true answer and the row closes
+         with the reason on its history forever. "File it anyway" exists because a vendor billing
+         the same amount twice is real — it only lifts the hold, and she still has to tick and
+         submit, so nothing is filed by pressing it. */
+      why += '<div style="margin-top:7px">'
+        + '<button class="pfill" onclick="reconNoFile(' + invArg(d.id) + ')">'
+        + 'Resolve without filing</button> '
+        + '<button class="pfill" onclick="reconDupeAck(' + invArg(d.id) + ')">'
+        + 'File it anyway</button></div>'
+        /* ⚠ SAY WHY THE NAME-BASED GUARD IS NOT ENOUGH, because she has seen it work before and
+           will reasonably assume it will again. A split was filed under six share-renamed names;
+           re-filing the same invoice whole collides with none of them and lands silently. */
+        + '<div class="sub" style="margin-top:7px;margin-bottom:0">SharePoint refuses a second copy '
+        + 'only when the file <i>name</i> matches. If the first one was split across jobs, or '
+        + 'renamed, it will not — so this one is held here instead.</div>';
+    }
+  }
   if(err && !withPm){
-    why += '<div class="sub m-r" style="margin-bottom:0">' + reconWhy(err) + '</div>';
+    why += (why ? '<div style="height:9px"></div>' : '')
+      + '<div class="sub m-r" style="margin-bottom:0">' + reconWhy(err) + '</div>';
     if(!doneAt && !working){
       /* TWO REAL ANSWERS TO A REFUSAL, because there are two different reasons for one.
          "Point at the folder" is for a job whose folder exists and simply does not resemble its
@@ -1439,12 +1522,33 @@ function reconNoFile(id){
     return;
   }
   var t = (_recon.targets || []).filter(function(x){ return x.no === jobNo; })[0];
+  /* ⛔ THE SAME BUTTON NOW ANSWERS TWO DIFFERENT QUESTIONS AND MUST NOT DESCRIBE BOTH THE SAME WAY.
+     On a refusal it means "this job has no folder". On a duplicate it means "the copy is already in
+     the folder" — the opposite reason for the same action, and telling her nothing is copied
+     without saying a copy is already there would read as losing the document. */
+  var pf = d.prior_filing;
+  var dup = !!(pf && pf.strength === "exact");
   if(!window.confirm('Resolve "' + d.file_name + '" against ' + (t ? t.name : jobNo)
-      + ' without filing?\n\nThe cost is recorded against that job. Nothing is copied to '
-      + 'SharePoint — the batch folder keeps the only copy. This cannot be undone from here.')) return;
+      + ' without filing?\n\n'
+      + (dup
+          ? 'This invoice was already filed on ' + String(pf.reconciled_at || "").slice(0, 10)
+            + (pf.batch_folder ? ' from batch ' + pf.batch_folder : '')
+            + '. The copy is already in the job folder, so nothing more is copied and no second '
+            + 'copy is made.'
+          : 'The cost is recorded against that job. Nothing is copied to SharePoint — the batch '
+            + 'folder keeps the only copy.')
+      + ' This cannot be undone from here.')) return;
 
+  /* WHY it was not filed is what `history.filer_said` is for, and it stays answerable months
+     later. A duplicate has no `copy_error` to quote, so the reason is stated here instead of
+     being written down as null. */
+  var said = d.copy_error || (dup
+    ? 'Duplicate scan: invoice #' + (pf.invoice_no || "?") + ' was already reconciled '
+      + String(pf.reconciled_at || "").slice(0, 10)
+      + (pf.batch_folder ? ' from batch ' + pf.batch_folder : '') + '.'
+    : null);
   _recon.busy[id] = true; reconRender();
-  invPost("doc_reconcile", { doc_id:id, job_no:jobNo, no_filing:true, reason:d.copy_error })
+  invPost("doc_reconcile", { doc_id:id, job_no:jobNo, no_filing:true, reason:said })
     .then(function(r){
       delete _recon.busy[id];
       if(!r.ok){ alert(r.error || "Could not resolve it."); reconRender(); return; }
