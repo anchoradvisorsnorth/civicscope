@@ -2217,6 +2217,11 @@ export default async function handler(req, res) {
           completed_to_date: (d.completed_to_date === null || d.completed_to_date === undefined
             || d.completed_to_date === '') ? null : Number(d.completed_to_date),
           job_text: d.job_text || null,
+          /* The sub lien waiver pages the reconciler kept (migration 071). Only ever an ARRAY or
+             null — never `[]` invented here. The worker sends `[]` when it looked and found none,
+             and null would mean "this batch predates the capture"; manufacturing one from the other
+             at the boundary is how a coverage figure becomes an artefact of the deploy date. */
+          sub_waivers: Array.isArray(d.sub_waivers) ? d.sub_waivers : null,
           job_no, job_name, job_source,
         };
       });
@@ -3455,12 +3460,23 @@ export default async function handler(req, res) {
       const complete = !failed && (!copies || missed.length === 0);
       const stamp = new Date().toISOString();
 
+      /* WHAT HAPPENED TO THE SUB LIEN WAIVERS (migration 071). Recorded on BOTH endings — a waiver
+         that could not be split is a fact whether or not the invoice itself landed, and losing it
+         on the failure branch would mean the only record of a missing waiver disappears exactly
+         when someone is looking at the row.
+         ⛔ IT NEVER AFFECTS `complete`. The payable reaching its job folder is what reconciles a
+         document; a second artefact from the same page must not be able to hold a filing open, or
+         a missing Pay Apps folder would strand real money on the board. */
+      const waiverCopies = Array.isArray(body.waiver_copies)
+        ? body.waiver_copies.filter(Boolean) : null;
+
       const patch = complete
         ? {
             copy_error: null,
             copied_path: (landed && landed.length ? landed[0].path : body.path) || null,
             copied_url: (landed && landed.length ? landed[0].url : body.url) || null,
             ...(copies ? { copies } : {}),
+            ...(waiverCopies ? { waiver_copies: waiverCopies } : {}),
             sp_name: body.sp_name || undefined,
             // The retirement is only finished once the worker says so; clearing it here is what
             // takes a corrected document back out of the work queue.
@@ -3475,6 +3491,7 @@ export default async function handler(req, res) {
               + `still owed: ${missed.map(c => `${c.job_no || '?'} (${c.error})`).join('; ')}`
             ).slice(0, 500),
             ...(copies ? { copies } : {}),
+            ...(waiverCopies ? { waiver_copies: waiverCopies } : {}),
             ...(landed && landed.length
               ? { copied_path: landed[0].path || null, copied_url: landed[0].url || null }
               : {}),
