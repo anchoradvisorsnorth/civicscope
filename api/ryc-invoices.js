@@ -2769,12 +2769,19 @@ export default async function handler(req, res) {
          tell "the file is in the job folder" from "there is no job folder and we said so on
          purpose". The batch folder keeps the only copy either way, exactly as it does for an
          expense. */
+      /* `disposition` stays `ryc_expense` on an expense row even when she reached it through
+         "Resolve without filing": RYC Expense is the more specific ending — a cost belonging to no
+         job — and `job_unfiled` would assert the opposite, that a job owns it and has no folder. */
       const noFiling = opts.noFiling === true && !expense;
-      if (opts.noFiling === true && expense) {
-        return { status: 400, body: {
-          error: 'RYC Expense already means nothing is copied — pick the job it belongs to instead.' } };
-      }
-
+      /* ⛔ THIS USED TO BE A 400, AND IT WAS THE SERVER HALF OF A DEAD END (reversed 2026-09-04).
+         It read: *"RYC Expense already means nothing is copied — pick the job it belongs to
+         instead."* True about the copy, and impossible on the row that produced it. Erica, on the
+         last open row of `approved 9426`: *"This was a duplicate that was flagged but when i tried
+         to resolve without filing I received the error message."* Wakarusa Heavy Equipment #2705-1
+         was reconciled as RYC Expense on 2026-08-26 — there IS no job it belongs to — while the
+         duplicate hold withheld its tick, so the only control left standing was "File it anyway".
+         Both endings write the same row; refusing one of them bought nothing and cost the board a
+         row nobody could close. The reason is kept either way, which is the half that matters. */
       const done = expense || noFiling;
       const patch = {
         job_no: useSplit ? null : (expense ? RYC_EXPENSE.no : jobNo),
@@ -2800,7 +2807,11 @@ export default async function handler(req, res) {
          rather than overwrites because these records sit behind money moving between job budgets —
          and "this payable was never copied to SharePoint, and here is who decided that and what the
          filer had said" is precisely the kind of question that gets asked months later. */
-      if (noFiling) {
+      /* ⚠ KEYED ON WHAT SHE PRESSED, NOT ON THE DISPOSITION IT PRODUCED. `noFiling` is deliberately
+         false for an expense row (see above), so keying the record off it would have dropped the
+         reason on exactly the rows that now reach here through that button — the duplicate ones,
+         where "why was this never copied" is the whole question a reader will bring. */
+      if (opts.noFiling === true) {
         patch.history = [...(Array.isArray(doc.history) ? doc.history : []), {
           at: new Date().toISOString(),
           by: who.via === 'admin' ? 'admin' : 'front office',

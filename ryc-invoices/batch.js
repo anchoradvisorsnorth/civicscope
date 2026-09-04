@@ -768,8 +768,40 @@ function reconSubmittable(){
    Keith, 2026-08-31: *"What is Beer and Slaughbuagh asking erica to select a job."*
    Nothing here is new logic; it is the same rule with only one place to change. */
 function reconReady(d){
+  return reconReadyWith(d, d.job_no, reconSplit(d).length);
+}
+
+/* ⛔ AND IT HAS TO ANSWER FOR THE SELECTION SHE IS MAKING RIGHT NOW, NOT ONLY THE SAVED ONE.
+   `reconRelabel` rebuilt readiness from the dropdown alone — `!!sel.value || nsplit > 0` — which
+   knows nothing about the duplicate hold. So picking a job on a HELD row enabled its tick, ticked
+   it, and wrote "File to job" over "Already filed — read below", while `reconSubmittable` (which
+   does honour the hold) left that row out of the submit set: the tick said ready, the footer count
+   disagreed, and Submit would have passed it by in silence. That is the Beer & Slabaugh failure of
+   2026-08-31 mirrored — one rule written twice, and the copy that got the update was not the one
+   the footer reads. `d.job_no` lags the dropdown by a `doc_update` round trip, so the pending
+   selection is passed in rather than read from the row. */
+function reconReadyWith(d, jobNo, nsplit){
   if(reconDupeBlocks(d)) return false;
-  return !!d.job_no || reconSplit(d).length > 0;
+  return !!jobNo || nsplit > 0;
+}
+
+/* The tick's LABEL is that same rule in words, and it was also written twice. A held row must say
+   so wherever it is drawn — a label reading "File to job" over a box the submit set ignores is the
+   control misdescribing its own effect. */
+function reconTickLabel(d, jobNo, nsplit){
+  return reconDupeBlocks(d) ? "Already filed — read below" : reconPickLabel(jobNo, nsplit);
+}
+
+/* ⛔ WHAT THE FIRST FILING ACTUALLY DID DECIDES WHAT IS TRUE ON A DUPLICATE. `ryc_expense` and
+   `job_unfiled` copy NOTHING — so "the copy is already in the folder" is false on those rows, and
+   so is the paragraph about SharePoint refusing a second copy by name. Erica, 2026-09-04, on the
+   one open row of `approved 9426`: *"This was a duplicate that was flagged but when i tried to
+   resolve without filing I received the error message."* Wakarusa Heavy Equipment #2705-1 had been
+   reconciled as RYC Expense on 2026-08-26 — no job, no copy — and the block told her to use a
+   control that then demanded a job she could not have. */
+function reconPriorCopied(pf){
+  var disp = pf && pf.disposition;
+  return disp !== "ryc_expense" && disp !== "job_unfiled";
 }
 
 /* ⛔ SUBMITTED IS A STATE, AND THE BOARD HAD NO WAY TO DRAW IT. Keith, 2026-08-31, watching Erica
@@ -1190,8 +1222,7 @@ function reconRow(d){
     /* The tick has to say what pressing Submit will do to THIS page, and on a held duplicate the
        answer is "nothing yet" — a label reading "File to job" over a disabled box is the control
        misdescribing its own effect. */
-    var label = reconDupeBlocks(d) ? "Already filed — read below"
-                                   : reconPickLabel(chosen, nsplit);
+    var label = reconTickLabel(d, chosen, nsplit);
     act = '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">'
       + '<input type="checkbox" id="rp_' + esc(d.id) + '"' + (on ? ' checked' : '')
       + (ready ? '' : ' disabled')
@@ -1270,15 +1301,30 @@ function reconRow(d){
          stays here. */
       why += '<div style="margin-top:7px">'
         + '<button class="pfill" onclick="reconDupeAck(' + invArg(d.id) + ')">'
-        + 'File it anyway</button></div>'
-        + '<div class="sub" style="margin-top:6px;margin-bottom:0">If it really is the same paper, '
-        + 'use <b>Resolve without filing</b> above — the copy is already in the folder.</div>'
-        /* ⚠ SAY WHY THE NAME-BASED GUARD IS NOT ENOUGH, because she has seen it work before and
-           will reasonably assume it will again. A split was filed under six share-renamed names;
-           re-filing the same invoice whole collides with none of them and lands silently. */
-        + '<div class="sub" style="margin-top:7px;margin-bottom:0">SharePoint refuses a second copy '
-        + 'only when the file <i>name</i> matches. If the first one was split across jobs, or '
-        + 'renamed, it will not — so this one is held here instead.</div>';
+        + 'File it anyway</button></div>';
+      /* ⛔ THE REASSURANCE HAS TO BE THE TRUE ONE. Both sentences below are about a copy sitting in
+         a job folder, and on a prior `ryc_expense` or `job_unfiled` there is no such copy — the
+         banner two lines up has just said so itself. Telling her the copy is already filed, and
+         then refusing the control that closes the row, is what left `approved 9426` with one row
+         nobody could finish. */
+      if(reconPriorCopied(pf)){
+        why += '<div class="sub" style="margin-top:6px;margin-bottom:0">If it really is the same '
+          + 'paper, use <b>Resolve without filing</b> above — the copy is already in the folder.</div>'
+          /* ⚠ SAY WHY THE NAME-BASED GUARD IS NOT ENOUGH, because she has seen it work before and
+             will reasonably assume it will again. A split was filed under six share-renamed names;
+             re-filing the same invoice whole collides with none of them and lands silently. */
+          + '<div class="sub" style="margin-top:7px;margin-bottom:0">SharePoint refuses a second copy '
+          + 'only when the file <i>name</i> matches. If the first one was split across jobs, or '
+          + 'renamed, it will not — so this one is held here instead.</div>';
+      } else {
+        var priorExp = pf.disposition === "ryc_expense";
+        why += '<div class="sub" style="margin-top:6px;margin-bottom:0">Nothing was copied the first '
+          + 'time — it was ' + (priorExp ? 'recorded as <b>RYC Expense</b>'
+                                         : 'resolved without filing, because that job has no folder')
+          + ' — so there is no copy anywhere and no second copy to make. If it is the same paper, '
+          + 'give it the same answer: choose <b>' + (priorExp ? 'RYC Expense' : 'the same job')
+          + '</b> above, then <b>Resolve without filing</b>.</div>';
+      }
     }
   }
   if(err && !withPm){
@@ -1584,11 +1630,32 @@ function reconNoFile(id){
      against and simply never copied — the batch folder keeps the only copy. Say that here rather
      than repeating a generic "choose a job", which does not tell her what to do with a page that
      should not have been scanned at all. */
-  if(!jobNo || jobNo === "RYC-EXPENSE"){
-    alert("Choose a job first.\n\nThis records which job the page came in against and then files "
-      + "nothing — the batch folder keeps the only copy.\n\nIf the sheet was scanned by mistake, "
-      + "pick the job it arrived with; it is not copied anywhere either way.\n\nRYC Expense is a "
-      + "different answer — it means a real cost that belongs to no job.");
+  /* ⛔ RYC EXPENSE IS AN ANSWER HERE, NOT A BLANK — REVERSED 2026-09-04. It used to be refused
+     alongside an empty picker, with a message teaching that RYC Expense "is a different answer".
+     It is a different answer about the MONEY, and this button asks a different question: whether
+     anything gets copied. Nothing is copied under either ending — `doc_reconcile` completes an
+     expense row inline because there is nothing to upload — so the refusal taught a distinction
+     with no consequence for this act, and it dead-ended the one case that needs it most.
+
+     Erica, 2026-09-04, on the last open row of `approved 9426`: *"This was a duplicate that was
+     flagged but when i tried to resolve without filing I received the error message."* Wakarusa
+     Heavy Equipment #2705-1 had been reconciled as RYC Expense on 2026-08-26. It belongs to no
+     job, so "choose a job first" asked for something that does not exist; the tick was withheld by
+     the duplicate hold; and the only control left was "File it anyway", which names the opposite
+     of what she wanted. Three endings on the screen and not one of them available. */
+  if(!jobNo){
+    var pf0 = d.prior_filing;
+    var priorExpense = !!(pf0 && pf0.strength === "exact" && pf0.disposition === "ryc_expense");
+    alert(priorExpense
+      ? "Choose RYC Expense first.\n\nThis invoice was already reconciled as RYC Expense on "
+        + String(pf0.reconciled_at || "").slice(0, 10) + " — a cost that belongs to no job — and "
+        + "nothing was copied then.\n\nPick RYC Expense above, then press this again and the row "
+        + "closes the same way, with the reason kept on its history."
+      : "Choose a job first.\n\nThis records which job the page came in against and then files "
+        + "nothing — the batch folder keeps the only copy.\n\nIf the sheet was scanned by mistake, "
+        + "pick the job it arrived with; it is not copied anywhere either way.\n\nRYC Expense is a "
+        + "different answer — it means a real cost that belongs to no job, and it is also accepted "
+        + "here.");
     return;
   }
   var t = (_recon.targets || []).filter(function(x){ return x.no === jobNo; })[0];
@@ -1598,18 +1665,32 @@ function reconNoFile(id){
      without saying a copy is already there would read as losing the document. */
   var pf = d.prior_filing;
   var dup = !!(pf && pf.strength === "exact");
+  var expense = jobNo === "RYC-EXPENSE";
   if(!window.confirm('Resolve "' + d.file_name + '" against ' + (t ? t.name : jobNo)
       + ' without filing?\n\n'
       + (dup
-          ? 'This invoice was already filed on ' + String(pf.reconciled_at || "").slice(0, 10)
-            + (pf.batch_folder ? ' from batch ' + pf.batch_folder : '')
-            + '. The copy is already in the job folder, so nothing more is copied and no second '
-            + 'copy is made.'
-          : 'The cost is recorded against that job. Nothing is copied to SharePoint — the batch '
-            + 'folder keeps the only copy.\n\nUse this when the job has no SharePoint folder (many '
-            + 'do not), when the invoice is already filed, or when the sheet was scanned by '
-            + 'mistake. If the job DOES have a folder and this is a real invoice, tick it and '
-            + 'Submit instead — that is what puts it in front of the job.')
+          ? (reconPriorCopied(pf)
+              ? 'This invoice was already filed on ' + String(pf.reconciled_at || "").slice(0, 10)
+                + (pf.batch_folder ? ' from batch ' + pf.batch_folder : '')
+                + '. The copy is already in the job folder, so nothing more is copied and no second '
+                + 'copy is made.'
+              /* ⚠ AND WHERE THE FIRST ONE WAS NEVER COPIED, SAY THAT INSTEAD — asserting a filed
+                 copy that does not exist is how a reconciler concludes the document was lost. */
+              : 'This invoice was already reconciled on '
+                + String(pf.reconciled_at || "").slice(0, 10)
+                + (pf.batch_folder ? ' from batch ' + pf.batch_folder : '')
+                + (pf.disposition === "ryc_expense" ? ' as RYC Expense' : ' without filing')
+                + '. Nothing was copied then, and nothing is copied now.')
+          : expense
+            ? 'RYC Expense records a cost that belongs to no job, and nothing is copied to '
+              + 'SharePoint under either ending — the batch folder keeps the only copy. This is '
+              + 'the same result as ticking Mark RYC Expense and submitting; the difference is '
+              + 'that your reason is kept on the row.'
+            : 'The cost is recorded against that job. Nothing is copied to SharePoint — the batch '
+              + 'folder keeps the only copy.\n\nUse this when the job has no SharePoint folder (many '
+              + 'do not), when the invoice is already filed, or when the sheet was scanned by '
+              + 'mistake. If the job DOES have a folder and this is a real invoice, tick it and '
+              + 'Submit instead — that is what puts it in front of the job.')
       + ' This cannot be undone from here.')) return;
 
   /* WHY it was not filed is what `history.filer_said` is for, and it stays answerable months
@@ -1708,9 +1789,12 @@ function reconRelabel(id){
      destination" would disable the tick on a row that has more destinations than any other. */
   var cur = (_recon.docs || []).filter(function(x){ return x.id === id; })[0];
   var nsplit = cur ? reconSplit(cur).length : 0;
-  var ready = !!sel.value || nsplit > 0;
+  /* ONE EXPRESSION, INCLUDING HERE. This used to be its own copy of the readiness rule and did not
+     know about the duplicate hold; see reconReadyWith(). */
+  var ready = cur ? reconReadyWith(cur, sel.value, nsplit) : (!!sel.value || nsplit > 0);
   if(lab){
-    lab.textContent = reconPickLabel(sel.value, nsplit);
+    lab.textContent = cur ? reconTickLabel(cur, sel.value, nsplit)
+                          : reconPickLabel(sel.value, nsplit);
     lab.className = ready ? "" : "sub";
   }
   /* CHOOSING A JOB IS THE DECISION; TICKING IT IS BOOKKEEPING. Picking from the dropdown is the
