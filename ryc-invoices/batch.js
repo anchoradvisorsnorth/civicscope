@@ -1430,13 +1430,14 @@ function reconPickFolder(id){
        refusal named nothing, or named something no longer published. */
     var fromErr = reconNamedFolders(d.copy_error || reconFilerSaid(d))
       .filter(function(f){ return folders.indexOf(f) >= 0; });
-    var guess = fromErr[0] || reconClosestFolder(jobLabel, folders);
+    var def = reconFolderDefault(fromErr, jobLabel, folders);
     var msg = "Which SharePoint folder is \"" + jobLabel + "\"?\n\n"
       + "This is remembered for the job — every future invoice for it files here without asking, "
-      + "and it overrides the automatic matcher.\n\n"
+      + "and it overrides the automatic matcher.\n"
+      + def.hint + "\n"
       + (r.data.as_of ? "Folder list published " + String(r.data.as_of).slice(0,10) + ".\n\n" : "")
       + "Type or paste one of:\n" + folders.join("\n");
-    var pick = window.prompt(msg, guess || folders[0]);
+    var pick = window.prompt(msg, def.value);
     if(pick === null) return;
     pick = String(pick).trim();
     if(!pick) return;
@@ -1484,6 +1485,31 @@ function reconFilerSaid(d){
 
 /* The best guess at which folder a job is, by shared words. Only ever a DEFAULT in the prompt —
    nothing is pinned without a person accepting it. */
+/* ⛔ A RESEMBLANCE SCORE MUST NOT BE PRE-FILLED INTO AN ANSWER THAT BECOMES AUTHORITY.
+   `job_folder_pin` writes a HUMAN-CONFIRMED job → folder mapping, and that map BEATS the matcher
+   for every future invoice on that job. Both prompts used to default to `reconClosestFolder(...)`,
+   so pressing OK turned a machine guess into a person's confirmed answer — the laundering this
+   module has paid for elsewhere ("a plausible mechanism written down before it is verified becomes
+   the next session's fact").
+
+   Measured 2026-09-04 on Keith's screen: "Greencroft South 6516 Chestnut" was pre-filled with
+   **2024/Monreaux Apartments South Bend**. The scorer strips digits, so `6516` — the only word that
+   identifies the unit — is discarded, and the match was the single word "south". Greencroft's own
+   folders score exactly the same 1 ("greencroft"), so which one appears is decided by list order.
+   And for a Greencroft UNIT there is no right answer to pre-fill: 30 of RYC's 53 active jobs have
+   no SharePoint folder at all, which is why "resolve without filing" exists.
+
+   So: pre-fill ONLY a folder the refusal itself named — that is the tool narrowing 77 folders to
+   two, which is real information. Otherwise leave it EMPTY and show the resemblance as a labelled
+   suggestion in the text. She can still paste it; she can no longer confirm it by reflex. */
+function reconFolderDefault(named, jobLabel, folders){
+  if(named && named.length) return { value: named[0], hint: "" };
+  var g = reconClosestFolder(jobLabel, folders);
+  return { value: "", hint: g
+    ? "\nClosest by name (a guess, not an answer — check it): " + g + "\n"
+    : "\nNothing here resembles this job by name.\n" };
+}
+
 function reconClosestFolder(jobName, folders){
   var stop = { the:1, of:1, and:1, a:1, an:1, at:1, "in":1, on:1, "for":1, llc:1, inc:1, co:1,
     project:1, phase:1, "new":1, addition:1, town:1, city:1, county:1, school:1 };
@@ -1731,13 +1757,22 @@ function reconRefile(id){
     }
     var said = reconFilerSaid(d);
     var named = reconNamedFolders(said).filter(function(f){ return folders.indexOf(f) >= 0; });
-    var guess = named[0] || reconClosestFolder(jobLabel, folders) || folders[0];
+    var def = reconFolderDefault(named, jobLabel, folders);
+    /* ⚠ SAY WHAT THIS ROW ALREADY DECIDED. "Resolved without filing" most often means the job has
+       no SharePoint folder — the ordinary case for 30 of RYC's 53 active jobs, not a failure — so
+       arriving here is usually a mistake, and the prompt should say so before she picks anything.
+       Keith, 2026-09-04, working the Greencroft rows: *"resolve without filing because they were
+       already filed and I am getting a bunch of errors."* */
     var msg = 'Which SharePoint folder is "' + jobLabel + '"?\n\n'
-      + 'This row was resolved without filing, so nothing was ever copied. Choosing the folder '
-      + 'files it now, and is remembered for the job.\n\n'
+      + 'This row is already settled: it was resolved WITHOUT filing, so nothing was copied and '
+      + 'nothing is wrong with it.\n\n'
+      + 'Only pick a folder if this job really does have one. Many jobs — Greencroft units and '
+      + 'one-off residences especially — have no folder at all, and that is the correct ending.\n\n'
+      + 'Whatever you choose is remembered for the job and overrides the automatic matcher.\n'
+      + def.hint + '\n'
       + (said ? 'When it was resolved, the filer said:\n' + said + '\n\n' : '')
       + 'Type or paste one of:\n' + folders.join("\n");
-    var pick = window.prompt(msg, guess);
+    var pick = window.prompt(msg, def.value);
     if(pick === null) return;
     pick = String(pick).trim();
     if(!pick) return;
