@@ -1198,6 +1198,30 @@ function reconRow(d){
       + ' onchange="reconTogglePick(' + invArg(d.id) + ')">'
       + '<span id="rl_' + esc(d.id) + '"' + (ready ? '' : ' class="sub"') + '>'
       + esc(label) + '</span></label>';
+    /* ⛔ RESOLVE WITHOUT FILING IS NOW OFFERED HERE, NOT ONLY AFTER A REFUSAL — Keith,
+       2026-09-04, asked directly whether it should appear without a failed submit first: *"the
+       answer to this is yes … Sometime erika scans a sheet in the batch that does not belong -
+       resolve without filling option will fix that."*
+
+       ⚠ THIS DELIBERATELY REVERSES THE EARLIER RULE, WHICH IS KEPT HERE RATHER THAN DELETED.
+       It used to read: *"IT IS OFFERED ONLY ON A ROW THE FILER HAS ALREADY REFUSED. Put it on
+       every row and it becomes the fast way to clear the board, and invoices quietly stop
+       reaching the job folders that do exist."* That concern is real and is why this is a
+       SECOND-LINE control — small, under the tick, never the primary action — and why the
+       confirmation names the job and says plainly that nothing will be copied.
+
+       What the old rule got wrong was the cost of the other side. Two ordinary cases had no
+       honest ending without first provoking an error: a job that has no SharePoint folder at all
+       (30 of RYC's 53 active jobs — Greencroft units and one-off residences), and a sheet that was
+       scanned into the batch by mistake. Both were reachable only by submitting the row, letting
+       the filing FAIL, and using the button the refusal then offered. Keith, working the
+       Greencroft rows on 2026-09-04: *"I am getting a bunch of errors."* Making a person generate
+       an error to unlock the correct answer is worse than the risk of an easy exit. */
+    if(!withPm){
+      act += '<div style="margin-top:6px"><button class="pfill" '
+        + 'style="font-size:11px;padding:3px 8px" '
+        + 'onclick="reconNoFile(' + invArg(d.id) + ')">Resolve without filing</button></div>';
+    }
   }
   /* ⛔ A REFUSAL MUST HAND HER SOMETHING TO DO (Keith, 2026-08-21, reading
      *"only 1 distinctive word matched between 'Huntertown Wastewater Treatment Plan Expansion:
@@ -1240,11 +1264,15 @@ function reconRow(d){
          with the reason on its history forever. "File it anyway" exists because a vendor billing
          the same amount twice is real — it only lifts the hold, and she still has to tick and
          submit, so nothing is filed by pressing it. */
+      /* ONE EXPRESSION. "Resolve without filing" now lives beside the tick on every row, so
+         repeating it here would put the same control on one row twice — and two buttons that do
+         the same thing are two things to keep in step. Only the control unique to a duplicate
+         stays here. */
       why += '<div style="margin-top:7px">'
-        + '<button class="pfill" onclick="reconNoFile(' + invArg(d.id) + ')">'
-        + 'Resolve without filing</button> '
         + '<button class="pfill" onclick="reconDupeAck(' + invArg(d.id) + ')">'
         + 'File it anyway</button></div>'
+        + '<div class="sub" style="margin-top:6px;margin-bottom:0">If it really is the same paper, '
+        + 'use <b>Resolve without filing</b> above — the copy is already in the folder.</div>'
         /* ⚠ SAY WHY THE NAME-BASED GUARD IS NOT ENOUGH, because she has seen it work before and
            will reasonably assume it will again. A split was filed under six share-renamed names;
            re-filing the same invoice whole collides with none of them and lands silently. */
@@ -1267,18 +1295,26 @@ function reconRow(d){
          how a $2,934.37 payable was resolved against a job whose folder existed and was named in
          the very message above the buttons. A choice offered is a choice endorsed. */
       var namedF = reconNamedFolders(err);
+      /* ⚠ THE SUPPRESSION HERE IS NOW ADVICE, NOT REMOVAL, AND THAT IS A REAL LOOSENING.
+         This block used to WITHHOLD "Resolve without filing" whenever the refusal had named a
+         folder — "a choice offered is a choice endorsed", after a $2,934.37 payable was resolved
+         against a job whose folder existed and was named in the message above the buttons. Keith
+         put the control on every row on 2026-09-04, so it can no longer be taken away here; what
+         is left is to say, in the same place, that it is the wrong answer for THIS row and why. */
       why += '<div style="margin-top:7px">'
         + '<button class="pfill" onclick="reconPickFolder(' + invArg(d.id) + ')">'
-        + 'Point at the folder</button>'
-        + (namedF.length ? '' : ' <button class="pfill" onclick="reconNoFile(' + invArg(d.id) + ')">'
-            + 'Resolve without filing</button>')
-        + '</div>';
+        + 'Point at the folder</button></div>';
       if(namedF.length){
-        why += '<div class="sub" style="margin-top:7px;margin-bottom:0">It found '
+        why += '<div class="sub m-r" style="margin-top:7px;margin-bottom:0">It found '
           + '<b>' + namedF.map(function(f){ return esc(f); }).join('</b>, <b>') + '</b> and would not choose'
           + (namedF.length > 1 ? ' between them' : '') + '. Pick the right one &mdash; it is '
-          + 'remembered for the job. <i>Resolve without filing</i> is not offered here: that answer '
-          + 'means the job has no folder, and it has one.</div>';
+          + 'remembered for the job. <b>Do not use <i>Resolve without filing</i> on this row:</b> '
+          + 'that answer means the job has no folder, and this one has ' + (namedF.length > 1 ? 'several' : 'one')
+          + '.</div>';
+      } else {
+        why += '<div class="sub" style="margin-top:7px;margin-bottom:0">If this job has no '
+          + 'SharePoint folder at all &mdash; many do not &mdash; use <b>Resolve without filing</b> '
+          + 'above.</div>';
       }
     }
   }
@@ -1534,17 +1570,25 @@ function reconClosestFolder(jobName, folders){
    SharePoint folder at all — 29 Greencroft unit jobs plus St. Joe County Garages. So this is the
    ordinary case for a whole class of work, not an escape hatch.
 
-   ⚠ IT IS OFFERED ONLY ON A ROW THE FILER HAS ALREADY REFUSED. Put it on every row and it becomes
-   the fast way to clear the board, and invoices quietly stop reaching the job folders that do
-   exist — which is the entire point of the tool. */
+   ⚠ IT USED TO BE OFFERED ONLY ON A ROW THE FILER HAD ALREADY REFUSED — reversed by Keith
+   2026-09-04; the reasoning and what the old rule got wrong are recorded at the call site in
+   reconRow(). It is now a second-line control on every row she owns. */
 function reconNoFile(id){
   var d = reconDoc(id);
   if(!d) return;
   var sel = document.getElementById("rj_" + id);
   var jobNo = sel ? sel.value : (d.job_no || "");
+  /* ⚠ A JOB IS STILL REQUIRED, INCLUDING FOR A SHEET THAT DOES NOT BELONG. The row records which
+     job's cost this was; "resolved without filing" is an answer about the FOLDER, not about
+     whether the document is a payable. So a stray sheet is attributed to the job it came in
+     against and simply never copied — the batch folder keeps the only copy. Say that here rather
+     than repeating a generic "choose a job", which does not tell her what to do with a page that
+     should not have been scanned at all. */
   if(!jobNo || jobNo === "RYC-EXPENSE"){
-    alert("Choose the job this cost belongs to first.\n\nRYC Expense is a different answer — it "
-      + "means the cost belongs to no job at all.");
+    alert("Choose a job first.\n\nThis records which job the page came in against and then files "
+      + "nothing — the batch folder keeps the only copy.\n\nIf the sheet was scanned by mistake, "
+      + "pick the job it arrived with; it is not copied anywhere either way.\n\nRYC Expense is a "
+      + "different answer — it means a real cost that belongs to no job.");
     return;
   }
   var t = (_recon.targets || []).filter(function(x){ return x.no === jobNo; })[0];
@@ -1562,7 +1606,10 @@ function reconNoFile(id){
             + '. The copy is already in the job folder, so nothing more is copied and no second '
             + 'copy is made.'
           : 'The cost is recorded against that job. Nothing is copied to SharePoint — the batch '
-            + 'folder keeps the only copy.')
+            + 'folder keeps the only copy.\n\nUse this when the job has no SharePoint folder (many '
+            + 'do not), when the invoice is already filed, or when the sheet was scanned by '
+            + 'mistake. If the job DOES have a folder and this is a real invoice, tick it and '
+            + 'Submit instead — that is what puts it in front of the job.')
       + ' This cannot be undone from here.')) return;
 
   /* WHY it was not filed is what `history.filer_said` is for, and it stays answerable months
