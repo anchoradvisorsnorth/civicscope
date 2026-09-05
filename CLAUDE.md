@@ -2,6 +2,14 @@
 
 > Root context: Cowork\CLAUDE.md
 
+> ⛔ **THE RYC MODULE IN THIS REPO IS RETIRED (cut over 2026-09-05 15:49Z).** Every `ryc-*/` page,
+> `api/ryc-*.js` handler, `ryc-data/` artifact and `ryc_*` migration here is a frozen copy: `vercel.json`
+> 301s every RYC path to `https://command.ryoderconstruction.com`, `api/ryc-invoices.js` answers 503 "moved"
+> under `RYC_MAINTENANCE`, and all 26 `ryc_*` tables in this project's Supabase carry a permanent freeze
+> trigger (`zz_ryc_freeze`). **Do not edit, deploy or "fix" anything RYC here** — the application is
+> `RYC/app/`, deployed with `bash RYC/app/deploy.sh`. Phase 7 (deleting these files and tables) follows the
+> soak. Record: `infra/ryc-migration-plan-v2.md`.
+
 ---
 
 > **📚 History & deep reference → [`HISTORY.md`](HISTORY.md)** — version history, dated change logs,
