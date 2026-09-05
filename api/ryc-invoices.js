@@ -1155,6 +1155,15 @@ export const __targets = { pickableJobs, RYC_EXPENSE, NOT_A_REAL_JOB };
 
 
 export default async function handler(req, res) {
+  /* MIGRATION MAINTENANCE SWITCH (2026-09-05). While RYC_MAINTENANCE is set on this Vercel project
+     the register on THIS origin refuses every action — including the Storage signing and page
+     uploads that a database freeze cannot reach. It is switched on in Phase 0 of the cutover to
+     command.ryoderconstruction.com and never switched off: after the cutover this handler is
+     retired with the rest of the RYC module. */
+  if (process.env.RYC_MAINTENANCE) {
+    res.setHeader('Retry-After', '3600');
+    return res.status(503).json({ error: 'The RYC invoice register has moved to https://command.ryoderconstruction.com/invoices', moved: 'https://command.ryoderconstruction.com/invoices' });
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   if (!SB_URL || !SB_KEY) return res.status(500).json({ error: 'Server misconfigured' });
 
