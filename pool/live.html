@@ -43,6 +43,11 @@
   .g .sc{font-variant-numeric:tabular-nums;font-weight:700;text-align:right;white-space:nowrap}
   .g .st{font-size:11px;font-weight:800;width:52px;text-align:right}
   .st.post{color:var(--win)} .st.in{color:var(--red)} .st.pre{color:var(--muted)}
+  /* Everyone picked the same side (Keith 2026-09-05): muted, because the game cannot move the
+     standings. Same rule and same source as the board — unanimousPicks() in scoring.js. */
+  .g.unan{background:#f8f9fb}
+  .g.unan .m b,.g.unan .m span,.g.unan .sc,.g.unan .st{color:#98a2b3}
+  .unan-tag{display:inline-block;margin-top:3px;font-size:10px;font-weight:700;letter-spacing:.3px;color:#667085;background:#eef0f3;border:1px solid #e0e3e8;border-radius:999px;padding:2px 8px;white-space:nowrap}
   .note{background:#fffaf0;border:1px solid #e7c84b;border-radius:12px;padding:14px;font-size:13.5px;margin-bottom:14px}
   .dl{border-radius:12px;padding:12px 14px;margin-bottom:14px;border:1px solid;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
   .dl .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;opacity:.75}
@@ -65,6 +70,7 @@
     1 point per correct pick — against the frozen spread, straight up on a pick 'em, or over/under the frozen total.
     <b>A push is worth nothing.</b> Most games won takes the week. A fixture offered both against the spread and as an
     over/under counts as two separate picks. Scores update automatically about every minute while games are on.
+    <b>A greyed-out game is one everybody picked the same way</b> — it can't change the standings.
   </div>
 </main>
 
@@ -187,9 +193,13 @@ async function load(){
      then live, then still to come (pool/scoring.js boardOrder). The tracker is read on a phone
      between Thursday and Sunday night — the result that just landed belongs at the top of the
      card, not wherever the commissioner happened to add it. */
+  /* EVERYONE ON ONE SIDE (Keith 2026-09-05) — revealed branch only; the early return above never
+     reaches here while picks are hidden. */
+  const unan=unanimousPicks(wk);
   html+='<div class="card"><div class="ch">Games</div>'+boardOrder(games,scores,wk.finalized).map(g=>{
     const sc=scoreFor(g,scores);
     const cov=coverOf(g,sc,true);
+    const uside=unan[g.id];
     const state=sc?sc.state:'pre';
     const stTxt=state==='post'?'FINAL':(state==='in'?(sc.detail||'LIVE'):fmtDT(g.date));
     const stCls=state==='post'?'post':(state==='in'?'in':'pre');
@@ -199,8 +209,9 @@ async function load(){
        now sit next to each other with nothing to tell them apart but the abbreviations, and those
        are NOT unique across the two (CIN, BUF, MIA, HOU are the same string in both). The full
        board has always labelled every row; this brings the tracker into line. */
-    return '<div class="g"><div class="m"><b>'+esc(g.short)+'</b><span>'+esc(marketLabel(g))+' · '+g.league.toUpperCase()
-      +(cov?' · '+(cov==='PUSH'?'push':esc(cov)+' wins it'):'')+'</span></div>'
+    return '<div class="g'+(uside?' unan':'')+'"'+(uside?' data-unanimous="'+esc(uside)+'"':'')+'><div class="m"><b>'+esc(g.short)+'</b><span>'+esc(marketLabel(g))+' · '+g.league.toUpperCase()
+      +(cov?' · '+(cov==='PUSH'?'push':esc(cov)+' wins it'):'')+'</span>'
+      +(uside?'<div><span class="unan-tag">everyone took '+esc(uside)+'</span></div>':'')+'</div>'
       +'<div class="sc">'+(sc?(esc(g.awayAbbrev)+' '+sc.awayScore+' — '+esc(g.homeAbbrev)+' '+sc.homeScore):'&nbsp;')+'</div>'
       +'<div class="st '+stCls+'">'+esc(stTxt)+'</div></div>';
   }).join('')+'</div>';
