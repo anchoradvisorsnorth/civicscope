@@ -100,11 +100,25 @@
     #content tbody td.me::before{color:#8a6d1f;font-weight:800}
     /* STANDINGS FIRST. The Points row is the LAST row of the table, which on a phone put the one
        number everybody opens the page for at the very bottom, behind a sideways scroll. */
+    /* A unanimous game's card is dimmed as a whole, heading included, and its player lines too. */
+    #content tbody tr.unan{border-style:dashed;background:#f8f9fb}
+    #content tbody tr.unan td.gtitle{background:#f3f4f6;color:#98a2b3}
+    #content tbody tr.unan td[data-p]::before{color:#98a2b3}
     #content tbody tr.ptsrow{order:-1;border:1px solid var(--gold);background:linear-gradient(180deg,#fffdf6,#fff)}
     #content tbody tr.ptsrow td[colspan]{display:block;background:#fdf6e3;border-bottom:1px solid var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#8a6d1f;padding:9px 14px}
     #content tbody tr.ptsrow td{font-size:17px}
   }
   .ptsrow{background:#fafbfc}
+
+  /* ─── EVERYONE PICKED THE SAME SIDE (Keith 2026-09-05) ───
+     A game the whole board agrees on cannot move the standings, so it is MUTED, not highlighted:
+     the eye should skip it, not land on it. Chips keep their ✓ ✗ ½ glyph — the record is still
+     true — but lose their tint, and the fixture carries a small tag saying which side everyone
+     took. Rendered only from the revealed branch; see unanimousPicks() in scoring.js. */
+  tr.unan{background:#f8f9fb}
+  tr.unan .gtitle,tr.unan .gsub,tr.unan .final,tr.unan .live,tr.unan td{color:#98a2b3}
+  tr.unan .pk,tr.unan .pk.w,tr.unan .pk.l,tr.unan .pk.p{background:#f0f2f5;color:#98a2b3}
+  .unan-tag{display:inline-block;margin-top:3px;font-size:10px;font-weight:700;letter-spacing:.3px;color:#667085;background:#eef0f3;border:1px solid #e0e3e8;border-radius:999px;padding:2px 8px;white-space:nowrap}
 
   /* ─── PRINT (Mike, via Keith 2026-08-21: "the commissioner wants the ability to print") ───
      The board is the thing worth putting on paper — every player's card, every result, one page.
@@ -154,6 +168,11 @@
        black-and-white printout is still readable — the ✓ ✗ ½ glyphs carry the meaning either way. */
     .pk{-webkit-print-color-adjust:exact;print-color-adjust:exact;border:1px solid #b0b8c4;min-width:38px}
     .pk.w{border-color:var(--win)} .pk.l{border-color:var(--red)} .pk.p{border-color:var(--push)}
+    /* On paper a unanimous row stays grey text with a plain-bordered chip; the tag prints as text. */
+    tr.unan{background:none !important}
+    tr.unan td,tr.unan .gtitle{color:#777}
+    tr.unan .pk{border-color:#bbb;background:none !important;color:#777}
+    .unan-tag{background:none;border:1px solid #999;color:#555;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .lead{background:none !important}
     /* Keep red where the printer allows it; fmtMoney's explicit +/- is what makes a mono
        printout of the ledger unambiguous either way. */
@@ -195,6 +214,7 @@
     <b>A push is worth nothing.</b> Weekly winner = most games won; ties share the crown.
     A fixture can appear twice, once against the spread and once as an over/under — they are separate picks and score separately.
     Lines and totals freeze when the commissioner locks the slate; live scores via ESPN. Picks stay hidden until everyone has locked in — or the deadline, whichever comes first.
+    <b>A greyed-out game is one everybody picked the same way</b> — whatever happens, it can't change the standings.
     Make picks at <a href="/pool/football/picks">/pool/football/picks</a>.
   </div>
 </main>
@@ -296,15 +316,21 @@ async function renderWeek(slug){
       boardOrder(games,{}).map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td data-l="Kickoff">'+fmtDT(g.date)+'</td><td data-l="Frozen line" style="font-weight:800;color:var(--green)">'+esc(marketLabel(g))+'</td></tr>').join('')+
       '</tbody></table></div>';
   } else if(players.length){
+    /* EVERYONE ON ONE SIDE (Keith 2026-09-05). Computed here, inside the revealed branch only —
+       the unrevealed branch above renders no picks and must never learn this. Muted, not lit up:
+       a game the whole board agrees on cannot change anyone's standing. */
+    const unan=unanimousPicks(wk);
     html+='<div class="card tblwrap"><table><thead><tr><th>Game · frozen line</th><th>Score</th>'+
       ranked.map(p=>'<th class="num">'+esc(nameOf(p))+'</th>').join('')+'</tr></thead><tbody>';
     for(const g of boardOrder(games,scores,wk.finalized)){
       const sc=scoreFor(g,scores);
       const st=!sc?'<span class="gsub">'+fmtDT(g.date)+'</span>':sc.state==='post'?'<span class="final">'+sc.awayScore+'–'+sc.homeScore+' F</span>':sc.state==='in'?'<span class="live">'+sc.awayScore+'–'+sc.homeScore+' · '+esc(sc.detail)+'</span>':'<span class="gsub">'+fmtDT(g.date)+'</span>';
+      const uside=unan[g.id];
+      const utag=uside?'<div><span class="unan-tag">everyone took '+esc(uside)+' · no effect on standings</span></div>':'';
       /* `data-p` carries the player's name onto every pick cell, and `data-l` onto the score.
          On a phone the SAME markup restacks into a per-game card using those labels — there is no
          second mobile render, so the two can never disagree about what a cell means. */
-      html+='<tr><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div></td><td data-l="Score">'+st+'</td>'+
+      html+='<tr'+(uside?' class="unan" data-unanimous="'+esc(uside)+'"':'')+'><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div>'+utag+'</td><td data-l="Score">'+st+'</td>'+
         ranked.map(p=>{
           const mypick=(wk.picks[p].picks||{})[g.id]||'—';
           const r=detail[p]?detail[p][g.id]:mypick;

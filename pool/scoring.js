@@ -209,6 +209,51 @@ function weekPoints(wk, scores) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   A GAME EVERYONE PICKED THE SAME WAY CANNOT MOVE THE STANDINGS (Keith, 2026-09-05:
+   "If all the players in the pool pick the same side of a game can we somehow show that — like
+   highlight the game on the screen — as it's essentially not significant.")
+
+   Week 1 had two of them out of eighteen (TXST @ TEX and ECU @ ALA — six of six on the
+   favourite). Whatever those games do, every player gains or loses the same point, so the gap
+   between any two players is untouched. The board greys them out so the eye goes to the games
+   that can actually decide the week.
+
+   THE RULE IS STRICT ON PURPOSE. "Unanimous" means EVERY player on the board holds the SAME
+   NON-EMPTY pick on that entry. Five on TEX and one blank is NOT unanimous — the blank player
+   gets nothing while five gain a point, so that game does move the standings, and greying it
+   would tell him the wrong thing. Fewer than two players is never unanimous: there is nobody to
+   agree with, and nothing for the highlight to say.
+
+   ⛔ ONLY AFTER REVEAL. While picks are hidden, "everyone so far has TEX" leaks the very thing
+   the hidden-until-all-lock rule protects. The server masks other players' cards until the board
+   is open (api/football-pool.js — a masked entry carries `hidden:true` and no `picks`), so a
+   masked week can never satisfy the rule; and this refuses outright if any entry is masked, so a
+   viewer who has locked their own card cannot be shown a tag built from one visible card. Both
+   pages also only call it from the revealed branch. Belt, braces, and the server.
+
+   Display only, like boardOrder: reads wk, mutates nothing, returns { [gameId]: side }. An
+   over/under twin (`<id>#ou`) is judged on its own — six on OVER is unanimous even if the spread
+   pick on the same fixture is split. Mirror nothing on the server: this never scores anything.
+   ───────────────────────────────────────────────────────────────────────────── */
+function unanimousPicks(wk) {
+  const out = {};
+  const entries = Object.values((wk && wk.picks) || {});
+  if (entries.length < 2) return out;
+  if (entries.some(e => e && e.hidden)) return out;
+  for (const g of ((wk && wk.games) || [])) {
+    let side = null, all = true;
+    for (const e of entries) {
+      const p = ((e && e.picks) || {})[g.id];
+      if (!p) { all = false; break; }
+      if (side === null) side = p;
+      else if (p !== side) { all = false; break; }
+    }
+    if (all && side) out[g.id] = side;
+  }
+  return out;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    WHO IS LOOKING (2026-08-19). An open board is now answered PER VIEWER: while a
    member added mid-week still has a card to fill, only a viewer who has locked their
    own picks gets to see everyone else's (api/football-pool.js). That is only usable
@@ -382,7 +427,7 @@ function fmtMoney(n) {
    client-side ordering. `module` is undefined in a browser, so this is inert there. */
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    coverOf, scoreFor, marketLabel, weekPoints, boardOrder, slateOrder,
+    coverOf, scoreFor, marketLabel, weekPoints, boardOrder, slateOrder, unanimousPicks,
     WEEKLY_STAKE, weekWinners, weekEntrants, seasonLedger, fmtMoney,
   };
 }
