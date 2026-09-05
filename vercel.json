@@ -16,6 +16,81 @@
   ],
   "redirects": [
     {
+      "source": "/ryc/dashboard",
+      "destination": "https://command.ryoderconstruction.com/dashboard",
+      "permanent": true
+    },
+    {
+      "source": "/ryc/command",
+      "destination": "https://command.ryoderconstruction.com/dashboard",
+      "permanent": true
+    },
+    {
+      "source": "/command",
+      "destination": "https://command.ryoderconstruction.com/dashboard",
+      "permanent": true
+    },
+    {
+      "source": "/command/:path*",
+      "destination": "https://command.ryoderconstruction.com/command/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/ryc/estimate",
+      "destination": "https://command.ryoderconstruction.com/desk",
+      "permanent": true
+    },
+    {
+      "source": "/desk",
+      "destination": "https://command.ryoderconstruction.com/desk",
+      "permanent": true
+    },
+    {
+      "source": "/desk/:path*",
+      "destination": "https://command.ryoderconstruction.com/desk/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/invoices",
+      "destination": "https://command.ryoderconstruction.com/invoices",
+      "permanent": true
+    },
+    {
+      "source": "/invoices/:path*",
+      "destination": "https://command.ryoderconstruction.com/invoices/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/ryc/invoices",
+      "destination": "https://command.ryoderconstruction.com/invoices",
+      "permanent": true
+    },
+    {
+      "source": "/ryc/invoices/:path*",
+      "destination": "https://command.ryoderconstruction.com/invoices/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/ryc/billing",
+      "destination": "https://command.ryoderconstruction.com/billing",
+      "permanent": true
+    },
+    {
+      "source": "/ryc/foundation",
+      "destination": "https://command.ryoderconstruction.com/foundation",
+      "permanent": true
+    },
+    {
+      "source": "/ryc-data/:file*",
+      "destination": "https://command.ryoderconstruction.com/ryc-data/:file*",
+      "permanent": true
+    },
+    {
+      "source": "/ryc-estimate/:file*.json",
+      "destination": "https://command.ryoderconstruction.com/ryc-estimate/:file*.json",
+      "permanent": true
+    },
+    {
       "source": "/index.html",
       "destination": "/",
       "statusCode": 301
@@ -53,11 +128,6 @@
     {
       "source": "/football/commish",
       "destination": "/pool/commish",
-      "statusCode": 301
-    },
-    {
-      "source": "/ryc/dashboard",
-      "destination": "/ryc/command",
       "statusCode": 301
     }
   ],
