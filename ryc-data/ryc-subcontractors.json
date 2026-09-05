@@ -1,9 +1,9 @@
 {
- "generated": "2026-09-04T09:30:50.089Z",
+ "generated": "2026-09-05T09:30:50.145Z",
  "_note": "RYC subcontractor spend, 2023+ jobs. Actual = v_job_history subcontractor cost by vendor; committed = PO_Sub_H. Foundation-only.",
  "totalActual": 134392021,
- "totalCommitted": 141938183,
- "subCount": 647,
+ "totalCommitted": 141941251,
+ "subCount": 648,
  "subs": [
   {
    "vendorNo": "3662",
@@ -22333,6 +22333,23 @@
      "jobName": "",
      "actual": 0,
      "committed": 903675
+    }
+   ]
+  },
+  {
+   "vendorNo": "4036",
+   "name": "USA Blue Book",
+   "actualCost": 0,
+   "actualJobs": 0,
+   "committed": 3068,
+   "committedJobs": 1,
+   "variance": null,
+   "jobs": [
+    {
+     "jobNo": "26P001",
+     "jobName": "",
+     "actual": 0,
+     "committed": 3068
     }
    ]
   },
