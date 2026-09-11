@@ -52,7 +52,7 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 | **Village Hub** | **civicscope.io/:village** (live: `/centreville`) | **The village's own staff — one address for every product** | **v2.0.0-village** — Google sign-in gate |
 | **Ask &lt;Village&gt; (NEW 2026-08-18)** | **civicscope.io/:village/ask** (live: `/centreville/ask`) | **Village clerks + residents** | **v1.0.0-muni** ⏸ paused |
 | **Well Testing — crew tablet** | **app.civicscope.io/water** | **Water plant operators (no logins, by design)** | **v1.4.1-water** — plant-timezone date, offline boot on the saved profile (today's status only), one flush at a time (2026-09-11) |
-| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.5.3-oic** — every generation recorded + shown; **Mark as filed** with server-side workbook check + attestation; editor targets the exact sample and well, request shape in `editor-payload.js` (2026-09-11) |
+| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.5.4-oic** — every generation recorded + shown; **Mark as filed** with server-side workbook check + attestation; editor targets the exact sample, well and revision, preserves what it does not show, request shape in `editor-payload.js` (2026-09-11) |
 | QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
 | Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin (+ QA test harness) |
 | RYC Scheduler | app.civicscope.io/ryc/schedule | RYC crew | v1.0.0 |
@@ -1226,6 +1226,37 @@ derived successor; **three conflicts → 409 `saved:false`** after exactly three
 → re-planned with `p_office:true` and accepted. The stub is stateful (`rpcSequence` may mutate the
 served rows), serves prior rows for the baseline, and mints a real signed session cookie against
 a throwaway secret.
+
+#### Round 5 (report `…-r5_2026-09-11.md`, FIX-FIRST, 2 High) — the last round, by Keith's decision
+
+R4-2 confirmed fixed; R4-1 partial with two Highs about what a correction may REPLACE:
+**R5-1** the editor pinned the well but not the revision — two office tabs on one day, and the
+second save superseded whatever was live by then, discarding the first's correction (the version
+check protects the server's planning interval, not the person's editing interval); **R5-2** a
+replacement was built only from what the form sent, so the visit time, who read it and the
+original note went null, a feed retired since the row was recorded vanished from the corrected
+day, and an observation the well no longer records (temperature switched off) was cleared on an
+old row that held one.
+
+**Fixed (`1.9.1-waterops`, review `v1.5.4-oic`):** the payload carries `corrects_id` — the
+revision the form was opened from — and `submit_reading` refuses `target_mismatch` when the live
+row is no longer that one, on the first attempt and on every re-plan. A correction now reads the
+stored revision and carries what the form did not edit: time, initials and note where the request
+carries none; observations the entry point no longer records; retired feeds' rows verbatim, with
+a `retired_feed_carried` flag on the record. The editor shows time and initials as editable
+fields and says in words that what it does not show is kept. Harness **62 checks**: the Well 3
+fixture now carries time/initials/note, a retired feed and a switched-off temperature and asserts
+all survive; 7b — the revision moved before save → 409 `target_mismatch`, nothing written; 7c —
+the revision moves during a `stale_plan` re-plan → refused on the second attempt, one RPC.
+
+**Where the loop stopped, and why.** Five rounds: 20 → 13 → 7 → 2 → 2 findings, every Critical
+and High fixed the same day, the write-path harness from 22 to 63 checks. What remains is the
+deferred-by-decision list — the ≥3-strict-rows retrieval threshold, a discriminating
+forged-session fixture for the sign-in gate, a last-complete-version barrier for a Drive corpus
+replacement (readers can see a partial chunk set while one runs), reminder provider
+reconciliation past Resend's idempotency window, and the Well 3 2026-04-13 data correction. A
+sixth round would be attacking that list, not the product. Keith, 2026-09-11: *"How long are we
+going to do this?"* — this long.
 
 **`GET /api/build-mor` is a selftest, and it is the route's API contract.** It proves the Python
 runtime, all four libraries, and that the stored template is present and decryptable, while
@@ -2482,12 +2513,16 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    baseline defect (Codex finding 4, fixed in `1.7.0-waterops`) left this one row, in a FILED
    month. Re-submitting the day with its same inputs and a `correction_reason` now derives it
    from 4/11's level. **KEITH DECISION** — it amends the source record behind April's filing.
-3b. **Two review items left open by design (2026-09-11):** the ≥3-strict-rows retrieval
-   sufficiency rule can still exclude an answer-bearing table that abbreviates a term (finding 15,
-   constructed case — needs a distractor fixture before changing a threshold that took four
-   migrations to settle); and `verify-google-signin.mjs`'s forged-session check uses a
-   nonexistent enrolment, so a broken HMAC would still read as "signed out" (finding 20 — needs a
-   seeded fixture user). Detail: *THE ADVERSARIAL REVIEW* section above.
+3b. **Five review items left open by decision after five rounds (2026-09-11) — PARKED, each with
+   its trigger:** the ≥3-strict-rows retrieval sufficiency rule can exclude an answer-bearing
+   table that abbreviates a term (needs a distractor fixture before changing a threshold that
+   took four migrations to settle); `verify-google-signin.mjs`'s forged-session check uses a
+   nonexistent enrolment, so a broken HMAC would still read as "signed out" (needs a seeded
+   fixture user); a Drive corpus replacement is visible to readers as a partial chunk set while
+   it runs (needs a staged/versioned publish — trigger: the next multi-document re-ingest); the
+   reminder cannot reconcile a delivery the provider accepted but the run never recorded past
+   Resend's idempotency window (trigger: a second supply on the reminder); and the Well 3
+   2026-04-13 data correction (item 3a). Detail: *THE ADVERSARIAL REVIEW* section above.
 4. ✅ **"Mark as filed" is BUILT, and every generation is recorded (2026-09-11).** Was: half built —
    `record_filing` worked and nothing on the page reached it, and generating left no trace at all.
    Now `api/build-mor.py` records every fill server-side (`water_mor_generations`, migration 073,
