@@ -52,7 +52,7 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 | **Village Hub** | **civicscope.io/:village** (live: `/centreville`) | **The village's own staff — one address for every product** | **v2.0.0-village** — Google sign-in gate |
 | **Ask &lt;Village&gt; (NEW 2026-08-18)** | **civicscope.io/:village/ask** (live: `/centreville/ask`) | **Village clerks + residents** | **v1.0.0-muni** ⏸ paused |
 | **Well Testing — crew tablet** | **app.civicscope.io/water** | **Water plant operators (no logins, by design)** | **v1.4.1-water** — plant-timezone date, offline boot on the saved profile (today's status only), one flush at a time (2026-09-11) |
-| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.5.1-oic** — every generation recorded + shown; **Mark as filed** with server-side workbook check + attestation (2026-09-11) |
+| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.5.2-oic** — every generation recorded + shown; **Mark as filed** with server-side workbook check + attestation; editor targets the exact sample (2026-09-11) |
 | QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
 | Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin (+ QA test harness) |
 | RYC Scheduler | app.civicscope.io/ryc/schedule | RYC crew | v1.0.0 |
@@ -1171,6 +1171,33 @@ the diff, the readiness counts and the reminder; **R2-10** district hits carry `
 today's date; **R2-12** Resend `Idempotency-Key` per period, so a reaped claim cannot re-send;
 **R2-13** the extractor's tab-to-well tie-in is unresolved on a tie or a zeros-only match, and
 mapping warnings have their own count. The tablet's profile now carries `supply.timezone`.
+
+#### Round 3 — the round-2 fixes attacked (report `…-r3_2026-09-11.md`, FIX-FIRST, 7 findings)
+
+**R3-1 (Critical): naming rows cannot prove a plan is current.** 075 asserted the predecessor, the
+successor prefix and the liveness of every baseline row — and two interleavings slip past a proof
+shaped like that: a NEWER known level inserted between the baseline row and the planned date
+(old row still live, predecessor unchanged, usage now measured from the wrong level), and a tail
+appended after a planner that stopped at the end of the data with feeds still pending. **Fixed
+(migration `076`, `1.9.0-waterops`) with a version, not more predicates:**
+`water_entry_points.write_version` is bumped by every write through the function under the
+well's lock; the route reads it BEFORE any planning read and hands it back as
+`p_expected_version`; the function refuses (`stale_plan`) if it moved. Any write to that well
+between the route's first read and its commit is rejected and re-planned (up to twice). The
+harness asserts the version travels.
+
+The rest: **R3-2** the office editor carries the clicked sample's id and kind, and a correction
+must name the live row it replaces (`corrects_id`, else `target_mismatch`); **R3-3**
+`water_replace_row` takes the supply lock for the sample tables too and refuses a filed month
+unless `p_office` (samples now follow the readings' rule); **R3-4** a direct-usage feed
+(`tank_tracked:false`) keeps its recorded pounds through a recomputation and never holds the chain
+open — harness scenario 6; **R3-5** a child sitemap that 404s, returns no `<loc>`, or nests deeper
+marks the inventory partial (no absence deletion); **R3-6** on `filed_period` the route resolves a
+supplied session it had not needed to look at and re-plans as office when it is enrolled for the
+supply; **R3-7** a non-serial numeric Cover date is unreadable, not blank. The chain planner now
+fetches one row past its cap so "the data ends here" and "there is more" are distinct: pending
+feeds at the end of the data are fine (the version guards the tail), pending feeds at the cap
+refuse. Write-path harness: **32 checks**.
 
 **`GET /api/build-mor` is a selftest, and it is the route's API contract.** It proves the Python
 runtime, all four libraries, and that the stored template is present and decryptable, while
