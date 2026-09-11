@@ -65,7 +65,7 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.9.0-waterops';
+export const VER = '1.9.1-waterops';
 
 /* Where the Python generator lives, for the one server-to-server call this file makes to it: reading
    an uploaded workbook's cells at filing time (Codex finding 8). Same variable the Python side uses
@@ -1004,6 +1004,51 @@ export default async function handler(req, res) {
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'This day is already recorded. Send correction_reason to replace it.' });
         }
+        /* ⛔ A CORRECTION REPLACES THE REVISION THE PERSON OPENED, OR NOTHING (R5-1). The editor
+           names it (`corrects_id`); if the live row for this well and day is no longer that row —
+           another tab corrected it first, or it moved during a re-plan — the save is refused with
+           a reload message rather than quietly superseding somebody else's correction. Checked on
+           every attempt, so a stale_plan re-plan cannot retarget a form to a newer revision. */
+        if (body.corrects_id && (!supersedes || supersedes.id !== body.corrects_id)) {
+          return res.status(409).json({
+            error: 'target_mismatch', saved: false,
+            msg: 'This day was corrected by someone else after you opened it. Reload the page, check the current values, and make your change again.',
+          });
+        }
+
+        /* ⛔ A CORRECTION KEEPS WHAT IT DID NOT CHANGE (R5-2). The replacement used to be built
+           only from what the form sent: the visit time, who read it and the original note went
+           null; a feed since retired vanished from the corrected day; an observation the entry
+           point no longer records (pressure switched off) was cleared on an old row that held one.
+           None of that is a person deciding to blank a value. The stored revision is read and its
+           unedited facts carried; the correcting actor and reason are recorded separately. */
+        let old = null, oldFeeds = [];
+        if (supersedes) {
+          const rows = await sb(`water_readings?id=eq.${supersedes.id}&select=*`);
+          old = (rows && rows[0]) || null;
+          if (old) oldFeeds = (await sb(`water_feed_readings?reading_id=eq.${old.id}&select=*`)) || [];
+        }
+        const carriedFeeds = [];
+        if (old) {
+          const OBS = [['pressure_psi', 'records_pressure'], ['temp_f', 'records_temp'], ['tap_free', 'tap_free'],
+                       ['tap_total', 'tap_total'], ['tap_ortho', 'tap_ortho'], ['tap_fluoride', 'tap_fluoride']];
+          for (const [col, flag] of OBS) {
+            // an observation this entry point no longer records is not one the form could show —
+            // keep what the row held rather than treating "not rendered" as "cleared"
+            if (!ep[flag] && old[col] != null && out.reading[col] == null) out.reading[col] = old[col];
+          }
+          const active = new Set((ep.feeds || []).map((f) => f.id));
+          for (const f of oldFeeds) {
+            if (active.has(f.feed_id)) continue;
+            const { id, reading_id, created_at, ...rest } = f;   // a retired feed's row, carried verbatim
+            carriedFeeds.push(rest);
+          }
+          if (carriedFeeds.length) {
+            out.flags.push({ level: 'info', code: 'retired_feed_carried',
+              msg: `${carriedFeeds.length} chemical feed row(s) for a feed no longer in this well's profile were carried unchanged from the corrected revision.`,
+              at: new Date().toISOString() });
+          }
+        }
 
         /* ⛔ A CORRECTION COULD NEVER BE SAVED (found 2026-08-19 while seeding January–June).
            The old row was superseded AFTER the new one was inserted, so for the length of that
@@ -1059,11 +1104,13 @@ export default async function handler(req, res) {
                 supply_id: p.supply.id,
                 entry_point_id: ep.id,
                 reading_date: date,
-                reading_time: body.reading_time || null,
-                operator_id: operator ? operator.id : null,
-                operator_initials: operator ? operator.initials : (body.operator_initials || null),
+                // unedited context survives a correction (R5-2): the old row's values where the
+                // request carries none
+                reading_time: body.reading_time || (old ? old.reading_time : null) || null,
+                operator_id: operator ? operator.id : (body.operator_initials ? null : (old ? old.operator_id : null)),
+                operator_initials: operator ? operator.initials : (body.operator_initials || (old ? old.operator_initials : null) || null),
                 ...out.reading,
-                notes: body.notes || null,
+                notes: body.notes || (old ? old.notes : null) || null,
                 flags: out.flags,
                 source: body.source === 'backfill' ? 'backfill' : 'tablet',
                 corrects: supersedes ? supersedes.id : null,
@@ -1071,7 +1118,7 @@ export default async function handler(req, res) {
               },
               // `kind` is derive()'s label for the caller, not a column. The function REFUSES any
               // key that is not a real column rather than dropping it silently, so it must go.
-              p_feeds: out.feeds.map(({ kind, ...f }) => f),
+              p_feeds: [...out.feeds.map(({ kind, ...f }) => f), ...carriedFeeds],
               // every later visit this write changes, each already recomputed here
               p_successors: successors.map((s) => ({ id: s.id, date: s.date, reading: s.reading, feeds: s.feeds, flags: s.flags })),
               // the graph this plan was derived against; the function refuses if it has moved

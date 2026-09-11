@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.3-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.4-oic
 
   v1.5.0 (2026-09-11, after the adversarial review) — Mark as filed sends bytes and what she
   typed; the server reads the workbook, checks it is this supply's report for this period, and
@@ -1026,6 +1026,7 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId) {
   el.innerHTML = `<h4>${esc(title)}</h4>`
     + `<div class="grid">${fields.map((fl) => `<div><label>${esc(fl.label)}</label>`
         + `<input data-k="${esc(fl.k)}" class="${fl.wide ? "wide" : ""}" value="${fl.v == null ? "" : esc(String(fl.v))}"></div>`).join("")}</div>`
+    + (kind === "reading" && row ? `<div class="muted" style="margin-top:8px;font-size:12.5px">Anything this form does not show (the original note, a feed since retired) is kept on the corrected record as it was.</div>` : "")
     + `<div class="why"><label>Why this changed — kept with the record${row ? " (required)" : ""}</label>`
     + `<input id="edWhy" class="wide" style="width:100%" placeholder="${row ? "e.g. lab result corrected the free residual" : "e.g. missing day entered from the paper sheet"}"></div>`
     + `<div class="act"><button class="go" id="edSave">Save</button>`
@@ -1060,7 +1061,7 @@ async function saveEditor(el) {
   let payload;
   if (EDITING.kind === "reading") {
     // the ONE request shape, shared with the write-path gate (R4-1)
-    payload = readingPayload({ wssn, date: EDITING.date, ep: EDITING.ep, vals, why, source: "backfill" });
+    payload = readingPayload({ wssn, date: EDITING.date, ep: EDITING.ep, vals, why, row: EDITING.row, source: "backfill" });
   } else if (EDITING.kind === "dist") {
     payload = { action: "submit_dist", wssn, sample_date: EDITING.date,
       site_name: vals.site_name,
