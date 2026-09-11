@@ -65,7 +65,29 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.6.0-waterops';
+export const VER = '1.7.0-waterops';
+
+/* Where the Python generator lives, for the one server-to-server call this file makes to it: reading
+   an uploaded workbook's cells at filing time (Codex finding 8). Same variable the Python side uses
+   to find THIS route, so the two ends agree on an origin by construction. */
+const MOR_ORIGIN = (process.env.MOR_DATA_ORIGIN || 'https://app.civicscope.io').replace(/\/$/, '');
+
+/* An uploaded workbook, decoded strictly. `Buffer.from(s, 'base64')` accepts anything and returns
+   whatever it can make of it; a compliance record deserves a real check (Codex, 2026-09-11):
+   base64 alphabet only, sane size, and the OLE2 magic every .xls starts with. */
+const WORKBOOK_MAX_BYTES = 3 * 1024 * 1024;
+function decodeWorkbook(b64) {
+  const s = String(b64 || '').replace(/\s+/g, '');
+  if (!s) return { err: 'workbook_b64 required — the filing IS the file' };
+  if (!/^[A-Za-z0-9+/]+=*$/.test(s) || s.length % 4 !== 0) return { err: 'workbook_b64 is not valid base64' };
+  const bytes = Buffer.from(s, 'base64');
+  if (!bytes.length) return { err: 'workbook_b64 decoded to nothing' };
+  if (bytes.length > WORKBOOK_MAX_BYTES) return { err: `that file is ${bytes.length.toLocaleString()} bytes; an EGLE MOR is a few hundred KB` };
+  if (!(bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0)) {
+    return { err: 'that file is not an Excel 97-2003 (.xls) workbook' };
+  }
+  return { bytes };
+}
 
 import { derive, normalOf, outOfFamily, DOSE_OUT_OF_FAMILY, LBS_PER_MILLION_GALLONS } from '../civicscope-water/derive.js';
 /* Re-exported so a gate importing "what the server uses" gets the server's own copy, not a second
@@ -111,17 +133,51 @@ async function loadProfile(wssn) {
 
 // the last live reading for an entry point strictly before `date` — the baseline every derived
 // number hangs off. Ordered by date DESC so a backfill inserted out of order still resolves.
+/* ⛔ THE CHEMICAL BASELINE IS THE LAST KNOWN LEVEL, NOT THE LAST VISIT'S CELL (Codex finding 4).
+   An idle day may legitimately leave the tank level blank. The visit after it used to read its
+   baseline from that blank, get null, and store a pumping day with no chemical usage — silently,
+   with ok:true. Measured live: Well 3 on 2026-04-13 (32,000 gal, chlorine usage null, the day
+   before it idle with no level). So the baseline now walks BACK past visits that recorded no level
+   for a feed, to the most recent one that did — or that recorded a refill, which is a level. The
+   meter baseline stays the immediately previous visit's: gallons are an interval between visits,
+   chemical usage is an interval between KNOWN levels. `baseline_from` says which visit each feed's
+   level came from, so a note can say so. */
+const BASELINE_LOOKBACK = 20;
 async function previousReading(entryPointId, date) {
   const rows = await sb(
     `water_readings?entry_point_id=eq.${entryPointId}&reading_date=lt.${date}&superseded_at=is.null` +
-      `&select=id,reading_date,meter_reading&order=reading_date.desc&limit=1`
+      `&select=id,reading_date,meter_reading&order=reading_date.desc&limit=${BASELINE_LOOKBACK}`
   );
   const prev = rows && rows[0];
   if (!prev) return null;
-  const fr = await sb(`water_feed_readings?reading_id=eq.${prev.id}&select=feed_id,tank_level,refill_to`);
+  const ids = rows.map((r) => r.id).join(',');
+  const fr = await sb(`water_feed_readings?reading_id=in.(${ids})&select=reading_id,feed_id,tank_level,refill_to`);
+  const byReading = {};
+  for (const f of fr || []) (byReading[f.reading_id] ||= []).push(f);
   const feeds = {};
-  for (const f of fr || []) feeds[f.feed_id] = { tank_level: f.tank_level, refill_to: f.refill_to };
+  const seen = new Set();
+  for (const r of rows) {                       // newest first
+    for (const f of byReading[r.id] || []) {
+      if (seen.has(f.feed_id)) continue;
+      const known = f.refill_to != null || f.tank_level != null;
+      if (!known && r.id !== prev.id) continue;  // an older visit with no level says nothing either
+      if (!known) continue;                      // the immediate visit was blank: keep looking back
+      feeds[f.feed_id] = { tank_level: f.tank_level, refill_to: f.refill_to,
+                           baseline_from: r.reading_date === prev.reading_date ? null : r.reading_date };
+      seen.add(f.feed_id);
+    }
+  }
   return { id: prev.id, reading_date: prev.reading_date, meter_reading: prev.meter_reading, feeds };
+}
+
+/* The live reading immediately AFTER a date, if any — the row a write re-derives, and the row the
+   transactional function is told to expect (074 adjacency check). */
+async function nextReading(entryPointId, date) {
+  const rows = await sb(
+    `water_readings?entry_point_id=eq.${entryPointId}&reading_date=gt.${date}&superseded_at=is.null`
+      + '&select=id,reading_date&order=reading_date.asc&limit=1'
+  );
+  return (rows && rows[0]) || null;
 }
 
 /* THIS PLANT'S OWN NORMALS — the only thing that can answer "is this like every other day".
@@ -195,12 +251,7 @@ const contextFor = (supply, normals) => ({
    supersedes nothing and needs no reason. It walks exactly ONE day forward on purpose: that day's
    own successor only depends on IT through its meter and tank levels, which this does not touch.
 */
-async function planSuccessor(supply, ep, afterDate, newRow, newFeeds) {
-  const rows = await sb(
-    `water_readings?entry_point_id=eq.${ep.id}&reading_date=gt.${afterDate}&superseded_at=is.null`
-      + '&select=id,reading_date&order=reading_date.asc&limit=1'
-  );
-  const next = rows && rows[0];
+async function planSuccessor(supply, ep, afterDate, newRow, newFeeds, next) {
   if (!next) return null;
 
   /* ⛔ THIS FUNCTION HAD NEVER RE-DERIVED A SINGLE DAY (found 2026-09-02). Written to stop a
@@ -407,7 +458,20 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
     const kindOf = {};
     for (const f of ep.feeds || []) kindOf[f.id] = f.kind;
 
-    const allDays = new Set([...Object.keys(days), ...Object.keys(ours)]);
+    /* The workbook's own tab-to-well tie (extract's `entry_point_wells`, matched by pumpage) is
+       checked against the configured `mor_sheet`; a conflict is a finding, not something to
+       resolve silently by preferring either side (Codex, 2026-09-11). */
+    const tied = filed && filed.entry_point_wells && sheet ? filed.entry_point_wells[sheet] : undefined;
+    if (tied != null && ep.well_no != null && Number(tied) !== Number(ep.well_no)) {
+      rows.push({ day: 0, ep_id: ep.id, ep: ep.label, field: 'mapping', kind: 'differs',
+        filed: `EntryPoint${ep.mor_sheet} = Well ${tied}`, ours: `EntryPoint${ep.mor_sheet} = Well ${ep.well_no}`,
+        msg: `The filed workbook's ${sheet} tab reproduces Well ${tied}'s pumpage, but this supply files ${ep.label} on that tab. The per-day comparison below may be against the wrong well.` });
+    }
+    /* Every day either side has anything for — including a day the Pumpage tab carries for this
+       well while the EntryPoint tab and the records both lack it (Codex, 2026-09-11). */
+    const pumpDays = ep.well_no != null
+      ? Object.keys(pumpage).filter((d) => pumpage[d] && pumpage[d][String(ep.well_no)] != null) : [];
+    const allDays = new Set([...Object.keys(days), ...Object.keys(ours), ...pumpDays]);
     for (const d of [...allDays].sort((a, b) => Number(a) - Number(b))) {
       const fd = days[d] || {};
       const r = ours[d];
@@ -455,7 +519,21 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
         const fl = fd[col] != null ? Number(fd[col]) : null;
         const fr = (r.feeds || []).find((x) => kindOf[x.feed_id] === kind);
         const ol = fr && fr.solution_lbs != null ? Number(fr.solution_lbs) : null;
-        if (fl == null || ol == null) continue;          // one side silent is not a disagreement
+        if (fl == null && ol == null) continue;
+        /* ⛔ ON A DAY THE WELL PUMPED, A CHEMICAL WEIGHT KNOWN ON ONE SIDE AND ABSENT ON THE
+           OTHER IS A FINDING (Codex finding 4 / Aug 26 #4 residual). "One side silent is not a
+           disagreement" was right for an idle day and is handled above; here the well ran, so a
+           missing weight is a missing dose behind a filed number — the exact row Well 3
+           2026-04-13 sat on unnoticed. */
+        if (fl == null || ol == null) {
+          if (!fr) continue;                             // this supply tracks no such feed on this well
+          rows.push({ day: Number(d), ep_id: ep.id, ep: ep.label, field: `${kind}_lbs`,
+            kind: ol == null ? 'ours_unknown' : 'filed_unknown', filed: fl, ours: ol,
+            msg: ol == null
+              ? `${ep.label} day ${d}: the report says ${fl} lbs of ${label}, but the records hold no ${label} usage for a day the well pumped — the tank baseline was unknown when it was stored.`
+              : `${ep.label} day ${d}: the records hold ${ol} lbs of ${label}, and the report shows nothing for it on a day the well pumped.` });
+          continue;
+        }
         if (!near(fl, ol, LBS_TOLERANCE)) {
           rows.push({ day: Number(d), ep_id: ep.id, ep: ep.label, field: `${kind}_lbs`,
             kind: 'differs', filed: fl, ours: ol,
@@ -553,8 +631,12 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
 
   compareSamples('distribution', (filed && filed.distribution) || [], dist || [],
     (x) => txt(x.date), (x) => txt(x.sample_date), ['free', 'total', 'ortho'], []);
+  /* Kind is part of a bacti sample's regulatory identity (Codex finding 9): a routine and a repeat
+     at the same site on the same day are two rows in two blocks of the form. Filed rows extracted
+     before 2026-09-11 carry no kind and read as routine, which is what they were. */
   compareSamples('bacti', (filed && filed.bacti) || [], bacti || [],
-    (x) => `${txt(x.date)}|${txt(x.location)}`, (x) => `${txt(x.collected_date)}|${txt(x.site_name)}`,
+    (x) => `${txt(x.date)}|${txt(x.location)}|${txt(x.kind || 'routine')}`,
+    (x) => `${txt(x.collected_date)}|${txt(x.site_name)}|${txt(x.sample_kind || 'routine')}`,
     ['free', 'total'], ['result']);
 
   rows.sort((a, b) => a.day - b.day || String(a.ep).localeCompare(String(b.ep)));
@@ -674,25 +756,45 @@ export default async function handler(req, res) {
      nobody has filed yet. It closes an anonymous write into a CLOSED period, which is desk work
      by definition -- and Michelle, who does that work, is signed in (Keith, 2026-08-26: she has
      oversight, adds missing readings, and enters lab results a day later). */
-  const writeDate = OPERATOR_WRITES.has(action)
-    ? String(body.reading_date || body.sample_date || body.collected_date || '').slice(0, 10)
-    : '';
+  /* ⛔ THE DATE THE GATE CHECKS IS THE DATE THE ACTION WRITES — one field per action, never a
+     fallback chain (Codex finding 5). This read `reading_date || sample_date || collected_date`,
+     so an anonymous submit_bacti carrying an irrelevant September `reading_date` was gated on
+     September and then stored into a filed July. Each action has exactly one date and it is
+     required here, before any decision is made on it.
+     ⛔ AND THE GATE FAILS CLOSED. A Supabase hiccup while reading the filing state used to fall
+     back to "not filed", i.e. anonymous. Unknown is treated as filed: the crew's ordinary write
+     is today's round in an unfiled month, and the one time a read fails they see a sign-in
+     message instead of a silent write into a closed period. */
+  const DATE_FIELD = { submit_reading: 'reading_date', submit_dist: 'sample_date', submit_bacti: 'collected_date' };
+  const writeDate = OPERATOR_WRITES.has(action) ? String(body[DATE_FIELD[action]] || '').slice(0, 10) : '';
   let intoFiledMonth = false;
-  if (writeDate.length === 10) {
+  let filedStateUnknown = false;
+  if (OPERATOR_WRITES.has(action)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(writeDate)) return bad(res, 400, `${DATE_FIELD[action]} required (YYYY-MM-DD)`);
     try {
-      const y = Number(writeDate.slice(0, 4));
-      const mo = Number(writeDate.slice(5, 7));
       const sup = await sb(`water_supplies?wssn=eq.${encodeURIComponent(wssn)}&select=id&limit=1`);
-      if (sup && sup[0]) {
+      if (!sup || !sup[0]) return bad(res, 404, 'unknown supply');
+      /* ⛔ THE MONTH THIS WRITE CHANGES IS NOT ONLY THE MONTH IT IS DATED IN (Codex finding 6).
+         A new reading re-derives the live reading AFTER it. Insert December 31 into an unfiled
+         December and the January 1 that sits under a FILED January is recomputed — an amendment
+         of a closed period by an anonymous caller. So the successor's month is checked too. */
+      const months = new Set([writeDate.slice(0, 7)]);
+      if (action === 'submit_reading' && /^[0-9a-f-]{36}$/i.test(String(body.entry_point_id || ''))) {
+        const nxt = await sb(`water_readings?entry_point_id=eq.${body.entry_point_id}&reading_date=gt.${writeDate}`
+          + '&superseded_at=is.null&select=reading_date&order=reading_date.asc&limit=1');
+        if (nxt && nxt[0]) months.add(String(nxt[0].reading_date).slice(0, 7));
+      }
+      for (const ym of months) {
+        const y = Number(ym.slice(0, 4)), mo = Number(ym.slice(5, 7));
         const filed = await sb(`water_mor_filings?supply_id=eq.${sup[0].id}&report_year=eq.${y}`
           + `&report_month=eq.${mo}&superseded_at=is.null&select=id&limit=1`);
-        intoFiledMonth = Boolean(filed && filed[0]);
+        if (filed && filed[0]) intoFiledMonth = true;
       }
-    } catch { /* if the filing state cannot be read, fall back to the pre-existing rule */ }
+    } catch { filedStateUnknown = true; }
   }
 
   const needsOffice = OFFICE_WRITES.has(action)
-    || (OPERATOR_WRITES.has(action) && (isCorrection || intoFiledMonth));
+    || (OPERATOR_WRITES.has(action) && (isCorrection || intoFiledMonth || filedStateUnknown));
   const needsAdmin = !READ_ONLY.has(action) && !OPERATOR_WRITES.has(action) && !OFFICE_WRITES.has(action);
 
   /* Resolved once, and only when a decision actually depends on it — a crew tablet submitting a
@@ -714,8 +816,10 @@ export default async function handler(req, res) {
       return res.status(403).json({
         error: actor
           ? 'Your sign-in is not enrolled for this water supply.'
-          : (intoFiledMonth
-              ? 'That month has already been filed with EGLE. Changing what sits behind a submitted report needs you to be signed in.'
+          : (filedStateUnknown
+              ? 'Could not confirm whether that month has been filed with EGLE, so the write needs you to be signed in. Try again in a moment.'
+              : intoFiledMonth
+              ? 'That month — or the day this one recomputes — has already been filed with EGLE. Changing what sits behind a submitted report needs you to be signed in.'
               : isCorrection
               ? 'Correcting a recorded day needs you to be signed in — it supersedes a record behind a report signed under 1976 PA 399.'
               : 'Recording a filing needs you to be signed in.'),
@@ -802,6 +906,19 @@ export default async function handler(req, res) {
         const date = String(body.reading_date || '').slice(0, 10);
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return bad(res, 400, 'reading_date required (YYYY-MM-DD)');
 
+        /* ⛔ DERIVE, THEN WRITE UNDER AN ADJACENCY CHECK, AND RE-DERIVE IF THE GRAPH MOVED
+           (Codex finding 2, Critical, 2026-09-11). Everything below is computed from the live
+           reading before this date and the live reading after it. Two submits for one well that
+           both plan before either commits — a slow tablet on a weak signal, or a backfill script
+           racing the crew — would both derive against the same predecessor and both insert,
+           storing intervals that sum to more than the meter moved. The transaction was atomic and
+           the numbers were wrong. So the function is now told WHICH rows this plan was derived
+           against (`p_expected_prev` / `p_expected_next`) and, under a per-well lock, refuses with
+           `stale_plan` if they are no longer the neighbours. One retry re-reads everything; a
+           second stale answer is reported, never forced. */
+        let attempt = 0;
+        while (true) {
+        attempt++;
         const prev = await previousReading(ep.id, date);
         const normals = await plantNormals(ep, date);
         const out = derive({
@@ -818,6 +935,7 @@ export default async function handler(req, res) {
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'This day is already recorded. Send correction_reason to replace it.' });
         }
+        const next = await nextReading(ep.id, date);
 
         /* ⛔ A CORRECTION COULD NEVER BE SAVED (found 2026-08-19 while seeding January–June).
            The old row was superseded AFTER the new one was inserted, so for the length of that
@@ -844,7 +962,7 @@ export default async function handler(req, res) {
            first, by the one derive() both ends import, and handed over as values. Putting the dose
            formula in PL/pgSQL to win atomicity would recreate the exact defect this product exists
            to remove, in the last place anyone would look for it. */
-        const successor = await planSuccessor(p.supply, ep, date, out.reading, out.feeds)
+        const successor = await planSuccessor(p.supply, ep, date, out.reading, out.feeds, next)
           .catch((e) => ({ ok: false, threw: String((e && e.message) || e) }));
 
         /* A successor that cannot be recomputed is refused BEFORE anything is written, rather than
@@ -887,15 +1005,23 @@ export default async function handler(req, res) {
               p_successor: successor
                 ? { id: successor.id, reading: successor.reading, feeds: successor.feeds, flags: successor.flags }
                 : null,
+              // the graph this plan was derived against; the function refuses if it has moved
+              p_expected_prev: prev ? prev.id : null,
+              p_expected_next: next ? next.id : null,
+              p_check_adjacency: true,
             }),
           });
         } catch (e) {
+          const detail = String((e && e.message) || e);
+          if (/stale_plan/.test(detail) && attempt < 2) continue;   // re-read, re-derive, once
           /* The transaction rolled back, so there is nothing to undo and nothing was half-written.
              `saved: false` is what tells the tablet's offline queue this one may be re-sent. */
-          return res.status(500).json({
-            error: 'write_failed', saved: false,
-            msg: 'Nothing was written — the whole day was rolled back. Try again.',
-            detail: String((e && e.message) || e).slice(0, 300),
+          return res.status(/stale_plan/.test(detail) ? 409 : 500).json({
+            error: /stale_plan/.test(detail) ? 'stale_plan' : 'write_failed', saved: false,
+            msg: /stale_plan/.test(detail)
+              ? 'Another reading for this well landed while this one was being computed, twice. Nothing was written — try again.'
+              : 'Nothing was written — the whole day was rolled back. Try again.',
+            detail: detail.slice(0, 300),
           });
         }
 
@@ -903,9 +1029,11 @@ export default async function handler(req, res) {
         return res.status(200).json({
           ok: true, saved: true,
           id: written && written.id, derived: out.reading, feeds: out.feeds, flags: out.flags,
+          ...(attempt > 1 ? { replanned: true } : {}),
           ...(supersedes ? { corrected: supersedes.id } : {}),
           ...(successor ? { rederived: { id: successor.id, date: successor.date, ok: true } } : {}),
         });
+        }   // while
       }
 
       // ---- distribution sample -----------------------------------------------------------------
@@ -932,46 +1060,34 @@ export default async function handler(req, res) {
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'That site already has a sample on this date.' });
         }
-        // Same defect, same fix as submit_reading above: stand the old sample down BEFORE inserting
-        // its replacement, or the partial unique index rejects the correction.
-        if (supersedes) {
-          await sb(`water_dist_samples?id=eq.${supersedes.id}`, {
-            method: 'PATCH', headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ superseded_at: new Date().toISOString() }),
-          });
-        }
-        let ins;
-        try {
-          ins = await sb('water_dist_samples', {
-          method: 'POST', headers: { Prefer: 'return=representation' },
-          body: JSON.stringify([{
-            supply_id: p.supply.id,
-            site_id: site ? site.id : null,
-            site_name: site ? site.name : body.site_name,
-            sample_date: date,
-            sample_time: body.sample_time || null,
-            operator_id: body.operator_id || null,
-            operator_initials: body.operator_initials || null,
-            free, total,
-            ortho: i.ortho == null || i.ortho === '' ? null : Number(i.ortho),
-            fluoride: i.fluoride == null || i.fluoride === '' ? null : Number(i.fluoride),
-            notes: body.notes || null,
-            flags,
-            source: body.source === 'backfill' ? 'backfill' : 'tablet',
-            corrects: supersedes ? supersedes.id : null,
-            correction_reason: body.correction_reason || null,
-          }]),
-          });
-        } catch (e) {
-          if (supersedes) {
-            await sb(`water_dist_samples?id=eq.${supersedes.id}`, {
-              method: 'PATCH', headers: { Prefer: 'return=minimal' },
-              body: JSON.stringify({ superseded_at: null }),
-            });
-          }
-          throw e;
-        }
-        return res.status(200).json({ ok: true, id: ins[0].id, flags, ...(supersedes ? { corrected: supersedes.id } : {}) });
+        /* ⛔ SUPERSEDE AND INSERT IN ONE TRANSACTION (Codex finding 7, migration 074). This was a
+           PATCH, then an INSERT, then a compensating un-PATCH on error — and a lambda that dies
+           between the first two leaves a superseded sample with nothing replacing it, which is a
+           deleted sample in a filed month. `water_replace_row` does both or neither. */
+        const row = await sb('rpc/water_replace_row', {
+          method: 'POST',
+          body: JSON.stringify({
+            p_table: 'water_dist_samples',
+            p_old: supersedes ? supersedes.id : null,
+            p_row: {
+              supply_id: p.supply.id,
+              site_id: site ? site.id : null,
+              site_name: site ? site.name : body.site_name,
+              sample_date: date,
+              sample_time: body.sample_time || null,
+              operator_id: body.operator_id || null,
+              operator_initials: body.operator_initials || null,
+              free, total,
+              ortho: i.ortho == null || i.ortho === '' ? null : Number(i.ortho),
+              fluoride: i.fluoride == null || i.fluoride === '' ? null : Number(i.fluoride),
+              notes: body.notes || null,
+              flags,
+              source: body.source === 'backfill' ? 'backfill' : 'tablet',
+              correction_reason: body.correction_reason || null,
+            },
+          }),
+        });
+        return res.status(200).json({ ok: true, id: row && row.id, flags, ...(supersedes ? { corrected: supersedes.id } : {}) });
       }
 
       // ---- bacteriological sample. The residual is REQUIRED: July 2026's packet reached the
@@ -1006,45 +1122,37 @@ export default async function handler(req, res) {
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'That site already has a bacti sample on this date. Send correction_reason to replace it.', id: supersedes.id });
         }
-        // Stand the old row down FIRST — the partial unique index (051) is on live rows, and
-        // inserting the replacement first is what made corrections impossible on the other two
-        // tables until 2026-08-19.
-        if (supersedes) {
-          await sb(`water_bacti_samples?id=eq.${supersedes.id}`, {
-            method: 'PATCH', headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ superseded_at: new Date().toISOString() }),
-          });
+        /* The kind decides which block of EGLE's Bacti tab a sample lands in — or, for `other`,
+           that it lands in neither (Codex finding 3). An unknown kind is refused, never defaulted. */
+        const kind = String(body.sample_kind || 'routine').toLowerCase();
+        if (!['routine', 'repeat', 'other'].includes(kind)) {
+          return res.status(422).json({ error: 'validation', errors: [{ field: 'sample_kind', msg: `sample_kind must be routine, repeat or other (got ${kind}).` }] });
         }
-        const ins = await sb('water_bacti_samples', {
-          method: 'POST', headers: { Prefer: 'return=representation' },
-          body: JSON.stringify([{
-            supply_id: p.supply.id,
-            site_id: site ? site.id : null,
-            site_name: site ? site.name : body.site_name,
-            sample_kind: body.sample_kind || 'routine',
-            collected_date: String(body.collected_date || '').slice(0, 10),
-            collected_time: body.collected_time || null,
-            operator_id: body.operator_id || null,
-            lab_name: body.lab_name || p.supply.lab_name || null,
-            method: body.method || null,
-            result: body.result || null,
-            free: Number(i.free),
-            total: i.total == null || i.total === '' ? null : Number(i.total),
-            notes: body.notes || null,
-            corrects: supersedes ? supersedes.id : null,
-            correction_reason: body.correction_reason || null,
-          }]),
-        }).catch(async (e) => {
-          // Put the sample back. A superseded row with nothing replacing it deletes a record.
-          if (supersedes) {
-            await sb(`water_bacti_samples?id=eq.${supersedes.id}`, {
-              method: 'PATCH', headers: { Prefer: 'return=minimal' },
-              body: JSON.stringify({ superseded_at: null }),
-            });
-          }
-          throw e;
+        // Supersede + insert in one transaction — see submit_dist (Codex finding 7, migration 074).
+        const row = await sb('rpc/water_replace_row', {
+          method: 'POST',
+          body: JSON.stringify({
+            p_table: 'water_bacti_samples',
+            p_old: supersedes ? supersedes.id : null,
+            p_row: {
+              supply_id: p.supply.id,
+              site_id: site ? site.id : null,
+              site_name: site ? site.name : body.site_name,
+              sample_kind: kind,
+              collected_date: String(body.collected_date || '').slice(0, 10),
+              collected_time: body.collected_time || null,
+              operator_id: body.operator_id || null,
+              lab_name: body.lab_name || p.supply.lab_name || null,
+              method: body.method || null,
+              result: body.result || null,
+              free: Number(i.free),
+              total: i.total == null || i.total === '' ? null : Number(i.total),
+              notes: body.notes || null,
+              correction_reason: body.correction_reason || null,
+            },
+          }),
         });
-        return res.status(200).json({ ok: true, id: ins[0].id, ...(supersedes ? { corrected: supersedes.id } : {}) });
+        return res.status(200).json({ ok: true, id: row && row.id, ...(supersedes ? { corrected: supersedes.id } : {}) });
       }
 
       // ---- the repository: everything recorded in one month, shaped like the paper sheets -----
@@ -1156,11 +1264,9 @@ export default async function handler(req, res) {
         if (!p) return bad(res, 404, 'unknown supply');
         const y = Number(body.year), m = Number(body.month);
         if (!(y > 2000 && m >= 1 && m <= 12)) return bad(res, 400, 'year/month required');
-        if (!body.workbook_b64) return bad(res, 400, 'workbook_b64 required — a generation IS the file');
-        let bytes;
-        try { bytes = Buffer.from(String(body.workbook_b64), 'base64'); }
-        catch { return bad(res, 400, 'workbook_b64 is not valid base64'); }
-        if (!bytes.length) return bad(res, 400, 'workbook_b64 decoded to nothing');
+        const dec = decodeWorkbook(body.workbook_b64);
+        if (dec.err) return bad(res, 400, dec.err.replace('the filing IS the file', 'a generation IS the file'));
+        const bytes = dec.bytes;
         const sha = crypto.createHash('sha256').update(bytes).digest('hex');
         /* Under its own prefix so a generated draft can never be mistaken for a filed workbook by
            anyone reading the bucket, and content-hashed so regenerating an unchanged month costs
@@ -1247,10 +1353,55 @@ export default async function handler(req, res) {
         }
         if (!body.workbook_b64 && !gen) return bad(res, 400, 'workbook_b64 required — the filing IS the file');
 
-        let bytes;
+        /* ⛔ AN UPLOADED WORKBOOK IS READ HERE, SERVER-SIDE, AND CHECKED AGAINST THE PERIOD IT IS
+           BEING RECORDED FOR (Codex finding 8, High). The page used to run `extract` itself and
+           hand back `filed` and `cover` as facts; the route trusted them, checked the generation's
+           supply/month, and never looked at the bytes. So a valid August generation id plus July's
+           workbook — or another supply's — recorded July's cells as an August product filing. Now
+           the bytes go to the extractor from here, and the Cover's WSSN, month and year must match
+           the supply and period or the filing is refused. A backfill script authenticating with
+           the ops code may still supply `filed` it extracted itself (that is how the seven 2026
+           workbooks arrived); a person's upload is always read here. */
+        const MONTH_NAMES = ['', 'january', 'february', 'march', 'april', 'may', 'june', 'july',
+                             'august', 'september', 'october', 'november', 'december'];
+        let bytes, extracted = null;
         if (body.workbook_b64) {
-          try { bytes = Buffer.from(String(body.workbook_b64), 'base64'); }
-          catch { return bad(res, 400, 'workbook_b64 is not valid base64'); }
+          const dec = decodeWorkbook(body.workbook_b64);
+          if (dec.err) return bad(res, 400, dec.err);
+          bytes = dec.bytes;
+          const scriptSupplied = codeOk && !gen && body.filed && typeof body.filed === 'object' && Object.keys(body.filed).length;
+          if (scriptSupplied) {
+            extracted = body.filed;
+          } else {
+            let j;
+            try {
+              const r = await fetch(`${MOR_ORIGIN}/api/build-mor`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'extract', workbook_b64: bytes.toString('base64'), year: y, month: m }),
+                signal: AbortSignal.timeout(25000),
+              });
+              j = await r.json().catch(() => ({}));
+              if (!r.ok) return bad(res, 422, `the uploaded workbook could not be read: ${j.error || `HTTP ${r.status}`}`);
+            } catch (e) {
+              return bad(res, 502, `the uploaded workbook could not be read (${String((e && e.message) || e).slice(0, 120)}) — nothing was recorded`);
+            }
+            extracted = j;
+            const cv = extracted.cover || {};
+            const digits = (v) => String(v == null ? '' : v).replace(/\D/g, '');
+            if (cv.wssn && digits(cv.wssn) && digits(cv.wssn) !== digits(wssn)) {
+              return res.status(409).json({ error: 'wrong_supply', msg: `That workbook's Cover names WSSN ${cv.wssn}, not ${wssn}. It was not recorded.` });
+            }
+            const mon = String(cv.month_label || '').trim().toLowerCase().slice(0, 3);
+            if (mon && !MONTH_NAMES[m].startsWith(mon)) {
+              return res.status(409).json({ error: 'wrong_month', msg: `That workbook's Cover says ${cv.month_label}, but you are recording ${MONTH_NAMES[m]} ${y}. It was not recorded.` });
+            }
+            if (cv.year && Number(cv.year) !== y) {
+              return res.status(409).json({ error: 'wrong_year', msg: `That workbook's Cover says ${cv.year}, but you are recording ${y}. It was not recorded.` });
+            }
+            if (!mon && !cv.year) {
+              return res.status(409).json({ error: 'unidentified', msg: 'That workbook\'s Cover names no reporting month or year, so it cannot be tied to this period. It was not recorded.' });
+            }
+          }
         } else {
           bytes = await getWorkbook(gen.workbook_path);
           if (!bytes) return bad(res, 502, 'the generated workbook could not be read back from storage');
@@ -1278,16 +1429,50 @@ export default async function handler(req, res) {
         const up = await putWorkbook(path, bytes);
         if (!up.ok) return bad(res, 502, `could not store the workbook (${up.status}): ${up.msg}`);
 
-        /* From a generation with no upload: what the workbook says is what the generation stored
-           (read back by the same extractor at generation time), and the Cover facts come from the
-           form — the generated Cover carries no date and no comments, she adds those in Excel. */
-        const cover = { ...(gen && !body.workbook_b64 ? {
-          signed_by: p.supply.oic_name || null, oic_cert: p.supply.oic_cert || null,
-          submitted_to: p.supply.report_to_email || null,
-        } : {}), ...(body.cover || {}) };
-        const filed = body.filed && typeof body.filed === 'object' && Object.keys(body.filed).length
-          ? body.filed
-          : (gen && !body.workbook_b64 ? (gen.filed || {}) : {});
+        /* WHAT THE WORKBOOK SAYS is whatever was read out of the bytes being recorded — by the
+           extractor just now for an upload, by the same extractor at generation time for a filing
+           recorded from a generation. Never from the page.
+           THE COVER FACTS. Upload: the Cover's own cells, with the typed date/comments filling only
+           what the Cover left blank — and a typed date that CONTRADICTS a dated Cover is refused,
+           not silently overruled either way. No upload: the generated Cover carries no date, no
+           comments; date and comments come from the form. `signed_by` is the name on the form's
+           certification line — pre-printed with the OIC's name on this template, so it is the
+           NAME ON THE LINE, never proof of a signature (finding 8). The fact that she signed and
+           sent it is an attestation the signed-in person makes (`cover.attested`), required for a
+           filing recorded from the page and stored in `notes` under her own `recorded_by`. */
+        const typed = body.cover || {};
+        const cv = (extracted && extracted.cover) || {};
+        const isPersonFiling = Boolean(actor) && !(codeOk && !gen);
+        if (isPersonFiling && typed.attested !== true) {
+          return res.status(422).json({ error: 'validation', errors: [{ field: 'attested',
+            msg: 'Recording a filing means stating that the report was signed and sent. Tick the attestation.' }] });
+        }
+        const attestation = isPersonFiling
+          ? `Signed and sent to EGLE — attested by ${actor.name || actor.email} on ${new Date().toISOString().slice(0, 10)}.` : null;
+        if (extracted && !(codeOk && !gen) && cv.submitted_date && typed.submitted_date
+            && String(cv.submitted_date).slice(0, 10) !== String(typed.submitted_date).slice(0, 10)) {
+          return res.status(409).json({
+            error: 'date_conflict',
+            msg: `The workbook's Cover says it was submitted ${cv.submitted_date}, but you entered ${typed.submitted_date}. Fix one of them — nothing was recorded.`,
+            cover_date: cv.submitted_date, typed_date: typed.submitted_date,
+          });
+        }
+        const genCover = (gen && gen.filed && gen.filed.cover) || {};
+        const cover = extracted
+          ? { ...cv,
+              submitted_date: cv.submitted_date || typed.submitted_date || null,
+              comments: cv.comments || typed.comments || null,
+              signed_by: cv.signed_by || null,
+              oic_cert: cv.oic_cert || p.supply.oic_cert || null,
+              submitted_to: cv.submitted_to || p.supply.report_to_email || null }
+          : { submitted_date: typed.submitted_date || null,
+              comments: typed.comments || null,
+              signed_by: genCover.signed_by || null,          // the name on the generated form's line
+              oic_cert: genCover.oic_cert || p.supply.oic_cert || null,
+              submitted_to: genCover.submitted_to || p.supply.report_to_email || null };
+        const filed = extracted ? extracted : ((gen && gen.filed) || {});
+        const extractNotes = (extracted && Array.isArray(extracted.notes) && extracted.notes.length)
+          ? extracted.notes.join(' ') : null;
         const summary = {
           pumpage_days: Object.keys(filed.pumpage || {}).length,
           entry_points: Object.keys(filed.entry_points || {}).length,
@@ -1297,21 +1482,20 @@ export default async function handler(req, res) {
           lab_name: filed.lab_name ?? null,
         };
 
-        if (supersedes) {
-          await sb(`water_mor_filings?id=eq.${supersedes.id}`, {
-            method: 'PATCH', headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ superseded_at: new Date().toISOString() }),
-          });
-        }
-        let ins;
-        try {
-          ins = await sb('water_mor_filings', {
-            method: 'POST', headers: { Prefer: 'return=representation' },
-            body: JSON.stringify([{
+        /* Supersede and insert in ONE transaction (Codex finding 7, migration 074). A superseded
+           filing with nothing replacing it erases the record that a month was ever sent to the
+           state; the JS restore that used to guard that could not run if the lambda died between
+           the two calls. `water_replace_row` does both or neither. */
+        const ins = await sb('rpc/water_replace_row', {
+          method: 'POST',
+          body: JSON.stringify({
+            p_table: 'water_mor_filings',
+            p_old: supersedes ? supersedes.id : null,
+            p_row: {
               supply_id: p.supply.id,
               report_year: y, report_month: m,
               submitted_date: cover.submitted_date || null,
-              signed_by: cover.signed_by || cover.oic_name || null,
+              signed_by: cover.signed_by || null,
               oic_cert: cover.oic_cert || null,
               submitted_to: cover.submitted_to || null,
               comments: cover.comments || null,
@@ -1332,34 +1516,24 @@ export default async function handler(req, res) {
                  that the answer stops being self-reported. A script authenticating with the ops
                  code still supplies its own label, because there is no person behind it to name. */
               recorded_by: (actor ? (actor.name || actor.email) : null) || body.recorded_by || null,
-              notes: body.notes || null,
-              corrects: supersedes ? supersedes.id : null,
+              notes: [attestation, body.notes || null, extractNotes].filter(Boolean).join(' ') || null,
               correction_reason: body.correction_reason || null,
-            }]),
-          });
-        } catch (e) {
-          // A superseded filing with nothing replacing it would erase the record that a month was
-          // ever sent to the state. Put it back exactly as it was.
-          if (supersedes) {
-            await sb(`water_mor_filings?id=eq.${supersedes.id}`, {
-              method: 'PATCH', headers: { Prefer: 'return=minimal' },
-              body: JSON.stringify({ superseded_at: null }),
-            });
-          }
-          throw e;
-        }
+            },
+          }),
+        });
         /* Link the generation to the filing it became. Best-effort: the filing is already on the
            record, and a missing link degrades the panel's story, not the compliance record. */
         if (gen) {
           try {
             await sb(`water_mor_generations?id=eq.${gen.id}`, {
               method: 'PATCH', headers: { Prefer: 'return=minimal' },
-              body: JSON.stringify({ filing_id: ins[0].id }),
+              body: JSON.stringify({ filing_id: ins.id }),
             });
           } catch { /* reported nowhere on purpose — see above */ }
         }
         return res.status(200).json({
-          ok: true, id: ins[0].id, sha256: sha, bytes: bytes.length, summary,
+          ok: true, id: ins.id, sha256: sha, bytes: bytes.length, summary,
+          signed_by: cover.signed_by || null,
           ...(gen ? { generation_id: gen.id } : {}),
           ...(supersedes ? { superseded: supersedes.id } : {}),
         });

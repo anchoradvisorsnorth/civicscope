@@ -193,14 +193,25 @@ const publicUser = (u) => ({
   water_operator_id: u.water_operator_id || null,
 });
 
+/* ⛔ THE EMAIL FALLBACK BINDS AN ENROLMENT ONCE; IT NEVER RE-BINDS ONE (Codex finding 11, High).
+   Enrolment happens by address, and the first sign-in ties the row to Google's stable subject so
+   that a reassigned address does not carry the old person's access to whoever holds it next. The
+   fallback used to find the row by email regardless of whether it was already bound — and the
+   sign-in then overwrote `google_sub` with the new subject, which is precisely the reassignment
+   it claimed to protect against. Now: a row found by email whose subject is already bound to a
+   DIFFERENT subject is returned marked `conflict`, and the caller refuses. Re-enrolment is a
+   deliberate act by CivicScope (app-access.mjs), not a side effect of somebody signing in. */
 async function findUser({ sub, email }) {
   if (sub) {
     const bySub = await sb(`app_users?google_sub=eq.${encodeURIComponent(sub)}&select=*&limit=1`);
     if (bySub && bySub[0]) return bySub[0];
   }
+  if (!email) return null;
   // `ilike` with no wildcards is case-insensitive equality, matching the unique index on lower(email).
   const byEmail = await sb(`app_users?email=ilike.${encodeURIComponent(email)}&select=*&limit=1`);
-  return (byEmail && byEmail[0]) || null;
+  const u = (byEmail && byEmail[0]) || null;
+  if (u && sub && u.google_sub && u.google_sub !== sub) return { ...u, _conflict: true };
+  return u;
 }
 
 const bad = (res, code, msg, extra = {}) => res.status(code).json({ ok: false, error: msg, ...extra });
@@ -242,7 +253,7 @@ export default async function handler(req, res) {
            cookie happens to expire — otherwise "remove their access" is a sentence with no
            mechanism behind it. */
         const u = await findUser({ sub: s.sub, email: s.email });
-        if (!u || !u.active) {
+        if (!u || !u.active || u._conflict) {
           res.setHeader('Set-Cookie', sessionCookie('', { req }));
           return res.status(200).json({ ok: true, signedIn: false, revoked: true, configured: usable, client_id: (usable && cfg.clientId) || null, provider: cfg.provider });
         }
@@ -291,6 +302,17 @@ export default async function handler(req, res) {
         const c = v.claims;
         const email = String(c.email).toLowerCase();
         let u = await findUser({ sub: c.sub, email });
+
+        if (u && u._conflict) {
+          /* The address is enrolled and bound to a different Google account. This is the
+             reassigned-address case, and the answer is a refusal plus a log line a person can act
+             on — not a silent takeover of the previous holder's access. */
+          await logAttempt(req, { outcome: 'denied', email, google_sub: c.sub, user_id: u.id, reason: 'address is bound to a different Google account' });
+          return res.status(200).json({
+            ok: true, signedIn: false, email,
+            msg: `${email} is on the access list, but it is tied to a different Google account than the one you signed in with. Ask CivicScope to re-enrol it.`,
+          });
+        }
 
         if (!u) {
           /* ⛔ AN UNKNOWN ACCOUNT GETS A ROW, NOT ACCESS. The row is a request: it captures the

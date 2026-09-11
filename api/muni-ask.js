@@ -426,11 +426,29 @@ export default async function handler(req, res) {
   const namedDistrict = districtOf(question);
   let districtHits = [];
   if (namedDistrict) {
+    /* ⛔ A GUARANTEED PASSAGE MUST LOOK EXACTLY LIKE A RANKED ONE (Codex finding 14, High). This
+       lookup selected chunk columns only — no `text_source`, no title, no collection, no URL — and
+       named its id `chunk` where every RPC hit carries `chunk_id`. So a district table from a
+       SCANNED zoning book reached the model labelled (text), the reader saw no scan tag and no
+       source link, and the id mismatch meant the same passage could arrive twice. The document is
+       joined in and the hit normalised to the RPC's contract before it is merged. */
     const lookup = async (t) => {
       try {
-        return await sb(`muni_chunks?tenant=eq.${encodeURIComponent(t)}`
+        const rows = await sb(`muni_chunks?tenant=eq.${encodeURIComponent(t)}`
           + `&heading=ilike.${encodeURIComponent(namedDistrict + '%')}`
-          + '&select=id,doc_id,heading,citation,content,is_table&limit=3');
+          + '&select=id,doc_id,heading,citation,content,is_table,muni_docs(title,collection,source_url,text_source)&limit=3');
+        return (rows || []).map((c) => {
+          const d = c.muni_docs || {};
+          return {
+            chunk_id: c.id, doc_id: c.doc_id, heading: c.heading, citation: c.citation,
+            content: c.content, is_table: c.is_table,
+            title: d.title || null, collection: d.collection || null, url: d.source_url || null,
+            /* Unknown provenance reads as a scan, never as verified text: the failure mode this
+               guards is a transcribed digit presented as verbatim. */
+            text_source: d.text_source || 'ocr',
+            rank: null, _guaranteed: 'district',
+          };
+        });
       } catch { return []; }
     };
     const own = await lookup(slug);
@@ -439,14 +457,19 @@ export default async function handler(req, res) {
     /* Prefer the table — a district's prose section says what the district is FOR, the table says
        what you may build. Both are kept when both exist; the table leads. */
     districtHits = [...own, ...shared]
-      .sort((a, b) => Number(Boolean(b.is_table)) - Number(Boolean(a.is_table)))
-      .map((c) => ({ ...c, chunk: c.id, rank: null, _guaranteed: 'district' }));
+      .sort((a, b) => Number(Boolean(b.is_table)) - Number(Boolean(a.is_table)));
   }
 
   // Hoisted: the logging site below needs to know which passages were GUARANTEED rather than
   // ranked, so used_table cannot under-report a table that arrived through the guarantee.
+  /* ⛔ THE GUARANTEES RUN WHETHER OR NOT RANKED RETRIEVAL FOUND ANYTHING (Codex finding 15). Both
+     the table seat and the website seat were gated on `hits.length`, and the no-corpus return sat
+     BEFORE the district merge — so a question the ranked pass could not match at all was answered
+     "nothing in the documents" even when the district lookup or a guaranteed table had the
+     answer in hand. A guarantee that only fires when it is least needed is not one. */
   let tbl = null;
-  if (hits && hits.length) {
+  hits = hits || [];
+  {
     try {
       tbl = await sb('rpc/muni_search_tables', {
         method: 'POST',
@@ -498,7 +521,7 @@ export default async function handler(req, res) {
      Presence of a source TYPE is not evidence that the best passage of that type survived ranking.
      So the small collection is always consulted and merged by chunk id; ranking still decides what
      the model reads first. */
-  if (hits && hits.length) {
+  {
     try {
       const web = await sb('rpc/muni_search_collection', {
         method: 'POST',
@@ -537,6 +560,15 @@ export default async function handler(req, res) {
     } catch { /* logging must never fail the answer */ }
   };
 
+  /* The district lookup merges BEFORE the no-corpus decision — a passage found by its heading is
+     a passage, whether or not the ranked pass agreed (finding 15). Prepended, never appended:
+     Cause 4 of the setback chain. */
+  if (districtHits.length) {
+    const already = new Set(hits.map((h) => h.chunk_id));
+    const add = districtHits.filter((d) => !already.has(d.chunk_id));
+    if (add.length) hits = [...add, ...hits];
+  }
+
   if (!hits || !hits.length) {
     // A genuine corpus gap, recorded as one. These rows are the village's own
     // "what are we not able to answer" list.
@@ -572,16 +604,6 @@ export default async function handler(req, res) {
     const d = new Date(iso);
     return isNaN(d) ? null : d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Detroit' });
   };
-
-  /* ⛔ PREPEND, NEVER APPEND. Cause 4 of the Centreville setback chain: a guaranteed passage added
-     at the END of a list that then meets a character ceiling is not guaranteed at all — the loop
-     broke before reaching it and the table never got to the model. Same mistake, one level up,
-     would waste this entire fix. */
-  if (districtHits.length) {
-    const already = new Set(hits.map((h) => h.chunk));
-    const add = districtHits.filter((d) => !already.has(d.chunk));
-    if (add.length) hits = [...add, ...hits];
-  }
 
   // Build the passage block, bounded so a broad question cannot send an unbounded prompt.
   const used = [];

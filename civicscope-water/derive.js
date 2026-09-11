@@ -164,6 +164,19 @@ export function derive({ entryPoint, feeds = [], prev = null, input = {}, contex
       if (level === null) {
         // a feed with no level on a day the well did not run is normal, not an omission
         if (gallons !== 0) errors.push({ field: `feed:${f.id}`, msg: `${labelOf(f)} tank level is required.` });
+      } else if (baseline === null && prevF && gallons !== null && gallons > 0) {
+        /* ⛔ A PUMPING DAY WITH NO CHEMICAL BASELINE IS REFUSED, NOT STORED AS "no usage".
+           Codex finding 4 (2026-09-11): day 1 tank 200 → day 2 idle, tank left blank (allowed) →
+           day 3 pumps 10,000 gal, tank 190. The baseline read from day 2 was null, so day 3 stored
+           solution_lbs = null with ok:true — water pumped, chemical usage silently absent, and the
+           filing diff skips a null. Measured live: Well 3 on 2026-04-13 is exactly this row.
+           The server now walks back past a blank idle day to the last known level before calling
+           derive() (api/water-ops.js previousReading), so this fires only when there is genuinely
+           no level anywhere behind this visit — which is not a day that can be filed. */
+        errors.push({
+          field: `feed:${f.id}`,
+          msg: `${labelOf(f)}: the well pumped but the tank has no known level from any earlier visit to measure usage from. Record the level it held on the last visit first.`,
+        });
       } else if (baseline !== null) {
         solution = baseline - level;
         if (solution < 0) {

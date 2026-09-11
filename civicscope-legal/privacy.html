@@ -84,14 +84,17 @@
     user-agent string — so the account can be added if it should have been, and so unexpected
     attempts are visible. That record is kept for security purposes.</p>
   <p>Once you are signed in, your browser holds a session cookie named <code>cs_session</code>. It is
-    strictly necessary for sign-in to work, contains no personal information beyond an identifier we
-    issue, cannot be read by scripts, and expires after 30 days. Signing out clears it.</p>
+    strictly necessary for sign-in to work, cannot be read by scripts, and expires after 30 days.
+    It is signed by us and carries your Google account identifier, your email address and the
+    identifier of your access record — nothing else. Signing out clears it.</p>
 
   <h3>If you ask a question in an “Ask &lt;Village&gt;” tool</h3>
-  <p>We store <strong>the text of the question</strong>, how many passages it matched and how long it
-    took. We do this so the village can see what its published documents are failing to answer —
-    questions that return nothing are the most useful signal the tool produces. Please do not put
-    personal or sensitive details in a question; it is not the right place for them.</p>
+  <p>We store <strong>the text of the question</strong>, how many passages it matched, how long it
+    took, a random visitor identifier held in your browser, and — if you arrived through a tracked
+    invitation link — which link. <strong>If you are signed in, the question is stored with your email
+    address.</strong> We do this so the village can see what its published documents are failing to
+    answer — questions that return nothing are the most useful signal the tool produces. Please do
+    not put personal or sensitive details in a question; it is not the right place for them.</p>
   <p>Your question, together with passages retrieved from that municipality’s <em>public</em>
     documents, is sent to <strong>Anthropic</strong> to compose the answer. Nothing about your Google
     account is sent with it.</p>
@@ -109,7 +112,13 @@
   <p>These tools hold operational records for a public water supply — meter readings, chemical
     levels, sample results, and the initials or name of the operator who took each reading. That
     information belongs to the municipality, is part of a record it files with its state regulator,
-    and is retained as long as the municipality needs it for that purpose.</p>
+    and is retained as long as the municipality needs it for that purpose. The monthly report the
+    municipality files, and copies the product generates for it, are stored with the name and
+    certification of the operator in charge who signs them, as the state form requires.</p>
+  <p><strong>These operating records are public records.</strong> A public water supply's monthly
+    operation report is filed with the state and is a public document, so the readings behind it
+    and the filed workbooks can be read from these tools without signing in. Signing in is required
+    to <em>change</em> a record or to record that a report was filed, not to read one.</p>
 
   <h3>Ordinary website usage</h3>
   <p>When you use a tool we record a usage record containing a random session identifier, timestamps,
@@ -173,9 +182,10 @@
     them.</p>
 
   <h2>Security</h2>
-  <p>Data is held with the providers listed above. Access to municipal records is restricted to named
-    accounts. We do not receive or store your Google password, and there is no CivicScope password to
-    steal. If something goes wrong that affects you, we will tell you and the municipality.</p>
+  <p>Data is held with the providers listed above. Changing a municipal operating record, or recording
+    that a report was filed, is restricted to named accounts; reading the public records described
+    above is not. We do not receive or store your Google password, and there is no CivicScope password
+    to steal. If something goes wrong that affects you, we will tell you and the municipality.</p>
 
   <h2>Changes</h2>
   <p>If we change how any of this works, we change this page and update the date at the top.</p>

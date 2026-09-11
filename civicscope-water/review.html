@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.4.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.0-oic
+
+  v1.5.0 (2026-09-11, after the adversarial review) — Mark as filed sends bytes and what she
+  typed; the server reads the workbook, checks it is this supply's report for this period, and
+  refuses a contradiction. An explicit "I signed and sent it" attestation is required, because the
+  product cannot infer a signature from a file whose certification line is pre-printed.
 
   v1.4.0 (2026-09-11) — THE LOOP CLOSES ON THIS PAGE. Every "Generate the EGLE workbook" is now
   recorded server-side and shown under "Reports filed" as generated-not-yet-filed, with the bytes
@@ -580,6 +585,9 @@ window.generateMor = async (y, m) => {
     a.href = url; a.download = name; document.body.appendChild(a); a.click();
     a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
     note.innerHTML = `${esc(name)} — ${(stats.well_days ?? '?')} well-days, ${(stats.distribution ?? '?')} distribution, ${(stats.bacti ?? '?')} bacti. `
+      + (stats.bacti_other_excluded
+          ? `<span style="color:var(--warn)">${stats.bacti_other_excluded} well/raw-water sample${stats.bacti_other_excluded === 1 ? '' : 's'} not on the form — EGLE's Bacti tab has no block for them. </span>`
+          : '')
       + (stats.recorded
           ? `Recorded under “Reports filed” below.`
           : `<span style="color:var(--err)">⚠ This generation could not be recorded${stats.why ? ` (${esc(stats.why)})` : ''} — the file is yours, but the product has no note of it.</span>`);
@@ -771,7 +779,11 @@ window.markFiledForm = (id, y, m) => {
       <div style="margin-top:10px"><label>The workbook you sent — only if you changed it in Excel (comments, signature)</label>
         <input type="file" id="mfFile" accept=".xls,application/vnd.ms-excel"></div>
       <div class="muted" style="margin-top:6px;font-size:12.5px">Leave the file empty if you sent the generated workbook as it was — it is already held here. `
-        + `If you upload the file, its Cover tab is read and the date and comments come from there.</div>
+        + `If you upload the file, its Cover tab is read here and must be this supply's ${MN[m]} ${y} report; the date and comments come from the Cover where it has them.</div>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:13.5px;color:#334155">
+        <input type="checkbox" id="mfAttest" style="margin-top:3px">
+        <span>I signed the Cover as Operator-In-Charge and sent this report to EGLE. (Recorded under your sign-in — the product cannot know this from the file.)</span>
+      </label>
       <div class="act">
         <button class="go" id="mfGo" onclick="recordFiling('${id}',${y},${m})">Record the filing</button>
         <button class="editbtn" onclick="document.getElementById('mf-${id}').innerHTML=''">Cancel</button>
@@ -785,35 +797,21 @@ window.recordFiling = async (id, y, m) => {
   const date = ($('mfDate').value || '').trim();
   const comments = ($('mfComments').value || '').trim();
   const file = $('mfFile').files && $('mfFile').files[0];
+  const attested = Boolean($('mfAttest') && $('mfAttest').checked);
   if (!date) { msg.className = 'msg err'; msg.textContent = 'The date it was sent is required.'; return; }
-  btn.disabled = true; msg.className = 'msg'; msg.textContent = file ? 'Reading the workbook you sent…' : 'Recording…';
+  if (!attested) { msg.className = 'msg err'; msg.textContent = 'Tick the box to confirm you signed and sent it — that is the fact being recorded.'; return; }
+  btn.disabled = true; msg.className = 'msg'; msg.textContent = file ? 'Sending the workbook you sent…' : 'Recording…';
   try {
-    let payload;
-    if (file) {
-      const b64 = await fileToB64(file);
-      /* The uploaded workbook is read by the generator's own extractor — the one cell map, in the
-         other direction — so what is recorded as "filed" is what the file says, not what this
-         form says. The form only fills what the Cover left blank. */
-      const r = await fetch('/api/build-mor', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'extract', workbook_b64: b64, year: y, month: m }),
-      });
-      const ex = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(ex.error || `could not read that workbook (${r.status})`);
-      const cover = ex.cover || {};
-      payload = {
-        action: 'record_filing', year: y, month: m, generation_id: id,
-        workbook_b64: b64, workbook_name: file.name, source: 'product',
-        cover: { ...cover, submitted_date: cover.submitted_date || date, comments: cover.comments || comments || null },
-        filed: ex,
-        notes: (ex.notes || []).length ? ex.notes.join(' ') : null,
-      };
-    } else {
-      payload = {
-        action: 'record_filing', year: y, month: m, generation_id: id, source: 'product',
-        cover: { submitted_date: date, comments: comments || null },
-      };
-    }
+    /* ⛔ THE PAGE SENDS BYTES AND WHAT SHE TYPED — NEVER "WHAT THE FILE SAYS". The server reads an
+       uploaded workbook with the generator's own extractor, checks its Cover names this supply and
+       this period, and refuses a typed date that contradicts a dated Cover (Codex finding 8). A
+       page that extracted for itself and handed back the result was a page asserting facts about a
+       compliance record from the browser. */
+    const payload = {
+      action: 'record_filing', year: y, month: m, generation_id: id, source: 'product',
+      cover: { submitted_date: date, comments: comments || null, attested },
+    };
+    if (file) { payload.workbook_b64 = await fileToB64(file); payload.workbook_name = file.name; }
     await post(payload);
     msg.className = 'msg ok'; msg.textContent = 'Recorded. Reloading…';
     setTimeout(() => location.reload(), 700);

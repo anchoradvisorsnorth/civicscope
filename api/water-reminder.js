@@ -170,8 +170,21 @@ export default async function handler(req, res) {
 
       if (!force) {
         const already = await sb(`water_mor_reminders?supply_id=eq.${supply.id}&report_year=eq.${y}` +
-          `&report_month=eq.${m}&kind=eq.due-soon&outcome=eq.sent&select=id,sent_at&limit=1`);
-        if (already && already[0]) { out.push({ ...step, skipped: 'already reminded', sent_at: already[0].sent_at }); continue; }
+          `&report_month=eq.${m}&kind=eq.due-soon&outcome=in.(sent,pending)&select=id,sent_at,outcome&limit=1`);
+        if (already && already[0] && already[0].outcome === 'sent') {
+          out.push({ ...step, skipped: 'already reminded', sent_at: already[0].sent_at }); continue;
+        }
+        /* A 'pending' claim is a run that died between claiming and sending (Codex finding 18).
+           Younger than two hours it may still be in flight — leave it. Older, it is abandoned:
+           mark it failed so the unique index frees the period, and claim it again below. */
+        if (already && already[0] && already[0].outcome === 'pending') {
+          const ageMs = Date.now() - Date.parse(already[0].sent_at);
+          if (ageMs < 2 * 3600 * 1000) { out.push({ ...step, skipped: 'another run is sending this period' }); continue; }
+          await sb(`water_mor_reminders?id=eq.${already[0].id}&outcome=eq.pending`, {
+            method: 'PATCH', headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({ outcome: 'failed', detail: 'abandoned: claimed but never sent (reaped by a later run)' }),
+          });
+        }
       }
 
       // What the month actually holds — the useful half of the message.
@@ -180,7 +193,8 @@ export default async function handler(req, res) {
       const [readings, dist, bacti] = await Promise.all([
         sb(`water_readings?supply_id=eq.${supply.id}&reading_date=gte.${from}&reading_date=lt.${to}&superseded_at=is.null&select=id`),
         sb(`water_dist_samples?supply_id=eq.${supply.id}&sample_date=gte.${from}&sample_date=lt.${to}&superseded_at=is.null&select=id`),
-        sb(`water_bacti_samples?supply_id=eq.${supply.id}&collected_date=gte.${from}&collected_date=lt.${to}&select=id`),
+        // live rows only — a corrected sample is one sample, not two (Codex, 2026-09-11)
+        sb(`water_bacti_samples?supply_id=eq.${supply.id}&collected_date=gte.${from}&collected_date=lt.${to}&superseded_at=is.null&select=id`),
       ]);
 
       /* Recipients are the people ENROLLED for this supply, not a name in a config file. That is
@@ -238,18 +252,20 @@ export default async function handler(req, res) {
          outcome='sent', so exactly one runner can create the 'sent' row for a period. A 409 means
          somebody else owns this period — skip, and say so, rather than treating it as an error.
 
-         A failed send then RELEASES the claim by moving the row to 'failed', which the partial
-         index does not cover, so the next run may retry. That is the right trade: the previous
-         order could double-send, this one can at worst leave a claimed-but-unsent period if the
-         process dies in the gap — and that surfaces as silence on a monitored job, whereas a
-         duplicate regulatory reminder reaches the clerk with no signal at all. */
+         ⛔ THE CLAIM IS 'pending', NOT 'sent' (Codex finding 18, migration 074). Claiming as
+         'sent' before the provider call closed the double-send and opened a permanent silence: a
+         process dying in the gap left a 'sent' row with no mail behind it, and every later run
+         skipped the period forever. The partial unique index now covers pending AND sent, so the
+         insert is still the lock; 'sent' is written only once the provider has accepted the
+         message and given back an id. A pending claim older than two hours is reaped as 'failed'
+         by the next run (above), which frees the period for a retry. */
       let claim;
       try {
         [claim] = await sb('water_mor_reminders', {
           method: 'POST', headers: { Prefer: 'return=representation' },
           body: JSON.stringify([{
             supply_id: supply.id, report_year: y, report_month: m, kind: 'due-soon',
-            recipients: to_, subject: msg.subject, outcome: 'sent',
+            recipients: to_, subject: msg.subject, outcome: 'pending',
           }]),
         });
       } catch (e) {
@@ -263,22 +279,32 @@ export default async function handler(req, res) {
       let providerId = null, outcome = 'sent', detail = null;
       try {
         providerId = await sendMail({ to: to_, subject: msg.subject, html: msg.html, text: msg.text });
+        if (!providerId) { outcome = 'failed'; detail = 'the provider accepted the call but returned no message id'; }
       } catch (e) {
         outcome = 'failed';
         detail = String(e.message || e).slice(0, 400);
       }
       if (claim && claim.id) {
-        await sb(`water_mor_reminders?id=eq.${claim.id}`, {
-          method: 'PATCH', headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({ provider_id: providerId, outcome, detail }),
-        }).catch(() => { /* the mail is the deliverable; bookkeeping must not fail the run */ });
+        /* Bookkeeping that FAILS is reported, not swallowed: a pending row that never becomes
+           'sent' looks like an abandoned run to the next scheduler and is reaped — which is the
+           correct outcome for "we do not know whether it went", and it is visible in `results`. */
+        try {
+          await sb(`water_mor_reminders?id=eq.${claim.id}`, {
+            method: 'PATCH', headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({ provider_id: providerId, outcome, detail }),
+          });
+        } catch (e) {
+          detail = `${detail ? detail + ' · ' : ''}bookkeeping failed: ${String(e.message || e).slice(0, 160)}`;
+          out.push({ ...step, outcome, bookkeeping: 'failed', to: to_, provider_id: providerId, detail });
+          continue;
+        }
       }
       out.push({ ...step, outcome, to: to_, provider_id: providerId, ...(detail ? { detail } : {}) });
     }
 
     /* A failure inside the loop is reported with a non-2xx so a scheduler's own error handling can
        see it — the run still completed every other supply first. */
-    const failed = out.some((o) => o.outcome === 'failed' || o.outcome === 'no_recipient');
+    const failed = out.some((o) => o.outcome === 'failed' || o.outcome === 'no_recipient' || o.bookkeeping === 'failed');
     return res.status(failed ? 502 : 200).json({ ver: VER, dry, period: `${y}-${String(m).padStart(2, '0')}`, results: out });
   } catch (e) {
     return res.status(500).json({ error: String(e.message || e) });

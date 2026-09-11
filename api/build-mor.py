@@ -267,14 +267,15 @@ def build(data, raw_template, formulas):
         """Blank a month's data region before writing this month into it.
 
         WHY THIS HAS TO EXIST, and it is the sharper half of the bacti defect.
-        The stored template is not a blank state form -- it is Centreville's FILLED July 2026
-        MOR, carrying the supply name, WSSN, OIC and certification that never change. That is a
-        reasonable base, but `put()` returns early on None, so any cell the new month does not
-        supply keeps July's value. Verified 2026-08-26: rows 12 and 13 of the Bacti tab hold the
-        real 2026-07-29 samples for 125 W. Main St and M-86 E. Lift Station. Generating August
-        without clearing does not produce an empty bacti tab -- it produces JULY'S SAMPLES
-        LABELLED AUGUST, which is a false regulatory filing rather than an incomplete one.
-        The same applies to any month with fewer distribution rows than its predecessor.
+        `put()` returns early on None, so any input cell the new month does not supply keeps
+        whatever the template holds. On 2026-08-26 the stored template was a FILLED July: rows 12
+        and 13 of the Bacti tab held the real 2026-07-29 samples, and generating August without
+        clearing produced JULY'S SAMPLES LABELLED AUGUST -- a false regulatory filing rather than
+        an incomplete one. The stored template has since been replaced by EGLE's blank
+        (manifest source `Blank MOR.xls`; verified 2026-09-11: zero Pumpage, EntryPoint and
+        Distribution input cells carry a value). The clearing stays, and now covers EVERY input
+        region -- Pumpage and the EntryPoint tabs too (Codex finding 10): a template is data that
+        can be re-uploaded, and a rule that depends on a bucket object being blank is not a rule.
 
         A formula cell is never blanked: EGLE's own COUNTA/AVERAGE/MIN/MAX cells live beside
         the data and are restored from the formula map, so clearing one would delete the
@@ -303,6 +304,14 @@ def build(data, raw_template, formulas):
         repeat count -- and a repeat sample written into the routine block would overstate
         routine compliance, which is the number the state checks against the monitoring
         schedule. Residual statistics span both blocks, so both must be populated to be right.
+
+        AND 'other' IS NEITHER (Codex finding 3, 2026-09-11). The schema admits a third kind --
+        Centreville's sampling plan lists Well #1/#3/#4 as `bacti_other` sites -- and the default
+        branch here wrote it into the ROUTINE block, so one well sample would have counted as a
+        routine compliance sample on the state form. EGLE's Bacti tab has a routine block and a
+        repeat block and nothing else; a raw-water or investigative sample is not reported on it.
+        Those samples are now EXCLUDED from the workbook and COUNTED in the stats
+        (`bacti_other_excluded`), so the page says so rather than the form saying something false.
         """
         rows = sorted(d.get('bacti') or [], key=lambda x: (x.get('collected_date') or '',
                                                            x.get('site_name') or ''))
@@ -310,10 +319,12 @@ def build(data, raw_template, formulas):
         clear_block(BACTI_SHEET, BACTI_REPEAT[0], BACTI_REPEAT[1], BACTI_COLS)
 
         buckets = {'routine': list(BACTI_ROUTINE), 'repeat': list(BACTI_REPEAT)}
-        used = {'routine': 0, 'repeat': 0}
+        used = {'routine': 0, 'repeat': 0, 'other_excluded': 0}
         for smp in rows:
-            kind = 'repeat' if str(smp.get('sample_kind') or 'routine').lower() == 'repeat' \
-                else 'routine'
+            kind = str(smp.get('sample_kind') or 'routine').lower()
+            if kind not in buckets:
+                used['other_excluded'] += 1
+                continue
             row0, cap = buckets[kind]
             n = used[kind]
             if n >= cap:
@@ -369,6 +380,14 @@ def build(data, raw_template, formulas):
     for row in data['readings']:
         by_ep.setdefault(row['entry_point_id'], {})[int(row['reading_date'][8:10])] = row
 
+    # Every input region is blanked before this month is written into it -- Pumpage and the
+    # EntryPoint tabs included (Codex finding 10). A day this month has no reading for must be a
+    # BLANK cell (EGLE: "do not put 0 in a cell if the pumpage was not checked"), never whatever
+    # the template happened to hold.
+    clear_block('Pumpage', PUMPAGE_ROW0, 31, range(1, 9))
+    for name in [s for s in rb.sheet_names() if s.startswith('EntryPoint')]:
+        clear_block(name, EP_ROW0, 31, (1, 3, 6, 7, 8, 12))
+
     for ep in data['entryPoints']:
         rows = by_ep.get(ep['id'], {})
         sheet = f'EntryPoint{ep["mor_sheet"]}' if ep.get('mor_sheet') else None
@@ -418,12 +437,38 @@ def build(data, raw_template, formulas):
     # completely normal in every other cell. Cheap: one parse of a ~250 KB file.
     want_month, want_year = MONTHS[data['month']][:3], int(data['year'])
     try:
-        back = xlrd.open_workbook(file_contents=out.getvalue()).sheet_by_name('Cover')
+        back_bk = xlrd.open_workbook(file_contents=out.getvalue())
+        back = back_bk.sheet_by_name('Cover')
         got_month = str(back.cell_value(*COVER_MONTH)).strip()
         got_year = int(float(back.cell_value(*COVER_YEAR) or 0))
     except Exception as e:
         raise Refuse(500, f'the generated workbook could not be read back to check its '
                           f'reporting period: {e}')
+
+    # ⛔ AND THE SAMPLE COUNTS — from the saved cells, not from the writer's own counters.
+    # `bacti_written` is what this function INTENDED; the Aug 26 review's finding #1 was a
+    # workbook that said "2 bacti" in its stats and carried none. The counts the form's own
+    # COUNTA formulas will produce are counted here the same way, and a mismatch refuses.
+    try:
+        bsh = back_bk.sheet_by_name(BACTI_SHEET)
+        def _filled(row0, cap):
+            return sum(1 for r in range(row0, row0 + cap)
+                       if r < bsh.nrows and str(bsh.cell_value(r, 1)).strip()
+                       and str(bsh.cell_value(r, 9)).strip())
+        back_routine = _filled(*BACTI_ROUTINE)
+        back_repeat = _filled(*BACTI_REPEAT)
+        dsh = back_bk.sheet_by_name('Distribution')
+        back_dist = sum(1 for r in range(DIST_ROW0, DIST_ROW0 + DIST_ROWS)
+                        if r < dsh.nrows and str(dsh.cell_value(r, 1)).strip())
+    except Exception as e:
+        raise Refuse(500, f'the generated workbook could not be read back to check its samples: {e}')
+    if (back_routine, back_repeat) != (bacti_written['routine'], bacti_written['repeat']):
+        raise Refuse(500, f'the saved workbook carries {back_routine} routine / {back_repeat} repeat '
+                          f'bacti rows but {bacti_written["routine"]} / {bacti_written["repeat"]} '
+                          'were written; the workbook was not returned.')
+    if back_dist != len(data['dist']):
+        raise Refuse(500, f'the saved workbook carries {back_dist} distribution rows but '
+                          f'{len(data["dist"])} were written; the workbook was not returned.')
     if got_month != want_month or got_year != want_year:
         raise Refuse(500, f'the generated workbook is labelled {got_month} {got_year} but reports '
                           f'{want_month} {want_year}; it was not returned. This is the defect found '
@@ -438,7 +483,9 @@ def build(data, raw_template, formulas):
                             'well_days': len(data['readings']), 'distribution': len(data['dist']),
                             'bacti': bacti_written['routine'] + bacti_written['repeat'],
                             'bacti_routine': bacti_written['routine'],
-                            'bacti_repeat': bacti_written['repeat']}
+                            'bacti_repeat': bacti_written['repeat'],
+                            # well / raw-water samples the state form has no block for (finding 3)
+                            'bacti_other_excluded': bacti_written['other_excluded']}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -467,8 +514,25 @@ def selftest():
     cells = sum(len(v or {}) for v in formulas.values())
     if cells < 1000:
         raise Refuse(500, f'the formula map holds only {cells} cells; the EGLE MOR has ~1,990')
+    # The template's INPUT regions must be blank (Codex finding 10). build() now clears them
+    # anyway, but a template carrying somebody's month is a template that should never have been
+    # uploaded, and the selftest is where that is cheapest to notice.
+    dirty = 0
+    psh = bk.sheet_by_name('Pumpage')
+    dirty += sum(1 for r in range(PUMPAGE_ROW0, PUMPAGE_ROW0 + 31) for c in range(1, 9)
+                 if r < psh.nrows and c < psh.ncols and str(psh.cell_value(r, c)).strip())
+    for name in [s for s in sheets if s.startswith('EntryPoint')]:
+        esh = bk.sheet_by_name(name)
+        dirty += sum(1 for r in range(EP_ROW0, EP_ROW0 + 31) for c in (1, 3, 6, 7, 8, 12)
+                     if r < esh.nrows and c < esh.ncols and str(esh.cell_value(r, c)).strip())
+    dsh = bk.sheet_by_name('Distribution')
+    dirty += sum(1 for r in range(DIST_ROW0, DIST_ROW0 + DIST_ROWS)
+                 if r < dsh.nrows and str(dsh.cell_value(r, 1)).strip())
+    if dirty:
+        raise Refuse(500, f'the stored template carries {dirty} filled input cell(s) — it is somebody\'s '
+                          'month, not a blank form. Re-upload EGLE\'s blank with scripts/upload-mor-template.mjs')
     out.update({'ok': True, 'template': manifest['key'], 'sheets': len(sheets),
-                'formula_cells': cells, 'decrypted': True})
+                'formula_cells': cells, 'decrypted': True, 'input_cells_blank': True})
     return out
 
 
@@ -555,12 +619,19 @@ def _extract_cover(bk):
         submitted = f'{y:04d}-{m:02d}-{d:02d}'
 
     comments = ' '.join(x for x in (text('comment_left'), text('comment_right')) if x) or None
+    year_cell = _num(raw.get('year_cell'))
     return {
         'supply_name': text('supply_name'), 'wssn': text('wssn'),
         'oic_name': text('oic_name'), 'oic_cert': text('oic_cert'),
         'classification': text('classification'), 'county': text('county'),
         'month_label': text('month_label'),
-        'signed_by': text('signed_by') or text('oic_name'),
+        'year': int(year_cell) if year_cell else None,
+        # The certification-line cell ONLY, never the OIC name substituted for it (Codex finding
+        # 8). ⚠ On Centreville's Class D form that line is PRE-PRINTED with the OIC's name in the
+        # blank template (verified 2026-09-11), so a name here is the name on the line — not
+        # evidence that anybody signed. Whether the report was actually signed and sent is an
+        # attestation the signed-in OIC makes when she records the filing, and is recorded as such.
+        'signed_by': text('signed_by'),
         'submitted_date': submitted, 'submitted_to': text('submitted_to'),
         'comments': comments,
     }
@@ -645,23 +716,27 @@ def extract_workbook(raw, year, month):
 
     # Bacti: the record that exists NOWHERE ELSE — not on the Well and Pump Record, absent from
     # July's paper packet entirely. For every other month the workbook is the only copy.
+    # BOTH blocks, each row carrying its kind (Codex finding 9): the generator writes routine and
+    # repeat samples into separate blocks and the extractor read only the first, so a repeat sample
+    # vanished from the filing record while sitting correctly in the workbook.
     if BACTI_SHEET in bk.sheet_names():
         sh = bk.sheet_by_name(BACTI_SHEET)
         out['bacti_required'] = _num(sh.cell_value(3, 0)) if sh.nrows > 3 else None
         out['bacti_taken_stated'] = _num(sh.cell_value(4, 0)) if sh.nrows > 4 else None
         out['lab_name'] = (str(sh.cell_value(1, 7)).strip() or None) if sh.nrows > 1 and sh.ncols > 7 else None
-        for r in range(X_BACTI_ROW0, min(X_BACTI_ROW1, sh.nrows)):
-            loc = str(sh.cell_value(r, X_BACTI_COLS['location'])).strip()
-            d = _as_date(sh.cell_value(r, X_BACTI_COLS['date']), year, month, dm)
-            if not loc or not d:
-                continue
-            rec = {'location': loc, 'date': d,
-                   'result': str(sh.cell_value(r, X_BACTI_COLS['result'])).strip() or None}
-            for k in ('free', 'total'):
-                v = _num(sh.cell_value(r, X_BACTI_COLS[k]))
-                if v is not None:
-                    rec[k] = v
-            out['bacti'].append(rec)
+        for kind, (row0, cap) in (('routine', BACTI_ROUTINE), ('repeat', BACTI_REPEAT)):
+            for r in range(row0, min(row0 + cap, sh.nrows)):
+                loc = str(sh.cell_value(r, X_BACTI_COLS['location'])).strip()
+                d = _as_date(sh.cell_value(r, X_BACTI_COLS['date']), year, month, dm)
+                if not loc or not d:
+                    continue
+                rec = {'location': loc, 'date': d, 'kind': kind,
+                       'result': str(sh.cell_value(r, X_BACTI_COLS['result'])).strip() or None}
+                for k in ('free', 'total'):
+                    v = _num(sh.cell_value(r, X_BACTI_COLS[k]))
+                    if v is not None:
+                        rec[k] = v
+                out['bacti'].append(rec)
 
     # Which EntryPoint is which well? ASSERTED, never assumed: the tabs are numbered 1..3 and
     # Centreville's wells are 1, 3 and 4, so the obvious mapping is wrong by construction.
@@ -727,8 +802,13 @@ def record_generation(wssn, year, month, xls, name, stats, filed, cookie):
         'workbook_name': name, 'stats': stats, 'filed': filed,
     }).encode()
     headers = {'Content-Type': 'application/json'}
+    # Only the session cookie travels, never the browser's whole jar (Codex, 2026-09-11): the
+    # data origin needs one credential to name the signed-in person, and nothing else it might
+    # have been handed.
     if cookie:
-        headers['Cookie'] = cookie
+        m = re.search(r'(?:^|;\s*)cs_session=([^;]+)', cookie)
+        if m:
+            headers['Cookie'] = f'cs_session={m.group(1)}'
     try:
         req = urllib.request.Request(f'{DATA_ORIGIN}/api/water-ops', data=payload, headers=headers)
         with urllib.request.urlopen(req, timeout=25) as r:

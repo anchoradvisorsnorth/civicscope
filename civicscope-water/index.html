@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.3.0-water
+  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.4.0-water
+
+  v1.4.0 (2026-09-11, adversarial review): the date is the PLANT's date, not the device's; the
+  plant profile is kept on the tablet so the app opens with no signal after a tab kill; the queue
+  flush cannot run twice at once; a 403 on a queued record is shown as "needs a sign-in", not
+  retried forever.
 
   The operator picks the well he is standing at. The well's PROFILE decides what he is asked for,
   because Centreville's three wells happen to be identical and the next village's will not be.
@@ -219,8 +224,12 @@ const S   = { wssn:'', code:'', profile:null, op:null, tab:'round', queue:[] };
 const $  = (id) => document.getElementById(id);
 const el = (h) => { const d=document.createElement('div'); d.innerHTML=h.trim(); return d.firstElementChild; };
 const esc = (s) => String(s==null?'':s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const today = () => new Date().toLocaleDateString('en-CA');   // local YYYY-MM-DD, not UTC
-const nowTime = () => new Date().toTimeString().slice(0,5);
+/* ⛔ THE PLANT'S CLOCK, NOT THE DEVICE'S (Codex, 2026-09-11). A tablet left on UTC — or any
+   timezone but the supply's — would date a 23:30 round on the 31st as the 1st of next month, and
+   the supply's own `timezone` column could not stop it because nothing here read it. */
+const TZ = () => (S.profile && S.profile.supply && S.profile.supply.timezone) || 'America/Detroit';
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: TZ() });   // YYYY-MM-DD at the plant
+const nowTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false, timeZone: TZ() }).slice(0,5);
 const n = (v) => (v===''||v==null ? null : Number(v));
 const fmt = (v,d=2) => (v==null||!isFinite(v) ? '—' : Number(v).toFixed(d));
 
@@ -237,7 +246,11 @@ const fmt = (v,d=2) => (v==null||!isFinite(v) ? '—' : Number(v).toFixed(d));
    Only the supply and the offline queue are durable. */
 // `rejected` persists for the same reason `queue` does: a record this tablet captured and could
 // not file must survive the app being closed, or closing it becomes the way to lose evidence.
-function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,queue:S.queue,rejected:S.rejected||[]})); }
+/* The plant profile (wells, feeds, operators, sites) is kept too — Codex finding 17: the shell
+   was cached for offline use but the profile was not, so a tab killed and reopened in a well
+   house with no signal loaded an app with no wells and no names to pick. Its age is kept with it
+   and shown when it is what the app is running on. The OPERATOR is still never persisted. */
+function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,queue:S.queue,rejected:S.rejected||[],profile:S.profile||null,profileAt:S.profileAt||null})); }
 function load(){
   try{ Object.assign(S, JSON.parse(localStorage.getItem(LS)||'{}')); }catch{}
   S.queue ||= [];
@@ -291,8 +304,15 @@ function showRejected(){
     + '\n\nThe server already holds that day, or refused the values. Give these to the office to reconcile — do not re-enter them here.');
   void lines;
 }
+/* ⛔ ONE FLUSH AT A TIME (Codex, 2026-09-11). The online event, the 30-second timer and the bar's
+   tap could each start a flush while another was mid-flight, and two loops replaying the same
+   queued day race the server's already-recorded guard — one wins, the other files a "could not
+   be sent" for a day that was in fact sent. */
+let FLUSHING = false;
 async function flush(){
-  if(!S.queue.length || !navigator.onLine) return;
+  if(FLUSHING || !S.queue.length || !navigator.onLine) return;
+  FLUSHING = true;
+  try{
   const still=[]; S.rejected = S.rejected || [];
   for(const item of S.queue){
     try{
@@ -305,11 +325,19 @@ async function flush(){
         S.rejected.push({...item, reason: (e.payload && (e.payload.msg || (e.payload.errors||[])[0]?.msg)) || ('http '+e.status)});
         continue;
       }
+      /* A 403 is not a bad connection: the server is saying this record needs a signed-in person
+         (a day in a month already filed with EGLE, usually). Retrying it every 30 seconds forever
+         hides that from the one person who can resolve it. Held as rejected, with the reason. */
+      if(e.status===403){
+        S.rejected.push({...item, reason: (e.payload && e.payload.error) || 'needs a sign-in to record — see the office'});
+        continue;
+      }
       still.push(item);
     }
   }
   S.queue = still; save(); paintQueue();
   if(!still.length) refreshRound();
+  } finally { FLUSHING = false; }
 }
 window.addEventListener('online', flush);
 setInterval(flush, 30000);
@@ -322,9 +350,23 @@ const WSSN_DEFAULT = '01310';
 
 async function boot(){
   S.wssn = new URLSearchParams(location.search).get('wssn') || S.wssn || WSSN_DEFAULT;
+  /* Fresh profile when there is signal; the saved one when there is not (Codex finding 17). A
+     saved profile that belongs to a different supply is never used — `?wssn=` changes it. */
+  let stale = null;
   try{
-    const p = await api('profile', { date: today() });
-    S.profile = p; save();
+    let p;
+    try{
+      p = await api('profile', { date: today() });
+      S.profile = p; S.profileAt = Date.now(); save();
+    }catch(e){
+      if(S.profile && S.profile.supply && S.profile.supply.wssn === S.wssn){
+        p = S.profile;
+        const ageH = S.profileAt ? Math.round((Date.now() - S.profileAt) / 3600000) : null;
+        stale = `No signal — running on the plant profile saved ${ageH == null ? 'earlier' : ageH < 1 ? 'under an hour ago' : ageH + ' hour' + (ageH === 1 ? '' : 's') + ' ago'}. Readings queue here until the signal returns.`;
+      } else {
+        throw e;
+      }
+    }
     $('hdrTitle').textContent = p.supply.name;
     $('hdrSub').textContent = `WSSN ${p.supply.wssn} · ${p.supply.classification||''}`;
     /* THE BLANK OPTION IS THE DEFAULT AND IT IS SELECTED. A <select> with no placeholder shows its
@@ -342,6 +384,7 @@ async function boot(){
     S.op = null;
     $('whoChip').textContent = 'who?'; $('whoChip').classList.remove('hide');
     $('scrWho').classList.remove('hide');
+    if(stale){ $('whoMsg').innerHTML = `<div class="msg warn">${esc(stale)}</div>`; }
   }catch(e){
     // The profile is what supplies the operator list, so with it unreachable there is no name to
     // choose. Show the app rather than an empty picker, and say what went wrong.
@@ -436,7 +479,7 @@ window.addEventListener('hashchange', () => showTab(location.hash.slice(1), { pu
 
 // ---- the round --------------------------------------------------------------------------------
 async function refreshRound(){
-  try{ S.profile = await api('profile', { date: today() }); save(); }catch{}
+  try{ S.profile = await api('profile', { date: today() }); S.profileAt = Date.now(); save(); }catch{}
   const p = S.profile; if(!p) return;
   $('roundTitle').textContent = new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
   const done = new Set((p.doneToday||[]).map(d=>d.entry_point_id));
