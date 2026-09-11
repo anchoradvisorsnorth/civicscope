@@ -65,7 +65,7 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.7.0-waterops';
+export const VER = '1.8.0-waterops';
 
 /* Where the Python generator lives, for the one server-to-server call this file makes to it: reading
    an uploaded workbook's cells at filing time (Codex finding 8). Same variable the Python side uses
