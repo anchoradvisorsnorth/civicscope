@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.2-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.3-oic
 
   v1.5.0 (2026-09-11, after the adversarial review) — Mark as filed sends bytes and what she
   typed; the server reads the workbook, checks it is this supply's report for this period, and
@@ -185,6 +185,9 @@
    office could call a dose out of family and the well house — the only place someone could still
    walk back and re-read the tank — had no opinion at all. */
 import { normalOf, outOfFamily, DOSE_OUT_OF_FAMILY, DOSE_NORMAL_MIN_SAMPLES } from '/civicscope-water/derive.js';
+/* The well-day editor's fields and request shape live in ONE file, driven through the real handler
+   by the write-path gate — the page's own inline copy never matched the API (R4-1, 2026-09-11). */
+import { readingFields, readingPayload } from '/civicscope-water/editor-payload.js';
 const API = '/api/water-ops';
 const WSSN = new URLSearchParams(location.search).get('wssn') || '01310';
 const $ = (id) => document.getElementById(id);
@@ -871,7 +874,7 @@ function paintRecords(mo, y, m, eps) {
          she will add it before running the report"*. So the gap itself carries the way to fill it. */
       body += `<tr><td class="l" style="color:#94a3b8">${d} ${dow}</td>`
             + `<td colspan="${3 + feeds.length * 3 + 3}" class="l" style="color:#cbd5e1">not recorded</td>`
-            + `<td>${ME ? `<button class="editbtn" data-edit="reading" data-date="${dayISO(y, m, d)}">Add</button>` : ''}</td></tr>`;
+            + `<td>${ME ? `<button class="editbtn" data-edit="reading" data-ep="${esc(ep.id)}" data-date="${dayISO(y, m, d)}">Add</button>` : ''}</td></tr>`;
       continue;
     }
     const odd = r.tap_free != null && r.tap_total != null && Number(r.tap_free) > Number(r.tap_total);
@@ -885,7 +888,7 @@ function paintRecords(mo, y, m, eps) {
     cells += `<td${odd ? ' style="color:#b91c1c;font-weight:700"' : ''}>${fmt(r.tap_free)}</td>`
            + `<td${odd ? ' style="color:#b91c1c;font-weight:700"' : ''}>${fmt(r.tap_total)}</td>`
            + `<td>${fmt(r.tap_ortho)}</td><td class="l">${esc(r.operator_initials || '')}</td>`
-           + `<td>${ME ? `<button class="editbtn" data-edit="reading" data-date="${r.reading_date}">Edit</button>` : ''}</td>`;
+           + `<td>${ME ? `<button class="editbtn" data-edit="reading" data-ep="${esc(ep.id)}" data-id="${esc(r.id)}" data-date="${r.reading_date}">Edit</button>` : ''}</td>`;
     body += `<tr>${cells}</tr>`;
   }
 
@@ -927,7 +930,8 @@ function wireEditors() {
     if (!b || !RECORDS_CTX) return;
     openEditor(b.getAttribute('data-edit'), b.getAttribute('data-date'),
       b.getAttribute('data-site') || '', RECORDS_CTX.mo, RECORDS_CTX.eps || [],
-      b.getAttribute('data-id') || null, b.getAttribute('data-kind') || null);
+      b.getAttribute('data-id') || null, b.getAttribute('data-kind') || null,
+      b.getAttribute('data-ep') || null);
   });
 }
 
@@ -979,22 +983,12 @@ function editorFields(kind, row, eps) {
       { k: "lab_name", label: "Lab", v: row ? row.lab_name : "", wide: true, text: true },
     ];
   }
-  // a well-day: the meter, each feed tank, and the plant tap
-  const out = [{ k: "meter_reading", label: "Meter", v: row ? row.meter_reading : "" }];
-  for (const ep of eps) {
-    for (const fd of (ep.feeds || [])) {
-      const fr = row ? ((row.feeds || []).find((x) => x.feed_id === fd.id) || {}) : {};
-      out.push({ k: `feed:${fd.id}:tank_level`, label: `${fd.product_name || fd.kind} tank`, v: fr.tank_level });
-      out.push({ k: `feed:${fd.id}:refill_to`, label: `${fd.product_name || fd.kind} refill to`, v: fr.refill_to });
-    }
-  }
-  out.push({ k: "free_cl", label: "Tap free", v: row ? row.tap_free : "" });
-  out.push({ k: "total_cl", label: "Tap total", v: row ? row.tap_total : "" });
-  out.push({ k: "ortho", label: "Tap PO4", v: row ? row.tap_ortho : "" });
-  return out;
+  // a well-day: the meter, each feed tank (or direct usage), the plant tap, pressure and temp —
+  // the one field list the write-path gate also builds (editor-payload.js)
+  return readingFields(eps[0] || null, row);
 }
 
-function openEditor(kind, date, site, mo, eps, id, sampleKind) {
+function openEditor(kind, date, site, mo, eps, id, sampleKind, epId) {
   const host = $("records");
   const old = document.getElementById("editor");
   if (old) old.remove();
@@ -1006,10 +1000,12 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind) {
   let row = null;
   let ep = null;
   if (kind === "reading") {
-    // One entry point per edit. A plant with several wells edits the one whose row was clicked;
-    // with a single entry point there is nothing to choose.
-    ep = eps[0] || null;
-    row = (mo.readings || []).find((r) => r.reading_date === date && (!ep || r.entry_point_id === ep.id)) || null;
+    /* ⛔ THE WELL CLICKED IS THE WELL EDITED (R4-1). This took `eps[0]` — the first well — whatever
+       the records table was showing, so editing a Well 3 day opened and wrote Well 1's. The button
+       carries the entry point the table was painted for. */
+    ep = (epId && eps.find((e) => e.id === epId)) || eps[0] || null;
+    row = (id && (mo.readings || []).find((r) => r.id === id))
+       || (mo.readings || []).find((r) => r.reading_date === date && (!ep || r.entry_point_id === ep.id)) || null;
   } else if (kind === "dist") {
     row = (id && (mo.dist || []).find((x) => x.id === id))
        || (mo.dist || []).find((x) => x.sample_date === date && (x.site_name || "") === (site || "")) || null;
@@ -1063,19 +1059,8 @@ async function saveEditor(el) {
   const wssn = new URLSearchParams(location.search).get("wssn") || WSSN;
   let payload;
   if (EDITING.kind === "reading") {
-    const feeds = [];
-    const input = {};
-    for (const [k, v] of Object.entries(vals)) {
-      if (!k.startsWith("feed:")) { input[k] = v == null ? null : Number(v); continue; }
-      const [, id, which] = k.split(":");
-      let fd = feeds.find((x) => x.feed_id === id);
-      if (!fd) { fd = { feed_id: id }; feeds.push(fd); }
-      fd[which] = v == null ? null : Number(v);
-    }
-    input.feeds = feeds;
-    payload = { action: "submit_reading", wssn, reading_date: EDITING.date,
-      entry_point_id: EDITING.ep ? EDITING.ep.id : undefined, input,
-      source: "backfill", correction_reason: why || null };
+    // the ONE request shape, shared with the write-path gate (R4-1)
+    payload = readingPayload({ wssn, date: EDITING.date, ep: EDITING.ep, vals, why, source: "backfill" });
   } else if (EDITING.kind === "dist") {
     payload = { action: "submit_dist", wssn, sample_date: EDITING.date,
       site_name: vals.site_name,
