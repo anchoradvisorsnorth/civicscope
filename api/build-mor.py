@@ -625,6 +625,10 @@ def _extract_cover(bk):
         submitted = _as_date(sd, 1, 1, bk.datemode) if re.search(r'\d{4}', sd) else None
         if not submitted:
             unreadable = sd.strip()
+    elif sd not in ('', None) and not isinstance(sd, bool):
+        # a number that is not a date serial — an accidental 42, an out-of-range value (R3-7):
+        # non-empty and unreadable, never "blank"
+        unreadable = str(sd)
 
     comments = ' '.join(x for x in (text('comment_left'), text('comment_right')) if x) or None
     year_cell = _num(raw.get('year_cell'))

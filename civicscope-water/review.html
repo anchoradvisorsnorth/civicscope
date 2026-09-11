@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.1-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.2-oic
 
   v1.5.0 (2026-09-11, after the adversarial review) — Mark as filed sends bytes and what she
   typed; the server reads the workbook, checks it is this supply's report for this period, and
@@ -894,13 +894,13 @@ function paintRecords(mo, y, m, eps) {
       <thead><tr><th class="l">Distribution sample</th><th class="l">Site</th><th>Free</th><th>Total</th><th>PO₄</th><th class="l">By</th><th></th></tr></thead><tbody>
       ${dist.map((s) => `<tr><td class="l">${esc(s.sample_date)}</td><td class="l">${esc(s.site_name || '')}</td>
         <td>${fmt(s.free)}</td><td>${fmt(s.total)}</td><td>${fmt(s.ortho)}</td><td class="l">${esc(s.operator_initials || '')}</td>
-        <td>${ME ? `<button class="editbtn" data-edit="dist" data-date="${s.sample_date}" data-site="${esc(s.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
+        <td>${ME ? `<button class="editbtn" data-edit="dist" data-id="${esc(s.id)}" data-date="${s.sample_date}" data-site="${esc(s.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div>` : '';
   const bactiTable = bacti.length ? `<div class="card scroll" style="margin-top:12px"><table>
       <thead><tr><th class="l">Bacti sample</th><th class="l">Site</th><th class="l">Result</th><th>Free</th><th>Total</th><th></th></tr></thead><tbody>
       ${bacti.map((b) => `<tr><td class="l">${esc(b.collected_date)}</td><td class="l">${esc(b.site_name || '')}</td>
         <td class="l">${esc(b.result || '')}</td><td>${fmt(b.free)}</td><td>${fmt(b.total)}</td>
-        <td>${ME ? `<button class="editbtn" data-edit="bacti" data-date="${b.collected_date}" data-site="${esc(b.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
+        <td>${ME ? `<button class="editbtn" data-edit="bacti" data-id="${esc(b.id)}" data-kind="${esc(b.sample_kind || 'routine')}" data-date="${b.collected_date}" data-site="${esc(b.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div>` : '';
 
   $('records').innerHTML = `<div class="card scroll"><table>
@@ -926,7 +926,8 @@ function wireEditors() {
     const b = ev.target.closest('[data-edit]');
     if (!b || !RECORDS_CTX) return;
     openEditor(b.getAttribute('data-edit'), b.getAttribute('data-date'),
-      b.getAttribute('data-site') || '', RECORDS_CTX.mo, RECORDS_CTX.eps || []);
+      b.getAttribute('data-site') || '', RECORDS_CTX.mo, RECORDS_CTX.eps || [],
+      b.getAttribute('data-id') || null, b.getAttribute('data-kind') || null);
   });
 }
 
@@ -993,11 +994,15 @@ function editorFields(kind, row, eps) {
   return out;
 }
 
-function openEditor(kind, date, site, mo, eps) {
+function openEditor(kind, date, site, mo, eps, id, sampleKind) {
   const host = $("records");
   const old = document.getElementById("editor");
   if (old) old.remove();
 
+  /* ⛔ THE ROW CLICKED IS THE ROW EDITED (R3-2). Selecting by site and date found the FIRST match,
+     and since a routine and a repeat can now share a site and a day, editing the repeat could open
+     the routine — and the save, which named no kind, would create or overwrite a routine sample.
+     The button carries the sample's id and kind; both travel to the server. */
   let row = null;
   let ep = null;
   if (kind === "reading") {
@@ -1006,9 +1011,12 @@ function openEditor(kind, date, site, mo, eps) {
     ep = eps[0] || null;
     row = (mo.readings || []).find((r) => r.reading_date === date && (!ep || r.entry_point_id === ep.id)) || null;
   } else if (kind === "dist") {
-    row = (mo.dist || []).find((x) => x.sample_date === date && (x.site_name || "") === (site || "")) || null;
+    row = (id && (mo.dist || []).find((x) => x.id === id))
+       || (mo.dist || []).find((x) => x.sample_date === date && (x.site_name || "") === (site || "")) || null;
   } else {
-    row = (mo.bacti || []).find((x) => x.collected_date === date && (x.site_name || "") === (site || "")) || null;
+    row = (id && (mo.bacti || []).find((x) => x.id === id))
+       || (mo.bacti || []).find((x) => x.collected_date === date && (x.site_name || "") === (site || "")
+                                    && (x.sample_kind || 'routine') === (sampleKind || 'routine')) || null;
   }
 
   const fields = editorFields(kind, row, kind === "reading" && ep ? [ep] : eps);
@@ -1028,7 +1036,7 @@ function openEditor(kind, date, site, mo, eps) {
     + `<button class="editbtn" id="edCancel">Cancel</button>`
     + `<span class="msg" id="edMsg"></span></div>`;
   host.prepend(el);
-  EDITING = { kind, date, site, row, ep };
+  EDITING = { kind, date, site, row, ep, sampleKind: sampleKind || (row && row.sample_kind) || null };
   document.getElementById("edCancel").onclick = () => { el.remove(); EDITING = null; };
   document.getElementById("edSave").onclick = () => saveEditor(el);
   el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1074,12 +1082,17 @@ async function saveEditor(el) {
       input: { free: vals.free == null ? null : Number(vals.free),
                total: vals.total == null ? null : Number(vals.total),
                ortho: vals.ortho == null ? null : Number(vals.ortho) },
+      // the exact live row this replaces — the server refuses if it is no longer that row (R3-2)
+      corrects_id: EDITING.row ? EDITING.row.id : undefined,
       correction_reason: why || null };
   } else {
     // free/total live under `input` for this action — the server validates them there, and a
     // top-level `free` reads as absent, which it refuses with "needs the free chlorine residual".
     payload = { action: "submit_bacti", wssn, collected_date: EDITING.date,
       site_name: vals.site_name, result: vals.result, lab_name: vals.lab_name,
+      // the kind is part of the sample's identity: routine and repeat are two rows on one day (R3-2)
+      sample_kind: EDITING.sampleKind || 'routine',
+      corrects_id: EDITING.row ? EDITING.row.id : undefined,
       input: { free: vals.free == null ? null : Number(vals.free),
                total: vals.total == null ? null : Number(vals.total) },
       correction_reason: why || null };

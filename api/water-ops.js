@@ -65,7 +65,7 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.8.0-waterops';
+export const VER = '1.9.0-waterops';
 
 /* Where the Python generator lives, for the one server-to-server call this file makes to it: reading
    an uploaded workbook's cells at filing time (Codex finding 8). Same variable the Python side uses
@@ -253,11 +253,14 @@ const contextFor = (supply, normals) => ({
 */
 async function planSuccessorChain(supply, ep, afterDate, newRow, newFeeds, prevBefore) {
   const CHAIN_MAX = 40;
-  const chain = await sb(
+  // one more than the cap, so "the data ends here" and "there is more we did not read" are distinguishable
+  const fetched = await sb(
     `water_readings?entry_point_id=eq.${ep.id}&reading_date=gt.${afterDate}&superseded_at=is.null`
-      + `&select=*&order=reading_date.asc&limit=${CHAIN_MAX}`
+      + `&select=*&order=reading_date.asc&limit=${CHAIN_MAX + 1}`
   );
-  if (!chain || !chain.length) return { ok: true, plans: [] };
+  if (!fetched || !fetched.length) return { ok: true, plans: [] };
+  const truncated = fetched.length > CHAIN_MAX;
+  const chain = fetched.slice(0, CHAIN_MAX);
   const fr = await sb(`water_feed_readings?reading_id=in.(${chain.map((r) => r.id).join(',')})&select=*`);
   const feedsOf = {};
   for (const f of fr || []) (feedsOf[f.reading_id] ||= []).push(f);
@@ -276,7 +279,10 @@ async function planSuccessorChain(supply, ep, afterDate, newRow, newFeeds, prevB
     virt.feeds[feed.id] = known(nf)
       ? { tank_level: nf.tank_level, refill_to: nf.refill_to }
       : (older ? { tank_level: older.tank_level, refill_to: older.refill_to, unknown: older.unknown } : { tank_level: null, refill_to: null, unknown: true });
-    pending.add(feed.id);
+    /* Only a TANK-TRACKED feed has a baseline to re-anchor. A direct-usage feed (`tank_tracked:
+       false`) records its pounds per visit and depends on nothing earlier — it must never keep the
+       chain open, nor be asked for a tank level it does not have (R3-4). */
+    if (feed.tank_tracked !== false) pending.add(feed.id);
   }
 
   const plans = [];
@@ -291,9 +297,12 @@ async function planSuccessorChain(supply, ep, afterDate, newRow, newFeeds, prevB
     }
     if (!pending.size) break;
   }
-  if (pending.size && chain.length >= CHAIN_MAX) {
+  /* Pending feeds at the END of the data are fine — there is nothing later to recompute, and the
+     write version (076) rejects any tail appended while this was planned. Pending feeds at the
+     CAP are not: visits beyond it were not read and would be left stale. */
+  if (pending.size && truncated) {
     return { ok: false, blocked: { date: chain[chain.length - 1].reading_date, ok: false,
-      errors: [{ msg: `more than ${CHAIN_MAX} later visits depend on this one's tank levels; record a tank level on a later visit first` }] } };
+      errors: [{ msg: `more than ${CHAIN_MAX} later visits depend on this one's tank levels and could not all be recomputed in one write` }] } };
   }
   return { ok: true, plans };
 }
@@ -337,7 +346,8 @@ async function planOne(supply, ep, afterDate, full, feedRows, virtPrev) {
     tap_ortho: full.tap_ortho, tap_fluoride: full.tap_fluoride,
     pressure_psi: full.pressure_psi, temp_f: full.temp_f,
     feeds: Object.fromEntries(
-      (feedRows || []).map((x) => [x.feed_id, { tank_level: x.tank_level, refill_to: x.refill_to }])
+      // `solution_lbs` rides along for a direct-usage feed, which derive() reads instead of a tank drop (R3-4)
+      (feedRows || []).map((x) => [x.feed_id, { tank_level: x.tank_level, refill_to: x.refill_to, solution_lbs: x.solution_lbs }])
     ),
   };
   const prev = { meter_reading: virtPrev.meter_reading, feeds: { ...virtPrev.feeds } };
@@ -968,8 +978,16 @@ export default async function handler(req, res) {
            `stale_plan` if they are no longer the neighbours. One retry re-reads everything; a
            second stale answer is reported, never forced. */
         let attempt = 0;
+        let officeTried = false;
         while (true) {
         attempt++;
+        /* ⛔ THE VERSION IS READ FIRST (R3-1, Critical). Every write to this well through the
+           function bumps `write_version` under the well's lock; the function refuses a plan whose
+           version has moved. So anything committed to this well between this read and the commit —
+           a newer baseline slipped in, a tail appended — is stale_plan, whatever rows it touched.
+           Naming rows could not prove that; a version can. */
+        const [epv] = await sb(`water_entry_points?id=eq.${ep.id}&select=write_version`);
+        const version = epv && epv.write_version != null ? Number(epv.write_version) : 0;
         const prev = await previousReading(ep, date);
         const normals = await plantNormals(ep, date);
         const out = derive({
@@ -1063,12 +1081,22 @@ export default async function handler(req, res) {
               // rest under the supply lock, so a filing cannot land between the gate and the commit
               p_office: Boolean(codeOk || (actor && (actor.role === 'admin' || actor.water_wssn === wssn))),
               p_check_adjacency: true,
+              p_expected_version: version,
             }),
           });
         } catch (e) {
           const detail = String((e && e.message) || e);
-          if (/stale_plan/.test(detail) && attempt < 2) continue;   // re-read, re-derive, once
+          if (/stale_plan/.test(detail) && attempt < 3) continue;   // re-read, re-derive, twice
           if (/filed_period/.test(detail)) {
+            /* The gate above only resolves a session when the target or immediate successor month
+               is filed. A later visit in the chain can sit under a filing the gate never looked at
+               — and a signed-in OIC adding a missing day must not be told to sign in (R3-6). Resolve
+               the session now and, if it is enrolled for this supply, plan again as office. */
+            if (!actor && !officeTried) {
+              officeTried = true;
+              actor = await signedInUser(req);
+              if (actor && (actor.role === 'admin' || actor.water_wssn === wssn)) continue;
+            }
             return res.status(403).json({
               error: 'A month this write would change has been filed with EGLE since it was checked. Changing what sits behind a submitted report needs you to be signed in.',
               needsSignIn: !actor, saved: false, detail: detail.slice(0, 200),
@@ -1121,13 +1149,22 @@ export default async function handler(req, res) {
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'That site already has a sample on this date.' });
         }
+        /* A correction that names the row it replaces must find exactly that row live (R3-2): an
+           editor that clicked one sample must not silently supersede a different one. */
+        if (body.corrects_id && (!supersedes || supersedes.id !== body.corrects_id)) {
+          return res.status(409).json({ error: 'target_mismatch', msg: 'The sample you are correcting is no longer the live sample for that site and date. Reload and try again.' });
+        }
         /* ⛔ SUPERSEDE AND INSERT IN ONE TRANSACTION (Codex finding 7, migration 074). This was a
            PATCH, then an INSERT, then a compensating un-PATCH on error — and a lambda that dies
            between the first two leaves a superseded sample with nothing replacing it, which is a
-           deleted sample in a filed month. `water_replace_row` does both or neither. */
-        const row = await sb('rpc/water_replace_row', {
+           deleted sample in a filed month. `water_replace_row` does both or neither. Since 076 the
+           function also takes the supply lock and refuses a filed month unless `p_office` (R3-3). */
+        let row;
+        try {
+        row = await sb('rpc/water_replace_row', {
           method: 'POST',
           body: JSON.stringify({
+            p_office: Boolean(codeOk || (actor && (actor.role === 'admin' || actor.water_wssn === wssn))),
             p_table: 'water_dist_samples',
             p_old: supersedes ? supersedes.id : null,
             p_row: {
@@ -1148,6 +1185,13 @@ export default async function handler(req, res) {
             },
           }),
         });
+        } catch (e) {
+          const detail = String((e && e.message) || e);
+          if (/filed_period/.test(detail)) {
+            return res.status(403).json({ error: 'That month has been filed with EGLE since it was checked. Changing what sits behind a submitted report needs you to be signed in.', needsSignIn: !actor, saved: false });
+          }
+          throw e;
+        }
         return res.status(200).json({ ok: true, id: row && row.id, flags, ...(supersedes ? { corrected: supersedes.id } : {}) });
       }
 
@@ -1193,10 +1237,17 @@ export default async function handler(req, res) {
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'That site already has a bacti sample on this date. Send correction_reason to replace it.', id: supersedes.id });
         }
-        // Supersede + insert in one transaction — see submit_dist (Codex finding 7, migration 074).
-        const row = await sb('rpc/water_replace_row', {
+        if (body.corrects_id && (!supersedes || supersedes.id !== body.corrects_id)) {
+          return res.status(409).json({ error: 'target_mismatch', msg: 'The sample you are correcting is no longer the live sample for that site, date and kind. Reload and try again.' });
+        }
+        // Supersede + insert in one transaction — see submit_dist (Codex finding 7, migration 074;
+        // supply lock + filed-period refusal since 076).
+        let row;
+        try {
+        row = await sb('rpc/water_replace_row', {
           method: 'POST',
           body: JSON.stringify({
+            p_office: Boolean(codeOk || (actor && (actor.role === 'admin' || actor.water_wssn === wssn))),
             p_table: 'water_bacti_samples',
             p_old: supersedes ? supersedes.id : null,
             p_row: {
@@ -1217,6 +1268,13 @@ export default async function handler(req, res) {
             },
           }),
         });
+        } catch (e) {
+          const detail = String((e && e.message) || e);
+          if (/filed_period/.test(detail)) {
+            return res.status(403).json({ error: 'That month has been filed with EGLE since it was checked. Changing what sits behind a submitted report needs you to be signed in.', needsSignIn: !actor, saved: false });
+          }
+          throw e;
+        }
         return res.status(200).json({ ok: true, id: row && row.id, ...(supersedes ? { corrected: supersedes.id } : {}) });
       }
 
