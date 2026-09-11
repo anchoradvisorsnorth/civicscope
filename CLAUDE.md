@@ -52,7 +52,7 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 | **Village Hub** | **civicscope.io/:village** (live: `/centreville`) | **The village's own staff — one address for every product** | **v2.0.0-village** — Google sign-in gate |
 | **Ask &lt;Village&gt; (NEW 2026-08-18)** | **civicscope.io/:village/ask** (live: `/centreville/ask`) | **Village clerks + residents** | **v1.0.0-muni** ⏸ paused |
 | **Well Testing — crew tablet** | **app.civicscope.io/water** | **Water plant operators (no logins, by design)** | **v1.4.1-water** — plant-timezone date, offline boot on the saved profile (today's status only), one flush at a time (2026-09-11) |
-| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.5.2-oic** — every generation recorded + shown; **Mark as filed** with server-side workbook check + attestation; editor targets the exact sample (2026-09-11) |
+| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.5.3-oic** — every generation recorded + shown; **Mark as filed** with server-side workbook check + attestation; editor targets the exact sample and well, request shape in `editor-payload.js` (2026-09-11) |
 | QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
 | Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin (+ QA test harness) |
 | RYC Scheduler | app.civicscope.io/ryc/schedule | RYC crew | v1.0.0 |
@@ -1198,6 +1198,34 @@ supply; **R3-7** a non-serial numeric Cover date is unreadable, not blank. The c
 fetches one row past its cap so "the data ends here" and "there is more" are distinct: pending
 feeds at the end of the data are fine (the version guards the tail), pending feeds at the cap
 refuse. Write-path harness: **32 checks**.
+
+#### Round 4 (report `…-r4_2026-09-11.md`, FIX-FIRST, 2 High) — and the fixtures Codex named
+
+Round 4 confirmed all seven round-3 fixes (R3-5 partial) and left two Highs, both real:
+**R4-1** the office WELL-DAY editor — untouched by the sample-editor fix — always opened the first
+well, sent feeds as an array where `derive()` indexes an object by feed id, sent `free_cl` where
+the API reads `tap_free`, and dropped pressure / temperature / direct usage; a pumping edit was
+refused for "missing" levels that were filled in, an idle-day edit could SAVE and replace recorded
+observations with nulls. **R4-2** website deletion still trusted an inventory that could look
+complete and not be (a truncated 200 body; a child sitemap whose filename misses the pattern).
+
+**Fixed:** the editor's field list and request shape now live in **`civicscope-water/editor-payload.js`**
+(imported by the page AND driven through the real handler by the gate — the same discipline as
+`derive.js`), the reading buttons carry the entry point the table was painted for and the row id,
+and the payload carries every observation the form showed. Website removal is now **positive
+evidence only** — the page's own URL answered 404; absence never removes a page until discovery
+can prove structural completeness (`DISCOVERY_COMPLETE` is reported, not acted on).
+
+**The fixtures Codex asked for, all in `verify-water-write-path.mjs` (now 52 checks):** the
+editor's own payload for Well 3, built from the fields it lays out, driven through the handler —
+right well, right row, usage derived against the previous visit, pressure/temp/tap preserved,
+office-authorised; **a `stale_plan` re-plan** where the stub moves the version and adds a
+successor between attempts and the second RPC must carry the new version and the new, freshly
+derived successor; **three conflicts → 409 `saved:false`** after exactly three attempts; and
+**`filed_period`** both ways — anonymous → 403 `needsSignIn` after one attempt, signed-and-enrolled
+→ re-planned with `p_office:true` and accepted. The stub is stateful (`rpcSequence` may mutate the
+served rows), serves prior rows for the baseline, and mints a real signed session cookie against
+a throwaway secret.
 
 **`GET /api/build-mor` is a selftest, and it is the route's API contract.** It proves the Python
 runtime, all four libraries, and that the stored template is present and decryptable, while
