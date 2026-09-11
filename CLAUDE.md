@@ -2509,10 +2509,10 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    bot on Centreville's question box is a way to take down CivicScope, CRM and the RYC tooling at
    once. Needs a tenant-aware limit plus a bounded daily budget and a resident-friendly retry
    message. ⚠ A hidden URL and a browser sign-in are not API protection — the route is open.
-3a. 🚩 **Well 3, 2026-04-13 holds no chlorine usage on a day it pumped 32,000 gal** — the blank-tank
-   baseline defect (Codex finding 4, fixed in `1.7.0-waterops`) left this one row, in a FILED
-   month. Re-submitting the day with its same inputs and a `correction_reason` now derives it
-   from 4/11's level. **KEITH DECISION** — it amends the source record behind April's filing.
+3a. ✅ **DECIDED 2026-09-11 — Well 3, 2026-04-13 stays as recorded.** Keith: *"Don't worry about
+   fixing 4/13."* The row (32,000 gal pumped, chlorine usage null — the blank-tank baseline
+   defect, fixed in `1.7.0-waterops`) is left in the filed April record; the filed-vs-held panel
+   names the gap and that is the record of it. Not a Keith action any more.
 3b. **Five review items left open by decision after five rounds (2026-09-11) — PARKED, each with
    its trigger:** the ≥3-strict-rows retrieval sufficiency rule can exclude an answer-bearing
    table that abbreviates a term (needs a distractor fixture before changing a threshold that
@@ -2522,7 +2522,8 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    it runs (needs a staged/versioned publish — trigger: the next multi-document re-ingest); the
    reminder cannot reconcile a delivery the provider accepted but the run never recorded past
    Resend's idempotency window (trigger: a second supply on the reminder); and the Well 3
-   2026-04-13 data correction (item 3a). Detail: *THE ADVERSARIAL REVIEW* section above.
+   2026-04-13 row, which Keith decided to leave as recorded (item 3a). Detail: *THE ADVERSARIAL
+   REVIEW* section above.
 4. ✅ **"Mark as filed" is BUILT, and every generation is recorded (2026-09-11).** Was: half built —
    `record_filing` worked and nothing on the page reached it, and generating left no trace at all.
    Now `api/build-mor.py` records every fill server-side (`water_mor_generations`, migration 073,
