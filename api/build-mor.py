@@ -36,17 +36,43 @@ under `water_supplies.mor_template`, together with the formula map extracted fro
 A supply on a Class C form, or in another state, is a new key in that bucket and a column value —
 never a branch in this file.
 
-READ-ONLY BY CONSTRUCTION. It reads a month through the API's own ungated `month` action and the
-template out of storage. It writes nothing, stores nothing and sends nothing. Generating a report
-is not filing one: what Michelle sends to EGLE is this file after she has added her Cover comments
-and signed it, and recording THAT is `record_filing` in api/water-ops.js, which takes the bytes she
-actually sent rather than the bytes we guessed she would.
+IT READS THE MONTH THROUGH THE API, NEVER POSTGRES. The month comes through the API's own ungated
+`month` action and the template out of storage. Generating a report is not filing one: what
+Michelle sends to EGLE is this file after she has added her Cover comments and signed it, and
+recording THAT is `record_filing` in api/water-ops.js, which takes the bytes she actually sent
+rather than the bytes we guessed she would.
+
+⛔ BUT EVERY GENERATION IS NOW RECORDED (2026-09-11). Until today this route handed over the file
+and remembered nothing — no row, no bytes, no time, no name. Keith, with the August reminder sent,
+the 10th gone by and no way to tell whether the OIC had ever pressed the button: *"If generated
+wouldn't the report show at the bottom of the page. Otherwise, we need to tighten this up."* The
+Vercel runtime log keeps about a day, so the product could not answer its own most basic question
+about its own most important action. Now, after the fill, this route posts the bytes, the stats
+and what the workbook says to `record_generation` on api/water-ops.js — authenticated with the
+supply's ops code, carrying the browser's session cookie forward so the row names the signed-in
+person when there is one. Recording is done here, server-side, and not by the page, so a script
+or a curl that generates a month leaves the same trace the button does. If recording fails the
+file is still handed over — refusing the OIC her report on the 9th because an audit write failed
+would be the wrong failure — but the stats header says `recorded: false` and why, and the page
+shows that.
+
+THE EXTRACTOR LIVES HERE TOO (moved from scripts/extract-mor.py, 2026-09-11). `extract` reads a
+workbook back into structured data — the Cover tab (who signed, when it went, comments), the
+pumpage, the entry-point tabs, the samples. It is the fill map read backwards, and it is used for
+two things: what a generated workbook SAYS is stored with the generation, and what the OIC
+actually SENT is read out of the file she uploads when she marks a month as filed. One cell map,
+one file, both directions — a second copy in a script on a laptop is how a filing recorded from
+the wrong cells goes unnoticed.
 """
 
+import base64
+import datetime
 import io
 import json
 import os
+import re
 import tempfile
+import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler
 
@@ -110,6 +136,31 @@ SB_URL = (os.environ.get('SUPABASE_URL') or '').rstrip('/')
 SB_KEY = os.environ.get('SUPABASE_SERVICE_KEY') or ''
 DATA_ORIGIN = (os.environ.get('MOR_DATA_ORIGIN') or 'https://app.civicscope.io').rstrip('/')
 TEMPLATE_BUCKET = 'water-mor-templates'
+# The supply access code. Held by no person at the village (Keith, 2026-08-21) — it is the
+# credential a SERVER presents to another server, which is exactly what recording a generation is.
+OPS_CODE = os.environ.get('WATER_OPS_CODE') or ''
+# An uploaded workbook larger than this is not an EGLE MOR (the seven on record are 260–335 KB).
+MAX_UPLOAD_BYTES = 3 * 1024 * 1024
+
+# --- the fill map, read BACKWARDS (was scripts/extract-mor.py) ----------------------------------
+X_PUMPAGE_ROW0 = 7                                    # Excel 8..38 -> 0-based 7..37, one row per day
+X_PUMPAGE_WELL_COL = {1: 1, 2: 2, 3: 3, 4: 4}         # Well N lives in column N
+X_EP_ROW0 = 8                                         # Excel 9..39 -> 0-based 8..38
+X_EP_COLS = {'mg': 1, 'cl_lbs': 3, 'free': 6, 'total': 7, 'po4_lbs': 8, 'ortho': 12}
+X_DIST_ROW0, X_DIST_ROW1 = 6, 37
+X_DIST_COLS = {'date': 1, 'free': 2, 'total': 3, 'ortho': 4}
+X_BACTI_ROW0, X_BACTI_ROW1 = 11, 31                   # routine samples
+X_BACTI_COLS = {'location': 1, 'date': 9, 'result': 10, 'free': 11, 'total': 12}
+# The Cover tab is the only place the SUBMISSION itself is recorded — every other tab is data.
+# Verified stable across all seven of Centreville's 2026 submittals (48-row Cover, identical map).
+X_COVER_CELLS = {
+    'supply_name': (8, 1), 'wssn': (8, 6),
+    'oic_name': (11, 1), 'classification': (11, 4), 'month_label': (11, 6),
+    'oic_cert': (14, 1), 'county': (14, 4), 'year_cell': (14, 6),
+    'comment_left': (20, 1), 'comment_right': (20, 4),
+    'signed_by': (34, 1), 'submitted_date': (38, 6),
+    'submitted_to': (42, 4),
+}
 
 
 class Refuse(Exception):
@@ -421,7 +472,257 @@ def selftest():
     return out
 
 
-def generate(body):
+# ---------------------------------------------------------------------------------------------
+# reading a workbook BACK — the fill map in the other direction
+# ---------------------------------------------------------------------------------------------
+def _num(v):
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return float(v)
+    if isinstance(v, str):
+        s = v.strip().replace(',', '')
+        if re.fullmatch(r'-?\d+(\.\d+)?', s):
+            return float(s)
+    return None
+
+
+def _as_date(v, year, month, datemode):
+    """A date cell here is one of two things and the workbook does not say which: a real Excel
+    serial (the first sample of the month, typed as a date) or a bare day-of-month (every one
+    after it, typed as a number). Guessing wrong silently moves a sample by decades, so the two
+    are separated by magnitude and the day-of-month case is validated against the month."""
+    n = _num(v)
+    if n is None:
+        return None
+    if n > 1000:
+        y, m, d = xlrd.xldate_as_tuple(n, datemode)[:3]
+        return f'{y:04d}-{m:02d}-{d:02d}'
+    d = int(n)
+    if not 1 <= d <= 31:
+        return None
+    try:
+        return datetime.date(year, month, d).isoformat()
+    except ValueError:
+        return None                      # a "31" on a 30-day month — report nothing, not a lie
+
+
+def _extract_cover(bk):
+    """The Cover tab: who certified this under 1976 PA 399, when it went, and the comments to EGLE.
+    `submitted_date` is legitimately blank sometimes — Centreville's January 2026 went out with the
+    cell unfilled. An absent date is reported as None and never guessed."""
+    if 'Cover' not in bk.sheet_names():
+        return {}
+    sh = bk.sheet_by_name('Cover')
+    raw = {}
+    for key, (r, c) in X_COVER_CELLS.items():
+        raw[key] = sh.cell_value(r, c) if r < sh.nrows and c < sh.ncols else ''
+
+    def text(k):
+        v = raw.get(k)
+        if v is None or isinstance(v, float):
+            return None if v is None else (str(int(v)) if float(v).is_integer() else str(v))
+        s = str(v).strip()
+        return s or None
+
+    submitted = None
+    n = _num(raw.get('submitted_date'))
+    if n and n > 1000:
+        y, m, d = xlrd.xldate_as_tuple(n, bk.datemode)[:3]
+        submitted = f'{y:04d}-{m:02d}-{d:02d}'
+
+    comments = ' '.join(x for x in (text('comment_left'), text('comment_right')) if x) or None
+    return {
+        'supply_name': text('supply_name'), 'wssn': text('wssn'),
+        'oic_name': text('oic_name'), 'oic_cert': text('oic_cert'),
+        'classification': text('classification'), 'county': text('county'),
+        'month_label': text('month_label'),
+        'signed_by': text('signed_by') or text('oic_name'),
+        'submitted_date': submitted, 'submitted_to': text('submitted_to'),
+        'comments': comments,
+    }
+
+
+def extract_workbook(raw, year, month):
+    """Read an EGLE MOR (bytes) back into the structure `water_mor_filings.filed` stores.
+
+    The workbook may or may not still carry Excel's default encryption — a copy re-saved by the
+    OIC usually does not — so decrypt() tries both, exactly as it does for the template."""
+    plain = decrypt(raw)
+    try:
+        bk = xlrd.open_workbook(file_contents=plain)
+    except Exception as e:
+        raise Refuse(400, f'that file is not a readable Excel 97-2003 workbook ({type(e).__name__})')
+    dm = bk.datemode
+    for need in ('Pumpage', 'Distribution'):
+        if need not in bk.sheet_names():
+            raise Refuse(400, f'that workbook has no {need} sheet — it is not an EGLE MOR')
+
+    out = {'year': year, 'month': month, 'cover': _extract_cover(bk),
+           'pumpage': {}, 'entry_points': {}, 'distribution': [], 'bacti': [], 'notes': []}
+
+    # The caller said one month; the Cover says another. Trust neither silently — a filing
+    # recorded against the wrong month is worse than one that refused to load.
+    cover_month = (out['cover'] or {}).get('month_label')
+    if cover_month:
+        cm = next((i for i, nm in enumerate(MONTHS)
+                   if nm and nm.lower().startswith(str(cover_month).strip().lower()[:3])), None)
+        if cm and cm != month:
+            out['notes'].append(f'this is recorded as {MONTHS[month]} but the Cover tab says {cover_month!r}')
+
+    sh = bk.sheet_by_name('Pumpage')
+    for i in range(31):
+        r = X_PUMPAGE_ROW0 + i
+        if r >= sh.nrows:
+            break
+        day = _num(sh.cell_value(r, 0))
+        if not day:
+            continue
+        per_well = {}
+        for well, col in X_PUMPAGE_WELL_COL.items():
+            v = _num(sh.cell_value(r, col)) if col < sh.ncols else None
+            if v is not None:
+                per_well[str(well)] = v
+        if per_well:
+            out['pumpage'][str(int(day))] = per_well
+
+    for name in [s for s in bk.sheet_names() if s.startswith('EntryPoint')]:
+        sh = bk.sheet_by_name(name)
+        days = {}
+        for i in range(31):
+            r = X_EP_ROW0 + i
+            if r >= sh.nrows:
+                break
+            day = _num(sh.cell_value(r, 0))
+            if not day:
+                continue
+            rec = {}
+            for k, c in X_EP_COLS.items():
+                if c < sh.ncols:
+                    v = _num(sh.cell_value(r, c))
+                    if v is not None:
+                        rec[k] = v
+            if rec:
+                days[str(int(day))] = rec
+        if days:
+            out['entry_points'][name] = days
+
+    sh = bk.sheet_by_name('Distribution')
+    for r in range(X_DIST_ROW0, min(X_DIST_ROW1, sh.nrows)):
+        d = _as_date(sh.cell_value(r, X_DIST_COLS['date']), year, month, dm)
+        if not d:
+            continue
+        rec = {'date': d}
+        for k in ('free', 'total', 'ortho'):
+            v = _num(sh.cell_value(r, X_DIST_COLS[k]))
+            if v is not None:
+                rec[k] = v
+        if len(rec) > 1:
+            out['distribution'].append(rec)
+
+    # Bacti: the record that exists NOWHERE ELSE — not on the Well and Pump Record, absent from
+    # July's paper packet entirely. For every other month the workbook is the only copy.
+    if BACTI_SHEET in bk.sheet_names():
+        sh = bk.sheet_by_name(BACTI_SHEET)
+        out['bacti_required'] = _num(sh.cell_value(3, 0)) if sh.nrows > 3 else None
+        out['bacti_taken_stated'] = _num(sh.cell_value(4, 0)) if sh.nrows > 4 else None
+        out['lab_name'] = (str(sh.cell_value(1, 7)).strip() or None) if sh.nrows > 1 and sh.ncols > 7 else None
+        for r in range(X_BACTI_ROW0, min(X_BACTI_ROW1, sh.nrows)):
+            loc = str(sh.cell_value(r, X_BACTI_COLS['location'])).strip()
+            d = _as_date(sh.cell_value(r, X_BACTI_COLS['date']), year, month, dm)
+            if not loc or not d:
+                continue
+            rec = {'location': loc, 'date': d,
+                   'result': str(sh.cell_value(r, X_BACTI_COLS['result'])).strip() or None}
+            for k in ('free', 'total'):
+                v = _num(sh.cell_value(r, X_BACTI_COLS[k]))
+                if v is not None:
+                    rec[k] = v
+            out['bacti'].append(rec)
+
+    # Which EntryPoint is which well? ASSERTED, never assumed: the tabs are numbered 1..3 and
+    # Centreville's wells are 1, 3 and 4, so the obvious mapping is wrong by construction.
+    out['entry_point_wells'] = {}
+    for name, days in out['entry_points'].items():
+        scores = {}
+        for well in X_PUMPAGE_WELL_COL:
+            hits = tot = 0
+            for day, rec in days.items():
+                mg = rec.get('mg')
+                pw = out['pumpage'].get(day, {}).get(str(well))
+                if mg is None or pw is None:
+                    continue
+                tot += 1
+                if abs(mg - pw) < 1e-9:
+                    hits += 1
+            if tot:
+                scores[well] = (hits / tot, tot)
+        best = max(scores.items(), key=lambda kv: (kv[1][0], kv[1][1]), default=(None, (0, 0)))
+        if best[0] is not None and best[1][0] >= 0.9:
+            out['entry_point_wells'][name] = best[0]
+        else:
+            out['entry_point_wells'][name] = None
+            out['notes'].append(f'{name}: could not tie to a well from its pumpage ({scores})')
+    return out
+
+
+def extract(body):
+    b64 = body.get('workbook_b64')
+    if not b64:
+        raise Refuse(400, 'workbook_b64 required')
+    try:
+        raw = base64.b64decode(str(b64), validate=True)
+    except Exception:
+        raise Refuse(400, 'workbook_b64 is not valid base64')
+    if not raw:
+        raise Refuse(400, 'workbook_b64 decoded to nothing')
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise Refuse(413, f'that file is {len(raw):,d} bytes; an EGLE MOR is a few hundred KB')
+    try:
+        year, month = int(body.get('year')), int(body.get('month'))
+    except (TypeError, ValueError):
+        raise Refuse(400, 'year and month required')
+    if not (2000 < year < 2100 and 1 <= month <= 12):
+        raise Refuse(400, 'year/month out of range')
+    return extract_workbook(raw, year, month)
+
+
+# ---------------------------------------------------------------------------------------------
+# recording that a workbook was handed over
+# ---------------------------------------------------------------------------------------------
+def record_generation(wssn, year, month, xls, name, stats, filed, cookie):
+    """Tell api/water-ops.js this workbook left the building. Server-to-server, with the ops code;
+    the browser's cookie is forwarded so the row can name the signed-in person. Never raises —
+    the caller decides what to do with a failed record, and the answer is "hand over the file
+    anyway and say so"."""
+    if not OPS_CODE:
+        return {'recorded': False, 'why': 'WATER_OPS_CODE is not configured on this deployment'}
+    payload = json.dumps({
+        'action': 'record_generation', 'wssn': wssn, 'year': year, 'month': month,
+        'code': OPS_CODE, 'origin': 'review' if cookie is not None else 'script',
+        'workbook_b64': base64.b64encode(xls).decode('ascii'),
+        'workbook_name': name, 'stats': stats, 'filed': filed,
+    }).encode()
+    headers = {'Content-Type': 'application/json'}
+    if cookie:
+        headers['Cookie'] = cookie
+    try:
+        req = urllib.request.Request(f'{DATA_ORIGIN}/api/water-ops', data=payload, headers=headers)
+        with urllib.request.urlopen(req, timeout=25) as r:
+            j = json.load(r)
+        if not j.get('ok'):
+            return {'recorded': False, 'why': str(j)[:200]}
+        return {'recorded': True, 'generation_id': j.get('id'), 'generated_by': j.get('generated_by')}
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode('utf-8', 'replace')[:200]
+        try:
+            detail = json.loads(detail).get('error', detail)
+        except Exception:
+            pass
+        return {'recorded': False, 'why': f'{e.code}: {detail}'}
+    except Exception as e:
+        return {'recorded': False, 'why': f'{type(e).__name__}: {e}'[:200]}
+
+
+def generate(body, cookie=None):
     wssn = str(body.get('wssn') or '').strip()
     year, month = body.get('year'), body.get('month')
     if not wssn:
@@ -442,6 +743,15 @@ def generate(body):
     raw, formulas, _ = fetch_template(supply.get('mor_template') or 'egle-class-d')
     xls, stats = build(data, raw, formulas)
     name = f'{supply["name"]} MOR - {MONTHS[month]} {year}.xls'
+
+    # What the workbook SAYS, read back through the same extractor an uploaded one goes through.
+    # Stored with the generation so a filing can be recorded from it without a re-upload. A read
+    # failure here is reported, not fatal: the file itself is what she is waiting for.
+    try:
+        filed = extract_workbook(xls, year, month)
+    except Exception as e:
+        filed = {'error': f'{type(e).__name__}: {e}'[:200]}
+    stats.update(record_generation(wssn, year, month, xls, name, stats, filed, cookie))
     return xls, name, stats
 
 
@@ -471,9 +781,14 @@ class handler(BaseHTTPRequestHandler):
             action = body.get('action') or 'generate'
             if action == 'selftest':
                 return self._send(200, selftest())
+            if action == 'extract':
+                return self._send(200, extract(body))
             if action != 'generate':
                 raise Refuse(400, f'unknown action: {action}')
-            xls, name, stats = generate(body)
+            # The browser's session cookie rides along so the generation is attributed to the
+            # signed-in person. None (not '') when no Cookie header came at all — that is how a
+            # script's call is told apart from a browser with nobody signed in.
+            xls, name, stats = generate(body, cookie=self.headers.get('Cookie'))
             # The stats ride in headers so the browser can report what it built without a second
             # request, while the body stays the workbook itself.
             self._send(200, xls, 'application/vnd.ms-excel', {
