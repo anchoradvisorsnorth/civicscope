@@ -51,8 +51,8 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 | ~~GC Internal~~ | ~~/gc/:slug-internal~~ | — | **REMOVED 2026-08-26** (same) |
 | **Village Hub** | **civicscope.io/:village** (live: `/centreville`) | **The village's own staff — one address for every product** | **v2.0.0-village** — Google sign-in gate |
 | **Ask &lt;Village&gt; (NEW 2026-08-18)** | **civicscope.io/:village/ask** (live: `/centreville/ask`) | **Village clerks + residents** | **v1.0.0-muni** ⏸ paused |
-| **Well Testing — crew tablet** | **app.civicscope.io/water** | **Water plant operators (no logins, by design)** | **v1.4.0-water** — plant-timezone date, offline boot on the saved profile, one flush at a time (2026-09-11) |
-| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.5.0-oic** — every generation recorded + shown; **Mark as filed** with server-side workbook check + attestation (2026-09-11) |
+| **Well Testing — crew tablet** | **app.civicscope.io/water** | **Water plant operators (no logins, by design)** | **v1.4.1-water** — plant-timezone date, offline boot on the saved profile (today's status only), one flush at a time (2026-09-11) |
+| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.5.1-oic** — every generation recorded + shown; **Mark as filed** with server-side workbook check + attestation (2026-09-11) |
 | QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
 | Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin (+ QA test harness) |
 | RYC Scheduler | app.civicscope.io/ryc/schedule | RYC crew | v1.0.0 |
@@ -1141,6 +1141,36 @@ session — it amends a filed month's source record and is Keith's call.**
 **Still open from the report, deliberately:** the strict-match sufficiency threshold (finding 15's
 constructed distractor case) and the sign-in gate's non-discriminating forged-session fixture (it
 would need a seeded enrolment). Both are in Open Action Items.
+
+#### Round 2 — the fixes attacked (same day; report `…-r2_2026-09-11.md`, verdict FIX-FIRST again, 13 findings)
+
+**R2-1 (Critical) was a defect my round-1 fix introduced.** The baseline walk-back made a visit's
+chemical interval depend on the last KNOWN level — possibly several visits back — while the write
+function still recomputed exactly ONE successor and validated only the immediate neighbours.
+Correct day 1 with day 2 idle-and-blank and day 3 stayed stale. **Fixed (migration `075`,
+`1.8.0-waterops`):** `submit_reading` plans the whole dependent chain — every later visit until
+each feed meets a known level again — and `water_submit_reading()` asserts those are exactly the
+first N live readings after the date, that every baseline row (`p_depends_on`) is still live, and
+refuses (`filed_period`) any date in the chain that sits under a live filing unless the caller is
+office-authorised — under a **supply lock** that `water_replace_row` also takes for a filing, so
+the gate and the commit cannot interleave (R2-5). `verify-water-write-path.mjs` now has the
+blank-idle-then-pumping scenario: both later visits planned, the pumping day at 10 lb / 5 lb from
+this day through the blank one (28 checks, up from 22).
+
+The rest, each fixed: **R2-2** an unknown feed beyond the look-back window is reported unknown
+(refused), never omitted (window 60); **R2-3** the script filing path's separate Cover object is
+merged back in; **R2-4** a person's upload must name all three of WSSN / month / year, a text
+submission date is parsed and an unreadable one refused, and storage upload moved after every
+refusal; **R2-6** an interrupted corpus replacement (`REPLACING`) bypasses the Drive-timestamp
+shortcut; **R2-7** a website page is removed only on a 404 or when the inventory was a complete,
+uncapped sitemap read; **R2-8** a Water session whose subject no longer matches the enrolment's
+`google_sub` is refused; **R2-9** bacti identity includes `sample_kind` (index recreated, dupe
+lookup, diff key), the tablet's "Special / well" maps to `other`, and `other` is excluded from
+the diff, the readiness counts and the reminder; **R2-10** district hits carry `source_url`;
+**R2-11** "recorded today" is only shown when the cached profile is today's, queued tiles only for
+today's date; **R2-12** Resend `Idempotency-Key` per period, so a reaped claim cannot re-send;
+**R2-13** the extractor's tab-to-well tie-in is unresolved on a tie or a zeros-only match, and
+mapping warnings have their own count. The tablet's profile now carries `supply.timezone`.
 
 **`GET /api/build-mor` is a selftest, and it is the route's API contract.** It proves the Python
 runtime, all four libraries, and that the stored template is present and decryptable, while
