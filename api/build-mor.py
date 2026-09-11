@@ -486,10 +486,35 @@ def _num(v):
 
 
 def _as_date(v, year, month, datemode):
-    """A date cell here is one of two things and the workbook does not say which: a real Excel
-    serial (the first sample of the month, typed as a date) or a bare day-of-month (every one
-    after it, typed as a number). Guessing wrong silently moves a sample by decades, so the two
-    are separated by magnitude and the day-of-month case is validated against the month."""
+    """A date cell here is one of THREE things and the workbook does not say which: a real Excel
+    serial (the first sample of the month, typed as a date), a bare day-of-month (every one after
+    it, typed as a number), or TEXT — which is what this generator itself writes (`7/29/2026`,
+    build() line "put('Distribution', r0, 1, …)") and what a person typing quickly produces.
+    Guessing wrong silently moves a sample by decades, so the numeric cases are separated by
+    magnitude and every case is validated against the month.
+
+    ⛔ The text case was missing on 2026-09-11 and the deploy gate caught it on the first run: the
+    extractor read the product's OWN July workbook back as 0 distribution samples out of 23. A
+    filing recorded from a generation would then have compared "23 held vs 0 filed" — a phantom
+    divergence on a compliance record, manufactured by the product disagreeing with itself."""
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return None
+        mm = re.fullmatch(r'(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?', s)
+        if mm:
+            m_, d_, y_ = int(mm.group(1)), int(mm.group(2)), mm.group(3)
+            yy = year if y_ is None else (int(y_) + 2000 if len(y_) == 2 else int(y_))
+            try:
+                return datetime.date(yy, m_, d_).isoformat()
+            except ValueError:
+                return None
+        iso = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', s)
+        if iso:
+            try:
+                return datetime.date(int(iso.group(1)), int(iso.group(2)), int(iso.group(3))).isoformat()
+            except ValueError:
+                return None
     n = _num(v)
     if n is None:
         return None
