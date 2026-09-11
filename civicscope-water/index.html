@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.4.0-water
+  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.4.1-water
 
   v1.4.0 (2026-09-11, adversarial review): the date is the PLANT's date, not the device's; the
   plant profile is kept on the tablet so the app opens with no signal after a tab kill; the queue
@@ -250,7 +250,7 @@ const fmt = (v,d=2) => (v==null||!isFinite(v) ? '—' : Number(v).toFixed(d));
    was cached for offline use but the profile was not, so a tab killed and reopened in a well
    house with no signal loaded an app with no wells and no names to pick. Its age is kept with it
    and shown when it is what the app is running on. The OPERATOR is still never persisted. */
-function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,queue:S.queue,rejected:S.rejected||[],profile:S.profile||null,profileAt:S.profileAt||null})); }
+function save(){ localStorage.setItem(LS, JSON.stringify({wssn:S.wssn,queue:S.queue,rejected:S.rejected||[],profile:S.profile||null,profileAt:S.profileAt||null,profileDate:S.profileDate||null})); }
 function load(){
   try{ Object.assign(S, JSON.parse(localStorage.getItem(LS)||'{}')); }catch{}
   S.queue ||= [];
@@ -357,7 +357,7 @@ async function boot(){
     let p;
     try{
       p = await api('profile', { date: today() });
-      S.profile = p; S.profileAt = Date.now(); save();
+      S.profile = p; S.profileAt = Date.now(); S.profileDate = today(); save();
     }catch(e){
       if(S.profile && S.profile.supply && S.profile.supply.wssn === S.wssn){
         p = S.profile;
@@ -479,11 +479,16 @@ window.addEventListener('hashchange', () => showTab(location.hash.slice(1), { pu
 
 // ---- the round --------------------------------------------------------------------------------
 async function refreshRound(){
-  try{ S.profile = await api('profile', { date: today() }); S.profileAt = Date.now(); save(); }catch{}
+  let fresh = false;
+  try{ S.profile = await api('profile', { date: today() }); S.profileAt = Date.now(); S.profileDate = today(); save(); fresh = true; }catch{}
   const p = S.profile; if(!p) return;
-  $('roundTitle').textContent = new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
-  const done = new Set((p.doneToday||[]).map(d=>d.entry_point_id));
-  const queued = new Set(S.queue.filter(q=>q.action==='submit_reading').map(q=>q.payload.entry_point_id));
+  $('roundTitle').textContent = new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',timeZone:TZ()});
+  /* "Recorded today" is only true for TODAY (R2-11). A cached profile from yesterday carries
+     yesterday's doneToday; with no signal it must not paint this morning's round as finished.
+     Queued records likewise count only when they are dated today. */
+  const doneIsToday = fresh || S.profileDate === today();
+  const done = new Set(doneIsToday ? (p.doneToday||[]).map(d=>d.entry_point_id) : []);
+  const queued = new Set(S.queue.filter(q=>q.action==='submit_reading' && q.payload.reading_date === today()).map(q=>q.payload.entry_point_id));
   $('roundSub').textContent = `${done.size} of ${p.entryPoints.length} entry points recorded`;
   $('epTiles').innerHTML = '';
   for(const ep of p.entryPoints){
@@ -733,7 +738,8 @@ $('btnBacti').onclick = async () => {
   }
   const payload = {
     site_id: $('bSite').value,
-    sample_kind: $('bKind').value,
+    // the picker says "Special / well"; the record's kind is `other` (R2-9) — never a value the API refuses
+    sample_kind: $('bKind').value === 'special' ? 'other' : $('bKind').value,
     collected_date: $('bDate').value, collected_time: nowTime(),
     operator_id: S.op.id, operator_initials: S.op.initials,
     lab_name: $('bLab').value || null,

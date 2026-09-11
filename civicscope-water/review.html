@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.1-oic
 
   v1.5.0 (2026-09-11, after the adversarial review) — Mark as filed sends bytes and what she
   typed; the server reads the workbook, checks it is this supply's report for this period, and
@@ -544,8 +544,13 @@ function renderMonth(mo, y, m, eps) {
      page keeps refusing to ship. */
   const dist = (mo.dist || []).length;
   const can = readings.length > 0;
+  /* Only routine and repeat samples go on EGLE's Bacti tab; a well / raw-water sample (`other`)
+     is held here but is not what "no bacti on file" is about (R2-9). */
+  const reportable = bacti.filter((b) => b.sample_kind !== 'other');
+  const otherN = bacti.length - reportable.length;
   $('monthEnd').innerHTML = `<b>${MN[m]} ${y}</b> holds ${readings.length} well-day${readings.length === 1 ? '' : 's'}, `
-    + `${dist} distribution sample${dist === 1 ? '' : 's'} and ${bacti.length} bacti sample${bacti.length === 1 ? '' : 's'}.<br><br>`
+    + `${dist} distribution sample${dist === 1 ? '' : 's'} and ${reportable.length} bacti sample${reportable.length === 1 ? '' : 's'}`
+    + (otherN ? ` (plus ${otherN} well sample${otherN === 1 ? '' : 's'} not reported on the form)` : '') + `.<br><br>`
     + (can
         ? `<button class="btn" id="genBtn" onclick="generateMor(${y},${m})">Generate the EGLE workbook</button>`
           + `<span class="muted" id="genNote" style="margin-left:12px"></span><br><br>`
@@ -553,7 +558,7 @@ function renderMonth(mo, y, m, eps) {
           + `stored, so the workbook and this screen cannot disagree. <b>Open it, add your Cover comments and `
           + `sign it before sending.</b> Every workbook generated here is kept under “Reports filed” below; `
           + `once it has gone to EGLE, use <b>Mark as filed</b> there to record the date it went.`
-          + (bacti.length ? '' : `<br><br>⚠ <b>No bacti samples are on file for ${MN[m]}</b> — the Bacti &amp; Cl Res tab will go to EGLE empty.`)
+          + (reportable.length ? '' : `<br><br>⚠ <b>No routine bacti samples are on file for ${MN[m]}</b> — the Bacti &amp; Cl Res tab will go to EGLE empty.`)
         : `Nothing is recorded for ${MN[m]} ${y}, so there is no report to generate. If the round is being `
           + `walked, it is being written somewhere other than here.`);
 
@@ -673,6 +678,7 @@ function renderFiled(mo, y, m) {
     if (c.ours_only) bits.push(`${c.ours_only} day${c.ours_only === 1 ? '' : 's'} recorded here that the report shows nothing for`);
     if (c.filed_only) bits.push(`${c.filed_only} day${c.filed_only === 1 ? '' : 's'} filed with no reading on file`);
     if (c.chemical_differs) bits.push(`${c.chemical_differs} chemical weight${c.chemical_differs === 1 ? '' : 's'} differ`);
+    if (c.mapping_conflicts) bits.push(`${c.mapping_conflicts} EntryPoint tab${c.mapping_conflicts === 1 ? '' : 's'} appear${c.mapping_conflicts === 1 ? 's' : ''} to carry a different well than this supply files there`);
     if (c.dist_filed !== c.dist_ours) bits.push(`${c.dist_filed} distribution sample${c.dist_filed === 1 ? '' : 's'} filed against ${c.dist_ours} held`);
     if (c.bacti_filed !== c.bacti_ours) bits.push(`${c.bacti_filed} bacti sample${c.bacti_filed === 1 ? '' : 's'} filed against ${c.bacti_ours} held`);
     const rows = (d.rows || []).map((r) => `<tr>

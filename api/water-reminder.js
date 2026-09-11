@@ -77,10 +77,15 @@ function etParts(d = new Date()) {
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-async function sendMail({ to, subject, html, text }) {
+async function sendMail({ to, subject, html, text, idempotencyKey }) {
+  /* The provider's idempotency key is the PERIOD, not the claim (R2-12): a run that died after the
+     provider accepted the message but before `sent` was recorded is reaped and re-claimed two hours
+     later, and without this the re-send is a duplicate reminder. With it, Resend answers the same
+     message id within its retention window instead of sending again. */
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json',
+               ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
     body: JSON.stringify({ from: FROM, to, subject, html, text, reply_to: OPS_MAILBOX }),
   });
   const j = await r.json().catch(() => ({}));
@@ -182,7 +187,7 @@ export default async function handler(req, res) {
           if (ageMs < 2 * 3600 * 1000) { out.push({ ...step, skipped: 'another run is sending this period' }); continue; }
           await sb(`water_mor_reminders?id=eq.${already[0].id}&outcome=eq.pending`, {
             method: 'PATCH', headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ outcome: 'failed', detail: 'abandoned: claimed but never sent (reaped by a later run)' }),
+            body: JSON.stringify({ outcome: 'failed', detail: 'abandoned: claimed, delivery uncertain (the run died before recording an outcome); reaped by a later run — the provider idempotency key prevents a duplicate within its window' }),
           });
         }
       }
@@ -194,7 +199,8 @@ export default async function handler(req, res) {
         sb(`water_readings?supply_id=eq.${supply.id}&reading_date=gte.${from}&reading_date=lt.${to}&superseded_at=is.null&select=id`),
         sb(`water_dist_samples?supply_id=eq.${supply.id}&sample_date=gte.${from}&sample_date=lt.${to}&superseded_at=is.null&select=id`),
         // live rows only — a corrected sample is one sample, not two (Codex, 2026-09-11)
-        sb(`water_bacti_samples?supply_id=eq.${supply.id}&collected_date=gte.${from}&collected_date=lt.${to}&superseded_at=is.null&select=id`),
+        // live rows only, and only the kinds EGLE's Bacti tab reports — a well sample is not a routine sample (R2-9)
+        sb(`water_bacti_samples?supply_id=eq.${supply.id}&collected_date=gte.${from}&collected_date=lt.${to}&superseded_at=is.null&sample_kind=in.(routine,repeat)&select=id`),
       ]);
 
       /* Recipients are the people ENROLLED for this supply, not a name in a config file. That is
@@ -278,7 +284,8 @@ export default async function handler(req, res) {
 
       let providerId = null, outcome = 'sent', detail = null;
       try {
-        providerId = await sendMail({ to: to_, subject: msg.subject, html: msg.html, text: msg.text });
+        providerId = await sendMail({ to: to_, subject: msg.subject, html: msg.html, text: msg.text,
+          idempotencyKey: `mor-due-soon/${supply.wssn}/${y}-${String(m).padStart(2, '0')}` });
         if (!providerId) { outcome = 'failed'; detail = 'the provider accepted the call but returned no message id'; }
       } catch (e) {
         outcome = 'failed';

@@ -142,10 +142,13 @@ async function loadProfile(wssn) {
    meter baseline stays the immediately previous visit's: gallons are an interval between visits,
    chemical usage is an interval between KNOWN levels. `baseline_from` says which visit each feed's
    level came from, so a note can say so. */
-const BASELINE_LOOKBACK = 20;
-async function previousReading(entryPointId, date) {
+/* 60 visits: a well idle for a whole month with the tank left blank every day (April 2026 ran Well 3
+   alone) still resolves. Beyond that the feed is reported UNKNOWN, never omitted — an omitted feed
+   read as "no previous visit" to derive() and skipped the refusal it exists for (R2-2). */
+const BASELINE_LOOKBACK = 60;
+async function previousReading(ep, date) {
   const rows = await sb(
-    `water_readings?entry_point_id=eq.${entryPointId}&reading_date=lt.${date}&superseded_at=is.null` +
+    `water_readings?entry_point_id=eq.${ep.id}&reading_date=lt.${date}&superseded_at=is.null` +
       `&select=id,reading_date,meter_reading&order=reading_date.desc&limit=${BASELINE_LOOKBACK}`
   );
   const prev = rows && rows[0];
@@ -155,29 +158,20 @@ async function previousReading(entryPointId, date) {
   const byReading = {};
   for (const f of fr || []) (byReading[f.reading_id] ||= []).push(f);
   const feeds = {};
-  const seen = new Set();
-  for (const r of rows) {                       // newest first
-    for (const f of byReading[r.id] || []) {
-      if (seen.has(f.feed_id)) continue;
-      const known = f.refill_to != null || f.tank_level != null;
-      if (!known && r.id !== prev.id) continue;  // an older visit with no level says nothing either
-      if (!known) continue;                      // the immediate visit was blank: keep looking back
-      feeds[f.feed_id] = { tank_level: f.tank_level, refill_to: f.refill_to,
-                           baseline_from: r.reading_date === prev.reading_date ? null : r.reading_date };
-      seen.add(f.feed_id);
+  const sources = new Set([prev.id]);          // every row a baseline was read from (R2-1 depends_on)
+  for (const feed of ep.feeds || []) {
+    feeds[feed.id] = { tank_level: null, refill_to: null, unknown: true, baseline_from: null };
+    for (const r of rows) {                     // newest first
+      const f = (byReading[r.id] || []).find((x) => x.feed_id === feed.id);
+      if (!f || (f.refill_to == null && f.tank_level == null)) continue;
+      feeds[feed.id] = { tank_level: f.tank_level, refill_to: f.refill_to,
+                         baseline_from: r.id === prev.id ? null : r.reading_date };
+      sources.add(r.id);
+      break;
     }
   }
-  return { id: prev.id, reading_date: prev.reading_date, meter_reading: prev.meter_reading, feeds };
-}
-
-/* The live reading immediately AFTER a date, if any — the row a write re-derives, and the row the
-   transactional function is told to expect (074 adjacency check). */
-async function nextReading(entryPointId, date) {
-  const rows = await sb(
-    `water_readings?entry_point_id=eq.${entryPointId}&reading_date=gt.${date}&superseded_at=is.null`
-      + '&select=id,reading_date&order=reading_date.asc&limit=1'
-  );
-  return (rows && rows[0]) || null;
+  return { id: prev.id, reading_date: prev.reading_date, meter_reading: prev.meter_reading, feeds,
+           sources: [...sources] };
 }
 
 /* THIS PLANT'S OWN NORMALS — the only thing that can answer "is this like every other day".
@@ -246,13 +240,67 @@ const contextFor = (supply, normals) => ({
    missing, she will add it before running the report"*, and lab results for bacteria come back a
    day later and get entered then. Inserting into the middle of a month is the normal case.
 
-   So a write re-derives its SUCCESSOR from the same shared derive(), in place, keeping the
-   successor's own row id — this is a recomputation of stored arithmetic, not a correction, so it
-   supersedes nothing and needs no reason. It walks exactly ONE day forward on purpose: that day's
-   own successor only depends on IT through its meter and tank levels, which this does not touch.
+   So a write re-derives every later visit it changed, from the same shared derive(), in place,
+   keeping each row's own id — a recomputation of stored arithmetic, not a correction, so it
+   supersedes nothing and needs no reason.
+
+   ⛔ NOT "ONE DAY FORWARD" ANY MORE (R2-1, Critical, 2026-09-11). Since the baseline walk-back a
+   visit's chemical interval measures from the last KNOWN level, which can be several visits back
+   when the tank was left blank on idle days. So correcting day 1 with day 2 idle-and-blank changes
+   day 3 — and recomputing only day 2 left day 3 stale. The plan now walks forward through every
+   later visit until each feed has met a known level again (the meter dependency is always closed
+   by the very next visit). The transactional function is told the exact chain it must find.
 */
-async function planSuccessor(supply, ep, afterDate, newRow, newFeeds, next) {
-  if (!next) return null;
+async function planSuccessorChain(supply, ep, afterDate, newRow, newFeeds, prevBefore) {
+  const CHAIN_MAX = 40;
+  const chain = await sb(
+    `water_readings?entry_point_id=eq.${ep.id}&reading_date=gt.${afterDate}&superseded_at=is.null`
+      + `&select=*&order=reading_date.asc&limit=${CHAIN_MAX}`
+  );
+  if (!chain || !chain.length) return { ok: true, plans: [] };
+  const fr = await sb(`water_feed_readings?reading_id=in.(${chain.map((r) => r.id).join(',')})&select=*`);
+  const feedsOf = {};
+  for (const f of fr || []) (feedsOf[f.reading_id] ||= []).push(f);
+
+  /* The baseline the first successor measures from is the row about to be written — for each
+     feed, the new row's own level if it recorded one, else whatever the walk-back found BEFORE
+     the new date (the superseded row, if any, is already excluded by date). `pending` is the set
+     of feeds whose baseline still originates at or before the new row; the chain is done once
+     every feed has been re-anchored by a later visit. */
+  const known = (f) => f && (f.refill_to != null || f.tank_level != null);
+  const virt = { meter_reading: newRow.meter_reading, feeds: {} };
+  const pending = new Set();
+  for (const feed of ep.feeds || []) {
+    const nf = (newFeeds || []).find((x) => x.feed_id === feed.id);
+    const older = (prevBefore && prevBefore.feeds && prevBefore.feeds[feed.id]) || null;
+    virt.feeds[feed.id] = known(nf)
+      ? { tank_level: nf.tank_level, refill_to: nf.refill_to }
+      : (older ? { tank_level: older.tank_level, refill_to: older.refill_to, unknown: older.unknown } : { tank_level: null, refill_to: null, unknown: true });
+    pending.add(feed.id);
+  }
+
+  const plans = [];
+  for (const full of chain) {
+    const plan = await planOne(supply, ep, afterDate, full, feedsOf[full.id] || [], virt);
+    if (plan.ok === false) return { ok: false, blocked: plan };
+    plans.push(plan);
+    // advance the virtual baseline: the meter always; each feed only where this visit knew a level
+    virt.meter_reading = full.meter_reading;
+    for (const f of feedsOf[full.id] || []) {
+      if (known(f)) { virt.feeds[f.feed_id] = { tank_level: f.tank_level, refill_to: f.refill_to }; pending.delete(f.feed_id); }
+    }
+    if (!pending.size) break;
+  }
+  if (pending.size && chain.length >= CHAIN_MAX) {
+    return { ok: false, blocked: { date: chain[chain.length - 1].reading_date, ok: false,
+      errors: [{ msg: `more than ${CHAIN_MAX} later visits depend on this one's tank levels; record a tank level on a later visit first` }] } };
+  }
+  return { ok: true, plans };
+}
+
+/* One later visit, recomputed against a virtual predecessor. */
+async function planOne(supply, ep, afterDate, full, feedRows, virtPrev) {
+  const next = { id: full.id, reading_date: full.reading_date };
 
   /* ⛔ THIS FUNCTION HAD NEVER RE-DERIVED A SINGLE DAY (found 2026-09-02). Written to stop a
      corrected day leaving a stale interval behind it, it carried three defects that between them
@@ -283,24 +331,16 @@ async function planSuccessor(supply, ep, afterDate, newRow, newFeeds, next) {
      from the database — which is the whole reason this can be planned before the write. `prev` is
      assembled from the caller's own derived values; a well's next day depends on this one only
      through its meter reading and its tank levels, all of which are already known here. */
-  const [full] = await sb(`water_readings?id=eq.${next.id}&select=*`);
-  if (!full) return null;
-  const fr = await sb(`water_feed_readings?reading_id=eq.${next.id}&select=*`);
   const input = {
     meter_reading: full.meter_reading,
     tap_free: full.tap_free, tap_total: full.tap_total,
     tap_ortho: full.tap_ortho, tap_fluoride: full.tap_fluoride,
     pressure_psi: full.pressure_psi, temp_f: full.temp_f,
     feeds: Object.fromEntries(
-      (fr || []).map((x) => [x.feed_id, { tank_level: x.tank_level, refill_to: x.refill_to }])
+      (feedRows || []).map((x) => [x.feed_id, { tank_level: x.tank_level, refill_to: x.refill_to }])
     ),
   };
-  const prev = {
-    meter_reading: newRow.meter_reading,
-    feeds: Object.fromEntries(
-      (newFeeds || []).map((f) => [f.feed_id, { tank_level: f.tank_level, refill_to: f.refill_to }])
-    ),
-  };
+  const prev = { meter_reading: virtPrev.meter_reading, feeds: { ...virtPrev.feeds } };
   const normals = await plantNormals(ep, next.reading_date);
   const out = derive({ entryPoint: ep, feeds: ep.feeds, prev, input,
     context: contextFor(supply, normals) });
@@ -345,7 +385,12 @@ async function signedInUser(req) {
   if (!s || !s.uid) return null;
   try {
     const rows = await sb(`app_users?id=eq.${s.uid}&active=eq.true&select=*&limit=1`);
-    return (rows && rows[0]) || null;
+    const u = (rows && rows[0]) || null;
+    /* The session must still belong to the Google account the enrolment is bound to (R2-8). A row
+       re-bound to a new subject leaves the previous holder's unexpired cookie naming the same uid;
+       auth-google refuses it, and so must this route, or an office write slips through. */
+    if (u && u.google_sub && s.sub && u.google_sub !== s.sub) return null;
+    return u;
   } catch { return null; }
 }
 
@@ -634,7 +679,10 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
   /* Kind is part of a bacti sample's regulatory identity (Codex finding 9): a routine and a repeat
      at the same site on the same day are two rows in two blocks of the form. Filed rows extracted
      before 2026-09-11 carry no kind and read as routine, which is what they were. */
-  compareSamples('bacti', (filed && filed.bacti) || [], bacti || [],
+  /* Only the kinds the form reports are compared; a well / raw-water sample (`other`) is held here
+     and deliberately not written to the workbook, so it is not "ours only" either (R2-9). */
+  const reportableBacti = (bacti || []).filter((b) => b.sample_kind !== 'other');
+  compareSamples('bacti', (filed && filed.bacti) || [], reportableBacti,
     (x) => `${txt(x.date)}|${txt(x.location)}|${txt(x.kind || 'routine')}`,
     (x) => `${txt(x.collected_date)}|${txt(x.site_name)}|${txt(x.sample_kind || 'routine')}`,
     ['free', 'total'], ['result']);
@@ -645,11 +693,13 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
     pumpage_differs: mg.filter((r) => r.kind === 'differs').length,
     filed_only: mg.filter((r) => r.kind === 'filed_only').length,
     ours_only: mg.filter((r) => r.kind === 'ours_only').length,
-    chemical_differs: rows.length - mg.length,
+    // chemical rows only — a mapping warning is its own category, never a "chemical weight differs" (R2-13)
+    chemical_differs: rows.filter((r) => /_lbs$/.test(String(r.field))).length,
+    mapping_conflicts: rows.filter((r) => r.field === 'mapping').length,
     dist_filed: ((filed && filed.distribution) || []).length,
     dist_ours: (dist || []).length,
     bacti_filed: ((filed && filed.bacti) || []).length,
-    bacti_ours: (bacti || []).length,
+    bacti_ours: reportableBacti.length,
   };
   return {
     rows,
@@ -848,6 +898,7 @@ export default async function handler(req, res) {
             wssn: p.supply.wssn, name: p.supply.name, county: p.supply.county,
             classification: p.supply.classification, oic_name: p.supply.oic_name,
             min_free_cl: p.supply.min_free_cl, active: p.supply.active,
+            timezone: p.supply.timezone || 'America/Detroit',   // the tablet dates the round by the PLANT's clock
           },
           entryPoints: p.entryPoints,
           sites: p.sites,
@@ -862,7 +913,7 @@ export default async function handler(req, res) {
         if (!p) return bad(res, 404, 'unknown supply');
         const ep = p.entryPoints.find((e) => e.id === body.entry_point_id);
         if (!ep) return bad(res, 404, 'unknown entry point');
-        const prev = await previousReading(ep.id, body.reading_date);
+        const prev = await previousReading(ep, body.reading_date);
         const normals = await plantNormals(ep, body.reading_date);
         const out = derive({
           entryPoint: ep, feeds: ep.feeds, prev, input: body.input || {},
@@ -919,7 +970,7 @@ export default async function handler(req, res) {
         let attempt = 0;
         while (true) {
         attempt++;
-        const prev = await previousReading(ep.id, date);
+        const prev = await previousReading(ep, date);
         const normals = await plantNormals(ep, date);
         const out = derive({
           entryPoint: ep, feeds: ep.feeds, prev, input: body.input || {},
@@ -935,7 +986,6 @@ export default async function handler(req, res) {
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'This day is already recorded. Send correction_reason to replace it.' });
         }
-        const next = await nextReading(ep.id, date);
 
         /* ⛔ A CORRECTION COULD NEVER BE SAVED (found 2026-08-19 while seeding January–June).
            The old row was superseded AFTER the new one was inserted, so for the length of that
@@ -962,21 +1012,23 @@ export default async function handler(req, res) {
            first, by the one derive() both ends import, and handed over as values. Putting the dose
            formula in PL/pgSQL to win atomicity would recreate the exact defect this product exists
            to remove, in the last place anyone would look for it. */
-        const successor = await planSuccessor(p.supply, ep, date, out.reading, out.feeds, next)
-          .catch((e) => ({ ok: false, threw: String((e && e.message) || e) }));
+        const chainPlan = await planSuccessorChain(p.supply, ep, date, out.reading, out.feeds, prev)
+          .catch((e) => ({ ok: false, blocked: { ok: false, threw: String((e && e.message) || e) } }));
 
-        /* A successor that cannot be recomputed is refused BEFORE anything is written, rather than
-           committed and reported afterwards. The edit has made the following day impossible — a
+        /* A later visit that cannot be recomputed is refused BEFORE anything is written, rather
+           than committed and reported afterwards. The edit has made a following day impossible — a
            meter that now runs backwards, say — and writing this day anyway would leave the month
            inconsistent in a way only a person can resolve. */
-        if (successor && successor.ok === false) {
+        if (chainPlan.ok === false) {
+          const successor = chainPlan.blocked || {};
           return res.status(409).json({
             error: 'successor_blocked', saved: false,
-            msg: `Saving this day would make ${successor.date || 'the day after it'} impossible to recompute, so nothing was written. `
+            msg: `Saving this day would make ${successor.date || 'a day after it'} impossible to recompute, so nothing was written. `
                + `That day has to be corrected first.`,
             successor,
           });
         }
+        const successors = chainPlan.plans;
 
         let result;
         try {
@@ -1002,18 +1054,26 @@ export default async function handler(req, res) {
               // `kind` is derive()'s label for the caller, not a column. The function REFUSES any
               // key that is not a real column rather than dropping it silently, so it must go.
               p_feeds: out.feeds.map(({ kind, ...f }) => f),
-              p_successor: successor
-                ? { id: successor.id, reading: successor.reading, feeds: successor.feeds, flags: successor.flags }
-                : null,
+              // every later visit this write changes, each already recomputed here
+              p_successors: successors.map((s) => ({ id: s.id, date: s.date, reading: s.reading, feeds: s.feeds, flags: s.flags })),
               // the graph this plan was derived against; the function refuses if it has moved
               p_expected_prev: prev ? prev.id : null,
-              p_expected_next: next ? next.id : null,
+              p_depends_on: prev ? prev.sources : [],
+              // office-authorised callers may write into a filed month; the function checks the
+              // rest under the supply lock, so a filing cannot land between the gate and the commit
+              p_office: Boolean(codeOk || (actor && (actor.role === 'admin' || actor.water_wssn === wssn))),
               p_check_adjacency: true,
             }),
           });
         } catch (e) {
           const detail = String((e && e.message) || e);
           if (/stale_plan/.test(detail) && attempt < 2) continue;   // re-read, re-derive, once
+          if (/filed_period/.test(detail)) {
+            return res.status(403).json({
+              error: 'A month this write would change has been filed with EGLE since it was checked. Changing what sits behind a submitted report needs you to be signed in.',
+              needsSignIn: !actor, saved: false, detail: detail.slice(0, 200),
+            });
+          }
           /* The transaction rolled back, so there is nothing to undo and nothing was half-written.
              `saved: false` is what tells the tablet's offline queue this one may be re-sent. */
           return res.status(/stale_plan/.test(detail) ? 409 : 500).json({
@@ -1031,7 +1091,8 @@ export default async function handler(req, res) {
           id: written && written.id, derived: out.reading, feeds: out.feeds, flags: out.flags,
           ...(attempt > 1 ? { replanned: true } : {}),
           ...(supersedes ? { corrected: supersedes.id } : {}),
-          ...(successor ? { rederived: { id: successor.id, date: successor.date, ok: true } } : {}),
+          ...(successors.length ? { rederived: { id: successors[0].id, date: successors[0].date, ok: true,
+                                                 chain: successors.map((s) => s.date) } } : {}),
         });
         }   // while
       }
@@ -1107,10 +1168,20 @@ export default async function handler(req, res) {
            script — silently multiplied the compliance record. A monthly report built from that
            would have shown 70 samples where the village took 14.
            Same contract as its neighbours: refuse, and say what would replace what. */
+        /* The kind decides which block of EGLE's Bacti tab a sample lands in — or, for `other`,
+           that it lands in neither (Codex finding 3) — and it is part of the sample's IDENTITY: a
+           routine and a repeat at the same site on the same day are two rows in two blocks (R2-9).
+           The tablet's picker label is "Special / well"; that is `other` here, never a value that
+           gets refused. An unknown kind is refused, never defaulted. */
+        const kind = ({ special: 'other' })[String(body.sample_kind || 'routine').toLowerCase()]
+          || String(body.sample_kind || 'routine').toLowerCase();
+        if (!['routine', 'repeat', 'other'].includes(kind)) {
+          return res.status(422).json({ error: 'validation', errors: [{ field: 'sample_kind', msg: `sample_kind must be routine, repeat or other (got ${kind}).` }] });
+        }
         const dupeSite = site ? site.name : String(body.site_name || '');
         const already = await sb(
           `water_bacti_samples?supply_id=eq.${p.supply.id}&site_name=eq.${encodeURIComponent(dupeSite)}` +
-            `&collected_date=eq.${String(body.collected_date || '').slice(0, 10)}&superseded_at=is.null&select=id`
+            `&collected_date=eq.${String(body.collected_date || '').slice(0, 10)}&sample_kind=eq.${kind}&superseded_at=is.null&select=id`
         );
         const supersedes = already && already[0];
         /* ⛔ AND IT NEEDED A WAY THROUGH, not only a guard. The refusal above was right and
@@ -1121,12 +1192,6 @@ export default async function handler(req, res) {
            so completing the row the next day is the normal case, not an amendment of a mistake. */
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'That site already has a bacti sample on this date. Send correction_reason to replace it.', id: supersedes.id });
-        }
-        /* The kind decides which block of EGLE's Bacti tab a sample lands in — or, for `other`,
-           that it lands in neither (Codex finding 3). An unknown kind is refused, never defaulted. */
-        const kind = String(body.sample_kind || 'routine').toLowerCase();
-        if (!['routine', 'repeat', 'other'].includes(kind)) {
-          return res.status(422).json({ error: 'validation', errors: [{ field: 'sample_kind', msg: `sample_kind must be routine, repeat or other (got ${kind}).` }] });
         }
         // Supersede + insert in one transaction — see submit_dist (Codex finding 7, migration 074).
         const row = await sb('rpc/water_replace_row', {
@@ -1371,7 +1436,10 @@ export default async function handler(req, res) {
           bytes = dec.bytes;
           const scriptSupplied = codeOk && !gen && body.filed && typeof body.filed === 'object' && Object.keys(body.filed).length;
           if (scriptSupplied) {
-            extracted = body.filed;
+            /* The script's envelope carries its Cover SEPARATELY (`body.cover`) from the rest of
+               the extraction (`body.filed`). Normalise to one shape here, or the historical
+               certification line and recipient are dropped and today's profile substituted (R2-3). */
+            extracted = { ...body.filed, cover: { ...(body.filed.cover || {}), ...(body.cover || {}) } };
           } else {
             let j;
             try {
@@ -1398,8 +1466,14 @@ export default async function handler(req, res) {
             if (cv.year && Number(cv.year) !== y) {
               return res.status(409).json({ error: 'wrong_year', msg: `That workbook's Cover says ${cv.year}, but you are recording ${y}. It was not recorded.` });
             }
-            if (!mon && !cv.year) {
-              return res.status(409).json({ error: 'unidentified', msg: 'That workbook\'s Cover names no reporting month or year, so it cannot be tied to this period. It was not recorded.' });
+            /* ALL THREE identifiers, not "none conflicts" (R2-4): a Cover with a blank WSSN and a
+               blank month but the right year is not evidence that these bytes are this supply's
+               report for this period. */
+            if (!digits(cv.wssn) || !mon || !cv.year) {
+              return res.status(409).json({ error: 'unidentified', msg: `That workbook's Cover does not name all of WSSN, reporting month and year (found WSSN ${cv.wssn || '—'}, month ${cv.month_label || '—'}, year ${cv.year || '—'}), so it cannot be tied to this period. It was not recorded.` });
+            }
+            if (cv.submitted_date_unreadable) {
+              return res.status(409).json({ error: 'date_unreadable', msg: `That workbook's Cover carries a submission date that could not be read (${cv.submitted_date_unreadable}). Fix the cell and upload again — nothing was recorded.` });
             }
           }
         } else {
@@ -1426,8 +1500,6 @@ export default async function handler(req, res) {
         }
 
         const path = `${wssn}/${y}-${String(m).padStart(2, '0')}-${sha.slice(0, 8)}.xls`;
-        const up = await putWorkbook(path, bytes);
-        if (!up.ok) return bad(res, 502, `could not store the workbook (${up.status}): ${up.msg}`);
 
         /* WHAT THE WORKBOOK SAYS is whatever was read out of the bytes being recorded — by the
            extractor just now for an upload, by the same extractor at generation time for a filing
@@ -1481,6 +1553,11 @@ export default async function handler(req, res) {
           bacti_required: filed.bacti_required ?? null,
           lab_name: filed.lab_name ?? null,
         };
+
+        /* The bytes go to storage only once every refusal above has been passed (R2-4): a rejected
+           request must not leave an object behind that nothing references. */
+        const up = await putWorkbook(path, bytes);
+        if (!up.ok) return bad(res, 502, `could not store the workbook (${up.status}): ${up.msg}`);
 
         /* Supersede and insert in ONE transaction (Codex finding 7, migration 074). A superseded
            filing with nothing replacing it erases the record that a month was ever sent to the

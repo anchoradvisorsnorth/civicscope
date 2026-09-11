@@ -442,7 +442,9 @@ export default async function handler(req, res) {
           return {
             chunk_id: c.id, doc_id: c.doc_id, heading: c.heading, citation: c.citation,
             content: c.content, is_table: c.is_table,
-            title: d.title || null, collection: d.collection || null, url: d.source_url || null,
+            title: d.title || null, collection: d.collection || null,
+            // both spellings: the RPC rows carry `url`, the response serialiser reads `source_url` (R2-10)
+            url: d.source_url || null, source_url: d.source_url || null,
             /* Unknown provenance reads as a scan, never as verified text: the failure mode this
                guards is a transcribed digit presented as verbatim. */
             text_source: d.text_source || 'ocr',

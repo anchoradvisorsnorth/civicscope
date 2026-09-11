@@ -612,11 +612,19 @@ def _extract_cover(bk):
         s = str(v).strip()
         return s or None
 
-    submitted = None
-    n = _num(raw.get('submitted_date'))
+    # The submission date may be an Excel serial OR text somebody typed (R2-4). A text date that
+    # cannot be read is reported as UNREADABLE, never as blank: "we do not know when this went"
+    # and "the Cover says 9/10/2026 and we could not parse it" are different facts.
+    submitted, unreadable = None, None
+    sd = raw.get('submitted_date')
+    n = _num(sd)
     if n and n > 1000:
         y, m, d = xlrd.xldate_as_tuple(n, bk.datemode)[:3]
         submitted = f'{y:04d}-{m:02d}-{d:02d}'
+    elif isinstance(sd, str) and sd.strip():
+        submitted = _as_date(sd, 1, 1, bk.datemode) if re.search(r'\d{4}', sd) else None
+        if not submitted:
+            unreadable = sd.strip()
 
     comments = ' '.join(x for x in (text('comment_left'), text('comment_right')) if x) or None
     year_cell = _num(raw.get('year_cell'))
@@ -632,7 +640,8 @@ def _extract_cover(bk):
         # evidence that anybody signed. Whether the report was actually signed and sent is an
         # attestation the signed-in OIC makes when she records the filing, and is recorded as such.
         'signed_by': text('signed_by'),
-        'submitted_date': submitted, 'submitted_to': text('submitted_to'),
+        'submitted_date': submitted, 'submitted_date_unreadable': unreadable,
+        'submitted_to': text('submitted_to'),
         'comments': comments,
     }
 
@@ -756,11 +765,20 @@ def extract_workbook(raw, year, month):
             if tot:
                 scores[well] = (hits / tot, tot)
         best = max(scores.items(), key=lambda kv: (kv[1][0], kv[1][1]), default=(None, (0, 0)))
-        if best[0] is not None and best[1][0] >= 0.9:
+        # A tie is UNRESOLVED, not "the first well" (R2-13): two idle wells match each other's
+        # zeros perfectly. And a match built only on zeros says nothing — at least one non-zero
+        # figure has to agree before the tie-in is asserted.
+        tied = best[0] is not None and sum(1 for s in scores.values() if s == best[1]) > 1
+        informative = best[0] is not None and any(
+            rec.get('mg') and rec.get('mg') > 0
+            and abs(rec['mg'] - (out['pumpage'].get(day, {}).get(str(best[0])) or -1)) < 1e-9
+            for day, rec in days.items())
+        if best[0] is not None and best[1][0] >= 0.9 and not tied and informative:
             out['entry_point_wells'][name] = best[0]
         else:
             out['entry_point_wells'][name] = None
-            out['notes'].append(f'{name}: could not tie to a well from its pumpage ({scores})')
+            out['notes'].append(f'{name}: could not tie to a well from its pumpage '
+                                f'({"tie" if tied else "no non-zero agreement" if not informative else scores})')
     return out
 
 
