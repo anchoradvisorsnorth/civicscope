@@ -51,8 +51,8 @@ AI-powered municipal construction cost feasibility tool. Four product versions s
 | ~~GC Internal~~ | ~~/gc/:slug-internal~~ | — | **REMOVED 2026-08-26** (same) |
 | **Village Hub** | **civicscope.io/:village** (live: `/centreville`) | **The village's own staff — one address for every product** | **v2.0.0-village** — Google sign-in gate |
 | **Ask &lt;Village&gt; (NEW 2026-08-18)** | **civicscope.io/:village/ask** (live: `/centreville/ask`) | **Village clerks + residents** | **v1.0.0-muni** ⏸ paused |
-| **Well Testing — crew tablet** | **app.civicscope.io/water** | **Water plant operators (no logins, by design)** | **v1.1.0-water** — name first, required, blank |
-| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.4.0-oic** — every generation recorded + shown; **Mark as filed** closes the loop (2026-09-11) |
+| **Well Testing — crew tablet** | **app.civicscope.io/water** | **Water plant operators (no logins, by design)** | **v1.4.0-water** — plant-timezone date, offline boot on the saved profile, one flush at a time (2026-09-11) |
+| **Well Testing — OIC review** | **civicscope.io/water/review** | **The OIC who signs the MOR** | **v1.5.0-oic** — every generation recorded + shown; **Mark as filed** with server-side workbook check + attestation (2026-09-11) |
 | QA Tool | app.civicscope.io/qa | Keith only | v1.0.0-qa |
 | Admin | app.civicscope.io/admin | Keith only | v1.0.0-admin (+ QA test harness) |
 | RYC Scheduler | app.civicscope.io/ryc/schedule | RYC crew | v1.0.0 |
@@ -1091,6 +1091,56 @@ is refused — 34 checks, up from 28.
 ⚠ **Every water deploy now leaves a July generation row** (`origin:'script'`, nobody signed in),
 because the gate generates July. That is a true record of a generation and stays; on a filed month
 it is one muted line.
+
+### ⛔ THE ADVERSARIAL REVIEW OF THE WHOLE CENTREVILLE APPLICATION — 2026-09-11, verdict FIX-FIRST
+
+Keith: *"Request codex to do an adversarial review of the entire centreville application."*
+Request: `codex-reviews/requests/REVIEW-REQUEST_centreville-application-adversarial_2026-09-11.md`;
+report: `codex-reviews/reports/REVIEW_centreville-application-adversarial_2026-09-11.md` — **20
+findings, three Critical, all source-confirmed by walkthrough**, plus a status table for the 27
+prior findings and a gate-by-gate "what passing does not prove" matrix. **Every finding was
+verified against the code and, where it mattered, against production data before anything was
+changed. All twenty are addressed** (migration `074`, `1.7.0-waterops`, tablet `v1.4.0-water`,
+review `v1.5.0-oic`). What each one was, what the data showed, what changed:
+
+| # | Finding | Measured | Fix |
+|---|---|---|---|
+| 1 Crit | Seeder reconstructed a cross-month refill from the WRONG month's MOR row (`row._month`, not `after._month`), defaulting to zero usage when missing | **No live `refill_to` sits at a month boundary — nothing seeded was affected** | `seed-water-2026.mjs` indexes by the later day's month and **refuses** a reconstruction with no filed figure; sample write failures now count against `SEED-COMPLETE` |
+| 2 Crit | Two submits planned against the same predecessor both commit — atomic and numerically wrong (50 + 100 for a meter that moved 100) | Not observed; a race | `water_submit_reading()` takes `p_expected_prev/next` and, under `pg_advisory_xact_lock` per entry point, **raises `stale_plan`** if the neighbours moved; `submit_reading` re-derives once, then reports 409 |
+| 3 Crit | An `other` (well/raw-water) bacti sample was written into the form's **routine** block | No `other` samples exist yet; the sites do (`bacti_other` × 3) | Excluded from the workbook, counted in `bacti_other_excluded`, shown on the page. EGLE's tab has routine and repeat blocks only |
+| 4 High | A blank tank on an idle day nulled the next pumping day's chemical baseline — stored ok:true with no usage | **Real: Well 3, 2026-04-13** (32,000 gal, chlorine usage null) — in a filed month | `previousReading()` walks back to the last KNOWN level; `derive()` refuses a pumping day with no baseline anywhere; the filing diff now reports a one-sided chemical weight on a pumping day |
+| 5 High | Filed-month gate read `reading_date \|\| sample_date \|\| collected_date` — an irrelevant date chose the month; a lookup error fell open | — | One date field per action, required; **fails closed** (unknown = signed-in required) |
+| 6 High | A new day in an unfiled month re-derives its successor in a FILED month, anonymously | — | The successor's month is checked too |
+| 7 High | Dist / bacti / filing corrections still had the supersede-then-insert window | — | `water_replace_row()` — one transaction, whitelisted tables, unknown-column refusal |
+| 8 High | Mark as filed trusted the page's extract; any workbook could be recorded against a valid generation id; `signed_by` was inferred from the supply | — | Server-side extract; Cover WSSN / month / year must match; typed-vs-Cover date conflict refused; **attestation required**; `signed_by` = the name on the certification line, documented as pre-printed |
+| 9 High | Extractor read only the routine bacti block; no `kind` | — | Both blocks, `kind` on every row, kind in the diff key |
+| 10 High (Possible) | Pumpage / EntryPoint regions never cleared before the copy | **Template is EGLE's blank — 0 filled input cells**; the `clear_block` comment claiming a filled July was stale | Every input region cleared; selftest asserts the template's input cells are blank |
+| 11 High | Email fallback re-bound an enrolment to a new Google subject | — | Fallback binds only an UNBOUND row; a bound row with a different subject is refused and logged |
+| 12 High | Ingest committed the text hash before replacing chunks — an interrupted run self-hides | — | `text_hash='REPLACING'` first, chunks, count read back, then the hash (both ingesters) |
+| 13 High | A failed website fetch was treated as a deleted page | — | Failed URLs tracked; never deleted; partial crawl reported |
+| 14 High | District-guaranteed passages carried no provenance / link and a mismatched id | — | Joined to `muni_docs`, normalised to `chunk_id`, unknown provenance reads as scan |
+| 15 High | Guarantees gated on ranked hits; no-corpus return before the district merge | — | Guarantees always run; district merge precedes the no-corpus decision. The ≥3-strict-rows sufficiency rule is unchanged and stays an open retrieval question |
+| 16 High (Possible) | A real staff email in the sign-in gate's forged-token fixture | `scripts/` is **not** in the public repo (404 on `/contents/scripts`) | Synthetic fixture address |
+| 17 Med | Tablet could not open a new round after a tab kill with no signal | — | Profile persisted with its age; offline boot runs on it and says so |
+| 18 Med | Reminder claimed `sent` before sending — a dead run silences the period forever | — | Claim is `pending` (index covers pending+sent); `sent` only on provider acceptance; a pending claim over 2 h is reaped; bookkeeping failure reported. Bacti count now live rows only |
+| 19 Med | Privacy page understated the cookie and Ask logging, overstated access restriction | — | Rewritten to what the code does |
+| 20 Med | Gates could pass with sections skipped; website freshness judged by the newest page | — | `verify-mor-filings.mjs`: a skipped section is `CANNOT VERIFY`, bacti count and kinds asserted from the extract; website gate judges the **oldest** page |
+
+Also from the review's prose: the Python route forwards only `cs_session`, never the whole cookie
+jar; `record_generation` / `record_filing` decode base64 strictly with a 3 MiB cap and an OLE2
+magic check; the tablet's date is the plant's timezone, not the device's; one queue flush at a
+time; a queued 403 is shown as "needs a sign-in" rather than retried forever; the diff surfaces an
+EntryPoint-tab-to-well conflict and Pumpage-only days.
+
+🚩 **ONE PRODUCTION ROW NEEDS A CORRECTION — Well 3, 2026-04-13.** Chlorine usage is null on a
+day the well pumped 32,000 gal, because 4/12 was idle with a blank tank. April is FILED. Now that
+the baseline rule exists, re-submitting that day with the same inputs and a `correction_reason`
+(office write, Michelle or Keith signed in) would derive it from 4/11's level. **Not done in this
+session — it amends a filed month's source record and is Keith's call.**
+
+**Still open from the report, deliberately:** the strict-match sufficiency threshold (finding 15's
+constructed distractor case) and the sign-in gate's non-discriminating forged-session fixture (it
+would need a seeded enrolment). Both are in Open Action Items.
 
 **`GET /api/build-mor` is a selftest, and it is the route's API contract.** It proves the Python
 runtime, all four libraries, and that the stored template is present and decryptable, while
@@ -2343,6 +2393,16 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    bot on Centreville's question box is a way to take down CivicScope, CRM and the RYC tooling at
    once. Needs a tenant-aware limit plus a bounded daily budget and a resident-friendly retry
    message. ⚠ A hidden URL and a browser sign-in are not API protection — the route is open.
+3a. 🚩 **Well 3, 2026-04-13 holds no chlorine usage on a day it pumped 32,000 gal** — the blank-tank
+   baseline defect (Codex finding 4, fixed in `1.7.0-waterops`) left this one row, in a FILED
+   month. Re-submitting the day with its same inputs and a `correction_reason` now derives it
+   from 4/11's level. **KEITH DECISION** — it amends the source record behind April's filing.
+3b. **Two review items left open by design (2026-09-11):** the ≥3-strict-rows retrieval
+   sufficiency rule can still exclude an answer-bearing table that abbreviates a term (finding 15,
+   constructed case — needs a distractor fixture before changing a threshold that took four
+   migrations to settle); and `verify-google-signin.mjs`'s forged-session check uses a
+   nonexistent enrolment, so a broken HMAC would still read as "signed out" (finding 20 — needs a
+   seeded fixture user). Detail: *THE ADVERSARIAL REVIEW* section above.
 4. ✅ **"Mark as filed" is BUILT, and every generation is recorded (2026-09-11).** Was: half built —
    `record_filing` worked and nothing on the page reached it, and generating left no trace at all.
    Now `api/build-mor.py` records every fill server-side (`water_mor_generations`, migration 073,
