@@ -9,8 +9,9 @@
 > remains, on purpose:** the `vercel.json` **308 redirects** (`/ryc/*`, `/command*`, `/desk*`, `/invoices*`,
 > `/ryc-data/*`, `/ryc-estimate/*.json` → `https://command.ryoderconstruction.com`), asserted by
 > `scripts/verify-routing.js` on every static deploy; the frozen `ryc_*` tables in this project's Supabase
-> (`zz_ryc_freeze`, read by nothing — dropping them is a separate decision); and the repo-local `scripts/*ryc*`
-> gates + `schema_ryc_*.sql` history. **Never re-add an RYC path here** — the application is `RYC/app/`,
+> (`zz_ryc_freeze`, read by nothing — dropping them is a separate decision); and the applied-migration ledger
+> (`migrations/0xx_ryc_*`). The repo-local `scripts/*ryc*` gates and `schema_ryc_*.sql` moved to
+> `archive/ryc-module-civicscope-2026-09-12/` on 2026-09-12. **Never re-add an RYC path here** — the application is `RYC/app/`,
 > deployed with `bash RYC/app/deploy.sh`. The RYC rows in the product table and route list below are
 > history. Record: `RYC_MODULE.md`, `infra/ryc-migration-plan-v2.md`.
 
