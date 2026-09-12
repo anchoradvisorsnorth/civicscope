@@ -2,13 +2,17 @@
 
 > Root context: Cowork\CLAUDE.md
 
-> ⛔ **THE RYC MODULE IN THIS REPO IS RETIRED (cut over 2026-09-05 15:49Z).** Every `ryc-*/` page,
-> `api/ryc-*.js` handler, `ryc-data/` artifact and `ryc_*` migration here is a frozen copy: `vercel.json`
-> 301s every RYC path to `https://command.ryoderconstruction.com`, `api/ryc-invoices.js` answers 503 "moved"
-> under `RYC_MAINTENANCE`, and all 26 `ryc_*` tables in this project's Supabase carry a permanent freeze
-> trigger (`zz_ryc_freeze`). **Do not edit, deploy or "fix" anything RYC here** — the application is
-> `RYC/app/`, deployed with `bash RYC/app/deploy.sh`. Phase 7 (deleting these files and tables) follows the
-> soak. Record: `infra/ryc-migration-plan-v2.md`.
+> ⛔ **THE RYC MODULE IS GONE FROM THIS REPO (cut over 2026-09-05; files DELETED 2026-09-12, Phase 7, on
+> Keith's approval).** Commit `89c8b51b0ca2` removed every `ryc-*/` page, `api/ryc-*.js` handler, `ryc-data/`
+> artifact and `ryc-shell/` (52 files, 128 → 76 blobs); the dead rewrites and the `/admin` RYC card went in
+> `447398b92476`; the `RYC_*`, `PROCORE_*` and `M365_VM_*` env vars were removed from the Vercel project. **What
+> remains, on purpose:** the `vercel.json` **308 redirects** (`/ryc/*`, `/command*`, `/desk*`, `/invoices*`,
+> `/ryc-data/*`, `/ryc-estimate/*.json` → `https://command.ryoderconstruction.com`), asserted by
+> `scripts/verify-routing.js` on every static deploy; the frozen `ryc_*` tables in this project's Supabase
+> (`zz_ryc_freeze`, read by nothing — dropping them is a separate decision); and the repo-local `scripts/*ryc*`
+> gates + `schema_ryc_*.sql` history. **Never re-add an RYC path here** — the application is `RYC/app/`,
+> deployed with `bash RYC/app/deploy.sh`. The RYC rows in the product table and route list below are
+> history. Record: `RYC_MODULE.md`, `infra/ryc-migration-plan-v2.md`.
 
 ---
 
