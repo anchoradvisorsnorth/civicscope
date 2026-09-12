@@ -163,22 +163,6 @@
       ]
     },
     {
-      "source": "/invoices",
-      "destination": "/ryc-invoices/index.html"
-    },
-    {
-      "source": "/invoices/:path*",
-      "destination": "/ryc-invoices/index.html"
-    },
-    {
-      "source": "/ryc/invoices",
-      "destination": "/ryc-invoices/index.html"
-    },
-    {
-      "source": "/ryc/invoices/:path*",
-      "destination": "/ryc-invoices/index.html"
-    },
-    {
       "source": "/try/:slug",
       "destination": "/api/try?slug=:slug"
     },
@@ -213,26 +197,6 @@
     {
       "source": "/for-infrastructure",
       "destination": "/for-infrastructure/index.html"
-    },
-    {
-      "source": "/desk",
-      "destination": "/ryc-estimate/index.html"
-    },
-    {
-      "source": "/desk/:path*",
-      "destination": "/ryc-estimate/index.html"
-    },
-    {
-      "source": "/command",
-      "destination": "/ryc-command/index.html"
-    },
-    {
-      "source": "/command/:path*",
-      "destination": "/ryc-command/index.html"
-    },
-    {
-      "source": "/ryc/command",
-      "destination": "/ryc-command/index.html"
     },
     {
       "source": "/pool",
@@ -273,18 +237,6 @@
     {
       "source": "/pool/terms",
       "destination": "/pool/terms.html"
-    },
-    {
-      "source": "/ryc/estimate",
-      "destination": "/ryc-estimate/index.html"
-    },
-    {
-      "source": "/ryc/billing",
-      "destination": "/ryc-billing/index.html"
-    },
-    {
-      "source": "/ryc/foundation",
-      "destination": "/ryc-foundation/index.html"
     },
     {
       "source": "/fire-station-cost",
