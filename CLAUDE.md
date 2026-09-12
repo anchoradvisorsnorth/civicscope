@@ -346,6 +346,14 @@ worktree-based comparison would match the stale deployment and pass a commit tha
   `verify-pool-integrity.js`, plus `deploy-mock-server.js` + `test-deploy-harness.js`. All are
   secret-free — **every credential and pool access code comes from the environment only**; the
   rest of `Civicscope/scripts/` stays gitignored because it carries hardcoded keys.
+  **Last certified 2026-09-12: `HARNESS-COMPLETE: 193/193 checks, 45/45 scenarios, exit 0`** — after the RYC
+  module left this repo (migration Phase 7) the suite had exactly six red checks, all caused by the deletion: two
+  scenarios drove RYC handlers (`api/ryc-active.js`, `api/ryc-ask.js` — now `api/groundwork-editions.js` and
+  `api/email.js`, which have the same contract properties) and the mock still answered the pre-cutover same-site
+  redirect for `/ryc/dashboard` (now six off-site 308s to `command.ryoderconstruction.com`, mirroring `vercel.json`,
+  with the same failure modes). The RYC contracts left `verify-api-endpoints.js`, the `ryc` gate catalog left
+  `push_civicscope.ps1`, and the harness's `knownUntracked` carve-out is empty. The old RYC gates/probes are in
+  `archive/ryc-module-civicscope-2026-09-12/scripts/`.
   Local suite: `node scripts/test-deploy-harness.js` — fully mocked, no commit, no deploy, no
   network egress. **Certification is the `HARNESS-COMPLETE: <checks>, <scenarios>, exit 0` line**,
   not a screenful of PASSes and not a bare exit 0. The runner's markers:
