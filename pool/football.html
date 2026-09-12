@@ -48,6 +48,21 @@
   .champ .ct{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold)}
   .champ .cn{font-size:24px;font-weight:900;margin-top:2px}
   .tblwrap{overflow-x:auto}
+  /* STICKY HEADER (a player, via Keith, 2026-09-12): "when you scroll down the list of games the
+     row with our names always stays on the top." Desktop only — below 720px the header row IS
+     each cell's label and is not rendered. `position:sticky` pins to the nearest SCROLL CONTAINER,
+     and both `.card{overflow:hidden}` and `.tblwrap{overflow-x:auto}` make the card one — so a
+     sticky header inside it would pin to a box that never scrolls vertically, i.e. never. The card
+     therefore gives up its overflow (`.fits`, set by fitTables() only while the whole table fits
+     inside the card) and its rounded corners move to clip-path, which clips without creating a
+     scroll container. A table WIDER than its card keeps the horizontal scroll and gets no sticky
+     header — the 08-21 print lesson: never lose the right-hand players to make something else
+     look nicer. The header cell needs its own background once it floats over rows, and the
+     collapsed border does not travel with a sticky cell in Chrome, so the rule is a box-shadow. */
+  @media (min-width:721px){
+    .tblwrap.fits{overflow:visible;clip-path:inset(0 round 12px)}
+    .tblwrap.fits thead th{position:sticky;top:0;z-index:3;background:var(--card);box-shadow:0 1px 0 var(--line)}
+  }
   .printonly{display:none}
 
   /* ─── THE MONEY (Keith 2026-08-25) ───
@@ -133,6 +148,8 @@
   @media print{
     @page{size:landscape;margin:12mm}
     :root{--bg:#fff}
+    .tblwrap.fits{clip-path:none}
+    .tblwrap.fits thead th{position:static;box-shadow:none}   /* paper repeats the header per page (below); a sticky cell would fight that */
     body{background:#fff;color:#000;font-size:11px}
     .navstrip,header,.btn,.section-title select,#status{display:none !important}
     .printonly{display:block}
@@ -366,6 +383,7 @@ async function renderWeek(slug){
     html+='<div class="note">Slate is set but nobody has picks in yet.</div>';
   }
   document.getElementById('content').innerHTML=html;
+  fitTables();
   setPrintHead(wk,slug,revealed,games.length);
   /* ⛔ AN UNLOCKED WEEK IS NOT "PICKS OPEN" (2026-09-02). The status line had two states for
      three, so a week with a slate built but not yet locked announced "picks open — hidden until
@@ -378,6 +396,17 @@ async function renderWeek(slug){
     :'picks open — hidden until all lock';
   document.getElementById('status').innerHTML='<b>'+esc(wk.label||slug)+'</b> · '+state+'<br>Updated '+new Date().toLocaleTimeString();
 }
+
+/* DOES THE TABLE FIT ITS CARD? Decides whether the header row may be sticky (see the .tblwrap.fits
+   CSS). Measured, not assumed: a card that can scroll sideways must keep doing so, so it earns
+   `fits` only when nothing is cut off. Re-measured on every paint and on every resize. */
+function fitTables(){
+  document.querySelectorAll('.tblwrap').forEach(w=>{
+    const t=w.querySelector('table');
+    w.classList.toggle('fits',!!t&&t.scrollWidth<=w.clientWidth+1);
+  });
+}
+window.addEventListener('resize',fitTables);
 
 /* WHAT THE PAPER SAYS IT IS. Screen chrome carries the week, the live state and the clock; a
    printout has none of that, so it is rebuilt here — which week, how many games, whether the
