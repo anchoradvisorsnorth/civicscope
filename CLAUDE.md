@@ -5,7 +5,17 @@
 > ⛔ **THE RYC MODULE IS GONE FROM THIS REPO (cut over 2026-09-05; files DELETED 2026-09-12, Phase 7, on
 > Keith's approval).** Commit `89c8b51b0ca2` removed every `ryc-*/` page, `api/ryc-*.js` handler, `ryc-data/`
 > artifact and `ryc-shell/` (52 files, 128 → 76 blobs); the dead rewrites and the `/admin` RYC card went in
-> `447398b92476`; the `RYC_*`, `PROCORE_*` and `M365_VM_*` env vars were removed from the Vercel project. **What
+> `447398b92476`; the `RYC_*`, `PROCORE_*` and `M365_VM_*` env vars were removed from the Vercel project.
+> **HISTORY PURGED 2026-09-14 (Keith's yes):** every `ryc-*/`, `api/ryc-*` and `api/schedule-notify.js` path was
+> rewritten out of this PUBLIC repo's history with git-filter-repo (1,242 → 572 commits, 6.0 → 2.3 MB, the current
+> tree byte-identical) and force-pushed; every commit id before that moment changed, so older commit links in these
+> records no longer resolve. Undo = the full pre-purge mirror at `C:\Users\Keith-Home\civicscope-prepurge-2026-09-14.git`
+> (RYC data inside — never copy it into a repo or Drive). ⚠ The rewrite was cut from the 9/13 head and two commits
+> landed after the mirror (the Supabase-retry fix `c63d122` and a contract push); the force-push displaced them and
+> they were re-applied as `44bdfb366f87` within minutes, live verified (routing 19/19, tools answering). Lesson:
+> re-mirror immediately before a force-push, never from an earlier snapshot. GitHub may still serve the old objects
+> by id until its garbage collection; a support request can hurry that. `RYC_MODULE.md` (the tombstone) is now in
+> the repo too. **What
 > remains, on purpose:** the `vercel.json` **308 redirects** (`/ryc/*`, `/command*`, `/desk*`, `/invoices*`,
 > `/ryc-data/*`, `/ryc-estimate/*.json` → `https://command.ryoderconstruction.com`), asserted by
 > `scripts/verify-routing.js` on every static deploy; the frozen `ryc_*` tables in this project's Supabase
