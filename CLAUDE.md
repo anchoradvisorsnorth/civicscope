@@ -2653,6 +2653,19 @@ transaction. (This is why `kind` — derive()'s label for the caller, not a colu
 (409, `saved:false`). Previously the day was written and the failure reported afterwards, leaving
 the month inconsistent in a way only a person could resolve.
 
+- 🚨 **SUPABASE'S GATEWAY IS FLAKY FOR THIS PROJECT AND IT TOOK THE VILLAGE TOOLS DOWN (2026-09-14).** From Vercel's
+  region a share of requests to this project's REST API came back 502/504 (50% of tenant lookups that morning) while the
+  same reads from a PC answered in 0.2 s; `/centreville` showed *"Corpus is unavailable"* and Michelle's `/water/review`
+  *"Could not load — error 504"*. Keith found out from the browser: `cs-health` said healthy because it only probed the
+  site and the AI path. Nothing here had changed (last deploy 2 days earlier, key unchanged 191 days); the CRM project's
+  registry saw the same 504s all weekend. **Shipped `c63d122f4de5` (gated, all green):** `muni-ask` and `water-ops`
+  retry a 5xx three times on READS (writes are never retried — a timeout can land after the row did; the write path's
+  own "never reported as saved" rule stays the guarantee), the village hub retries its own lookup, and **`cs-health`
+  now probes the data paths every 10 min** (tenant lookup, well-testing `profile` read for 01310, Groundwork editions)
+  and emails Keith immediately on failure. Record: memory `project_supabase_gateway_flakiness`. **Open:** why Supabase
+  does this — check both projects' plan tier/compute and open a Supabase support case if the `will retry` lines keep
+  coming in `~/crm-tools/heartbeat.log`. The well-testing INPUT path (a daily write) has no retry by design — an
+  operator who sees an error re-submits; the offline queue in the tool already holds the entry meanwhile.
 - ✅ **`scripts/verify-water-write-path.mjs` — the gate that can see a write.** 22 checks,
   `WATER-WRITE-PATH-COMPLETE`, wired into the `water` profile and **not optional**: it stubs
   `fetch` and drives the real exported handler, so it needs no credential and no network and

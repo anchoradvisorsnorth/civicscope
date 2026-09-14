@@ -104,16 +104,33 @@ import { sessionOf } from '../lib/session.js';
 // Supabase
 // ---------------------------------------------------------------------------------------------
 async function sb(pathAndQuery, init = {}) {
-  const r = await fetch(`${SB_URL}/rest/v1/${pathAndQuery}`, {
-    ...init,
-    headers: {
-      apikey: SB_KEY,
-      Authorization: `Bearer ${SB_KEY}`,
-      'Content-Type': 'application/json',
-      ...(init.headers || {}),
-    },
-  });
-  const body = await r.text();
+  /* 2026-09-14: Supabase's API gateway answered this project's requests from Vercel's region with 502/504
+     intermittently; Michelle's review page showed "Could not load — error 504" on a plain month read while
+     the same read from a PC answered in 0.2 s. READS (GET/HEAD) are retried three times with a short backoff.
+     WRITES ARE NEVER RETRIED HERE: a gateway timeout can arrive after the row has landed, and a blind retry
+     of a visit's record would be a duplicate — the write path's own rule ("a failed write is never reported
+     as saved") stays the guarantee, and the operator re-submits. A 4xx is an answer and is not retried. */
+  const method = String((init && init.method) || 'GET').toUpperCase();
+  const attempts = (method === 'GET' || method === 'HEAD') ? [0, 300, 900, 1800] : [0];
+  let r = null, body = '', lastErr = null;
+  for (const wait of attempts) {
+    if (wait) await new Promise((ok) => setTimeout(ok, wait));
+    try {
+      r = await fetch(`${SB_URL}/rest/v1/${pathAndQuery}`, {
+        ...init,
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${SB_KEY}`,
+          'Content-Type': 'application/json',
+          ...(init.headers || {}),
+        },
+      });
+    } catch (e) { lastErr = e; r = null; continue; }
+    body = await r.text();
+    if (r.ok || r.status < 500) break;
+    lastErr = new Error(`supabase ${r.status}: ${body.slice(0, 300)}`);
+  }
+  if (!r) throw lastErr || new Error('supabase unreachable');
   if (!r.ok) throw new Error(`supabase ${r.status}: ${body.slice(0, 300)}`);
   return body ? JSON.parse(body) : null;
 }

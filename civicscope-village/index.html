@@ -155,8 +155,18 @@ let TENANT = null, CORPUS = null, PROVIDER = null;
 const noun = () => (TENANT && TENANT.unit_noun) || 'Village';
 
 async function loadTenant() {
-  const r = await fetch('/api/muni-ask?tenant=' + encodeURIComponent(SLUG));
-  const d = await r.json();
+  // 2026-09-14: the lookup is one read; when Supabase's gateway flickers it failed on the first try and
+  // the hub showed "Corpus is unavailable" on every other load. Three tries, a second apart, before giving up.
+  let r, d;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await new Promise((ok) => setTimeout(ok, 1000 * attempt));
+    try {
+      r = await fetch('/api/muni-ask?tenant=' + encodeURIComponent(SLUG), { cache: 'no-store' });
+      d = await r.json();
+      if (r.ok || r.status < 500) break;
+    } catch (e) { r = null; d = { error: 'Could not reach CivicScope.' }; }
+  }
+  if (!r) throw new Error(d.error || 'Could not load this village.');
   if (!r.ok) throw new Error(d.error || 'Could not load this village.');
   TENANT = d.tenant; CORPUS = d.corpus || {};
   const short = TENANT.short_label || TENANT.label;

@@ -64,15 +64,33 @@ const SHARED_RESERVE = 12000;   // of CONTEXT_CHARS, held for a shares_corpus_wi
 // (26,621 for a single setback question) and anything guaranteed afterwards was silently dropped.
 
 async function sb(pathAndQuery, init = {}) {
-  const r = await fetch(`${SB_URL}/rest/v1/${pathAndQuery}`, {
-    ...init,
-    headers: {
-      apikey: SB_KEY,
-      Authorization: `Bearer ${SB_KEY}`,
-      'Content-Type': 'application/json',
-      ...(init.headers || {}),
-    },
-  });
+  /* 2026-09-14: Supabase's API gateway answered this project's requests from Vercel's region with 502/504
+     intermittently — half of the village-hub lookups failed for a stretch, so /centreville showed "Corpus is
+     unavailable" on every other load while the same reads from a PC answered in 0.2 s. A 5xx (or a dropped
+     connection) is retried three times with a short backoff; a 4xx is an answer and is not retried. The same
+     pattern fixed the CRM automation registry the day before. */
+  /* Reads and the read-only search RPC retry; a write (a logged ask, anything else POSTed to a table) never
+     does — a gateway timeout can arrive after the row landed, and a blind retry is a duplicate. */
+  const method = String((init && init.method) || 'GET').toUpperCase();
+  const isRead = method === 'GET' || method === 'HEAD' || /^rpc\/muni_search\b/.test(pathAndQuery);
+  let r = null, lastErr = null;
+  for (const wait of (isRead ? [0, 300, 900, 1800] : [0])) {
+    if (wait) await new Promise((ok) => setTimeout(ok, wait));
+    try {
+      r = await fetch(`${SB_URL}/rest/v1/${pathAndQuery}`, {
+        ...init,
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${SB_KEY}`,
+          'Content-Type': 'application/json',
+          ...(init.headers || {}),
+        },
+      });
+    } catch (e) { lastErr = e; r = null; continue; }
+    if (r.ok || r.status < 500) break;
+    lastErr = new Error(`supabase ${r.status}`);
+  }
+  if (!r) throw lastErr || new Error('supabase unreachable');
   if (!r.ok) throw new Error(`supabase ${r.status}`);
   const body = await r.text();
   return body ? JSON.parse(body) : null;
