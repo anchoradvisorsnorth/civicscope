@@ -24,8 +24,9 @@ the canonical repository `RYC/app` (remote `itryc/Keith-move-over`), deployed by
 the same day; `push_civicscope.ps1` no longer lists any RYC path and has no `ryc` profile rule.
 Vercel env vars freed from this project: `RYC_*`, `PROCORE_CLIENT_ID/SECRET`, `M365_VM_URL/API_KEY`.
 
-⚠ Git history still holds every deleted file (this repo is public). Treat anything that was ever
-committed here as disclosed — that was already the standing position from 2026-08-26.
+⚠ **History purged 2026-09-14** — git-filter-repo removed every RYC path from all commits and the result was
+force-pushed (pre-purge mirror kept locally, outside every repo). Anything cloned or cached before that moment
+still has it: "treat as disclosed" (2026-08-26) remains the position for the past; future clones carry nothing.
 
 ## KEEP — NOT RYC (the owned SaaS)
 `civicscope/`, `civicscope-schools/`, `civicscope-infrastructure/`, `for-government/`, `for-schools/`,
