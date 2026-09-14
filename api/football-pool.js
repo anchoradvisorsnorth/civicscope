@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.17.0-long-dates';  // lock email: kickoff order + long-form dates (Saturday, September 5)
+const VER = '3.18.0-notice-receipt';  // winner notice latches from what went out; roster read fails loudly; reads retry 5xx; hourly sweep re-announces
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,10 +20,31 @@ export default async function handler(req, res) {
 
   const SB_URL = process.env.SUPABASE_URL;
   const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
-  const sb = (path, opts = {}) => fetch(`${SB_URL}/rest/v1/${path}`, {
-    ...opts,
-    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', ...(opts.headers || {}) },
-  });
+  /* 2026-09-14: Supabase's API gateway answered this project's requests from Vercel's region with
+     intermittent 502/504 all weekend. The Week 2 auto-finalize ran into it at the worst possible
+     moment — the ROSTER read inside the winner announcement — and told nobody who won (see
+     applyFinalize). Same remedy muni-ask and water-ops got the same day: a 5xx or a dropped
+     connection on a READ is retried three times with a short backoff. A write is never retried —
+     a gateway timeout can arrive after the row landed, and a blind retry is a duplicate. A 4xx is
+     an answer, not an outage. Callers keep getting a Response back (they check r.ok themselves). */
+  const sb = async (path, opts = {}) => {
+    const method = String(opts.method || 'GET').toUpperCase();
+    const isRead = method === 'GET' || method === 'HEAD';
+    let r = null, lastErr = null;
+    for (const wait of (isRead ? [0, 300, 900, 1800] : [0])) {
+      if (wait) await new Promise((ok) => setTimeout(ok, wait));
+      try {
+        r = await fetch(`${SB_URL}/rest/v1/${path}`, {
+          ...opts,
+          headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+        });
+      } catch (e) { lastErr = e; r = null; continue; }
+      if (r.ok || r.status < 500) break;
+      lastErr = new Error(`supabase ${r.status}`);
+    }
+    if (!r) throw lastErr || new Error('supabase unreachable');
+    return r;
+  };
   const getRow = async (slug) => {
     const r = await sb(`football_pools?slug=eq.${slug}&select=slug,data,updated_at`);
     return (await r.json())[0] || null;
@@ -113,7 +134,13 @@ export default async function handler(req, res) {
   const loadRosterByPool = async (slug) => {
     const poolSlug = encodeURIComponent(String(slug || 'football-2026'));
     const r = await sb(`pool_memberships?select=role,pools!inner(slug),pool_people!inner(id,name,email,phone,pin,sms_consent,sms_opted_out,notify_sms,notify_email,global_role)&pools.slug=eq.${poolSlug}`);
-    if (!r.ok) return [];
+    /* ⛔ AN UNREADABLE ROSTER IS AN ERROR, NOT AN EMPTY ROSTER (2026-09-14). This returned [] on
+       any failed read. On Monday 2026-09-14 06:15 ET the Week 2 winner announcement hit a
+       Supabase gateway timeout right here, looped over nobody, reported texted:0 emailed:0 — and
+       the week had already been stamped notifiedWinner:true, so the hourly cron never looked at
+       it again. Six players learned who won from each other. A roster the API cannot read must
+       stop the caller, never quietly become "nobody is on this pool". */
+    if (!r.ok) throw new Error(`roster unreadable: supabase ${r.status}`);
     return (await r.json()).map(m => ({
       id: m.pool_people.id,
       name: m.pool_people.name,
@@ -506,21 +533,80 @@ export default async function handler(req, res) {
           <a href="https://app.civicscope.io/pool/football" style="display:inline-block;background:#c8a24b;color:#1a1300;font-weight:800;font-size:16px;padding:12px 24px;border-radius:10px;text-decoration:none">See the full board →</a>
         </div>
       </div></div>`;
-    let texted = 0, emailed = 0;
+    /* Per-channel RECEIPT: how many were eligible, how many actually went, how many failed. A
+       best-effort loop that counts only successes cannot tell "nobody to tell" from "everything
+       failed" — and that is the distinction the latch in announceWinner() is built on. */
+    let texted = 0, emailed = 0, smsEligible = 0, emailEligible = 0, smsFailed = 0, emailFailed = 0;
     for (const p of roster) {
-      if (p.canText) { try { if (await sendSms(p.phone, sms + '\nReply STOP to opt out.')) texted++; } catch (e) { /* best-effort */ } }
+      if (p.canText) {
+        smsEligible++;
+        let sent = false;
+        try { sent = await sendSms(p.phone, sms + '\nReply STOP to opt out.'); } catch (e) { sent = false; }
+        if (sent) texted++; else smsFailed++;
+      }
       if (p.email && p.wantsEmail) {
+        emailEligible++;
+        let sent = false;
         try {
           const r = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
             body: JSON.stringify({ from: 'The Football Pool <pool@civicscope.io>', reply_to: 'keith@anchoradvisorsnorth.com', to: [p.email], subject: `${tag}🏆 ${headline}`, html }),
           });
-          if (r.ok) emailed++;
-        } catch (e) { /* best-effort */ }
+          sent = r.ok;
+        } catch (e) { sent = false; }
+        if (sent) emailed++; else emailFailed++;
       }
     }
-    return { texted, emailed };
+    return { texted, emailed, smsEligible, emailEligible, smsFailed, emailFailed };
+  }
+
+  /* When a winner notice reaches NOBODY it was eligible to reach, Keith is told directly — the
+     hourly sweep will keep retrying, but a retry loop nobody can see is the same silence one
+     level up. Best-effort by nature: this is the alarm, it must not be able to break the thing
+     it is alarming about. */
+  async function alertKeithNoticeFailed(slug, wk, told, why) {
+    try {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'The Football Pool <pool@civicscope.io>', to: ['keith@anchoradvisorsnorth.com'],
+          subject: `⚠ Pool: the ${wk.label || slug} winner notice reached nobody`,
+          text: `${wk.label || slug} is finalized (${wk.weeklyWinner}) but the announcement went to no one.\n`
+            + `Why: ${why}\nReceipt: ${JSON.stringify(told)}\n`
+            + `The hourly auto-finalize sweep will retry it until at least one message goes out. `
+            + `To force it now: POST finalize_week with notify:true for ${slug}.`,
+        }),
+      });
+    } catch (e) { /* the alarm is best-effort */ }
+  }
+
+  /* THE ANNOUNCEMENT, IN ONE PLACE — used by applyFinalize (the moment a week scores) and by the
+     hourly sweep (a finalized week nobody was told about). It reads the roster itself so a roster
+     that cannot be read THROWS here, before anything is latched, and the week stays "finalized,
+     not announced" for the sweep to pick up.
+     ⛔ THE LATCH IS SET FROM THE RECEIPT, NOT BEFORE THE SEND (2026-09-14). The old order —
+     notifiedWinner = true, write, then send — existed so that re-running finalize to correct a
+     score never re-announced. It also meant a send that reached nobody was recorded as done and
+     could never be retried, which is exactly what happened to Week 2. Now: `winnerNotice` stamps
+     the ATTEMPT first (so two runs a minute apart cannot both fire — the sweep skips a fresh
+     attempt), the send runs, and notifiedWinner is true only if at least one message went out —
+     or if nobody on the roster was eligible for either channel, which is "nothing to retry", not
+     a failure. Correcting a score still does not re-announce: a latched week stays latched. */
+  async function announceWinner(slug, wk, scored) {
+    wk.winnerNotice = { attemptedAt: new Date().toISOString(), attempts: ((wk.winnerNotice || {}).attempts || 0) + 1 };
+    await putRow(slug, wk);
+    const roster = await loadRoster(slug);        // throws if unreadable — the attempt stamp stays, the latch does not
+    const told = await notifyWinner(wk, slug, roster, scored);
+    const eligible = told.smsEligible + told.emailEligible;
+    const reached = told.texted + told.emailed;
+    wk.notifiedWinner = reached > 0 || eligible === 0;
+    wk.winnerNotice = { ...wk.winnerNotice, ...told, at: new Date().toISOString(), roster: roster.length,
+      outcome: eligible === 0 ? 'nobody-eligible' : reached > 0 ? 'sent' : 'reached-nobody' };
+    await putRow(slug, wk);
+    if (eligible > 0 && reached === 0) await alertKeithNoticeFailed(slug, wk, told, 'every eligible text and email failed');
+    return told;
   }
 
   /* THE FINALIZE SEQUENCE, IN ONE PLACE. `finalize_week` (commissioner, scores in the body) and
@@ -536,13 +622,14 @@ export default async function handler(req, res) {
     wk.finalized = true;
     wk.finalizedAt = new Date().toISOString();
     wk.scoringVersion = VER;
-    /* The flag is set BEFORE the write, so re-running finalize (to correct a score, say) never
-       re-announces the same winner to seven phones. A deliberate re-announce is `notify: true`. */
-    const announce = (!wk.notifiedWinner || forceAnnounce === true);
-    if (announce) wk.notifiedWinner = true;
+    /* The RECORD lands first — scores, covers, winner — whatever happens to the announcement.
+       Then the announcement runs through announceWinner(), which owns the latch. A week whose
+       winner is already latched is not re-announced by a correction; `notify: true` on
+       finalize_week is the deliberate re-announce. */
     await putRow(slug, wk);
-    let told = { texted: 0, emailed: 0 };
-    if (announce) told = await notifyWinner(wk, slug, await loadRoster(slug), scored);
+    const announce = (!wk.notifiedWinner || forceAnnounce === true);
+    let told = { texted: 0, emailed: 0, smsEligible: 0, emailEligible: 0, smsFailed: 0, emailFailed: 0 };
+    if (announce) told = await announceWinner(slug, wk, scored);
     return { scored, announce, told };
   }
 
@@ -1526,8 +1613,24 @@ export default async function handler(req, res) {
         const season = String(req.body.season || new Date().getFullYear());
         const r = await sb(`football_pools?slug=like.${season}-*&select=slug,data&order=slug.asc`);
         const rows = (await r.json()) || [];
+        /* A gateway error body is an object, not an array — that was the "rows.filter is not a
+           function" 500 the cron logged four times on 2026-09-13. Name it. */
+        if (!r.ok || !Array.isArray(rows)) {
+          return res.status(502).json({ error: `week list unreadable: supabase ${r.status}`, detail: JSON.stringify(rows).slice(0, 160) });
+        }
         const due = rows.filter(x => x.data && x.data.slateLocked && !x.data.finalized
           && x.data.deadline && Date.parse(x.data.deadline) < Date.now());
+        /* THE SWEEP (2026-09-14): a week that is finalized but whose winner notice never latched —
+           the roster read threw, or every text and email failed — is announced again on the next
+           pass, until at least one message goes out. Guarded by the attempt stamp so a run
+           overlapping a still-sending one cannot double up; the cron is hourly, 30 minutes is
+           plenty. A week with no attempt at all (finalized before this existed, or one whose
+           first attempt died before stamping) is swept too. */
+        const RETRY_AFTER_MS = 30 * 60 * 1000;
+        const unannounced = rows.filter(x => x.data && x.data.finalized && x.data.weeklyWinner
+          && x.data.notifiedWinner !== true
+          && !(x.data.winnerNotice && x.data.winnerNotice.attemptedAt
+               && Date.now() - Date.parse(x.data.winnerNotice.attemptedAt) < RETRY_AFTER_MS));
 
         /* READ-ONLY PROBE. Whether THIS runtime can reach ESPN is the single assumption the whole
            feature rests on, and a run that finds nothing due never exercises it — so the first
@@ -1558,7 +1661,17 @@ export default async function handler(req, res) {
           });
         }
 
-        if (!due.length) return res.status(200).json({ finalized: [], reason: 'no locked week past its deadline is awaiting finalizing' });
+        const reannounced = [], noticeErrors = [];
+        for (const row of unannounced) {
+          try {
+            const told = await announceWinner(row.slug, row.data, scoreWeek(row.data, row.data.results || {}));
+            reannounced.push({ slug: row.slug, weeklyWinner: row.data.weeklyWinner, ...told, latched: row.data.notifiedWinner === true });
+          } catch (e) { noticeErrors.push({ slug: row.slug, error: e.message }); }
+        }
+        if (!due.length) {
+          return res.status(200).json({ finalized: [], reason: 'no locked week past its deadline is awaiting finalizing',
+            ...(reannounced.length ? { reannounced } : {}), ...(noticeErrors.length ? { noticeErrors } : {}) });
+        }
 
         const done = [], waiting = [];
         for (const row of due) {
@@ -1576,10 +1689,20 @@ export default async function handler(req, res) {
             waiting.push({ slug: row.slug, remaining: unfinished.map(g => g.short || g.id), notes });
             continue;
           }
-          const { scored, announce, told } = await applyFinalize(row.slug, wk, scores, false);
-          done.push({ slug: row.slug, weeklyWinner: scored.winner, announced: announce, ...told });
+          /* The week SCORES even if the announcement cannot go out — applyFinalize writes the
+             record before it announces, and a thrown announcement (roster unreadable) lands here
+             with the week finalized and un-latched, which is exactly the state the sweep above
+             picks up next hour. One week's notice failure must not stop the next week scoring. */
+          try {
+            const { scored, announce, told } = await applyFinalize(row.slug, wk, scores, false);
+            done.push({ slug: row.slug, weeklyWinner: scored.winner, announced: announce, ...told, latched: wk.notifiedWinner === true });
+          } catch (e) {
+            noticeErrors.push({ slug: row.slug, error: e.message, finalized: wk.finalized === true });
+            if (wk.finalized === true) await alertKeithNoticeFailed(row.slug, wk, {}, e.message);
+          }
         }
-        return res.status(200).json({ finalized: done, waiting });
+        return res.status(200).json({ finalized: done, waiting,
+          ...(reannounced.length ? { reannounced } : {}), ...(noticeErrors.length ? { noticeErrors } : {}) });
       }
 
       /* ---- player action: change your OWN pin ----
