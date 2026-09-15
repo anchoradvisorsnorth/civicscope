@@ -2579,11 +2579,17 @@ Businesses → CivicScope" card**. Curated at `/wrap`.
    `[n]` markers in the answer. So an answer citing only the Code logs Code + Website + minutes as
    relied upon, and the corpus-repair analytics report reliance that never happened. Parse the
    markers server-side once and log from those.
-8. **Audit the pool's remaining best-effort SMS sends.** `notifyLock`, `notifyWinner` and both
-   reminders still swallow individual send failures — anything that does not report a per-channel
-   count can fail exactly the way the "all picks are in" notice did on 2026-08-09: sent nothing,
-   left no trace, and latched its own already-notified flag before calling. Fixed for that one path
-   (`3.8.0-allinreceipt`); the others are unaudited. Detail in `Pools/CLAUDE.md`.
+8. **Audit the pool's remaining best-effort SMS sends — `notifyLock` and both reminders.** They
+   still swallow individual send failures — anything that does not report a per-channel count can
+   fail exactly the way the "all picks are in" notice did on 2026-08-09: sent nothing, left no
+   trace, and latched its own already-notified flag before calling. Fixed for that path
+   (`3.8.0-allinreceipt`). 🚨 **And it happened to `notifyWinner` on 2026-09-14 exactly as this
+   item predicted:** Week 2 auto-finalized during the Supabase gateway outage, the roster read
+   returned `[]`, the pre-send latch recorded `announced:true` beside `texted:0 emailed:0`, and six
+   players learned the result from each other. Fixed `3.18.0-notice-receipt` (`4c3efdc`): read
+   retry, roster read throws, latch derived from the receipt, hourly sweep, alert to Keith on a
+   zero-reach notice; gate 146 → 158. **`notifyLock` and the two reminders remain unaudited** — the
+   same shape, and the lock notice carries every player's PIN. Detail in `Pools/CLAUDE.md`.
 9. **Fable review R2 — 30-day school-BOT plan, Week 1.** ~50-district target list (the
    agenda/BoardDocs mining technique is proven), Triage Memo template, outreach sequence. The
    schools wedge has **zero organic pull** (4 runs ever, nearly all internal) — founder-led
@@ -2680,6 +2686,10 @@ the month inconsistent in a way only a person could resolve.
   does this — check both projects' plan tier/compute and open a Supabase support case if the `will retry` lines keep
   coming in `~/crm-tools/heartbeat.log`. The well-testing INPUT path (a daily write) has no retry by design — an
   operator who sees an error re-submits; the offline queue in the tool already holds the entry meanwhile.
+  ⚠ **The same outage silently ate the pool's Week 2 winner announcement that morning** (`api/football-pool.js`
+  had no retry and returned an empty roster on a failed read) — fixed that evening in `3.18.0-notice-receipt`; see
+  Open Action Item 8 and `Pools/CLAUDE.md`. `golf-pool.js` and `pool-sms.js` were grepped the same evening: neither
+  turns a failed read into an empty collection, but neither retries a 5xx either (golf is dormant until 2027).
 - ✅ **`scripts/verify-water-write-path.mjs` — the gate that can see a write.** 22 checks,
   `WATER-WRITE-PATH-COMPLETE`, wired into the `water` profile and **not optional**: it stubs
   `fetch` and drives the real exported handler, so it needs no credential and no network and
