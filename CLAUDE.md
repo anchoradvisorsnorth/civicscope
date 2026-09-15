@@ -2698,8 +2698,8 @@ the month inconsistent in a way only a person could resolve.
   the next morning) — `api/digest.js` had no retry either. **Fixed 2026-09-15, `4e3f379`, gate passed:** its three
   reads retry a 5xx the same way. Found on the way: that file carried the **CRM registry's cron secret as a literal in
   this PUBLIC repo** — now `CRM_CRON_SECRET` from the Vercel env (Keith added it). The old value is still in the
-  public history; rotating it is a Keith decision recorded in
-  `infra/incident-2026-09-14-gitguardian-cs-service-role-jwt.md` § 4b.
+  public history; **Keith decided 2026-09-15 not to rotate it** (accepted risk: a spoofed heartbeat) — do not
+  re-surface. Record: `infra/incident-2026-09-14-gitguardian-cs-service-role-jwt.md` § 4b.
 - ✅ **`scripts/verify-water-write-path.mjs` — the gate that can see a write.** 22 checks,
   `WATER-WRITE-PATH-COMPLETE`, wired into the `water` profile and **not optional**: it stubs
   `fetch` and drives the real exported handler, so it needs no credential and no network and
