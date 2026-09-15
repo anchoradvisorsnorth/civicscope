@@ -103,10 +103,24 @@ export default async function handler(req, res) {
     const shortLabel = labelFor({ month: 'short', day: 'numeric' });
 
     const sbGet = async (table, extra = '') => {
+      /* 2026-09-15: the 2026-09-14 digest died on `Supabase leads error: {"message":"Gateway Timeout"}` — the
+         same intermittent 502/504 from Supabase's API gateway that took down /centreville and the well-testing
+         review on 09-12→14, and the same fix: these three calls are pure READS, so a 5xx (or a dropped connection)
+         is retried three times with a short backoff; a 4xx is an answer and is not retried. Mirrors sb() in
+         api/muni-ask.js. The Resend send below is a WRITE and is deliberately not retried. */
       const url = `${SUPABASE_URL}/rest/v1/${table}?created_at=gte.${since}&created_at=lt.${until}${extra}`;
-      const r = await fetch(url, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-      });
+      let r = null, lastErr = null;
+      for (const wait of [0, 300, 900, 1800]) {
+        if (wait) await new Promise((ok) => setTimeout(ok, wait));
+        try {
+          r = await fetch(url, {
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+          });
+        } catch (e) { lastErr = e; r = null; continue; }
+        if (r.ok || r.status < 500) break;
+        lastErr = new Error(`Supabase ${table} error: ${r.status} ${(await r.text()).slice(0, 120)}`);
+      }
+      if (!r) throw lastErr || new Error(`Supabase ${table} unreachable`);
       if (!r.ok) throw new Error(`Supabase ${table} error: ${await r.text()}`);
       return r.json();
     };
@@ -219,11 +233,14 @@ export default async function handler(req, res) {
 }
 
 // Report this run to the CRM automation registry (best-effort).
+// The registry's cron secret comes from the environment (CRM_CRON_SECRET on this Vercel project). Until
+// 2026-09-15 it was a LITERAL in this file — a live CRM credential in a PUBLIC repo. Never put it back.
 async function cronHeartbeat(status, detail) {
   try {
+    if (!process.env.CRM_CRON_SECRET) return;
     await fetch('https://crm.jbkdevelopment.com/api/task-heartbeat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-cron-secret': '14a8f1c985aa1345179433b701555d2887bd3a6c7d00d790' },
+      headers: { 'Content-Type': 'application/json', 'x-cron-secret': process.env.CRM_CRON_SECRET },
       body: JSON.stringify({ id: 'cs-digest', status, detail: (detail || '').toString().slice(0, 200) }),
     });
   } catch {}
