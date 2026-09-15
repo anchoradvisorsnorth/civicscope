@@ -17,9 +17,13 @@
 > by id until its garbage collection; a support request can hurry that. `RYC_MODULE.md` (the tombstone) is now in
 > the repo too. ⚠ **The force-push re-sent every commit, so GitGuardian re-reported the service_role JWT that sat in
 > `civicscope-admin/index.html` from 2026-03-08 to 2026-04-23 — the one already REVOKED 2026-04-23 (HISTORY.md item 7).**
-> Not a new leak; the purge removed RYC paths, not that blob. Triage, verification and the open redact-or-not decision:
-> `infra/incident-2026-09-14-gitguardian-cs-service-role-jwt.md`. Before any future rewrite of this public history, scan
-> the mirror for secret shapes and `--replace-text` them in the same pass. **What
+> Not a new leak; the purge removed RYC paths, not that blob. **REDACTED 2026-09-15 (Keith's yes, Keith's push):** a
+> second `filter-repo --replace-text` rewrite replaced both dead JWTs in that file's history with `***REMOVED-2026-09-14***`
+> and was force-pushed — 579 commits, current tree byte-identical, routing 19/19 after. **Every commit id changed
+> AGAIN**, so the ids in the paragraph above (`44bdfb36`, `c63d122`, `d27bedc`) are pre-redaction and no longer resolve;
+> the baseline is now head `72e70bd9ff6c`. Undo = `C:\Users\Keith-Home\civicscope-preredact-2026-09-14.git`.
+> Record: `infra/incident-2026-09-14-gitguardian-cs-service-role-jwt.md`. Before any future rewrite of this public
+> history, scan the mirror for secret shapes and `--replace-text` them in the same pass. **What
 > remains, on purpose:** the `vercel.json` **308 redirects** (`/ryc/*`, `/command*`, `/desk*`, `/invoices*`,
 > `/ryc-data/*`, `/ryc-estimate/*.json` → `https://command.ryoderconstruction.com`), asserted by
 > `scripts/verify-routing.js` on every static deploy; the frozen `ryc_*` tables in this project's Supabase
