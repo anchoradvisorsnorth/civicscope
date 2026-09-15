@@ -154,18 +154,32 @@
         <span id="wkident" style="font-weight:800;font-size:15px;color:var(--navy)">—</span>
         <input type="hidden" id="wklabel"><input type="hidden" id="wkslug">
       </div>
+      <!-- ⛔ THE POOL'S WEEK NUMBER IS NOT THE NFL'S (Mike, Tue 2026-09-15: "It won't let me save my
+           picks for this week. Can you make it open the new week on Tuesday morning?").
+           One box used to be BOTH the pool week's identity and the week the NFL loader asked ESPN
+           for. The pool counts from college's opening weekend, so it runs one ahead of the NFL:
+           pool Week 2 = college week 2 + NFL week 1. With the box at 2, Mike got the right NFL
+           games (week 2, Sun 9/20) under the WRONG identity (2026-w02 — finished, Save hidden);
+           at 3 he would have got the right identity and the wrong weekend's games. Neither value
+           could work. The pool week is now its own control, derived from the season at boot
+           (the week after the last finished one), and the two loader boxes are loader-only,
+           prefilled from ESPN's own calendar for the coming weekend. -->
       <div class="row">
-        <label>NFL week <input class="sm" id="nflweek" type="number" value="1" min="1" max="18" oninput="onWeekIdentChange()"></label>
-        <label>College week <input class="sm" id="cfbweek" type="number" value="1" min="1" max="16"></label>
+        <label>Pool week <input class="sm" id="poolweek" type="number" value="1" min="1" max="18" oninput="onWeekIdentChange()"></label>
         <label>Season <input class="sm" id="season" type="number" value="2026" oninput="onWeekIdentChange()"></label>
         <label>Type <select id="seasontype" onchange="onTypeChange()">
           <option value="1">Preseason</option>
           <option value="2" selected>Regular</option>
           <option value="3">Postseason</option>
         </select></label>
+      </div>
+      <div class="row">
+        <label>NFL week <input class="sm" id="nflweek" type="number" value="1" min="1" max="18"></label>
+        <label>College week <input class="sm" id="cfbweek" type="number" value="1" min="1" max="16"></label>
         <button class="btn gray" onclick="loadGames('nfl')">Load NFL games</button>
         <button class="btn gray" onclick="loadGames('cfb')">Load college games</button>
       </div>
+      <div class="muted" id="weekendstat">Reading ESPN's calendar for the coming weekend…</div>
       <div class="muted" id="loadstat">Load a league to list its games with live DraftKings spreads. Tap ＋ to add to the slate.</div>
       <div class="row" style="margin-top:10px">
         <button class="btn gray" id="tab-nfl" onclick="setLeagueTab('nfl')">NFL (0)</button>
@@ -689,7 +703,8 @@ async function loadGames(league){
 function weekIdent(){
   const season=(document.getElementById('season').value||'').trim();
   const t=document.getElementById('seasontype').value;
-  const n=+document.getElementById('nflweek').value;
+  // The POOL's week number — not the NFL loader's. See the note above the controls (2026-09-15).
+  const n=+document.getElementById('poolweek').value;
   if(t==='1') return n===0
     ? {slug:`${season}-pre0`, label:'Hall of Fame Game'}
     : {slug:`${season}-pre${n}`, label:`Preseason Week ${n}`};
@@ -720,6 +735,11 @@ function onWeekIdentChange(){
     toast(`Editor cleared — those games belonged to ${from}, not ${slug}.`,7000);
     if(typeof renderLoaded==='function')renderLoaded();
   }
+  /* Preseason and postseason have no college half, and there the NFL loader's week IS the pool's
+     week (loadGames translates it to ESPN's numbering), so keep that box in step. The regular
+     season is the one case where the two differ — pool Week 2 was NFL week 1 — and there the
+     calendar fills the loader boxes instead (primeLoaderWeeks). */
+  if(document.getElementById('seasontype').value!=='2')document.getElementById('nflweek').value=document.getElementById('poolweek').value;
   document.getElementById('wkslug').value=slug;
   document.getElementById('wklabel').value=label;
   document.getElementById('wkident').textContent=`${label} · ${slug}`;
@@ -729,13 +749,20 @@ function onWeekIdentChange(){
   slateLocked=false; lockedSummary=''; weekState='unknown'; renderSlate();
   syncSlateStateForSlug();
 }
+/* The pool-week box and the NFL loader box share one range per season type: preseason 0–3
+   (0 = Hall of Fame), regular 1–18, postseason 1–5. */
+function applyTypeRanges(t){
+  for(const id of ['poolweek','nflweek']){
+    const el=document.getElementById(id);
+    el.min = t==='1' ? 0 : 1;
+    el.max = t==='1' ? 3 : (t==='3' ? 5 : 18);
+    if(+el.value > +el.max) el.value = el.max;
+    if(+el.value < +el.min) el.value = el.min;
+  }
+}
 function onTypeChange(){
   const t=document.getElementById('seasontype').value;
-  const nfl=document.getElementById('nflweek');
-  nfl.min = t==='1' ? 0 : 1;
-  nfl.max = t==='1' ? 3 : (t==='3' ? 5 : 18);
-  if(+nfl.value > +nfl.max) nfl.value = nfl.max;
-  if(+nfl.value < +nfl.min) nfl.value = nfl.min;
+  applyTypeRanges(t);
   if(t==='1'){
     document.getElementById('loadstat').innerHTML='Preseason weeks are <b>1–3</b> as the pool counts them (0 = the Hall of Fame game). ESPN numbers them one higher — that is translated for you, and the line above the games will name the week it served. Spreads are thin this early: use <b>PK all unpriced</b> or the manual spread box.';
   }
@@ -764,7 +791,20 @@ function renderLoaded(){
       <button class="btn ${inSlate.has(g.id+'#ou')?'gray':'gold'}" onclick="toggleTotal('${g.id}')" title="Add as an over/under — a separate pick from the spread">${inSlate.has(g.id+'#ou')?'✓ O/U':'＋ O/U'}</button>
     </div>`).join('')||('<div style="padding:16px;color:var(--muted);font-size:13px">'+(loaded.some(g=>g.league===viewLeague)?'No team matches that filter.':'Nothing loaded for this league yet — use the Load buttons above.')+'</div>');
 }
+/* ⛔ A LOCKED OR FINISHED WEEK TAKES NO GAMES (2026-09-15). With §3 sitting on the finished
+   2026-w02, "＋ spread" happily added Sunday 9/20's games to a slate that had no Save button —
+   the rows painted in the locked style and nothing said why. Refuse at the tap and say where to
+   go, instead of letting him build a week that cannot be saved. */
+function refuseAddToClosedWeek(){
+  if(!slateLocked)return false;
+  const {label}=weekIdent();
+  const nxt=nextRegularWeek();
+  toast(`${label} is ${weekState==='done'?'finished':'locked'} — nothing can be added to it. `
+    +(nxt?`Tap "Build a different week" to start Week ${nxt}.`:'Set the Pool week to the week you are building.'),9000);
+  return true;
+}
 function toggleGame(id){
+  if(refuseAddToClosedWeek())return;
   const i=slate.findIndex(g=>g.id===id);
   if(i>-1)slate.splice(i,1); else{const g=loaded.find(x=>x.id===id); if(g)slate.push({...g,market:'spread'});}
   bindSlateToWeek();
@@ -775,6 +815,7 @@ function toggleGame(id){
    can never collide; score lookup falls back to the matchup, which both rows share, so the
    duplicate id costs nothing. */
 function toggleTotal(id){
+  if(refuseAddToClosedWeek())return;
   const oid=id+'#ou';
   const i=slate.findIndex(g=>g.id===oid);
   if(i>-1){slate.splice(i,1);renderSlate();renderLoaded();return;}
@@ -855,11 +896,28 @@ function renderSlate(){
       /* An empty editor addressing a week that does not exist is NOT a draft of anything. Saying
          so is the difference between "Mike's locked slate has vanished" and "you are looking at a
          week nobody has built." */
-      ? `<div class="muted">Nothing is saved under <b>${esc(slug)}</b> yet — this would be a <b>new</b> week. To work on a week that already exists, open it from §4 below.</div>`
+      ? `<div class="muted">Nothing is saved under <b>${esc(slug)}</b> yet — <b>${esc(label)}</b> is the next week to build. Load a league in §2, tap ＋ on each game you want, then 💾 Save draft. Lock it by <b>Thursday 9:30 AM ET</b>. To work on a week that already exists, open it from §4 below.</div>`
       : '<div class="muted">No games in the slate yet.</div>');
 }
 /* Asked for explicitly, so a locked week can still be left behind to build the next one. */
-function showBuilder(){builderOpen=true;renderSlate();}
+function showBuilder(){
+  builderOpen=true;
+  /* "Build a different week" from a locked or finished week means the NEXT one, nine times in
+     ten (2026-09-15). Move the controls there rather than leaving them on a week that cannot take
+     a game. The locked week's rows in the editor were a read-only view, not the commissioner's
+     work, so they are dropped without the "editor cleared" warning. */
+  if(slateLocked&&document.getElementById('seasontype').value==='2'){
+    const nxt=nextRegularWeek();
+    if(nxt){
+      slate=[]; slateSlug=null;
+      document.getElementById('poolweek').value=String(nxt);
+      onWeekIdentChange();
+      toast(`Building Week ${nxt}`,4000);
+      return;
+    }
+  }
+  renderSlate();
+}
 /* PICK 'EM (Keith 2026-08-08: "if there is no line just make it a pick em"). Preseason spreads are
    thin or absent, and lock_slate used to refuse any game without one — which would have blocked the
    whole preseason shakedown. A pick'em carries NO line and is scored straight up server-side.
@@ -1119,10 +1177,10 @@ function setControlsFromSlug(s){
   if(!m)return false;
   document.getElementById('season').value=m[1];
   document.getElementById('seasontype').value=m[2]==='pre'?'1':(m[2]==='post'?'3':'2');
-  const nfl=document.getElementById('nflweek');
-  nfl.min=m[2]==='pre'?0:1;
-  nfl.max=m[2]==='pre'?3:(m[2]==='post'?5:18);
-  nfl.value=String(+m[3]);
+  applyTypeRanges(document.getElementById('seasontype').value);
+  document.getElementById('poolweek').value=String(+m[3]);
+  // Outside the regular season the NFL loader week is the pool week; in it, the calendar decides.
+  if(m[2]!=='w')document.getElementById('nflweek').value=String(+m[3]);
   const {slug,label}=weekIdent();
   document.getElementById('wkslug').value=slug;
   document.getElementById('wklabel').value=label;
@@ -1160,6 +1218,71 @@ async function forceFinalize(s){
     listWeeks();
   }catch(e){}
 }
+/* THE WEEK AFTER THE LAST ONE BUILT. Read from the week list (`?list=<season>`), regular-season
+   rows only: the highest `YYYY-wNN` plus one, capped at 18. Null when the season has no regular
+   week yet (nothing to count from) or is at 18 (nothing after it — the postseason is a choice the
+   commissioner makes with the Type box, not something to guess). */
+function nextRegularWeek(){
+  const nums=weekIndex.map(w=>{const m=/^\d{4}-w(\d+)$/.exec(String(w.slug||''));return m?+m[1]:0;});
+  const max=nums.length?Math.max(...nums):0;
+  if(!max||max>=18)return null;
+  return max+1;
+}
+/* WHICH ESPN WEEK COVERS A GIVEN MOMENT. ESPN publishes its calendar in every scoreboard
+   response — `leagues[0].calendar` → the group for the season type → entries with a label and a
+   start/end. The week number returned is the one in the LABEL ("Week 2"), which is what
+   loadGames() resolves by; `value` is ESPN's own index and the two differ in preseason. */
+function weekFromCalendar(j,stype,at){
+  try{
+    const cal=((j.leagues||[])[0]||{}).calendar||[];
+    const grp=cal.find(c=>String(c.value)===String(stype));
+    const entries=(grp&&grp.entries)||[];
+    const t=Date.parse(at);
+    const hit=entries.find(e=>e.startDate&&e.endDate&&Date.parse(e.startDate)<=t&&t<=Date.parse(e.endDate));
+    if(!hit)return null;
+    const lab=String(hit.label||hit.alternateLabel||'');
+    const m=/week\s*(\d+)/i.exec(lab);
+    return {week:m?m[1]:String(hit.value),label:lab};
+  }catch(e){return null;}
+}
+/* THE COMING WEEKEND, IN EASTERN TIME. The pool's week is Tue–Sun and it is played on the next
+   Saturday (college) and Sunday (NFL) on or after today. Anchored on the Sunday: the Saturday is
+   the day before it, so a page opened ON a Saturday or Sunday still names that same weekend.
+   Returned as noon-ET instants, which sit safely inside ESPN's week ranges (they roll at 07:00Z). */
+function comingWeekendTargets(now){
+  const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).formatToParts(now||new Date());
+  const g=k=>p.find(x=>x.type===k).value;
+  const dow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(g('weekday'));
+  const base=Date.UTC(+g('year'),+g('month')-1,+g('day'),16,0,0);   // noon ET on today's ET date
+  const day=86400000;
+  const sun=base+((0-dow+7)%7)*day;
+  return {sat:new Date(sun-day).toISOString(),sun:new Date(sun).toISOString()};
+}
+/* FILL THE LOADER BOXES FROM ESPN'S CALENDAR (2026-09-15). The pool week and the NFL week are
+   different numbers, and the commissioner should not have to know the offset — he opens the page
+   on Tuesday and the boxes already name the weekend he is building. Regular season only; in
+   preseason/postseason the NFL box follows the pool week (onWeekIdentChange). Best effort: a
+   failed read leaves the box alone and SAYS so, and loadGames() prints the date span of whatever
+   ESPN serves, so a wrong week is still visible before anything is saved. The browser makes this
+   call, not the server — ESPN refuses our server-side requests, which is why this runs here. */
+async function primeLoaderWeeks(){
+  const el=document.getElementById('weekendstat');
+  const season=document.getElementById('season').value;
+  if(document.getElementById('seasontype').value!=='2'){ if(el)el.textContent=''; return; }
+  const {sat,sun}=comingWeekendTargets();
+  const fmt=d=>new Date(d).toLocaleDateString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric'});
+  const out=[]; let anyFail=false;
+  for(const [lg,at,box,name] of [['nfl',sun,'nflweek','NFL'],['cfb',sat,'cfbweek','College']]){
+    try{
+      const j=await(await fetch(SB[lg]+'?dates='+season+(lg==='cfb'?'&groups=80':''),{cache:'no-store'})).json();
+      const r=weekFromCalendar(j,'2',at);
+      if(!r)throw new Error('no calendar entry covers '+at);
+      document.getElementById(box).value=r.week;
+      out.push(`${name} week ${r.week}`);
+    }catch(e){ anyFail=true; out.push(`${name} week: couldn't read ESPN's calendar — check the box`); }
+  }
+  if(el)el.innerHTML=`This weekend (${fmt(sat)}–${fmt(sun)}): <b>${out.join(' · ')}</b>.`+(anyFail?'':' Boxes are set — just Load.');
+}
 /* BOOT ORDER MATTERS. The week list has to land before §3 can know what it is looking at, and the
    page must open on the state of the pool rather than on whatever slug the default controls spell
    (season 2026 / Regular / week 1 → `2026-w01`, a week that has never existed). */
@@ -1175,8 +1298,21 @@ async function boot(){
      alone rather than guessing — §4 lists them all and `open` is one tap. */
   const target=open.length===1?open[0]:(open.filter(w=>w.slateLocked).length===1?open.filter(w=>w.slateLocked)[0]:null);
   if(target)await openWeek(target.slug,true);
-  else builderOpen=true;                            // nothing to show: the builder IS the page
+  else{
+    builderOpen=true;                               // nothing to show: the builder IS the page
+    /* EVERY WEEK IS FINISHED → THE NEXT ONE IS THE PAGE (Mike, 2026-09-15: "can you make it open
+       the new week on Tuesday morning?"). Weeks finalize themselves Monday morning, so from then
+       on the page boots onto the week after the last one built — "Week 3 · 2026-w03 · not built
+       yet", Save and Lock live — instead of the defaults, which spelled a finished week and hid
+       both buttons. Regular season only, and only once a regular week exists to count from. */
+    const nxt=nextRegularWeek();
+    if(nxt){
+      setControlsFromSlug(`${document.getElementById('season').value}-w${String(nxt).padStart(2,'0')}`);
+      onWeekIdentChange();
+    }
+  }
   renderSlate();
+  primeLoaderWeeks();                               // best effort, never awaited — see the note above it
 }
 boot();
 /* Keith 2026-08-08: "will it change when they JOIN? I don't think so." It didn't — the roster was
