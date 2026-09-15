@@ -2694,6 +2694,12 @@ the month inconsistent in a way only a person could resolve.
   had no retry and returned an empty roster on a failed read) — fixed that evening in `3.18.0-notice-receipt`; see
   Open Action Item 8 and `Pools/CLAUDE.md`. `golf-pool.js` and `pool-sms.js` were grepped the same evening: neither
   turns a failed read into an empty collection, but neither retries a 5xx either (golf is dormant until 2027).
+  ⚠ **It also killed the 2026-09-14 daily digest** (`Supabase leads error: Gateway Timeout`, the registry escalated it
+  the next morning) — `api/digest.js` had no retry either. **Fixed 2026-09-15, `4e3f379`, gate passed:** its three
+  reads retry a 5xx the same way. Found on the way: that file carried the **CRM registry's cron secret as a literal in
+  this PUBLIC repo** — now `CRM_CRON_SECRET` from the Vercel env (Keith added it). The old value is still in the
+  public history; rotating it is a Keith decision recorded in
+  `infra/incident-2026-09-14-gitguardian-cs-service-role-jwt.md` § 4b.
 - ✅ **`scripts/verify-water-write-path.mjs` — the gate that can see a write.** 22 checks,
   `WATER-WRITE-PATH-COMPLETE`, wired into the `water` profile and **not optional**: it stubs
   `fetch` and drives the real exported handler, so it needs no credential and no network and
