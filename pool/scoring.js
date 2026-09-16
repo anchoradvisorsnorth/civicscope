@@ -25,12 +25,22 @@ const POOL_SB = {
   cfb: 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
 };
 
-function datesParam(games) {
-  const ds = games.map(g => new Date(g.date));
+/* ⛔ ONE DAY PER REQUEST — ESPN STOPPED ACCEPTING DATE RANGES (2026-09-16). `?dates=YYYYMMDD-YYYYMMDD`
+   answers 400 for every range now, including the ones that scored Weeks 1 and 2; a single day still
+   answers 200 (empty on an off day). Same padded window as before — the day before the first kickoff
+   through two days after the last — walked one day at a time, events merged by id. ESPN files a game
+   under its EASTERN day, which the padding absorbs. Mirrors dayList()/fetchScoreboard() in
+   api/football-pool.js exactly; change both or neither. */
+function dayList(games) {
+  const ds = games.map(g => new Date(g.date)).filter(d => !isNaN(d));
+  if (!ds.length) return [];
   const f = d => d.toISOString().slice(0, 10).replace(/-/g, '');
   const min = new Date(Math.min(...ds)), max = new Date(Math.max(...ds));
+  min.setUTCHours(0, 0, 0, 0); max.setUTCHours(0, 0, 0, 0);
   min.setDate(min.getDate() - 1); max.setDate(max.getDate() + 2);
-  return f(min) + '-' + f(max);
+  const days = [];
+  for (const d = new Date(min); d <= max; d.setDate(d.getDate() + 1)) days.push(f(d));
+  return days;
 }
 
 async function liveScores(games) {
@@ -38,8 +48,14 @@ async function liveScores(games) {
   for (const lg of ['nfl', 'cfb']) {
     if (!games.some(g => g.league === lg)) continue;
     try {
-      const j = await (await fetch(POOL_SB[lg] + '?dates=' + datesParam(games.filter(g => g.league === lg)) + (lg === 'cfb' ? '&groups=80' : ''), { cache: 'no-store' })).json();
-      for (const e of (j.events || [])) {
+      const byId = new Map();
+      await Promise.all(dayList(games.filter(g => g.league === lg)).map(async day => {
+        try {
+          const j = await (await fetch(POOL_SB[lg] + '?dates=' + day + (lg === 'cfb' ? '&groups=80' : ''), { cache: 'no-store' })).json();
+          for (const e of (j.events || [])) if (e && e.id != null) byId.set(String(e.id), e);
+        } catch (e) { /* one bad day leaves that day's games unscored ("—"); the others still render */ }
+      }));
+      for (const e of byId.values()) {
         const c = e.competitions[0];
         const home = c.competitors.find(x => x.homeAway === 'home'), away = c.competitors.find(x => x.homeAway === 'away');
         const sc = {

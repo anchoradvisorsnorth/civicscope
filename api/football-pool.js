@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.18.0-notice-receipt';  // winner notice latches from what went out; roster read fails loudly; reads retry 5xx; hourly sweep re-announces
+const VER = '3.19.0-espn-single-day';  // ESPN dropped date ranges (400) — lock re-pull and finalize read one day per request and merge
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -643,42 +643,68 @@ export default async function handler(req, res) {
     nfl: 'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
     cfb: 'https://site.web.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard',
   };
-  const datesSpan = (games) => {
+  /* ⛔ ONE DAY PER REQUEST — ESPN STOPPED ACCEPTING DATE RANGES (found 2026-09-16, Mike's lock of
+     Week 3). `?dates=20260919-20260923` had worked all season; on 9/16 every range — including the
+     span that scored Week 2 on 9/14 — answers `400 {"message":"Failed to get events endpoint."}`,
+     while a single day (`?dates=20260920`) still answers 200 with odds and scores. That took out
+     the lock re-pull (Mike saw "could not reach the live odds feed" with nothing wrong on our side),
+     and would have taken out the hourly auto-finalize the same way on Sunday night. So the same
+     padded window (day before the first kickoff through two days after the last, which is what the
+     range covered) is now walked one day at a time and the events merged by id. ESPN files a game
+     under its EASTERN day — a Sunday-night 00:20Z kickoff comes back for `20260920` — which the
+     padding already absorbs. An off day answers 200 with no events, so an empty day is not an error;
+     only a non-200 or a dropped connection lands in `notes`. Mirrors dayList()/liveScores() in
+     pool/scoring.js exactly. */
+  const dayList = (games) => {
     const ds = games.map(g => new Date(g.date)).filter(d => !isNaN(d));
-    if (!ds.length) return null;
+    if (!ds.length) return [];
     const f = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
     const min = new Date(Math.min(...ds)), max = new Date(Math.max(...ds));
+    min.setUTCHours(0, 0, 0, 0); max.setUTCHours(0, 0, 0, 0);
     min.setDate(min.getDate() - 1); max.setDate(max.getDate() + 2);
-    return f(min) + '-' + f(max);
+    const days = [];
+    for (const d = new Date(min); d <= max; d.setDate(d.getDate() + 1)) days.push(f(d));
+    return days;
   };
+  /* Every ESPN event for one league across the slate's days, merged by id. Shared by fetchFinals()
+     and fetchLines() so the two feed readers cannot drift apart in how they ask. */
+  async function fetchScoreboard(lg, games) {
+    const events = new Map();
+    const notes = [];
+    const days = dayList(games);
+    await Promise.all(days.map(async (day) => {
+      const url = `${SB_SERVER[lg]}?dates=${day}${lg === 'cfb' ? '&groups=80' : ''}`;
+      try {
+        const r = await fetch(url, { headers: { 'User-Agent': 'the-pool/1.0' } });
+        if (!r.ok) { notes.push(`${lg} ${day}: HTTP ${r.status}`); return; }
+        const j = await r.json();
+        for (const e of (j.events || [])) if (e && e.id != null) events.set(String(e.id), e);
+      } catch (e) { notes.push(`${lg} ${day}: ${e.message}`); }
+    }));
+    return { events: [...events.values()], notes };
+  }
   async function fetchFinals(games) {
     const out = {};
     const notes = [];
     for (const lg of ['nfl', 'cfb']) {
       const mine = (games || []).filter(g => g.league === lg);
       if (!mine.length) continue;
-      const span = datesSpan(mine);
-      if (!span) continue;
-      const url = `${SB_SERVER[lg]}?dates=${span}${lg === 'cfb' ? '&groups=80' : ''}`;
-      try {
-        const r = await fetch(url, { headers: { 'User-Agent': 'the-pool/1.0' } });
-        if (!r.ok) { notes.push(`${lg}: HTTP ${r.status}`); continue; }
-        const j = await r.json();
-        for (const e of (j.events || [])) {
-          const c = (e.competitions || [])[0];
-          if (!c) continue;
-          const home = (c.competitors || []).find(x => x.homeAway === 'home');
-          const away = (c.competitors || []).find(x => x.homeAway === 'away');
-          if (!home || !away) continue;
-          const sc = {
-            homeScore: Number(home.score || 0), awayScore: Number(away.score || 0),
-            state: c.status && c.status.type ? c.status.type.state : undefined,
-            detail: (c.status && c.status.type && c.status.type.shortDetail) || '',
-          };
-          out[String(e.id)] = sc;
-          out[`${away.team.abbreviation}@${home.team.abbreviation}`] = sc;
-        }
-      } catch (e) { notes.push(`${lg}: ${e.message}`); }
+      const got = await fetchScoreboard(lg, mine);
+      notes.push(...got.notes);
+      for (const e of got.events) {
+        const c = (e.competitions || [])[0];
+        if (!c) continue;
+        const home = (c.competitors || []).find(x => x.homeAway === 'home');
+        const away = (c.competitors || []).find(x => x.homeAway === 'away');
+        if (!home || !away) continue;
+        const sc = {
+          homeScore: Number(home.score || 0), awayScore: Number(away.score || 0),
+          state: c.status && c.status.type ? c.status.type.state : undefined,
+          detail: (c.status && c.status.type && c.status.type.shortDetail) || '',
+        };
+        out[String(e.id)] = sc;
+        out[`${away.team.abbreviation}@${home.team.abbreviation}`] = sc;
+      }
     }
     return { scores: out, notes };
   }
@@ -708,24 +734,18 @@ export default async function handler(req, res) {
     for (const lg of ['nfl', 'cfb']) {
       const mine = (games || []).filter(g => g.league === lg);
       if (!mine.length) continue;
-      const span = datesSpan(mine);
-      if (!span) continue;
-      const url = `${SB_SERVER[lg]}?dates=${span}${lg === 'cfb' ? '&groups=80' : ''}`;
-      try {
-        const r = await fetch(url, { headers: { 'User-Agent': 'the-pool/1.0' } });
-        if (!r.ok) { notes.push(`${lg}: HTTP ${r.status}`); continue; }
-        const j = await r.json();
-        for (const e of (j.events || [])) {
-          const c = (e.competitions || [])[0];
-          if (!c) continue;
-          const odds = parseOddsServer(c);
-          if (!odds) continue;
-          const home = (c.competitors || []).find(x => x.homeAway === 'home');
-          const away = (c.competitors || []).find(x => x.homeAway === 'away');
-          out[String(e.id)] = odds;
-          if (home && away) out[`${away.team.abbreviation}@${home.team.abbreviation}`] = odds;
-        }
-      } catch (e) { notes.push(`${lg}: ${e.message}`); }
+      const got = await fetchScoreboard(lg, mine);
+      notes.push(...got.notes);
+      for (const e of got.events) {
+        const c = (e.competitions || [])[0];
+        if (!c) continue;
+        const odds = parseOddsServer(c);
+        if (!odds) continue;
+        const home = (c.competitors || []).find(x => x.homeAway === 'home');
+        const away = (c.competitors || []).find(x => x.homeAway === 'away');
+        out[String(e.id)] = odds;
+        if (home && away) out[`${away.team.abbreviation}@${home.team.abbreviation}`] = odds;
+      }
     }
     return { lines: out, notes };
   }
