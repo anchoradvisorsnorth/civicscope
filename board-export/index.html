@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<!-- board-export v1.0.0-boardexport — instructions + bookmarklet for the in-browser board-records export (2026-09-18) -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Board Records Export</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; background: #f6f7f9; color: #1a202c; font: 16px/1.55 system-ui, "Segoe UI", Arial, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 20px 60px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  .sub { color: #4a5568; margin: 0 0 28px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 22px 24px; margin-bottom: 18px; }
+  .step { display: flex; gap: 16px; align-items: flex-start; }
+  .n { flex: 0 0 34px; height: 34px; border-radius: 50%; background: #2b6cb0; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .step h2 { font-size: 18px; margin: 4px 0 8px; }
+  .step p { margin: 0 0 8px; }
+  a.bm { display: inline-block; background: #2b6cb0; color: #fff; text-decoration: none; font-weight: 700; padding: 12px 22px; border-radius: 8px; cursor: grab; border: 2px dashed rgba(255,255,255,.55); }
+  a.bm:active { cursor: grabbing; }
+  .hint { color: #4a5568; font-size: 14px; }
+  code { background: #edf2f7; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+  .warn { background: #fffaf0; border: 1px solid #f6ad55; border-radius: 8px; padding: 12px 16px; margin-top: 8px; }
+  .muted { color: #718096; font-size: 14px; }
+  #bad { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Board Records Export</h1>
+  <p class="sub" id="who">Loading…</p>
+
+  <div class="card" id="bad">
+    <strong>This link is incomplete.</strong> Please open the exact link you were sent — it carries the settings the export needs.
+  </div>
+
+  <div id="steps">
+  <div class="card step">
+    <div class="n">1</div>
+    <div>
+      <h2>Show your bookmarks bar</h2>
+      <p>In Chrome or Edge press <code>Ctrl</code> + <code>Shift</code> + <code>B</code> (Mac: <code>⌘</code> + <code>Shift</code> + <code>B</code>). A bar with your bookmarks appears under the address bar.</p>
+    </div>
+  </div>
+
+  <div class="card step">
+    <div class="n">2</div>
+    <div>
+      <h2>Drag this button onto the bookmarks bar</h2>
+      <p><a class="bm" id="bm" href="#" onclick="return false">Board Export</a></p>
+      <p class="hint">Drag it up to the bar and drop it there. Don't click it here — it only works on the BoardDocs page. (If dragging doesn't work: right-click the button → <em>Copy link</em>, then right-click the bookmarks bar → <em>Add page</em>, paste it as the URL and name it anything.)</p>
+    </div>
+  </div>
+
+  <div class="card step">
+    <div class="n">3</div>
+    <div>
+      <h2>Sign in to BoardDocs</h2>
+      <p>Open <a id="bdlink" href="#" target="_blank" rel="noopener">your BoardDocs site</a> and sign in with your usual BoardDocs login, the same way you always do.</p>
+      <p class="hint">Nothing here sees or stores your login. The export runs inside your own tab, with your own session, and only sends the meeting documents.</p>
+    </div>
+  </div>
+
+  <div class="card step">
+    <div class="n">4</div>
+    <div>
+      <h2>Click the <strong>Board Export</strong> bookmark while on that page</h2>
+      <p>A small panel appears in the bottom-right corner and walks through every meeting — agendas, minutes, each item and its attachments. It takes roughly <span id="eta">15–30 minutes</span>. Leave the tab open; you can keep using other tabs.</p>
+      <p>When it says <strong>Finished — thank you</strong>, you're done and can close the tab.</p>
+      <div class="warn">If you close the tab early or the computer sleeps, just go back to BoardDocs and click the bookmark again — it picks up where it left off.</div>
+    </div>
+  </div>
+  </div>
+
+  <p class="muted">Questions: reply to the email that sent you this link.</p>
+</main>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var org = (q.get('org') || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+  var t = (q.get('t') || '').replace(/[^A-Za-z0-9_-]/g, '');
+  var state = (q.get('state') || 'in').toLowerCase().replace(/[^a-z]/g, '').slice(0, 2) || 'in';
+  var name = q.get('name') || '';
+  if (!org || !t) { document.getElementById('bad').style.display = 'block'; document.getElementById('steps').style.display = 'none'; document.getElementById('who').textContent = ''; return; }
+  document.getElementById('who').textContent = 'For ' + (name || org.toUpperCase()) + ' — a one-time copy of the board’s meeting records from BoardDocs.';
+  var bd = 'https://go.boarddocs.com/' + state + '/' + org + '/Board.nsf/Private?open&login';
+  var a = document.getElementById('bdlink'); a.href = bd; a.textContent = 'go.boarddocs.com/' + state + '/' + org;
+  var script = location.origin + '/board-export/export.js?org=' + encodeURIComponent(org) + '&t=' + encodeURIComponent(t);
+  var code = "(function(){var s=document.createElement('script');s.src=" + JSON.stringify(script) + "+'&_='+Date.now();document.body.appendChild(s);})();";
+  document.getElementById('bm').href = 'javascript:' + encodeURIComponent(code);
+})();
+</script>
+</body>
+</html>
