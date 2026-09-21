@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.19.0-espn-single-day';  // ESPN dropped date ranges (400) — lock re-pull and finalize read one day per request and merge
+const VER = '3.20.0-monday-morning-notice';  // the winner text + email wait for Monday 07:30 ET (the record still lands at the final whistle)
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -609,6 +609,29 @@ export default async function handler(req, res) {
     return told;
   }
 
+  /* THE WINNER NOTICE WAITS FOR MONDAY MORNING (Keith 2026-09-21: "delay the week's results text
+     and email to send the morning after, on Monday, at 7:30 am EST"). Week 3 scored at 04:15Z
+     Monday 9/21 — 12:15 AM Eastern — and texted all seven people right then. The RECORD still
+     lands the moment the last game goes final (the board is right all night); only the
+     announcement is held. Release = 07:30 America/New_York on the Monday that follows the slate's
+     last kickoff, derived from the date the way etToUtc() derives everything else here, so it is
+     07:30 on both sides of the DST change. A week that scores late — ESPN down, a Tuesday
+     re-run, a manual finalize — has already passed its release and announces at once; a
+     hand-built fixture with no usable kickoff has nothing to wait for and announces at once.
+     `notify:true` on finalize_week is still the deliberate "send it now". Tests: the sandbox
+     fixtures are dated 2030, so a finalize there is HELD until 2030-09-16T11:30Z — the gate
+     asserts exactly that, then moves the dates into the past and proves the release. */
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const releaseAt = (wk) => {
+    const kicks = (wk.games || []).map(g => Date.parse(g.date)).filter(n => !isNaN(n));
+    if (!kicks.length) return null;
+    const last = etParts(new Date(Math.max(...kicks)));
+    const ahead = (1 - DOW.indexOf(last.weekday) + 7) % 7;   // days to Monday; a Monday game → that same morning (already past by the final whistle)
+    const mon = new Date(Date.UTC(last.y, last.m - 1, last.day + ahead));
+    return etToUtc(mon.getUTCFullYear(), mon.getUTCMonth() + 1, mon.getUTCDate(), 7, 30);
+  };
+  const releaseDue = (wk) => { const at = releaseAt(wk); return at === null || at <= Date.now(); };
+
   /* THE FINALIZE SEQUENCE, IN ONE PLACE. `finalize_week` (commissioner, scores in the body) and
      `auto_finalize` (cron, scores fetched here) must produce identical outcomes — this file has
      already been bitten twice by a rule living in two places (scoreWeek vs the board's
@@ -625,12 +648,17 @@ export default async function handler(req, res) {
     /* The RECORD lands first — scores, covers, winner — whatever happens to the announcement.
        Then the announcement runs through announceWinner(), which owns the latch. A week whose
        winner is already latched is not re-announced by a correction; `notify: true` on
-       finalize_week is the deliberate re-announce. */
+       finalize_week is the deliberate re-announce. A week scored before its Monday-morning
+       release is written with `winnerNotice.holdUntil` and NO attempt — the hourly sweep in
+       auto_finalize announces it once the release time has passed. */
+    const due = releaseDue(wk);
+    const announce = forceAnnounce === true || (!wk.notifiedWinner && due);
+    const held = !announce && !wk.notifiedWinner && !due;
+    if (held) wk.winnerNotice = { ...(wk.winnerNotice || {}), holdUntil: new Date(releaseAt(wk)).toISOString() };
     await putRow(slug, wk);
-    const announce = (!wk.notifiedWinner || forceAnnounce === true);
     let told = { texted: 0, emailed: 0, smsEligible: 0, emailEligible: 0, smsFailed: 0, emailFailed: 0 };
     if (announce) told = await announceWinner(slug, wk, scored);
-    return { scored, announce, told };
+    return { scored, announce, told, held, ...(held ? { releaseAt: wk.winnerNotice.holdUntil } : {}) };
   }
 
   /* Final scores, read SERVER-SIDE. The browser uses site.api.espn.com, which 403s every request
@@ -1608,9 +1636,10 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: `not every game has a final score (${missing.map(g => g.short || g.id).join(', ')})` });
           }
           const claimed = req.body.weeklyWinner || null;
-          const { scored, announce, told } = await applyFinalize(slug, wk, results, req.body.notify === true);
+          const { scored, announce, told, held, releaseAt: releaseIso } = await applyFinalize(slug, wk, results, req.body.notify === true);
           return res.status(200).json({
             slug, finalized: true, weeklyWinner: wk.weeklyWinner, points: scored.points, announced: announce, ...told,
+            ...(held ? { held: true, releaseAt: releaseIso, hint: 'the winner text + email go out Monday 07:30 ET; pass notify:true to send now' } : {}),
             ...(fetchNotes && fetchNotes.length ? { notes: fetchNotes } : {}),
             ...(claimed && claimed !== scored.winner
               ? { note: `ignored the submitted winner "${claimed}" — the frozen picks and lines score to "${scored.winner}"` }
@@ -1647,8 +1676,14 @@ export default async function handler(req, res) {
            plenty. A week with no attempt at all (finalized before this existed, or one whose
            first attempt died before stamping) is swept too. */
         const RETRY_AFTER_MS = 30 * 60 * 1000;
-        const unannounced = rows.filter(x => x.data && x.data.finalized && x.data.weeklyWinner
-          && x.data.notifiedWinner !== true
+        /* A week scored before its Monday 07:30 ET release is finalized-and-unannounced BY
+           DESIGN — it sits here, reported under `held`, until releaseDue() says so; the Monday
+           11:30Z + 12:30Z cron runs (one of them is 07:30 ET, whichever side of DST) are what
+           make it land on the half hour rather than at the next :15. */
+        const settled = rows.filter(x => x.data && x.data.finalized && x.data.weeklyWinner && x.data.notifiedWinner !== true);
+        const held = settled.filter(x => !releaseDue(x.data))
+          .map(x => ({ slug: x.slug, weeklyWinner: x.data.weeklyWinner, releaseAt: new Date(releaseAt(x.data)).toISOString() }));
+        const unannounced = settled.filter(x => releaseDue(x.data)
           && !(x.data.winnerNotice && x.data.winnerNotice.attemptedAt
                && Date.now() - Date.parse(x.data.winnerNotice.attemptedAt) < RETRY_AFTER_MS));
 
@@ -1690,7 +1725,7 @@ export default async function handler(req, res) {
         }
         if (!due.length) {
           return res.status(200).json({ finalized: [], reason: 'no locked week past its deadline is awaiting finalizing',
-            ...(reannounced.length ? { reannounced } : {}), ...(noticeErrors.length ? { noticeErrors } : {}) });
+            ...(held.length ? { held } : {}), ...(reannounced.length ? { reannounced } : {}), ...(noticeErrors.length ? { noticeErrors } : {}) });
         }
 
         const done = [], waiting = [];
@@ -1714,15 +1749,16 @@ export default async function handler(req, res) {
              with the week finalized and un-latched, which is exactly the state the sweep above
              picks up next hour. One week's notice failure must not stop the next week scoring. */
           try {
-            const { scored, announce, told } = await applyFinalize(row.slug, wk, scores, false);
-            done.push({ slug: row.slug, weeklyWinner: scored.winner, announced: announce, ...told, latched: wk.notifiedWinner === true });
+            const { scored, announce, told, held: heldNow, releaseAt: releaseIso } = await applyFinalize(row.slug, wk, scores, false);
+            done.push({ slug: row.slug, weeklyWinner: scored.winner, announced: announce, ...told, latched: wk.notifiedWinner === true,
+              ...(heldNow ? { held: true, releaseAt: releaseIso } : {}) });
           } catch (e) {
             noticeErrors.push({ slug: row.slug, error: e.message, finalized: wk.finalized === true });
             if (wk.finalized === true) await alertKeithNoticeFailed(row.slug, wk, {}, e.message);
           }
         }
         return res.status(200).json({ finalized: done, waiting,
-          ...(reannounced.length ? { reannounced } : {}), ...(noticeErrors.length ? { noticeErrors } : {}) });
+          ...(held.length ? { held } : {}), ...(reannounced.length ? { reannounced } : {}), ...(noticeErrors.length ? { noticeErrors } : {}) });
       }
 
       /* ---- player action: change your OWN pin ----
