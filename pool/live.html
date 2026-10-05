@@ -86,15 +86,18 @@ let timer=null,allWeeks=[];
    answers "what do I owe" — the only number the crew carries from week to week. Same shared
    seasonLedger() the board and the hub use, so three surfaces cannot disagree about a debt.
    Finalized weeks only: an unfinished week has no winner and therefore no pot to split. */
+/* THE RUN BEING PLAYED (2026-10-05). The crew squares up every four weeks, so the number to carry
+   is what you owe at the next square-up, not the season — same runLedgers() as the board and hub. */
 function seasonCard(){
-  const led=seasonLedger(allWeeks);
+  const {current}=runLedgers(allWeeks);
+  const led=current.ledger;
   if(!led.rows.length) return '';
-  return '<div class="card"><div class="ch">Season · '+led.weeks+' week'+(led.weeks===1?'':'s')+' · black gets, red pays</div>'
+  return '<div class="card"><div class="ch">This run · '+current.label+' · '+current.played+' of '+RUN_WEEKS+' played · black gets, red pays</div>'
     +led.rows.map((r,i)=>'<div class="row'+(i===0&&r.net>0?' lead':'')+'">'
       +'<div class="rank">'+(i+1)+'</div>'
-      +'<div class="who">'+esc(r.name)+'<small>'+r.wins+' week'+(r.wins===1?'':'s')+' won · '+r.weeks+' played</small></div>'
+      +'<div class="who">'+esc(r.name)+'<small>'+r.wins+' week'+(r.wins===1?'':'s')+' won this run</small></div>'
       +'<div class="pts money '+(r.net>0?'gets':r.net<0?'pays':'')+'">'+fmtMoney(r.net)+'</div></div>').join('')
-    +'<div class="key">$'+led.stake+' a week — the winner takes the pot, a tie splits it.</div></div>';
+    +'<div class="key">$'+WEEKLY_STAKE+' a week — the winner takes the pot, a tie splits it. Squares up after Week '+current.last+'.</div></div>';
 }
 
 /* Which week to show: the one being played. Prefer a locked, unfinalized week; fall back to the

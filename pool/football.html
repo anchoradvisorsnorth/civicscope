@@ -78,6 +78,19 @@
   .weeklist a:hover{background:#f7f9fc}
   .weeklist .wl-win{flex:1;text-align:right;font-weight:700;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .weeklist .wl-pot{font-variant-numeric:tabular-nums;color:var(--muted);min-width:52px;text-align:right}
+  /* Runs of four (2026-10-05). The pill rides the section title; finished runs are <details>. */
+  .runpill{font-size:11px;font-weight:700;text-transform:none;letter-spacing:0;color:#8a6d1f;background:#fdf6e3;border:1px solid #ecd9a5;border-radius:999px;padding:3px 10px;white-space:nowrap}
+  details.run{margin-bottom:10px}
+  details.run summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;font-size:14px}
+  details.run summary::-webkit-details-marker{display:none}
+  details.run summary .rl{font-weight:800;color:var(--navy)}
+  details.run summary .rl::before{content:'▸';display:inline-block;width:14px;color:var(--muted);transition:transform .15s}
+  details.run[open] summary .rl::before{transform:rotate(90deg)}
+  details.run[open] summary{border-bottom:1px solid var(--line)}
+  details.run summary .rt{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+  details.run summary .muted{color:var(--muted);font-weight:600}
+  .paid{font-size:10.5px;font-weight:800;color:var(--win);background:#e8f6ee;border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:1px}
+  details.season{margin-top:16px}
 
   /* ─── THE BOARD ON A PHONE (Keith 2026-08-22: "ui is not great generally") ───
      Measured on production before this: at a 412px viewport the table is **559px wide inside a
@@ -224,8 +237,7 @@
        is an anonymous grid of abbreviations — this is what makes it a record. -->
   <div class="printonly phead" id="printhead"></div>
   <div id="content"><div class="note">Loading the pool…</div></div>
-  <div class="section-title">Season standings — weekly wins</div>
-  <div class="card tblwrap" id="season"></div>
+  <div id="season"></div>
   <div style="color:var(--muted);font-size:11.5px;margin-top:18px" id="foot">
     <b>Scoring:</b> 1 point per correct pick — against the frozen spread, straight up on a pick 'em, or over/under the frozen total.
     <b>A push is worth nothing.</b> Weekly winner = most games won; ties share the crown.
@@ -450,33 +462,74 @@ window.addEventListener('afterprint',()=>{ if(!timer) timer=setInterval(load,120
    The week list underneath is what replaces the picker removed from the top of the page: every
    finalized week, newest first, with its winner and the pot it paid, each one a link into that
    week's board. */
+/* ─── SQUARED UP EVERY FOUR WEEKS (Mike, via Keith 2026-10-05) ───
+   The crew settles in runs of four weeks — the 2025 sheet subtotals the same way — so after
+   Week 4 the season column was showing BRAD S +$550 that had already been paid. The standings
+   are now three things, in the order a player needs them:
+     1. THIS RUN — what you owe or are owed at the next square-up. The number that matters.
+     2. SQUARED UP — each finished run as a record, collapsed to one line (who came out ahead).
+     3. SEASON TO DATE — the old season column, kept for bragging rights, collapsed.
+   All three come from runLedgers()/seasonLedger() in scoring.js, so they are the same arithmetic
+   and every run sums to zero on its own. */
+function ledgerTable(rows,col){
+  return '<table><thead><tr><th>#</th><th>Player</th><th class="num">W</th><th class="num">'+col+'</th></tr></thead><tbody>'+
+    rows.map((r,i)=>'<tr class="'+(i===0&&r.net>0?'lead':'')+'">'+
+      '<td>'+(i+1)+'</td>'+
+      '<td style="font-weight:700">'+esc(r.name)+'</td>'+
+      '<td class="num">'+r.wins+'</td>'+
+      '<td class="num" style="font-weight:900;font-size:14px"><span class="'+(r.net>0?'gets':r.net<0?'pays':'')+'">'+fmtMoney(r.net)+'</span></td>'+
+    '</tr>').join('')+'</tbody></table>';
+}
+function weekList(ws){
+  const done=ws.filter(w=>w.finalized&&w.weeklyWinner).slice().reverse();
+  if(!done.length) return '';
+  return '<div class="weeklist">'+done.map(w=>{
+    const ent=weekEntrants(w,weekWinners(w)).length;
+    return '<a href="?week='+encodeURIComponent(w.slug)+'"><span>'+esc(w.label||w.slug)+'</span>'+
+      '<span class="wl-win">'+esc(w.weeklyWinner)+'</span>'+
+      '<span class="wl-pot">'+fmtMoney(ent*WEEKLY_STAKE).replace('+','')+'</span></a>';
+  }).join('')+'</div>';
+}
+const unsettledNote=led=>led.unsettled?' · '+led.unsettled+' finalized week'+(led.unsettled===1?'':'s')+' had no winner recorded and '+(led.unsettled===1?'is':'are')+' not priced':'';
 function renderSeason(){
+  const {runs,current}=runLedgers(weeks);
   const led=seasonLedger(weeks);
-  const done=weeks.filter(w=>w.finalized&&w.weeklyWinner).slice().reverse();
-  let html;
-  if(led.rows.length){
-    html='<table><thead><tr><th>#</th><th>Player</th><th class="num">W</th><th class="num">Season</th></tr></thead><tbody>'+
-      led.rows.map((r,i)=>'<tr class="'+(i===0&&r.net>0?'lead':'')+'">'+
-        '<td>'+(i+1)+'</td>'+
-        '<td style="font-weight:700">'+esc(r.name)+'</td>'+
-        '<td class="num">'+r.wins+'</td>'+
-        '<td class="num" style="font-weight:900;font-size:14px"><span class="'+(r.net>0?'gets':r.net<0?'pays':'')+'">'+fmtMoney(r.net)+'</span></td>'+
-      '</tr>').join('')+'</tbody></table>'+
-      '<div class="ledgerkey"><b>Black gets · Red pays.</b> $'+led.stake+' a week — the winner takes the pot, a tie splits it. '+
-      led.weeks+' week'+(led.weeks===1?'':'s')+' settled'+
-      (led.unsettled?' · '+led.unsettled+' finalized week'+(led.unsettled===1?'':'s')+' had no winner recorded and '+(led.unsettled===1?'is':'are')+' not priced':'')+'.</div>';
-    if(done.length){
-      html+='<div class="weeklist">'+done.map(w=>{
-        const ent=weekEntrants(w,weekWinners(w)).length;
-        return '<a href="?week='+encodeURIComponent(w.slug)+'"><span>'+esc(w.label||w.slug)+'</span>'+
-          '<span class="wl-win">'+esc(w.weeklyWinner)+'</span>'+
-          '<span class="wl-pot">'+fmtMoney(ent*led.stake).replace('+','')+'</span></a>';
-      }).join('')+'</div>';
-    }
+  const cur=current.ledger;
+
+  // 1 · THIS RUN
+  let html='<div class="section-title"><span>This run — '+current.label+'</span><span class="runpill">'+current.played+' of '+RUN_WEEKS+' played · squares up after Week '+current.last+'</span></div>'+
+    '<div class="card tblwrap">';
+  if(cur.rows.length){
+    html+=ledgerTable(cur.rows,'At square-up')+
+      '<div class="ledgerkey"><b>Black gets · Red pays.</b> $'+WEEKLY_STAKE+' a week — the winner takes the pot, a tie splits it. '+
+      'Everyone settles up after Week '+current.last+'; then this starts again at $0'+unsettledNote(cur)+'.</div>'+
+      weekList(current.weeks);
   } else {
-    html='<div style="padding:14px;color:var(--muted);font-size:13px">No finalized weeks yet — the money ledger starts the moment week 1 wraps. $'+WEEKLY_STAKE+' a week, winner takes the pot, ties split it.</div>';
+    html+='<div style="padding:14px;color:var(--muted);font-size:13px">No weeks played in this run yet — everyone starts at <b>$0</b>. '+
+      '$'+WEEKLY_STAKE+' a week, winner takes the pot, ties split it; the crew squares up after Week '+current.last+'.</div>';
+  }
+  html+='</div>';
+
+  // 2 · SQUARED UP — newest first, one line each, open for the detail
+  const squared=runs.filter(r=>r.squared).reverse();
+  if(squared.length){
+    html+='<div class="section-title"><span>Squared up</span></div>';
+    html+=squared.map(r=>{
+      const top=r.ledger.rows[0];
+      return '<details class="card run"><summary><span class="rl">'+r.label+' <span class="paid">✓ paid</span></span>'+
+        (top&&top.net>0?'<span class="rt">'+esc(top.name)+' <span class="gets">'+fmtMoney(top.net)+'</span></span>':'')+'</summary>'+
+        '<div class="tblwrap">'+ledgerTable(r.ledger.rows,'Run $')+'</div>'+weekList(r.weeks)+'</details>';
+    }).join('');
+  }
+
+  // 3 · SEASON TO DATE — closed by default; the number nobody settles on until January
+  if(led.rows.length){
+    html+='<details class="card run season"><summary><span class="rl">Season to date</span><span class="rt muted">'+led.weeks+' week'+(led.weeks===1?'':'s')+'</span></summary>'+
+      '<div class="tblwrap">'+ledgerTable(led.rows,'Season')+'</div>'+
+      '<div class="ledgerkey">Every week this season added together, including runs already squared up'+unsettledNote(led)+'.</div></details>';
   }
   document.getElementById('season').innerHTML=html;
+  fitTables();
 }
 
 let timer=null;

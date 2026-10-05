@@ -429,6 +429,62 @@ function seasonLedger(weeks) {
   return { rows, weeks: counted, unsettled, stake: WEEKLY_STAKE };
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   THE CREW SQUARES UP EVERY FOUR WEEKS (Mike, via Keith 2026-10-05).
+
+   The 2025 sheet already said so — it subtotals in blocks of four before the Season Recap — but
+   the app only ever showed the season column, so after Week 4 the board kept telling BRAD S he
+   was up $550 when that money had already changed hands. What a player wants to know is what he
+   owes AT THE NEXT SQUARE-UP; a run that is done is a record.
+
+   A RUN IS FOUR REGULAR-SEASON WEEKS BY NUMBER: Weeks 1–4, 5–8, 9–12 … read off the slug
+   (`2026-w05` → run 2), never off list position — a missing or rebuilt week must not shift
+   every later run by one. A slug with no week number (`2026-pre1`) belongs to no run and is
+   left out here; seasonLedger() still counts it, so the season column is unchanged.
+
+   A RUN IS SQUARED UP once all four of its weeks are finalized. That is a derivation, not a
+   record of cash actually moving — the app never sees the money — but it is exactly the moment
+   the crew settles, and it needs nothing from the commissioner.
+
+   Each run's money is seasonLedger() over that run's weeks — the same arithmetic, the same
+   cent-splitting — so every run is zero-sum on its own and the runs sum to the season.
+   ───────────────────────────────────────────────────────────────────────────── */
+const RUN_WEEKS = 4;
+
+// `2026-w05` → 5; anything without a week number → null.
+function weekNumOf(w) {
+  const m = /-w(\d+)$/i.exec(String((w && w.slug) || ''));
+  return m ? Number(m[1]) : null;
+}
+const runOf = (w) => { const n = weekNumOf(w); return n ? Math.ceil(n / RUN_WEEKS) : null; };
+
+/* Returns { runs, current } — `runs` oldest first, each
+     { run, first, last, label, weeks, played, squared, ledger },
+   and `current` the run still being played: the first one not yet squared up, or — when every
+   run so far is squared — the next one, empty, so the page can say "everyone starts at $0". */
+function runLedgers(weeks) {
+  const byRun = {};
+  for (const w of (weeks || [])) {
+    const r = runOf(w);
+    if (r) (byRun[r] = byRun[r] || []).push(w);
+  }
+  const mk = (r, ws) => {
+    const first = (r - 1) * RUN_WEEKS + 1, last = r * RUN_WEEKS;
+    ws = (ws || []).slice().sort((a, b) => weekNumOf(a) - weekNumOf(b));
+    const finals = ws.filter(w => w.finalized);
+    const nums = new Set(finals.map(weekNumOf));
+    let squared = true;
+    for (let n = first; n <= last; n++) if (!nums.has(n)) squared = false;
+    return { run: r, first, last, label: 'Weeks ' + first + '–' + last, weeks: ws,
+             played: finals.length, squared, ledger: seasonLedger(ws) };
+  };
+  const nums = Object.keys(byRun).map(Number).sort((a, b) => a - b);
+  const runs = nums.map(r => mk(r, byRun[r]));
+  let current = runs.find(x => !x.squared);
+  if (!current) current = mk((nums.length ? nums[nums.length - 1] : 0) + 1, []);
+  return { runs, current };
+}
+
 /* Black gets, red pays — the sign is carried by the colour on the page, and by the +/- here so
    the number still reads correctly on a black-and-white printout. Cents appear only when the
    split actually produced them. */
@@ -445,5 +501,6 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     coverOf, scoreFor, marketLabel, weekPoints, boardOrder, slateOrder, unanimousPicks,
     WEEKLY_STAKE, weekWinners, weekEntrants, seasonLedger, fmtMoney,
+    RUN_WEEKS, weekNumOf, runOf, runLedgers,
   };
 }

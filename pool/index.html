@@ -182,27 +182,35 @@ const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt
       if(done) st.textContent=done+' WEEK'+(done===1?'':'S')+' PLAYED';   // was "1 WEEKS PLAYED"
     }
 
+    /* THE CARD SHOWS THE RUN BEING PLAYED (2026-10-05). The crew squares up every four weeks, so
+       the season figure stopped being what anyone owes the moment Week 4 was paid. The card now
+       leads with the current run — the same runLedgers() the board uses — and names the last
+       squared-up run in its footer. The season total lives on the board. */
     const led=seasonLedger(weeks);
+    const {runs,current}=runLedgers(weeks);
+    const cur=current.ledger;
+    const lastSq=runs.filter(r=>r.squared).slice(-1)[0];
+    const lastTop=lastSq&&lastSq.ledger.rows[0];
+    const sqNote=lastSq?' '+lastSq.label+' squared up'+(lastTop&&lastTop.net>0?' — '+esc(lastTop.name)+' came out '+fmtMoney(lastTop.net):'')+'.':'';
     const body=document.getElementById('fb-body');
-    if(!led.rows.length){
-      body.innerHTML='<div class="lempty">No weeks settled yet — the ledger starts the moment the first week wraps.<br>'+
+    if(!cur.rows.length){
+      body.innerHTML='<div class="lempty"><b>This run: '+current.label+'</b> — no weeks played yet, everyone starts at $0.'+sqNote+'<br>'+
         '<b>$'+WEEKLY_STAKE+' a week</b>, winner takes the pot, ties split it.</div>';
-      return;
+    } else {
+      body.innerHTML='<div class="lempty" style="padding-bottom:10px"><b>This run: '+current.label+'</b> · '+current.played+' of '+RUN_WEEKS+' played · squares up after Week '+current.last+'</div>'+
+        cur.rows.map((r,i)=>
+        '<div class="srow'+(i===0&&r.net>0?' lead':'')+'">'+
+          '<span class="rank">'+(i+1)+'</span>'+
+          '<span class="who">'+esc(r.name)+'<small>'+r.wins+' week'+(r.wins===1?'':'s')+' won this run</small></span>'+
+          '<span class="money '+(r.net>0?'gets':r.net<0?'pays':'')+'">'+fmtMoney(r.net)+'</span>'+
+        '</div>').join('')+
+        '<div class="lkey"><b>Black gets · Red pays.</b> $'+WEEKLY_STAKE+' a week — the winner takes the pot, a tie splits it.'+sqNote+'</div>';
     }
-    body.innerHTML=led.rows.map((r,i)=>
-      '<div class="srow'+(i===0&&r.net>0?' lead':'')+'">'+
-        '<span class="rank">'+(i+1)+'</span>'+
-        '<span class="who">'+esc(r.name)+'<small>'+r.wins+' week'+(r.wins===1?'':'s')+' won · '+r.weeks+' played</small></span>'+
-        '<span class="money '+(r.net>0?'gets':r.net<0?'pays':'')+'">'+fmtMoney(r.net)+'</span>'+
-      '</div>').join('')+
-      '<div class="lkey"><b>Black gets · Red pays.</b> $'+led.stake+' a week — the winner takes the pot, a tie splits it. '+
-      led.weeks+' week'+(led.weeks===1?'':'s')+' settled'+
-      (led.unsettled?' · '+led.unsettled+' finalized week'+(led.unsettled===1?'':'s')+' had no winner recorded and '+(led.unsettled===1?'is':'are')+' not priced':'')+'.</div>';
 
     /* The Champions row for football is the season leader until somebody actually wins it —
        "season starts September" stops being true the moment a week is settled. */
     const top=led.rows[0];
-    if(top&&top.net>0) document.getElementById('fb-champ').textContent=top.name+' leads · '+fmtMoney(top.net);
+    if(top&&top.net>0) document.getElementById('fb-champ').textContent=top.name+' leads the season · '+fmtMoney(top.net);
   }catch(e){}
 })();
 
