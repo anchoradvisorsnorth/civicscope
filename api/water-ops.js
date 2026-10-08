@@ -65,7 +65,7 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.12.0-waterops';
+export const VER = '1.13.0-waterops';
 
 /* ── Sample inputs (Codex 2026-10-08 review, findings 2, 3, 5, 7). Office entry of samples made
    these paths reachable by a person at a keyboard, and they trusted what arrived: a residual typed
@@ -97,7 +97,8 @@ const nz = (v) => (v === undefined || v === '' ? null : v);
    text; a name matching two plan sites is ambiguous and must be picked; a name the plan does not
    hold is an unplanned site and is taken as entered. Inactive sites still resolve by id, so a sample
    queued on a tablet before a site was retired is not orphaned. */
-const normSite = (t) => String(t == null ? '' : t).trim().replace(/\s+/g, ' ').toLowerCase();
+// "Well 1" and "Well #1" are the same site (Keith, 2026-10-08 — Michelle typed the first, the plan holds the second)
+const normSite = (t) => String(t == null ? '' : t).replace(/#/g, ' ').trim().replace(/\s+/g, ' ').toLowerCase();
 async function resolveSite(p, body) {
   if (body.site_id) {
     let s = (p.sites || []).find((x) => x.id === body.site_id) || null;
@@ -764,8 +765,13 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
      before 2026-09-11 carry no kind and read as routine, which is what they were. */
   /* Only the kinds the form reports are compared; a well / raw-water sample (`other`) is held here
      and deliberately not written to the workbook, so it is not "ours only" either (R2-9). */
+  /* (2026-10-08) The extractor now reads the form's Other block too, so a filing recorded from today
+     carries well samples; one recorded before did not. Until every filing is re-read, both sides
+     compare routine/repeat only — otherwise every older month would show its well samples as
+     "ours only". Well samples ARE written to the generated workbook (build-mor.py BACTI_OTHER). */
   const reportableBacti = (bacti || []).filter((b) => b.sample_kind !== 'other');
-  compareSamples('bacti', (filed && filed.bacti) || [], reportableBacti,
+  const filedReportable = ((filed && filed.bacti) || []).filter((b) => (b.kind || 'routine') !== 'other');
+  compareSamples('bacti', filedReportable, reportableBacti,
     (x) => `${txt(x.date)}|${txt(x.location)}|${txt(x.kind || 'routine')}`,
     (x) => `${txt(x.collected_date)}|${txt(x.site_name)}|${txt(x.sample_kind || 'routine')}`,
     ['free', 'total'], ['result']);
@@ -781,7 +787,7 @@ export function diffFiling({ filed, entryPoints, readings, dist, bacti }) {
     mapping_conflicts: rows.filter((r) => r.field === 'mapping').length,
     dist_filed: ((filed && filed.distribution) || []).length,
     dist_ours: (dist || []).length,
-    bacti_filed: ((filed && filed.bacti) || []).length,
+    bacti_filed: filedReportable.length,
     bacti_ours: reportableBacti.length,
   };
   return {
@@ -1421,10 +1427,12 @@ export default async function handler(req, res) {
           result: nz(keepB('result', body.result)),
           notes: nz(keepB('notes', body.notes)),
         };
-        if (cand.free === null) {
-          return res.status(422).json({ error: 'validation', errors: [{ field: 'free', msg: 'A bacti sample needs the free chlorine residual taken with it.' }] });
+        // A well / raw-water sample carries no distribution residual (Keith, 2026-10-08: "Kind is
+        // Well/raw water that dont require those") — the form's Other block leaves them blank.
+        if (cand.free === null && kind !== 'other') {
+          return res.status(422).json({ error: 'validation', errors: [{ field: 'free', msg: 'A routine or repeat bacti sample needs the free chlorine residual taken with it.' }] });
         }
-        if (cand.total !== null && Number(cand.free) > Number(cand.total)) {
+        if (cand.free !== null && cand.total !== null && Number(cand.free) > Number(cand.total)) {
           return res.status(422).json({ error: 'validation', errors: [{ field: 'total', msg: `Free (${cand.free}) cannot exceed total (${cand.total}).` }] });
         }
         // Supersede + insert in one transaction — see submit_dist (Codex finding 7, migration 074;

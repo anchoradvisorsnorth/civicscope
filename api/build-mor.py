@@ -128,6 +128,10 @@ FEED_COL = {'chlorine': 3, 'phosphate': 8, 'fluoride': 13, 'ph_adjust': 18}
 BACTI_SHEET = 'Bacti & Cl Res'
 BACTI_ROUTINE = (11, 20)
 BACTI_REPEAT = (35, 9)
+#   other    Excel 49..57 -> 0-based 48..56  (9 rows) — "Other: well samples, entry point (plant tap),
+#            samples following construction/repair, etc." Outside the residual formulas on purpose:
+#            a raw-water sample carries no distribution residual and is not a routine compliance count.
+BACTI_OTHER = (48, 9)
 BACTI_COLS = (1, 9, 10, 11, 12)
 DIST_ROWS = 31          # Excel 7..37
 DIST_COLS = (1, 2, 3, 4)
@@ -305,26 +309,27 @@ def build(data, raw_template, formulas):
         routine compliance, which is the number the state checks against the monitoring
         schedule. Residual statistics span both blocks, so both must be populated to be right.
 
-        AND 'other' IS NEITHER (Codex finding 3, 2026-09-11). The schema admits a third kind --
-        Centreville's sampling plan lists Well #1/#3/#4 as `bacti_other` sites -- and the default
-        branch here wrote it into the ROUTINE block, so one well sample would have counted as a
-        routine compliance sample on the state form. EGLE's Bacti tab has a routine block and a
-        repeat block and nothing else; a raw-water or investigative sample is not reported on it.
-        Those samples are now EXCLUDED from the workbook and COUNTED in the stats
-        (`bacti_other_excluded`), so the page says so rather than the form saying something false.
+        AND 'other' IS NEITHER ROUTINE NOR REPEAT (Codex finding 3, 2026-09-11) — it has ITS OWN
+        BLOCK. Round 1 of that review concluded EGLE's Bacti tab had only two blocks and excluded
+        well samples from the workbook. That was wrong: rows 49..57 are "Other: well samples, entry
+        point (plant tap), samples following construction/repair, etc.", and every 2026 report
+        Michelle filed carries her monthly well samples there (Keith, 2026-10-08, with the printed
+        form). `other` now goes into that block — never into routine, whose COUNTA is the
+        compliance count — with no residual required (a raw-water sample has none).
         """
         rows = sorted(d.get('bacti') or [], key=lambda x: (x.get('collected_date') or '',
                                                            x.get('site_name') or ''))
         clear_block(BACTI_SHEET, BACTI_ROUTINE[0], BACTI_ROUTINE[1], BACTI_COLS)
         clear_block(BACTI_SHEET, BACTI_REPEAT[0], BACTI_REPEAT[1], BACTI_COLS)
+        clear_block(BACTI_SHEET, BACTI_OTHER[0], BACTI_OTHER[1], BACTI_COLS)
 
-        buckets = {'routine': list(BACTI_ROUTINE), 'repeat': list(BACTI_REPEAT)}
-        used = {'routine': 0, 'repeat': 0, 'other_excluded': 0}
+        buckets = {'routine': list(BACTI_ROUTINE), 'repeat': list(BACTI_REPEAT), 'other': list(BACTI_OTHER)}
+        used = {'routine': 0, 'repeat': 0, 'other': 0}
         for smp in rows:
             kind = str(smp.get('sample_kind') or 'routine').lower()
             if kind not in buckets:
-                used['other_excluded'] += 1
-                continue
+                raise Refuse(409, f'a bacti sample has kind "{kind}", which has no block on the state form; '
+                                  'the workbook was not generated.')
             row0, cap = buckets[kind]
             n = used[kind]
             if n >= cap:
@@ -457,14 +462,15 @@ def build(data, raw_template, formulas):
                        and str(bsh.cell_value(r, 9)).strip())
         back_routine = _filled(*BACTI_ROUTINE)
         back_repeat = _filled(*BACTI_REPEAT)
+        back_other = _filled(*BACTI_OTHER)
         dsh = back_bk.sheet_by_name('Distribution')
         back_dist = sum(1 for r in range(DIST_ROW0, DIST_ROW0 + DIST_ROWS)
                         if r < dsh.nrows and str(dsh.cell_value(r, 1)).strip())
     except Exception as e:
         raise Refuse(500, f'the generated workbook could not be read back to check its samples: {e}')
-    if (back_routine, back_repeat) != (bacti_written['routine'], bacti_written['repeat']):
-        raise Refuse(500, f'the saved workbook carries {back_routine} routine / {back_repeat} repeat '
-                          f'bacti rows but {bacti_written["routine"]} / {bacti_written["repeat"]} '
+    if (back_routine, back_repeat, back_other) != (bacti_written['routine'], bacti_written['repeat'], bacti_written['other']):
+        raise Refuse(500, f'the saved workbook carries {back_routine} routine / {back_repeat} repeat / {back_other} other '
+                          f'bacti rows but {bacti_written["routine"]} / {bacti_written["repeat"]} / {bacti_written["other"]} '
                           'were written; the workbook was not returned.')
     if back_dist != len(data['dist']):
         raise Refuse(500, f'the saved workbook carries {back_dist} distribution rows but '
@@ -484,8 +490,9 @@ def build(data, raw_template, formulas):
                             'bacti': bacti_written['routine'] + bacti_written['repeat'],
                             'bacti_routine': bacti_written['routine'],
                             'bacti_repeat': bacti_written['repeat'],
-                            # well / raw-water samples the state form has no block for (finding 3)
-                            'bacti_other_excluded': bacti_written['other_excluded']}
+                            # well / raw-water samples, written to the form's Other block (2026-10-08)
+                            'bacti_other': bacti_written['other'],
+                            'bacti_other_excluded': 0}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -737,7 +744,7 @@ def extract_workbook(raw, year, month):
         out['bacti_required'] = _num(sh.cell_value(3, 0)) if sh.nrows > 3 else None
         out['bacti_taken_stated'] = _num(sh.cell_value(4, 0)) if sh.nrows > 4 else None
         out['lab_name'] = (str(sh.cell_value(1, 7)).strip() or None) if sh.nrows > 1 and sh.ncols > 7 else None
-        for kind, (row0, cap) in (('routine', BACTI_ROUTINE), ('repeat', BACTI_REPEAT)):
+        for kind, (row0, cap) in (('routine', BACTI_ROUTINE), ('repeat', BACTI_REPEAT), ('other', BACTI_OTHER)):
             for r in range(row0, min(row0 + cap, sh.nrows)):
                 loc = str(sh.cell_value(r, X_BACTI_COLS['location'])).strip()
                 d = _as_date(sh.cell_value(r, X_BACTI_COLS['date']), year, month, dm)

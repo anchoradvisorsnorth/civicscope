@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.10.2-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.11.0-oic
+
+  v1.11.0 (2026-10-08) — well / raw-water bacti go in the form's OTHER block (rows 49-57) and need
+  no residual (Keith, with the printed August form); "Well 1" matches the plan's "Well #1".
 
   v1.10.2 (2026-10-08) — signed out is said plainly at the top of the report, and every Sign in link
   returns here (hub ?next=, civicscope-village v2.3.0). Found when Michelle's 30-day session had
@@ -940,7 +943,7 @@ function renderMonth(mo, y, m, eps) {
 
   $('monthEnd').innerHTML = dueNow + `<b>${MN[m]} ${y}</b> holds ${readings.length} well-day${readings.length === 1 ? '' : 's'}, `
     + `${dist} distribution sample${dist === 1 ? '' : 's'} and ${reportable.length} bacti sample${reportable.length === 1 ? '' : 's'}`
-    + (otherN ? ` (plus ${otherN} well sample${otherN === 1 ? '' : 's'} not reported on the form)` : '') + `.<br><br>`
+    + (otherN ? ` (plus ${otherN} well / raw-water sample${otherN === 1 ? '' : 's'} for the Other block)` : '') + `.<br><br>`
     + (can
         ? `<button class="btn" id="genBtn" onclick="generateMor(${y},${m})">Generate the EGLE workbook</button>`
           + `<span class="muted" id="genNote" style="margin-left:12px"></span><br><br>`
@@ -980,8 +983,8 @@ window.generateMor = async (y, m) => {
     a.href = url; a.download = name; document.body.appendChild(a); a.click();
     a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
     note.innerHTML = `${esc(name)} — ${(stats.well_days ?? '?')} well-days, ${(stats.distribution ?? '?')} distribution, ${(stats.bacti ?? '?')} bacti. `
-      + (stats.bacti_other_excluded
-          ? `<span style="color:var(--warn)">${stats.bacti_other_excluded} well/raw-water sample${stats.bacti_other_excluded === 1 ? '' : 's'} not on the form — EGLE's Bacti tab has no block for them. </span>`
+      + (stats.bacti_other
+          ? `${stats.bacti_other} well / raw-water sample${stats.bacti_other === 1 ? '' : 's'} in the form's Other block. `
           : '')
       + (stats.recorded
           ? `Recorded under “Past reports” below.`
@@ -1302,7 +1305,7 @@ function paintRecords(mo, y, m, eps) {
   const bactiTable = bacti.length ? `<div class="card scroll" style="margin-top:4px"><table>
       <thead><tr><th class="l">Bacti sample</th><th class="l">Kind</th><th class="l">Site</th><th class="l">Result</th><th>Free</th><th>Total</th><th></th></tr></thead><tbody>
       ${bacti.map((b) => `<tr><td class="l">${esc(usDate(b.collected_date))}</td>
-        <td class="l">${b.sample_kind === 'other' ? 'Well / raw water <span class="muted">(not on the form)</span>' : esc(b.sample_kind === 'repeat' ? 'Repeat' : 'Routine')}</td>
+        <td class="l">${b.sample_kind === 'other' ? 'Well / raw water <span class="muted">(Other block)</span>' : esc(b.sample_kind === 'repeat' ? 'Repeat' : 'Routine')}</td>
         <td class="l">${esc(b.site_name || '')}</td>
         <td class="l">${b.result ? esc(b.result) : '<span style="color:var(--warn);font-weight:600">pending</span>'}</td><td>${fmt(b.free)}</td><td>${fmt(b.total)}</td>
         <td>${ME ? `<button class="editbtn" data-edit="bacti" data-id="${esc(b.id)}" data-kind="${esc(b.sample_kind || 'routine')}" data-date="${b.collected_date}" data-site="${esc(b.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
@@ -1469,7 +1472,7 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId, isNew, host
   if (isNew && Y && M) {
     const lastD = new Date(Date.UTC(Y, M, 0)).getUTCDate();
     pre.push({ k: "__date", label: "Date collected", v: "", date: true, min: dayISO(Y, M, 1), max: dayISO(Y, M, lastD) });
-    if (kind === "bacti") pre.push({ k: "__kind", label: "Kind", select: [["routine", "Routine"], ["repeat", "Repeat"], ["other", "Well / raw water (not on the form)"]] });
+    if (kind === "bacti") pre.push({ k: "__kind", label: "Kind", select: [["routine", "Routine"], ["repeat", "Repeat"], ["other", "Well / raw water (Other block)"]] });
     /* Sites follow the kind (Codex 2026-10-08 finding 1): Routine and Repeat offer the plan's
        routine sites, Well / raw water offers the wells. The server refuses a contradiction too. */
     const plan = (want) => (mo.sites || []).filter((x) => x.active !== false && x.kind === want).map((x) => x.name);
@@ -1547,7 +1550,7 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId, isNew, host
 }
 
 // a plan site typed in any case or spacing is still that site (Codex round 2, R2-2) — the server agrees
-const normName = (t) => String(t == null ? '' : t).trim().replace(/\s+/g, ' ').toLowerCase();
+const normName = (t) => String(t == null ? '' : t).replace(/#/g, ' ').trim().replace(/\s+/g, ' ').toLowerCase();
 
 async function saveEditor(el) {
   if (!EDITING) return;
