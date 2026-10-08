@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.4-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.5-oic
+
+  v1.5.5 (2026-10-07) — "today" is the plant's day (supply.timezone), not UTC's: after 8 pm
+  Eastern the page called that morning's readings "yesterday", counted tomorrow as missed, and on a
+  month's last evening opened the next month. A well recording 0 gal on consecutive visits is now
+  named in the banner and on its card ("Not running — last pumped …") instead of reading green.
 
   v1.5.0 (2026-09-11, after the adversarial review) — Mark as filed sends bytes and what she
   typed; the server reads the workbook, checks it is this supply's report for this period, and
@@ -193,6 +198,18 @@ const WSSN = new URLSearchParams(location.search).get('wssn') || '01310';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 const MN = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+/* Dates are SHOWN the American way — month/day/year (Keith, 2026-10-07: "Date format throughout app
+   should be US month/day/year"). Stored, compared, sorted and linked dates stay ISO; only what a
+   person reads goes through here. M/D/YYYY with no leading zeros matches Michelle's own filed
+   workbooks (`7/29/2026`). A month-only key ("2026-10") reads "October 2026". */
+const usDate = (iso) => {
+  const s = String(iso == null ? '' : iso);
+  let x = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (x) return `${Number(x[2])}/${Number(x[3])}/${x[1]}`;
+  x = s.match(/^(\d{4})-(\d{2})$/);
+  if (x) return `${MN[Number(x[2])]} ${x[1]}`;
+  return s;
+};
 
 // Read-only, and no access code: `month` is one of the three actions the API serves ungated.
 const post = async (b) => {
@@ -204,7 +221,7 @@ const post = async (b) => {
   if (!r.ok) throw new Error(j.msg || j.error || `error ${r.status}`);
   return j;
 };
-const fmtWhen = (iso) => { try { return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch { return String(iso); } };
+const fmtWhen = (iso) => { try { return new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }); } catch { return String(iso); } };
 const fileToB64 = (file) => new Promise((ok, no) => {
   const fr = new FileReader();
   fr.onload = () => ok(String(fr.result).split(',')[1] || '');
@@ -218,7 +235,19 @@ let CUR = null;
 const fmt = (v, d = 2) => (v == null || v === '' ? '—' : Number(v).toFixed(d));
 const int = (v) => (v == null ? '—' : Number(v).toLocaleString());
 const dayOf = (iso) => Number(String(iso).slice(8, 10));
-const todayISO = () => new Date().toISOString().slice(0, 10);
+/* ⛔ "TODAY" IS THE PLANT'S DAY, NEVER UTC'S (Keith, 2026-10-07, 9:11 pm EDT). This read
+   `toISOString()`, which is UTC — so from 8 pm Eastern every evening the page believed it was
+   already tomorrow: the readings taken that morning were labelled "yesterday", the coverage strip
+   counted tomorrow as a missed day, and on the last evening of a month the page opened on the NEXT
+   month. The tablet dates the round by the supply's timezone (v1.4.1, R2-13); the page that reviews
+   that round has to use the same clock or the two disagree about what day a reading belongs to.
+   PLANT_TZ is replaced by `supply.timezone` as soon as the first read returns it. */
+let PLANT_TZ = 'America/Detroit';
+const plantToday = () => {
+  const iso = new Date().toLocaleDateString('en-CA', { timeZone: PLANT_TZ });   // YYYY-MM-DD at the plant
+  return { iso, y: Number(iso.slice(0, 4)), m: Number(iso.slice(5, 7)), d: Number(iso.slice(8, 10)) };
+};
+const todayISO = () => plantToday().iso;
 function daysAgo(iso) {
   const ms = Date.parse(todayISO()) - Date.parse(iso);
   return Math.round(ms / 86400000);
@@ -245,12 +274,25 @@ let FILINGS = [];
    them — empty headings read as a page that finished and found nothing, which on this page means
    "no records", which is the most alarming thing it could wrongly say. */
 async function load() {
-  const now = new Date();
+  const first = await loadFor(plantToday());
+  /* The first read is what tells us the plant's timezone. If it is not the default and moves the
+     plant into a different month than we guessed, read again — rare, and cheaper than being wrong
+     about which month the OIC is in. */
+  const tz = first.cur.supply && first.cur.supply.timezone;
+  if (tz && tz !== PLANT_TZ) {
+    PLANT_TZ = tz;
+    const t = plantToday();
+    if (t.y !== first.cy || t.m !== first.cm) return loadFor(t);
+  }
+  return first;
+}
+
+async function loadFor(today) {
   /* The month may be named in the URL (?m=YYYY-MM). That is what the "due on the 10th" reminder
      email links to, so the message and the screen open on the same month — a link that lands on a
      generic dashboard makes the reader do the navigation the email existed to save them. */
   const want = (new URLSearchParams(location.search).get('m') || '').match(/^(\d{4})-(\d{1,2})$/);
-  const cy = now.getUTCFullYear(), cm = now.getUTCMonth() + 1;   // the month we are actually in
+  const cy = today.y, cm = today.m;   // the month the PLANT is actually in
   let y = want ? Number(want[1]) : cy;
   let m = want ? Number(want[2]) : cm;
   if (!(m >= 1 && m <= 12)) { y = cy; m = cm; }
@@ -267,7 +309,7 @@ async function load() {
     (y === cy && m === cm) ? null : post({ action: 'month', year: y, month: m }),
   ]);
   FILINGS = filings;
-  return { cur, prev, y, m, target: target || cur, deepLinked: Boolean(want) };
+  return { cur, prev, y, m, cy, cm, target: target || cur, deepLinked: Boolean(want) };
 }
 
 function render({ cur, prev, y, m, target, deepLinked }) {
@@ -298,18 +340,43 @@ function render({ cur, prev, y, m, target, deepLinked }) {
   }).filter((w) => w.date === null || w.gap >= 2);
   const nameList = (ws) => ws.map((w) => esc(w.label) + (w.date ? ` (${w.gap} days)` : ' (none on file)')).join(', ');
 
+  /* ⛔ "REPORTING" IS NOT "RUNNING" (Keith, 2026-10-07). Well 3 was visited every day 10/04–10/07
+     and every visit read the same meter — 0 gal, no dose, no tap sample — while this banner said
+     "All 3 wells reporting" in green and the card showed four dashes with no word of why. A visit
+     that records 0 is a real fact (kept distinct from no visit at all), but a well standing idle
+     for days is something the OIC needs to be told in a sentence, not left to infer from dashes.
+     Counted from the newest visit backwards: consecutive recorded zeros, and the last day it ran. */
+  const idleRun = (ep) => {
+    const rs = all.filter((r) => r.entry_point_id === ep.id)
+                  .sort((a, b) => a.reading_date < b.reading_date ? 1 : -1);
+    let n = 0;
+    while (n < rs.length && rs[n].gallons_pumped != null && Number(rs[n].gallons_pumped) === 0) n++;
+    if (!n) return null;
+    const ran = rs.slice(n).find((r) => Number(r.gallons_pumped) > 0);
+    return { days: n, since: ran ? ran.reading_date : null };
+  };
+  const idleText = (w) => `0 gal on the last ${w.days} visit${w.days === 1 ? '' : 's'}`
+                        + (w.since ? ` — last pumped ${esc(usDate(w.since))}` : '');
+  const idle = eps.map((ep) => ({ label: ep.label, run: idleRun(ep) }))
+                  .filter((w) => w.run && w.run.days >= 2);
+
   let top = '';
   if (!newest) {
     top = `<div class="banner err"><b>No readings on file at all</b>Nothing has been recorded for this supply.</div>`;
   } else if (gap >= 2) {
-    top = `<div class="banner err"><b>Nothing recorded for ${gap} days</b>The last reading from any well was ${esc(newest)}. If the round is being walked, it is being written somewhere other than here — and every day of that has to be re-entered later.</div>`;
+    top = `<div class="banner err"><b>Nothing recorded for ${gap} days</b>The last reading from any well was ${esc(usDate(newest))}. If the round is being walked, it is being written somewhere other than here — and every day of that has to be re-entered later.</div>`;
   } else if (behind.length) {
     // Something came in recently, but not from everywhere. Name the wells rather than going green.
     top = `<div class="banner err"><b>${behind.length} of ${eps.length} wells ${behind.length === 1 ? 'is' : 'are'} behind</b>`
         + `Something was recorded ${gap === 0 ? 'today' : 'yesterday'}, but ${nameList(behind)} ${behind.length === 1 ? 'has' : 'have'} not reported. `
         + `Every day a well is missed is a day that has to be re-entered before the month can be filed.</div>`;
+  } else if (idle.length) {
+    top = `<div class="banner warn"><b>Up to date — but ${idle.length === 1 ? esc(idle[0].label) + ' is' : idle.length + ' wells are'} not running</b>`
+        + `All ${eps.length} wells were visited — last reading ${esc(usDate(newest))}${gap === 1 ? ' (yesterday)' : ' (today)'}. `
+        + idle.map((w) => `${esc(w.label)}: ${idleText(w.run)}.`).join(' ')
+        + ` If the well is meant to be off, nothing is wrong; if it is not, the meter has not moved.</div>`;
   } else {
-    top = `<div class="banner ok"><b>Up to date</b>All ${eps.length} wells reporting — last reading ${esc(newest)}${gap === 1 ? ' (yesterday)' : ' (today)'}.</div>`;
+    top = `<div class="banner ok"><b>Up to date</b>All ${eps.length} wells reporting — last reading ${esc(usDate(newest))}${gap === 1 ? ' (yesterday)' : ' (today)'}.</div>`;
   }
   $('top').innerHTML = top;
 
@@ -323,7 +390,8 @@ function render({ cur, prev, y, m, target, deepLinked }) {
     const cl = fl('chlorine'), ph = fl('phosphate');
     return `<div class="card well">
       <b>${esc(ep.label)}</b>
-      <div class="when${g >= 2 ? ' stale' : ''}">${esc(r.reading_date)}${g === 0 ? ' · today' : g === 1 ? ' · yesterday' : ` · ${g} days ago`}${r.operator_initials ? ' · ' + esc(r.operator_initials) : ''}</div>
+      <div class="when${g >= 2 ? ' stale' : ''}">${esc(usDate(r.reading_date))}${g === 0 ? ' · today' : g === 1 ? ' · yesterday' : ` · ${g} days ago`}${r.operator_initials ? ' · ' + esc(r.operator_initials) : ''}</div>
+      ${(() => { const w = idleRun(ep); return w ? `<div class="when stale">Not running — ${idleText(w)}</div>` : ''; })()}
       <div class="kv"><span>Pumped</span><b>${int(r.gallons_pumped)} gal</b></div>
       <div class="kv"><span>Chlorine dose</span><b>${fmt(cl.dose_mg_l)} mg/L</b></div>
       <div class="kv"><span>Phosphate</span><b>${fmt(ph.ortho_mg_l)} mg/L</b></div>
@@ -333,7 +401,7 @@ function render({ cur, prev, y, m, target, deepLinked }) {
 
   // ── month picker: this month and the eleven before it
   const sel = $('monthSel');
-  const nowY = new Date().getUTCFullYear(), nowM = new Date().getUTCMonth() + 1;
+  const { y: nowY, m: nowM } = plantToday();
   if (!sel.options.length) {
     for (let i = 0; i < 12; i++) {
       const d = new Date(Date.UTC(nowY, nowM - 1 - i, 1));
@@ -468,8 +536,9 @@ function renderMonth(mo, y, m, eps) {
 
   // Days nobody visited a well that normally runs — a gap in the record, not a quiet day.
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  const isCurrent = (new Date().getUTCFullYear() === y && new Date().getUTCMonth() + 1 === m);
-  const upto = isCurrent ? new Date().getUTCDate() : last;
+  const pt = plantToday();
+  const isCurrent = (pt.y === y && pt.m === m);
+  const upto = isCurrent ? pt.d : last;
 
   // ── bacti: the thing July's packet reached the state without
   const bacti = mo.bacti || [];
@@ -503,7 +572,7 @@ function renderMonth(mo, y, m, eps) {
     : `— nothing in ${MN[m]}`;
   $('attn').innerHTML = rows.length
     ? `<div class="card scroll"><table><thead><tr><th class="l">Date</th><th class="l">Where</th><th class="l">What</th><th class="l">Who</th></tr></thead><tbody>`
-      + rows.map((r) => `<tr><td class="l">${esc(r.date)}</td><td class="l">${esc(r.where)}</td>
+      + rows.map((r) => `<tr><td class="l">${esc(usDate(r.date))}</td><td class="l">${esc(r.where)}</td>
           <td class="l"><span class="tag ${r.level}">${r.level === 'err' ? 'check' : r.level === 'warn' ? 'watch' : 'note'}</span> ${esc(r.what)}</td>
           <td class="l">${esc(r.who || '')}</td></tr>`).join('')
       + `</tbody></table></div>`
@@ -647,7 +716,7 @@ function renderFiled(mo, y, m) {
   const chips = FILINGS.length
     ? `<div class="chips">` + FILINGS.map((x) =>
         `<span class="chip${x.year === y && x.month === m ? ' on' : ''}" onclick="goMonth(${x.year},${x.month})"
-               title="${x.submitted_date ? 'submitted ' + esc(x.submitted_date) : 'no submission date on the Cover'}"
+               title="${x.submitted_date ? 'submitted ' + esc(usDate(x.submitted_date)) : 'no submission date on the Cover'}"
           >${MN[x.month]} ${x.year}</span>`).join('') + `</div>` : '';
 
   if (!f) {
@@ -667,7 +736,7 @@ function renderFiled(mo, y, m) {
 
   const d = f.diff || {}, c = d.counts || {};
   const when = f.submitted_date
-    ? `submitted <b>${esc(f.submitted_date)}</b>`
+    ? `submitted <b>${esc(usDate(f.submitted_date))}</b>`
     : `<b>no submission date</b> was filled in on the Cover tab`;
   const kb = f.workbook_bytes ? ` · ${Math.round(f.workbook_bytes / 1024).toLocaleString()} KB` : '';
 
@@ -895,13 +964,13 @@ function paintRecords(mo, y, m, eps) {
   const dist = mo.dist || [], bacti = mo.bacti || [];
   const distTable = dist.length ? `<div class="card scroll" style="margin-top:12px"><table>
       <thead><tr><th class="l">Distribution sample</th><th class="l">Site</th><th>Free</th><th>Total</th><th>PO₄</th><th class="l">By</th><th></th></tr></thead><tbody>
-      ${dist.map((s) => `<tr><td class="l">${esc(s.sample_date)}</td><td class="l">${esc(s.site_name || '')}</td>
+      ${dist.map((s) => `<tr><td class="l">${esc(usDate(s.sample_date))}</td><td class="l">${esc(s.site_name || '')}</td>
         <td>${fmt(s.free)}</td><td>${fmt(s.total)}</td><td>${fmt(s.ortho)}</td><td class="l">${esc(s.operator_initials || '')}</td>
         <td>${ME ? `<button class="editbtn" data-edit="dist" data-id="${esc(s.id)}" data-date="${s.sample_date}" data-site="${esc(s.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div>` : '';
   const bactiTable = bacti.length ? `<div class="card scroll" style="margin-top:12px"><table>
       <thead><tr><th class="l">Bacti sample</th><th class="l">Site</th><th class="l">Result</th><th>Free</th><th>Total</th><th></th></tr></thead><tbody>
-      ${bacti.map((b) => `<tr><td class="l">${esc(b.collected_date)}</td><td class="l">${esc(b.site_name || '')}</td>
+      ${bacti.map((b) => `<tr><td class="l">${esc(usDate(b.collected_date))}</td><td class="l">${esc(b.site_name || '')}</td>
         <td class="l">${esc(b.result || '')}</td><td>${fmt(b.free)}</td><td>${fmt(b.total)}</td>
         <td>${ME ? `<button class="editbtn" data-edit="bacti" data-id="${esc(b.id)}" data-kind="${esc(b.sample_kind || 'routine')}" data-date="${b.collected_date}" data-site="${esc(b.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div>` : '';
@@ -1016,9 +1085,9 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId) {
   }
 
   const fields = editorFields(kind, row, kind === "reading" && ep ? [ep] : eps);
-  const title = kind === "reading" ? (row ? `Edit the well day for ${date}` : `Add a well day for ${date}`)
-    : kind === "dist" ? `Edit the distribution sample for ${date}`
-    : `Edit the bacti sample for ${date}`;
+  const title = kind === "reading" ? (row ? `Edit the well day for ${usDate(date)}` : `Add a well day for ${usDate(date)}`)
+    : kind === "dist" ? `Edit the distribution sample for ${usDate(date)}`
+    : `Edit the bacti sample for ${usDate(date)}`;
 
   const el = document.createElement("div");
   el.className = "ed";
@@ -1105,9 +1174,9 @@ async function saveEditor(el) {
     /* The day AFTER this one derived against whatever used to be here. The server recomputes it;
        say so, because a silently changed neighbouring day is exactly what nobody would look for. */
     let extra = "";
-    if (d.rederived && d.rederived.ok) extra = ` The next recorded day (${d.rederived.date}) was recomputed.`;
+    if (d.rederived && d.rederived.ok) extra = ` The next recorded day (${usDate(d.rederived.date)}) was recomputed.`;
     else if (d.rederived && d.rederived.ok === false) {
-      extra = ` ⚠ The next day (${d.rederived.date}) can no longer be derived from this — check it.`;
+      extra = ` ⚠ The next day (${usDate(d.rederived.date)}) can no longer be derived from this — check it.`;
     }
     msg.className = "msg ok";
     msg.textContent = "Saved." + extra + " Reloading…";

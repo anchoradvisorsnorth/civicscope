@@ -65,7 +65,11 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.9.1-waterops';
+export const VER = '1.9.2-waterops';
+
+// A date written into a sentence a PERSON reads is month/day/year (Keith, 2026-10-07). Fields in the
+// JSON stay ISO — only the `msg` text goes through this.
+const usDate = (iso) => { const x = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return x ? `${Number(x[2])}/${Number(x[3])}/${x[1]}` : String(iso || ''); };
 
 /* Where the Python generator lives, for the one server-to-server call this file makes to it: reading
    an uploaded workbook's cells at filing time (Codex finding 8). Same variable the Python side uses
@@ -1103,7 +1107,7 @@ export default async function handler(req, res) {
           const successor = chainPlan.blocked || {};
           return res.status(409).json({
             error: 'successor_blocked', saved: false,
-            msg: `Saving this day would make ${successor.date || 'a day after it'} impossible to recompute, so nothing was written. `
+            msg: `Saving this day would make ${successor.date ? usDate(successor.date) : 'a day after it'} impossible to recompute, so nothing was written. `
                + `That day has to be corrected first.`,
             successor,
           });
@@ -1647,7 +1651,7 @@ export default async function handler(req, res) {
             && String(cv.submitted_date).slice(0, 10) !== String(typed.submitted_date).slice(0, 10)) {
           return res.status(409).json({
             error: 'date_conflict',
-            msg: `The workbook's Cover says it was submitted ${cv.submitted_date}, but you entered ${typed.submitted_date}. Fix one of them — nothing was recorded.`,
+            msg: `The workbook's Cover says it was submitted ${usDate(cv.submitted_date)}, but you entered ${usDate(typed.submitted_date)}. Fix one of them — nothing was recorded.`,
             cover_date: cv.submitted_date, typed_date: typed.submitted_date,
           });
         }

@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.4.1-water
+  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.4.2-water
+
+  v1.4.2 (2026-10-07): dates a person reads are month/day/year (Keith); the round's heading on
+  the done screen uses the plant's timezone like every other date here.
 
   v1.4.0 (2026-09-11, adversarial review): the date is the PLANT's date, not the device's; the
   plant profile is kept on the tablet so the app opens with no signal after a tab kill; the queue
@@ -229,6 +232,8 @@ const esc = (s) => String(s==null?'':s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<'
    the supply's own `timezone` column could not stop it because nothing here read it. */
 const TZ = () => (S.profile && S.profile.supply && S.profile.supply.timezone) || 'America/Detroit';
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: TZ() });   // YYYY-MM-DD at the plant
+// Shown month/day/year (Keith, 2026-10-07); stored and queued dates stay ISO.
+const usDate = (iso) => { const x = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return x ? `${Number(x[2])}/${Number(x[3])}/${x[1]}` : String(iso || ''); };
 const nowTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false, timeZone: TZ() }).slice(0,5);
 const n = (v) => (v===''||v==null ? null : Number(v));
 const fmt = (v,d=2) => (v==null||!isFinite(v) ? '—' : Number(v).toFixed(d));
@@ -297,10 +302,10 @@ $('queueBar').onclick = () => { if((S.rejected||[]).length) showRejected(); else
    record. Reconciling it is an office job — a correction needs a reason and a sign-in. */
 function showRejected(){
   const lines = (S.rejected||[]).map(r =>
-    `• ${esc(r.payload.reading_date || r.payload.sample_date || r.payload.collected_date || '')} `
+    `• ${esc(usDate(r.payload.reading_date || r.payload.sample_date || r.payload.collected_date || ''))} `
     + `${esc(r.action.replace('submit_',''))} — ${esc(r.reason)}`).join('<br>');
   alert((S.rejected||[]).length + ' record(s) this tablet captured are NOT in the record:\n\n'
-    + (S.rejected||[]).map(r => `${r.payload.reading_date || r.payload.sample_date || ''} ${r.action.replace('submit_','')} — ${r.reason}`).join('\n')
+    + (S.rejected||[]).map(r => `${usDate(r.payload.reading_date || r.payload.sample_date || '')} ${r.action.replace('submit_','')} — ${r.reason}`).join('\n')
     + '\n\nThe server already holds that day, or refused the values. Give these to the office to reconcile — do not re-enter them here.');
   void lines;
 }
@@ -482,7 +487,7 @@ async function refreshRound(){
   let fresh = false;
   try{ S.profile = await api('profile', { date: today() }); S.profileAt = Date.now(); S.profileDate = today(); save(); fresh = true; }catch{}
   const p = S.profile; if(!p) return;
-  $('roundTitle').textContent = new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',timeZone:TZ()});
+  $('roundTitle').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',timeZone:TZ()});
   /* "Recorded today" is only true for TODAY (R2-11). A cached profile from yesterday carries
      yesterday's doneToday; with no signal it must not paint this morning's round as finished.
      Queued records likewise count only when they are dated today. */
@@ -558,7 +563,7 @@ async function openEntry(ep){
   sec.innerHTML = `
   <div class="card">
     <h2>${esc(ep.label)} <span class="pill">${esc(ep.code)}</span></h2>
-    <div class="muted">${new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</div>
+    <div class="muted">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',timeZone:TZ()})}</div>
 
     <div class="row">
       <div><label for="e_time">Time</label><input id="e_time" type="time" value="${nowTime()}"></div>
