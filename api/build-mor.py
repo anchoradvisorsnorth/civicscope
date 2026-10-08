@@ -328,6 +328,79 @@ def decrypt(raw):
 # ---------------------------------------------------------------------------------------------
 # the fill
 # ---------------------------------------------------------------------------------------------
+# ⛔ PRINT SETTINGS (Keith and Michelle, 2026-10-08). Michelle PRINTS the MOR, and builds each month from
+# her own "Blank MOR.xls", whose page setup she tuned once: US Letter, fit to one page on every tab but
+# Distribution, landscape for the data tabs, 0.7"/0.75" margins, no header/footer, and a print area on the
+# Bacti tab (A1:M57) that keeps the results key in columns O:P off the page. xlutils.copy drops all of it,
+# so every generated workbook came out on A4 at 100% with xlwt's page-number header — and she was resetting
+# nine tabs by hand. These are the settings read out of her blank (BIFF SETUP / WSBOOL / margin / NAME
+# records); the printer-driver block (PLS) is deliberately not copied — it belongs to her printer.
+#   sheet: (portrait, fit_to_one_page, scale_when_not_fitting)
+PAGE_SETUP = {
+    'Instructions': (True, True, 65), 'Cover': (True, True, 99), 'Pumpage': (False, True, 86),
+    'EntryPoint1': (False, True, 65), 'EntryPoint2': (False, True, 65), 'EntryPoint3': (False, True, 65),
+    'EP Summary': (False, True, 69), 'Distribution': (False, False, 73), 'Bacti & Cl Res': (True, True, 88),
+}
+PRINT_AREAS = {'Bacti & Cl Res': (0, 56, 0, 12)}      # 0-based rows 0..56, cols 0..12  ->  A1:M57
+
+
+def apply_print_setup(wb, sheet_names):
+    for i, name in enumerate(sheet_names):
+        cfg = PAGE_SETUP.get(name)
+        if not cfg:
+            continue
+        portrait, fit, scale = cfg
+        ws = wb.get_sheet(i)
+        ws.paper_size_code = 1                     # US Letter
+        ws.portrait = portrait
+        ws.fit_num_pages = 1 if fit else 0          # WSBOOL "fit to page"
+        ws.fit_width_to_pages = 1
+        ws.fit_height_to_pages = 1
+        ws.print_scaling = scale
+        ws.header_str = b''   # xlwt 1.3.0 decodes bytes here; a str raises
+        ws.footer_str = b''
+        ws.header_margin = 0.3
+        ws.footer_margin = 0.3
+        ws.left_margin = ws.right_margin = 0.7
+        ws.top_margin = ws.bottom_margin = 0.75
+        ws.print_centered_horz = False
+        ws.print_centered_vert = False
+    _install_print_areas(wb, sheet_names)
+
+
+def _install_print_areas(wb, sheet_names):
+    """xlwt cannot write defined names, and a print area IS one (built-in name 0x06, Print_Area). This
+    appends the NAME records after the EXTERNSHEET record, inside the globals block xlwt is already
+    measuring — so the BOUNDSHEET stream offsets it computes afterwards stay correct. Each area needs an
+    EXTERNSHEET entry for its sheet; one is added if no formula happens to reference that sheet."""
+    wanted = [(sheet_names.index(n), area) for n, area in PRINT_AREAS.items() if n in sheet_names]
+    if not wanted:
+        return
+    from xlwt.Workbook import Workbook as _WB
+    orig = _WB._Workbook__all_links_rec
+    refs = wb._Workbook__sheet_refs
+    if wb._ownbook_supbookx is None:
+        wb.setup_ownbook()
+    own = wb._ownbook_supbookx
+    ixti = {}
+    for si, _ in wanted:
+        key = (own, si, si)
+        if key not in refs:
+            refs[key] = len(refs)
+        ixti[si] = refs[key]
+    names = b''
+    for si, (r0, r1, c0, c1) in wanted:
+        fmla = struct.pack('<BHHHHH', 0x3B, ixti[si], r0, r1, c0, c1)
+        body = struct.pack('<HBBHHHBBBB', 0x0020, 0, 1, len(fmla), 0, si + 1, 0, 0, 0, 0) + b'\x00\x06' + fmla
+        names += struct.pack('<HH', 0x0018, len(body)) + body
+
+    def patched(self):
+        base = orig(self)
+        return base + names if self is wb else base
+    _WB._Workbook__all_links_rec = patched
+    wb._print_area_restore = (_WB, orig)
+
+
 def build(data, raw_template, formulas):
     plain = decrypt(raw_template)
     tmp = tempfile.NamedTemporaryFile(suffix='.xls', delete=False)
@@ -521,8 +594,14 @@ def build(data, raw_template, formulas):
 
     bacti_written = write_bacti(data)
 
+    apply_print_setup(wb, rb.sheet_names())     # her blank's page setup and the Bacti print area
     out = io.BytesIO()
-    wb.save(out)
+    try:
+        wb.save(out)
+    finally:
+        restore = getattr(wb, '_print_area_restore', None)
+        if restore:
+            restore[0]._Workbook__all_links_rec = restore[1]
 
     # ⛔ READ THE PERIOD BACK OUT OF THE SAVED FILE AND REFUSE IF IT IS WRONG.
     # Same doctrine as the bacti stats below: report — and here, assert — what REACHED THE
