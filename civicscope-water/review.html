@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.11.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.12.0-oic
+
+  v1.12.0 (2026-10-08) — every generated workbook for a month is its own row (Open / Mark as filed /
+  Remove — withdrawn, never deleted, migration 081); a plant-tap residual above 4.0 mg/L is flagged as a
+  likely decimal slip.
+
+  v1.11.1 (2026-10-08) — on the monthly report, "review them here" opens Needs-your-attention as a
+  pop-up over the report (Dismiss/Restore work in it; closing refreshes the checklist) instead of
+  navigating to the daily review and leaving her to find the way back.
 
   v1.11.0 (2026-10-08) — well / raw-water bacti go in the form's OTHER block (rows 49-57) and need
   no residual (Keith, with the printed August form); "Well 1" matches the plan's "Well #1".
@@ -626,6 +634,7 @@ function paintAttn() {
   $('attnCount').textContent = (live.length
     ? `— ${actionable} to look at${live.length > actionable ? `, ${live.length - actionable} for information` : ''} in ${MN[m]}`
     : `— nothing open in ${MN[m]}`) + (gone.length ? ` · ${gone.length} dismissed` : '');
+  { const dc = document.getElementById('dlgAttnCount'); if (dc) dc.textContent = $('attnCount').textContent; }
   const tag = (r) => `<span class="tag ${r.level}">${r.level === 'err' ? 'check' : r.level === 'warn' ? 'watch' : 'note'}</span>`;
   const btn = (r, restore) => ME
     ? `<button class="dbtn" data-dismiss="${esc(r.key)}"${restore ? ' data-restore="1"' : ''}>${restore ? 'Restore' : 'Dismiss'}</button>` : '';
@@ -658,6 +667,7 @@ $('attn').addEventListener('click', async (ev) => {
                            item_text: row ? `${row.where}: ${row.what}` : '', restore });
     if (restore) ATTN.dismissed.delete(key);
     else ATTN.dismissed.set(key, j.dismissal || { item_key: key, dismissed_at: new Date().toISOString(), dismissed_by: ME && (ME.name || ME.email) });
+    if (CUR && CUR.mo) CUR.mo.dismissals = [...ATTN.dismissed.values()];
     paintAttn();
   } catch (e) {
     b.disabled = false; b.textContent = restore ? 'Restore' : 'Dismiss';
@@ -742,6 +752,14 @@ function renderMonth(mo, y, m, eps) {
       if ((f.code || '') === 'no_flow') { (idleDays[r.entry_point_id] ||= []).push(r.reading_date); continue; }
       rows.push({ key: `flag|${r.id}|${f.code || ''}|${hashKey(f.msg || '')}`, date: r.reading_date, where: epName(r.entry_point_id), level: f.level === 'warn' ? 'warn' : 'info',
                   what: f.msg || f.code, who: r.operator_initials });
+    }
+    /* A plant-tap residual above 4.0 mg/L (EGLE's chlorine MRDL) is almost always a decimal slip —
+       Well 4 on 2026-09-23 was entered as 203.00 / 206.00 for 2.03 / 2.06 and went into the workbook. */
+    for (const [k, lbl] of [['tap_free', 'free'], ['tap_total', 'total']]) {
+      if (r[k] != null && Number(r[k]) > 4) {
+        rows.push({ key: `taphigh|${r.id}|${k}`, date: r.reading_date, where: epName(r.entry_point_id), level: 'err',
+                    what: `Plant tap ${lbl} chlorine ${fmt(r[k])} mg/L is above 4.0 — check the decimal point`, who: r.operator_initials });
+      }
     }
     // Recorded but impossible. derive() refuses these on entry now, so any that exist came from a
     // backfill of paper that already contained them — which is exactly what has to reach her.
@@ -934,7 +952,7 @@ function renderMonth(mo, y, m, eps) {
     + `${tick(reportable.length > 0 && !pendingN)}<div><b>${reportable.length}</b> routine/repeat bacti sample${reportable.length === 1 ? '' : 's'}`
     + `${!reportable.length ? ' — <b>add them in step 1</b> before generating'
         : pendingN ? ` — <b>${pendingN} still ${pendingN === 1 ? 'has' : 'have'} no lab result</b> (step 1)` : ''}</div>`
-    + `${tick(!liveAttn)}<div><b>${liveAttn}</b> item${liveAttn === 1 ? '' : 's'} still needing attention${liveAttn ? ` — <a href="${viewHref('review', y, m)}">review them on the daily review</a> <span class="muted">(optional — they don't stop you generating)</span>` : ''}</div>`
+    + `${tick(!liveAttn)}<div><b>${liveAttn}</b> item${liveAttn === 1 ? '' : 's'} still needing attention${liveAttn ? ` — <a href="#" data-attn-open="1">review them here</a> <span class="muted">(optional — they don't stop you generating)</span>` : ''}</div>`
     + `${tick(filedNow)}<div>${filedNow ? 'Recorded as filed with EGLE' : 'Not yet recorded as filed'}</div>`
     + `</div>`;
   $('reportTeaser').innerHTML = `The <b>${MN[m]} ${y}</b> report — ${status}. `
@@ -1116,6 +1134,17 @@ function renderFiled(mo, y, m) {
 /* ── GENERATED, and whether it went. Newest generation leads; the rest are a line of dates. When
    the month is already filed this collapses to one sentence — the story is "generated here on the
    9th, filed on the 10th", not a second card competing with the filing. */
+window.withdrawGeneration = async (id) => {
+  if (!confirm('Remove this workbook from the list? The record that it was generated is kept.')) return;
+  try {
+    await post({ action: 'withdraw_generation', generation_id: id });
+    if (CUR) {
+      CUR.mo.generations = (CUR.mo.generations || []).filter((g) => g.id !== id);
+      renderFiled(CUR.mo, CUR.y, CUR.m);
+    }
+  } catch (e) { alert(`Could not remove that workbook — ${e.message}`); }
+};
+
 function renderGenerated(gens, y, m, filing) {
   if (!gens.length) return '';
   const g = gens[0], s = g.stats || {};
@@ -1132,6 +1161,32 @@ function renderGenerated(gens, y, m, filing) {
       + `</div>`;
   }
 
+  /* Every workbook generated for the month is a row (2026-10-08 — September was generated twice, and the
+     older one was only a line of text). Remove withdraws it from this list; the record of it is kept. */
+  const genRow = (x, i) => {
+    const sx = x.stats || {};
+    const kbx = x.workbook_bytes ? ` · ${Math.round(x.workbook_bytes / 1024).toLocaleString()} KB` : '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0;${i ? 'border-top:1px solid var(--line)' : ''}">
+        <div>
+          <b>${i === 0 ? 'Newest' : 'Earlier'}</b> — ${line(x)}
+          <div class="muted" style="margin-top:2px">${sx.well_days ?? '?'} well-days, ${sx.distribution ?? '?'} distribution, ${sx.bacti ?? '?'} bacti${sx.bacti_other ? ` + ${sx.bacti_other} well` : ''} · ${esc(x.workbook_name)}${kbx}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" style="background:#fff;color:var(--navy)" id="gwb-${x.id}" onclick="openGeneration('${x.id}')">Open this workbook</button>
+          <button class="btn" onclick="markFiledForm('${x.id}',${y},${m})">Mark as filed</button>
+          ${ME ? `<button class="editbtn" onclick="withdrawGeneration('${x.id}')">Remove</button>` : ''}
+        </div>
+      </div>
+      <div id="mf-${x.id}"></div>`;
+  };
+  if (gens.length > 1) {
+    return `<div class="card">
+      <b style="font-size:17px">${MN[m]} ${y} was generated ${gens.length} times — not yet recorded as filed</b>
+      <div class="muted" style="margin:3px 0 4px">Open the one you want to send, then Mark as filed. Remove any you do not need.</div>
+      ${gens.map(genRow).join('')}
+      ${s.bacti ? '' : `<div class="banner warn" style="margin:12px 0 0;font-size:13.5px"><b style="font-size:14px">The newest workbook carries no bacti samples</b>If the lab results came back after it was generated, add them to the month and generate it again before sending.</div>`}
+    </div>`;
+  }
   const earlier = gens.slice(1);
   return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
@@ -1144,6 +1199,7 @@ function renderGenerated(gens, y, m, filing) {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" style="background:#fff;color:var(--navy)" id="gwb-${g.id}" onclick="openGeneration('${g.id}')">Open this workbook</button>
           <button class="btn" onclick="markFiledForm('${g.id}',${y},${m})">Mark as filed</button>
+          ${ME ? `<button class="editbtn" onclick="withdrawGeneration('${g.id}')">Remove</button>` : ''}
         </div>
       </div>
       <div id="mf-${g.id}"></div>
@@ -1408,10 +1464,43 @@ function editorFields(kind, row, eps) {
 
 /* ── a dialog for entering a missing well-day from the monthly report (v1.9.1). The report view has
    no well sheet on screen, so the editor opens over the page instead of beside a table. */
+let DIALOG_ON_CLOSE = null;
 function closeDialog() {
   const bg = document.getElementById('dlgBg');
   if (bg) bg.remove();
   document.removeEventListener('keydown', dialogKey);
+  const fn = DIALOG_ON_CLOSE; DIALOG_ON_CLOSE = null;
+  if (fn) fn();
+}
+/* ── "Needs your attention" as a pop-up over the monthly report (Keith, 2026-10-08: "when she
+   clicks to review the issues - it should pop out … I dont want the user getting lost"). It used to
+   navigate to the daily review and she had to find her way back to the report she was producing.
+   The live list itself is MOVED into the dialog — the same element, so its Dismiss/Restore buttons
+   keep working — and moved back on close, when the report re-renders so its count is current. */
+function openAttnDialog() {
+  if (!ATTN || !CUR) return;
+  closeDialog();
+  const list = $('attn');
+  const home = list.parentNode, next = list.nextSibling;
+  const bg = document.createElement('div');
+  bg.id = 'dlgBg'; bg.className = 'dlg-bg';
+  bg.innerHTML = `<div class="dlg" role="dialog" aria-modal="true" style="padding:16px 18px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px">
+        <b style="font-size:17px">Needs your attention — ${MN[CUR.m]} ${CUR.y} <span class="n" id="dlgAttnCount" style="font-weight:400;color:var(--mut)"></span></b>
+        <button class="editbtn" id="dlgClose">Close</button>
+      </div>
+      <div class="muted" style="margin-bottom:10px">Look over each item. Dismiss the ones that are fine; anything left here does not stop you generating the report.</div>
+      <div id="dlgAttnHost"></div></div>`;
+  document.body.appendChild(bg);
+  document.getElementById('dlgAttnHost').appendChild(list);
+  document.getElementById('dlgAttnCount').textContent = $('attnCount').textContent;
+  bg.addEventListener('click', (ev) => { if (ev.target === bg) closeDialog(); });
+  document.getElementById('dlgClose').onclick = () => closeDialog();
+  document.addEventListener('keydown', dialogKey);
+  DIALOG_ON_CLOSE = () => {
+    if (next && next.parentNode === home) home.insertBefore(list, next); else home.appendChild(list);
+    renderMonth(CUR.mo, CUR.y, CUR.m, CUR.eps);   // the checklist's count reflects what was dismissed
+  };
 }
 function dialogKey(ev) { if (ev.key === 'Escape') { EDITING = null; closeDialog(); } }
 function openDayDialog(epId, iso) {
@@ -1427,6 +1516,8 @@ function openDayDialog(epId, iso) {
   const first = bg.querySelector('input[data-k]'); if (first) first.focus();
 }
 $('ready').addEventListener('click', (ev) => {
+  const o = ev.target.closest('a[data-attn-open]');
+  if (o) { ev.preventDefault(); openAttnDialog(); return; }
   const a = ev.target.closest('a[data-addday]');
   if (!a) return;
   ev.preventDefault();

@@ -65,7 +65,7 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.13.0-waterops';
+export const VER = '1.14.0-waterops';
 
 /* ── Sample inputs (Codex 2026-10-08 review, findings 2, 3, 5, 7). Office entry of samples made
    these paths reachable by a person at a keyboard, and they trusted what arrived: a residual typed
@@ -878,7 +878,8 @@ export default async function handler(req, res) {
      the other direction. */
   /* `dismiss_item` (2026-10-07) is desk work of the same kind: waving an item off the OIC's
      attention list is a judgement about the record, made by a person who can be named. */
-  const OFFICE_WRITES = new Set(['record_filing', 'dismiss_item']);
+  // `withdraw_generation` (2026-10-08): taking a generated workbook off the month's list is office work too
+  const OFFICE_WRITES = new Set(['record_filing', 'dismiss_item', 'withdraw_generation']);
   const wssn = String(body.wssn || '').trim();
   if (!wssn) return bad(res, 400, 'wssn required');
 
@@ -965,6 +966,8 @@ export default async function handler(req, res) {
               ? 'Correcting a recorded day needs you to be signed in — it supersedes a record behind a report signed under 1976 PA 399.'
               : action === 'dismiss_item'
               ? 'Dismissing an item needs you to be signed in.'
+              : action === 'withdraw_generation'
+              ? 'Removing a generated workbook needs you to be signed in.'
               : 'Recording a filing needs you to be signed in.'),
         needsSignIn: !actor,
       });
@@ -1544,7 +1547,7 @@ export default async function handler(req, res) {
         let generations = [];
         try {
           const g = await sb(
-            `water_mor_generations?supply_id=eq.${p.supply.id}&report_year=eq.${y}&report_month=eq.${m}` +
+            `water_mor_generations?supply_id=eq.${p.supply.id}&report_year=eq.${y}&report_month=eq.${m}&withdrawn_at=is.null` +
               `&select=id,report_year,report_month,generated_at,generated_by,origin,workbook_name,` +
               `workbook_sha256,workbook_bytes,stats,filing_id&order=generated_at.desc&limit=50`
           );
@@ -1687,6 +1690,26 @@ export default async function handler(req, res) {
       }
 
       // ---- hand back a workbook the product generated ----------------------------------------
+      /* ---- withdraw a generated workbook from the month's list (Keith, 2026-10-08: "allow the user to
+         delete a workbook if they generate multiple for a month"). Withdrawn, never deleted (migration
+         081): the row, bytes and hash stay as the audit trail; the list stops showing it. A generation a
+         filing was recorded from cannot be withdrawn — that is the record of what went to the State. */
+      case 'withdraw_generation': {
+        const p = await loadProfile(wssn);
+        if (!p) return bad(res, 404, 'unknown supply');
+        const id = String(body.generation_id || '');
+        if (!/^[0-9a-f-]{36}$/i.test(id)) return bad(res, 400, 'generation_id required');
+        const rows = await sb(`water_mor_generations?id=eq.${id}&supply_id=eq.${p.supply.id}&select=id,filing_id,withdrawn_at&limit=1`);
+        const g = rows && rows[0];
+        if (!g) return bad(res, 404, 'no such workbook for this supply');
+        if (g.filing_id) return res.status(409).json({ error: 'filed', msg: 'That workbook is the one recorded as filed with EGLE, so it stays on the list.' });
+        if (g.withdrawn_at) return res.status(200).json({ ok: true, already: true });
+        const who = actor ? (actor.name || actor.email) : 'script';
+        await sb(`water_mor_generations?id=eq.${id}&withdrawn_at=is.null`, { method: 'PATCH', headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ withdrawn_at: new Date().toISOString(), withdrawn_by: who, withdrawn_reason: String(body.reason || '').slice(0, 300) || null }) });
+        return res.status(200).json({ ok: true });
+      }
+
       case 'generation_workbook': {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
