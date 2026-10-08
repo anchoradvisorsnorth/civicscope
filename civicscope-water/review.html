@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.10.1-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.10.2-oic
+
+  v1.10.2 (2026-10-08) — signed out is said plainly at the top of the report, and every Sign in link
+  returns here (hub ?next=, civicscope-village v2.3.0). Found when Michelle's 30-day session had
+  expired: the page read fine and offered her none of the controls, with no clear reason why.
 
   v1.10.1 (2026-10-08) — Codex round 2: plan sites match by name in any case (R2-2); a save in
   flight blocks a month change and a late save never reloads over newer work, and the old month's
@@ -915,7 +919,12 @@ function renderMonth(mo, y, m, eps) {
   const liveAttn = ATTN ? ATTN.rows.filter((r) => !ATTN.dismissed.has(r.key) && r.level !== 'info').length : 0;
   const tick = (ok) => ok ? '<span class="ok">✓</span>' : '<span class="no">!</span>';
   const gapHint = gaps.length && ME ? ' <span class="muted">— click a date to enter it</span>' : '';
-  $('ready').innerHTML = `<div style="font-size:18px"><b>The ${MN[m]} ${y} report</b> — ${status}</div>`
+  /* Not signed in: say so at the top of the workspace, not only in small grey lines beside each
+     control. Everything here reads without a sign-in; nothing here can be CHANGED without one. */
+  const signedOutBanner = ME ? '' : `<div class="banner warn" style="margin:0 0 12px"><b>You are not signed in</b>`
+    + `You can read this report, but adding bacti or distribution samples, entering a missing day and recording the filing need you to be signed in. `
+    + `Sign-ins last 30 days. <a class="btn" style="margin-left:6px" href="${esc(signInHref())}">Sign in</a></div>`;
+  $('ready').innerHTML = signedOutBanner + `<div style="font-size:18px"><b>The ${MN[m]} ${y} report</b> — ${status}</div>`
     + `<div class="chk">`
     + `${tick(!gaps.length)}<div><b>${readings.length} of ${expected}</b> well-days recorded${gaps.length ? ` — missing ${gaps.join(' · ')}${gapHint}` : ''}</div>`
     + `${tick(dist > 0)}<div><b>${dist}</b> distribution sample${dist === 1 ? '' : 's'}</div>`
@@ -1307,7 +1316,7 @@ function paintRecords(mo, y, m, eps) {
      monthly report". The well-day sheet stays on the review view. */
   const addBtn = (kind, label) => ME
     ? `<div style="margin:0 0 10px"><button class="editbtn" data-edit="${kind}" data-new="1">+ Add a ${label} sample for ${MN[m]}</button></div>`
-    : `<div class="muted" style="margin:0 0 10px">Sign in to add or correct a ${label} sample.</div>`;
+    : `<div class="muted" style="margin:0 0 10px"><a href="${esc(signInHref())}">Sign in</a> to add or correct a ${label} sample.</div>`;
   const reportable2 = bacti.filter((b) => b.sample_kind !== 'other').length;
   $('bactiBox').innerHTML = addBtn('bacti', 'bacti')
     + (bactiTable || `<div class="note">No bacti samples recorded for ${MN[m]} ${y} yet.${reportable2 ? '' : ' EGLE expects the routine samples and the chlorine residuals taken with them.'}</div>`);
@@ -1695,6 +1704,10 @@ async function saveEditor(el) {
    month already filed with EGLE is closed to anonymous writes entirely. */
 let ME = null;
 
+/* Sign-in lives on the village hub; `?next=` brings the person straight back to this exact page
+   (2026-10-08 — Michelle's session had expired and nothing on this page said so plainly). */
+const signInHref = () => `/centreville?next=${encodeURIComponent(location.pathname + location.search)}`;
+
 async function paintWho() {
   let me;
   try {
@@ -1713,7 +1726,7 @@ async function paintWho() {
   } else if (me && me.configured) {
     /* The hub owns the sign-in button; sending her there keeps ONE place that knows how to do it.
        Two copies of a sign-in flow is two things to keep working. */
-    w.innerHTML = '<a href="/centreville">Sign in</a>';
+    w.innerHTML = `<a href="${esc(signInHref())}">Sign in</a>`;
   }
 }
 

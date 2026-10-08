@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- civicscope-village v2.2.0 | 2026-08-25 — a village's front door, behind Google sign-in -->
+<!-- civicscope-village v2.3.0 | 2026-10-08 — a village's front door, behind Google sign-in; ?next= returns to Well Testing after sign-in -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -279,10 +279,19 @@ function renderGate(clientId, pendingMsg) {
   document.head.appendChild(s);
 }
 
+/* Where to go after signing in (2026-10-08). Michelle's 30-day session had expired and the review
+   page could only say "sign in" — sending her to this hub and leaving her here, a page away from the
+   report she was producing. `?next=` brings her back. Only a Well Testing path on THIS site is
+   accepted: an open redirect on a sign-in page is a phishing tool. */
+const NEXT = (() => {
+  const n = new URLSearchParams(location.search).get('next') || '';
+  return /^\/water(\/|\?|$)/.test(n) && !n.startsWith('//') ? n : null;
+})();
+
 async function onCredential(response) {
   $('gbtn').innerHTML = '<div class="status">Signing in…</div>';
   const r = await auth('signin', { credential: response.credential });
-  if (r.signedIn) { boot(); return; }
+  if (r.signedIn) { if (NEXT) { location.replace(NEXT); return; } boot(); return; }
   // Verified by Google, not enrolled here. Say exactly which address was used — that is the one
   // fact that turns fixing it into a single step instead of a conversation.
   boot(r.msg || r.error || 'That sign-in could not be completed.');
@@ -312,6 +321,7 @@ async function boot(pendingMsg) {
   try { me = await auth('me'); } catch { fail('Could not reach CivicScope. Please try again.'); return; }
 
   PROVIDER = me.provider || null;
+  if (me.signedIn && NEXT) { location.replace(NEXT); return; }
   if (me.signedIn) { renderWho(me.user); renderCards(me.user); return; }
   // Signed in, but for a DIFFERENT village. Say so, rather than showing a bare sign-in box to
   // somebody whose browser plainly is signed in — that reads as broken.
