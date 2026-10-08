@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.5.5-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.6.0-oic
+
+  v1.6.0 (2026-10-07) — the month drives the records. The separate well picker is gone: the month's
+  coverage shows every well, and clicking a well (or one of its days) opens that sheet below under a
+  title naming well AND month; the open well is marked. Rows read "9/1 Tue", not "1 Tue". Flag
+  sentences show their dates month/day/year.
 
   v1.5.5 (2026-10-07) — "today" is the plant's day (supply.timezone), not UTC's: after 8 pm
   Eastern the page called that morning's readings "yesterday", counted tomorrow as missed, and on a
@@ -114,10 +119,20 @@
   .tag.warn{background:#fef3c7;color:var(--warn)} .tag.err{background:#fee2e2;color:var(--err)}
   .tag.info{background:#e0e7ff;color:#3730a3}
   .cov{display:flex;gap:3px;flex-wrap:wrap;margin-top:6px}
-  .cov i{width:19px;height:24px;border-radius:4px;background:#e2e8f0;font-style:normal;font-size:10px;
-         color:#94a3b8;display:flex;align-items:center;justify-content:center}
-  .cov i.has{background:#0f766e;color:#fff}
-  .cov i.future{background:#f1f5f9;color:#cbd5e1}
+  .cov .d{width:19px;height:24px;border-radius:4px;background:#e2e8f0;font-size:10px;border:0;padding:0;
+         color:#94a3b8;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit}
+  .cov .d.has{background:#0f766e;color:#fff}
+  .cov .d.future{background:#f1f5f9;color:#cbd5e1;cursor:default}
+  .cov .d:hover:not(.future){outline:2px solid var(--navy);outline-offset:1px}
+  /* One row per well; the row IS the way into that well's sheet (Keith, 2026-10-07: "let the user
+     drive by month - show all wells with markers for days completed then let the user click into
+     well"). The selected row is marked so it is never a guess which sheet is open below. */
+  .covrow{display:block;width:100%;text-align:left;background:#fff;border:1px solid transparent;border-left:4px solid transparent;
+          border-radius:10px;padding:10px 12px;margin:0 0 8px;cursor:pointer;font:inherit;color:inherit}
+  .covrow:hover{border-color:var(--line)}
+  .covrow.on{border-color:#cbd5e1;border-left-color:var(--navy);background:#f8fafc}
+  .covrow .open{font-size:12px;color:var(--navy);font-weight:600;margin-left:8px}
+  tr.hit td{background:#fef9c3;transition:background 1.2s}
   .muted{color:var(--mut);font-size:13.5px}
   .scroll{overflow-x:auto}
   select{padding:8px 10px;font-size:14px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
@@ -169,11 +184,7 @@
   </h2>
   <div class="card" id="coverage"></div>
 
-  <h2 style="display:flex;align-items:center;gap:12px">
-    <span>The records</span>
-    <select id="wellSel"></select>
-    <span class="n">— as the paper sheet reads</span>
-  </h2>
+  <h2 id="recHead">The records <span id="recTitle"></span> <span class="n">— as the paper sheet reads</span></h2>
   <div id="records"></div>
 
   <h2>Month end <span class="n">— the EGLE report</span></h2>
@@ -210,6 +221,9 @@ const usDate = (iso) => {
   if (x) return `${MN[Number(x[2])]} ${x[1]}`;
   return s;
 };
+// Flag messages are written server-side and stored, some with an ISO date inside the sentence
+// ("Recomputed after 2026-08-31 was entered…"). Rewritten on display; the stored text is untouched.
+const usText = (t) => String(t == null ? '' : t).replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_, Y, M, D) => `${Number(M)}/${Number(D)}/${Y}`);
 
 // Read-only, and no access code: `month` is one of the three actions the API serves ungated.
 const post = async (b) => {
@@ -573,38 +587,67 @@ function renderMonth(mo, y, m, eps) {
   $('attn').innerHTML = rows.length
     ? `<div class="card scroll"><table><thead><tr><th class="l">Date</th><th class="l">Where</th><th class="l">What</th><th class="l">Who</th></tr></thead><tbody>`
       + rows.map((r) => `<tr><td class="l">${esc(usDate(r.date))}</td><td class="l">${esc(r.where)}</td>
-          <td class="l"><span class="tag ${r.level}">${r.level === 'err' ? 'check' : r.level === 'warn' ? 'watch' : 'note'}</span> ${esc(r.what)}</td>
+          <td class="l"><span class="tag ${r.level}">${r.level === 'err' ? 'check' : r.level === 'warn' ? 'watch' : 'note'}</span> ${esc(usText(r.what))}</td>
           <td class="l">${esc(r.who || '')}</td></tr>`).join('')
       + `</tbody></table></div>`
     : `<div class="banner ok"><b>Nothing to chase in ${MN[m]}</b>No flagged readings, no impossible values, bacti on file, distribution residuals in range.</div>`;
 
-  // ── coverage: which days each well was actually read
-  $('coverage').innerHTML = eps.map((ep) => {
-    const days = new Set(readings.filter((r) => r.entry_point_id === ep.id).map((r) => dayOf(r.reading_date)));
-    let cells = '';
-    for (let d = 1; d <= last; d++) {
-      const cls = days.has(d) ? 'has' : (d > upto ? 'future' : '');
-      cells += `<i class="${cls}" title="${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}">${d}</i>`;
+  /* ── coverage, and the way into each well's sheet (v1.6.0, Keith 2026-10-07).
+     This used to be two independent controls — a month picker here and a well picker above the
+     records — and after either one repainted, nothing on screen said which month's which well the
+     table showed: the rows read "1 Tue". Now the month drives everything, every well's strip is
+     shown for that month, and clicking a well (or one of its days) opens THAT sheet below, under a
+     title naming both. The selected well survives a month change. */
+  if (!eps.some((e) => e.id === SEL_EP)) SEL_EP = eps[0] ? eps[0].id : null;
+  const paintCoverage = () => {
+    $('coverage').innerHTML = eps.map((ep) => {
+      const days = new Set(readings.filter((r) => r.entry_point_id === ep.id).map((r) => dayOf(r.reading_date)));
+      let cells = '';
+      for (let d = 1; d <= last; d++) {
+        const cls = days.has(d) ? 'has' : (d > upto ? 'future' : '');
+        cells += `<span class="d ${cls}" data-day="${d}" title="${usDate(dayISO(y, m, d))}${days.has(d) ? '' : d > upto ? '' : ' — not recorded'}">${d}</span>`;
+      }
+      const missing = upto - days.size;
+      const on = ep.id === SEL_EP;
+      return `<div class="covrow${on ? ' on' : ''}" role="button" tabindex="0" data-ep="${esc(ep.id)}" aria-pressed="${on}">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span><b>${esc(ep.label)}</b>${on ? '<span class="open">showing below ↓</span>' : '<span class="open" style="color:var(--mut);font-weight:400">open sheet</span>'}</span>
+          <span class="muted">${days.size} of ${upto} day${upto === 1 ? '' : 's'} recorded${missing > 0 ? ` · ${missing} missing` : ''}</span>
+        </div>
+        <div class="cov">${cells}</div>
+      </div>`;
+    }).join('');
+  };
+  const openWell = (epId, day) => {
+    SEL_EP = epId;
+    paintCoverage();
+    paintRecords(mo, y, m, eps);
+    const row = day && document.getElementById(`rec-d${day}`);
+    if (row) {
+      row.classList.add('hit');
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => row.classList.remove('hit'), 1800);
+    } else {
+      $('recHead').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    const missing = upto - days.size;
-    return `<div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <b>${esc(ep.label)}</b>
-        <span class="muted">${days.size} of ${upto} day${upto === 1 ? '' : 's'} recorded${missing > 0 ? ` · ${missing} missing` : ''}</span>
-      </div>
-      <div class="cov">${cells}</div>
-    </div>`;
-  }).join('');
+  };
+  $('coverage').onclick = (ev) => {
+    const rowEl = ev.target.closest('.covrow');
+    if (!rowEl) return;
+    const dEl = ev.target.closest('.d');
+    if (dEl && dEl.classList.contains('future')) return;
+    openWell(rowEl.dataset.ep, dEl ? Number(dEl.dataset.day) : null);
+  };
+  $('coverage').onkeydown = (ev) => {
+    const rowEl = ev.target.closest('.covrow');
+    if (rowEl && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); openWell(rowEl.dataset.ep, null); }
+  };
+  paintCoverage();
 
   /* ── the records themselves. The month picker already moves the exceptions and the coverage, but
      without this she could see THAT a day was odd and never see the day. The same sheet exists in
      the crew's tablet at /water#book — behind the plant access code, in the app built for a well
      house. Reading her own records should not require walking into the field app. */
-  const wsel = $('wellSel');
-  const want = wsel.value;
-  wsel.innerHTML = eps.map((e) => `<option value="${esc(e.id)}">${esc(e.label)}</option>`).join('');
-  if (want && eps.some((e) => e.id === want)) wsel.value = want;
-  wsel.onchange = () => paintRecords(mo, y, m, eps);
   paintRecords(mo, y, m, eps);
 
   /* ── month end. The EGLE workbook is now generated HERE (2026-08-20) — until today this panel
@@ -921,9 +964,12 @@ window.openWorkbook = async (y, m) => {
    not reading a database export. Every derived column (Lbs Water, Lbs used, ppm) is shown as it
    was STORED: recomputing here would be a third copy of the plant's arithmetic, and the two
    existing copies drifting apart is the whole reason this product exists. */
+let SEL_EP = null;   // the well whose sheet is open — chosen from the month's coverage rows
+
 function paintRecords(mo, y, m, eps) {
-  const ep = eps.find((e) => e.id === $('wellSel').value) || eps[0];
-  if (!ep) { $('records').innerHTML = ''; return; }
+  const ep = eps.find((e) => e.id === SEL_EP) || eps[0];
+  if (!ep) { $('records').innerHTML = ''; $('recTitle').textContent = ''; return; }
+  $('recTitle').innerHTML = `<span style="color:var(--navy)">— ${esc(ep.label)} · ${MN[m]} ${y}</span>`;
   const rows = (mo.readings || []).filter((r) => r.entry_point_id === ep.id);
   const byDay = {};
   for (const r of rows) byDay[dayOf(r.reading_date)] = r;
@@ -941,13 +987,13 @@ function paintRecords(mo, y, m, eps) {
     if (!r) {
       /* A gap is where Michelle most often acts — Keith, 2026-08-26: *"if a reading is missing,
          she will add it before running the report"*. So the gap itself carries the way to fill it. */
-      body += `<tr><td class="l" style="color:#94a3b8">${d} ${dow}</td>`
+      body += `<tr id="rec-d${d}"><td class="l" style="color:#94a3b8">${m}/${d} ${dow}</td>`
             + `<td colspan="${3 + feeds.length * 3 + 3}" class="l" style="color:#cbd5e1">not recorded</td>`
             + `<td>${ME ? `<button class="editbtn" data-edit="reading" data-ep="${esc(ep.id)}" data-date="${dayISO(y, m, d)}">Add</button>` : ''}</td></tr>`;
       continue;
     }
     const odd = r.tap_free != null && r.tap_total != null && Number(r.tap_free) > Number(r.tap_total);
-    let cells = `<td class="l">${d} ${dow}</td><td>${esc((r.reading_time || '').slice(0, 5))}</td>`
+    let cells = `<td class="l">${m}/${d} ${dow}</td><td>${esc((r.reading_time || '').slice(0, 5))}</td>`
               + `<td>${r.meter_reading ?? ''}</td><td>${int(r.gallons_pumped)}</td>`;
     for (const f of feeds) {
       const fr = (r.feeds || []).find((x) => x.feed_id === f.id) || {};
@@ -958,7 +1004,7 @@ function paintRecords(mo, y, m, eps) {
            + `<td${odd ? ' style="color:#b91c1c;font-weight:700"' : ''}>${fmt(r.tap_total)}</td>`
            + `<td>${fmt(r.tap_ortho)}</td><td class="l">${esc(r.operator_initials || '')}</td>`
            + `<td>${ME ? `<button class="editbtn" data-edit="reading" data-ep="${esc(ep.id)}" data-id="${esc(r.id)}" data-date="${r.reading_date}">Edit</button>` : ''}</td>`;
-    body += `<tr>${cells}</tr>`;
+    body += `<tr id="rec-d${d}">${cells}</tr>`;
   }
 
   const dist = mo.dist || [], bacti = mo.bacti || [];
