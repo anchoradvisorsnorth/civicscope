@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.10.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.10.1-oic
+
+  v1.10.1 (2026-10-08) — Codex round 2: plan sites match by name in any case (R2-2); a save in
+  flight blocks a month change and a late save never reloads over newer work, and the old month's
+  controls are locked while another loads (R2-5); an unloadable history list no longer hides this
+  month's filing, generations or Mark as filed, and a Generate retries it (R2-6). Server 1.12.0.
 
   v1.10.0 (2026-10-08) — Codex adversarial review of the workspace (FIX-FIRST, 12 findings), all
   addressed: bacti sites follow the kind and a Kind column shows it; a new sample's date is held to
@@ -181,6 +186,8 @@
   #ready a[data-addday]{font-weight:600}
   .reftbl th,.reftbl td{padding:5px 8px;font-size:12.5px}
   .reftbl th{text-transform:none;letter-spacing:0;font-size:11.5px;white-space:normal;vertical-align:bottom;max-width:110px}
+  /* while another month is loading, the old month's buttons and links are not live (R2-5) */
+  body.monthloading #sections button, body.monthloading #ready a[data-addday]{pointer-events:none;opacity:.45}
   .dbtn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;color:#334155;cursor:pointer}
   .dbtn:hover{border-color:var(--navy);color:var(--navy)}
   .dbtn[disabled]{opacity:.5;cursor:default}
@@ -539,6 +546,13 @@ function render({ cur, prev, y, m, target, deepLinked }) {
        answer whose ticket is not the latest is dropped. A failed read puts the picker back on the
        month actually shown. Any open editor or dialog belongs to the old month and is closed. */
     sel.onchange = async () => {
+      if (SAVING) {
+        if (sel.dataset.shown) sel.value = sel.dataset.shown;
+        alert('A save is still finishing — wait a moment, then change the month.');
+        return;
+      }
+      NAV_GEN++;
+      document.body.classList.add('monthloading');
       const ticket = ++MONTH_TICKET;
       const [yy, mm] = sel.value.split('-').map(Number);
       closeDialog(); { const ed = document.getElementById('editor'); if (ed) ed.remove(); EDITING = null; }
@@ -558,7 +572,7 @@ function render({ cur, prev, y, m, target, deepLinked }) {
         if (sel.dataset.shown) sel.value = sel.dataset.shown;
         alert(`Could not load ${MN[mm]} ${yy} — ${e.message}. Still showing the month you had open.`);
       } finally {
-        if (ticket === MONTH_TICKET) sel.disabled = false;
+        if (ticket === MONTH_TICKET) { sel.disabled = false; document.body.classList.remove('monthloading'); }
       }
     };
   }
@@ -578,6 +592,11 @@ function render({ cur, prev, y, m, target, deepLinked }) {
 }
 
 let MONTH_TICKET = 0;   // see the month picker: only the newest request may render
+/* A save in flight owns the month it was made in (Codex round 2, R2-5). While one is running the
+   month cannot be changed; and if one completes after the screen has moved on anyway, it reports
+   itself instead of rewriting the address and reloading over whatever is now being typed. */
+let SAVING = false;
+let NAV_GEN = 0;
 
 /* Exceptions only. A month has ~93 well-days; listing them all is the paper problem with a
    scrollbar. What the OIC needs is the handful that are not ordinary — and on a clean month,
@@ -965,6 +984,7 @@ window.generateMor = async (y, m) => {
         const fresh = await post({ action: 'month', year: y, month: m });
         CUR.mo.generations = fresh.generations || [];
         CUR.mo.filing = fresh.filing || null;
+        if (FILINGS === null) FILINGS = await post({ action: 'filings' }).then((r) => r.filings || []).catch(() => null);
         renderFiled(CUR.mo, y, m);
       } catch { /* the panel keeps what it had; the note above already said what happened */ }
     }
@@ -1003,13 +1023,14 @@ window.generateMor = async (y, m) => {
 function renderFiled(mo, y, m) {
   const f = mo.filing;
   const gens = mo.generations || [];
-  if (FILINGS === null) {
-    $('filed').innerHTML = `<div class="banner warn"><b>Could not load the filing history</b>`
-      + `The list of reports on file did not load, so this page cannot say which months went to EGLE. `
-      + `<a href="#" onclick="location.reload();return false">Reload to try again</a>.</div>`;
-    return;
-  }
-  const chips = FILINGS.length
+  /* The cross-month list failing to load is not a reason to hide THIS month's filing, generations
+     and Mark as filed — those came from this month's own read (Codex round 2, R2-6). Only the list
+     is replaced by a warning. */
+  const unknown = FILINGS === null;
+  const listWarn = `<div class="banner warn" style="margin-top:12px"><b>Could not load the filing history</b>`
+    + `The list of other months on file did not load. This month's own record above is unaffected. `
+    + `<a href="#" onclick="location.reload();return false">Reload to try again</a>.</div>`;
+  const chips = unknown ? listWarn : FILINGS.length
     ? `<div class="chips">` + FILINGS.map((x) =>
         `<span class="chip${x.year === y && x.month === m ? ' on' : ''}" onclick="goMonth(${x.year},${x.month})"
                title="${x.submitted_date ? 'submitted ' + esc(usDate(x.submitted_date)) : 'no submission date on the Cover'}"
@@ -1018,7 +1039,9 @@ function renderFiled(mo, y, m) {
   if (!f) {
     $('filed').innerHTML = renderGenerated(gens, y, m, null)
       + `<div class="note"${gens.length ? ' style="margin-top:12px"' : ''}>`
-      + (FILINGS.length
+      + (unknown
+          ? `<b>No report is on record as filed for ${MN[m]} ${y}.</b>`
+          : FILINGS.length
           ? `<b>No report is on record as filed for ${MN[m]} ${y}.</b><br>`
             + `${FILINGS.length} month${FILINGS.length === 1 ? ' is' : 's are'} on file — pick one to see what was sent, `
             + `open the workbook itself, and check it against these records.`
@@ -1380,7 +1403,7 @@ function closeDialog() {
 }
 function dialogKey(ev) { if (ev.key === 'Escape') { EDITING = null; closeDialog(); } }
 function openDayDialog(epId, iso) {
-  if (!RECORDS_CTX) return;
+  if (!RECORDS_CTX || document.body.classList.contains('monthloading')) return;
   closeDialog();
   const bg = document.createElement('div');
   bg.id = 'dlgBg'; bg.className = 'dlg-bg';
@@ -1505,7 +1528,7 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId, isNew, host
       dl.innerHTML = (mo.sites || []).filter((x) => x.active !== false && x.kind === want)
         .map((x) => `<option value="${esc(x.name)}">`).join('');
       const si = el.querySelector('input[data-k="site_name"]');
-      const cur = (mo.sites || []).find((x) => x.name === (si && si.value));
+      const cur = (mo.sites || []).find((x) => normName(x.name) === normName(si && si.value));
       if (cur && cur.kind !== want && si) si.value = '';   // a site from the other list is cleared, not kept
     });
   }
@@ -1513,6 +1536,9 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId, isNew, host
   document.getElementById("edSave").onclick = () => saveEditor(el);
   if (!hostEl) el.scrollIntoView({ behavior: "smooth", block: "center" });
 }
+
+// a plan site typed in any case or spacing is still that site (Codex round 2, R2-2) — the server agrees
+const normName = (t) => String(t == null ? '' : t).trim().replace(/\s+/g, ' ').toLowerCase();
 
 async function saveEditor(el) {
   if (!EDITING) return;
@@ -1544,7 +1570,7 @@ async function saveEditor(el) {
     EDITING.date = vals.__date;
     if (vals.__kind) EDITING.sampleKind = vals.__kind;
     if (EDITING.kind === "bacti") {
-      const ps = EDITING.sites.find((x) => x.name === vals.site_name);
+      const ps = EDITING.sites.find((x) => normName(x.name) === normName(vals.site_name));
       const want = (EDITING.sampleKind || "routine") === "other" ? "bacti_other" : "bacti_routine";
       if (ps && ps.kind !== want) {
         fail(ps.kind === "bacti_other" ? `${ps.name} is a well / raw-water site — set Kind to "Well / raw water".`
@@ -1567,7 +1593,7 @@ async function saveEditor(el) {
   }
   // A site picked from the sampling plan travels by id too, so the row links to the plan exactly as
   // July's seeded samples do; a typed name the plan does not hold is stored as typed.
-  const planSite = EDITING.isNew ? (EDITING.sites.find((x) => x.name === vals.site_name) || null) : null;
+  const planSite = EDITING.isNew ? (EDITING.sites.find((x) => normName(x.name) === normName(vals.site_name)) || null) : null;
   const wssn = new URLSearchParams(location.search).get("wssn") || WSSN;
   let payload;
   if (EDITING.kind === "reading") {
@@ -1605,6 +1631,8 @@ async function saveEditor(el) {
   btn.disabled = true;
   msg.className = "msg";
   msg.textContent = "Saving…";
+  const gen = NAV_GEN;
+  SAVING = true;
   try {
     const r = await fetch("/api/water-ops", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -1618,6 +1646,7 @@ async function saveEditor(el) {
       msg.textContent = (d.errors && d.errors.length ? d.errors.map((e) => e.msg).join(" ") : "")
         || d.msg || d.error || `Could not save (${r.status}).`;
       btn.disabled = false;
+      SAVING = false;
       return;
     }
     /* The day AFTER this one derived against whatever used to be here. The server recomputes it;
@@ -1626,6 +1655,13 @@ async function saveEditor(el) {
     if (d.rederived && d.rederived.ok) extra = ` The next recorded day (${usDate(d.rederived.date)}) was recomputed.`;
     else if (d.rederived && d.rederived.ok === false) {
       extra = ` ⚠ The next day (${usDate(d.rederived.date)}) can no longer be derived from this — check it.`;
+    }
+    SAVING = false;
+    if (gen !== NAV_GEN) {
+      // the screen moved on while this was saving: say so, and leave the current work alone
+      $('top').insertAdjacentHTML('afterbegin', `<div class="banner ok" style="margin-bottom:10px"><b>Saved</b>`
+        + `Your ${period ? MN[Number(period.slice(5, 7))] + ' ' + period.slice(0, 4) + ' ' : ''}entry was saved.${esc(extra)}</div>`);
+      return;
     }
     msg.className = "msg ok";
     msg.textContent = "Saved." + extra + " Reloading…";
@@ -1638,6 +1674,7 @@ async function saveEditor(el) {
     } catch {}
     setTimeout(() => location.reload(), extra ? 1600 : 600);
   } catch (e) {
+    SAVING = false;
     msg.className = "msg err";
     msg.textContent = String(e.message || e);
     btn.disabled = false;

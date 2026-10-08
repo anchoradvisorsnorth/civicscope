@@ -65,7 +65,7 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.11.0-waterops';
+export const VER = '1.12.0-waterops';
 
 /* ── Sample inputs (Codex 2026-10-08 review, findings 2, 3, 5, 7). Office entry of samples made
    these paths reachable by a person at a keyboard, and they trusted what arrived: a residual typed
@@ -89,6 +89,31 @@ const periodErr = (body, date) => {
   return date.slice(0, 7) === want ? null
     : { field: 'date', msg: `That date (${date}) is not in ${want}, the month you are working on. Nothing was saved.` };
 };
+/* Empty means absent: '' and undefined are stored as null; 0 and false are values (R2-4 — the
+   round-1 `x || null` turned a deliberate null into a default, and would have turned 0 into null). */
+const nz = (v) => (v === undefined || v === '' ? null : v);
+/* A plan site is a plan site however it arrives (Codex round 2, R2-2): by id, or by its name in any
+   case or spacing. An id that is not this supply's is refused rather than quietly downgraded to free
+   text; a name matching two plan sites is ambiguous and must be picked; a name the plan does not
+   hold is an unplanned site and is taken as entered. Inactive sites still resolve by id, so a sample
+   queued on a tablet before a site was retired is not orphaned. */
+const normSite = (t) => String(t == null ? '' : t).trim().replace(/\s+/g, ' ').toLowerCase();
+async function resolveSite(p, body) {
+  if (body.site_id) {
+    let s = (p.sites || []).find((x) => x.id === body.site_id) || null;
+    if (!s) {
+      const r = await sb(`water_sites?id=eq.${encodeURIComponent(body.site_id)}&supply_id=eq.${p.supply.id}&select=*`);
+      s = (r && r[0]) || null;
+    }
+    if (!s) return { err: { field: 'site_id', msg: "That site is not on this supply's sampling plan." } };
+    return { site: s };
+  }
+  const n = normSite(body.site_name);
+  if (!n) return { err: { field: 'site_name', msg: 'A sample needs the site it was taken at.' } };
+  const hits = (p.sites || []).filter((x) => normSite(x.name) === n);
+  if (hits.length > 1) return { err: { field: 'site_name', msg: `"${body.site_name}" matches more than one site on the sampling plan — pick it from the list.` } };
+  return { site: hits[0] || null };
+}
 /* A form opened to ADD a row says so; if the row exists by the time it saves, someone else entered
    it first and this save must not silently replace theirs (finding 5). */
 const EXISTS_NOW = { error: 'exists_now', saved: false,
@@ -1238,24 +1263,18 @@ export default async function handler(req, res) {
           if (r.err) return res.status(422).json({ error: 'validation', errors: [r.err] });
           nums[k] = r.v;
         }
-        const free = nums.free == null ? null : nums.free;
-        const total = nums.total == null ? null : nums.total;
-        const flags = [];
-        if (free !== null && total !== null && free > total) {
-          return res.status(422).json({ error: 'validation', errors: [{ field: 'total', msg: `Free (${free}) cannot exceed total (${total}).` }] });
-        }
-        if (p.supply.min_free_cl != null && free !== null && free < p.supply.min_free_cl) {
-          flags.push({ level: 'warn', code: 'low_free_cl', msg: `Free chlorine ${free.toFixed(2)} mg/L is below ${p.supply.min_free_cl} mg/L.` });
-        }
-        const site = (p.sites || []).find((s) => s.id === body.site_id) || null;
         const date = String(body.sample_date || '').slice(0, 10);
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return bad(res, 400, 'sample_date required (YYYY-MM-DD)');
         { const pe = periodErr(body, date); if (pe) return res.status(422).json({ error: 'validation', errors: [pe] }); }
+        const rs = await resolveSite(p, body);
+        if (rs.err) return res.status(422).json({ error: 'validation', errors: [rs.err] });
+        const site = rs.site;
         if (site && site.kind && site.kind !== 'distribution') {
           return res.status(422).json({ error: 'validation', errors: [{ field: 'site', msg: `${site.name} is a bacti site on the sampling plan, not a distribution site.` }] });
         }
+        const siteName = site ? site.name : String(body.site_name || '').trim();
         const existing = await sb(
-          `water_dist_samples?supply_id=eq.${p.supply.id}&site_name=eq.${encodeURIComponent(site ? site.name : body.site_name)}` +
+          `water_dist_samples?supply_id=eq.${p.supply.id}&site_name=eq.${encodeURIComponent(siteName)}` +
             `&sample_date=eq.${date}&superseded_at=is.null&select=id`
         );
         const supersedes = existing && existing[0];
@@ -1263,16 +1282,33 @@ export default async function handler(req, res) {
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'That site already has a sample on this date.' });
         }
-        /* A correction keeps what the form did not send (finding 7) — the same rule well-days have
-           had since R5-2. A field ABSENT from the request is carried from the live row; a field sent
-           as null is a deliberate clear. */
-        let oldD = null;
-        if (supersedes) { const rr = await sb(`water_dist_samples?id=eq.${supersedes.id}&select=*`); oldD = (rr && rr[0]) || null; }
-        const keepD = (k, v) => (v === undefined && oldD ? oldD[k] : v);
         /* A correction that names the row it replaces must find exactly that row live (R3-2): an
            editor that clicked one sample must not silently supersede a different one. */
         if (body.corrects_id && (!supersedes || supersedes.id !== body.corrects_id)) {
           return res.status(409).json({ error: 'target_mismatch', msg: 'The sample you are correcting is no longer the live sample for that site and date. Reload and try again.' });
+        }
+        /* ⛔ MERGE FIRST, THEN VALIDATE (Codex round 2, R2-1, High). A correction keeps what the form
+           did not send (R1-7) — a field ABSENT from the request is carried from the live row; a field
+           sent as null is a deliberate clear. The round-1 fix validated the SUBMITTED subset and merged
+           afterwards, so "free 0.80" sent alone passed and then inherited the old total 0.40: an
+           impossible pair, stored and filed. Every check below runs on the row that will be written. */
+        let oldD = null;
+        if (supersedes) { const rr = await sb(`water_dist_samples?id=eq.${supersedes.id}&select=*`); oldD = (rr && rr[0]) || null; }
+        const keepD = (k, v) => (v === undefined && oldD ? oldD[k] : v);
+        const cand = {
+          free: nz(keepD('free', nums.free)), total: nz(keepD('total', nums.total)),
+          ortho: nz(keepD('ortho', nums.ortho)), fluoride: nz(keepD('fluoride', nums.fluoride)),
+          sample_time: nz(keepD('sample_time', body.sample_time)),
+          operator_id: nz(keepD('operator_id', body.operator_id)),
+          operator_initials: nz(keepD('operator_initials', body.operator_initials)),
+          notes: nz(keepD('notes', body.notes)),
+        };
+        if (cand.free !== null && cand.total !== null && Number(cand.free) > Number(cand.total)) {
+          return res.status(422).json({ error: 'validation', errors: [{ field: 'total', msg: `Free (${cand.free}) cannot exceed total (${cand.total}).` }] });
+        }
+        const flags = [];
+        if (p.supply.min_free_cl != null && cand.free !== null && Number(cand.free) < p.supply.min_free_cl) {
+          flags.push({ level: 'warn', code: 'low_free_cl', msg: `Free chlorine ${Number(cand.free).toFixed(2)} mg/L is below ${p.supply.min_free_cl} mg/L.` });
         }
         /* ⛔ SUPERSEDE AND INSERT IN ONE TRANSACTION (Codex finding 7, migration 074). This was a
            PATCH, then an INSERT, then a compensating un-PATCH on error — and a lambda that dies
@@ -1289,17 +1325,11 @@ export default async function handler(req, res) {
             p_old: supersedes ? supersedes.id : null,
             p_row: {
               supply_id: p.supply.id,
-              site_id: site ? site.id : null,
-              site_name: site ? site.name : body.site_name,
+              // the plan link survives a correction that did not change the site (R2-4)
+              site_id: site ? site.id : (oldD && oldD.site_name === siteName ? oldD.site_id : null),
+              site_name: siteName,
               sample_date: date,
-              sample_time: keepD('sample_time', body.sample_time) || null,
-              operator_id: keepD('operator_id', body.operator_id) || null,
-              operator_initials: keepD('operator_initials', body.operator_initials) || null,
-              free: keepD('free', nums.free) ?? null,
-              total: keepD('total', nums.total) ?? null,
-              ortho: keepD('ortho', nums.ortho) ?? null,
-              fluoride: keepD('fluoride', nums.fluoride) ?? null,
-              notes: keepD('notes', body.notes) || null,
+              ...cand,
               flags,
               source: body.source === 'backfill' ? 'backfill' : 'tablet',
               correction_reason: body.correction_reason || null,
@@ -1322,25 +1352,11 @@ export default async function handler(req, res) {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
         const i = body.input || {};
-        if (i.free == null || i.free === '') {
-          return res.status(422).json({ error: 'validation', errors: [{ field: 'free', msg: 'A bacti sample needs the free chlorine residual taken with it.' }] });
-        }
         const bf = SAMPLE_NUM(i.free, 'free'), bt = SAMPLE_NUM(i.total, 'total');
         if (bf.err || bt.err) return res.status(422).json({ error: 'validation', errors: [bf.err || bt.err] });
-        if (bt.v != null && bf.v > bt.v) {
-          return res.status(422).json({ error: 'validation', errors: [{ field: 'total', msg: `Free (${bf.v}) cannot exceed total (${bt.v}).` }] });
-        }
         const bdate = String(body.collected_date || '').slice(0, 10);
         if (!/^\d{4}-\d{2}-\d{2}$/.test(bdate)) return bad(res, 400, 'collected_date required (YYYY-MM-DD)');
         { const pe = periodErr(body, bdate); if (pe) return res.status(422).json({ error: 'validation', errors: [pe] }); }
-        const site = (p.sites || []).find((s) => s.id === body.site_id) || null;
-        /* ⛔ THIS WAS THE ONLY WRITE PATH WITH NO ALREADY-RECORDED GUARD, and it cost five copies
-           of every bacti sample in 2026 when the backfill was re-run five times (2026-08-19).
-           submit_reading and submit_dist both refuse a day that is already on file; this one
-           inserted blindly, so a re-run — the most ordinary thing anyone does with a seeding
-           script — silently multiplied the compliance record. A monthly report built from that
-           would have shown 70 samples where the village took 14.
-           Same contract as its neighbours: refuse, and say what would replace what. */
         /* The kind decides which block of EGLE's Bacti tab a sample lands in — or, for `other`,
            that it lands in neither (Codex finding 3) — and it is part of the sample's IDENTITY: a
            routine and a repeat at the same site on the same day are two rows in two blocks (R2-9).
@@ -1351,11 +1367,14 @@ export default async function handler(req, res) {
         if (!['routine', 'repeat', 'other'].includes(kind)) {
           return res.status(422).json({ error: 'validation', errors: [{ field: 'sample_kind', msg: `sample_kind must be routine, repeat or other (got ${kind}).` }] });
         }
-        /* ⛔ A PLAN SITE'S KIND MUST AGREE WITH THE SAMPLE'S KIND (finding 1, High). The generator
-           places a sample by `sample_kind` alone, so a raw-water well sample sent as "routine" became
-           a routine compliance sample on EGLE's Bacti tab. The sampling plan already says which sites
-           are which; a contradiction is refused. A site that is not on the plan carries no kind and
-           is taken as entered. */
+        /* ⛔ A PLAN SITE'S KIND MUST AGREE WITH THE SAMPLE'S KIND (R1-1, High) — and a plan site is a
+           plan site however it arrives (R2-2): by id, or by its NAME typed in any case or spacing.
+           The generator places a sample by `sample_kind` alone, so "well #3" sent as routine used to
+           slip past an id-only check and land in EGLE's routine block. A name the plan does not hold
+           is a genuinely unplanned site (a repeat upstream of a positive, say) and is taken as entered. */
+        const rs = await resolveSite(p, body);
+        if (rs.err) return res.status(422).json({ error: 'validation', errors: [rs.err] });
+        const site = rs.site;
         if (site && site.kind) {
           const fits = site.kind === 'bacti_routine' ? (kind === 'routine' || kind === 'repeat')
             : site.kind === 'bacti_other' ? kind === 'other' : false;
@@ -1366,29 +1385,48 @@ export default async function handler(req, res) {
             return res.status(422).json({ error: 'validation', errors: [{ field: 'sample_kind', msg: `${site.name} is ${what}.` }] });
           }
         }
-        const dupeSite = site ? site.name : String(body.site_name || '');
+        const siteName = site ? site.name : String(body.site_name || '').trim();
+        /* ⛔ THIS WAS THE ONLY WRITE PATH WITH NO ALREADY-RECORDED GUARD, and it cost five copies
+           of every bacti sample in 2026 when the backfill was re-run five times (2026-08-19).
+           Same contract as its neighbours: refuse, and say what would replace what. */
         const already = await sb(
-          `water_bacti_samples?supply_id=eq.${p.supply.id}&site_name=eq.${encodeURIComponent(dupeSite)}` +
-            `&collected_date=eq.${String(body.collected_date || '').slice(0, 10)}&sample_kind=eq.${kind}&superseded_at=is.null&select=id`
+          `water_bacti_samples?supply_id=eq.${p.supply.id}&site_name=eq.${encodeURIComponent(siteName)}` +
+            `&collected_date=eq.${bdate}&sample_kind=eq.${kind}&superseded_at=is.null&select=id`
         );
         const supersedes = already && already[0];
         if (supersedes && body.expect_absent) return res.status(409).json(EXISTS_NOW);
-        /* ⛔ AND IT NEEDED A WAY THROUGH, not only a guard. The refusal above was right and
-           incomplete: this was the one table with no correction path (migration 051 gave it the
-           supersede trio its neighbours have), and it is the table that most needs one. Keith,
-           2026-08-26: Michelle sends the samples to the lab herself and the RESULTS COME BACK BY
-           EMAIL ABOUT 24 HOURS LATER. A sample is routinely recorded before its result exists,
-           so completing the row the next day is the normal case, not an amendment of a mistake. */
+        /* ⛔ AND IT NEEDED A WAY THROUGH, not only a guard. Keith, 2026-08-26: Michelle sends the
+           samples to the lab herself and the RESULTS COME BACK BY EMAIL ABOUT 24 HOURS LATER. A sample
+           is routinely recorded before its result exists, so completing the row the next day is the
+           normal case, not an amendment of a mistake. */
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'That site already has a bacti sample on this date. Send correction_reason to replace it.', id: supersedes.id });
         }
         if (body.corrects_id && (!supersedes || supersedes.id !== body.corrects_id)) {
           return res.status(409).json({ error: 'target_mismatch', msg: 'The sample you are correcting is no longer the live sample for that site, date and kind. Reload and try again.' });
         }
-        // a correction keeps what the form did not send (Codex 2026-10-08 finding 7) — see submit_dist
+        // MERGE FIRST, THEN VALIDATE (R2-1) — see submit_dist
         let oldB = null;
         if (supersedes) { const rr = await sb(`water_bacti_samples?id=eq.${supersedes.id}&select=*`); oldB = (rr && rr[0]) || null; }
         const keepB = (k, v) => (v === undefined && oldB ? oldB[k] : v);
+        const cand = {
+          free: nz(keepB('free', bf.v)), total: nz(keepB('total', bt.v)),
+          collected_time: nz(keepB('collected_time', body.collected_time)),
+          operator_id: nz(keepB('operator_id', body.operator_id)),
+          /* The supply's lab is a DEFAULT for a new sample that named none — never a value forced over
+             a person's deliberate clear on a correction (R2-4). */
+          lab_name: oldB ? nz(keepB('lab_name', body.lab_name))
+            : (body.lab_name === undefined ? (p.supply.lab_name || null) : nz(body.lab_name)),
+          method: nz(keepB('method', body.method)),
+          result: nz(keepB('result', body.result)),
+          notes: nz(keepB('notes', body.notes)),
+        };
+        if (cand.free === null) {
+          return res.status(422).json({ error: 'validation', errors: [{ field: 'free', msg: 'A bacti sample needs the free chlorine residual taken with it.' }] });
+        }
+        if (cand.total !== null && Number(cand.free) > Number(cand.total)) {
+          return res.status(422).json({ error: 'validation', errors: [{ field: 'total', msg: `Free (${cand.free}) cannot exceed total (${cand.total}).` }] });
+        }
         // Supersede + insert in one transaction — see submit_dist (Codex finding 7, migration 074;
         // supply lock + filed-period refusal since 076).
         let row;
@@ -1401,18 +1439,11 @@ export default async function handler(req, res) {
             p_old: supersedes ? supersedes.id : null,
             p_row: {
               supply_id: p.supply.id,
-              site_id: site ? site.id : null,
-              site_name: site ? site.name : body.site_name,
+              site_id: site ? site.id : (oldB && oldB.site_name === siteName ? oldB.site_id : null),
+              site_name: siteName,
               sample_kind: kind,
               collected_date: bdate,
-              collected_time: keepB('collected_time', body.collected_time) || null,
-              operator_id: keepB('operator_id', body.operator_id) || null,
-              lab_name: keepB('lab_name', body.lab_name) || p.supply.lab_name || null,
-              method: keepB('method', body.method) || null,
-              result: keepB('result', body.result) || null,
-              free: bf.v,
-              total: bt.v ?? null,
-              notes: keepB('notes', body.notes) || null,
+              ...cand,
               correction_reason: body.correction_reason || null,
             },
           }),
@@ -1429,31 +1460,32 @@ export default async function handler(req, res) {
 
       // ---- the repository: everything recorded in one month, shaped like the paper sheets -----
       case 'month': {
-        const p = await loadProfile(wssn);
+        let p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
         const y = Number(body.year), m = Number(body.month);
         if (!(y > 2000 && m >= 1 && m <= 12)) return bad(res, 400, 'year/month required');
         const from = `${y}-${String(m).padStart(2, '0')}-01`;
         const to = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
-        /* ⛔ ONE CONSISTENT READ (Codex 2026-10-08 finding 6, High). The month is assembled from
+        /* ⛔ ONE CONSISTENT READ (Codex 2026-10-08 R1-6 and R2-3, High). The month is assembled from
            several REST reads, and the generator builds the EGLE workbook from exactly this answer. A
-           correction committing between the readings read and the feed read could pair a reading's
-           OLD gallons with its recomputed NEW chemical usage — two halves of different truths in one
-           filed row. Every write to a well bumps its `write_version` (076), and every sample write
-           inserts a new row; so a fingerprint of those is read before and after, and a month that
-           changed underneath is read again. Three tries, then a refusal — never a mixed answer. */
-        const fingerprint = async () => {
-          const [eps, dl, bl] = await Promise.all([
-            sb(`water_entry_points?supply_id=eq.${p.supply.id}&select=id,write_version&order=id`),
-            sb(`water_dist_samples?supply_id=eq.${p.supply.id}&select=created_at&order=created_at.desc&limit=1`),
-            sb(`water_bacti_samples?supply_id=eq.${p.supply.id}&select=created_at&order=created_at.desc&limit=1`),
-          ]);
-          return JSON.stringify([eps, dl, bl]);
+           correction committing between two of them could pair a reading's OLD gallons with its NEW
+           chemical usage, or one sample table's old rows with the other's new ones. Round 1 bracketed
+           the reads with per-well versions plus the newest sample `created_at` — but a timestamp is a
+           transaction START time, not a commit order, so a sample change could commit unseen (R2-3).
+           Migration 080 gives the supply one counter, `data_version`, bumped INSIDE every transaction
+           that writes a reading, a feed row, a sample, a filing or the plant profile. Equal before and
+           after = no commit in between. The profile and the filing are now read inside the bracket too.
+           Five tries with a short pause, then a refusal — never a mixed answer. */
+        const dataVersion = async () => {
+          const r = await sb(`water_supplies?id=eq.${p.supply.id}&select=data_version`);
+          return r && r[0] ? String(r[0].data_version) : 'missing';
         };
-        let readings, feedReadings, dist, bacti, consistent = false;
-        for (let tryN = 0; tryN < 3 && !consistent; tryN++) {
-          const before = await fingerprint();
+        let readings, feedReadings, dist, bacti, filings, consistent = false;
+        for (let tryN = 0; tryN < 5 && !consistent; tryN++) {
+          if (tryN) await new Promise((ok) => setTimeout(ok, 150 + Math.floor(Math.random() * 250)));
+          const before = await dataVersion();
+          p = (await loadProfile(wssn)) || p;
           readings = await sb(
             `water_readings?supply_id=eq.${p.supply.id}&reading_date=gte.${from}&reading_date=lt.${to}` +
               `&superseded_at=is.null&select=*&order=reading_date`
@@ -1471,7 +1503,11 @@ export default async function handler(req, res) {
             `water_bacti_samples?supply_id=eq.${p.supply.id}&collected_date=gte.${from}&collected_date=lt.${to}` +
               `&superseded_at=is.null&select=*&order=collected_date`
           );
-          consistent = (await fingerprint()) === before;
+          filings = await sb(
+            `water_mor_filings?supply_id=eq.${p.supply.id}&report_year=eq.${y}&report_month=eq.${m}` +
+              `&superseded_at=is.null&select=*&limit=1`
+          );
+          consistent = before !== 'missing' && (await dataVersion()) === before;
         }
         if (!consistent) {
           return res.status(503).json({ error: 'busy', msg: 'The records for this month were changing while they were being read. Try again in a moment.' });
@@ -1480,15 +1516,11 @@ export default async function handler(req, res) {
         for (const f of feedReadings) (byReading[f.reading_id] ||= []).push(f);
         for (const r of readings) r.feeds = byReading[r.id] || [];
 
-        /* ── the report that actually went to EGLE for this month.
+        /* ── the report that actually went to EGLE for this month (read inside the bracket above).
            The `filed` blob is read here and used here; only the card and the diff go over the
            wire, because the page needs the ANSWER ("3 days differ") and not the workbook's cells.
            Computing the diff server-side also keeps it in one place: the page must never grow its
            own copy of this comparison, for the same reason it never recomputes a dose. */
-        const filings = await sb(
-          `water_mor_filings?supply_id=eq.${p.supply.id}&report_year=eq.${y}&report_month=eq.${m}` +
-            `&superseded_at=is.null&select=*&limit=1`
-        );
         const filing = filings && filings[0];
         let filedCard = null;
         if (filing) {
