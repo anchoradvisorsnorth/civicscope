@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.8.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.8.1-oic
+
+  v1.8.1 (2026-10-07) — page widened to 1440px; the attention sentence wraps so Dismiss stays on screen.
 
   v1.8.0 (2026-10-07) — opens on the month whose report is DUE: last month, until it is recorded
   as filed (Keith: "sept report is due by october 10"). Month end names the report and its due
@@ -79,7 +81,7 @@
   header a{color:#cbd5e1;font-size:13px;text-decoration:none;border:1px solid rgba(255,255,255,.28);
            border-radius:8px;padding:6px 12px;white-space:nowrap}
   header a:hover{background:rgba(255,255,255,.1);color:#fff}
-  main{max-width:1060px;margin:0 auto;padding:20px 16px 60px}
+  main{max-width:1440px;margin:0 auto;padding:20px 24px 60px}   /* widened 2026-10-07: the records sheet and the attention list both need the room */
   h2{font-size:15px;margin:26px 0 10px;color:#334155;letter-spacing:.2px}
   h2 .n{color:var(--mut);font-weight:400}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
@@ -145,6 +147,10 @@
   tr.hit td{background:#fef9c3;transition:background 1.2s}
   tr.dismissed td{color:#94a3b8}
   tr.dismissed .tag{opacity:.5}
+  /* The attention list WRAPS its sentence instead of stretching the table: with every cell
+     nowrap, a long "what" pushed Who and the Dismiss button off the right edge (Keith, 2026-10-07). */
+  #attn td.what{white-space:normal;min-width:320px;line-height:1.4}
+  #attn td:last-child{width:1%}
   tr.attnsep td{background:#f8fafc;font-size:11.5px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
   .dbtn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;color:#334155;cursor:pointer}
   .dbtn:hover{border-color:var(--navy);color:var(--navy)}
@@ -527,7 +533,7 @@ function paintAttn() {
     const on = d && d.dismissed_at ? usDate(new Date(d.dismissed_at).toLocaleDateString('en-CA', { timeZone: PLANT_TZ })) : '';
     const by = d ? ` <span style="font-style:italic">— dismissed${d.dismissed_by ? ' by ' + esc(d.dismissed_by) : ''}${on ? ' ' + esc(on) : ''}</span>` : '';
     return `<tr${isGone ? ' class="dismissed"' : ''}><td class="l">${esc(usDate(r.date))}</td><td class="l">${esc(r.where)}</td>
-      <td class="l">${tag(r)} ${esc(usText(r.what))}${by}</td>
+      <td class="l what">${tag(r)} ${esc(usText(r.what))}${by}</td>
       <td class="l">${esc(r.who || '')}</td><td>${btn(r, isGone)}</td></tr>`;
   };
   const okBanner = `<div class="banner ok"><b>Nothing to chase in ${MN[m]}</b>${gone.length
