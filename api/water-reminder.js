@@ -33,7 +33,7 @@
 
 export const config = { maxDuration: 30 };
 
-export const VER = '1.0.0-morremind';
+export const VER = '1.1.0-morremind';
 
 const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
@@ -214,7 +214,8 @@ export default async function handler(req, res) {
         `&role=in.(oic,staff)&select=email,name,role&order=role`);
       const to_ = (people || []).map((p) => p.email).filter(Boolean);
 
-      const link = `${SITE}/water/review?wssn=${encodeURIComponent(supply.wssn)}&m=${y}-${String(m).padStart(2, '0')}`;
+      // straight into the monthly-report workspace for that month (review v1.9.0, 2026-10-08)
+      const link = `${SITE}/water/review?wssn=${encodeURIComponent(supply.wssn)}&view=report&m=${y}-${String(m).padStart(2, '0')}`;
       const msg = body({
         supply, y, m, link,
         wellDays: (readings || []).length, dist: (dist || []).length, bacti: (bacti || []).length,

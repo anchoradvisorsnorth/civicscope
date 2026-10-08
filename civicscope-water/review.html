@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.8.1-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.9.0-oic
+
+  v1.9.0 (2026-10-08) — the MONTHLY REPORT is its own view (?view=report, "Monthly report →" in the
+  header): a readiness card (well-days and gaps, distribution, bacti, open attention items, filed),
+  1 · bacti samples, 2 · distribution samples (each with Add), 3 · generate, past reports. The
+  daily review keeps the wells, the attention list, the days and the well sheet. Same file, so the
+  editor, generator and filing code still exist once.
 
   v1.8.1 (2026-10-07) — page widened to 1440px; the attention sentence wraps so Dismiss stays on screen.
 
@@ -152,6 +158,8 @@
   #attn td.what{white-space:normal;min-width:320px;line-height:1.4}
   #attn td:last-child{width:1%}
   tr.attnsep td{background:#f8fafc;font-size:11.5px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+  .chk{display:grid;grid-template-columns:22px 1fr;gap:6px 8px;margin-top:10px;font-size:14px}
+  .chk .ok{color:var(--ok);font-weight:700} .chk .no{color:var(--warn);font-weight:700}
   .dbtn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;color:#334155;cursor:pointer}
   .dbtn:hover{border-color:var(--navy);color:var(--navy)}
   .dbtn[disabled]{opacity:.5;cursor:default}
@@ -186,6 +194,7 @@
     <span class="sub" id="hdrSub">loading…</span>
   </div>
   <span class="who" id="who"></span>
+  <a id="navOther" href="#" style="background:rgba(255,255,255,.12);color:#fff;font-weight:600">Monthly report →</a>
   <a href="/water">Enter readings →</a>
 </header>
 
@@ -194,16 +203,23 @@
     <b>Loading the plant’s records…</b>Reading this month, last month, and every report on file.</div></div>
   <div id="sections" hidden>
 
+  <!-- TWO VIEWS, ONE PAGE (v1.9.0, Keith 2026-10-08): "the monthly reporting … should almost be a
+       button in the top menu that fires to another page where the user feels like they have a
+       workspace to generate the report - shows past reports". The REVIEW view is daily oversight;
+       the REPORT view (?view=report) is the month-end workspace — samples, generate, file, past
+       reports. One file, so the editor, the generator and the filing code exist once. -->
+  <div data-view="review">
   <h2>The three wells <span class="n">— most recent reading</span></h2>
   <div class="wells" id="wells"></div>
+  </div>
 
-  <!-- The month comes FIRST (Keith, 2026-10-07): the attention list, the day strips and the
-       records below are all that month's, so the control that sets it sits above all three. -->
+  <!-- The month comes FIRST (Keith, 2026-10-07): everything below it is that month's. -->
   <h2 style="display:flex;align-items:center;gap:12px">
-    <span>The month</span>
+    <span id="monthLabel">The month</span>
     <select id="monthSel"></select>
   </h2>
 
+  <div data-view="review">
   <h2>Needs your attention <span class="n" id="attnCount"></span></h2>
   <div id="attn"></div>
 
@@ -213,11 +229,25 @@
   <h2 id="recHead">The records <span id="recTitle"></span> <span class="n">— as the paper sheet reads</span></h2>
   <div id="records"></div>
 
-  <h2>Month end <span class="n">— the EGLE report</span></h2>
+  <h2>Monthly report</h2>
+  <div class="note" id="reportTeaser"></div>
+  </div>
+
+  <div data-view="report" hidden>
+  <div class="card" id="ready" style="margin-top:6px"></div>
+
+  <h2>1 · Bacti samples <span class="n">— entered from the lab's results</span></h2>
+  <div id="bactiBox"></div>
+
+  <h2>2 · Distribution samples</h2>
+  <div id="distBox"></div>
+
+  <h2>3 · Generate the EGLE workbook</h2>
   <div class="note" id="monthEnd"></div>
 
-  <h2>Reports filed <span class="n">— what went to EGLE</span></h2>
+  <h2>Past reports <span class="n">— what went to EGLE</span></h2>
   <div id="filed"></div>
+  </div>
   </div>
 </main>
 
@@ -283,6 +313,16 @@ const dayOf = (iso) => Number(String(iso).slice(8, 10));
    that round has to use the same clock or the two disagree about what day a reading belongs to.
    PLANT_TZ is replaced by `supply.timezone` as soon as the first read returns it. */
 let PLANT_TZ = 'America/Detroit';
+const VIEW = new URLSearchParams(location.search).get('view') === 'report' ? 'report' : 'review';
+/* The link to the other view carries the month on screen, so "Monthly report →" from September's
+   review opens September's report and "← Review" comes back to the same month. */
+function viewHref(view, y, m) {
+  const q = new URLSearchParams(location.search);
+  q.delete('view'); q.delete('m');
+  if (view === 'report') q.set('view', 'report');
+  if (y && m) q.set('m', `${y}-${String(m).padStart(2, '0')}`);
+  return `${location.pathname}?${q.toString()}`;
+}
 const plantToday = () => {
   const iso = new Date().toLocaleDateString('en-CA', { timeZone: PLANT_TZ });   // YYYY-MM-DD at the plant
   return { iso, y: Number(iso.slice(0, 4)), m: Number(iso.slice(5, 7)), d: Number(iso.slice(8, 10)) };
@@ -375,10 +415,14 @@ async function loadFor(today) {
 
 function render({ cur, prev, y, m, target, deepLinked }) {
   $('sections').hidden = false;
+  for (const el of document.querySelectorAll('[data-view]')) el.hidden = el.dataset.view !== VIEW;
   const eps = cur.entryPoints || [];
-  $('hdrTitle').textContent = `${cur.supply.name} — Well Testing`;
-  $('hdrSub').textContent = `WSSN ${cur.supply.wssn}${cur.supply.classification ? ' · ' + cur.supply.classification : ''} · review and monthly report`;
-  document.title = `Well Testing — ${cur.supply.name}`;
+  $('hdrTitle').textContent = VIEW === 'report' ? `${cur.supply.name} — Monthly report` : `${cur.supply.name} — Well Testing`;
+  $('hdrSub').textContent = `WSSN ${cur.supply.wssn}${cur.supply.classification ? ' · ' + cur.supply.classification : ''} · `
+    + (VIEW === 'report' ? 'the EGLE Monthly Operation Report' : 'daily review');
+  document.title = VIEW === 'report' ? `Monthly report — ${cur.supply.name}` : `Well Testing — ${cur.supply.name}`;
+  $('monthLabel').textContent = VIEW === 'report' ? 'Report for' : 'The month';
+  $('navOther').textContent = VIEW === 'report' ? '← Daily review' : 'Monthly report →';
 
   const all = [...(prev.readings || []), ...(cur.readings || [])];
   const latestFor = (ep) => all.filter((r) => r.entry_point_id === ep.id)
@@ -487,7 +531,7 @@ function render({ cur, prev, y, m, target, deepLinked }) {
   }
   sel.value = wantVal;
   renderMonth(target, y, m, eps);
-  if (deepLinked) $('monthEnd').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // (the reminder's deep link used to scroll down to Month end; it now opens the report view itself)
 }
 
 /* The month picker only reaches back twelve months, and a filing older than that still has to be
@@ -779,16 +823,40 @@ function renderMonth(mo, y, m, eps) {
   const notStarted = (y > ptd.y) || (y === ptd.y && m > ptd.m);
   const py2 = m === 1 ? y - 1 : y, pm2 = m === 1 ? 12 : m - 1;
   const prevUnfiled = !(FILINGS || []).some((f) => f.year === py2 && f.month === pm2);
-  const status = filedNow ? 'recorded as filed — see “Reports filed” below'
-    : inProgress ? `still in progress (recorded through ${usDate(ptd.iso)}) — due ${MN[dueM]} 10`
+  const status = filedNow ? 'recorded as filed — see “Past reports” below'
+    : inProgress ? `still in progress (today is ${usDate(ptd.iso)}) — due ${MN[dueM]} 10`
     : notStarted ? 'not started'
     : ptd.iso > dueISO ? `<span style="color:var(--err);font-weight:600">overdue — was due ${MN[dueM]} 10, ${dueY}</span>`
     : `<b>due ${MN[dueM]} 10</b>`;
   const dueNow = inProgress && prevUnfiled
     ? `<div class="banner warn" style="margin:0 0 12px">The report due now is <b>${MN[pm2]} ${py2}</b> (due ${MN[m]} 10). `
       + `<a href="#" onclick="goMonth(${py2},${pm2});return false">Open ${MN[pm2]}</a>.</div>` : '';
-  $('monthEnd').innerHTML = dueNow + `<div style="font-size:15px;margin-bottom:8px">The <b>${MN[m]} ${y}</b> report — ${status}</div>`
-    + `<b>${MN[m]} ${y}</b> holds ${readings.length} well-day${readings.length === 1 ? '' : 's'}, `
+  /* ── the report view's header card: which report, when it is due, and what it still lacks */
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  // an in-progress month is judged through YESTERDAY — today's round may simply not be walked yet
+  const throughD = inProgress ? ptd.d - 1 : notStarted ? 0 : lastDay;
+  const gaps = [];
+  for (const ep of eps) {
+    const have = new Set(readings.filter((r) => r.entry_point_id === ep.id).map((r) => dayOf(r.reading_date)));
+    const miss = []; for (let d = 1; d <= throughD; d++) if (!have.has(d)) miss.push(`${m}/${d}`);
+    if (miss.length) gaps.push(`${esc(ep.label)}: ${miss.length > 5 ? miss.slice(0, 5).join(', ') + ` +${miss.length - 5} more` : miss.join(', ')}`);
+  }
+  const expected = eps.length * throughD;
+  const liveAttn = ATTN ? ATTN.rows.filter((r) => !ATTN.dismissed.has(r.key) && r.level !== 'info').length : 0;
+  const tick = (ok) => ok ? '<span class="ok">✓</span>' : '<span class="no">!</span>';
+  $('ready').innerHTML = `<div style="font-size:18px"><b>The ${MN[m]} ${y} report</b> — ${status}</div>`
+    + `<div class="chk">`
+    + `${tick(!gaps.length)}<div><b>${readings.length} of ${expected}</b> well-days recorded${gaps.length ? ` — missing ${gaps.join(' · ')}` : ''}</div>`
+    + `${tick(dist > 0)}<div><b>${dist}</b> distribution sample${dist === 1 ? '' : 's'}</div>`
+    + `${tick(reportable.length > 0)}<div><b>${reportable.length}</b> routine/repeat bacti sample${reportable.length === 1 ? '' : 's'}${reportable.length ? '' : ' — <b>add them in step 1</b> before generating'}</div>`
+    + `${tick(!liveAttn)}<div><b>${liveAttn}</b> item${liveAttn === 1 ? '' : 's'} still needing attention${liveAttn ? ` — <a href="${viewHref('review', y, m)}">look at them on the daily review</a>` : ''}</div>`
+    + `${tick(filedNow)}<div>${filedNow ? 'Recorded as filed with EGLE' : 'Not yet recorded as filed'}</div>`
+    + `</div>`;
+  $('reportTeaser').innerHTML = `The <b>${MN[m]} ${y}</b> report — ${status}. `
+    + `<a class="btn" style="margin-left:8px" href="${viewHref('report', y, m)}">Open the monthly report →</a>`;
+  $('navOther').href = VIEW === 'report' ? viewHref('review', y, m) : viewHref('report', y, m);
+
+  $('monthEnd').innerHTML = dueNow + `<b>${MN[m]} ${y}</b> holds ${readings.length} well-day${readings.length === 1 ? '' : 's'}, `
     + `${dist} distribution sample${dist === 1 ? '' : 's'} and ${reportable.length} bacti sample${reportable.length === 1 ? '' : 's'}`
     + (otherN ? ` (plus ${otherN} well sample${otherN === 1 ? '' : 's'} not reported on the form)` : '') + `.<br><br>`
     + (can
@@ -796,7 +864,7 @@ function renderMonth(mo, y, m, eps) {
           + `<span class="muted" id="genNote" style="margin-left:12px"></span><br><br>`
           + `It is filled from exactly the records above — every figure derived once, when the reading was `
           + `stored, so the workbook and this screen cannot disagree. <b>Open it, add your Cover comments and `
-          + `sign it before sending.</b> Every workbook generated here is kept under “Reports filed” below; `
+          + `sign it before sending.</b> Every workbook generated here is kept under “Past reports” below; `
           + `once it has gone to EGLE, use <b>Mark as filed</b> there to record the date it went.`
           + (reportable.length ? '' : `<br><br>⚠ <b>No routine bacti samples are on file for ${MN[m]}</b> — the Bacti &amp; Cl Res tab will go to EGLE empty.`)
         : `Nothing is recorded for ${MN[m]} ${y}, so there is no report to generate. If the round is being `
@@ -834,7 +902,7 @@ window.generateMor = async (y, m) => {
           ? `<span style="color:var(--warn)">${stats.bacti_other_excluded} well/raw-water sample${stats.bacti_other_excluded === 1 ? '' : 's'} not on the form — EGLE's Bacti tab has no block for them. </span>`
           : '')
       + (stats.recorded
-          ? `Recorded under “Reports filed” below.`
+          ? `Recorded under “Past reports” below.`
           : `<span style="color:var(--err)">⚠ This generation could not be recorded${stats.why ? ` (${esc(stats.why)})` : ''} — the file is yours, but the product has no note of it.</span>`);
     /* Re-read the month so the generation just recorded appears in the panel, without
        re-rendering the rest of the page. */
@@ -1133,13 +1201,13 @@ function paintRecords(mo, y, m, eps) {
   }
 
   const dist = mo.dist || [], bacti = mo.bacti || [];
-  const distTable = dist.length ? `<div class="card scroll" style="margin-top:12px"><table>
+  const distTable = dist.length ? `<div class="card scroll" style="margin-top:4px"><table>
       <thead><tr><th class="l">Distribution sample</th><th class="l">Site</th><th>Free</th><th>Total</th><th>PO₄</th><th class="l">By</th><th></th></tr></thead><tbody>
       ${dist.map((s) => `<tr><td class="l">${esc(usDate(s.sample_date))}</td><td class="l">${esc(s.site_name || '')}</td>
         <td>${fmt(s.free)}</td><td>${fmt(s.total)}</td><td>${fmt(s.ortho)}</td><td class="l">${esc(s.operator_initials || '')}</td>
         <td>${ME ? `<button class="editbtn" data-edit="dist" data-id="${esc(s.id)}" data-date="${s.sample_date}" data-site="${esc(s.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div>` : '';
-  const bactiTable = bacti.length ? `<div class="card scroll" style="margin-top:12px"><table>
+  const bactiTable = bacti.length ? `<div class="card scroll" style="margin-top:4px"><table>
       <thead><tr><th class="l">Bacti sample</th><th class="l">Site</th><th class="l">Result</th><th>Free</th><th>Total</th><th></th></tr></thead><tbody>
       ${bacti.map((b) => `<tr><td class="l">${esc(usDate(b.collected_date))}</td><td class="l">${esc(b.site_name || '')}</td>
         <td class="l">${esc(b.result || '')}</td><td>${fmt(b.free)}</td><td>${fmt(b.total)}</td>
@@ -1149,13 +1217,20 @@ function paintRecords(mo, y, m, eps) {
   /* Adding a sample (Keith, 2026-10-07: the bacti results are entered from the paper record before
      the month's report is run). Until now the page could only EDIT a sample already on file, so a
      month with no bacti had no way in from here at all — only the crew tablet. */
-  const addBar = ME ? `<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="editbtn" data-edit="bacti" data-new="1">+ Add a bacti sample for ${MN[m]}</button>
-      <button class="editbtn" data-edit="dist" data-new="1">+ Add a distribution sample for ${MN[m]}</button></div>` : '';
+  /* v1.9.0: the samples and their Add buttons live in the REPORT view — Keith, 2026-10-08: "in
+     reality Michelle will probably add the bacti and distribution numbers when she generates the
+     monthly report". The well-day sheet stays on the review view. */
+  const addBtn = (kind, label) => ME
+    ? `<div style="margin:0 0 10px"><button class="editbtn" data-edit="${kind}" data-new="1">+ Add a ${label} sample for ${MN[m]}</button></div>`
+    : `<div class="muted" style="margin:0 0 10px">Sign in to add or correct a ${label} sample.</div>`;
+  const reportable2 = bacti.filter((b) => b.sample_kind !== 'other').length;
+  $('bactiBox').innerHTML = addBtn('bacti', 'bacti')
+    + (bactiTable || `<div class="note">No bacti samples recorded for ${MN[m]} ${y} yet.${reportable2 ? '' : ' EGLE expects the routine samples and the chlorine residuals taken with them.'}</div>`);
+  $('distBox').innerHTML = addBtn('dist', 'distribution')
+    + (distTable || `<div class="note">No distribution samples recorded for ${MN[m]} ${y}.</div>`);
   $('records').innerHTML = `<div class="card scroll"><table>
       <thead>${head}</thead><tbody>${body}</tbody></table></div>
-    <div class="muted" style="margin:8px 0 0">Gallons, Used and ppm are derived from the meter and tank levels — nobody types them.</div>
-    ${addBar}${distTable}${bactiTable}`;
+    <div class="muted" style="margin:8px 0 0">Gallons, Used and ppm are derived from the meter and tank levels — nobody types them.</div>`;
 
   /* The editor needs this month's rows and entry points. Held here rather than re-fetched so a
      click opens against exactly what the page is showing. */
@@ -1171,7 +1246,7 @@ let EDITORS_WIRED = false;
 function wireEditors() {
   if (EDITORS_WIRED) return;
   EDITORS_WIRED = true;
-  $('records').addEventListener('click', (ev) => {
+  for (const id of ['records', 'bactiBox', 'distBox']) $(id).addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-edit]');
     if (!b || !RECORDS_CTX) return;
     openEditor(b.getAttribute('data-edit'), b.getAttribute('data-date'),
@@ -1235,7 +1310,7 @@ function editorFields(kind, row, eps) {
 }
 
 function openEditor(kind, date, site, mo, eps, id, sampleKind, epId, isNew) {
-  const host = $("records");
+  const host = kind === "reading" ? $("records") : $(kind === "bacti" ? "bactiBox" : "distBox");
   const old = document.getElementById("editor");
   if (old) old.remove();
 
