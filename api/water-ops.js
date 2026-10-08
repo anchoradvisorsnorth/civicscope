@@ -65,7 +65,34 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.10.0-waterops';
+export const VER = '1.11.0-waterops';
+
+/* ── Sample inputs (Codex 2026-10-08 review, findings 2, 3, 5, 7). Office entry of samples made
+   these paths reachable by a person at a keyboard, and they trusted what arrived: a residual typed
+   as letters became a blank, free above total went to the State, a negative was stored, a date
+   outside the month being worked on landed in another month, and a stale "Add" form could replace
+   a row someone else had just entered. Each check below refuses rather than repairs. */
+const SAMPLE_NUM = (v, field) => {
+  if (v === undefined) return { v: undefined };
+  if (v === null || v === '') return { v: null };
+  const n = Number(v);
+  if (!Number.isFinite(n)) return { err: { field, msg: `${field} must be a number (got "${String(v).slice(0, 20)}").` } };
+  if (n < 0) return { err: { field, msg: `${field} cannot be negative (got ${n}).` } };
+  return { v: n };
+};
+/* The page names the month it was working in; a date outside it is a typing error, not an
+   instruction to write into another month (finding 2). Scripts that send no period are unchanged. */
+const periodErr = (body, date) => {
+  const want = String(body.expected_period || '').trim();
+  if (!want) return null;
+  if (!/^\d{4}-\d{2}$/.test(want)) return { field: 'expected_period', msg: 'expected_period must be YYYY-MM.' };
+  return date.slice(0, 7) === want ? null
+    : { field: 'date', msg: `That date (${date}) is not in ${want}, the month you are working on. Nothing was saved.` };
+};
+/* A form opened to ADD a row says so; if the row exists by the time it saves, someone else entered
+   it first and this save must not silently replace theirs (finding 5). */
+const EXISTS_NOW = { error: 'exists_now', saved: false,
+  msg: 'Someone else entered this after you opened the form. Nothing was saved — reload, look at what they entered, and correct it if it is wrong.' };
 
 // A date written into a sentence a PERSON reads is month/day/year (Keith, 2026-10-07). Fields in the
 // JSON stay ISO — only the `msg` text goes through this.
@@ -991,6 +1018,7 @@ export default async function handler(req, res) {
 
         const date = String(body.reading_date || '').slice(0, 10);
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return bad(res, 400, 'reading_date required (YYYY-MM-DD)');
+        { const pe = periodErr(body, date); if (pe) return res.status(422).json({ error: 'validation', errors: [pe] }); }
 
         /* ⛔ DERIVE, THEN WRITE UNDER AN ADJACENCY CHECK, AND RE-DERIVE IF THE GRAPH MOVED
            (Codex finding 2, Critical, 2026-09-11). Everything below is computed from the live
@@ -1026,6 +1054,8 @@ export default async function handler(req, res) {
           `water_readings?entry_point_id=eq.${ep.id}&reading_date=eq.${date}&superseded_at=is.null&select=id`
         );
         const supersedes = existing && existing[0];
+        // checked on every attempt, so a stale_plan re-plan cannot turn an Add into a replacement
+        if (supersedes && body.expect_absent) return res.status(409).json(EXISTS_NOW);
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'This day is already recorded. Send correction_reason to replace it.' });
         }
@@ -1202,8 +1232,14 @@ export default async function handler(req, res) {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
         const i = body.input || {};
-        const free = i.free == null || i.free === '' ? null : Number(i.free);
-        const total = i.total == null || i.total === '' ? null : Number(i.total);
+        const nums = {};
+        for (const k of ['free', 'total', 'ortho', 'fluoride']) {
+          const r = SAMPLE_NUM(i[k], k);
+          if (r.err) return res.status(422).json({ error: 'validation', errors: [r.err] });
+          nums[k] = r.v;
+        }
+        const free = nums.free == null ? null : nums.free;
+        const total = nums.total == null ? null : nums.total;
         const flags = [];
         if (free !== null && total !== null && free > total) {
           return res.status(422).json({ error: 'validation', errors: [{ field: 'total', msg: `Free (${free}) cannot exceed total (${total}).` }] });
@@ -1213,14 +1249,26 @@ export default async function handler(req, res) {
         }
         const site = (p.sites || []).find((s) => s.id === body.site_id) || null;
         const date = String(body.sample_date || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return bad(res, 400, 'sample_date required (YYYY-MM-DD)');
+        { const pe = periodErr(body, date); if (pe) return res.status(422).json({ error: 'validation', errors: [pe] }); }
+        if (site && site.kind && site.kind !== 'distribution') {
+          return res.status(422).json({ error: 'validation', errors: [{ field: 'site', msg: `${site.name} is a bacti site on the sampling plan, not a distribution site.` }] });
+        }
         const existing = await sb(
           `water_dist_samples?supply_id=eq.${p.supply.id}&site_name=eq.${encodeURIComponent(site ? site.name : body.site_name)}` +
             `&sample_date=eq.${date}&superseded_at=is.null&select=id`
         );
         const supersedes = existing && existing[0];
+        if (supersedes && body.expect_absent) return res.status(409).json(EXISTS_NOW);
         if (supersedes && !body.correction_reason) {
           return res.status(409).json({ error: 'exists', msg: 'That site already has a sample on this date.' });
         }
+        /* A correction keeps what the form did not send (finding 7) — the same rule well-days have
+           had since R5-2. A field ABSENT from the request is carried from the live row; a field sent
+           as null is a deliberate clear. */
+        let oldD = null;
+        if (supersedes) { const rr = await sb(`water_dist_samples?id=eq.${supersedes.id}&select=*`); oldD = (rr && rr[0]) || null; }
+        const keepD = (k, v) => (v === undefined && oldD ? oldD[k] : v);
         /* A correction that names the row it replaces must find exactly that row live (R3-2): an
            editor that clicked one sample must not silently supersede a different one. */
         if (body.corrects_id && (!supersedes || supersedes.id !== body.corrects_id)) {
@@ -1244,13 +1292,14 @@ export default async function handler(req, res) {
               site_id: site ? site.id : null,
               site_name: site ? site.name : body.site_name,
               sample_date: date,
-              sample_time: body.sample_time || null,
-              operator_id: body.operator_id || null,
-              operator_initials: body.operator_initials || null,
-              free, total,
-              ortho: i.ortho == null || i.ortho === '' ? null : Number(i.ortho),
-              fluoride: i.fluoride == null || i.fluoride === '' ? null : Number(i.fluoride),
-              notes: body.notes || null,
+              sample_time: keepD('sample_time', body.sample_time) || null,
+              operator_id: keepD('operator_id', body.operator_id) || null,
+              operator_initials: keepD('operator_initials', body.operator_initials) || null,
+              free: keepD('free', nums.free) ?? null,
+              total: keepD('total', nums.total) ?? null,
+              ortho: keepD('ortho', nums.ortho) ?? null,
+              fluoride: keepD('fluoride', nums.fluoride) ?? null,
+              notes: keepD('notes', body.notes) || null,
               flags,
               source: body.source === 'backfill' ? 'backfill' : 'tablet',
               correction_reason: body.correction_reason || null,
@@ -1276,6 +1325,14 @@ export default async function handler(req, res) {
         if (i.free == null || i.free === '') {
           return res.status(422).json({ error: 'validation', errors: [{ field: 'free', msg: 'A bacti sample needs the free chlorine residual taken with it.' }] });
         }
+        const bf = SAMPLE_NUM(i.free, 'free'), bt = SAMPLE_NUM(i.total, 'total');
+        if (bf.err || bt.err) return res.status(422).json({ error: 'validation', errors: [bf.err || bt.err] });
+        if (bt.v != null && bf.v > bt.v) {
+          return res.status(422).json({ error: 'validation', errors: [{ field: 'total', msg: `Free (${bf.v}) cannot exceed total (${bt.v}).` }] });
+        }
+        const bdate = String(body.collected_date || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(bdate)) return bad(res, 400, 'collected_date required (YYYY-MM-DD)');
+        { const pe = periodErr(body, bdate); if (pe) return res.status(422).json({ error: 'validation', errors: [pe] }); }
         const site = (p.sites || []).find((s) => s.id === body.site_id) || null;
         /* ⛔ THIS WAS THE ONLY WRITE PATH WITH NO ALREADY-RECORDED GUARD, and it cost five copies
            of every bacti sample in 2026 when the backfill was re-run five times (2026-08-19).
@@ -1294,12 +1351,28 @@ export default async function handler(req, res) {
         if (!['routine', 'repeat', 'other'].includes(kind)) {
           return res.status(422).json({ error: 'validation', errors: [{ field: 'sample_kind', msg: `sample_kind must be routine, repeat or other (got ${kind}).` }] });
         }
+        /* ⛔ A PLAN SITE'S KIND MUST AGREE WITH THE SAMPLE'S KIND (finding 1, High). The generator
+           places a sample by `sample_kind` alone, so a raw-water well sample sent as "routine" became
+           a routine compliance sample on EGLE's Bacti tab. The sampling plan already says which sites
+           are which; a contradiction is refused. A site that is not on the plan carries no kind and
+           is taken as entered. */
+        if (site && site.kind) {
+          const fits = site.kind === 'bacti_routine' ? (kind === 'routine' || kind === 'repeat')
+            : site.kind === 'bacti_other' ? kind === 'other' : false;
+          if (!fits) {
+            const what = site.kind === 'bacti_other' ? 'a well / raw-water site — record it as Well / raw water'
+              : site.kind === 'bacti_routine' ? 'a routine distribution site — record it as Routine or Repeat'
+              : 'not a bacti site on the sampling plan';
+            return res.status(422).json({ error: 'validation', errors: [{ field: 'sample_kind', msg: `${site.name} is ${what}.` }] });
+          }
+        }
         const dupeSite = site ? site.name : String(body.site_name || '');
         const already = await sb(
           `water_bacti_samples?supply_id=eq.${p.supply.id}&site_name=eq.${encodeURIComponent(dupeSite)}` +
             `&collected_date=eq.${String(body.collected_date || '').slice(0, 10)}&sample_kind=eq.${kind}&superseded_at=is.null&select=id`
         );
         const supersedes = already && already[0];
+        if (supersedes && body.expect_absent) return res.status(409).json(EXISTS_NOW);
         /* ⛔ AND IT NEEDED A WAY THROUGH, not only a guard. The refusal above was right and
            incomplete: this was the one table with no correction path (migration 051 gave it the
            supersede trio its neighbours have), and it is the table that most needs one. Keith,
@@ -1312,6 +1385,10 @@ export default async function handler(req, res) {
         if (body.corrects_id && (!supersedes || supersedes.id !== body.corrects_id)) {
           return res.status(409).json({ error: 'target_mismatch', msg: 'The sample you are correcting is no longer the live sample for that site, date and kind. Reload and try again.' });
         }
+        // a correction keeps what the form did not send (Codex 2026-10-08 finding 7) — see submit_dist
+        let oldB = null;
+        if (supersedes) { const rr = await sb(`water_bacti_samples?id=eq.${supersedes.id}&select=*`); oldB = (rr && rr[0]) || null; }
+        const keepB = (k, v) => (v === undefined && oldB ? oldB[k] : v);
         // Supersede + insert in one transaction — see submit_dist (Codex finding 7, migration 074;
         // supply lock + filed-period refusal since 076).
         let row;
@@ -1327,15 +1404,15 @@ export default async function handler(req, res) {
               site_id: site ? site.id : null,
               site_name: site ? site.name : body.site_name,
               sample_kind: kind,
-              collected_date: String(body.collected_date || '').slice(0, 10),
-              collected_time: body.collected_time || null,
-              operator_id: body.operator_id || null,
-              lab_name: body.lab_name || p.supply.lab_name || null,
-              method: body.method || null,
-              result: body.result || null,
-              free: Number(i.free),
-              total: i.total == null || i.total === '' ? null : Number(i.total),
-              notes: body.notes || null,
+              collected_date: bdate,
+              collected_time: keepB('collected_time', body.collected_time) || null,
+              operator_id: keepB('operator_id', body.operator_id) || null,
+              lab_name: keepB('lab_name', body.lab_name) || p.supply.lab_name || null,
+              method: keepB('method', body.method) || null,
+              result: keepB('result', body.result) || null,
+              free: bf.v,
+              total: bt.v ?? null,
+              notes: keepB('notes', body.notes) || null,
               correction_reason: body.correction_reason || null,
             },
           }),
@@ -1359,23 +1436,46 @@ export default async function handler(req, res) {
         const from = `${y}-${String(m).padStart(2, '0')}-01`;
         const to = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
-        const readings = await sb(
-          `water_readings?supply_id=eq.${p.supply.id}&reading_date=gte.${from}&reading_date=lt.${to}` +
-            `&superseded_at=is.null&select=*&order=reading_date`
-        );
-        let feedReadings = [];
-        if (readings.length) {
-          const ids = readings.map((r) => r.id).join(',');
-          feedReadings = await sb(`water_feed_readings?reading_id=in.(${ids})&select=*`);
+        /* ⛔ ONE CONSISTENT READ (Codex 2026-10-08 finding 6, High). The month is assembled from
+           several REST reads, and the generator builds the EGLE workbook from exactly this answer. A
+           correction committing between the readings read and the feed read could pair a reading's
+           OLD gallons with its recomputed NEW chemical usage — two halves of different truths in one
+           filed row. Every write to a well bumps its `write_version` (076), and every sample write
+           inserts a new row; so a fingerprint of those is read before and after, and a month that
+           changed underneath is read again. Three tries, then a refusal — never a mixed answer. */
+        const fingerprint = async () => {
+          const [eps, dl, bl] = await Promise.all([
+            sb(`water_entry_points?supply_id=eq.${p.supply.id}&select=id,write_version&order=id`),
+            sb(`water_dist_samples?supply_id=eq.${p.supply.id}&select=created_at&order=created_at.desc&limit=1`),
+            sb(`water_bacti_samples?supply_id=eq.${p.supply.id}&select=created_at&order=created_at.desc&limit=1`),
+          ]);
+          return JSON.stringify([eps, dl, bl]);
+        };
+        let readings, feedReadings, dist, bacti, consistent = false;
+        for (let tryN = 0; tryN < 3 && !consistent; tryN++) {
+          const before = await fingerprint();
+          readings = await sb(
+            `water_readings?supply_id=eq.${p.supply.id}&reading_date=gte.${from}&reading_date=lt.${to}` +
+              `&superseded_at=is.null&select=*&order=reading_date`
+          );
+          feedReadings = [];
+          if (readings.length) {
+            const ids = readings.map((r) => r.id).join(',');
+            feedReadings = await sb(`water_feed_readings?reading_id=in.(${ids})&select=*`);
+          }
+          dist = await sb(
+            `water_dist_samples?supply_id=eq.${p.supply.id}&sample_date=gte.${from}&sample_date=lt.${to}` +
+              `&superseded_at=is.null&select=*&order=sample_date`
+          );
+          bacti = await sb(
+            `water_bacti_samples?supply_id=eq.${p.supply.id}&collected_date=gte.${from}&collected_date=lt.${to}` +
+              `&superseded_at=is.null&select=*&order=collected_date`
+          );
+          consistent = (await fingerprint()) === before;
         }
-        const dist = await sb(
-          `water_dist_samples?supply_id=eq.${p.supply.id}&sample_date=gte.${from}&sample_date=lt.${to}` +
-            `&superseded_at=is.null&select=*&order=sample_date`
-        );
-        const bacti = await sb(
-          `water_bacti_samples?supply_id=eq.${p.supply.id}&collected_date=gte.${from}&collected_date=lt.${to}` +
-            `&superseded_at=is.null&select=*&order=collected_date`
-        );
+        if (!consistent) {
+          return res.status(503).json({ error: 'busy', msg: 'The records for this month were changing while they were being read. Try again in a moment.' });
+        }
         const byReading = {};
         for (const f of feedReadings) (byReading[f.reading_id] ||= []).push(f);
         for (const r of readings) r.feeds = byReading[r.id] || [];
