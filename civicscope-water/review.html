@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.6.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.8.0-oic
+
+  v1.8.0 (2026-10-07) — opens on the month whose report is DUE: last month, until it is recorded
+  as filed (Keith: "sept report is due by october 10"). Month end names the report and its due
+  date (in progress / due / overdue / filed) and points back to the month due now. Bacti and
+  distribution samples can be ADDED here, not only edited — date, kind and the sampling-plan sites.
+  A save returns to the month being edited.
+
+  v1.7.0 (2026-10-07) — the month picker sits above "Needs your attention" (the list is that
+  month's). Signed-in office users can Dismiss an item; it drops, greyed, into a Dismissed section
+  at the bottom with who and when, and can be Restored. Stored server-side (migration 079).
 
   v1.6.0 (2026-10-07) — the month drives the records. The separate well picker is gone: the month's
   coverage shows every well, and clicking a well (or one of its days) opens that sheet below under a
@@ -133,6 +143,12 @@
   .covrow.on{border-color:#cbd5e1;border-left-color:var(--navy);background:#f8fafc}
   .covrow .open{font-size:12px;color:var(--navy);font-weight:600;margin-left:8px}
   tr.hit td{background:#fef9c3;transition:background 1.2s}
+  tr.dismissed td{color:#94a3b8}
+  tr.dismissed .tag{opacity:.5}
+  tr.attnsep td{background:#f8fafc;font-size:11.5px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+  .dbtn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;color:#334155;cursor:pointer}
+  .dbtn:hover{border-color:var(--navy);color:var(--navy)}
+  .dbtn[disabled]{opacity:.5;cursor:default}
   .muted{color:var(--mut);font-size:13.5px}
   .scroll{overflow-x:auto}
   select{padding:8px 10px;font-size:14px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
@@ -175,13 +191,17 @@
   <h2>The three wells <span class="n">— most recent reading</span></h2>
   <div class="wells" id="wells"></div>
 
-  <h2>Needs your attention <span class="n" id="attnCount"></span></h2>
-  <div id="attn"></div>
-
+  <!-- The month comes FIRST (Keith, 2026-10-07): the attention list, the day strips and the
+       records below are all that month's, so the control that sets it sits above all three. -->
   <h2 style="display:flex;align-items:center;gap:12px">
     <span>The month</span>
     <select id="monthSel"></select>
   </h2>
+
+  <h2>Needs your attention <span class="n" id="attnCount"></span></h2>
+  <div id="attn"></div>
+
+  <h2>Days recorded <span class="n">— click a well, or a day, to open its sheet</span></h2>
   <div class="card" id="coverage"></div>
 
   <h2 id="recHead">The records <span id="recTitle"></span> <span class="n">— as the paper sheet reads</span></h2>
@@ -305,7 +325,17 @@ async function loadFor(today) {
   /* The month may be named in the URL (?m=YYYY-MM). That is what the "due on the 10th" reminder
      email links to, so the message and the screen open on the same month — a link that lands on a
      generic dashboard makes the reader do the navigation the email existed to save them. */
-  const want = (new URLSearchParams(location.search).get('m') || '').match(/^(\d{4})-(\d{1,2})$/);
+  let want = (new URLSearchParams(location.search).get('m') || '').match(/^(\d{4})-(\d{1,2})$/);
+  const linked = Boolean(want);
+  /* A save reloads the page; it must come back on the month that was being edited, not jump to the
+     default — adding three bacti samples to September should not bounce you to October between
+     each one. Held for exactly one load. */
+  if (!want) {
+    try {
+      const st = sessionStorage.getItem('wt-month');
+      if (st) { sessionStorage.removeItem('wt-month'); want = st.match(/^(\d{4})-(\d{1,2})$/); }
+    } catch {}
+  }
   const cy = today.y, cm = today.m;   // the month the PLANT is actually in
   let y = want ? Number(want[1]) : cy;
   let m = want ? Number(want[2]) : cm;
@@ -323,7 +353,18 @@ async function loadFor(today) {
     (y === cy && m === cm) ? null : post({ action: 'month', year: y, month: m }),
   ]);
   FILINGS = filings;
-  return { cur, prev, y, m, cy, cm, target: target || cur, deepLinked: Boolean(want) };
+  /* ⛔ THE MONTH SHE IS WORKING ON IS USUALLY LAST MONTH (Keith, 2026-10-07: "we are running in the
+     rears - sept report is due by october 10"). The page opened on the calendar month, so on
+     October 7th it offered October's report — three weeks from existing — while September's was the
+     one due in three days. With no month named in the link, open on last month for as long as its
+     report is not recorded as filed; once it is, the current month. The three wells and the banner
+     above still read the live month: they answer "is the round being walked", not "what is due". */
+  let ty = y, tm = m, tgt = target || cur;
+  if (!want) {
+    const prevFiled = filings.some((f) => f.year === py && f.month === pm);
+    if (!prevFiled) { ty = py; tm = pm; tgt = prev; }
+  }
+  return { cur, prev, y: ty, m: tm, cy, cm, target: tgt, deepLinked: linked };
 }
 
 function render({ cur, prev, y, m, target, deepLinked }) {
@@ -460,6 +501,74 @@ window.goMonth = async (y, m) => {
 /* Exceptions only. A month has ~93 well-days; listing them all is the paper problem with a
    scrollbar. What the OIC needs is the handful that are not ordinary — and on a clean month,
    the ability to see that in one line. */
+/* ── "Needs your attention", with dismissals (v1.7.0, Keith 2026-10-07: "should be able to
+   dismiss from that list - if dismissed the line should move to the bottom of needs dismissed
+   section and be greyed out"). The list itself is still computed from the records on every load;
+   a dismissal is stored server-side (migration 079) so Michelle, Sheila and Keith see the same
+   list. Each item's key is built from the row it is about, so a CORRECTED reading — a new row —
+   brings its item back as new information. Dismissing needs a signed-in, enrolled person (an
+   office write); the crew never see this page's buttons. */
+let ATTN = null;
+const hashKey = (t) => { let h = 5381; for (const c of String(t)) h = ((h * 33) ^ c.charCodeAt(0)) >>> 0; return h.toString(36); };
+function paintAttn() {
+  if (!ATTN) return;
+  const { rows, m, dismissed } = ATTN;
+  const live = rows.filter((r) => !dismissed.has(r.key));
+  const gone = rows.filter((r) => dismissed.has(r.key));
+  const actionable = live.filter((r) => r.level !== 'info').length;
+  $('attnCount').textContent = (live.length
+    ? `— ${actionable} to look at${live.length > actionable ? `, ${live.length - actionable} for information` : ''} in ${MN[m]}`
+    : `— nothing open in ${MN[m]}`) + (gone.length ? ` · ${gone.length} dismissed` : '');
+  const tag = (r) => `<span class="tag ${r.level}">${r.level === 'err' ? 'check' : r.level === 'warn' ? 'watch' : 'note'}</span>`;
+  const btn = (r, restore) => ME
+    ? `<button class="dbtn" data-dismiss="${esc(r.key)}"${restore ? ' data-restore="1"' : ''}>${restore ? 'Restore' : 'Dismiss'}</button>` : '';
+  const line = (r, isGone) => {
+    const d = isGone ? dismissed.get(r.key) : null;
+    const on = d && d.dismissed_at ? usDate(new Date(d.dismissed_at).toLocaleDateString('en-CA', { timeZone: PLANT_TZ })) : '';
+    const by = d ? ` <span style="font-style:italic">— dismissed${d.dismissed_by ? ' by ' + esc(d.dismissed_by) : ''}${on ? ' ' + esc(on) : ''}</span>` : '';
+    return `<tr${isGone ? ' class="dismissed"' : ''}><td class="l">${esc(usDate(r.date))}</td><td class="l">${esc(r.where)}</td>
+      <td class="l">${tag(r)} ${esc(usText(r.what))}${by}</td>
+      <td class="l">${esc(r.who || '')}</td><td>${btn(r, isGone)}</td></tr>`;
+  };
+  const okBanner = `<div class="banner ok"><b>Nothing to chase in ${MN[m]}</b>${gone.length
+    ? 'Everything flagged this month has been dismissed — listed below.'
+    : 'No flagged readings, no impossible values, bacti on file, distribution residuals in range.'}</div>`;
+  if (!rows.length) { $('attn').innerHTML = okBanner; return; }
+  $('attn').innerHTML = (live.length ? '' : okBanner)
+    + `<div class="card scroll"><table><thead><tr><th class="l">Date</th><th class="l">Where</th><th class="l">What</th><th class="l">Who</th><th></th></tr></thead><tbody>`
+    + live.map((r) => line(r, false)).join('')
+    + (gone.length ? `<tr class="attnsep"><td class="l" colspan="5">Dismissed (${gone.length})</td></tr>` + gone.map((r) => line(r, true)).join('') : '')
+    + `</tbody></table></div>`;
+}
+$('attn').addEventListener('click', async (ev) => {
+  const b = ev.target.closest('button[data-dismiss]');
+  if (!b || !ATTN) return;
+  const key = b.dataset.dismiss, restore = Boolean(b.dataset.restore);
+  const row = ATTN.rows.find((r) => r.key === key);
+  b.disabled = true; b.textContent = restore ? 'Restoring…' : 'Dismissing…';
+  try {
+    const j = await post({ action: 'dismiss_item', year: ATTN.y, month: ATTN.m, item_key: key,
+                           item_text: row ? `${row.where}: ${row.what}` : '', restore });
+    if (restore) ATTN.dismissed.delete(key);
+    else ATTN.dismissed.set(key, j.dismissal || { item_key: key, dismissed_at: new Date().toISOString(), dismissed_by: ME && (ME.name || ME.email) });
+    paintAttn();
+  } catch (e) {
+    b.disabled = false; b.textContent = restore ? 'Restore' : 'Dismiss';
+    alert(`Could not ${restore ? 'restore' : 'dismiss'} that item — ${e.message}`);
+  }
+});
+
+window.goMonth = async (y, m) => {
+  const sel = $('monthSel');
+  const v = `${y}-${m}`;
+  if (![...sel.options].some((o) => o.value === v)) {
+    const o = document.createElement('option'); o.value = v; o.textContent = `${MN[m]} ${y}`; sel.appendChild(o);
+  }
+  sel.value = v;
+  if (sel.onchange) await sel.onchange();
+  sel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
 function renderMonth(mo, y, m, eps) {
   CUR = { mo, y, m, eps };
   const readings = mo.readings || [];
@@ -500,7 +609,7 @@ function renderMonth(mo, y, m, eps) {
     const multiple = outOfFamily(f.dose_mg_l, med);
     if (multiple !== null) {
       quantified.add(`${r.reading_date}|${r.entry_point_id}`);
-      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'warn',
+      rows.push({ key: `ood|${r.id}|${f.feed_id}`, date: r.reading_date, where: epName(r.entry_point_id), level: 'warn',
         what: `${feedName(f.feed_id)} dose ${fmt(f.dose_mg_l)} mg/L — about ${Math.round(multiple)}× this plant's normal (${fmt(med)}). Usually a tank level read wrong on this day or the one before it.`,
         who: r.operator_initials });
     }
@@ -522,17 +631,17 @@ function renderMonth(mo, y, m, eps) {
     for (const f of (r.flags || [])) {
       if (/^dose_(high|low)$/.test(f.code || '') && quantified.has(`${r.reading_date}|${r.entry_point_id}`)) continue;
       if ((f.code || '') === 'no_flow') { (idleDays[r.entry_point_id] ||= []).push(r.reading_date); continue; }
-      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: f.level === 'warn' ? 'warn' : 'info',
+      rows.push({ key: `flag|${r.id}|${f.code || ''}|${hashKey(f.msg || '')}`, date: r.reading_date, where: epName(r.entry_point_id), level: f.level === 'warn' ? 'warn' : 'info',
                   what: f.msg || f.code, who: r.operator_initials });
     }
     // Recorded but impossible. derive() refuses these on entry now, so any that exist came from a
     // backfill of paper that already contained them — which is exactly what has to reach her.
     if (r.tap_free != null && r.tap_total != null && Number(r.tap_free) > Number(r.tap_total)) {
-      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'err',
+      rows.push({ key: `tap|${r.id}`, date: r.reading_date, where: epName(r.entry_point_id), level: 'err',
                   what: `Plant tap free ${fmt(r.tap_free)} is above total ${fmt(r.tap_total)} — not physically possible`, who: r.operator_initials });
     }
     if (r.correction_reason) {
-      rows.push({ date: r.reading_date, where: epName(r.entry_point_id), level: 'info',
+      rows.push({ key: `corr|${r.id}`, date: r.reading_date, where: epName(r.entry_point_id), level: 'info',
                   what: `Corrected: ${r.correction_reason}`, who: r.operator_initials });
     }
   }
@@ -540,6 +649,8 @@ function renderMonth(mo, y, m, eps) {
   // one line per well for the idle days collected above, dated to the month so it sorts with it
   for (const [epId, dates] of Object.entries(idleDays)) {
     rows.push({
+      /* the day list is in the key, so a NEW idle day brings a dismissed summary back */
+      key: `idle|${y}-${m}|${epId}|${dates.join(',')}`,
       date: `${y}-${String(m).padStart(2, '0')}`, where: epName(epId), level: 'info',
       what: `${dates.length} day${dates.length === 1 ? '' : 's'} the well did not run (meter unchanged) — ${
         dates.length > 6 ? dates.slice(0, 6).map((d) => d.slice(8)).join(', ') + `, +${dates.length - 6} more`
@@ -557,19 +668,19 @@ function renderMonth(mo, y, m, eps) {
   // ── bacti: the thing July's packet reached the state without
   const bacti = mo.bacti || [];
   if (!bacti.length) {
-    rows.push({ date: `${y}-${String(m).padStart(2, '0')}`, where: 'Distribution', level: 'warn',
+    rows.push({ key: `nobacti|${y}-${m}`, date: `${y}-${String(m).padStart(2, '0')}`, where: 'Distribution', level: 'warn',
                 what: 'No bacti sample recorded this month — the routine samples and their residuals are what EGLE checks first', who: '' });
   }
   for (const b of bacti) {
     if (b.result && !/^ND$/i.test(b.result)) {
-      rows.push({ date: b.collected_date, where: esc(b.site_name || 'Distribution'), level: 'err',
-                  what: `Bacti result ${esc(b.result)} — not ND`, who: '' });
+      rows.push({ key: `bacti|${b.id}`, date: b.collected_date, where: b.site_name || 'Distribution', level: 'err',
+                  what: `Bacti result ${b.result} — not ND`, who: '' });
     }
   }
   const minFree = mo.supply && mo.supply.min_free_cl;
   for (const d of (mo.dist || [])) {
     if (minFree != null && d.free != null && Number(d.free) < Number(minFree)) {
-      rows.push({ date: d.sample_date, where: esc(d.site_name || 'Distribution'), level: 'warn',
+      rows.push({ key: `dist|${d.id}`, date: d.sample_date, where: d.site_name || 'Distribution', level: 'warn',
                   what: `Distribution free chlorine ${fmt(d.free)} mg/L, below the ${minFree} this supply watches`, who: d.operator_initials });
     }
   }
@@ -580,17 +691,8 @@ function renderMonth(mo, y, m, eps) {
   const RANK = { err: 0, warn: 1, info: 2 };
   rows.sort((a, b) => (RANK[a.level] ?? 2) - (RANK[b.level] ?? 2)
                    || (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-  const actionable = rows.filter((r) => r.level !== 'info').length;
-  $('attnCount').textContent = rows.length
-    ? `— ${actionable} to look at${rows.length > actionable ? `, ${rows.length - actionable} for information` : ''} in ${MN[m]}`
-    : `— nothing in ${MN[m]}`;
-  $('attn').innerHTML = rows.length
-    ? `<div class="card scroll"><table><thead><tr><th class="l">Date</th><th class="l">Where</th><th class="l">What</th><th class="l">Who</th></tr></thead><tbody>`
-      + rows.map((r) => `<tr><td class="l">${esc(usDate(r.date))}</td><td class="l">${esc(r.where)}</td>
-          <td class="l"><span class="tag ${r.level}">${r.level === 'err' ? 'check' : r.level === 'warn' ? 'watch' : 'note'}</span> ${esc(usText(r.what))}</td>
-          <td class="l">${esc(r.who || '')}</td></tr>`).join('')
-      + `</tbody></table></div>`
-    : `<div class="banner ok"><b>Nothing to chase in ${MN[m]}</b>No flagged readings, no impossible values, bacti on file, distribution residuals in range.</div>`;
+  ATTN = { rows, y, m, dismissed: new Map((mo.dismissals || []).map((d) => [d.item_key, d])) };
+  paintAttn();
 
   /* ── coverage, and the way into each well's sheet (v1.6.0, Keith 2026-10-07).
      This used to be two independent controls — a month picker here and a well picker above the
@@ -663,7 +765,24 @@ function renderMonth(mo, y, m, eps) {
      is held here but is not what "no bacti on file" is about (R2-9). */
   const reportable = bacti.filter((b) => b.sample_kind !== 'other');
   const otherN = bacti.length - reportable.length;
-  $('monthEnd').innerHTML = `<b>${MN[m]} ${y}</b> holds ${readings.length} well-day${readings.length === 1 ? '' : 's'}, `
+  const ptd = plantToday();
+  const dueY = m === 12 ? y + 1 : y, dueM = m === 12 ? 1 : m + 1;
+  const dueISO = dayISO(dueY, dueM, 10);
+  const filedNow = (FILINGS || []).some((f) => f.year === y && f.month === m) || Boolean(mo.filing);
+  const inProgress = (ptd.y === y && ptd.m === m);
+  const notStarted = (y > ptd.y) || (y === ptd.y && m > ptd.m);
+  const py2 = m === 1 ? y - 1 : y, pm2 = m === 1 ? 12 : m - 1;
+  const prevUnfiled = !(FILINGS || []).some((f) => f.year === py2 && f.month === pm2);
+  const status = filedNow ? 'recorded as filed — see “Reports filed” below'
+    : inProgress ? `still in progress (recorded through ${usDate(ptd.iso)}) — due ${MN[dueM]} 10`
+    : notStarted ? 'not started'
+    : ptd.iso > dueISO ? `<span style="color:var(--err);font-weight:600">overdue — was due ${MN[dueM]} 10, ${dueY}</span>`
+    : `<b>due ${MN[dueM]} 10</b>`;
+  const dueNow = inProgress && prevUnfiled
+    ? `<div class="banner warn" style="margin:0 0 12px">The report due now is <b>${MN[pm2]} ${py2}</b> (due ${MN[m]} 10). `
+      + `<a href="#" onclick="goMonth(${py2},${pm2});return false">Open ${MN[pm2]}</a>.</div>` : '';
+  $('monthEnd').innerHTML = dueNow + `<div style="font-size:15px;margin-bottom:8px">The <b>${MN[m]} ${y}</b> report — ${status}</div>`
+    + `<b>${MN[m]} ${y}</b> holds ${readings.length} well-day${readings.length === 1 ? '' : 's'}, `
     + `${dist} distribution sample${dist === 1 ? '' : 's'} and ${reportable.length} bacti sample${reportable.length === 1 ? '' : 's'}`
     + (otherN ? ` (plus ${otherN} well sample${otherN === 1 ? '' : 's'} not reported on the form)` : '') + `.<br><br>`
     + (can
@@ -1021,10 +1140,16 @@ function paintRecords(mo, y, m, eps) {
         <td>${ME ? `<button class="editbtn" data-edit="bacti" data-id="${esc(b.id)}" data-kind="${esc(b.sample_kind || 'routine')}" data-date="${b.collected_date}" data-site="${esc(b.site_name || '')}">Edit</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div>` : '';
 
+  /* Adding a sample (Keith, 2026-10-07: the bacti results are entered from the paper record before
+     the month's report is run). Until now the page could only EDIT a sample already on file, so a
+     month with no bacti had no way in from here at all — only the crew tablet. */
+  const addBar = ME ? `<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="editbtn" data-edit="bacti" data-new="1">+ Add a bacti sample for ${MN[m]}</button>
+      <button class="editbtn" data-edit="dist" data-new="1">+ Add a distribution sample for ${MN[m]}</button></div>` : '';
   $('records').innerHTML = `<div class="card scroll"><table>
       <thead>${head}</thead><tbody>${body}</tbody></table></div>
     <div class="muted" style="margin:8px 0 0">Gallons, Used and ppm are derived from the meter and tank levels — nobody types them.</div>
-    ${distTable}${bactiTable}`;
+    ${addBar}${distTable}${bactiTable}`;
 
   /* The editor needs this month's rows and entry points. Held here rather than re-fetched so a
      click opens against exactly what the page is showing. */
@@ -1046,7 +1171,7 @@ function wireEditors() {
     openEditor(b.getAttribute('data-edit'), b.getAttribute('data-date'),
       b.getAttribute('data-site') || '', RECORDS_CTX.mo, RECORDS_CTX.eps || [],
       b.getAttribute('data-id') || null, b.getAttribute('data-kind') || null,
-      b.getAttribute('data-ep') || null);
+      b.getAttribute('data-ep') || null, b.hasAttribute('data-new'));
   });
 }
 
@@ -1103,7 +1228,7 @@ function editorFields(kind, row, eps) {
   return readingFields(eps[0] || null, row);
 }
 
-function openEditor(kind, date, site, mo, eps, id, sampleKind, epId) {
+function openEditor(kind, date, site, mo, eps, id, sampleKind, epId, isNew) {
   const host = $("records");
   const old = document.getElementById("editor");
   if (old) old.remove();
@@ -1121,6 +1246,8 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId) {
     ep = (epId && eps.find((e) => e.id === epId)) || eps[0] || null;
     row = (id && (mo.readings || []).find((r) => r.id === id))
        || (mo.readings || []).find((r) => r.reading_date === date && (!ep || r.entry_point_id === ep.id)) || null;
+  } else if (isNew) {
+    row = null;   // a new sample: nothing on file is being replaced
   } else if (kind === "dist") {
     row = (id && (mo.dist || []).find((x) => x.id === id))
        || (mo.dist || []).find((x) => x.sample_date === date && (x.site_name || "") === (site || "")) || null;
@@ -1131,16 +1258,37 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId) {
   }
 
   const fields = editorFields(kind, row, kind === "reading" && ep ? [ep] : eps);
-  const title = kind === "reading" ? (row ? `Edit the well day for ${usDate(date)}` : `Add a well day for ${usDate(date)}`)
+  const Y = RECORDS_CTX ? RECORDS_CTX.y : null, M = RECORDS_CTX ? RECORDS_CTX.m : null;
+  /* A NEW sample needs the two things a row button would have carried: the date (kept inside the
+     month on screen) and, for bacti, its kind — routine and repeat go on EGLE's Bacti tab, a well
+     sample (`other`) is held but not reported. The site offers the supply's sampling plan. */
+  let pre = [];
+  if (isNew && Y && M) {
+    const lastD = new Date(Date.UTC(Y, M, 0)).getUTCDate();
+    pre.push({ k: "__date", label: "Date collected", v: "", date: true, min: dayISO(Y, M, 1), max: dayISO(Y, M, lastD) });
+    if (kind === "bacti") pre.push({ k: "__kind", label: "Kind", select: [["routine", "Routine"], ["repeat", "Repeat"], ["other", "Well / raw water (not on the form)"]] });
+    const want = kind === "bacti" ? /^bacti_/ : /^distribution$/;
+    const names = (mo.sites || []).filter((x) => x.active !== false && want.test(x.kind || "")).map((x) => x.name);
+    for (const fl of fields) if (fl.k === "site_name") fl.list = names;
+    for (const fl of fields) if (fl.k === "lab_name" && !fl.v && mo.supply && mo.supply.lab_name) fl.v = mo.supply.lab_name;
+  }
+  const all = pre.concat(fields);
+  const title = isNew ? `Add a ${kind === "bacti" ? "bacti" : "distribution"} sample — ${MN[M]} ${Y}`
+    : kind === "reading" ? (row ? `Edit the well day for ${usDate(date)}` : `Add a well day for ${usDate(date)}`)
     : kind === "dist" ? `Edit the distribution sample for ${usDate(date)}`
     : `Edit the bacti sample for ${usDate(date)}`;
+  const inputFor = (fl) => fl.select
+    ? `<select data-k="${esc(fl.k)}">${fl.select.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("")}</select>`
+    : fl.date
+    ? `<input type="date" data-k="${esc(fl.k)}" min="${fl.min}" max="${fl.max}" value="">`
+    : `<input data-k="${esc(fl.k)}" class="${fl.wide ? "wide" : ""}"${fl.list && fl.list.length ? ` list="dl-${esc(fl.k)}"` : ""} value="${fl.v == null ? "" : esc(String(fl.v))}">`
+      + (fl.list && fl.list.length ? `<datalist id="dl-${esc(fl.k)}">${fl.list.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>` : "");
 
   const el = document.createElement("div");
   el.className = "ed";
   el.id = "editor";
   el.innerHTML = `<h4>${esc(title)}</h4>`
-    + `<div class="grid">${fields.map((fl) => `<div><label>${esc(fl.label)}</label>`
-        + `<input data-k="${esc(fl.k)}" class="${fl.wide ? "wide" : ""}" value="${fl.v == null ? "" : esc(String(fl.v))}"></div>`).join("")}</div>`
+    + `<div class="grid">${all.map((fl) => `<div><label>${esc(fl.label)}</label>${inputFor(fl)}</div>`).join("")}</div>`
     + (kind === "reading" && row ? `<div class="muted" style="margin-top:8px;font-size:12.5px">Anything this form does not show (the original note, a feed since retired) is kept on the corrected record as it was.</div>` : "")
     + `<div class="why"><label>Why this changed — kept with the record${row ? " (required)" : ""}</label>`
     + `<input id="edWhy" class="wide" style="width:100%" placeholder="${row ? "e.g. lab result corrected the free residual" : "e.g. missing day entered from the paper sheet"}"></div>`
@@ -1148,7 +1296,7 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId) {
     + `<button class="editbtn" id="edCancel">Cancel</button>`
     + `<span class="msg" id="edMsg"></span></div>`;
   host.prepend(el);
-  EDITING = { kind, date, site, row, ep, sampleKind: sampleKind || (row && row.sample_kind) || null };
+  EDITING = { kind, date, site, row, ep, isNew: Boolean(isNew), sampleKind: sampleKind || (row && row.sample_kind) || null };
   document.getElementById("edCancel").onclick = () => { el.remove(); EDITING = null; };
   document.getElementById("edSave").onclick = () => saveEditor(el);
   el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1167,11 +1315,22 @@ async function saveEditor(el) {
     return;
   }
   const vals = {};
-  for (const inp of el.querySelectorAll("input[data-k]")) {
+  for (const inp of el.querySelectorAll("input[data-k], select[data-k]")) {
     const v = (inp.value || "").trim();
     vals[inp.getAttribute("data-k")] = v === "" ? null : v;
   }
 
+  if (EDITING.isNew) {
+    if (!vals.__date) { msg.className = "msg err"; msg.textContent = "Enter the date the sample was collected."; return; }
+    if (!vals.site_name) { msg.className = "msg err"; msg.textContent = "Enter the site."; return; }
+    EDITING.date = vals.__date;
+    if (vals.__kind) EDITING.sampleKind = vals.__kind;
+  }
+  delete vals.__date; delete vals.__kind;
+  // A site picked from the sampling plan travels by id too, so the row links to the plan exactly as
+  // July's seeded samples do; a typed name the plan does not hold is stored as typed.
+  const planSite = EDITING.isNew && RECORDS_CTX
+    ? ((RECORDS_CTX.mo.sites || []).find((x) => x.name === vals.site_name) || null) : null;
   const wssn = new URLSearchParams(location.search).get("wssn") || WSSN;
   let payload;
   if (EDITING.kind === "reading") {
@@ -1179,7 +1338,7 @@ async function saveEditor(el) {
     payload = readingPayload({ wssn, date: EDITING.date, ep: EDITING.ep, vals, why, row: EDITING.row, source: "backfill" });
   } else if (EDITING.kind === "dist") {
     payload = { action: "submit_dist", wssn, sample_date: EDITING.date,
-      site_name: vals.site_name,
+      site_name: vals.site_name, site_id: planSite ? planSite.id : undefined,
       input: { free: vals.free == null ? null : Number(vals.free),
                total: vals.total == null ? null : Number(vals.total),
                ortho: vals.ortho == null ? null : Number(vals.ortho) },
@@ -1190,7 +1349,7 @@ async function saveEditor(el) {
     // free/total live under `input` for this action — the server validates them there, and a
     // top-level `free` reads as absent, which it refuses with "needs the free chlorine residual".
     payload = { action: "submit_bacti", wssn, collected_date: EDITING.date,
-      site_name: vals.site_name, result: vals.result, lab_name: vals.lab_name,
+      site_name: vals.site_name, site_id: planSite ? planSite.id : undefined, result: vals.result, lab_name: vals.lab_name,
       // the kind is part of the sample's identity: routine and repeat are two rows on one day (R3-2)
       sample_kind: EDITING.sampleKind || 'routine',
       corrects_id: EDITING.row ? EDITING.row.id : undefined,
@@ -1226,6 +1385,8 @@ async function saveEditor(el) {
     }
     msg.className = "msg ok";
     msg.textContent = "Saved." + extra + " Reloading…";
+    // come back on THIS month, not the page's default (read once by load)
+    try { if (RECORDS_CTX) sessionStorage.setItem('wt-month', `${RECORDS_CTX.y}-${RECORDS_CTX.m}`); } catch {}
     setTimeout(() => location.reload(), extra ? 1600 : 600);
   } catch (e) {
     msg.className = "msg err";

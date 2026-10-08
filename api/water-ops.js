@@ -65,7 +65,7 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.9.2-waterops';
+export const VER = '1.10.0-waterops';
 
 // A date written into a sentence a PERSON reads is month/day/year (Keith, 2026-10-07). Fields in the
 // JSON stay ISO — only the `msg` text goes through this.
@@ -818,7 +818,9 @@ export default async function handler(req, res) {
      under 1976 PA 399. Keying this on the action alone would have left the correction path open
      while locking the filing path — which is the same inversion that was fixed on 2026-08-21, in
      the other direction. */
-  const OFFICE_WRITES = new Set(['record_filing']);
+  /* `dismiss_item` (2026-10-07) is desk work of the same kind: waving an item off the OIC's
+     attention list is a judgement about the record, made by a person who can be named. */
+  const OFFICE_WRITES = new Set(['record_filing', 'dismiss_item']);
   const wssn = String(body.wssn || '').trim();
   if (!wssn) return bad(res, 400, 'wssn required');
 
@@ -903,6 +905,8 @@ export default async function handler(req, res) {
               ? 'That month — or the day this one recomputes — has already been filed with EGLE. Changing what sits behind a submitted report needs you to be signed in.'
               : isCorrection
               ? 'Correcting a recorded day needs you to be signed in — it supersedes a record behind a report signed under 1976 PA 399.'
+              : action === 'dismiss_item'
+              ? 'Dismissing an item needs you to be signed in.'
               : 'Recording a filing needs you to be signed in.'),
         needsSignIn: !actor,
       });
@@ -1407,13 +1411,74 @@ export default async function handler(req, res) {
           generations = (g || []).map(generationCard);
         } catch { generations = []; }
 
+        /* Live dismissals of "Needs your attention" items for this month (2026-10-07, migration
+           079). Read soft for the same reason as generations: none is the ordinary state. */
+        let dismissals = [];
+        try {
+          dismissals = (await sb(
+            `water_attention_dismissals?supply_id=eq.${p.supply.id}&report_year=eq.${y}&report_month=eq.${m}` +
+              `&restored_at=is.null&select=item_key,dismissed_at,dismissed_by&order=dismissed_at.desc&limit=500`
+          )) || [];
+        } catch { dismissals = []; }
+
         return res.status(200).json({
           ver: VER, supply: p.supply, entryPoints: p.entryPoints, sites: p.sites,
-          year: y, month: m, readings, dist, bacti, filing: filedCard, generations,
+          year: y, month: m, readings, dist, bacti, filing: filedCard, generations, dismissals,
         });
       }
 
       // ---- every report this supply has on file ------------------------------------------------
+      // ---- dismiss (or restore) one "Needs your attention" item ---------------------------------
+      /* Keith, 2026-10-07: the OIC and the office dismiss an item and it drops, greyed, to a
+         Dismissed section; it can be restored. Nothing here touches a reading — the item is
+         recomputed from the records on every load and this only records that a named person
+         looked at it. Append-only: a restore stamps the dismissal, it never deletes it. */
+      case 'dismiss_item': {
+        const p = await loadProfile(wssn);
+        if (!p) return bad(res, 404, 'unknown supply');
+        const y = Number(body.year), m = Number(body.month);
+        if (!(y > 2000 && m >= 1 && m <= 12)) return bad(res, 400, 'year/month required');
+        const key = String(body.item_key || '').trim();
+        if (!key || key.length > 300) return bad(res, 400, 'item_key required (1–300 characters)');
+        const who = actor ? (actor.name || actor.email) : 'script';
+        const keyQ = encodeURIComponent(key);
+        if (body.restore) {
+          const rows = await sb(
+            `water_attention_dismissals?supply_id=eq.${p.supply.id}&item_key=eq.${keyQ}&restored_at=is.null`,
+            { method: 'PATCH', headers: { Prefer: 'return=representation' },
+              body: JSON.stringify({ restored_at: new Date().toISOString(), restored_by: who }) }
+          );
+          return res.status(200).json({ ok: true, restored: (rows || []).length });
+        }
+        // Already dismissed (a double click, or two people at once) is the same answer, not an error.
+        const live = await sb(
+          `water_attention_dismissals?supply_id=eq.${p.supply.id}&item_key=eq.${keyQ}&restored_at=is.null` +
+            `&select=item_key,dismissed_at,dismissed_by&limit=1`
+        );
+        if (live && live[0]) return res.status(200).json({ ok: true, dismissal: live[0], already: true });
+        let row;
+        try {
+          row = await sb('water_attention_dismissals', {
+            method: 'POST', headers: { Prefer: 'return=representation' },
+            body: JSON.stringify({
+              supply_id: p.supply.id, report_year: y, report_month: m, item_key: key,
+              item_text: String(body.item_text || '').slice(0, 1000) || null,
+              dismissed_by: who, user_id: actor ? actor.id : null,
+            }),
+          });
+        } catch (e) {
+          if (/supabase 409/.test(String(e.message))) {
+            const again = await sb(`water_attention_dismissals?supply_id=eq.${p.supply.id}&item_key=eq.${keyQ}` +
+              `&restored_at=is.null&select=item_key,dismissed_at,dismissed_by&limit=1`);
+            return res.status(200).json({ ok: true, dismissal: again && again[0], already: true });
+          }
+          throw e;
+        }
+        const d = row && row[0];
+        return res.status(200).json({ ok: true,
+          dismissal: d ? { item_key: d.item_key, dismissed_at: d.dismissed_at, dismissed_by: d.dismissed_by } : null });
+      }
+
       case 'filings': {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
