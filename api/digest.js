@@ -5,6 +5,16 @@
 //   ?date=YYYY-MM-DD  report that ET day instead of yesterday (re-send a missed day)
 //   ?dry=1            compute and return the JSON, send no email
 //
+// ===== ONE EMAIL A DAY (Keith, 2026-10-18) ===================================================
+// This is the ONLY CivicScope estimator notice. The instant "New CivicScope Lead" email and the
+// BCC copy of every report (api/email.js) were folded in here. A RUN is a completed estimate; it
+// becomes a LEAD when the person fills in the form (leads.tool_run_id -> tool_runs.id). Each run
+// is listed once and marked RUN or LEAD. Indiana/Michigan runs and leads lead the email and the
+// subject. No runs and no leads -> subject and body say "Quiet Day".
+// (Before this change Keith read the digest as "always quiet": it was correct — e.g. the Griswold
+// runs of 9:12pm ET Oct 15 sat in the Oct 15 email — but his mail filter put active days under a
+// separate label, so the one he watched only ever held quiet days.)
+//
 // ===== WHY A CALENDAR DAY AND NOT "THE LAST 24 HOURS" (fixed 2026-08-11) =====================
 // v1 queried `created_at >= now - 24h` and then labelled the email with TODAY'S date. The cron
 // fires at 7am ET, so the window was 7am yesterday -> 7am today: almost entirely YESTERDAY, sent
@@ -125,11 +135,25 @@ export default async function handler(req, res) {
       return r.json();
     };
 
+
     const [runs, leads, sessions] = await Promise.all([
-      sbGet('tool_runs', '&order=created_at.desc'),
-      sbGet('leads', '&order=created_at.desc'),
+      sbGet('tool_runs', '&order=created_at.asc'),
+      sbGet('leads', '&order=created_at.asc'),
       sbGet('sessions', '&select=created_at,referrer,user_agent')
     ]);
+
+    // A lead is a run whose person then filled in the form. Every lead row carries tool_run_id
+    // (27 of 27 when this was written). The form is normally filled within minutes of the run, but
+    // a run at 11:58pm can become a lead after midnight — so a lead whose run is not in this day's
+    // window is fetched by id and shown with its own date, never dropped.
+    const runById = new Map(runs.map(r => [r.id, r]));
+    const missing = [...new Set(leads.map(l => l.tool_run_id).filter(id => id && !runById.has(id)))];
+    if (missing.length) {
+      const extra = await sbGetAny('tool_runs', `id=in.(${missing.join(',')})`);
+      extra.forEach(r => runById.set(r.id, { ...r, _otherDay: true }));
+    }
+    const leadByRun = new Map();
+    leads.forEach(l => { if (l.tool_run_id) leadByRun.set(l.tool_run_id, l); });
 
     // A day with visitors who never finished a run is NOT the same as a day with no visitors.
     // The old email called both "quiet", which is the shape of blindness that hides a broken
@@ -137,71 +161,26 @@ export default async function handler(req, res) {
     const humanSessions = sessions.filter(s => !isBot(s.user_agent)).length;
     const traffic = { total: sessions.length, human: humanSessions, bot: sessions.length - humanSessions };
 
+    // Indiana and Michigan are the home market — they lead the email and the subject line.
+    const homeRuns = runs.filter(r => isHome(r.state));
+    const homeLeads = leads.filter(l => isHome((runById.get(l.tool_run_id) || {}).state));
+    const quiet = runs.length === 0 && leads.length === 0;
+    const subject = buildSubject({ runs, leads, homeRuns, homeLeads, shortLabel, quiet });
+
     if (dryRun) {
       return res.status(200).json({
         dry: true, day, window: { since, until },
-        runs: runs.length, leads: leads.length, traffic,
-        subject: runs.length === 0 && leads.length === 0
-          ? `CivicScope Daily — Quiet day (${shortLabel})`
-          : `CivicScope Daily — ${runs.length} run${runs.length !== 1 ? 's' : ''}, ${leads.length} lead${leads.length !== 1 ? 's' : ''} (${shortLabel})`
+        runs: runs.length, leads: leads.length,
+        home: { runs: homeRuns.length, leads: homeLeads.length },
+        traffic, subject
       });
     }
 
-    // ── Quiet day — send a short "no activity" email ─────────────────
-    if (runs.length === 0 && leads.length === 0) {
-      const quietHtml = buildQuietDayEmail({ dateLabel, traffic });
-      const quietRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: 'CivicScope <info@civicscope.io>',
-          to: [KEITH_EMAIL],
-          subject: `CivicScope Daily — Quiet day (${shortLabel})`,
-          html: quietHtml
-        })
-      });
-      if (!quietRes.ok) {
-        const err = await quietRes.text();
-        throw new Error(`Resend error: ${err}`);
-      }
-      const result = await quietRes.json();
-      await cronHeartbeat('ok', `${day}: quiet day (${traffic.human} human sessions)`);
-      return res.status(200).json({ sent: true, id: result.id, day, runs: 0, leads: 0, traffic, quiet: true });
-    }
+    const html = quiet
+      ? buildQuietDayEmail({ dateLabel, traffic })
+      : buildDigestEmail({ dateLabel, runs, leads, runById, leadByRun, homeRuns, homeLeads, traffic });
 
-    // ── Segment runs ─────────────────────────────────────────────────
-    const campaignRuns = runs.filter(r => r.ref);
-    const organicRuns = runs.filter(r => !r.ref);
-
-    // Campaign ref breakdown
-    const refCounts = {};
-    campaignRuns.forEach(r => {
-      refCounts[r.ref] = (refCounts[r.ref] || 0) + 1;
-    });
-
-    // Product breakdown
-    const productCounts = {};
-    runs.forEach(r => {
-      const p = r.product || 'free';
-      productCounts[p] = (productCounts[p] || 0) + 1;
-    });
-
-    // ── Build email HTML ─────────────────────────────────────────────
-    const html = buildDigestEmail({
-      dateLabel,
-      runs,
-      leads,
-      campaignRuns,
-      organicRuns,
-      refCounts,
-      productCounts,
-      traffic
-    });
-
-    // ── Send via Resend ──────────────────────────────────────────────
+    // ── Send via Resend (a WRITE — deliberately not retried) ─────────────
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -211,7 +190,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: 'CivicScope <info@civicscope.io>',
         to: [KEITH_EMAIL],
-        subject: `CivicScope Daily — ${runs.length} run${runs.length !== 1 ? 's' : ''}, ${leads.length} lead${leads.length !== 1 ? 's' : ''} (${shortLabel})`,
+        subject,
         html
       })
     });
@@ -222,8 +201,30 @@ export default async function handler(req, res) {
     }
 
     const result = await emailRes.json();
-    await cronHeartbeat('ok', `${day}: ${runs.length} runs, ${leads.length} leads`);
-    return res.status(200).json({ sent: true, id: result.id, day, runs: runs.length, leads: leads.length, traffic });
+    await cronHeartbeat('ok', quiet
+      ? `${day}: quiet day (${traffic.human} human sessions)`
+      : `${day}: ${runs.length} runs, ${leads.length} leads, ${homeRuns.length} IN/MI runs`);
+    return res.status(200).json({
+      sent: true, id: result.id, day, runs: runs.length, leads: leads.length,
+      home: { runs: homeRuns.length, leads: homeLeads.length }, traffic, quiet
+    });
+
+    // Reads a table by an arbitrary filter (not the day window). Same retry policy as sbGet.
+    async function sbGetAny(table, filter) {
+      const url = `${SUPABASE_URL}/rest/v1/${table}?${filter}`;
+      let r = null, lastErr = null;
+      for (const wait of [0, 300, 900, 1800]) {
+        if (wait) await new Promise((ok) => setTimeout(ok, wait));
+        try {
+          r = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+        } catch (e) { lastErr = e; r = null; continue; }
+        if (r.ok || r.status < 500) break;
+        lastErr = new Error(`Supabase ${table} error: ${r.status}`);
+      }
+      if (!r) throw lastErr || new Error(`Supabase ${table} unreachable`);
+      if (!r.ok) throw new Error(`Supabase ${table} error: ${await r.text()}`);
+      return r.json();
+    }
 
   } catch (err) {
     console.error('Digest error:', err);
@@ -232,123 +233,135 @@ export default async function handler(req, res) {
   }
 }
 
-// Report this run to the CRM automation registry (best-effort).
-// The registry's cron secret comes from the environment (CRM_CRON_SECRET on this Vercel project). Until
-// 2026-09-15 it was a LITERAL in this file — a live CRM credential in a PUBLIC repo. Never put it back.
-async function cronHeartbeat(status, detail) {
-  try {
-    if (!process.env.CRM_CRON_SECRET) return;
-    await fetch('https://crm.jbkdevelopment.com/api/task-heartbeat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-cron-secret': process.env.CRM_CRON_SECRET },
-      body: JSON.stringify({ id: 'cs-digest', status, detail: (detail || '').toString().slice(0, 200) }),
-    });
-  } catch {}
+const HOME_STATES = /^(indiana|michigan|in|mi)$/i;
+const isHome = (state) => !!state && HOME_STATES.test(String(state).trim());
+
+const plural = (n, word) => `${n} ${word}${n !== 1 ? 's' : ''}`;
+
+// Subject: "Quiet Day" when nothing ran; otherwise the counts, with Indiana/Michigan named first.
+// The date label stays LAST — the deploy gate pins the subject to "(Aug 7)" at the end.
+function buildSubject({ runs, leads, homeRuns, homeLeads, shortLabel, quiet }) {
+  if (quiet) return `CivicScope Daily — Quiet Day (${shortLabel})`;
+  const counts = `${plural(runs.length, 'run')}, ${plural(leads.length, 'lead')}`;
+  if (homeRuns.length || homeLeads.length) {
+    const home = homeLeads.length
+      ? `${plural(homeLeads.length, 'lead')} from IN/MI`
+      : `${plural(homeRuns.length, 'run')} from IN/MI`;
+    return `CivicScope Daily — ★ ${home} · ${counts} (${shortLabel})`;
+  }
+  return `CivicScope Daily — ${counts} (${shortLabel})`;
+}
+
+// Everything a visitor typed reaches this email. Escape it.
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // ── Email Template ──────────────────────────────────────────────────────────
-function buildDigestEmail({ dateLabel, runs, leads, campaignRuns, organicRuns, refCounts, productCounts, traffic }) {
-  const fmt = (n) => typeof n === 'number' ? '$' + n.toLocaleString('en-US') : n;
+function buildDigestEmail({ dateLabel, runs, leads, runById, leadByRun, homeRuns, homeLeads, traffic }) {
+  const money = (n) => (typeof n === 'number' ? '$' + n.toLocaleString('en-US') : esc(n || '—'));
   const time = (iso) => new Date(iso).toLocaleTimeString('en-US', {
-    timeZone: 'America/Indiana/Indianapolis',
-    hour: 'numeric', minute: '2-digit'
+    timeZone: 'America/Indiana/Indianapolis', hour: 'numeric', minute: '2-digit'
   });
+  const dayOf = (iso) => new Date(iso).toLocaleDateString('en-US', {
+    timeZone: 'America/Indiana/Indianapolis', month: 'short', day: 'numeric'
+  });
+  const place = (r) => esc([r.municipality, r.state].filter(Boolean).join(', ') + (r.zip ? ' ' + r.zip : ''));
+  const label = (t) => `<div style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#78716c;margin-bottom:12px;">${t}</div>`;
+  const leadBadge = `<span style="display:inline-block;padding:2px 8px;background:#c2410c;color:#fff;font-size:10px;font-weight:700;border-radius:10px;letter-spacing:0.5px;">LEAD</span>`;
+  const runBadge = `<span style="display:inline-block;padding:2px 8px;background:#f5f0eb;color:#78716c;font-size:10px;font-weight:600;border-radius:10px;letter-spacing:0.5px;">RUN</span>`;
+  const conf = (c) => `<span style="color:${c === 'High' ? '#15803d' : c === 'Medium' ? '#92400e' : '#c2410c'};">${esc(c || '—')}</span>`;
 
-  // ── Summary stats row ──
-  const statsHtml = `
-    <div style="display:flex;gap:0;">
-      ${statCard('Visitors', traffic ? traffic.human : '—', '#0f766e')}
-      ${statCard('Total Runs', runs.length, '#1a2744')}
-      ${statCard('Leads', leads.length, '#c2410c')}
-      ${statCard('Campaign', campaignRuns.length, '#15803d')}
-      ${statCard('Organic', organicRuns.length, '#78716c')}
-    </div>`;
-
-  // ── Campaign tracking ──
-  let campaignHtml = '';
-  if (Object.keys(refCounts).length > 0) {
-    const rows = Object.entries(refCounts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([ref, count]) => `
-        <tr>
-          <td style="padding:8px 12px;border-bottom:1px solid #e7e2d8;font-size:13px;color:#1a2744;font-weight:600;">${ref}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e7e2d8;font-size:13px;color:#44403c;text-align:right;">${count} run${count !== 1 ? 's' : ''}</td>
-        </tr>`)
-      .join('');
-    campaignHtml = `
-      <div style="margin-bottom:28px;">
-        <div style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#78716c;margin-bottom:12px;">Campaign Tracking (by ref)</div>
-        <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:6px;overflow:hidden;border:1px solid #e7e2d8;">
-          ${rows}
-        </table>
+  // One card per lead: who, how to reach them, and the run that produced it.
+  const leadCard = (l) => {
+    const r = runById.get(l.tool_run_id) || {};
+    const name = esc(`${l.first_name || ''} ${l.last_name || ''}`.trim() || '—');
+    const subj = encodeURIComponent(`Re: Your ${r.project_type || 'project'}${l.municipality ? ' in ' + l.municipality : ''}`);
+    return `
+      <div style="border:1px solid #e7e2d8;border-left:3px solid #c2410c;border-radius:6px;padding:14px 16px;margin-bottom:12px;background:#fff;">
+        <div style="font-size:15px;font-weight:700;color:#1a2744;">${name} ${isHome(r.state) ? '<span style="color:#c2410c;">★</span>' : ''}</div>
+        <div style="font-size:13px;margin-top:3px;"><a href="mailto:${esc(l.email)}?subject=${subj}" style="color:#c2410c;text-decoration:none;">${esc(l.email)}</a> · ${esc(l.role || 'role not given')}</div>
+        <div style="font-size:13px;color:#44403c;margin-top:8px;"><strong>${esc(r.project_type || '—')}</strong> — ${place(r) || esc(l.municipality || '—')}</div>
+        <div style="font-size:13px;color:#44403c;margin-top:2px;">${money(r.cost_low)} – ${money(r.cost_high)} · ${conf(r.confidence)} confidence · form filled ${time(l.created_at)}${r._otherDay ? ` (run was ${dayOf(r.created_at)})` : ''}</div>
+        ${r.scope_description ? `<div style="font-size:12px;color:#78716c;margin-top:6px;line-height:1.45;font-style:italic;">"${esc(truncate(r.scope_description, 300))}"</div>` : ''}
       </div>`;
-  }
+  };
 
-  // ── Individual runs table ──
-  const runRows = runs.map(r => `
+  // One row per run; a run that became a lead says so.
+  const runRow = (r) => {
+    const l = leadByRun.get(r.id);
+    return `
     <tr style="border-bottom:1px solid #e7e2d8;">
       <td style="padding:10px 12px;font-size:12px;color:#78716c;white-space:nowrap;vertical-align:top;">${time(r.created_at)}</td>
       <td style="padding:10px 12px;vertical-align:top;">
-        <div style="font-size:13px;font-weight:600;color:#1a2744;">${r.project_type || '—'}</div>
-        <div style="font-size:12px;color:#44403c;margin-top:2px;">${r.municipality || ''}${r.state ? ', ' + r.state : ''}${r.zip ? ' ' + r.zip : ''}</div>
-        ${r.scope_description ? `<div style="font-size:12px;color:#78716c;margin-top:4px;line-height:1.4;font-style:italic;">"${truncate(r.scope_description, 120)}"</div>` : ''}
+        <div style="font-size:13px;font-weight:600;color:#1a2744;">${esc(r.project_type || '—')} ${isHome(r.state) ? '<span style="color:#c2410c;">★</span>' : ''}</div>
+        <div style="font-size:12px;color:#44403c;margin-top:2px;">${place(r)}</div>
+        ${r.scope_description ? `<div style="font-size:12px;color:#78716c;margin-top:4px;line-height:1.4;font-style:italic;">"${esc(truncate(r.scope_description, 120))}"</div>` : ''}
+        ${l ? `<div style="font-size:12px;color:#c2410c;margin-top:4px;">→ became a lead: ${esc(`${l.first_name || ''} ${l.last_name || ''}`.trim())}</div>` : ''}
       </td>
       <td style="padding:10px 12px;text-align:right;vertical-align:top;white-space:nowrap;">
-        <div style="font-size:13px;font-weight:600;color:#1a2744;">${fmt(r.cost_low)} – ${fmt(r.cost_high)}</div>
-        <div style="font-size:11px;color:${r.confidence === 'High' ? '#15803d' : r.confidence === 'Medium' ? '#92400e' : '#c2410c'};margin-top:2px;">${r.confidence || '—'}</div>
+        <div style="font-size:13px;font-weight:600;color:#1a2744;">${money(r.cost_low)} – ${money(r.cost_high)}</div>
+        <div style="font-size:11px;margin-top:2px;">${conf(r.confidence)}</div>
       </td>
       <td style="padding:10px 12px;text-align:center;vertical-align:top;">
-        ${r.ref ? `<span style="display:inline-block;padding:2px 8px;background:#dcfce7;color:#15803d;font-size:10px;font-weight:600;border-radius:10px;letter-spacing:0.5px;">${r.ref}</span>` : `<span style="color:#a8a29e;font-size:11px;">organic</span>`}
+        ${l ? leadBadge : runBadge}
+        <div style="font-size:10px;color:#a8a29e;margin-top:4px;">${r.ref ? esc(r.ref) : 'organic'}</div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  };
 
-  const runsTableHtml = runs.length > 0 ? `
+  // ── Indiana & Michigan — top of the email ──
+  const homeRunIds = new Set(homeRuns.map(r => r.id));
+  const homeLeadsOtherDay = homeLeads.filter(l => !homeRunIds.has(l.tool_run_id));
+  const homeHtml = (homeRuns.length || homeLeads.length) ? `
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:18px 20px;margin-bottom:28px;">
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#c2410c;margin-bottom:10px;">★ Indiana &amp; Michigan</div>
+      ${homeRuns.map(r => {
+        const l = leadByRun.get(r.id);
+        return `<div style="font-size:14px;color:#1a2744;padding:6px 0;border-bottom:1px solid #fde4cc;">
+          ${l ? leadBadge : runBadge} <strong>${place(r)}</strong> — ${esc(r.project_type || '—')}, ${money(r.cost_low)} – ${money(r.cost_high)}
+          ${l ? `<div style="font-size:13px;margin-top:3px;">${esc(`${l.first_name || ''} ${l.last_name || ''}`.trim())} · <a href="mailto:${esc(l.email)}" style="color:#c2410c;text-decoration:none;">${esc(l.email)}</a> · ${esc(l.role || '—')}</div>` : ''}
+        </div>`;
+      }).join('')}
+      ${homeLeadsOtherDay.map(l => {
+        const r = runById.get(l.tool_run_id) || {};
+        return `<div style="font-size:14px;color:#1a2744;padding:6px 0;border-bottom:1px solid #fde4cc;">
+          ${leadBadge} <strong>${place(r)}</strong> — ${esc(r.project_type || '—')} (run ${dayOf(r.created_at)})
+          <div style="font-size:13px;margin-top:3px;">${esc(`${l.first_name || ''} ${l.last_name || ''}`.trim())} · <a href="mailto:${esc(l.email)}" style="color:#c2410c;text-decoration:none;">${esc(l.email)}</a></div>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+  const statsHtml = `
+    <div style="display:flex;gap:0;margin-bottom:28px;">
+      ${statCard('Runs', runs.length, '#1a2744')}
+      ${statCard('Leads', leads.length, '#c2410c')}
+      ${statCard('IN / MI', homeRuns.length, '#c2410c')}
+      ${statCard('Visitors', traffic ? traffic.human : '—', '#0f766e')}
+      ${statCard('Campaign', runs.filter(r => r.ref).length, '#15803d')}
+    </div>`;
+
+  const leadsHtml = leads.length ? `
     <div style="margin-bottom:28px;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#78716c;margin-bottom:12px;">All Runs (${runs.length})</div>
+      ${label(`Leads (${leads.length}) — runs where the person filled in the form`)}
+      ${leads.map(leadCard).join('')}
+    </div>` : '';
+
+  const runsHtml = runs.length ? `
+    <div style="margin-bottom:28px;">
+      ${label(`All runs (${runs.length})`)}
       <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:6px;overflow:hidden;border:1px solid #e7e2d8;">
         <tr style="background:#f5f0eb;">
           <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#78716c;">Time</th>
           <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#78716c;">Project</th>
           <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#78716c;">Cost Range</th>
-          <th style="padding:8px 12px;text-align:center;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#78716c;">Source</th>
+          <th style="padding:8px 12px;text-align:center;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#78716c;">Status</th>
         </tr>
-        ${runRows}
+        ${runs.map(runRow).join('')}
       </table>
     </div>` : '';
-
-  // ── Leads table ──
-  let leadsHtml = '';
-  if (leads.length > 0) {
-    const leadRows = leads.map(l => `
-      <tr style="border-bottom:1px solid #e7e2d8;">
-        <td style="padding:10px 12px;font-size:12px;color:#78716c;white-space:nowrap;">${time(l.created_at)}</td>
-        <td style="padding:10px 12px;">
-          <div style="font-size:13px;font-weight:600;color:#1a2744;">${l.first_name} ${l.last_name}</div>
-          <div style="font-size:12px;color:#44403c;margin-top:2px;"><a href="mailto:${l.email}" style="color:#c2410c;text-decoration:none;">${l.email}</a></div>
-        </td>
-        <td style="padding:10px 12px;font-size:12px;color:#44403c;">${l.role || '—'}</td>
-        <td style="padding:10px 12px;font-size:12px;color:#44403c;">${l.municipality || '—'}</td>
-      </tr>`).join('');
-
-    leadsHtml = `
-      <div style="margin-bottom:28px;">
-        <div style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#78716c;margin-bottom:12px;">New Leads (${leads.length})</div>
-        <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:6px;overflow:hidden;border:1px solid #e7e2d8;">
-          <tr style="background:#f5f0eb;">
-            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#78716c;">Time</th>
-            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#78716c;">Contact</th>
-            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#78716c;">Role</th>
-            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#78716c;">Municipality</th>
-          </tr>
-          ${leadRows}
-        </table>
-      </div>`;
-  }
-
-  // ── Product breakdown ──
-  const productRows = Object.entries(productCounts)
-    .map(([p, c]) => `<span style="display:inline-block;margin-right:12px;font-size:12px;color:#44403c;"><strong>${p}</strong>: ${c}</span>`)
-    .join('');
 
   return `<!DOCTYPE html>
 <html>
@@ -356,21 +369,20 @@ function buildDigestEmail({ dateLabel, runs, leads, campaignRuns, organicRuns, r
 <body style="margin:0;padding:0;background:#f5f0eb;font-family:-apple-system,Segoe UI,sans-serif;">
 <div style="max-width:680px;margin:0 auto;background:#fff;">
   <div style="background:#1a2744;padding:28px 36px;">
-    <div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.3px;">CivicScope Daily Digest</div>
+    <div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.3px;">CivicScope Daily</div>
     <div style="color:#9aa5c4;font-size:12px;margin-top:4px;">Activity for ${dateLabel}</div>
   </div>
   <div style="padding:32px 36px;">
+    ${homeHtml}
     ${statsHtml}
-    <div style="margin:20px 0 28px;padding:0;">${productRows}</div>
-    ${campaignHtml}
     ${leadsHtml}
-    ${runsTableHtml}
+    ${runsHtml}
     <div style="border-top:1px solid #e7e2d8;padding-top:20px;margin-top:8px;">
-      <p style="font-size:12px;color:#a8a29e;margin:0;">This digest covers ${dateLabel}, midnight to midnight Eastern${traffic ? ` — ${traffic.total} session${traffic.total !== 1 ? 's' : ''}, ${traffic.bot} likely automated` : ''}. Campaign runs are attributed via <code style="background:#f5f0eb;padding:1px 4px;border-radius:3px;">?ref=</code> parameter.</p>
+      <p style="font-size:12px;color:#a8a29e;margin:0;line-height:1.5;">A <strong>run</strong> is an estimate someone completed. It becomes a <strong>lead</strong> when they fill in the form to email themselves the report — this email is the only notice of a lead. Covers ${dateLabel}, midnight to midnight Eastern${traffic ? ` — ${plural(traffic.total, 'session')}, ${traffic.bot} likely automated` : ''}. ★ = Indiana or Michigan.</p>
     </div>
   </div>
   <div style="background:#f5f0eb;padding:16px 36px;border-top:1px solid #e7e2d8;">
-    <p style="color:#a8a29e;font-size:11px;margin:0;">CivicScope Daily Digest · <a href="https://civicscope.io" style="color:#a8a29e;">civicscope.io</a></p>
+    <p style="color:#a8a29e;font-size:11px;margin:0;">CivicScope Daily · <a href="https://civicscope.io" style="color:#a8a29e;">civicscope.io</a></p>
   </div>
 </div>
 </body>
@@ -392,28 +404,43 @@ function truncate(str, max) {
 
 function buildQuietDayEmail({ dateLabel, traffic }) {
   const t = traffic || { total: 0, human: 0, bot: 0 };
-  // "Quiet" must mean nobody came. If people did come and none of them finished a run, say that
-  // instead — that is a drop-off (or a broken tool), and it is the more urgent of the two.
+  // "Quiet" means nobody completed a run. If people did come and none of them finished one, say
+  // that too — that is a drop-off (or a broken tool), and it is worth a look.
   const trafficLine = t.human > 0
-    ? `<p style="font-size:13px;color:#92400e;margin:12px 0 0;background:#fffbeb;border-left:3px solid #d97706;padding:10px 12px;"><strong>${t.human} visitor${t.human !== 1 ? 's' : ''} reached a tool and none completed a run.</strong> Not a quiet day — a drop-off. Worth checking the tool still works end to end.</p>`
-    : `<p style="font-size:13px;color:#78716c;margin:12px 0 0;">No human visitors either — ${t.total} session${t.total !== 1 ? 's' : ''} logged, all of them likely automated.</p>`;
+    ? `<p style="font-size:13px;color:#92400e;margin:12px 0 0;background:#fffbeb;border-left:3px solid #d97706;padding:10px 12px;"><strong>${plural(t.human, 'visitor')} reached a tool and none completed a run.</strong> Worth checking the tool still works end to end.</p>`
+    : `<p style="font-size:13px;color:#78716c;margin:12px 0 0;">No human visitors either — ${plural(t.total, 'session')} logged, all of them likely automated.</p>`;
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#f5f0eb;font-family:-apple-system,Segoe UI,sans-serif;">
 <div style="max-width:680px;margin:0 auto;background:#fff;">
   <div style="background:#1a2744;padding:28px 36px;">
-    <div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.3px;">CivicScope Daily Digest</div>
+    <div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.3px;">CivicScope Daily</div>
     <div style="color:#9aa5c4;font-size:12px;margin-top:4px;">Activity for ${dateLabel}</div>
   </div>
   <div style="padding:32px 36px;">
-    <p style="font-size:15px;color:#1a2744;margin:0 0 8px;">No runs or leads on ${dateLabel}.</p>
+    <p style="font-size:22px;font-weight:700;color:#1a2744;margin:0 0 8px;">Quiet Day</p>
+    <p style="font-size:15px;color:#44403c;margin:0;">No runs and no leads on ${dateLabel}.</p>
     ${trafficLine}
   </div>
   <div style="background:#f5f0eb;padding:16px 36px;border-top:1px solid #e7e2d8;">
-    <p style="color:#a8a29e;font-size:11px;margin:0;">CivicScope Daily Digest · <a href="https://civicscope.io" style="color:#a8a29e;">civicscope.io</a></p>
+    <p style="color:#a8a29e;font-size:11px;margin:0;">CivicScope Daily · <a href="https://civicscope.io" style="color:#a8a29e;">civicscope.io</a></p>
   </div>
 </div>
 </body>
 </html>`;
+}
+
+// Report this run to the CRM automation registry (best-effort).
+// The registry's cron secret comes from the environment (CRM_CRON_SECRET on this Vercel project). Until
+// 2026-09-15 it was a LITERAL in this file — a live CRM credential in a PUBLIC repo. Never put it back.
+async function cronHeartbeat(status, detail) {
+  try {
+    if (!process.env.CRM_CRON_SECRET) return;
+    await fetch('https://crm.jbkdevelopment.com/api/task-heartbeat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-cron-secret': process.env.CRM_CRON_SECRET },
+      body: JSON.stringify({ id: 'cs-digest', status, detail: (detail || '').toString().slice(0, 200) }),
+    });
+  } catch {}
 }

@@ -40,10 +40,11 @@ export default async function handler(req, res) {
             ? `Your CivicScope for Infrastructure Feasibility Report — ${projectType} in ${municipality}`
             : `Your ${product === 'pro' ? 'CivicScope Pro' : 'CivicScope Free'} Feasibility Report — ${projectType} in ${municipality}`;
 
+      // No BCC to Keith (2026-10-18): a report is sent only when a run becomes a lead, and leads are
+      // reported once, in the daily digest (api/digest.js). Keith asked for one email, not three.
       const emailPayload = {
         from: FROM_EMAIL,
         to: [recipientEmail],
-        bcc: [KEITH_EMAIL],
         subject,
         html: reportHtml
       };
@@ -59,6 +60,12 @@ export default async function handler(req, res) {
 
     // ── Lead notification ────────────────────────────────────────────────────
     if (action === 'notify_lead') {
+      // FOLDED INTO THE DAILY DIGEST (Keith, 2026-10-18): one CivicScope email a day, not one per
+      // lead. The lead row is already written by api/log.js and the digest reads it from there,
+      // so nothing is lost by not sending here. The tools still call this action; it answers 200
+      // and sends nothing. The builder below is kept so this is a one-line revert.
+      return res.status(200).json({ sent: false, folded: 'daily-digest' });
+      // eslint-disable-next-line no-unreachable
       const {
         firstName, lastName, email, role, municipality, projectType,
         costLow, costHigh, confidence, product, sessionId, runId,
