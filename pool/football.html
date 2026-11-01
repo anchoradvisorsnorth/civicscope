@@ -44,6 +44,12 @@
   /* The title is a link to ESPN's game page (2026-11-01). Same colour and weight as the title it
      replaces; a dotted underline is the only tell, and it is dropped on paper (see @media print). */
   .gtitle .gl{color:inherit;text-decoration:none;border-bottom:1px dotted #98a2b3}
+  /* WHICH LEAGUE, AT A GLANCE (Keith 2026-11-01): the NFL shield, or a "CFB" pill, beside the title
+     on a laptop and pinned to the card's top-right corner on a phone (see the 720px block). */
+  .lgb{display:inline-flex;align-items:center;vertical-align:middle;margin-left:7px;font-size:10px;font-weight:800;letter-spacing:.4px;line-height:1;color:#fff;background:var(--navy);border-radius:5px;padding:3px 6px}
+  .lgb img{height:16px;width:auto;display:block}
+  .lgb-nfl{background:none;padding:0}
+  tr.unan .lgb{opacity:.45}
   .final{color:var(--win);font-weight:800}
   .live{color:var(--red);font-weight:800}
   select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px}
@@ -119,8 +125,12 @@
     #content tbody tr{display:block;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:4px 0 6px;overflow:hidden}
     #content tbody td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 14px;text-align:left}
     /* the fixture is the card's heading */
-    #content tbody td.gtitle{display:block;font-size:15px;font-weight:800;background:#f7f9fc;border-bottom:1px solid var(--line);padding:9px 14px;margin-bottom:2px}
+    #content tbody td.gtitle{display:block;position:relative;font-size:15px;font-weight:800;background:#f7f9fc;border-bottom:1px solid var(--line);padding:9px 56px 9px 14px;margin-bottom:2px}
     #content tbody td.gtitle .gsub{font-size:12px;font-weight:600;margin-top:1px}
+    /* the league badge sits in the card's top-right corner — the spot Keith pointed at */
+    #content tbody td.gtitle .lgb{position:absolute;right:14px;top:9px;margin:0}
+    #content tbody td.gtitle .lgb img{height:24px}
+    #content tbody td.gtitle .lgb-cfb{top:11px;font-size:11px;padding:4px 7px}
     #content tbody td[data-l]::before{content:attr(data-l);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
     #content tbody td[data-p]::before{content:attr(data-p);font-size:13px;font-weight:600;color:#475467;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #content tbody td+td{border-top:1px solid #f4f6f9}
@@ -165,6 +175,7 @@
     @page{size:landscape;margin:12mm}
     :root{--bg:#fff}
     .gtitle .gl{border-bottom:none}            /* a printed title is not a link */
+    .lgb{display:none}                         /* the grey line already names the league on paper */
     .tblwrap.fits{clip-path:none}
     .tblwrap.fits thead th{position:static;box-shadow:none}   /* paper repeats the header per page (below); a sticky cell would fight that */
     body{background:#fff;color:#000;font-size:11px}
@@ -346,7 +357,7 @@ async function renderWeek(slug){
         (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
     }
     html+='<div class="card tblwrap"><table><thead><tr><th>Game</th><th>Kickoff</th><th>Frozen line</th></tr></thead><tbody>'+
-      boardOrder(games,{}).map(g=>'<tr><td class="gtitle">'+gameTitleHtml(g)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td data-l="Kickoff">'+fmtDT(g.date)+'</td><td data-l="Frozen line" style="font-weight:800;color:var(--green)">'+esc(marketLabel(g))+'</td></tr>').join('')+
+      boardOrder(games,{}).map(g=>'<tr><td class="gtitle">'+gameTitleHtml(g)+leagueBadge(g)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td data-l="Kickoff">'+fmtDT(g.date)+'</td><td data-l="Frozen line" style="font-weight:800;color:var(--green)">'+esc(marketLabel(g))+'</td></tr>').join('')+
       '</tbody></table></div>';
   } else if(players.length){
     /* EVERYONE ON ONE SIDE (Keith 2026-09-05). Computed here, inside the revealed branch only —
@@ -365,7 +376,7 @@ async function renderWeek(slug){
          second mobile render, so the two can never disagree about what a cell means. */
       /* THE TITLE IN WORDS, LINKED TO ESPN (2026-11-01) — gameTitleHtml in scoring.js: stored names
          and ranks first, the live feed's for a week built before they were stored, g.short last. */
-      html+='<tr'+(uside?' class="unan" data-unanimous="'+esc(uside)+'"':'')+'><td class="gtitle">'+gameTitleHtml(g,sc)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div>'+utag+'</td><td data-l="Score">'+st+'</td>'+
+      html+='<tr'+(uside?' class="unan" data-unanimous="'+esc(uside)+'"':'')+'><td class="gtitle">'+gameTitleHtml(g,sc)+leagueBadge(g)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div>'+utag+'</td><td data-l="Score">'+st+'</td>'+
         ranked.map(p=>{
           const mypick=(wk.picks[p].picks||{})[g.id]||'—';
           const r=detail[p]?detail[p][g.id]:mypick;

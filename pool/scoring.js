@@ -192,6 +192,29 @@ function gameTitleHtml(g, sc) {
     : '<span class="gl">' + t + '</span>';
 }
 
+/* WHICH LEAGUE, AT A GLANCE (Keith 2026-11-01, from the board on his phone, pointing at the empty
+   top-right corner of a game card: "Can we put the NFL logo where the red box is - to make it
+   clear its an nfl game - or something like that").
+
+   The league was already named in the small grey line under the title ("DAL -7 · NFL"), which is
+   exactly where nobody looks. A badge in the card's corner says it at a glance: the NFL shield
+   from ESPN's own CDN for a pro game, and a small "CFB" pill for college — ESPN publishes no
+   league logo for college football (probed 2026-11-01: /leagues/500/college-football.png,
+   ncaa.png, ncaaf.png all 404), and the schools' own logos are a different feature. The <img>
+   carries alt text, so if the CDN ever fails the badge degrades to the word "NFL", not to nothing.
+   Display only; styled by `.lgb` on each page. */
+const LEAGUE_BADGE = {
+  nfl: { img: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nfl.png&h=80', label: 'NFL', title: 'NFL' },
+  cfb: { img: null, label: 'CFB', title: 'College football' },
+};
+function leagueBadge(g) {
+  const b = LEAGUE_BADGE[g && g.league];
+  if (!b) return '';
+  return '<span class="lgb lgb-' + g.league + '" title="' + b.title + '">'
+    + (b.img ? '<img src="' + b.img + '" alt="' + b.label + '" loading="lazy">' : b.label)
+    + '</span>';
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    DISPLAY ORDER (Mike, via Keith 2026-08-21; refined 2026-08-22).
 
@@ -582,7 +605,7 @@ function fmtMoney(n) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     coverOf, scoreFor, marketLabel, weekPoints, boardOrder, slateOrder, unanimousPicks,
-    rankOf, espnGameUrl, teamLabel, gameTitle, gameTitleHtml,
+    rankOf, espnGameUrl, teamLabel, gameTitle, gameTitleHtml, leagueBadge,
     WEEKLY_STAKE, weekWinners, weekEntrants, seasonLedger, fmtMoney,
     RUN_WEEKS, weekNumOf, runOf, runLedgers,
   };

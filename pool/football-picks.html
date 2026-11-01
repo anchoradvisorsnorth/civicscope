@@ -25,6 +25,10 @@
   /* The title in words, linked to ESPN's game page (2026-11-01). Darker and bolder than the rest of
      the heading row because it is now the thing that tells you who is playing. */
   .ghead .gl{color:#101828;font-weight:700;text-decoration:none;border-bottom:1px dotted #98a2b3}
+  /* Which league, at a glance (Keith 2026-11-01): the NFL shield or a "CFB" pill beside the title. */
+  .lgb{display:inline-flex;align-items:center;vertical-align:middle;margin-left:6px;font-size:9.5px;font-weight:800;letter-spacing:.4px;line-height:1;color:#fff;background:var(--navy);border-radius:5px;padding:3px 5px}
+  .lgb img{height:15px;width:auto;display:block}
+  .lgb-nfl{background:none;padding:0}
   .sides{display:grid;grid-template-columns:1fr 1fr}
   .side{padding:14px 10px;text-align:center;cursor:pointer;border:none;background:#fff;font-size:15px;font-weight:700;color:#101828}
   .side:first-child{border-right:1px solid #f0f2f5}
@@ -287,14 +291,14 @@ function render(){
       '<button class="side '+(mine===w?'on':'')+'" '+(lockedMine?'disabled':'')+' onclick="pick(\''+g.id+'\',\''+w+'\')">'+w
       +' <span class="lab">'+(w==='OVER'?'more than ':'less than ')+g.total+'</span></button>';
     if(g.market==='total'){
-      return '<div class="game"><div class="ghead"><span>'+gameTitleHtml(g)+' · OVER/UNDER</span><span>'+
+      return '<div class="game"><div class="ghead"><span>'+gameTitleHtml(g)+leagueBadge(g)+' · OVER/UNDER</span><span>'+
         fmtKick(g.date)+' · total: <b>'+g.total+'</b></span></div>'+
         '<div class="sides">'+ouSide('OVER')+ouSide('UNDER')+'</div></div>';
     }
     /* THE TITLE IN WORDS, LINKED TO ESPN (2026-11-01) — gameTitleHtml in scoring.js. This page
        makes no ESPN call, so it reads the names stored on the game (built from Week 10 on) and
        falls back to g.short for a week built before they existed. */
-    return '<div class="game"><div class="ghead"><span>'+gameTitleHtml(g)+' · '+g.league.toUpperCase()+'</span><span>'+
+    return '<div class="game"><div class="ghead"><span>'+gameTitleHtml(g)+leagueBadge(g)+'</span><span>'+
       fmtKick(g.date)+' · '+(g.pickem?'<b>PICK &rsquo;EM</b> — straight up':'line: '+esc(g.spreadText))+'</span></div>'+
       '<div class="sides">'+side(g.awayAbbrev)+side(g.homeAbbrev)+'</div></div>';
   }).join('');
