@@ -129,6 +129,11 @@
       "source": "/football/commish",
       "destination": "/pool/commish",
       "statusCode": 301
+    },
+    {
+      "source": "/mytesla",
+      "destination": "/mytesla/",
+      "statusCode": 308
     }
   ],
   "rewrites": [
@@ -293,6 +298,18 @@
     {
       "source": "/bristol/ask",
       "destination": "/civicscope-muni/index.html"
+    },
+    {
+      "source": "/mytesla/",
+      "destination": "https://tesla-ten-rho.vercel.app/"
+    },
+    {
+      "source": "/mytesla/:path*",
+      "destination": "https://tesla-ten-rho.vercel.app/:path*"
+    },
+    {
+      "source": "/.well-known/appspecific/com.tesla.3p.public-key.pem",
+      "destination": "https://tesla-ten-rho.vercel.app/.well-known/appspecific/com.tesla.3p.public-key.pem"
     }
   ]
 }
