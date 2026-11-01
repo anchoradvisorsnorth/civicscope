@@ -43,7 +43,9 @@
   .gsub{font-size:11px;color:var(--muted)}
   /* The title is a link to ESPN's game page (2026-11-01). Same colour and weight as the title it
      replaces; a dotted underline is the only tell, and it is dropped on paper (see @media print). */
-  .gtitle .gl{color:inherit;text-decoration:none;border-bottom:1px dotted #98a2b3}
+  .gtitle .gl{color:#1a56db;text-decoration:none;border-bottom:1px dotted #93b4f5}   /* link blue (Keith 2026-11-01) */
+  .gtitle span.gl{color:inherit;border-bottom:none}                                  /* a hand-built game has no page: not a link, not blue */
+  tr.unan .gtitle .gl{color:inherit;border-bottom-color:#c4c9d1}                     /* greyed with the rest of a unanimous row */
   /* WHICH LEAGUE, AT A GLANCE (Keith 2026-11-01): the NFL shield, or a "CFB" pill, beside the title
      on a laptop and pinned to the card's top-right corner on a phone (see the 720px block). */
   .lgb{display:inline-flex;align-items:center;vertical-align:middle;margin-left:7px;font-size:10px;font-weight:800;letter-spacing:.4px;line-height:1;color:#fff;background:var(--navy);border-radius:5px;padding:3px 6px}
@@ -174,7 +176,7 @@
   @media print{
     @page{size:landscape;margin:12mm}
     :root{--bg:#fff}
-    .gtitle .gl{border-bottom:none}            /* a printed title is not a link */
+    .gtitle .gl{border-bottom:none;color:inherit}   /* a printed title is not a link */
     .lgb{display:none}                         /* the grey line already names the league on paper */
     .tblwrap.fits{clip-path:none}
     .tblwrap.fits thead th{position:static;box-shadow:none}   /* paper repeats the header per page (below); a sticky cell would fight that */
