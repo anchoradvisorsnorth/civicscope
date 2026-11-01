@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.20.0-monday-morning-notice';  // the winner text + email wait for Monday 07:30 ET (the record still lands at the final whistle)
+const VER = '3.21.0-names-ranks-links';  // college titles in words with AP ranks, re-pulled at lock; every title links to ESPN's game page
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -756,8 +756,24 @@ export default async function handler(req, res) {
     return { favAbbrev: m[1].toUpperCase(), line: Math.abs(parseFloat(m[2])), spreadText: o.details, overUnder: ou };
   }
 
+  /* WHO IS PLAYING, IN WORDS (2026-11-01). The same scoreboard sweep that re-prices the slate at
+     lock also carries each team's display name and AP rank (`curatedRank.current`, 99 = unranked).
+     Carried out of fetchLines as a second map — `teams` — so the names and ranks a week locks at
+     come from the SAME ESPN read as its spreads, with no second sweep. Mirrors the capture in
+     commish.html loadGames(); pool/scoring.js gameTitle() is the only reader. */
+  const rankOf = (r) => { const n = Number(r); return Number.isInteger(n) && n >= 1 && n <= 25 ? n : null; };
+  function teamFields(home, away) {
+    return {
+      homeName: (home.team && (home.team.shortDisplayName || home.team.location)) || null,
+      awayName: (away.team && (away.team.shortDisplayName || away.team.location)) || null,
+      homeRank: rankOf(home.curatedRank && home.curatedRank.current),
+      awayRank: rankOf(away.curatedRank && away.curatedRank.current),
+    };
+  }
+
   async function fetchLines(games) {
     const out = {};
+    const teams = {};
     const notes = [];
     for (const lg of ['nfl', 'cfb']) {
       const mine = (games || []).filter(g => g.league === lg);
@@ -767,15 +783,37 @@ export default async function handler(req, res) {
       for (const e of got.events) {
         const c = (e.competitions || [])[0];
         if (!c) continue;
-        const odds = parseOddsServer(c);
-        if (!odds) continue;
         const home = (c.competitors || []).find(x => x.homeAway === 'home');
         const away = (c.competitors || []).find(x => x.homeAway === 'away');
+        if (home && away) {
+          const tf = teamFields(home, away);
+          teams[String(e.id)] = tf;
+          teams[`${away.team.abbreviation}@${home.team.abbreviation}`] = tf;
+        }
+        const odds = parseOddsServer(c);
+        if (!odds) continue;
         out[String(e.id)] = odds;
         if (home && away) out[`${away.team.abbreviation}@${home.team.abbreviation}`] = odds;
       }
     }
-    return { lines: out, notes };
+    return { lines: out, teams, notes };
+  }
+
+  /* Names and ranks, refreshed in place at lock. A hand-built (`manual`) game has no ESPN row to
+     read, and a game ESPN did not return keeps whatever the commissioner page captured — this
+     only fills what resolves, so "not on ESPN" never erases a stored name. Returns how many games
+     were refreshed, for the lock response. */
+  function refreshTeams(games, teams) {
+    let refreshed = 0;
+    for (const g of (games || [])) {
+      if (g.manual) continue;
+      const fresh = teams[String(g.id).split('#')[0]] || teams[`${g.awayAbbrev}@${g.homeAbbrev}`];
+      if (!fresh || !fresh.homeName || !fresh.awayName) continue;
+      g.homeName = fresh.homeName; g.awayName = fresh.awayName;
+      g.homeRank = fresh.homeRank; g.awayRank = fresh.awayRank;
+      refreshed++;
+    }
+    return refreshed;
   }
 
   /* Refresh in place. Returns what moved and what could not be refreshed.
@@ -1392,6 +1430,8 @@ export default async function handler(req, res) {
           const lockStamp = new Date().toISOString();
           const fetched = await fetchLines(wk.games);
           const { moved, unpriced } = refreshLines(wk.games, fetched.lines, lockStamp);
+          // Names + AP ranks freeze at lock too (2026-11-01) — same ESPN read as the spreads above.
+          const teamsRefreshed = refreshTeams(wk.games, fetched.teams || {});
           /* ⛔ "NOT ON ESPN" AND "ESPN DID NOT ANSWER" ARE DIFFERENT, AND CONFLATING THEM BROKE THE
              LOCK (caught by the pool-integrity gate on the first deploy of this change, 2026-08-30).
              The first version refused whenever any game came back unrefreshed — which is every
@@ -1544,6 +1584,7 @@ export default async function handler(req, res) {
                if a line moved between his draft and this moment he should see it here rather than
                discover it on the board. Empty array = the saved numbers were already current. */
             linesRefreshedAt: wk.linesRefreshedAt, movedLines: moved,
+            teamsRefreshed,   // games whose names + AP ranks were re-read at lock (2026-11-01)
             ...(unpriced.length ? { heldAtSaved: unpriced.map(g => g.short) } : {}),
             /* Say it out loud when the Saturday cadence did NOT apply. A commissioner who expects
                "picks due Saturday 10am" and gets Thursday evening needs to be told which game

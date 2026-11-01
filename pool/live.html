@@ -40,6 +40,9 @@
   .g .m{flex:1;min-width:0}
   .g .m b{display:block}
   .g .m span{font-size:11.5px;color:var(--muted)}
+  /* The title is a link to ESPN's game page (2026-11-01). Reads as the title it always was — same
+     colour, same weight — with a dotted underline as the only tell. */
+  .g .m .gl{color:inherit;text-decoration:none;border-bottom:1px dotted #98a2b3}
   .g .sc{font-variant-numeric:tabular-nums;font-weight:700;text-align:right;white-space:nowrap}
   .g .st{font-size:11px;font-weight:800;width:52px;text-align:right}
   .st.post{color:var(--win)} .st.in{color:var(--red)} .st.pre{color:var(--muted)}
@@ -159,7 +162,7 @@ async function load(){
         :'<div class="row"><div class="who" style="font-weight:400;color:var(--muted)">Nobody yet.</div></div>')
       +'</div>';
     html+='<div class="card"><div class="ch">This week\'s card</div>'+boardOrder(games,{}).map(g=>
-      '<div class="g"><div class="m"><b>'+esc(g.short)+'</b><span>'+fmtDT(g.date)+' · '+g.league.toUpperCase()+'</span></div>'
+      '<div class="g"><div class="m"><b>'+gameTitleHtml(g)+'</b><span>'+fmtDT(g.date)+' · '+g.league.toUpperCase()+'</span></div>'
       +'<div class="sc">'+esc(marketLabel(g))+'</div></div>').join('')+'</div>';
     html+='<div class="note">🔒 Everyone\'s picks open as soon as the last player locks in — or at the deadline if someone hasn\'t. Standings appear here the moment that happens, then update on their own as games finish. <a href="/pool/football/picks">Make or check your picks →</a></div>';
     /* The season ledger is not part of this week's board and is not withheld with it — it is
@@ -212,7 +215,9 @@ async function load(){
        now sit next to each other with nothing to tell them apart but the abbreviations, and those
        are NOT unique across the two (CIN, BUF, MIA, HOU are the same string in both). The full
        board has always labelled every row; this brings the tracker into line. */
-    return '<div class="g'+(uside?' unan':'')+'"'+(uside?' data-unanimous="'+esc(uside)+'"':'')+'><div class="m"><b>'+esc(g.short)+'</b><span>'+esc(marketLabel(g))+' · '+g.league.toUpperCase()
+    /* THE TITLE IN WORDS, LINKED TO ESPN (2026-11-01) — gameTitleHtml in scoring.js: stored names
+       and ranks first, the live feed's for a week built before they were stored, g.short last. */
+    return '<div class="g'+(uside?' unan':'')+'"'+(uside?' data-unanimous="'+esc(uside)+'"':'')+'><div class="m"><b>'+gameTitleHtml(g,sc)+'</b><span>'+esc(marketLabel(g))+' · '+g.league.toUpperCase()
       +(cov?' · '+(cov==='PUSH'?'push':esc(cov)+' wins it'):'')+'</span>'
       +(uside?'<div><span class="unan-tag">everyone took '+esc(uside)+'</span></div>':'')+'</div>'
       +'<div class="sc">'+(sc?(esc(g.awayAbbrev)+' '+sc.awayScore+' — '+esc(g.homeAbbrev)+' '+sc.homeScore):'&nbsp;')+'</div>'

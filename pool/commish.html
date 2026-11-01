@@ -656,8 +656,15 @@ async function loadGames(league){
       const c=e.competitions[0];
       const home=c.competitors.find(x=>x.homeAway==='home'), away=c.competitors.find(x=>x.homeAway==='away');
       const odds=parseOdds(c);
+      /* WHO IS PLAYING, IN WORDS (2026-11-01). The board, tracker and picks page title college
+         games "#2 Ohio State @ USC" from these four fields (pool/scoring.js gameTitle). Captured
+         here when the slate is built and RE-PULLED BY THE SERVER AT LOCK (api/football-pool.js
+         refreshTeams), so the rank is frozen at lock exactly like the spread. 99 = unranked. */
+      const rk=t=>{const n=Number(t&&t.curatedRank&&t.curatedRank.current);return Number.isInteger(n)&&n>=1&&n<=25?n:null;};
       return {id:String(e.id),league,date:e.date,name:e.name,short:e.shortName,
         homeAbbrev:home.team.abbreviation,awayAbbrev:away.team.abbreviation,
+        homeName:home.team.shortDisplayName||home.team.location||null,awayName:away.team.shortDisplayName||away.team.location||null,
+        homeRank:rk(home),awayRank:rk(away),
         favAbbrev:odds?odds.favAbbrev:null,line:odds?odds.line:null,spreadText:odds?odds.spreadText:null,
         overUnder:odds?odds.overUnder:null,manual:false};
     });

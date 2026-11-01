@@ -67,6 +67,15 @@ async function liveScores(games) {
              hand-built slate's times were converted ET->UTC by hand and can be an hour out — and
              an hour is exactly the size of error that reorders a Sunday. */
           kickoff: Date.parse(e.date) || null,
+          /* WHO IS PLAYING, IN WORDS (2026-11-01). Display-only: the names and AP ranks ESPN
+             carries on the live feed, so a week built BEFORE names were stored on the game
+             (Weeks 1–9 of 2026) still reads "#2 Ohio State @ USC" on the board and the tracker.
+             gameTitle() prefers what is stored on the game; this is its fallback. The server never
+             needs these — nothing here scores — so fetchFinals() does not mirror them. */
+          awayName: away.team.shortDisplayName || away.team.location || null,
+          homeName: home.team.shortDisplayName || home.team.location || null,
+          awayRank: rankOf(away.curatedRank && away.curatedRank.current),
+          homeRank: rankOf(home.curatedRank && home.curatedRank.current),
         };
         out[String(e.id)] = sc;
         /* ALSO key by matchup. A hand-built slate carries our own ids, which will never equal an
@@ -109,6 +118,79 @@ const scoreFor = (g, scores) =>
 
 // How a market is written. A total must never render as an empty spread.
 const marketLabel = g => g.market === 'total' ? ('O/U ' + g.total) : (g.pickem ? 'PICK EM' : g.spreadText);
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   WHO IS PLAYING, IN WORDS (the crew, via Keith 2026-11-01, from /pool/live on a phone).
+
+   "OSU @ USC · KSU @ COLO · ARIZ @ TTU" — on a phone the abbreviations are the whole title, and
+   for college football they are not a language anyone speaks. Three asks, one rule:
+     1. college games are titled with the school names ESPN uses on its own scoreboard
+        (`team.shortDisplayName`: "Ohio State", "USC", "Texas Tech");
+     2. a ranked team carries its AP number the way ESPN prints it — "#2 Ohio State";
+     3. the title is a link to ESPN's page for that game.
+
+   NFL TITLES ARE UNCHANGED ("TEN @ CIN"). The ask was college in particular, and the score line
+   and the pick buttons already speak NFL abbreviations — the crew knows them.
+
+   WHERE THE NAMES COME FROM, IN ORDER:
+     · stored on the game (`awayName/homeName/awayRank/homeRank`) — written by the commissioner
+       page when the slate is built and re-pulled by the server at lock, so the rank is FROZEN at
+       lock exactly like the spread, and a finished week is a record that needs no live feed
+       (the golf-board lesson: a record must not depend on a third-party feed);
+     · else the live scoreboard (`sc.awayName…`, carried by liveScores above) — this is what
+       titles Weeks 1–9 of 2026, built before the fields existed, on the board and the tracker;
+     · else `g.short`, exactly as before — the picks page and the pre-reveal card make no ESPN
+       call, so a legacy week reads there as it always did.
+
+   THE LINK IS DERIVED FROM THE ID, not stored: an ESPN-loaded game has a numeric event id, and
+   ESPN's game page is `/<league>/game/_/gameId/<id>` for both codes (verified 2026-11-01). The
+   over/under twin (`<id>#ou`) links to the same fixture. A hand-built game (`pre1-DET-CIN`) has
+   no page to link to and renders as plain text — never a guessed URL.
+
+   ESPN's `curatedRank.current` is 99 for an unranked team; only 1–25 is a rank.
+   Display only, like marketLabel: reads the game, mutates nothing.
+   ───────────────────────────────────────────────────────────────────────────── */
+const ESPN_GAME = {
+  nfl: 'https://www.espn.com/nfl/game/_/gameId/',
+  cfb: 'https://www.espn.com/college-football/game/_/gameId/',
+};
+function rankOf(r) {
+  const n = Number(r);
+  return Number.isInteger(n) && n >= 1 && n <= 25 ? n : null;
+}
+function espnGameUrl(g) {
+  const base = String((g && g.id) || '').split('#')[0];
+  const path = ESPN_GAME[g && g.league];
+  return path && /^\d+$/.test(base) ? path + base : null;
+}
+// One side of the title: "#2 Ohio State", "USC", or the abbreviation when no name is known.
+function teamLabel(g, side, sc) {
+  const ab = String((side === 'home' ? g.homeAbbrev : g.awayAbbrev) || '');
+  if (g.league !== 'cfb') return ab;
+  const stored = g[side + 'Name'];
+  const name = stored || (sc && sc[side + 'Name']) || null;
+  if (!name) return ab;
+  // The rank travels with the name it was captured alongside — stored with stored, feed with feed.
+  const rank = rankOf(stored ? g[side + 'Rank'] : (sc && sc[side + 'Rank']));
+  return (rank ? '#' + rank + ' ' : '') + name;
+}
+function gameTitle(g, sc) {
+  const named = s => !!(g[s + 'Name'] || (sc && sc[s + 'Name']));
+  if (g.league !== 'cfb' || !named('away') || !named('home')) {
+    return g.short || (String(g.awayAbbrev || '') + ' @ ' + String(g.homeAbbrev || ''));
+  }
+  // ESPN writes a neutral-site game "FLA VS UGA", not "@" — keep that distinction in words.
+  const joiner = /\bVS\b/i.test(g.short || '') ? ' vs ' : ' @ ';
+  return teamLabel(g, 'away', sc) + joiner + teamLabel(g, 'home', sc);
+}
+const escTitle = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+/* The one piece of title markup all three pages paint. Styled by `.gl` on each page. */
+function gameTitleHtml(g, sc) {
+  const url = espnGameUrl(g), t = escTitle(gameTitle(g, sc));
+  return url
+    ? '<a class="gl" href="' + escTitle(url) + '" target="_blank" rel="noopener">' + t + '</a>'
+    : '<span class="gl">' + t + '</span>';
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    DISPLAY ORDER (Mike, via Keith 2026-08-21; refined 2026-08-22).
@@ -500,6 +582,7 @@ function fmtMoney(n) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     coverOf, scoreFor, marketLabel, weekPoints, boardOrder, slateOrder, unanimousPicks,
+    rankOf, espnGameUrl, teamLabel, gameTitle, gameTitleHtml,
     WEEKLY_STAKE, weekWinners, weekEntrants, seasonLedger, fmtMoney,
     RUN_WEEKS, weekNumOf, runOf, runLedgers,
   };

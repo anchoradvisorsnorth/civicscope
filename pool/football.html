@@ -41,6 +41,9 @@
   .note{background:#fffaf0;border:1px solid #e7c84b;border-radius:12px;padding:16px;font-size:14px;margin:12px 0}
   .gtitle{font-weight:700;font-size:12px}
   .gsub{font-size:11px;color:var(--muted)}
+  /* The title is a link to ESPN's game page (2026-11-01). Same colour and weight as the title it
+     replaces; a dotted underline is the only tell, and it is dropped on paper (see @media print). */
+  .gtitle .gl{color:inherit;text-decoration:none;border-bottom:1px dotted #98a2b3}
   .final{color:var(--win);font-weight:800}
   .live{color:var(--red);font-weight:800}
   select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px}
@@ -161,6 +164,7 @@
   @media print{
     @page{size:landscape;margin:12mm}
     :root{--bg:#fff}
+    .gtitle .gl{border-bottom:none}            /* a printed title is not a link */
     .tblwrap.fits{clip-path:none}
     .tblwrap.fits thead th{position:static;box-shadow:none}   /* paper repeats the header per page (below); a sticky cell would fight that */
     body{background:#fff;color:#000;font-size:11px}
@@ -342,7 +346,7 @@ async function renderWeek(slug){
         (lockedIn.join(', ')||'nobody yet')+'</b>'+(waiting.length?' · Waiting on: <b>'+waiting.join(', ')+'</b>':'')+'. Make yours at <a href="/pool/football/picks">/pool/football/picks</a>.</div>';
     }
     html+='<div class="card tblwrap"><table><thead><tr><th>Game</th><th>Kickoff</th><th>Frozen line</th></tr></thead><tbody>'+
-      boardOrder(games,{}).map(g=>'<tr><td class="gtitle">'+esc(g.short)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td data-l="Kickoff">'+fmtDT(g.date)+'</td><td data-l="Frozen line" style="font-weight:800;color:var(--green)">'+esc(marketLabel(g))+'</td></tr>').join('')+
+      boardOrder(games,{}).map(g=>'<tr><td class="gtitle">'+gameTitleHtml(g)+' <span class="gsub">'+g.league.toUpperCase()+'</span></td><td data-l="Kickoff">'+fmtDT(g.date)+'</td><td data-l="Frozen line" style="font-weight:800;color:var(--green)">'+esc(marketLabel(g))+'</td></tr>').join('')+
       '</tbody></table></div>';
   } else if(players.length){
     /* EVERYONE ON ONE SIDE (Keith 2026-09-05). Computed here, inside the revealed branch only —
@@ -359,7 +363,9 @@ async function renderWeek(slug){
       /* `data-p` carries the player's name onto every pick cell, and `data-l` onto the score.
          On a phone the SAME markup restacks into a per-game card using those labels — there is no
          second mobile render, so the two can never disagree about what a cell means. */
-      html+='<tr'+(uside?' class="unan" data-unanimous="'+esc(uside)+'"':'')+'><td class="gtitle">'+esc(g.short)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div>'+utag+'</td><td data-l="Score">'+st+'</td>'+
+      /* THE TITLE IN WORDS, LINKED TO ESPN (2026-11-01) — gameTitleHtml in scoring.js: stored names
+         and ranks first, the live feed's for a week built before they were stored, g.short last. */
+      html+='<tr'+(uside?' class="unan" data-unanimous="'+esc(uside)+'"':'')+'><td class="gtitle">'+gameTitleHtml(g,sc)+'<div class="gsub">'+esc(marketLabel(g))+' · '+g.league.toUpperCase()+'</div>'+utag+'</td><td data-l="Score">'+st+'</td>'+
         ranked.map(p=>{
           const mypick=(wk.picks[p].picks||{})[g.id]||'—';
           const r=detail[p]?detail[p][g.id]:mypick;
