@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.21.0-names-ranks-links';  // college titles in words with AP ranks, re-pulled at lock; every title links to ESPN's game page
+const VER = '3.22.0-titles-everywhere';  // the slate-lock email titles games the way the pages do (words, AP rank, ESPN link); commish.html joined the same helper
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -769,6 +769,36 @@ export default async function handler(req, res) {
       homeRank: rankOf(home.curatedRank && home.curatedRank.current),
       awayRank: rankOf(away.curatedRank && away.curatedRank.current),
     };
+  }
+
+  /* THE SAME TITLE THE PAGES PAINT, FOR THE SLATE-LOCK EMAIL (2026-11-02). Keith, the afternoon
+     after 3.21.0: "when we make this type of improvement it seems logical that we carry them
+     through the app." The lock email is the one artifact every player reads, and it still said
+     "TEX @ MIZ". This mirrors pool/scoring.js gameTitle()/espnGameUrl() on the STORED fields only —
+     the server never reads the live feed for a title (fetchFinals deliberately does not carry the
+     names), so a week built before the fields existed reads in the email exactly as it always did.
+     Any change to the rule in scoring.js is mirrored here, the way slateOrder() is. */
+  const ESPN_GAME_SERVER = { nfl: 'https://www.espn.com/nfl/game/_/gameId/', cfb: 'https://www.espn.com/college-football/game/_/gameId/' };
+  const escHtml = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function gameTitleServer(g) {
+    const side = (s) => {
+      const ab = String((s === 'home' ? g.homeAbbrev : g.awayAbbrev) || '');
+      const nm = g[s + 'Name'];
+      if (g.league !== 'cfb' || !nm) return ab;
+      const rk = rankOf(g[s + 'Rank']);
+      return (rk ? '#' + rk + ' ' : '') + nm;
+    };
+    if (g.league !== 'cfb' || !g.awayName || !g.homeName) return g.short || (String(g.awayAbbrev || '') + ' @ ' + String(g.homeAbbrev || ''));
+    return side('away') + (/\bVS\b/i.test(g.short || '') ? ' vs ' : ' @ ') + side('home');
+  }
+  function gameTitleEmailHtml(g) {
+    const base = String(g.id || '').split('#')[0], path = ESPN_GAME_SERVER[g.league];
+    const t = escHtml(gameTitleServer(g));
+    const title = path && /^\d+$/.test(base)
+      ? `<a href="${path}${base}" style="color:#1a56db;text-decoration:none;border-bottom:1px dotted #93b4f5">${t}</a>`
+      : t;
+    const lg = g.league === 'nfl' ? 'NFL' : g.league === 'cfb' ? 'CFB' : '';
+    return title + (lg ? ` <span style="color:#98a2b3;font-size:11px;font-weight:700">${lg}</span>` : '');
   }
 
   async function fetchLines(games) {
@@ -1537,7 +1567,7 @@ export default async function handler(req, res) {
             const longWhen = (d) => new Date(d).toLocaleString('en-US',
               { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
             const gameRows = slateOrder(wk.games).map(g =>
-              `<tr><td style="padding:4px 12px 4px 0">${g.short}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085;white-space:nowrap">${longWhen(g.date)} ET</td></tr>`).join('');
+              `<tr><td style="padding:4px 12px 4px 0">${gameTitleEmailHtml(g)}</td><td style="padding:4px 0;font-weight:700">${g.spreadText}</td><td style="padding:4px 0 4px 12px;color:#667085;white-space:nowrap">${longWhen(g.date)} ET</td></tr>`).join('');
             for (const p of players) {
               // Channel choice is per member. Email defaults on; a member who turned it off is skipped.
               if (p.email && p.wantsEmail) {

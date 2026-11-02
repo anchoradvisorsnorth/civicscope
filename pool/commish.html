@@ -50,6 +50,17 @@
   .gm .ctl input.sm{width:100%}
   .gm .pk{grid-area:pk;justify-self:center}
   .gm .rm{grid-area:rm;justify-self:end}
+  /* THE TITLE IN WORDS, LINKED TO ESPN, WITH THE LEAGUE BADGE (2026-11-02). 3.21.0 titled college
+     games "#2 Ohio State @ USC" on the board, the tracker and the picks page — and left the
+     commissioner's two lists (the loaded games and the slate) reading "UCLA @ MINN CFB". Keith,
+     from Mike's desktop the next afternoon: "when we make this type of improvement it seems
+     logical that we carry them through the app." Same gameTitleHtml()/leagueBadge() from
+     pool/scoring.js, same styling as the picks page. */
+  .gm .t .gl{color:#1a56db;text-decoration:none;border-bottom:1px dotted #93b4f5}   /* link blue (Keith 2026-11-01) */
+  .gm .t span.gl{color:inherit;border-bottom:none}                                  /* a hand-built game has no page: not a link, not blue */
+  .lgb{display:inline-flex;align-items:center;vertical-align:middle;margin-left:6px;font-size:9.5px;font-weight:800;letter-spacing:.4px;line-height:1;color:#fff;background:var(--navy);border-radius:5px;padding:3px 5px}
+  .lgb img{height:15px;width:auto;display:block}
+  .lgb-nfl{background:none;padding:0}
   /* The commissioner builds slates one-handed on a phone. Six columns cannot survive that, so the
      row becomes three lines: what the game is, when and at what number, then the controls. */
   @media(max-width:760px){
@@ -264,6 +275,7 @@
   </div>
 </div>
 
+<script src="/pool/scoring.js"></script>
 <script>
 const API='/api/football-pool';
 const SB={nfl:'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard',
@@ -784,14 +796,14 @@ function renderLoaded(){
   tn.textContent='NFL ('+counts.nfl+')';tc.textContent='College ('+counts.cfb+')';
   tn.className='btn '+(viewLeague==='nfl'?'gold':'gray');tc.className='btn '+(viewLeague==='cfb'?'gold':'gray');
   const q=(document.getElementById('gfilter').value||'').trim().toLowerCase();
-  const show=loaded.filter(g=>g.league===viewLeague&&(!q||(g.name+' '+g.short).toLowerCase().includes(q)));
+  const show=loaded.filter(g=>g.league===viewLeague&&(!q||(g.name+' '+g.short+' '+(g.awayName||'')+' '+(g.homeName||'')).toLowerCase().includes(q)));
   /* TWO MARKETS PER FIXTURE (Keith 2026-08-09: "at times Mike wants to offer a game based on
      over-under not the line — a game can be available in the slate as both against the line and
      over-under"). So each loaded game gets two independent add buttons. The over/under entry is a
      separate slate row with its own id (`<id>#ou`), so both can be picked and both score. */
   document.getElementById('gamelist').innerHTML=(show.length?show:[]).map(g=>`
     <div class="gm">
-      <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}</span></span>
+      <span class="t">${gameTitleHtml(g)+leagueBadge(g)}</span>
       <span class="dt">${new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} ET</span>
       <span class="sp">${g.spreadText?esc(g.spreadText):'<span style="color:#b42318">no line</span>'}${g.overUnder!=null?' <span class="muted">· O/U '+g.overUnder+'</span>':''}</span>
       <button class="btn ${inSlate.has(g.id)?'gray':'gold'}" onclick="toggleGame('${g.id}')" title="Add against the spread">${inSlate.has(g.id)?'✓ spread':'＋ spread'}</button>
@@ -888,7 +900,7 @@ function renderSlate(){
        stops lining up with the spreads above it, which is exactly what looked wonky. */
     return `
     <div class="gm${slateLocked?' lk':''}">
-      <span class="t">${esc(g.short)} <span class="muted">${g.league.toUpperCase()}${isTotal?' · OVER/UNDER':''}</span></span>
+      <span class="t">${gameTitleHtml(g)+leagueBadge(g)}${isTotal?' <span class="muted">· OVER/UNDER</span>':''}</span>
       <span class="dt">${new Date(g.date).toLocaleString('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'2-digit'})} ET</span>
       <span class="sp">${label}</span>
       ${slateLocked?'':`<span class="ctl">${isTotal
