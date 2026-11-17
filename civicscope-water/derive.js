@@ -82,15 +82,56 @@ export function outOfFamily(value, normal) {
 export function derive({ entryPoint, feeds = [], prev = null, input = {}, context = {} }) {
   const errors = [];
   const flags = [];
+  // `num` reads the PREVIOUS visit's stored values only. What the operator typed goes through `read`.
   const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
   const round = (v, d) => (v === null || !isFinite(v) ? null : Number(v.toFixed(d)));
 
+  /* ⛔ A VALUE THAT IS NOT A NUMBER IS REFUSED, NEVER STORED AS BLANK OR ZERO (2026-11-17 reviews:
+     Claude A3, Codex finding 3). `num` above used to read the operator's input too, through
+     Number(): "19,5" and "19..5" became NaN and were stored as a blank tank on a pumping day with
+     ok:true; " " became 0 — the whole tank recorded as used; "0x4F6" became 1270; "1e3", Infinity
+     and negatives went straight through. Every one of those is filed with the State.
+     The rule now: blank (null, undefined, '' or only spaces) is blank, exactly as before. A JS
+     number is a value if it is finite. A string is a value only if, trimmed, it is a plain decimal
+     — an optional leading minus, digits, at most one point (".5" and "5." are fine). Anything else
+     is an error on that field, and the value counts as absent for the rest of the calculation, so
+     the same field never also says "is required". Negative is an error for everything but
+     temperature. Valid inputs derive exactly as they did. */
+  const PLAIN_DECIMAL = /^-?(?:\d+\.?\d*|\.\d+)$/;
+  const invalid = new Set();
+  const read = (v, field, label, key = field, mayBeNegative = false) => {
+    if (v === null || v === undefined) return null;
+    let n;
+    if (typeof v === 'number') {
+      n = isFinite(v) ? v : NaN;
+    } else if (typeof v === 'string') {
+      const t = v.trim();
+      if (t === '') return null;
+      n = PLAIN_DECIMAL.test(t) ? Number(t) : NaN;
+    } else {
+      n = NaN;
+    }
+    /* Finite, not merely not-NaN (2026-11-17 review R1-1): a plain decimal of ~400 digits matches
+       PLAIN_DECIMAL and converts to Infinity. Every value, number or string, must be finite. */
+    if (!Number.isFinite(n)) {
+      invalid.add(key);
+      errors.push({ field, msg: `${label} "${String(v).trim().slice(0, 20)}" is not a number. Type digits and one decimal point only.` });
+      return null;
+    }
+    if (n < 0 && !mayBeNegative) {
+      invalid.add(key);
+      errors.push({ field, msg: `${label} cannot be negative (you typed ${String(v).trim()}).` });
+      return null;
+    }
+    return n;
+  };
+
   // ---- pumpage -------------------------------------------------------------------------------
-  const meter = num(input.meter_reading);
+  const meter = read(input.meter_reading, 'meter_reading', 'Meter reading');
   let gallons = null;
   if (entryPoint.has_meter !== false) {
     if (meter === null || !isFinite(meter)) {
-      errors.push({ field: 'meter_reading', msg: 'Meter reading is required.' });
+      if (!invalid.has('meter_reading')) errors.push({ field: 'meter_reading', msg: 'Meter reading is required.' });
     } else if (prev && prev.meter_reading !== null && prev.meter_reading !== undefined) {
       const units = meter - Number(prev.meter_reading);
       if (units < 0) {
@@ -128,10 +169,13 @@ export function derive({ entryPoint, feeds = [], prev = null, input = {}, contex
   }
 
   // ---- residuals -----------------------------------------------------------------------------
-  const free = num(input.tap_free);
-  const total = num(input.tap_total);
-  const ortho = num(input.tap_ortho);
-  const fluoride = num(input.tap_fluoride);
+  const free = read(input.tap_free, 'tap_free', 'Free chlorine (plant tap)');
+  const total = read(input.tap_total, 'tap_total', 'Total chlorine (plant tap)');
+  const ortho = read(input.tap_ortho, 'tap_ortho', 'Phosphate (plant tap)');
+  const fluoride = read(input.tap_fluoride, 'tap_fluoride', 'Fluoride (plant tap)');
+  // read only where the well records them — exactly where they were read before
+  const pressure = entryPoint.records_pressure ? read(input.pressure_psi, 'pressure_psi', 'Pressure') : null;
+  const tempF = entryPoint.records_temp ? read(input.temp_f, 'temp_f', 'Temperature', 'temp_f', true) : null;
 
   if (free !== null && total !== null && free > total) {
     errors.push({
@@ -150,8 +194,9 @@ export function derive({ entryPoint, feeds = [], prev = null, input = {}, contex
   const feedRows = [];
   for (const f of feeds) {
     const inF = (input.feeds || {})[f.id] || {};
-    const level = num(inF.tank_level);
-    const refillTo = num(inF.refill_to);
+    const fField = `feed:${f.id}`;
+    const level = read(inF.tank_level, fField, `${labelOf(f)} tank level`, `${fField}:tank_level`);
+    const refillTo = read(inF.refill_to, fField, `${labelOf(f)} refilled-to level`, `${fField}:refill_to`);
     const prevF = ((prev && prev.feeds) || {})[f.id] || null;
     // the baseline is what the tank held when the operator walked away last time — which is the
     // level he filled it TO if he filled it, otherwise the level he read.
@@ -163,7 +208,8 @@ export function derive({ entryPoint, feeds = [], prev = null, input = {}, contex
     if (f.tank_tracked !== false) {
       if (level === null) {
         // a feed with no level on a day the well did not run is normal, not an omission
-        if (gallons !== 0) errors.push({ field: `feed:${f.id}`, msg: `${labelOf(f)} tank level is required.` });
+        // ...and a level that was typed but is not a number has already said so once
+        if (gallons !== 0 && !invalid.has(`${fField}:tank_level`)) errors.push({ field: `feed:${f.id}`, msg: `${labelOf(f)} tank level is required.` });
       } else if (baseline === null && prevF && gallons !== null && gallons > 0) {
         /* ⛔ A PUMPING DAY WITH NO CHEMICAL BASELINE IS REFUSED, NOT STORED AS "no usage".
            Codex finding 4 (2026-09-11): day 1 tank 200 → day 2 idle, tank left blank (allowed) →
@@ -188,7 +234,7 @@ export function derive({ entryPoint, feeds = [], prev = null, input = {}, contex
         }
       }
     } else {
-      solution = num(inF.solution_lbs);
+      solution = read(inF.solution_lbs, fField, `${labelOf(f)} pounds used`, `${fField}:solution_lbs`);
     }
 
     if (refillTo !== null && level !== null && refillTo < level) {
@@ -246,8 +292,8 @@ export function derive({ entryPoint, feeds = [], prev = null, input = {}, contex
       tap_total: entryPoint.tap_total ? total : null,
       tap_ortho: entryPoint.tap_ortho ? ortho : null,
       tap_fluoride: entryPoint.tap_fluoride ? fluoride : null,
-      pressure_psi: entryPoint.records_pressure ? num(input.pressure_psi) : null,
-      temp_f: entryPoint.records_temp ? num(input.temp_f) : null,
+      pressure_psi: pressure,
+      temp_f: tempF,
     },
     feeds: feedRows,
   };

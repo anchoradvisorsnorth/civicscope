@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.4.2-water
+  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.5.0-water
+
+  v1.5.0 (2026-11-17, Claude review A3 + Codex findings 3 and 7): the well form sends what was
+  typed, so derive.js refuses "19,5", "0x4F6", a space or a negative instead of storing a blank or
+  a zero, and the live preview shows that error with Submit disabled; the distribution and bacti
+  forms check the same plain-number and not-negative rule (and free not above total) before
+  sending or queueing; a Special / well bacti sample no longer requires the free residual.
+  Every typed number must also be finite: a decimal too long to hold (it becomes Infinity) is refused.
+  A refusal from the server on the well form now shows the server's own reason (it showed only the
+  word "validation"), and the could-not-send bar no longer claims every refusal is a duplicate day.
 
   v1.4.2 (2026-10-07): dates a person reads are month/day/year (Keith); the round's heading on
   the done screen uses the plant's timezone like every other date here.
@@ -179,14 +188,16 @@
          then, a missing capability now: the API accepted them, the tablet could not send
          them. The MOR cannot be signed without collection dates and the residual taken
          with each sample, so this is the screen that unblocks Michelle's month.
-         The residual is REQUIRED here (the API refuses without it) because a bacti result
-         with no chlorine residual beside it tells EGLE nothing about the water. ============ -->
+         The residual is REQUIRED here for routine and repeat (the API refuses without it)
+         because a bacti result with no chlorine residual beside it tells EGLE nothing about the
+         water. A Special / well sample (`other`) may leave it blank, as the API allows. ===== -->
     <section id="tabBacti" class="hide">
       <button class="ghost" style="width:100%;margin-bottom:10px" data-tab="round">← Back to the wells</button>
       <div class="card">
         <h2>Bacteriological sample</h2>
-        <div class="muted">Routine sites, or a well. The free chlorine taken with the sample
-          is required — a result with no residual beside it cannot be read.</div>
+        <div class="muted">Routine sites, or a well. For a routine or repeat sample the free
+          chlorine taken with it is required — a result with no residual beside it cannot be read.
+          A well / raw-water sample may leave it blank.</div>
         <label for="bKind">Type</label>
         <select id="bKind">
           <option value="routine">Routine (distribution site)</option>
@@ -235,7 +246,22 @@ const today = () => new Date().toLocaleDateString('en-CA', { timeZone: TZ() }); 
 // Shown month/day/year (Keith, 2026-10-07); stored and queued dates stay ISO.
 const usDate = (iso) => { const x = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return x ? `${Number(x[2])}/${Number(x[3])}/${x[1]}` : String(iso || ''); };
 const nowTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false, timeZone: TZ() }).slice(0,5);
-const n = (v) => (v===''||v==null ? null : Number(v));
+/* ⛔ WHAT WAS TYPED IS SENT AS TYPED (trimmed), NEVER CONVERTED HERE (2026-11-17). Number() turned
+   "19,5" into NaN and " " into 0 before derive.js could see the text, so the one module that both
+   ends share could not refuse it. Blank stays blank; everything else is derive()'s call. */
+const n = (v) => { const t = String(v == null ? '' : v).trim(); return t === '' ? null : t; };
+/* The same rule derive.js applies, for the two forms that do not go through derive(): a plain
+   decimal (optional leading minus, digits, at most one point) and never negative. Returns an error
+   message, or null when the value is fine or blank. */
+const PLAIN_DECIMAL = /^-?(?:\d+\.?\d*|\.\d+)$/;
+const numErr = (raw, label) => {
+  const t = String(raw == null ? '' : raw).trim();
+  if (t === '') return null;
+  // finite too: ~400 digits matches the pattern and converts to Infinity (review R1-1)
+  if (!PLAIN_DECIMAL.test(t) || !Number.isFinite(Number(t))) return `${label} "${t.slice(0, 20)}" is not a number. Type digits and one decimal point only.`;
+  if (Number(t) < 0) return `${label} cannot be negative (you typed ${t}).`;
+  return null;
+};
 const fmt = (v,d=2) => (v==null||!isFinite(v) ? '—' : Number(v).toFixed(d));
 
 // ---- persistence ----------------------------------------------------------------------------
@@ -286,7 +312,8 @@ function paintQueue(){
   bar.classList.remove('hide');
   const parts = [];
   if(S.queue.length) parts.push(`${S.queue.length} record${S.queue.length>1?'s':''} waiting to send — tap to retry`);
-  if(rej) parts.push(`⚠ ${rej} could not be sent — the server already has that day. Tap to see.`);
+  // the reason varies (already on file, a refused value, a future date) — the tap shows each one's own
+  if(rej) parts.push(`⚠ ${rej} could not be sent. Tap to see why.`);
   bar.textContent = parts.join('  ·  ');
 }
 $('queueBar').onclick = () => { if((S.rejected||[]).length) showRejected(); else flush(); };
@@ -609,6 +636,10 @@ async function openEntry(ep){
     if (id === 'e_meter') return ['meter_reading'];
     // free and total are read as a pair and the error lands on total, so either one unlocks both
     if (id === 'e_free' || id === 'e_total') return ['tap_free', 'tap_total'];
+    // optional fields: they only ever err when what was typed is not a number, so typing shows it
+    if (id === 'e_ortho') return ['tap_ortho'];
+    if (id === 'e_psi') return ['pressure_psi'];
+    if (id === 'e_temp') return ['temp_f'];
     for (const key of ['data-feed','data-refill','data-refillto']) {
       const fid = elm.getAttribute(key);
       if (fid) return ['feed:' + fid];
@@ -704,7 +735,8 @@ async function openEntry(ep){
       sec.classList.add('hide'); $('tabRound').classList.remove('hide'); refreshRound();
     }catch(e){
       if(e.status===422 || e.status===409 || e.status===403){
-        $('e_msg').innerHTML = `<div class="msg err">${esc(e.payload && e.payload.msg || e.message)}</div>`;
+        // a 422 carries its reason in errors[0].msg, not msg — without this the operator saw only "validation"
+        $('e_msg').innerHTML = `<div class="msg err">${esc((e.payload&&(e.payload.msg||(e.payload.errors||[])[0]?.msg))||e.message)}</div>`;
         $('e_submit').disabled = false; $('e_submit').textContent = 'Submit '+ep.label;
       }else{
         enqueue('submit_reading', payload);
@@ -716,7 +748,17 @@ async function openEntry(ep){
 
 // ---- distribution ------------------------------------------------------------------------------
 // ---- bacti ------------------------------------------------------------------------------------
+/* The free residual is required for routine and repeat, optional for Special / well (`other`) —
+   the server's rule (api/water-ops.js submit_bacti; Keith 2026-10-08: "Kind is Well/raw water that
+   dont require those"). The label's * follows the selected type so the form never asks for more
+   than the record does. */
+const bactiNeedsFree = () => $('bKind').value !== 'special';
+function paintBactiFreeLabel(){
+  const lbl = document.querySelector('label[for="bFree"]');
+  if (lbl) lbl.textContent = bactiNeedsFree() ? 'Free *' : 'Free';
+}
 function paintBactiSites(){
+  paintBactiFreeLabel();
   const p = S.profile; if(!p) return;
   const kind = $('bKind').value;
   // routine + repeat -> the sampling plan's routine sites; special -> wells and everything else.
@@ -733,10 +775,19 @@ $('btnBacti').onclick = async () => {
   // is authoritative — but on a tablet with no signal the submit is QUEUED, so a client-side
   // check is the only thing standing between the operator and a sample that will be rejected
   // hours later when the queue finally flushes, long after he has left the site.
-  if(!$('bFree').value.trim()){
-    $('bMsg').innerHTML = '<div class="msg err">The free chlorine taken with the sample is required.</div>';
+  // Kind-aware since 2026-11-17: a Special / well sample (`other`) may carry no residual, exactly
+  // as the server allows; routine and repeat still refuse without one. The number checks mirror
+  // the server's (a number, not negative, free not above total) so a queued sample is not refused
+  // hours later.
+  const bFreeT = $('bFree').value.trim(), bTotalT = $('bTotal').value.trim();
+  if(bactiNeedsFree() && !bFreeT){
+    $('bMsg').innerHTML = '<div class="msg err">The free chlorine taken with a routine or repeat sample is required.</div>';
     return;
   }
+  { const err = numErr(bFreeT, 'Free chlorine') || numErr(bTotalT, 'Total chlorine')
+      || (bFreeT && bTotalT && Number(bFreeT) > Number(bTotalT)
+          ? `Free (${bFreeT}) cannot exceed total (${bTotalT}) — free chlorine is part of the total. Re-read one of them.` : null);
+    if(err){ $('bMsg').innerHTML = `<div class="msg err">${esc(err)}</div>`; return; } }
   if(!$('bSite').value){
     $('bMsg').innerHTML = '<div class="msg err">No site of this type is on the sampling plan.</div>';
     return;
@@ -749,7 +800,7 @@ $('btnBacti').onclick = async () => {
     operator_id: S.op.id, operator_initials: S.op.initials,
     lab_name: $('bLab').value || null,
     result: $('bResult').value || null,
-    input: { free: $('bFree').value, total: $('bTotal').value },
+    input: { free: bFreeT, total: bTotalT },
   };
   $('bMsg').innerHTML='';
   try{
@@ -766,10 +817,17 @@ $('btnBacti').onclick = async () => {
 
 $('btnDist').onclick = async () => {
   if(!needOperator()) return;
+  // Same rule as derive.js and the server, checked BEFORE queueing (2026-11-17): offline, this
+  // check is the only thing between the operator and a refusal hours later, after he has left.
+  const dFreeT = $('dFree').value.trim(), dTotalT = $('dTotal').value.trim(), dOrthoT = $('dOrtho').value.trim();
+  { const err = numErr(dFreeT, 'Free chlorine') || numErr(dTotalT, 'Total chlorine') || numErr(dOrthoT, 'Phosphate')
+      || (dFreeT && dTotalT && Number(dFreeT) > Number(dTotalT)
+          ? `Free (${dFreeT}) cannot exceed total (${dTotalT}) — free chlorine is part of the total. Re-read one of them.` : null);
+    if(err){ $('dMsg').innerHTML = `<div class="msg err">${esc(err)}</div>`; return; } }
   const payload = {
     site_id: $('dSite').value, sample_date: $('dDate').value, sample_time: nowTime(),
     operator_id: S.op.id, operator_initials: S.op.initials,
-    input: { free:$('dFree').value, total:$('dTotal').value, ortho:$('dOrtho').value },
+    input: { free: dFreeT, total: dTotalT, ortho: dOrthoT },
   };
   $('dMsg').innerHTML='';
   try{

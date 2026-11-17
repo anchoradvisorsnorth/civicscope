@@ -555,25 +555,94 @@ def build(data, raw_template, formulas):
     for name in [s for s in rb.sheet_names() if s.startswith('EntryPoint')]:
         clear_block(name, EP_ROW0, 31, (1, 3, 6, 7, 8, 12))
 
+    # ⛔ EVERY READING HAS A HOME OR THE WORKBOOK IS REFUSED (review 2026-11-17, Codex finding 4).
+    # This loop used to `continue` past an entry point with no EntryPoint tab, skip pumpage for a
+    # well numbered outside 1..8, and drop a feed whose kind had no column -- each one a reading on
+    # file that silently never reached the state form. All placement is now decided BEFORE anything
+    # is written, and a value with nowhere to go refuses the month by name. An idle day (a null
+    # value) needs no home and is never a refusal. Inactive entry points that carry readings this
+    # month arrive in `entryPoints` flagged `active: false` and are placed exactly like active ones.
+    ep_by_id = {ep['id']: ep for ep in data['entryPoints']}
+    for row in data['readings']:
+        if row.get('entry_point_id') not in ep_by_id:
+            raise Refuse(409, f'a reading dated {row.get("reading_date")} belongs to entry point '
+                              f'{row.get("entry_point_id")!r}, which is not in this month\'s entry points; '
+                              'the workbook was not generated.')
+
+    def ep_label(ep):
+        return ep.get('label') or ep.get('code') or (f'Well {ep["well_no"]}' if ep.get('well_no') else str(ep['id']))
+
+    plan = []                       # (ep, sheet or None, well_no or None, feed_kind, rows)
+    pump_owner, tab_owner = {}, {}
     for ep in data['entryPoints']:
         rows = by_ep.get(ep['id'], {})
+        feed_kind = {f['id']: f.get('kind') for f in ep.get('feeds', [])}
+        name = ep_label(ep)
+        needs_pump = needs_tab = False
+        for day, row in sorted(rows.items()):
+            when = row.get('reading_date')
+            if row.get('million_gallons') is not None:
+                needs_pump = needs_tab = True
+            if any(row.get(k) is not None for k in ('tap_free', 'tap_total', 'tap_ortho')):
+                needs_tab = True
+            for fr in row.get('feeds', []):
+                if fr.get('solution_lbs') is None:
+                    continue
+                needs_tab = True
+                if fr.get('feed_id') not in feed_kind:
+                    raise Refuse(409, f'{name} on {when} has a chemical feed reading for feed '
+                                      f'{fr.get("feed_id")!r}, which is not one of its feeds; '
+                                      'the workbook was not generated.')
+                if FEED_COL.get(feed_kind[fr['feed_id']]) is None:
+                    raise Refuse(409, f'{name} on {when} has a {feed_kind[fr["feed_id"]]!r} feed reading, '
+                                      'which has no column on the state form; the workbook was not generated.')
+        well = ep.get('well_no')
+        if isinstance(well, float) and well.is_integer():
+            well = int(well)
+        well_ok = isinstance(well, int) and not isinstance(well, bool) and 1 <= well <= 8
         sheet = f'EntryPoint{ep["mor_sheet"]}' if ep.get('mor_sheet') else None
-        feed_kind = {f['id']: f['kind'] for f in ep.get('feeds', [])}
+        if needs_pump and not well_ok:
+            raise Refuse(409, f'{name} has metered pumpage this month but its well number ({well!r}) '
+                              'has no column on the Pumpage tab (wells 1-8); the workbook was not generated.')
+        if needs_tab and not sheet:
+            raise Refuse(409, f'{name} has readings this month but is not mapped to an EntryPoint tab; '
+                              'the workbook was not generated.')
+        if needs_tab and sheet not in sheet_idx:
+            raise Refuse(409, f'{name} is mapped to {sheet}, which this template does not have; '
+                              'the workbook was not generated.')
+        if needs_pump:
+            if well in pump_owner:
+                raise Refuse(409, f'{name} and {pump_owner[well]} are both mapped to Pumpage well {well}; '
+                                  'the workbook was not generated.')
+            pump_owner[well] = name
+        if needs_tab:
+            if sheet in tab_owner:
+                raise Refuse(409, f'{name} and {tab_owner[sheet]} are both mapped to {sheet}; '
+                                  'the workbook was not generated.')
+            tab_owner[sheet] = name
+        plan.append((ep, sheet if needs_tab else None, well if needs_pump else None, feed_kind, rows))
+
+    well_days = 0                   # readings that put at least one value into the workbook
+    for ep, sheet, well, feed_kind, rows in plan:
         for day, row in rows.items():
+            wrote = False
             mg = row.get('million_gallons')
-            if ep.get('well_no') and 1 <= ep['well_no'] <= 8:
-                put('Pumpage', PUMPAGE_ROW0 + day - 1, ep['well_no'], mg)
-            if not sheet or sheet not in sheet_idx:
+            if well is not None and mg is not None:
+                put('Pumpage', PUMPAGE_ROW0 + day - 1, well, mg)
+                wrote = True
+            if sheet is None:
+                well_days += 1 if wrote else 0
                 continue
             r0 = EP_ROW0 + day - 1
-            put(sheet, r0, 1, mg)
-            put(sheet, r0, 6, row.get('tap_free'))
-            put(sheet, r0, 7, row.get('tap_total'))
-            put(sheet, r0, 12, row.get('tap_ortho'))
+            for c, v in ((1, mg), (6, row.get('tap_free')), (7, row.get('tap_total')), (12, row.get('tap_ortho'))):
+                if v is not None:
+                    put(sheet, r0, c, v)
+                    wrote = True
             for fr in row.get('feeds', []):
-                col = FEED_COL.get(feed_kind.get(fr['feed_id']))
-                if col is not None:
-                    put(sheet, r0, col, fr.get('solution_lbs'))
+                if fr.get('solution_lbs') is not None:
+                    put(sheet, r0, FEED_COL[feed_kind[fr['feed_id']]], fr.get('solution_lbs'))
+                    wrote = True
+            well_days += 1 if wrote else 0
 
     # The reporting period. Written before the data so a refusal later cannot leave a workbook
     # that is correctly filled and wrongly labelled.
@@ -614,6 +683,8 @@ def build(data, raw_template, formulas):
         back = back_bk.sheet_by_name('Cover')
         got_month = str(back.cell_value(*COVER_MONTH)).strip()
         got_year = int(float(back.cell_value(*COVER_YEAR) or 0))
+        wr, wc = X_COVER_CELLS['wssn']
+        raw_wssn = back.cell_value(wr, wc) if wr < back.nrows and wc < back.ncols else ''
     except Exception as e:
         raise Refuse(500, f'the generated workbook could not be read back to check its '
                           f'reporting period: {e}')
@@ -649,12 +720,36 @@ def build(data, raw_template, formulas):
                           f'2026-09-02, when nothing wrote the Cover period and every month '
                           f'inherited the July that sits in the template.')
 
+    # ⛔ AND WHOSE REPORT IT IS (review 2026-11-17, Codex finding 5). Only the period is written
+    # here; the supply name and WSSN come from the stored template, and the template key falls back
+    # to 'egle-class-d'. A template whose Cover names another supply would hand this supply a report
+    # that says it is somebody else's. A non-blank Cover WSSN that differs from the requested one
+    # refuses. Compared on digits with leading zeros dropped: a numeric cell reads 1310 for 01310.
+    # A BLANK Cover WSSN is reported (stats.cover_wssn = None), not refused: nothing on record
+    # establishes that the stored template carries the WSSN on its Cover.
+    if isinstance(raw_wssn, float):
+        got_wssn = str(int(raw_wssn)) if raw_wssn.is_integer() else str(raw_wssn)
+    else:
+        got_wssn = str(raw_wssn or '').strip()
+    got_wssn = got_wssn or None
+    want_wssn = str((data.get('supply') or {}).get('wssn') or '').strip()
+
+    def _wssn_key(v):
+        return re.sub(r'\D', '', str(v or '')).lstrip('0')
+
+    if got_wssn and want_wssn and _wssn_key(got_wssn) != _wssn_key(want_wssn):
+        raise Refuse(409, f'the template\'s Cover names WSSN {got_wssn}, but this report is for WSSN '
+                          f'{want_wssn}; the workbook was not returned. The supply\'s MOR template '
+                          'belongs to another supply.')
+
     # stats report what REACHED THE WORKBOOK, not what was fetched. Reporting len(data['bacti'])
     #    while writing none of it is what let the omission run unnoticed: review.html prints this
     #    count beside the download, so the product asserted '2 bacti' about a file containing zero.
     return out.getvalue(), {'formulas_restored': restored, 'formulas_skipped': skipped,
                             'cover_month': got_month, 'cover_year': got_year,
-                            'well_days': len(data['readings']), 'distribution': len(data['dist']),
+                            'cover_wssn': got_wssn,
+                            # readings that put at least one value into the workbook (2026-11-17)
+                            'well_days': well_days, 'distribution': len(data['dist']),
                             'bacti': bacti_written['routine'] + bacti_written['repeat'],
                             'bacti_routine': bacti_written['routine'],
                             'bacti_repeat': bacti_written['repeat'],
@@ -925,6 +1020,27 @@ def extract_workbook(raw, year, month):
                     if v is not None:
                         rec[k] = v
                 out['bacti'].append(rec)
+
+    # ⛔ THE COVER IS NOT THE ONLY THING THAT DATES A WORKBOOK (review 2026-11-17). A Cover saying
+    # September over samples dated July was accepted as September. Every dated sample outside the
+    # Cover's month (or, with no month on the Cover, the requested one) is listed in
+    # `samples_outside_cover_month` and named in `notes`, so the caller can refuse or show it. Nothing
+    # is dropped, and a consistent workbook returns exactly what it did before (no key, no note).
+    cm_cover = None
+    if cover_month:
+        cm_cover = next((i for i, nm in enumerate(MONTHS)
+                         if nm and nm.lower().startswith(str(cover_month).strip().lower()[:3])), None)
+    cy_cover = (out['cover'] or {}).get('year') or year
+    period = f'{int(cy_cover):04d}-{(cm_cover or month):02d}'
+    stray = [{'tab': 'Distribution', 'date': s['date']} for s in out['distribution']
+             if not str(s['date']).startswith(period)]
+    stray += [{'tab': BACTI_SHEET, 'kind': s['kind'], 'location': s['location'], 'date': s['date']}
+              for s in out['bacti'] if not str(s['date']).startswith(period)]
+    if stray:
+        out['samples_outside_cover_month'] = stray
+        out['notes'].append(f'{len(stray)} sample date(s) fall outside {period}, the period the Cover '
+                            f'names: ' + ', '.join(f'{s["tab"]} {s["date"]}' for s in stray[:10])
+                            + (' …' if len(stray) > 10 else ''))
 
     # Which EntryPoint is which well? ASSERTED, never assumed: the tabs are numbered 1..3 and
     # Centreville's wells are 1, 3 and 4, so the obvious mapping is wrong by construction.

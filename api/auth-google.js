@@ -39,7 +39,10 @@ export const config = { maxDuration: 15 };
 import crypto from 'node:crypto';
 import { signSession, sessionCookie, sessionOf, SESSION_COOKIE } from '../lib/session.js';
 
-export const VER = '1.0.0-auth';
+// 1.0.1-auth (2026-11-17): the email lookup is an exact, case-insensitive match (LIKE metacharacters
+// escaped and the returned row compared in code), and the first binding of `google_sub` is a
+// conditional write that refuses the sign-in if somebody else bound the row in the meantime.
+export const VER = '1.0.1-auth';
 
 const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
@@ -207,11 +210,28 @@ async function findUser({ sub, email }) {
     if (bySub && bySub[0]) return bySub[0];
   }
   if (!email) return null;
-  // `ilike` with no wildcards is case-insensitive equality, matching the unique index on lower(email).
-  const byEmail = await sb(`app_users?email=ilike.${encodeURIComponent(email)}&select=*&limit=1`);
-  const u = (byEmail && byEmail[0]) || null;
+  const u = await findByExactEmail(email);
+  if (u && u._ambiguous) return { ...u, _conflict: true };
   if (u && sub && u.google_sub && u.google_sub !== sub) return { ...u, _conflict: true };
   return u;
+}
+
+/* ⛔ `ilike` IS A PATTERN, NOT AN EQUALITY (review 2026-11-17, High). In LIKE, `_` matches any one
+   character and `%` (PostgREST spells it `*`) matches any run, so `pat_lee@x.org` used to match the
+   enrolment of `patxlee@x.org` and the first sign-in then bound the wrong Google account to it.
+   The metacharacters are escaped for the query (`*` cannot be escaped in PostgREST, so it is narrowed
+   to a single-character `_`), and the row(s) returned are then compared to the address in code:
+   only a stored email that equals the verified one, case-insensitively and exactly, is a match. */
+const likeExact = (s) => String(s).replace(/[\\%_]/g, (m) => `\\${m}`).replace(/\*/g, '_');
+const normEmail = (s) => String(s || '').trim().toLowerCase();
+
+async function findByExactEmail(email) {
+  const want = normEmail(email);
+  if (!want) return null;
+  const rows = await sb(`app_users?email=ilike.${encodeURIComponent(likeExact(want))}&select=*&limit=20`);
+  const hits = (rows || []).filter((r) => normEmail(r.email) === want);
+  if (hits.length > 1) return { ...hits[0], _ambiguous: true };   // unique index on lower(email) forbids this
+  return hits[0] || null;
 }
 
 const bad = (res, code, msg, extra = {}) => res.status(code).json({ ok: false, error: msg, ...extra });
@@ -371,13 +391,37 @@ export default async function handler(req, res) {
           sign_in_count: (u.sign_in_count || 0) + 1,
           ...(u.first_seen_at ? {} : { first_seen_at: new Date().toISOString() }),
         };
-        try {
-          const upd = await sb(`app_users?id=eq.${u.id}`, {
-            method: 'PATCH', headers: { Prefer: 'return=representation' },
-            body: JSON.stringify(patch),
-          });
-          if (upd && upd[0]) u = upd[0];
-        } catch { /* the counters are bookkeeping; never fail a valid sign-in over them */ }
+        if (!u.google_sub) {
+          /* ⛔ THE FIRST BINDING IS CONDITIONAL (2026-11-17). The write only lands on a row that is
+             STILL unbound, so a concurrent sign-in by somebody else that bound it first cannot be
+             overwritten. Anything other than exactly one row updated refuses the sign-in: no session
+             is minted for an enrolment this sign-in did not bind. */
+          let bound = null;
+          try {
+            bound = await sb(`app_users?id=eq.${u.id}&google_sub=is.null`, {
+              method: 'PATCH', headers: { Prefer: 'return=representation' },
+              body: JSON.stringify(patch),
+            });
+          } catch { bound = null; }
+          if (!Array.isArray(bound) || bound.length !== 1 || bound[0].google_sub !== c.sub) {
+            await logAttempt(req, { outcome: 'denied', email, google_sub: c.sub, user_id: u.id, reason: 'first binding did not apply (row bound or changed concurrently)' });
+            return res.status(200).json({
+              ok: true, signedIn: false, email,
+              msg: `${email} could not be tied to this Google account. Try signing in again; if it repeats, ask CivicScope to check the enrolment.`,
+            });
+          }
+          u = bound[0];
+        } else {
+          /* Already bound to this subject (findUser refused any other). The bookkeeping write is
+             filtered on the same subject so it can never re-point the binding. */
+          try {
+            const upd = await sb(`app_users?id=eq.${u.id}&google_sub=eq.${encodeURIComponent(c.sub)}`, {
+              method: 'PATCH', headers: { Prefer: 'return=representation' },
+              body: JSON.stringify(patch),
+            });
+            if (upd && upd[0]) u = upd[0];
+          } catch { /* the counters are bookkeeping; never fail a valid sign-in over them */ }
+        }
 
         const token = signSession({ sub: c.sub, email, uid: u.id }, SECRET, SESSION_TTL);
         res.setHeader('Set-Cookie', sessionCookie(token, { req, maxAge: SESSION_TTL }));

@@ -65,7 +65,44 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.14.0-waterops';
+export const VER = '1.15.0-waterops';
+/* 1.15.0 (2026-11-17, the two Well Testing reviews of that date): request dates and ids are
+   validated at the boundary before any query (isIsoDate / isUuid — preview's reading_date,
+   profile's date, submit_reading's operator_id were interpolated raw); a write dated after the
+   plant's own today is refused 422; recomputing a later visit carries its stored observations
+   instead of nulling ones the well no longer records; `month` (and its diff) keeps a well or feed
+   retired mid-month, flagged active:false; the feed list is scoped to this supply; a filing
+   recorded from a generated workbook must pass the same Cover identity checks as an upload. */
+
+/* ── BOUNDARY VALIDATION (2026-11-17, review A1). Every value from the request that reaches a
+   PostgREST query string or a storage path passes one of these, is encodeURIComponent-ed as free
+   text, or is a value already read back from the database. A malformed one is refused with a 4xx
+   BEFORE any query is issued — never interpolated, never a 500. */
+const isIsoDate = (v) => {
+  const s = String(v == null ? '' : v);
+  const x = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!x) return false;
+  const d = new Date(Date.UTC(Number(x[1]), Number(x[2]) - 1, Number(x[3])));
+  return d.getUTCFullYear() === Number(x[1]) && d.getUTCMonth() === Number(x[2]) - 1 && d.getUTCDate() === Number(x[3]);
+};
+const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v == null ? '' : v));
+/* A report period: integer year and month. `Number()` alone let 2026.5 or 1e21 through into a
+   query string as a value PostgREST then failed on with a 500. */
+const periodOf = (body) => {
+  const y = Number(body.year), m = Number(body.month);
+  return Number.isInteger(y) && Number.isInteger(m) && y > 2000 && y < 2200 && m >= 1 && m <= 12 ? { y, m } : null;
+};
+
+/* The plant's own today (review A2). A reading dated tomorrow is not a reading; worse, as the
+   newest row it becomes every later visit's baseline. The plant's clock decides, not the server's
+   UTC and not the caller's: same rule the tablet uses to date the round. */
+const DEFAULT_TZ = 'America/Detroit';
+const plantToday = (tz) => {
+  const fmt = (zone) => new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  try { return fmt(tz || DEFAULT_TZ); } catch { return fmt(DEFAULT_TZ); }
+};
+const futureErr = (supply, date, field) => (date > plantToday(supply && supply.timezone)
+  ? { field, msg: 'That date is in the future for this plant.' } : null);
 
 /* ── Sample inputs (Codex 2026-10-08 review, findings 2, 3, 5, 7). Office entry of samples made
    these paths reachable by a person at a keyboard, and they trusted what arrived: a residual typed
@@ -75,7 +112,17 @@ export const VER = '1.14.0-waterops';
 const SAMPLE_NUM = (v, field) => {
   if (v === undefined) return { v: undefined };
   if (v === null || v === '') return { v: null };
-  const n = Number(v);
+  /* 2026-11-17 (review follow-up): the same plain-decimal rule derive() applies to a well reading.
+     `Number()` alone read "0x10" as 16, "1e3" as 1000 and a lone space as 0 — text nobody meant as
+     that number. A string must be digits with at most one point (optional leading minus, refused
+     as negative below); whitespace-only is blank; anything else is refused, never repaired. */
+  let n;
+  if (typeof v === 'number') n = v;
+  else if (typeof v === 'string') {
+    const t = v.trim();
+    if (t === '') return { v: null };
+    n = /^-?(?:\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN;
+  } else n = NaN;
   if (!Number.isFinite(n)) return { err: { field, msg: `${field} must be a number (got "${String(v).slice(0, 20)}").` } };
   if (n < 0) return { err: { field, msg: `${field} cannot be negative (got ${n}).` } };
   return { v: n };
@@ -197,12 +244,55 @@ async function loadProfile(wssn) {
   const supply = supplies && supplies[0];
   if (!supply) return null;
   const eps = await sb(`water_entry_points?supply_id=eq.${supply.id}&active=eq.true&select=*&order=sort_order`);
-  const feeds = await sb(`water_feeds?active=eq.true&select=*&order=sort_order`);
+  // scoped to THIS supply's wells (2026-11-17): unfiltered, it loaded every supply's feeds
+  const feeds = eps.length
+    ? await sb(`water_feeds?entry_point_id=in.(${eps.map((e) => e.id).join(',')})&active=eq.true&select=*&order=sort_order`)
+    : [];
   const sites = await sb(`water_sites?supply_id=eq.${supply.id}&active=eq.true&select=*&order=sort_order`);
   const ops = await sb(`water_operators?supply_id=eq.${supply.id}&active=eq.true&select=id,name,initials,is_oic&order=name`);
   const epIds = new Set(eps.map((e) => e.id));
   for (const ep of eps) ep.feeds = feeds.filter((f) => f.entry_point_id === ep.id);
   return { supply, entryPoints: eps, sites, operators: ops, _epIds: epIds };
+}
+
+/* ⛔ A MONTH'S DEFINITIONS ARE WHAT ITS READINGS REFER TO, NOT TODAY'S ACTIVE LIST (Codex
+   2026-11-17, finding 4). loadProfile is active-only, and must stay so for new entries — nobody
+   should be able to start a round on a retired well. But a well or feed switched off mid-month
+   still has that month's readings, and `month` returned the readings while the definitions they
+   point at had vanished. So the month gets the active profile PLUS every entry point and feed its
+   readings reference, each extra carrying `active:false`, appended after the active ones with the
+   same fields. Callers (the review page, build-mor, diffFiling) rely on that exact shape. */
+async function monthDefinitions(p, readings, feedReadings) {
+  const eps = p.entryPoints.map((e) => ({ ...e, feeds: [...(e.feeds || [])] }));
+  const haveEp = new Set(eps.map((e) => e.id));
+  const extraEp = new Set();
+  const missingEp = [...new Set((readings || []).map((r) => r.entry_point_id))].filter((id) => id && !haveEp.has(id));
+  if (missingEp.length) {
+    // ids here come from this supply's own reading rows, never from the request
+    const rows = await sb(`water_entry_points?id=in.(${missingEp.join(',')})&supply_id=eq.${p.supply.id}&select=*&order=sort_order`);
+    const want = new Set(missingEp);
+    for (const e of rows || []) {
+      if (!want.has(e.id) || haveEp.has(e.id)) continue;
+      eps.push({ ...e, active: false, feeds: [] });
+      haveEp.add(e.id); extraEp.add(e.id);
+    }
+  }
+  const haveFeed = new Set(eps.flatMap((e) => e.feeds.map((f) => f.id)));
+  const missingFeed = [...new Set((feedReadings || []).map((f) => f.feed_id))].filter((id) => id && !haveFeed.has(id));
+  if (missingFeed.length) {
+    const rows = await sb(`water_feeds?id=in.(${missingFeed.join(',')})&select=*&order=sort_order`);
+    const want = new Set(missingFeed);
+    for (const f of rows || []) {
+      if (!want.has(f.id) || haveFeed.has(f.id)) continue;
+      const ep = eps.find((e) => e.id === f.entry_point_id);
+      if (!ep) continue;                       // not one of this supply's wells: not this month's definition
+      /* On an active well, a feed missing from the active profile is a retired feed. On a retired
+         well, each feed keeps its own stored flag — the WELL is what carries active:false there. */
+      ep.feeds.push({ ...f, active: extraEp.has(ep.id) ? f.active !== false : false });
+      haveFeed.add(f.id);
+    }
+  }
+  return eps;
 }
 
 // the last live reading for an entry point strictly before `date` — the baseline every derived
@@ -453,9 +543,23 @@ async function planOne(supply, ep, afterDate, full, feedRows, virtPrev) {
     });
   }
 
+  /* ⛔ A RECOMPUTE CHANGES ARITHMETIC, NEVER OBSERVATIONS (Codex 2026-11-17, finding 2). derive()
+     returns null for an observation the entry point no longer records (a flag switched off after
+     this visit was taken), and water_submit_reading() writes every one of these columns from the
+     payload — so a stored temperature or orthophosphate residual was being erased by a correction
+     to an EARLIER day. What the operator read is carried from the stored row unchanged; only the
+     derived quantities (gallons, MG/M lbs, flags, feed usage/dose) are recomputed. Same discipline
+     as the corrected row itself (R5-2 in submit_reading). Feed rows need no carry: the function
+     updates only the successor feed rows named here, by feed id, so a retired feed's stored row
+     is never touched. */
+  const reading = { ...out.reading };
+  for (const k of ['meter_reading', 'tap_free', 'tap_total', 'tap_ortho', 'tap_fluoride', 'pressure_psi', 'temp_f']) {
+    if (full[k] !== undefined) reading[k] = full[k];
+  }
+
   return {
     id: next.id, date: next.reading_date, ok: true,
-    reading: out.reading, feeds: out.feeds, flags,
+    reading, feeds: out.feeds, flags,
   };
 }
 
@@ -468,7 +572,8 @@ async function signedInUser(req) {
   const s = sessionOf(req);
   if (!s || !s.uid) return null;
   try {
-    const rows = await sb(`app_users?id=eq.${s.uid}&active=eq.true&select=*&limit=1`);
+    // the uid comes from a signed cookie, but it is still read from the request: encoded, never raw
+    const rows = await sb(`app_users?id=eq.${encodeURIComponent(s.uid)}&active=eq.true&select=*&limit=1`);
     const u = (rows && rows[0]) || null;
     /* The session must still belong to the Google account the enrolment is bound to (R2-8). A row
        re-bound to a new subject leaves the previous holder's unexpired cookie naming the same uid;
@@ -883,6 +988,15 @@ export default async function handler(req, res) {
   const wssn = String(body.wssn || '').trim();
   if (!wssn) return bad(res, 400, 'wssn required');
 
+  /* Boundary checks that must run BEFORE the first query (2026-11-17, review A1). `preview` is an
+     open read and used to put `reading_date` into two query strings raw; `operator_id` went into
+     one on the open submit path. Refused here, ahead of the filed-month gate's own reads. */
+  if (action === 'preview' && !isIsoDate(body.reading_date)) return bad(res, 400, 'reading_date required (YYYY-MM-DD)');
+  if (action === 'profile' && body.date != null && body.date !== '' && !isIsoDate(body.date)) {
+    return bad(res, 400, 'date must be YYYY-MM-DD');
+  }
+  if (action === 'submit_reading' && body.operator_id && !isUuid(body.operator_id)) return bad(res, 404, 'unknown operator');
+
   const codeOk = Boolean(OPS_CODE) && body.code === OPS_CODE;
   const isCorrection = Boolean(body.correction_reason);
 
@@ -912,7 +1026,7 @@ export default async function handler(req, res) {
   let intoFiledMonth = false;
   let filedStateUnknown = false;
   if (OPERATOR_WRITES.has(action)) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(writeDate)) return bad(res, 400, `${DATE_FIELD[action]} required (YYYY-MM-DD)`);
+    if (!isIsoDate(writeDate)) return bad(res, 400, `${DATE_FIELD[action]} required (YYYY-MM-DD)`);
     try {
       const sup = await sb(`water_supplies?wssn=eq.${encodeURIComponent(wssn)}&select=id&limit=1`);
       if (!sup || !sup[0]) return bad(res, 404, 'unknown supply');
@@ -921,7 +1035,7 @@ export default async function handler(req, res) {
          December and the January 1 that sits under a FILED January is recomputed — an amendment
          of a closed period by an anonymous caller. So the successor's month is checked too. */
       const months = new Set([writeDate.slice(0, 7)]);
-      if (action === 'submit_reading' && /^[0-9a-f-]{36}$/i.test(String(body.entry_point_id || ''))) {
+      if (action === 'submit_reading' && isUuid(body.entry_point_id)) {
         const nxt = await sb(`water_readings?entry_point_id=eq.${body.entry_point_id}&reading_date=gt.${writeDate}`
           + '&superseded_at=is.null&select=reading_date&order=reading_date.asc&limit=1');
         if (nxt && nxt[0]) months.add(String(nxt[0].reading_date).slice(0, 7));
@@ -1051,8 +1165,9 @@ export default async function handler(req, res) {
         }
 
         const date = String(body.reading_date || '').slice(0, 10);
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return bad(res, 400, 'reading_date required (YYYY-MM-DD)');
+        if (!isIsoDate(date)) return bad(res, 400, 'reading_date required (YYYY-MM-DD)');
         { const pe = periodErr(body, date); if (pe) return res.status(422).json({ error: 'validation', errors: [pe] }); }
+        { const fe = futureErr(p.supply, date, 'reading_date'); if (fe) return res.status(422).json({ error: 'validation', errors: [fe] }); }
 
         /* ⛔ DERIVE, THEN WRITE UNDER AN ADJACENCY CHECK, AND RE-DERIVE IF THE GRAPH MOVED
            (Codex finding 2, Critical, 2026-09-11). Everything below is computed from the live
@@ -1273,8 +1388,9 @@ export default async function handler(req, res) {
           nums[k] = r.v;
         }
         const date = String(body.sample_date || '').slice(0, 10);
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return bad(res, 400, 'sample_date required (YYYY-MM-DD)');
+        if (!isIsoDate(date)) return bad(res, 400, 'sample_date required (YYYY-MM-DD)');
         { const pe = periodErr(body, date); if (pe) return res.status(422).json({ error: 'validation', errors: [pe] }); }
+        { const fe = futureErr(p.supply, date, 'sample_date'); if (fe) return res.status(422).json({ error: 'validation', errors: [fe] }); }
         const rs = await resolveSite(p, body);
         if (rs.err) return res.status(422).json({ error: 'validation', errors: [rs.err] });
         const site = rs.site;
@@ -1364,8 +1480,9 @@ export default async function handler(req, res) {
         const bf = SAMPLE_NUM(i.free, 'free'), bt = SAMPLE_NUM(i.total, 'total');
         if (bf.err || bt.err) return res.status(422).json({ error: 'validation', errors: [bf.err || bt.err] });
         const bdate = String(body.collected_date || '').slice(0, 10);
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(bdate)) return bad(res, 400, 'collected_date required (YYYY-MM-DD)');
+        if (!isIsoDate(bdate)) return bad(res, 400, 'collected_date required (YYYY-MM-DD)');
         { const pe = periodErr(body, bdate); if (pe) return res.status(422).json({ error: 'validation', errors: [pe] }); }
+        { const fe = futureErr(p.supply, bdate, 'collected_date'); if (fe) return res.status(422).json({ error: 'validation', errors: [fe] }); }
         /* The kind decides which block of EGLE's Bacti tab a sample lands in — or, for `other`,
            that it lands in neither (Codex finding 3) — and it is part of the sample's IDENTITY: a
            routine and a repeat at the same site on the same day are two rows in two blocks (R2-9).
@@ -1473,8 +1590,9 @@ export default async function handler(req, res) {
       case 'month': {
         let p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
-        const y = Number(body.year), m = Number(body.month);
-        if (!(y > 2000 && m >= 1 && m <= 12)) return bad(res, 400, 'year/month required');
+        const per = periodOf(body);
+        if (!per) return bad(res, 400, 'year/month required');
+        const { y, m } = per;
         const from = `${y}-${String(m).padStart(2, '0')}-01`;
         const to = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
@@ -1492,7 +1610,7 @@ export default async function handler(req, res) {
           const r = await sb(`water_supplies?id=eq.${p.supply.id}&select=data_version`);
           return r && r[0] ? String(r[0].data_version) : 'missing';
         };
-        let readings, feedReadings, dist, bacti, filings, consistent = false;
+        let readings, feedReadings, dist, bacti, filings, monthEps, consistent = false;
         for (let tryN = 0; tryN < 5 && !consistent; tryN++) {
           if (tryN) await new Promise((ok) => setTimeout(ok, 150 + Math.floor(Math.random() * 250)));
           const before = await dataVersion();
@@ -1506,6 +1624,8 @@ export default async function handler(req, res) {
             const ids = readings.map((r) => r.id).join(',');
             feedReadings = await sb(`water_feed_readings?reading_id=in.(${ids})&select=*`);
           }
+          // the definitions those readings point at, retired ones included — inside the bracket
+          monthEps = await monthDefinitions(p, readings, feedReadings);
           dist = await sb(
             `water_dist_samples?supply_id=eq.${p.supply.id}&sample_date=gte.${from}&sample_date=lt.${to}` +
               `&superseded_at=is.null&select=*&order=sample_date`
@@ -1537,7 +1657,7 @@ export default async function handler(req, res) {
         if (filing) {
           filedCard = filingCard(filing);
           filedCard.diff = diffFiling({
-            filed: filing.filed || {}, entryPoints: p.entryPoints, readings, dist, bacti,
+            filed: filing.filed || {}, entryPoints: monthEps, readings, dist, bacti,
           });
         }
 
@@ -1565,7 +1685,7 @@ export default async function handler(req, res) {
         } catch { dismissals = []; }
 
         return res.status(200).json({
-          ver: VER, supply: p.supply, entryPoints: p.entryPoints, sites: p.sites,
+          ver: VER, supply: p.supply, entryPoints: monthEps, sites: p.sites,
           year: y, month: m, readings, dist, bacti, filing: filedCard, generations, dismissals,
         });
       }
@@ -1579,8 +1699,9 @@ export default async function handler(req, res) {
       case 'dismiss_item': {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
-        const y = Number(body.year), m = Number(body.month);
-        if (!(y > 2000 && m >= 1 && m <= 12)) return bad(res, 400, 'year/month required');
+        const per = periodOf(body);
+        if (!per) return bad(res, 400, 'year/month required');
+        const { y, m } = per;
         const key = String(body.item_key || '').trim();
         if (!key || key.length > 300) return bad(res, 400, 'item_key required (1–300 characters)');
         const who = actor ? (actor.name || actor.email) : 'script';
@@ -1636,7 +1757,9 @@ export default async function handler(req, res) {
       case 'filing_workbook': {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
-        const y = Number(body.year), m = Number(body.month);
+        const per = periodOf(body);
+        if (!per) return bad(res, 400, 'year/month required');
+        const { y, m } = per;
         const rows = await sb(
           `water_mor_filings?supply_id=eq.${p.supply.id}&report_year=eq.${y}&report_month=eq.${m}` +
             `&superseded_at=is.null&select=id,workbook_name,workbook_path,workbook_sha256&limit=1`
@@ -1661,8 +1784,9 @@ export default async function handler(req, res) {
       case 'record_generation': {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
-        const y = Number(body.year), m = Number(body.month);
-        if (!(y > 2000 && m >= 1 && m <= 12)) return bad(res, 400, 'year/month required');
+        const per = periodOf(body);
+        if (!per) return bad(res, 400, 'year/month required');
+        const { y, m } = per;
         const dec = decodeWorkbook(body.workbook_b64);
         if (dec.err) return bad(res, 400, dec.err.replace('the filing IS the file', 'a generation IS the file'));
         const bytes = dec.bytes;
@@ -1670,7 +1794,8 @@ export default async function handler(req, res) {
         /* Under its own prefix so a generated draft can never be mistaken for a filed workbook by
            anyone reading the bucket, and content-hashed so regenerating an unchanged month costs
            one 409 rather than a second copy. */
-        const path = `${wssn}/generated/${y}-${String(m).padStart(2, '0')}-${sha.slice(0, 8)}.xls`;
+        // the supply's stored WSSN, not the request's string (same value — matched by eq — but DB-sourced)
+        const path = `${encodeURIComponent(p.supply.wssn)}/generated/${y}-${String(m).padStart(2, '0')}-${sha.slice(0, 8)}.xls`;
         const up = await putWorkbook(path, bytes);
         if (!up.ok) return bad(res, 502, `could not store the workbook (${up.status}): ${up.msg}`);
         const who = actor ? (actor.name || actor.email) : null;
@@ -1698,7 +1823,7 @@ export default async function handler(req, res) {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
         const id = String(body.generation_id || '');
-        if (!/^[0-9a-f-]{36}$/i.test(id)) return bad(res, 400, 'generation_id required');
+        if (!isUuid(id)) return bad(res, 400, 'generation_id required');
         const rows = await sb(`water_mor_generations?id=eq.${id}&supply_id=eq.${p.supply.id}&select=id,filing_id,withdrawn_at&limit=1`);
         const g = rows && rows[0];
         if (!g) return bad(res, 404, 'no such workbook for this supply');
@@ -1714,7 +1839,7 @@ export default async function handler(req, res) {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
         const id = String(body.generation_id || '');
-        if (!/^[0-9a-f-]{36}$/i.test(id)) return bad(res, 400, 'generation_id required');
+        if (!isUuid(id)) return bad(res, 400, 'generation_id required');
         const rows = await sb(
           `water_mor_generations?id=eq.${id}&supply_id=eq.${p.supply.id}` +
             `&select=id,workbook_name,workbook_path,workbook_sha256&limit=1`
@@ -1752,15 +1877,16 @@ export default async function handler(req, res) {
       case 'record_filing': {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
-        const y = Number(body.year), m = Number(body.month);
-        if (!(y > 2000 && m >= 1 && m <= 12)) return bad(res, 400, 'year/month required');
+        const per = periodOf(body);
+        if (!per) return bad(res, 400, 'year/month required');
+        const { y, m } = per;
 
         /* The generation this filing came from, if any. Must be this supply's and this month's —
            a filing for August recorded against July's generation would be a lie in both rows. */
         let gen = null;
         if (body.generation_id) {
           const gid = String(body.generation_id);
-          if (!/^[0-9a-f-]{36}$/i.test(gid)) return bad(res, 400, 'generation_id is not an id');
+          if (!isUuid(gid)) return bad(res, 400, 'generation_id is not an id');
           const rows = await sb(
             `water_mor_generations?id=eq.${gid}&supply_id=eq.${p.supply.id}&select=*&limit=1`
           );
@@ -1783,6 +1909,32 @@ export default async function handler(req, res) {
            workbooks arrived); a person's upload is always read here. */
         const MONTH_NAMES = ['', 'january', 'february', 'march', 'april', 'may', 'june', 'july',
                              'august', 'september', 'october', 'november', 'december'];
+        /* THE COVER MUST NAME THIS SUPPLY AND THIS PERIOD — for an upload AND for a filing recorded
+           from a stored generation (Codex 2026-11-17, finding 5). The generation path used to skip
+           this entirely, trusting the row's year/month columns over what the workbook itself says.
+           One check, both paths. WSSNs compare as numbers-in-text: an Excel cell that lost its
+           leading zeros (1310) is still 01310. */
+        const wssnKey = (v) => String(v == null ? '' : v).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+        const coverIdentityErr = (cv, what) => {
+          cv = cv || {};
+          if (cv.wssn && wssnKey(cv.wssn) && wssnKey(cv.wssn) !== wssnKey(wssn)) {
+            return { error: 'wrong_supply', msg: `${what} Cover names WSSN ${cv.wssn}, not ${wssn}. It was not recorded.` };
+          }
+          const mon = String(cv.month_label || '').trim().toLowerCase().slice(0, 3);
+          if (mon && !MONTH_NAMES[m].startsWith(mon)) {
+            return { error: 'wrong_month', msg: `${what} Cover says ${cv.month_label}, but you are recording ${MONTH_NAMES[m]} ${y}. It was not recorded.` };
+          }
+          if (cv.year && Number(cv.year) !== y) {
+            return { error: 'wrong_year', msg: `${what} Cover says ${cv.year}, but you are recording ${y}. It was not recorded.` };
+          }
+          /* ALL THREE identifiers, not "none conflicts" (R2-4): a Cover with a blank WSSN and a
+             blank month but the right year is not evidence that these bytes are this supply's
+             report for this period. */
+          if (!wssnKey(cv.wssn) || !mon || !cv.year) {
+            return { error: 'unidentified', msg: `${what} Cover does not name all of WSSN, reporting month and year (found WSSN ${cv.wssn || '—'}, month ${cv.month_label || '—'}, year ${cv.year || '—'}), so it cannot be tied to this period. It was not recorded.` };
+          }
+          return null;
+        };
         let bytes, extracted = null;
         if (body.workbook_b64) {
           const dec = decodeWorkbook(body.workbook_b64);
@@ -1809,28 +1961,16 @@ export default async function handler(req, res) {
             }
             extracted = j;
             const cv = extracted.cover || {};
-            const digits = (v) => String(v == null ? '' : v).replace(/\D/g, '');
-            if (cv.wssn && digits(cv.wssn) && digits(cv.wssn) !== digits(wssn)) {
-              return res.status(409).json({ error: 'wrong_supply', msg: `That workbook's Cover names WSSN ${cv.wssn}, not ${wssn}. It was not recorded.` });
-            }
-            const mon = String(cv.month_label || '').trim().toLowerCase().slice(0, 3);
-            if (mon && !MONTH_NAMES[m].startsWith(mon)) {
-              return res.status(409).json({ error: 'wrong_month', msg: `That workbook's Cover says ${cv.month_label}, but you are recording ${MONTH_NAMES[m]} ${y}. It was not recorded.` });
-            }
-            if (cv.year && Number(cv.year) !== y) {
-              return res.status(409).json({ error: 'wrong_year', msg: `That workbook's Cover says ${cv.year}, but you are recording ${y}. It was not recorded.` });
-            }
-            /* ALL THREE identifiers, not "none conflicts" (R2-4): a Cover with a blank WSSN and a
-               blank month but the right year is not evidence that these bytes are this supply's
-               report for this period. */
-            if (!digits(cv.wssn) || !mon || !cv.year) {
-              return res.status(409).json({ error: 'unidentified', msg: `That workbook's Cover does not name all of WSSN, reporting month and year (found WSSN ${cv.wssn || '—'}, month ${cv.month_label || '—'}, year ${cv.year || '—'}), so it cannot be tied to this period. It was not recorded.` });
-            }
+            { const ie = coverIdentityErr(cv, "That workbook's"); if (ie) return res.status(409).json(ie); }
             if (cv.submitted_date_unreadable) {
               return res.status(409).json({ error: 'date_unreadable', msg: `That workbook's Cover carries a submission date that could not be read (${cv.submitted_date_unreadable}). Fix the cell and upload again — nothing was recorded.` });
             }
           }
         } else {
+          /* No upload: the generated workbook's own Cover, as read by the extractor when it was
+             generated (`record_generation` stores it in `filed`). A generation whose read failed
+             carries no Cover and is refused as unidentified — re-generate, or upload the file sent. */
+          { const ie = coverIdentityErr(gen.filed && gen.filed.cover, "The generated workbook's"); if (ie) return res.status(409).json(ie); }
           bytes = await getWorkbook(gen.workbook_path);
           if (!bytes) return bad(res, 502, 'the generated workbook could not be read back from storage');
         }
@@ -1853,7 +1993,7 @@ export default async function handler(req, res) {
           });
         }
 
-        const path = `${wssn}/${y}-${String(m).padStart(2, '0')}-${sha.slice(0, 8)}.xls`;
+        const path = `${encodeURIComponent(p.supply.wssn)}/${y}-${String(m).padStart(2, '0')}-${sha.slice(0, 8)}.xls`;
 
         /* WHAT THE WORKBOOK SAYS is whatever was read out of the bytes being recorded — by the
            extractor just now for an upload, by the same extractor at generation time for a filing

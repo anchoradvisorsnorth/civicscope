@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.12.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.13.0-oic
+
+  v1.13.0 (2026-11-17) — Codex round 1 (R1-1..R1-3): the well editor sends numbers as typed and
+  refuses non-numbers on the page, so "abc" can no longer clear a recorded value; every month is
+  drawn from ITS OWN definitions, a well or feed retired since shows read-only and labelled
+  "retired", never as behind or missing after its last reading; each Mark-as-filed form reads only
+  its own fields.
 
   v1.12.0 (2026-10-08) — every generated workbook for a month is its own row (Open / Mark as filed /
   Remove — withdrawn, never deleted, migration 081); a plant-tap residual above 4.0 mg/L is flagged as a
@@ -302,7 +308,7 @@
 import { normalOf, outOfFamily, DOSE_OUT_OF_FAMILY, DOSE_NORMAL_MIN_SAMPLES } from '/civicscope-water/derive.js';
 /* The well-day editor's fields and request shape live in ONE file, driven through the real handler
    by the write-path gate — the page's own inline copy never matched the API (R4-1, 2026-09-11). */
-import { readingFields, readingPayload } from '/civicscope-water/editor-payload.js';
+import { readingFields, readingPayload, numericError, TEXT_FIELDS } from '/civicscope-water/editor-payload.js';
 const API = '/api/water-ops';
 const WSSN = new URLSearchParams(location.search).get('wssn') || '01310';
 const $ = (id) => document.getElementById(id);
@@ -348,6 +354,18 @@ let CUR = null;
 const fmt = (v, d = 2) => (v == null || v === '' ? '—' : Number(v).toFixed(d));
 const int = (v) => (v == null ? '—' : Number(v).toLocaleString());
 const dayOf = (iso) => Number(String(iso).slice(8, 10));
+/* ── RETIRED WELLS AND FEEDS (Codex R1-2, 2026-11-17). A month's `entryPoints` carries, after the
+   active ones, any well no longer active that has readings in THAT month, and any retired feed its
+   readings reference — each flagged active:false. They are shown, labelled "retired", and are
+   read-only: the server refuses a correction to a retired well (unknown entry point) and ignores an
+   edit to a retired feed. A retired well is expected only up to its LAST recorded reading in the
+   month — never "behind", "missing" or "not running" after that. With every well and feed active,
+   none of this changes what the page shows. */
+const isRetired = (ep) => Boolean(ep && ep.active === false);
+const epTitle = (ep) => `${ep.label}${isRetired(ep) ? ' — retired' : ''}`;
+const expectedThrough = (readings, ep, through) => !isRetired(ep) ? through
+  : Math.min(through, (readings || []).filter((r) => r.entry_point_id === ep.id)
+                                      .reduce((a, r) => Math.max(a, dayOf(r.reading_date)), 0));
 /* ⛔ "TODAY" IS THE PLANT'S DAY, NEVER UTC'S (Keith, 2026-10-07, 9:11 pm EDT). This read
    `toISOString()`, which is UTC — so from 8 pm Eastern every evening the page believed it was
    already tomorrow: the readings taken that morning were labelled "yesterday", the coverage strip
@@ -456,7 +474,12 @@ async function loadFor(today) {
 function render({ cur, prev, y, m, target, deepLinked }) {
   $('sections').hidden = false;
   for (const el of document.querySelectorAll('[data-view]')) el.hidden = el.dataset.view !== VIEW;
-  const eps = cur.entryPoints || [];
+  /* ⛔ TWO DIFFERENT LISTS OF WELLS (Codex R1-2, 2026-11-17). The banner and the well cards answer
+     "is the round being walked NOW", so they use only the wells that are active today. Every month
+     section is drawn from THAT month's own `entryPoints` (renderMonth reads mo.entryPoints), which
+     also carries a well or feed retired since, flagged active:false — this list used to be passed
+     to every month, so a well retired before November vanished from October's sheet. */
+  const eps = (cur.entryPoints || []).filter((e) => e.active !== false);
   $('hdrTitle').textContent = VIEW === 'report' ? `${cur.supply.name} — Monthly report` : `${cur.supply.name} — Well Testing`;
   $('hdrSub').textContent = `WSSN ${cur.supply.wssn}${cur.supply.classification ? ' · ' + cur.supply.classification : ''} · `
     + (VIEW === 'report' ? 'the EGLE Monthly Operation Report' : 'daily review');
@@ -575,7 +598,7 @@ function render({ cur, prev, y, m, target, deepLinked }) {
       try {
         const mo = await post({ action: 'month', year: yy, month: mm });
         if (ticket !== MONTH_TICKET) return;
-        renderMonth(mo, yy, mm, eps);
+        renderMonth(mo, yy, mm, mo.entryPoints || []);
         sel.dataset.shown = `${yy}-${mm}`;
         try {
           const q = new URLSearchParams(location.search);
@@ -602,7 +625,7 @@ function render({ cur, prev, y, m, target, deepLinked }) {
   }
   sel.value = wantVal;
   sel.dataset.shown = wantVal;   // the month actually on screen — where a failed change returns to
-  renderMonth(target, y, m, eps);
+  renderMonth(target, y, m, target.entryPoints || []);
   // (the reminder's deep link used to scroll down to Month end; it now opens the report view itself)
 }
 
@@ -687,6 +710,8 @@ window.goMonth = async (y, m) => {
 };
 
 function renderMonth(mo, y, m, eps) {
+  // THIS month's own definitions, retired ones included (R1-2); the argument is only a fallback
+  eps = (mo && mo.entryPoints) || eps || [];
   CUR = { mo, y, m, eps };
   const readings = mo.readings || [];
   const epName = (id) => (eps.find((e) => e.id === id) || {}).label || '—';
@@ -840,17 +865,19 @@ function renderMonth(mo, y, m, eps) {
   const paintCoverage = () => {
     $('coverage').innerHTML = eps.map((ep) => {
       const days = new Set(readings.filter((r) => r.entry_point_id === ep.id).map((r) => dayOf(r.reading_date)));
+      // a retired well is expected only through its last recorded reading this month (R1-2)
+      const exp = expectedThrough(readings, ep, upto);
       let cells = '';
       for (let d = 1; d <= last; d++) {
-        const cls = days.has(d) ? 'has' : (d > upto ? 'future' : '');
-        cells += `<span class="d ${cls}" data-day="${d}" title="${usDate(dayISO(y, m, d))}${days.has(d) ? '' : d > upto ? '' : ' — not recorded'}">${d}</span>`;
+        const cls = days.has(d) ? 'has' : (d > exp ? 'future' : '');
+        cells += `<span class="d ${cls}" data-day="${d}" title="${usDate(dayISO(y, m, d))}${days.has(d) ? '' : d > exp ? '' : ' — not recorded'}">${d}</span>`;
       }
-      const missing = upto - days.size;
+      const missing = exp - days.size;
       const on = ep.id === SEL_EP;
       return `<div class="covrow${on ? ' on' : ''}" role="button" tabindex="0" data-ep="${esc(ep.id)}" aria-pressed="${on}">
         <div style="display:flex;justify-content:space-between;align-items:baseline">
-          <span><b>${esc(ep.label)}</b>${on ? '<span class="open">showing below ↓</span>' : '<span class="open" style="color:var(--mut);font-weight:400">open sheet</span>'}</span>
-          <span class="muted">${days.size} of ${upto} day${upto === 1 ? '' : 's'} recorded${missing > 0 ? ` · ${missing} missing` : ''}</span>
+          <span><b>${esc(epTitle(ep))}</b>${on ? '<span class="open">showing below ↓</span>' : '<span class="open" style="color:var(--mut);font-weight:400">open sheet</span>'}</span>
+          <span class="muted">${days.size} of ${exp} day${exp === 1 ? '' : 's'} recorded${missing > 0 ? ` · ${missing} missing` : ''}${isRetired(ep) ? ` · no longer in service — last reading ${m}/${Math.max(0, ...days)}` : ''}</span>
         </div>
         <div class="cov">${cells}</div>
       </div>`;
@@ -924,22 +951,27 @@ function renderMonth(mo, y, m, eps) {
   // an in-progress month is judged through YESTERDAY — today's round may simply not be walked yet
   const throughD = inProgress ? ptd.d - 1 : notStarted ? 0 : lastDay;
   const gaps = [];
+  let expected = 0, gapsLinkable = false;
   for (const ep of eps) {
     const have = new Set(readings.filter((r) => r.entry_point_id === ep.id).map((r) => dayOf(r.reading_date)));
-    const miss = []; for (let d = 1; d <= throughD; d++) if (!have.has(d)) miss.push(d);
+    // a retired well: gaps BEFORE its last reading still count; days after it are not expected (R1-2)
+    const thru = expectedThrough(readings, ep, throughD);
+    expected += thru;
+    const miss = []; for (let d = 1; d <= thru; d++) if (!have.has(d)) miss.push(d);
     /* Each missing day is a way to fill it (Keith, 2026-10-08: "can we provide a link on this screen
        that will pop a new window where she can enter the record"). It opens the SAME well-day editor
        the review sheet uses, in a dialog, so the arithmetic and the refusals are the ones she already
        has. Signed-out readers get the dates as text — the save would be refused anyway. */
-    const dayLink = (d) => ME
+    // a retired well's day cannot be entered (the server refuses it), so it is listed as text, not a link
+    const dayLink = (d) => ME && !isRetired(ep)
       ? `<a href="#" data-addday="${esc(ep.id)}|${dayISO(y, m, d)}" title="Enter ${esc(ep.label)} for ${m}/${d}">${m}/${d}</a>`
       : `${m}/${d}`;
-    if (miss.length) gaps.push(`${esc(ep.label)}: ${miss.map(dayLink).join(', ')}`);
+    if (miss.length) gaps.push(`${esc(epTitle(ep))}: ${miss.map(dayLink).join(', ')}`);
+    if (miss.length && !isRetired(ep)) gapsLinkable = true;
   }
-  const expected = eps.length * throughD;
   const liveAttn = ATTN ? ATTN.rows.filter((r) => !ATTN.dismissed.has(r.key) && r.level !== 'info').length : 0;
   const tick = (ok) => ok ? '<span class="ok">✓</span>' : '<span class="no">!</span>';
-  const gapHint = gaps.length && ME ? ' <span class="muted">— click a date to enter it</span>' : '';
+  const gapHint = gapsLinkable && ME ? ' <span class="muted">— click a date to enter it</span>' : '';
   /* Not signed in: say so at the top of the workspace, not only in small grey lines beside each
      control. Everything here reads without a sign-in; nothing here can be CHANGED without one. */
   const signedOutBanner = ME ? '' : `<div class="banner warn" style="margin:0 0 12px"><b>You are not signed in</b>`
@@ -1235,34 +1267,44 @@ window.markFiledForm = (id, y, m) => {
       + `the State of Michigan under your certification. <a href="/centreville">Sign in on the village hub</a>, then come back to this month.</div>`;
     return;
   }
+  /* ⛔ EVERY ID BELOW CARRIES THIS GENERATION'S ID (Codex R1-3, 2026-11-17). Two open forms used to
+     share mfDate / mfFile / mfAttest, and recordFiling read them with a global lookup — so the
+     second form's button recorded the FIRST form's date, file and attestation against the second
+     workbook. Each form now owns its fields, its button and its message. */
+  const sfx = esc(id);
   box.innerHTML = `<div class="ed">
       <h4>Record that ${MN[m]} ${y} went to EGLE</h4>
       <div class="grid">
-        <div><label>Date it was sent</label><input type="date" id="mfDate" value="${todayISO()}" max="${todayISO()}"></div>
-        <div><label>Your comments to EGLE, as written on the Cover</label><input class="wide" id="mfComments" placeholder="optional"></div>
+        <div><label for="mfDate-${sfx}">Date it was sent</label><input type="date" id="mfDate-${sfx}" value="${todayISO()}" max="${todayISO()}"></div>
+        <div><label for="mfComments-${sfx}">Your comments to EGLE, as written on the Cover</label><input class="wide" id="mfComments-${sfx}" placeholder="optional"></div>
       </div>
-      <div style="margin-top:10px"><label>The workbook you sent — only if you changed it in Excel (comments, signature)</label>
-        <input type="file" id="mfFile" accept=".xls,application/vnd.ms-excel"></div>
+      <div style="margin-top:10px"><label for="mfFile-${sfx}">The workbook you sent — only if you changed it in Excel (comments, signature)</label>
+        <input type="file" id="mfFile-${sfx}" accept=".xls,application/vnd.ms-excel"></div>
       <div class="muted" style="margin-top:6px;font-size:12.5px">Leave the file empty if you sent the generated workbook as it was — it is already held here. `
         + `If you upload the file, its Cover tab is read here and must be this supply's ${MN[m]} ${y} report; the date and comments come from the Cover where it has them.</div>
       <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:13.5px;color:#334155">
-        <input type="checkbox" id="mfAttest" style="margin-top:3px">
+        <input type="checkbox" id="mfAttest-${sfx}" style="margin-top:3px">
         <span>I signed the Cover as Operator-In-Charge and sent this report to EGLE. (Recorded under your sign-in — the product cannot know this from the file.)</span>
       </label>
       <div class="act">
-        <button class="go" id="mfGo" onclick="recordFiling('${id}',${y},${m})">Record the filing</button>
+        <button class="go" id="mfGo-${sfx}" onclick="recordFiling('${id}',${y},${m})">Record the filing</button>
         <button class="editbtn" onclick="document.getElementById('mf-${id}').innerHTML=''">Cancel</button>
-        <span class="msg" id="mfMsg"></span>
+        <span class="msg" id="mfMsg-${sfx}"></span>
       </div>
     </div>`;
 };
 
 window.recordFiling = async (id, y, m) => {
-  const btn = $('mfGo'), msg = $('mfMsg');
-  const date = ($('mfDate').value || '').trim();
-  const comments = ($('mfComments').value || '').trim();
-  const file = $('mfFile').files && $('mfFile').files[0];
-  const attested = Boolean($('mfAttest') && $('mfAttest').checked);
+  // only THIS generation's form: its own fields, button, message and attestation (R1-3)
+  const box = $(`mf-${id}`);
+  const own = (name) => (box ? box.querySelector(`#${CSS.escape(`${name}-${id}`)}`) : null);
+  const btn = own('mfGo'), msg = own('mfMsg');
+  if (!btn || !msg) return;
+  const date = ((own('mfDate') || {}).value || '').trim();
+  const comments = ((own('mfComments') || {}).value || '').trim();
+  const fileEl = own('mfFile');
+  const file = fileEl && fileEl.files && fileEl.files[0];
+  const attested = Boolean(own('mfAttest') && own('mfAttest').checked);
   if (!date) { msg.className = 'msg err'; msg.textContent = 'The date it was sent is required.'; return; }
   if (!attested) { msg.className = 'msg err'; msg.textContent = 'Tick the box to confirm you signed and sent it — that is the fact being recorded.'; return; }
   btn.disabled = true; msg.className = 'msg'; msg.textContent = file ? 'Sending the workbook you sent…' : 'Recording…';
@@ -1313,15 +1355,18 @@ let SEL_EP = null;   // the well whose sheet is open — chosen from the month's
 function paintRecords(mo, y, m, eps) {
   const ep = eps.find((e) => e.id === SEL_EP) || eps[0];
   if (!ep) { $('records').innerHTML = ''; $('recTitle').textContent = ''; return; }
-  $('recTitle').innerHTML = `<span style="color:var(--navy)">— ${esc(ep.label)} · ${MN[m]} ${y}</span>`;
+  $('recTitle').innerHTML = `<span style="color:var(--navy)">— ${esc(epTitle(ep))} · ${MN[m]} ${y}</span>`;
   const rows = (mo.readings || []).filter((r) => r.entry_point_id === ep.id);
   const byDay = {};
   for (const r of rows) byDay[dayOf(r.reading_date)] = r;
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const feeds = ep.feeds || [];
+  /* A retired well's days are shown as recorded and offer no Edit or Add: the server refuses a
+     correction to a well that is no longer in service (R1-2). */
+  const canEdit = ME && !isRetired(ep);
 
   let head = '<tr><th class="l">Date</th><th>Time</th><th>Meter</th><th>Gallons</th>';
-  for (const f of feeds) head += `<th>${esc(f.product_name || f.kind)}</th><th>Used</th><th>ppm</th>`;
+  for (const f of feeds) head += `<th>${esc(f.product_name || f.kind)}${f.active === false ? ' (retired)' : ''}</th><th>Used</th><th>ppm</th>`;
   head += '<th>Free</th><th>Total</th><th>PO₄</th><th class="l">By</th><th></th></tr>';
 
   let body = '';
@@ -1333,7 +1378,7 @@ function paintRecords(mo, y, m, eps) {
          she will add it before running the report"*. So the gap itself carries the way to fill it. */
       body += `<tr id="rec-d${d}"><td class="l" style="color:#94a3b8">${m}/${d} ${dow}</td>`
             + `<td colspan="${3 + feeds.length * 3 + 3}" class="l" style="color:#cbd5e1">not recorded</td>`
-            + `<td>${ME ? `<button class="editbtn" data-edit="reading" data-ep="${esc(ep.id)}" data-date="${dayISO(y, m, d)}">Add</button>` : ''}</td></tr>`;
+            + `<td>${canEdit ? `<button class="editbtn" data-edit="reading" data-ep="${esc(ep.id)}" data-date="${dayISO(y, m, d)}">Add</button>` : ''}</td></tr>`;
       continue;
     }
     const odd = r.tap_free != null && r.tap_total != null && Number(r.tap_free) > Number(r.tap_total);
@@ -1347,7 +1392,7 @@ function paintRecords(mo, y, m, eps) {
     cells += `<td${odd ? ' style="color:#b91c1c;font-weight:700"' : ''}>${fmt(r.tap_free)}</td>`
            + `<td${odd ? ' style="color:#b91c1c;font-weight:700"' : ''}>${fmt(r.tap_total)}</td>`
            + `<td>${fmt(r.tap_ortho)}</td><td class="l">${esc(r.operator_initials || '')}</td>`
-           + `<td>${ME ? `<button class="editbtn" data-edit="reading" data-ep="${esc(ep.id)}" data-id="${esc(r.id)}" data-date="${r.reading_date}">Edit</button>` : ''}</td>`;
+           + `<td>${canEdit ? `<button class="editbtn" data-edit="reading" data-ep="${esc(ep.id)}" data-id="${esc(r.id)}" data-date="${r.reading_date}">Edit</button>` : ''}</td>`;
     body += `<tr id="rec-d${d}">${cells}</tr>`;
   }
 
@@ -1381,7 +1426,12 @@ function paintRecords(mo, y, m, eps) {
     + (bactiTable || `<div class="note">No bacti samples recorded for ${MN[m]} ${y} yet.${reportable2 ? '' : ' EGLE expects the routine samples and the chlorine residuals taken with them.'}</div>`);
   $('distBox').innerHTML = addBtn('dist', 'distribution')
     + (distTable || `<div class="note">No distribution samples recorded for ${MN[m]} ${y}.</div>`);
-  $('records').innerHTML = `<div class="card scroll"><table>
+  const retiredNote = isRetired(ep)
+    ? `<div class="note" style="margin:0 0 10px">${esc(ep.label)} is no longer in service. Its ${MN[m]} days are shown as they were recorded and cannot be edited or added here.</div>`
+    : feeds.some((f) => f.active === false)
+    ? `<div class="note" style="margin:0 0 10px">A column marked “retired” is a chemical feed no longer in service. Its values are shown as recorded and cannot be edited.</div>`
+    : '';
+  $('records').innerHTML = retiredNote + `<div class="card scroll"><table>
       <thead>${head}</thead><tbody>${body}</tbody></table></div>
     <div class="muted" style="margin:8px 0 0">Gallons, Used and ppm are derived from the meter and tank levels — nobody types them.</div>`;
 
@@ -1541,6 +1591,7 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId, isNew, host
        the records table was showing, so editing a Well 3 day opened and wrote Well 1's. The button
        carries the entry point the table was painted for. */
     ep = (epId && eps.find((e) => e.id === epId)) || eps[0] || null;
+    if (isRetired(ep)) return;   // no editor for a well no longer in service — the server would refuse it (R1-2)
     row = (id && (mo.readings || []).find((r) => r.id === id))
        || (mo.readings || []).find((r) => r.reading_date === date && (!ep || r.entry_point_id === ep.id)) || null;
   } else if (isNew) {
@@ -1571,12 +1622,16 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId, isNew, host
     for (const fl of fields) if (fl.k === "site_name") fl.list = names;
     for (const fl of fields) if (fl.k === "lab_name" && !fl.v && mo.supply && mo.supply.lab_name) fl.v = mo.supply.lab_name;
   }
-  const all = pre.concat(fields);
+  /* A retired feed's values are shown as plain text, never as an input, so nothing about them is
+     sent (R1-2). On a new day there is nothing recorded to show, so the retired feed is left out. */
+  const all = pre.concat(fields.filter((fl) => !fl.readonly || row));
   const title = isNew ? `Add a ${kind === "bacti" ? "bacti" : "distribution"} sample — ${MN[M]} ${Y}`
     : kind === "reading" ? `${ep ? ep.label + " — " : ""}${row ? "edit" : "add"} the well day for ${usDate(date)}`
     : kind === "dist" ? `Edit the distribution sample for ${usDate(date)}`
     : `Edit the bacti sample for ${usDate(date)}`;
-  const inputFor = (fl) => fl.select
+  const inputFor = (fl) => fl.readonly
+    ? `<div data-ro="${esc(fl.k)}" style="padding:5px 0;font-size:13px;color:#475569">${fl.v == null || fl.v === "" ? "—" : esc(String(fl.v))}</div>`
+    : fl.select
     ? `<select data-k="${esc(fl.k)}">${fl.select.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("")}</select>`
     : fl.date
     ? `<input type="date" data-k="${esc(fl.k)}" min="${fl.min}" max="${fl.max}" value="">`
@@ -1622,7 +1677,7 @@ function openEditor(kind, date, site, mo, eps, id, sampleKind, epId, isNew, host
      these, never whatever RECORDS_CTX says by the time Save is pressed (findings 2, 10, 11). */
   EDITING = { kind, date, site, row, ep, isNew: Boolean(isNew), sampleKind: sampleKind || (row && row.sample_kind) || null,
               y: Y || Number(String(date || '').slice(0, 4)) || null, m: M || Number(String(date || '').slice(5, 7)) || null,
-              sites: mo.sites || [] };
+              sites: mo.sites || [], labels: Object.fromEntries(all.map((fl) => [fl.k, fl.label])) };
   if (isNew && kind === "bacti") {
     const ks = el.querySelector('select[data-k="__kind"]');
     const dl = el.querySelector('#dl-site_name');
@@ -1687,11 +1742,22 @@ async function saveEditor(el) {
   if (EDITING.kind !== "reading") {
     for (const k of ["free", "total", "ortho"]) {
       if (vals[k] == null) continue;
-      const n = Number(vals[k]);
-      if (!Number.isFinite(n) || n < 0) { fail(`"${vals[k]}" is not a valid ${k === "ortho" ? "PO4" : k} value.`); return; }
+      // the same plain-decimal rule as a well reading: "0x10", "1e3" and a lone space are not numbers
+      if (numericError(k, vals[k])) { fail(`"${vals[k]}" is not a valid ${k === "ortho" ? "PO4" : k} value.`); return; }
     }
     if (vals.free != null && vals.total != null && Number(vals.free) > Number(vals.total)) {
       fail(`Free (${vals.free}) cannot be higher than total (${vals.total}).`); return;
+    }
+  }
+  /* A well-day's numbers are checked HERE, with the rule derive() applies on the server (R1-1):
+     plain decimal, finite, non-negative except temperature. "abc" used to become NaN, then null,
+     and a correction saved it as a cleared observation. Nothing is sent until every field passes;
+     the numbers then travel as the text typed, so the server checks the same text again. */
+  if (EDITING.kind === "reading") {
+    for (const [k, v] of Object.entries(vals)) {
+      if (TEXT_FIELDS.has(k)) continue;
+      const e = numericError(k, v, (EDITING.labels && EDITING.labels[k]) || k);
+      if (e) { fail(e); return; }
     }
   }
   // A site picked from the sampling plan travels by id too, so the row links to the plan exactly as

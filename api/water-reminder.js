@@ -33,7 +33,10 @@
 
 export const config = { maxDuration: 30 };
 
-export const VER = '1.1.0-morremind';
+// 1.1.1-morremind (2026-11-17): a dry run writes nothing (the abandoned-claim recovery is reported,
+// not performed); one supply's exception is recorded in its own result and the others still run;
+// an unset CRON_SECRET refuses every request instead of accepting "Bearer undefined".
+export const VER = '1.1.1-morremind';
 
 const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
@@ -142,7 +145,10 @@ export default async function handler(req, res) {
 
   /* Same auth as api/digest.js: Vercel's own cron sends this header, and so can the VM. There is
      no unauthenticated surface here at all — the route sends mail. */
-  if (req.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) {
+  /* ⛔ AN UNSET SECRET IS NOT A SECRET (2026-11-17). With CRON_SECRET missing, the comparison used
+     to be against the literal string "Bearer undefined", which anybody can send. No secret, no entry. */
+  const cronSecret = process.env.CRON_SECRET || '';
+  if (!cronSecret || req.headers['authorization'] !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   if (!SB_URL || !SB_KEY) return res.status(500).json({ error: 'storage not configured' });
@@ -167,6 +173,13 @@ export default async function handler(req, res) {
 
     for (const supply of supplies || []) {
       const step = { wssn: supply.wssn, year: y, month: m };
+      let recovery = null;   // an abandoned claim this run recovered (or, dry, would recover)
+      /* ⛔ ONE SUPPLY'S FAILURE IS THAT SUPPLY'S RESULT, NOT THE END OF THE RUN (2026-11-17). An
+         exception for one supply used to escape the loop and return 500, so every supply after it
+         went unreminded. It is now recorded in that supply's result and the loop moves on; the
+         response is non-200 when any supply failed. (The body below is left at its original
+         indentation so the change stays reviewable.) */
+      try {
 
       // Already filed? Then there is nothing to remind anyone about.
       const filed = await sb(`water_mor_filings?supply_id=eq.${supply.id}&report_year=eq.${y}` +
@@ -185,10 +198,16 @@ export default async function handler(req, res) {
         if (already && already[0] && already[0].outcome === 'pending') {
           const ageMs = Date.now() - Date.parse(already[0].sent_at);
           if (ageMs < 2 * 3600 * 1000) { out.push({ ...step, skipped: 'another run is sending this period' }); continue; }
-          await sb(`water_mor_reminders?id=eq.${already[0].id}&outcome=eq.pending`, {
-            method: 'PATCH', headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ outcome: 'failed', detail: 'abandoned: claimed, delivery uncertain (the run died before recording an outcome); reaped by a later run — the provider idempotency key prevents a duplicate within its window' }),
-          });
+          /* ⛔ A DRY RUN CHANGES NOTHING (Codex finding 9, 2026-11-17). This PATCH ran before the
+             `dry` guard, so a preview flipped a pending claim to failed and freed its period. Dry
+             mode now reports what it would recover and writes nothing. */
+          recovery = { claim_id: already[0].id, claimed_at: already[0].sent_at, action: dry ? 'would mark failed' : 'marked failed' };
+          if (!dry) {
+            await sb(`water_mor_reminders?id=eq.${already[0].id}&outcome=eq.pending`, {
+              method: 'PATCH', headers: { Prefer: 'return=minimal' },
+              body: JSON.stringify({ outcome: 'failed', detail: 'abandoned: claimed, delivery uncertain (the run died before recording an outcome); reaped by a later run — the provider idempotency key prevents a duplicate within its window' }),
+            });
+          }
         }
       }
 
@@ -243,11 +262,11 @@ export default async function handler(req, res) {
             }]),
           });
         }
-        out.push({ ...step, outcome: 'no_recipient' });
+        out.push({ ...step, outcome: 'no_recipient', ...(recovery ? { recovery } : {}) });
         continue;
       }
 
-      if (dry) { out.push({ ...step, outcome: 'would send', to: to_, subject: msg.subject, link }); continue; }
+      if (dry) { out.push({ ...step, outcome: 'would send', to: to_, subject: msg.subject, link, ...(recovery ? { recovery } : {}) }); continue; }
 
       /* ⛔ CLAIM THE PERIOD BEFORE SENDING, NOT AFTER.
          This read the reminders table, sent the email, then recorded the row. Two schedulers —
@@ -307,7 +326,10 @@ export default async function handler(req, res) {
           continue;
         }
       }
-      out.push({ ...step, outcome, to: to_, provider_id: providerId, ...(detail ? { detail } : {}) });
+      out.push({ ...step, outcome, to: to_, provider_id: providerId, ...(detail ? { detail } : {}), ...(recovery ? { recovery } : {}) });
+      } catch (e) {
+        out.push({ ...step, outcome: 'failed', error: String((e && e.message) || e).slice(0, 400), ...(recovery ? { recovery } : {}) });
+      }
     }
 
     /* A failure inside the loop is reported with a non-2xx so a scheduler's own error handling can
