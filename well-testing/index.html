@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Well Testing | Daily well readings that fill in the EGLE report | CivicScope</title>
+<meta name="description" content="Well Testing replaces the clipboard on the daily well round. Operators enter readings on a phone, the office sees them as they land, and Michigan's EGLE Monthly Operation Report is filled in when the month ends." />
+<meta property="og:title" content="Well Testing | Read the well on your phone. The EGLE report fills itself in." />
+<meta property="og:description" content="Daily well readings on a phone or tablet, live review for the operator-in-charge, and the EGLE Monthly Operation Report filled in for you." />
+<meta property="og:url" content="https://www.civicscope.io/well-testing" />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://www.civicscope.io/og-image.png" />
+<link rel="canonical" href="https://www.civicscope.io/well-testing" />
+<!-- Version: well-testing-landing v1.0.0 -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='20' width='22' height='8' fill='none' stroke='%231c1917' stroke-width='2' stroke-linejoin='round'/><line x1='10' y1='20' x2='10' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='16' y1='20' x2='16' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='22' y1='20' x2='22' y2='14' stroke='%231c1917' stroke-width='1.8' stroke-linecap='round'/><line x1='6' y1='14' x2='26' y2='14' stroke='%231c1917' stroke-width='2' stroke-linecap='round'/><polyline points='7,14 16,4 25,14' fill='none' stroke='%23c2410c' stroke-width='2.5' stroke-linejoin='round' stroke-linecap='round'/><rect x='13' y='22' width='6' height='6' rx='3' fill='%23c2410c'/></svg>">
+<link rel="stylesheet" href="/civicscope.css">
+<style>
+/* ── Product page (shared shape with /ask) ── */
+.pp-hero { background: var(--ink); padding: 64px var(--page-pad) 0; position: relative; overflow: hidden; }
+.pp-hero::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(194,65,12,0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(194,65,12,0.06) 0%, transparent 50%);
+}
+.pp-hero-inner { max-width: var(--page-max); margin: 0 auto; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 64px; align-items: end; position: relative; }
+.pp-hero-content { padding-bottom: 76px; }
+.pp-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(194,65,12,0.15); border: 1px solid rgba(194,65,12,0.3); color: #f97316;
+  font-size: 0.68rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 5px 12px; border-radius: 20px; margin-bottom: 26px;
+}
+.pp-eyebrow i { width: 5px; height: 5px; border-radius: 50%; background: #f97316; animation: cs-pulse 2s ease infinite; }
+.pp-hero h1 { font-family: var(--font-display); font-size: clamp(2.3rem, 4.2vw, 3.6rem); font-weight: 600; line-height: 1.1; color: #fff; letter-spacing: -0.03em; margin-bottom: 22px; }
+.pp-hero h1 strong { font-weight: 600; color: #fb923c; }
+.pp-hero-sub { font-size: 1.08rem; color: rgba(255,255,255,0.62); max-width: 540px; line-height: 1.7; font-weight: 300; margin-bottom: 36px; }
+.pp-hero-cta { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.pp-hero-note { margin-top: 26px; font-size: 0.82rem; color: rgba(255,255,255,0.4); font-weight: 300; }
+
+/* Phone mock */
+.phone { width: 310px; margin: 0 auto; background: #0c0a09; border: 1px solid rgba(255,255,255,0.16); border-bottom: 0; border-radius: 38px 38px 0 0; padding: 12px 12px 0; box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
+.phone-screen { background: #f1f5f9; border-radius: 28px 28px 0 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0f172a; }
+.ph-top { background: #0f2942; color: #fff; padding: 14px 16px 12px; display: flex; align-items: center; gap: 10px; }
+.ph-top b { font-size: 14px; font-weight: 600; display: block; }
+.ph-top span { font-size: 11px; opacity: 0.72; }
+.ph-chip { margin-left: auto; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 600; }
+.ph-body { padding: 12px 12px 0; }
+.ph-card { background: #fff; border: 1px solid #dbe3ec; border-radius: 12px; padding: 13px 13px 14px; }
+.ph-card h4 { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.ph-pill { background: #eef2f7; border-radius: 999px; padding: 2px 8px; font-size: 10px; color: #475569; font-weight: 500; }
+.ph-lab { font-size: 11px; font-weight: 600; color: #334155; margin: 11px 0 4px; display: flex; align-items: center; gap: 6px; }
+.ph-in { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; font-size: 15px; background: #fff; font-variant-numeric: tabular-nums; }
+.ph-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.ph-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ph-derived { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 9px 11px; margin-top: 12px; }
+.ph-derived div { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; color: #334155; }
+.ph-derived b { font-variant-numeric: tabular-nums; color: #0f172a; }
+.ph-btn { background: #0f2942; color: #fff; text-align: center; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 600; margin: 12px 0 0; }
+.ph-fade { height: 26px; }
+
+/* Trust bar */
+.pp-trust { background: var(--cream-dark); border-bottom: 1px solid var(--rule); }
+.pp-trust-inner { max-width: var(--page-max); margin: 0 auto; padding: 18px var(--page-pad); display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+.pp-trust-item { display: flex; align-items: center; gap: 9px; font-size: 0.84rem; color: var(--ink-light); }
+.pp-trust-item svg { color: var(--accent); flex-shrink: 0; }
+
+/* Sections */
+.pp-section { padding: var(--section-pad) var(--page-pad); }
+.pp-section.alt { background: var(--cream-dark); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.pp-inner { max-width: var(--page-max); margin: 0 auto; }
+.pp-head { max-width: 720px; margin-bottom: 44px; }
+.pp-head.center { margin-left: auto; margin-right: auto; text-align: center; }
+.pp-head.center .cs-label { justify-content: center; }
+.pp-head .cs-label { margin-bottom: 16px; }
+.pp-head h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.8rem, 3.3vw, 2.6rem); letter-spacing: -0.02em; line-height: 1.14; color: var(--ink); }
+.pp-head h2 em { font-style: italic; color: var(--accent); }
+.pp-head p { font-size: 1.05rem; color: var(--ink-light); font-weight: 300; line-height: 1.7; margin-top: 16px; }
+
+/* Problem: two columns */
+.pp-split { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start; }
+.pp-split p { font-size: 1.02rem; color: var(--ink-light); font-weight: 300; line-height: 1.75; margin-top: 16px; }
+.pp-split p:first-child { margin-top: 0; }
+.pp-compare { background: var(--white); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.pp-compare-row { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--rule); }
+.pp-compare-row:first-child { border-top: 0; }
+.pp-compare-row > div { padding: 14px 18px; font-size: 0.9rem; line-height: 1.5; color: var(--ink-light); font-weight: 300; }
+.pp-compare-row > div + div { border-left: 1px solid var(--rule); color: var(--ink); font-weight: 400; }
+.pp-compare-row.h > div { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); background: var(--cream); }
+.pp-compare-row.h > div + div { color: var(--accent); }
+
+/* Three pillars */
+.pp-pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.pp-pillar { background: var(--white); border: 1px solid var(--rule); border-radius: 10px; padding: 30px 26px; display: flex; flex-direction: column; }
+.pp-pillar .n { font-family: var(--font-display); font-size: 0.95rem; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; }
+.pp-pillar h3 { font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 10px; line-height: 1.2; }
+.pp-pillar p { font-size: 0.94rem; color: var(--ink-light); font-weight: 300; line-height: 1.65; }
+.pp-pillar ul { list-style: none; margin-top: 16px; border-top: 1px solid var(--rule); padding-top: 14px; }
+.pp-pillar li { font-size: 0.86rem; color: var(--ink-light); padding: 4px 0 4px 20px; position: relative; line-height: 1.5; }
+.pp-pillar li::before { content: ''; position: absolute; left: 0; top: 11px; width: 9px; height: 5px; border-left: 1.8px solid var(--accent); border-bottom: 1.8px solid var(--accent); transform: rotate(-45deg); }
+
+/* Review + report mocks */
+.pp-show { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+.pp-show + .pp-show { margin-top: 72px; }
+.pp-show.flip .pp-show-text { order: 2; }
+.pp-show-text h3 { font-family: var(--font-display); font-size: clamp(1.5rem, 2.6vw, 2rem); font-weight: 600; letter-spacing: -0.02em; line-height: 1.18; }
+.pp-show-text p { font-size: 1rem; color: var(--ink-light); font-weight: 300; line-height: 1.75; margin-top: 14px; }
+.mock { background: #fff; border: 1px solid #dbe3ec; border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-md); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0f172a; }
+.mock-top { background: #0f2942; color: #fff; padding: 11px 16px; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+.mock-top span { font-weight: 400; opacity: 0.75; font-size: 12px; }
+.mock-body { padding: 14px 16px 16px; }
+.mock-banner { background: #f0fdfa; border: 1px solid #99f6e4; color: #0f766e; border-radius: 9px; padding: 9px 12px; font-size: 13px; margin-bottom: 12px; }
+.mock-wells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.mock-well { border: 1px solid #dbe3ec; border-radius: 10px; padding: 10px; }
+.mock-well b { font-size: 13px; display: block; }
+.mock-well .v { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 3px; }
+.mock-well .s { font-size: 11px; color: #64748b; }
+.mock-well .ok { color: #0f766e; font-size: 11px; font-weight: 600; margin-top: 4px; }
+.mock-well .stale { color: #b45309; font-size: 11px; font-weight: 600; margin-top: 4px; }
+.mock h5 { font-size: 12px; font-weight: 700; margin-bottom: 6px; color: #334155; }
+.mock-attn { border: 1px solid #fcd34d; background: #fffbeb; color: #92400e; border-radius: 9px; padding: 8px 11px; font-size: 12.5px; line-height: 1.45; margin-top: 6px; }
+.mock-attn b { color: #78350f; }
+.sheet-tabs { display: flex; gap: 2px; padding: 0 12px; background: #e2e8f0; border-top: 1px solid #cbd5e1; overflow: hidden; }
+.sheet-tabs span { font-size: 11px; padding: 6px 10px; color: #475569; white-space: nowrap; }
+.sheet-tabs span.on { background: #fff; color: #0f172a; font-weight: 600; border-bottom: 2px solid #0f766e; }
+.sheet { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.sheet th, .sheet td { border: 1px solid #dbe3ec; padding: 5px 8px; text-align: right; white-space: nowrap; }
+.sheet th { background: #eef2f7; font-size: 11px; font-weight: 600; color: #334155; }
+.sheet td:first-child, .sheet th:first-child { text-align: left; color: #64748b; }
+.sheet tr.tot td { font-weight: 700; background: #f8fafc; color: #0f172a; }
+.mock-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid #dbe3ec; font-size: 12.5px; color: #475569; }
+.mock-foot .go { background: #0f2942; color: #fff; border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+
+/* Checks */
+.pp-checks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.pp-check { background: var(--white); border: 1px solid var(--rule); border-radius: 10px; padding: 22px 22px 24px; }
+.pp-check .q { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.pp-check h4 { font-size: 1.02rem; font-weight: 600; margin: 8px 0 8px; line-height: 1.35; }
+.pp-check p { font-size: 0.9rem; color: var(--ink-light); font-weight: 300; line-height: 1.6; }
+
+/* Steps */
+.pp-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+.pp-step .n { font-family: var(--font-display); font-size: 1.7rem; color: var(--accent); font-weight: 600; }
+.pp-step h3 { font-size: 1.08rem; margin: 8px 0 8px; }
+.pp-step p { font-size: 0.93rem; color: var(--ink-light); font-weight: 300; line-height: 1.65; }
+
+/* Roles */
+.pp-roles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.pp-role { border-top: 2px solid var(--accent); padding-top: 18px; }
+.pp-role h4 { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+.pp-role p { font-size: 0.9rem; color: var(--ink-light); font-weight: 300; line-height: 1.6; margin-top: 8px; }
+
+/* Proof */
+.pp-proof { max-width: 820px; margin: 0 auto; text-align: center; }
+.pp-proof blockquote { font-family: var(--font-display); font-size: clamp(1.3rem, 2.4vw, 1.75rem); line-height: 1.4; letter-spacing: -0.01em; color: var(--ink); font-weight: 400; }
+.pp-proof blockquote em { color: var(--accent); }
+.pp-proof p { margin-top: 18px; font-size: 0.9rem; color: var(--muted); }
+
+/* Contact */
+.pp-contact { background: var(--ink); color: #fff; padding: var(--section-pad) var(--page-pad); position: relative; overflow: hidden; }
+.pp-contact::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 50% 60% at 15% 30%, rgba(194,65,12,0.13) 0%, transparent 60%); }
+.pp-contact-inner { max-width: var(--page-max); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; position: relative; }
+.pp-contact h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem, 3.4vw, 2.7rem); letter-spacing: -0.02em; line-height: 1.14; }
+.pp-contact h2 em { font-style: italic; color: #fb923c; }
+.pp-contact .lead { font-size: 1.05rem; color: rgba(255,255,255,0.62); font-weight: 300; line-height: 1.7; margin-top: 18px; }
+.pp-contact ul { list-style: none; margin-top: 26px; }
+.pp-contact li { font-size: 0.95rem; color: rgba(255,255,255,0.78); font-weight: 300; padding: 6px 0 6px 24px; position: relative; line-height: 1.55; }
+.pp-contact li::before { content: ''; position: absolute; left: 0; top: 14px; width: 10px; height: 5px; border-left: 1.8px solid #fb923c; border-bottom: 1.8px solid #fb923c; transform: rotate(-45deg); }
+.pp-form { background: var(--cream); border-radius: 12px; padding: 30px 28px; color: var(--ink); }
+.pp-form h3 { font-family: var(--font-display); font-size: 1.3rem; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 4px; }
+.pp-form .hint { font-size: 0.86rem; color: var(--muted); font-weight: 300; margin-bottom: 18px; }
+.pp-field { margin-bottom: 14px; }
+.pp-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pp-form textarea.cs-input { min-height: 78px; resize: vertical; line-height: 1.5; }
+.pp-form select.cs-select { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%2378716c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 34px; }
+.pp-form .cs-btn { width: 100%; justify-content: center; margin-top: 6px; }
+.pp-form .cs-btn:disabled { opacity: 0.6; cursor: default; }
+.pp-form-msg { font-size: 0.88rem; margin-top: 12px; min-height: 1.3em; color: var(--muted); }
+.pp-form-msg.ok { color: #0f766e; font-weight: 500; }
+.pp-form-msg.err { color: #b91c1c; }
+.pp-form-msg a { color: inherit; }
+
+/* Fine print + footer */
+.pp-fine { padding: 34px var(--page-pad); border-top: 1px solid var(--rule); }
+.pp-fine p { max-width: 860px; margin: 0 auto; text-align: center; font-size: 0.82rem; color: var(--muted); font-weight: 300; line-height: 1.7; }
+.pp-footer { background: var(--ink); color: rgba(255,255,255,0.7); padding: 44px var(--page-pad); border-top: 1px solid rgba(255,255,255,0.08); }
+.pp-footer-inner { max-width: var(--page-max); margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; font-size: 0.88rem; }
+.pp-footer a { color: rgba(255,255,255,0.7); text-decoration: none; }
+.pp-footer a:hover { color: #fff; }
+.pp-footer-links { display: flex; gap: 24px; font-size: 0.85rem; flex-wrap: wrap; }
+
+@media (max-width: 980px) {
+  .pp-hero-inner { grid-template-columns: 1fr; gap: 8px; }
+  .pp-hero-content { padding-bottom: 44px; }
+  .pp-split, .pp-show, .pp-contact-inner { grid-template-columns: 1fr; gap: 32px; }
+  .pp-show.flip .pp-show-text { order: 0; }
+  .pp-pillars, .pp-checks, .pp-steps { grid-template-columns: 1fr; }
+  .pp-roles { grid-template-columns: 1fr 1fr; }
+  .pp-trust-inner { justify-content: flex-start; }
+}
+@media (max-width: 560px) {
+  .cs-wordmark-svg { width: 160px; height: auto; }
+  .cs-header-inner { gap: 12px; }
+  .pp-hero { padding-top: 44px; }
+  .pp-roles { grid-template-columns: 1fr; }
+  .pp-field-row { grid-template-columns: 1fr; gap: 0; }
+  .pp-form { padding: 24px 18px; }
+  .mock-wells { grid-template-columns: 1fr; }
+  .sheet th, .sheet td { padding: 5px 5px; font-size: 11px; }
+  .pp-compare-row > div { padding: 12px 12px; font-size: 0.86rem; }
+  .phone { width: 290px; }
+}
+</style>
+</head>
+<body>
+
+<header class="cs-header">
+  <div class="cs-header-inner">
+    <a href="/" class="cs-wordmark" aria-label="CivicScope home">
+      <svg class="cs-wordmark-svg" width="215" height="52" viewBox="0 0 148 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="4" cy="4" r="0.9" fill="#d6cfc4"/><circle cx="16" cy="4" r="0.9" fill="#d6cfc4"/><circle cx="28" cy="4" r="0.9" fill="#d6cfc4"/><circle cx="4" cy="16" r="0.9" fill="#d6cfc4"/><circle cx="28" cy="16" r="0.9" fill="#d6cfc4"/><circle cx="4" cy="28" r="0.9" fill="#d6cfc4"/><circle cx="16" cy="28" r="0.9" fill="#d6cfc4"/><circle cx="28" cy="28" r="0.9" fill="#d6cfc4"/>
+        <rect x="4" y="20" width="19" height="7" fill="none" stroke="#1c1917" stroke-width="1.4" stroke-linejoin="round"/>
+        <line x1="8" y1="20" x2="8" y2="14" stroke="#1c1917" stroke-width="1.2" stroke-linecap="round"/><line x1="13.5" y1="20" x2="13.5" y2="14" stroke="#1c1917" stroke-width="1.2" stroke-linecap="round"/><line x1="19" y1="20" x2="19" y2="14" stroke="#1c1917" stroke-width="1.2" stroke-linecap="round"/>
+        <line x1="5" y1="14" x2="22" y2="14" stroke="#1c1917" stroke-width="1.4" stroke-linecap="round"/>
+        <polyline points="5.5,14 13.5,5 21.5,14" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        <rect x="11" y="22" width="5" height="5" rx="2.5" fill="#c2410c"/>
+        <text x="36" y="15" font-family="Fraunces, Georgia, serif" font-style="italic" font-size="14" fill="#1c1917" letter-spacing="-0.2">Civic</text>
+        <text x="36" y="29" font-family="Fraunces, Georgia, serif" font-size="11" fill="#c2410c" letter-spacing="1.2">SCOPE</text>
+      </svg>
+    </a>
+    <div class="cs-header-divider"></div>
+    <span class="cs-header-tagline">Well Testing</span>
+    <nav class="cs-nav">
+      <a href="#what">What it does</a>
+      <a href="#how">How it works</a>
+      <a href="#who">Who it's for</a>
+      <a href="#contact" class="cs-btn cs-btn-nav">Request a walkthrough →</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ── Hero ── -->
+<section class="pp-hero">
+  <div class="pp-hero-inner">
+    <div class="pp-hero-content">
+      <div class="pp-eyebrow cs-anim-1"><i></i> For Michigan water operators</div>
+      <h1 class="cs-anim-2">Read the well on your phone. <strong>The EGLE report fills itself in.</strong></h1>
+      <p class="pp-hero-sub cs-anim-3">Well Testing replaces the clipboard on the daily round. Your crew enters the meter, the tank levels and the residuals at the well. The office sees every reading as it lands. When the month ends, the Monthly Operation Report is already filled in.</p>
+      <div class="pp-hero-cta cs-anim-4">
+        <a href="#contact" class="cs-btn cs-btn-primary-lg">Request a walkthrough
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a href="#what" class="cs-btn-ghost-dark">See what it does ↓</a>
+      </div>
+      <p class="pp-hero-note">In daily use on a Michigan village water system.</p>
+    </div>
+
+    <div class="phone cs-anim-3" role="img" aria-label="Example of the Well Testing screen on a phone: an operator enters the water meter, tank levels and plant tap sample for one well, and the gallons pumped and chemical doses are calculated underneath.">
+      <div class="phone-screen" aria-hidden="true">
+        <div class="ph-top">
+          <div><b>Well Testing</b><span>Today's round · 2 of 3 wells done</span></div>
+          <div class="ph-chip">JM</div>
+        </div>
+        <div class="ph-body">
+          <div class="ph-card">
+            <h4>Well 2 <span class="ph-pill">TP002</span></h4>
+            <div class="ph-lab">Water meter <span class="ph-pill">last 48174</span></div>
+            <div class="ph-in">48216</div>
+            <div class="ph-row2">
+              <div><div class="ph-lab">Chlorine tank</div><div class="ph-in">212</div></div>
+              <div><div class="ph-lab">Phosphate tank</div><div class="ph-in">96</div></div>
+            </div>
+            <div class="ph-lab">Plant tap sample</div>
+            <div class="ph-row3">
+              <div class="ph-in">0.62</div><div class="ph-in">0.71</div><div class="ph-in">1.1</div>
+            </div>
+            <div class="ph-derived">
+              <div><span>Pumped since last reading</span><b>42,000 gal</b></div>
+              <div><span>Chlorine dose</span><b>1.8 mg/L</b></div>
+              <div><span>Phosphate dose</span><b>0.9 mg/L</b></div>
+            </div>
+            <div class="ph-btn">Submit Well 2</div>
+          </div>
+          <div class="ph-fade"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Trust bar ── -->
+<div class="pp-trust">
+  <div class="pp-trust-inner">
+    <div class="pp-trust-item"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3.2L13 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Keeps working with no signal</div>
+    <div class="pp-trust-item"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3.2L13 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> No passwords for the crew</div>
+    <div class="pp-trust-item"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3.2L13 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Fills EGLE's own report workbook</div>
+    <div class="pp-trust-item"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3.2L13 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Every correction stays on the record</div>
+  </div>
+</div>
+
+<!-- ── Problem ── -->
+<section class="pp-section">
+  <div class="pp-inner">
+    <div class="pp-head">
+      <div class="cs-label">The problem</div>
+      <h2>The readings are the easy part. <em>The retyping is where it goes wrong.</em></h2>
+    </div>
+    <div class="pp-split">
+      <div>
+        <p>Every day someone walks the round and writes the meter, the tank levels and the residuals on a paper sheet. At the end of the month, somebody retypes all of it into the state's spreadsheet, cell by cell, before the 10th.</p>
+        <p>That is where the trouble starts. A dose worked by hand from a chart does not match what the state's formula calculates. A tank level that does not add up, a meter digit turned around, a residual in the wrong column: nobody sees it until the month is being typed up, weeks after anyone could have walked back and read it again.</p>
+        <p>If you look after more than one system, you do all of that once for each of them.</p>
+      </div>
+      <div class="pp-compare">
+        <div class="pp-compare-row h"><div>On paper</div><div>With Well Testing</div></div>
+        <div class="pp-compare-row"><div>Readings written on a daily sheet</div><div>Readings typed once, at the well</div></div>
+        <div class="pp-compare-row"><div>Doses worked out by hand</div><div>Doses calculated the way the state's form calculates them</div></div>
+        <div class="pp-compare-row"><div>Mistakes found at month end</div><div>Many mistakes caught while you are still at the well</div></div>
+        <div class="pp-compare-row"><div>The office waits for the sheets</div><div>The office sees each reading as it is submitted</div></div>
+        <div class="pp-compare-row"><div>A month retyped into the report</div><div>The report filled in for you</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── What it does ── -->
+<section class="pp-section alt" id="what">
+  <div class="pp-inner">
+    <div class="pp-head center">
+      <div class="cs-label">What it does</div>
+      <h2>Three jobs, <em>one set of numbers.</em></h2>
+      <p>The reading taken at the well is the same number the office reviews and the same number that lands in the report. Nothing is copied by hand in between.</p>
+    </div>
+    <div class="pp-pillars">
+      <div class="pp-pillar">
+        <div class="n">01</div>
+        <h3>Readings on a phone or tablet</h3>
+        <p>Pick your name, tap the well you are standing at, and type what you read off the equipment. The app shows what was pumped and the dose before you submit.</p>
+        <ul>
+          <li>Opens in the browser. Nothing to install.</li>
+          <li>Keeps working with no signal and sends when it returns</li>
+          <li>Wells, distribution samples and bacti samples</li>
+          <li>No passwords at the well house</li>
+        </ul>
+      </div>
+      <div class="pp-pillar">
+        <div class="n">02</div>
+        <h3>Real-time review for the office</h3>
+        <p>The operator-in-charge sees every reading the moment it is submitted: which wells were visited today, what each one pumped, the doses, and anything that needs a second look.</p>
+        <ul>
+          <li>A missed day or an idle well is named, not buried</li>
+          <li>An out-of-line dose or a slipped decimal point is flagged</li>
+          <li>Fix an entry from the office, with the reason recorded</li>
+          <li>The whole month on one page</li>
+        </ul>
+      </div>
+      <div class="pp-pillar">
+        <div class="n">03</div>
+        <h3>The EGLE report, filled in</h3>
+        <p>At month end, press Generate. Well Testing fills the state's own Monthly Operation Report workbook from the month's records and hands you the file.</p>
+        <ul>
+          <li>Pumpage, entry points, distribution and bacti</li>
+          <li>The form's own layout and formulas, ready to print</li>
+          <li>A reminder on the 7th with what the month still needs</li>
+          <li>Past reports kept beside the readings behind them</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Show: review + report ── -->
+<section class="pp-section">
+  <div class="pp-inner">
+
+    <div class="pp-show">
+      <div class="pp-show-text">
+        <div class="cs-label" style="margin-bottom:14px">Real-time review</div>
+        <h3>Know what happened at the wells today, without driving out to check.</h3>
+        <p>The review page opens on today. Each well shows when it was last read, what it pumped and its dose. Anything that needs attention sits in one short list, in plain words, with the date and the well.</p>
+        <p>If you sign the report, you see every reading behind it before you do.</p>
+      </div>
+      <div class="mock" role="img" aria-label="Example of the office review page: three wells with today's gallons pumped and dose, and a short list of items that need attention.">
+        <div aria-hidden="true">
+          <div class="mock-top">Well Testing — Daily review <span>Example data</span></div>
+          <div class="mock-body">
+            <div class="mock-banner"><b>Up to date.</b> All three wells were read today.</div>
+            <div class="mock-wells">
+              <div class="mock-well"><b>Well 1</b><div class="v">36,000</div><div class="s">gal · 1.7 mg/L</div><div class="ok">Read 7:42 AM</div></div>
+              <div class="mock-well"><b>Well 2</b><div class="v">42,000</div><div class="s">gal · 1.8 mg/L</div><div class="ok">Read 7:58 AM</div></div>
+              <div class="mock-well"><b>Well 3</b><div class="v">0</div><div class="s">gal · not running</div><div class="stale">Idle since the 12th</div></div>
+            </div>
+            <h5>Needs your attention (2)</h5>
+            <div class="mock-attn"><b>Well 1, the 9th.</b> Pumped about 4 times this well's normal day. Check the meter reading.</div>
+            <div class="mock-attn"><b>Bacti, the 14th.</b> Sample recorded with no lab result yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pp-show flip">
+      <div class="pp-show-text">
+        <div class="cs-label" style="margin-bottom:14px">The monthly report</div>
+        <h3>The month you already recorded becomes the report you have to file.</h3>
+        <p>Well Testing does not produce a look-alike. It fills in EGLE's own Monthly Operation Report workbook, in the form's own cells, with the form's own formulas and print layout.</p>
+        <p>You open it, add your comments, sign it and send it the way you do today. The file you generated and the date you filed stay on record next to the readings.</p>
+      </div>
+      <div class="mock" role="img" aria-label="Example of a generated Monthly Operation Report workbook showing daily pumpage for three wells with monthly totals.">
+        <div aria-hidden="true">
+          <div class="mock-top">Monthly Operation Report <span>Example data</span></div>
+          <table class="sheet">
+            <tr><th>Day</th><th>Well 1 (MG)</th><th>Well 2 (MG)</th><th>Well 3 (MG)</th><th>Cl₂ (lb)</th></tr>
+            <tr><td>1</td><td>0.039</td><td>0.042</td><td>0.048</td><td>18</td></tr>
+            <tr><td>2</td><td>0.041</td><td>0.040</td><td>0.051</td><td>19</td></tr>
+            <tr><td>3</td><td>0.038</td><td>0.044</td><td>0.047</td><td>18</td></tr>
+            <tr><td>4</td><td>0.040</td><td>0.043</td><td>0.050</td><td>19</td></tr>
+            <tr><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td></tr>
+            <tr class="tot"><td>Total</td><td>1.214</td><td>1.268</td><td>1.402</td><td>548</td></tr>
+          </table>
+          <div class="sheet-tabs"><span>Cover</span><span class="on">Pumpage</span><span>EntryPoint1</span><span>EP Summary</span><span>Distribution</span><span>Bacti</span></div>
+          <div class="mock-foot"><span>30 days · 90 well-days · 21 distribution samples</span><span class="go">Generate the EGLE workbook</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Checks at the well ── -->
+<section class="pp-section alt">
+  <div class="pp-inner">
+    <div class="pp-head">
+      <div class="cs-label">Caught at the well</div>
+      <h2>It questions a bad number <em>while you can still read it again.</em></h2>
+      <p>Operators type readings, never calculations. The app does the arithmetic, and it knows what each well normally does.</p>
+    </div>
+    <div class="pp-checks">
+      <div class="pp-check"><div class="q">The meter</div><h4>A meter that runs backwards</h4><p>The last reading is on the screen. A number below it is refused before it becomes negative pumpage on the report.</p></div>
+      <div class="pp-check"><div class="q">The tanks</div><h4>A tank that went up with no refill</h4><p>A refill is recorded as a refill. A tank level that rose without one is questioned, so it never turns into a negative chemical dose.</p></div>
+      <div class="pp-check"><div class="q">The sample</div><h4>Free chlorine above total</h4><p>That cannot be true, so it is not accepted. It is caught at the well, not discovered when the month is typed up.</p></div>
+      <div class="pp-check"><div class="q">The day</div><h4>Pumpage far outside normal</h4><p>If a well shows several times its usual day, the app says so and asks you to check that you are on the right well's screen.</p></div>
+      <div class="pp-check"><div class="q">The dose</div><h4>One formula, every time</h4><p>Gallons pumped, pounds fed and dose are calculated from the readings the same way the state's workbook calculates them.</p></div>
+      <div class="pp-check"><div class="q">The record</div><h4>Corrections never erase</h4><p>A corrected reading keeps the original and the reason for the change. The history behind a signed report stays intact.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How it works ── -->
+<section class="pp-section" id="how">
+  <div class="pp-inner">
+    <div class="pp-head center">
+      <div class="cs-label">How it works</div>
+      <h2>Set up from the sheets <em>you already use.</em></h2>
+    </div>
+    <div class="pp-steps">
+      <div class="pp-step">
+        <div class="n">1</div>
+        <h3>We set up your system</h3>
+        <p>Send us your daily sheet and your blank monthly report. We enter your wells, your chemical feeds and their strengths, your sampling sites and your crew's names. You do not configure anything.</p>
+      </div>
+      <div class="pp-step">
+        <div class="n">2</div>
+        <h3>Your crew takes the round on a phone</h3>
+        <p>They open one web address, pick their name and tap the well. When they leave the well house, the round is already on record.</p>
+      </div>
+      <div class="pp-step">
+        <div class="n">3</div>
+        <h3>You review, generate and file</h3>
+        <p>On the 7th you get an email showing what the month holds and what it still needs. Press Generate, add your comments, sign, and send the report to EGLE as you do today.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Who it's for ── -->
+<section class="pp-section alt" id="who">
+  <div class="pp-inner">
+    <div class="pp-head">
+      <div class="cs-label">Who it's for</div>
+      <h2>Built for the people <em>who sign the report.</em></h2>
+    </div>
+    <div class="pp-roles">
+      <div class="pp-role"><h4>Operators-in-charge</h4><p>You certify the month. See every reading behind the report, and stop spending the first week of each month retyping the last one.</p></div>
+      <div class="pp-role"><h4>Contract operators</h4><p>You look after several systems. Well Testing is set up for each system you run, with its own wells, feeds, sampling plan and report.</p></div>
+      <div class="pp-role"><h4>Village and town managers</h4><p>The water record no longer lives on one clipboard or in one person's head. It is complete, dated and there when someone asks.</p></div>
+      <div class="pp-role"><h4>Crews</h4><p>Pick your name and type what you read. No password, no training day, and no arithmetic at the well.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Proof ── -->
+<section class="pp-section">
+  <div class="pp-inner">
+    <div class="pp-proof">
+      <blockquote>Built side by side with a licensed Michigan operator-in-charge, on a real village system, <em>one daily round at a time.</em></blockquote>
+      <p>Well Testing is in daily use, and that system's monthly reports to EGLE are produced from it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Contact ── -->
+<section class="pp-contact" id="contact">
+  <div class="pp-contact-inner">
+    <div>
+      <h2>See it with <em>your own wells.</em></h2>
+      <p class="lead">Tell us about your system and we will walk you through the round, the review page and a finished report. It takes about twenty minutes.</p>
+      <ul>
+        <li>For Michigan community water supplies that report to EGLE</li>
+        <li>Groundwater systems with chlorine and phosphate feed are supported today. Tell us what you feed and we will confirm the fit.</li>
+        <li>Looking after more than one system? Say so, and we will show you how each one is set up.</li>
+      </ul>
+    </div>
+    <form class="pp-form" id="ppForm" novalidate>
+      <h3>Request a walkthrough</h3>
+      <p class="hint">We read every request and reply personally.</p>
+      <div class="pp-field-row">
+        <div class="pp-field"><label class="cs-label-field" for="fName">Your name <span class="required">*</span></label><input class="cs-input" id="fName" autocomplete="name" required></div>
+        <div class="pp-field"><label class="cs-label-field" for="fEmail">Email <span class="required">*</span></label><input class="cs-input" id="fEmail" type="email" autocomplete="email" required></div>
+      </div>
+      <div class="pp-field-row">
+        <div class="pp-field"><label class="cs-label-field" for="fOrg">Water system or town <span class="required">*</span></label><input class="cs-input" id="fOrg" autocomplete="organization" required></div>
+        <div class="pp-field"><label class="cs-label-field" for="fPhone">Phone</label><input class="cs-input" id="fPhone" type="tel" autocomplete="tel"></div>
+      </div>
+      <div class="pp-field-row">
+        <div class="pp-field"><label class="cs-label-field" for="fRole">Your role</label>
+          <select class="cs-select" id="fRole">
+            <option value="">Choose one</option>
+            <option>Operator-in-charge</option>
+            <option>Contract operator</option>
+            <option>Village or town manager</option>
+            <option>Public works or utility staff</option>
+            <option>Other</option>
+          </select></div>
+        <div class="pp-field"><label class="cs-label-field" for="fWells">Wells you look after</label><input class="cs-input" id="fWells" inputmode="numeric" placeholder="For example, 3"></div>
+      </div>
+      <div class="pp-field"><label class="cs-label-field" for="fMsg">Anything we should know</label><textarea class="cs-input" id="fMsg" placeholder="How you record the round today, what you feed, how many systems"></textarea></div>
+      <button class="cs-btn cs-btn-primary-lg" id="fBtn" type="submit">Request a walkthrough</button>
+      <div class="pp-form-msg" id="fStatus" role="status" aria-live="polite"></div>
+    </form>
+  </div>
+</section>
+
+<div class="pp-fine">
+  <p>Well Testing is a record-keeping and reporting tool. The certified operator-in-charge reviews, signs and submits every report, and remains responsible for the operation of the water supply. EGLE is the Michigan Department of Environment, Great Lakes, and Energy. CivicScope is not affiliated with EGLE.</p>
+</div>
+
+<footer class="pp-footer">
+  <div class="pp-footer-inner">
+    <div>CivicScope · Tools for the public sector</div>
+    <div class="pp-footer-links">
+      <a href="/">Home</a>
+      <a href="/well-testing">Well Testing</a>
+      <a href="/ask">Ask</a>
+      <a href="/#cost">Cost tools</a>
+      <a href="/privacy">Privacy</a>
+      <a href="mailto:info@civicscope.io">info@civicscope.io</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var form = document.getElementById('ppForm');
+  var btn = document.getElementById('fBtn');
+  var status = document.getElementById('fStatus');
+  function val(id) { return document.getElementById(id).value.trim(); }
+  function say(cls, html) { status.className = 'pp-form-msg' + (cls ? ' ' + cls : ''); status.innerHTML = html; }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var name = val('fName'), email = val('fEmail'), org = val('fOrg');
+    if (!name || !org || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      say('err', 'Please give your name, a valid email and your water system or town.');
+      return;
+    }
+    var lines = ['WELL TESTING walkthrough request'];
+    if (val('fRole')) lines.push('Role: ' + val('fRole'));
+    if (val('fWells')) lines.push('Wells: ' + val('fWells'));
+    if (val('fPhone')) lines.push('Phone: ' + val('fPhone'));
+    if (val('fMsg')) lines.push('', val('fMsg'));
+    btn.disabled = true; say('', 'Sending…');
+    try {
+      var r = await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'contact_inquiry', data: { name: name, email: email, organization: org, message: lines.join('\n'), product: 'well-testing' } })
+      });
+      var j = await r.json().catch(function () { return {}; });
+      if (!r.ok || j.error || (j.sent === false && !j.sandbox)) throw new Error('not sent');
+      form.reset();
+      say('ok', 'Thank you. Your request is in, and we will be in touch.');
+    } catch (err) {
+      say('err', 'That did not go through. Please email <a href="mailto:info@civicscope.io?subject=Well%20Testing%20walkthrough">info@civicscope.io</a> and we will set it up.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
