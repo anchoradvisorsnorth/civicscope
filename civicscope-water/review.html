@@ -241,6 +241,14 @@
   header .who b{color:#fff;font-weight:600}
   header .who a{border:0;padding:0;text-decoration:underline;color:#cbd5e1}
   @media(max-width:640px){ header{padding:12px 14px} main{padding:14px 12px 50px} header .who{display:none} }
+  /* Phone (DM-2, 2026-11-17): the title block takes its own full-width row and the two links wrap
+     onto the row below it, so neither link is clipped at 320px. The block's flex:1 is inline, hence !important. */
+  @media(max-width:640px){
+    header{flex-wrap:wrap;row-gap:10px;column-gap:10px}
+    header > div:first-child{flex:1 1 100% !important;min-width:0}
+    header h1{overflow-wrap:anywhere}
+    header > a{padding:6px 10px}
+  }
 </style>
 </head>
 <body>

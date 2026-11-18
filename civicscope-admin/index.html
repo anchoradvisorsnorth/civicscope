@@ -386,6 +386,31 @@
   .save-msg.ok  { color: var(--green); }
   .save-msg.err { color: var(--danger); }
   .q-text { line-height: 1.5; }
+
+  /* ══ PHONE (DM-1, 2026-11-17) ══════════════════════════════════════════════════════════════
+     Below 1041px the header wraps (tabs on their own row, wrapping so all five stay visible), every
+     multi-column grid drops to one or two columns, and anything wider than the screen — a data
+     table, an activity feed — scrolls inside its own card instead of widening the page.
+     DM-3: the breakpoint was 760px, but the desktop layout needs about 1020px (the header row is
+     787px, the Ask tenant form 1020px, the Water tab 1026px), so a tablet scrolled sideways. The same rules
+     now apply to everything up to 1040px wide. */
+  @media (max-width: 1040px) {
+    header { flex-wrap: wrap; padding: 0 12px; }
+    .header-brand { padding: 12px 0; margin-right: 12px; }
+    .header-right { flex-wrap: wrap; gap: 8px; padding: 6px 0; min-width: 0; }
+    .tabs { order: 3; flex: 1 1 100%; min-width: 0; flex-wrap: wrap; border-top: 1px solid var(--border); }
+    .tab { flex: 0 0 auto; white-space: nowrap; padding: 0 10px; height: 40px; gap: 6px; }
+    .panel { padding: 16px 12px; }
+    .stat-bar, .stat-bar.five, .stat-bar.six, .stat-bar.seven { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stat-cell { padding: 12px 14px; min-width: 0; }
+    .product-grid, .two-col, .months, .split, .fields { grid-template-columns: minmax(0, 1fr); }
+    .split > *, .two-col > *, .stack > * { min-width: 0; }
+    .card, .feed-table { min-width: 0; overflow-x: auto; }
+    .feed-header, .feed-row { min-width: 560px; }
+    .f input, .f select, .f textarea, .controls select { max-width: 100%; }
+    .btn-row { flex-wrap: wrap; }
+    .note, .empty-state, .stat-cell .sub { overflow-wrap: anywhere; }
+  }
 </style>
 </head>
 <body>
