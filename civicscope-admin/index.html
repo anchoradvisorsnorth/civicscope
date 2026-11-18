@@ -1524,6 +1524,8 @@ function renderWaterSupply(w) {
     <div class="f"><label>Operator in charge</label><input type="text" id="w-oic" value="${esc(s.oic_name || '')}">
       <div class="hint">Signs the MOR under 1976 PA 399. Printed on the Cover tab.</div></div>
     <div class="f"><label>OIC certification</label><input type="text" id="w-oiccert" value="${esc(s.oic_cert || '')}"></div>
+    <div class="f"><label>Signed by (cover page)</label><input type="text" id="w-signedby" value="${esc(s.cover_signed_by || '')}">
+      <div class="hint">The certification line on the report cover. Left blank, the template's own line is kept.</div></div>
     <div class="f wide"><label>EGLE district mailbox</label><input type="text" id="w-email" value="${esc(s.report_to_email || '')}">
       <div class="hint">Where the monthly report is sent. Recorded on every filing as <code>submitted_to</code>.</div></div>
     <div class="f"><label>Default bacti lab</label><input type="text" id="w-lab" value="${esc(s.lab_name || '')}"></div>
@@ -1531,6 +1533,9 @@ function renderWaterSupply(w) {
       <div class="hint">The distribution residual this supply watches. The tablet flags a reading below it.</div></div>
     <div class="f wide"><label>Live</label>
       <label class="chk" style="margin-top:6px"><input type="checkbox" id="w-active" ${s.active ? 'checked' : ''}> accept readings for this supply</label></div>
+    <div class="f wide"><label>PIN at the well</label>
+      <label class="chk" style="margin-top:6px"><input type="checkbox" id="w-requirepin" ${s.require_pin === true ? 'checked' : ''}> Require a PIN at the well</label>
+      <div class="hint">When on, the tablet asks each operator for their PIN before a round, and the server refuses a record without it. It can only be switched on once every live operator below has a PIN.</div></div>
     <div class="f ro wide"><label>MOR template</label><input type="text" value="${esc(s.mor_template || '(none)')}" disabled>
       <div class="hint">Selects the workbook generator. Changing it changes what gets filed with the State — not a form field.</div></div>
   </div>
@@ -1538,18 +1543,30 @@ function renderWaterSupply(w) {
     <span class="dim" style="font-size:10px">${w.readings.live.toLocaleString()} live readings in the last 95 days${w.readings.superseded ? ` · ${w.readings.superseded} superseded` : ''} · latest ${esc(w.readings.latest || 'none')}</span></div>`;
 }
 
+/* sbWrite throws the server's raw JSON text; the Water tab shows the sentence inside it, so a
+   refusal (for example, PIN at the well with an operator who has no PIN) reads as words. */
+function waterErr(e) {
+  try { const j = JSON.parse(e.message); if (j && j.error) return String(j.error); } catch {}
+  return e.message;
+}
+
 async function saveWaterSupply() {
   try {
-    await sbWrite('water_supplies', {
+    const payload = {
       name: val('w-name'), county: textOrNull('w-county'), state: val('w-state'),
       classification: textOrNull('w-class'), timezone: val('w-tz'),
       oic_name: textOrNull('w-oic'), oic_cert: textOrNull('w-oiccert'),
+      cover_signed_by: textOrNull('w-signedby'),
       report_to_email: textOrNull('w-email'), lab_name: textOrNull('w-lab'),
       min_free_cl: numOrNull('w-mincl'), active: checked('w-active'),
-    }, waterState.data.supply.id);
+    };
+    // sent only when it changes, so saving the other details never re-runs the PIN check
+    const requirePin = checked('w-requirepin');
+    if (requirePin !== (waterState.data.supply.require_pin === true)) payload.require_pin = requirePin;
+    await sbWrite('water_supplies', payload, waterState.data.supply.id);
     flash('water-save-msg', 'saved');
     waterState.loaded = false; loadWater();
-  } catch (e) { flash('water-save-msg', e.message, false); }
+  } catch (e) { flash('water-save-msg', waterErr(e), false); }
 }
 
 function renderWaterEntryPoints(w) {
@@ -1625,7 +1642,8 @@ function renderWaterOperators(w) {
           <td><input type="text" id="op-${o.id}-name" value="${esc(o.name)}" style="width:132px"></td>
           <td><input type="text" id="op-${o.id}-init" value="${esc(o.initials)}" style="width:52px"></td>
           <td><input type="checkbox" id="op-${o.id}-oic" ${o.is_oic ? 'checked' : ''}></td>
-          <td><input type="text" id="op-${o.id}-pin" placeholder="${o.has_pin ? '•••• set' : 'not set'}" maxlength="4" style="width:64px">
+          <td>${o.has_pin ? '<span class="pill on">set</span>' : '<span class="pill warn">not set</span>'}
+            <input type="password" id="op-${o.id}-pin" inputmode="numeric" autocomplete="new-password" placeholder="new PIN" maxlength="8" style="width:78px;margin-left:4px">
             ${o.has_pin ? `<button class="btn danger" style="padding:3px 7px;margin-left:4px" onclick="clearPin('${o.id}')">clear</button>` : ''}</td>
           <td><input type="checkbox" id="op-${o.id}-active" ${o.active ? 'checked' : ''}></td>
           <td><button class="btn" onclick="saveOperator('${o.id}')">Save</button></td>
@@ -1634,7 +1652,8 @@ function renderWaterOperators(w) {
     <div class="card-pad" style="border-top:1px solid var(--border)">
       <span class="save-msg" id="op-save-msg"></span>
       <div class="hint" style="font-size:9px;color:var(--muted);margin-top:4px">
-        A PIN can be set here and never read back — leave the box empty to keep the existing one.
+        A PIN (4 to 8 digits) can be set here and never read back — it is stored only as a hash.
+        Leave the box empty to keep the existing one.
         Retire an operator with the Live checkbox; nothing is deleted, because their initials are on
         readings behind reports already filed with EGLE.</div>
     </div>`;
@@ -1651,7 +1670,7 @@ async function saveOperator(id) {
     await sbWrite('water_operators', payload, id);
     flash('op-save-msg', pin ? 'saved · PIN updated' : 'saved');
     waterState.loaded = false; loadWater();
-  } catch (e) { flash('op-save-msg', e.message, false); }
+  } catch (e) { flash('op-save-msg', waterErr(e), false); }
 }
 
 async function clearPin(id) {
@@ -1660,13 +1679,17 @@ async function clearPin(id) {
     await sbWrite('water_operators', { pin: null }, id);
     flash('op-save-msg', 'PIN cleared');
     waterState.loaded = false; loadWater();
-  } catch (e) { flash('op-save-msg', e.message, false); }
+  } catch (e) { flash('op-save-msg', waterErr(e), false); }
 }
 
 async function newOperator() {
   const name = prompt('Operator name?'); if (!name) return;
   const initials = prompt('Initials, as written in the paper "Done by" column?'); if (!initials) return;
-  const pin = prompt('4-digit PIN (leave blank to set later):') || null;
+  const pinRequired = waterState.data.supply.require_pin === true;
+  const pin = prompt(pinRequired
+    ? 'PIN, 4 to 8 digits (required: this supply asks for a PIN at the well):'
+    : 'PIN, 4 to 8 digits (leave blank to set later):') || null;
+  if (pinRequired && !pin) { flash('op-save-msg', 'This supply requires a PIN at the well, so a new operator needs one.', false); return; }
   try {
     await sbWrite('water_operators', {
       supply_id: waterState.data.supply.id, name: name.trim(),
@@ -1674,7 +1697,7 @@ async function newOperator() {
       ...(pin ? { pin } : {}),
     });
     waterState.loaded = false; loadWater();
-  } catch (e) { flash('op-save-msg', e.message, false); }
+  } catch (e) { flash('op-save-msg', waterErr(e), false); }
 }
 
 function renderWaterSites(w) {

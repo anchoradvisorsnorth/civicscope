@@ -21,6 +21,9 @@
 // from, and a column whose value indexes process.env must not be settable from a browser form.
 
 import { summarize, dailyCounts } from '../civicscope-admin/usage.js';
+/* PIN at the well (new-town build B, 2026-11-17): a PIN set here is stored only as a hash in
+   `water_operators.pin_hash`. The shared rule lives in lib/pin.js — the same module water-ops uses. */
+import { hashPin, isPinFormat } from '../lib/pin.js';
 
 /* The clock every reader of this data is actually on. Every municipality this product serves is
    Eastern — Michigan villages and Indiana towns alike — and so is the operator reading /admin. */
@@ -67,8 +70,12 @@ const TABLES = {
     insert: false,
     /* `wssn` is the state supply number and the key the tablet unlocks on — renaming it from a
        browser would orphan every reading. `mor_template` selects the workbook generator. */
+    /* 2026-11-17: `require_pin` (PIN at the well, per town; switching it ON is refused while an
+       active operator has no PIN — see the write path) and `cover_signed_by` (the certification
+       line on the report cover). Neither is secret: the whole supply row is returned by `month`. */
     write: ['name', 'county', 'state', 'classification', 'oic_name', 'oic_cert',
-      'report_to_email', 'lab_name', 'timezone', 'min_free_cl', 'active'],
+      'report_to_email', 'lab_name', 'timezone', 'min_free_cl', 'active',
+      'require_pin', 'cover_signed_by'],
   },
   water_entry_points: {
     key: 'id',
@@ -83,7 +90,10 @@ const TABLES = {
     insert: true,
     /* ⛔ `pin` is writable and NOT readable. An operator who forgets theirs needs somebody able to
        set a new one, and that is desk work; nobody ever needs to read the existing one back, and
-       an endpoint that can is a credential dump waiting for a `select=*`. */
+       an endpoint that can is a credential dump waiting for a `select=*`.
+       2026-11-17: the browser still posts `pin`, but it is never stored as typed — the write path
+       turns it into `pin_hash` and clears the plain column. Neither `pin` nor `pin_hash` is ever
+       read back; the page sees only `has_pin`. */
     read: ['id', 'supply_id', 'name', 'initials', 'is_oic', 'active', 'created_at'],
     write: ['name', 'initials', 'is_oic', 'active', 'pin', 'supply_id'],
   },
@@ -177,6 +187,16 @@ export default async function handler(req, res) {
            projection syntax — embedded resources, renames, casts. Overwriting it has to be right
            about one thing. */
         const params = new URLSearchParams(qs);
+        /* A FILTER IS A READ TOO. `water_operators?pin_hash=like.*` or `?pin=eq.1234` would answer
+           "which rows match" without the column ever being selected — a PIN oracle. Any filter,
+           ordering or boolean group that names a pin column is refused. */
+        if (tableName === 'water_operators') {
+          for (const [k, v] of params) {
+            if (/^pin/i.test(k) || (/^(or|and|not\.|order)/i.test(k) && /pin/i.test(v))) {
+              return res.status(400).json({ error: 'PIN columns cannot be filtered or ordered on' });
+            }
+          }
+        }
         params.set('select', spec.read.join(','));
         finalPath = `${tableName}?${params.toString()}`;
       }
@@ -208,14 +228,69 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: `Not writable on ${table}: ${rejected.join(', ')}` });
         }
       }
-      if (table === 'water_operators' && 'pin' in payload) {
-        const p = payload.pin;
-        // null clears it (schema: "null until the operator sets one"); otherwise exactly 4 digits,
-        // the same rule api/water-ops.js applies on add_operator.
-        if (p !== null && !/^\d{4}$/.test(String(p))) {
-          return res.status(400).json({ error: 'pin must be 4 digits, or null to clear it' });
+      /* ⛔ PIN AT THE WELL CANNOT BE SWITCHED ON OVER A CREW THAT HAS NO PINS (2026-11-17). An active
+         operator with neither a hashed nor a legacy plain PIN would be locked out of the tablet the
+         moment the setting took effect. Refused with the names, so the owner knows whose PIN to set. */
+      if (table === 'water_supplies' && 'require_pin' in payload) {
+        if (typeof payload.require_pin !== 'boolean') {
+          return res.status(400).json({ error: 'require_pin must be true or false' });
         }
-        payload = { ...payload, pin: p === null ? null : String(p) };
+        if (payload.require_pin === true) {
+          const missing = await sb(`water_operators?supply_id=eq.${encodeURIComponent(id)}&active=is.true`
+            + '&pin_hash=is.null&pin=is.null&select=name,initials&order=name');
+          if (missing.length) {
+            return res.status(400).json({ error: 'PIN at the well cannot be switched on yet. These active '
+              + `operators have no PIN: ${missing.map((o) => `${o.name} (${o.initials})`).join(', ')}. `
+              + 'Set a PIN for each of them, or mark them inactive, first.' });
+          }
+        }
+      }
+      if (table === 'water_operators' && 'pin' in payload) {
+        const p = payload.pin == null ? '' : String(payload.pin).trim();
+        if (p === '') {
+          /* Empty clears it — but not while the operator is active at a supply that requires a
+             PIN: that would lock them out of the tablet. Deactivate them first, or set a new PIN. */
+          let supplyId = payload.supply_id; let active = payload.active;
+          if (id && (supplyId === undefined || active === undefined)) {
+            const cur = (await sb(`water_operators?id=eq.${encodeURIComponent(id)}&select=supply_id,active`))[0];
+            if (cur) { if (supplyId === undefined) supplyId = cur.supply_id; if (active === undefined) active = cur.active; }
+          }
+          if (active !== false && supplyId) {
+            const sup = (await sb(`water_supplies?id=eq.${encodeURIComponent(supplyId)}&select=require_pin`))[0];
+            if (sup && sup.require_pin === true) {
+              return res.status(400).json({ error: 'This supply requires a PIN at the well, so an active '
+                + 'operator\'s PIN cannot be cleared. Set a new PIN instead, or mark the operator inactive first.' });
+            }
+          }
+          payload = { ...payload, pin: null, pin_hash: null, pin_failed_count: 0, pin_locked_until: null };
+        } else {
+          // 4-8 digits (lib/pin.js), the same rule the tablet and water-ops apply
+          if (!isPinFormat(p)) {
+            return res.status(400).json({ error: 'A PIN must be 4 to 8 digits.' });
+          }
+          // stored as a hash only; the plain column is cleared and any lock-out is lifted
+          payload = { ...payload, pin: null, pin_hash: await hashPin(p), pin_failed_count: 0, pin_locked_until: null };
+        }
+      }
+      /* ⛔ ...AND NOBODY IS ADDED, RE-ACTIVATED OR MOVED INTO A PIN SUPPLY WITHOUT ONE (2026-11-17).
+         The switch-on check above looks at the crew as it stands; this closes the door after it.
+         An operator who would end up active at a supply that requires a PIN, with no PIN, would be
+         turned away by the tablet until someone noticed. The stored PIN columns are read here only
+         to answer yes/no and never leave this function. */
+      if (table === 'water_operators' && (!id || 'active' in payload || 'supply_id' in payload)) {
+        const cur = id
+          ? (await sb(`water_operators?id=eq.${encodeURIComponent(id)}&select=supply_id,active,pin_hash,pin`))[0]
+          : null;
+        const supplyId = payload.supply_id !== undefined ? payload.supply_id : (cur && cur.supply_id);
+        const active = payload.active !== undefined ? payload.active : (cur ? cur.active : true);
+        const willHavePin = 'pin_hash' in payload ? Boolean(payload.pin_hash) : Boolean(cur && (cur.pin_hash || cur.pin));
+        if (active !== false && supplyId && !willHavePin) {
+          const sup = (await sb(`water_supplies?id=eq.${encodeURIComponent(supplyId)}&select=require_pin`))[0];
+          if (sup && sup.require_pin === true) {
+            return res.status(400).json({ error: 'This supply requires a PIN at the well. Give this operator '
+              + 'a PIN (4 to 8 digits) in the same save, or leave them inactive until one is set.' });
+          }
+        }
       }
 
       const key = spec.key || 'id';
@@ -236,6 +311,8 @@ export default async function handler(req, res) {
         return res.status(200).json(rows.map((r) => {
           const out = {};
           for (const c of spec.read) if (c in r) out[c] = r[c];
+          // whether a PIN exists, never what it is
+          if (table === 'water_operators') out.has_pin = Boolean(r.pin_hash || r.pin);
           return out;
         }));
       }
@@ -329,9 +406,9 @@ export default async function handler(req, res) {
           + '&select=reading_date,entry_point_id,operator_initials,source,superseded_at&order=reading_date.desc&limit=2000'),
         sb(`water_mor_filings?supply_id=eq.${sid}&select=id,report_year,report_month,submitted_date,signed_by,source,workbook_name,superseded_at,created_at&order=report_year.desc,report_month.desc`),
         sb(`water_mor_reminders?supply_id=eq.${sid}&select=report_year,report_month,kind,sent_at,outcome,recipients,detail&order=sent_at.desc&limit=20`),
-        /* Whether a PIN EXISTS, never what it is. `pin=not.is.null` is answered by PostgREST
-           without the value ever leaving the database. */
-        sb(`water_operators?supply_id=eq.${sid}&pin=not.is.null&select=id`),
+        /* Whether a PIN EXISTS, never what it is. The filter is answered by PostgREST without the
+           value ever leaving the database. Either a hash or a legacy plain value counts. */
+        sb(`water_operators?supply_id=eq.${sid}&or=(pin_hash.not.is.null,pin.not.is.null)&select=id`),
       ]);
 
       const withPin = new Set((opsWithPin || []).map((o) => o.id));
@@ -399,7 +476,11 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
-    console.error('Admin proxy error:', err);
-    return res.status(err.status || 500).json({ error: err.message });
+    /* A database error can quote the failing row ("Failing row contains (…)"), which for an
+       operator write would include the new PIN hash. Hash strings are blanked before logging or
+       returning (2026-11-17). */
+    const msg = String((err && err.message) || err).replace(/scrypt\$[^\s,)"']*/g, '[redacted]');
+    console.error('Admin proxy error:', msg);
+    return res.status(err.status || 500).json({ error: msg });
   }
 }
