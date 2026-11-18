@@ -75,7 +75,11 @@ const TABLES = {
        line on the report cover). Neither is secret: the whole supply row is returned by `month`. */
     write: ['name', 'county', 'state', 'classification', 'oic_name', 'oic_cert',
       'report_to_email', 'lab_name', 'timezone', 'min_free_cl', 'active',
-      'require_pin', 'cover_signed_by'],
+      'require_pin', 'cover_signed_by',
+      /* 2026-11-17: two report details a town sets for itself. They are written onto the report
+         only when the town's report is built from the shared state form (template kind `state`):
+         how many routine bacti samples it must take each month, and its lab's analytical method. */
+      'bacti_routine_required', 'bacti_method'],
   },
   water_entry_points: {
     key: 'id',
@@ -231,6 +235,12 @@ export default async function handler(req, res) {
       /* ⛔ PIN AT THE WELL CANNOT BE SWITCHED ON OVER A CREW THAT HAS NO PINS (2026-11-17). An active
          operator with neither a hashed nor a legacy plain PIN would be locked out of the tablet the
          moment the setting took effect. Refused with the names, so the owner knows whose PIN to set. */
+      if (table === 'water_supplies' && 'bacti_routine_required' in payload && payload.bacti_routine_required !== null) {
+        const n = payload.bacti_routine_required;
+        if (typeof n !== 'number' || !Number.isInteger(n) || n < 0 || n > 31) {
+          return res.status(400).json({ error: 'Routine bacti samples required must be a whole number from 0 to 31, or left empty.' });
+        }
+      }
       if (table === 'water_supplies' && 'require_pin' in payload) {
         if (typeof payload.require_pin !== 'boolean') {
           return res.status(400).json({ error: 'require_pin must be true or false' });

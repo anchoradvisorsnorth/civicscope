@@ -1551,6 +1551,10 @@ function renderWaterSupply(w) {
     <div class="f"><label>OIC certification</label><input type="text" id="w-oiccert" value="${esc(s.oic_cert || '')}"></div>
     <div class="f"><label>Signed by (cover page)</label><input type="text" id="w-signedby" value="${esc(s.cover_signed_by || '')}">
       <div class="hint">The certification line on the report cover. Left blank, the template's own line is kept.</div></div>
+    <div class="f"><label>Routine bacti samples required each month</label><input type="text" inputmode="numeric" id="w-bactireq" value="${s.bacti_routine_required == null ? '' : esc(String(s.bacti_routine_required))}">
+      <div class="hint">A whole number, 0 to 31. Printed on the Bacti tab when this town's report is built from the shared state form. A town using its own blank form has it printed already.</div></div>
+    <div class="f"><label>Bacti analytical method</label><input type="text" id="w-bactimethod" value="${esc(s.bacti_method || '')}">
+      <div class="hint">The lab's method, as it should read on the Bacti tab. Used only with the shared state form.</div></div>
     <div class="f wide"><label>EGLE district mailbox</label><input type="text" id="w-email" value="${esc(s.report_to_email || '')}">
       <div class="hint">Where the monthly report is sent. Recorded on every filing as <code>submitted_to</code>.</div></div>
     <div class="f"><label>Default bacti lab</label><input type="text" id="w-lab" value="${esc(s.lab_name || '')}"></div>
@@ -1588,6 +1592,23 @@ async function saveWaterSupply() {
     // sent only when it changes, so saving the other details never re-runs the PIN check
     const requirePin = checked('w-requirepin');
     if (requirePin !== (waterState.data.supply.require_pin === true)) payload.require_pin = requirePin;
+    // the two report details are sent only when they change, like the PIN setting
+    /* ⛔ ONLY A GENUINELY EMPTY BOX CLEARS THIS NUMBER (Codex ST-1). `numOrNull` turns "four" or
+       "4x" into NaN, JSON turns NaN into null, and the server rightly accepts null as a clear — so
+       a typing slip erased the saved requirement and the page said "saved". Anything typed must be
+       a whole number from 0 to 31, or nothing is sent at all. */
+    const bactiRaw = val('w-bactireq');
+    let bactiReq = null;
+    if (bactiRaw !== '') {
+      if (!/^\d{1,2}$/.test(bactiRaw) || Number(bactiRaw) > 31) {
+        flash('water-save-msg', 'Routine bacti samples required must be a whole number from 0 to 31, or left empty. Nothing was saved.', false);
+        return;
+      }
+      bactiReq = Number(bactiRaw);
+    }
+    if (bactiReq !== (waterState.data.supply.bacti_routine_required ?? null)) payload.bacti_routine_required = bactiReq;
+    const bactiMethod = textOrNull('w-bactimethod');
+    if (bactiMethod !== (waterState.data.supply.bacti_method ?? null)) payload.bacti_method = bactiMethod;
     await sbWrite('water_supplies', payload, waterState.data.supply.id);
     flash('water-save-msg', 'saved');
     waterState.loaded = false; loadWater();
