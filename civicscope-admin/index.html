@@ -726,6 +726,7 @@
       <select id="water-supply" onchange="loadWater()"></select>
       <a class="btn-open" href="https://app.civicscope.io/water" target="_blank">↗ Crew tablet</a>
       <a class="btn-open" href="https://civicscope.io/water/review" target="_blank">↗ OIC review</a>
+      <a class="btn-open" id="water-townadmin-link" href="https://www.civicscope.io/water/admin" target="_blank">↗ Town admin page</a>
       <button class="btn" onclick="loadWater()">↺ Reload</button>
     </div>
 
@@ -753,6 +754,27 @@
           <div id="water-sites"><div class="empty-state" style="padding:16px">—</div></div>
         </div>
       </div>
+    </div>
+
+    <!-- 2026-11-18 — the town's people and the town admins' change record. READ ONLY here: adding or
+         turning off a person, and deciding who is a town admin, are done on the town's own admin
+         page (/water/admin), signed in, so every change is recorded against the person who made it. -->
+    <div class="section-label">People — who can sign in to this town's office pages</div>
+    <div class="split" style="margin-bottom:8px">
+      <div class="card">
+        <div class="card-head"><div class="t">Office sign-ins</div></div>
+        <div id="water-people"><div class="empty-state" style="padding:16px">—</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="t">Changes made on the town admin page</div></div>
+        <div class="scroll-y" id="water-adminlog"><div class="empty-state" style="padding:16px">—</div></div>
+      </div>
+    </div>
+    <div class="note" style="margin-bottom:24px">
+      Read only here. To add or turn off a person, or to make somebody a <b>town admin</b>, open the
+      <b>Town admin page</b> (button above) signed in with Google. A town admin changes only their own
+      town's report details, PIN at the well, operators and office sign-ins; everything else on this
+      tab stays here.
     </div>
 
     <div class="section-label">Wells / entry points</div>
@@ -1508,10 +1530,46 @@ async function loadWater() {
     renderWaterOperators(w);
     renderWaterSites(w);
     renderWaterFilings(w);
+    renderWaterPeople(w);
   } catch (e) {
     document.getElementById('water-months').innerHTML =
       `<div class="empty-state" style="color:var(--danger)">${esc(e.message)}</div>`;
   }
+}
+
+/* 2026-11-18 — who can sign in for this town, who is a town admin, and what town admins changed.
+   Read only: the town's own admin page (/water/admin) is where these are changed. */
+function renderWaterPeople(w) {
+  const link = document.getElementById('water-townadmin-link');
+  if (link) link.href = 'https://www.civicscope.io/water/admin?wssn=' + encodeURIComponent(w.supply.wssn);
+  const ROLE = { admin: 'CivicScope', oic: 'Operator in charge', staff: 'Office staff' };
+  /* `people` missing altogether means the server answering is older than this page — say so, never
+     "nobody is enrolled", which would be a false statement about who can sign in. */
+  const err = w.peopleError
+    ? `<div class="empty-state" style="padding:16px;color:var(--danger)">Could not read this list: ${esc(w.peopleError)}</div>`
+    : w.people === undefined
+      ? '<div class="empty-state" style="padding:16px;color:var(--danger)">Not available — the server did not send this list. Reload in a minute.</div>' : '';
+  const people = w.people || [];
+  document.getElementById('water-people').innerHTML = err || (people.length ? `
+    <table class="dt">
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Town admin</th><th>Sign-in</th><th>Last signed in</th></tr></thead>
+      <tbody>${people.map(p => `
+        <tr><td>${dash(p.name)}</td><td>${esc(p.email)}</td><td>${esc(ROLE[p.role] || p.role)}</td>
+        <td>${p.role === 'admin' ? '<span class="dim">every town</span>' : p.town_admin ? '<span class="pill on">town admin</span>' : '<span class="dim">—</span>'}</td>
+        <td>${onoff(p.active, 'on', 'off')}</td>
+        <td class="dim">${p.last_seen_at ? fmtDayFull(p.last_seen_at) : 'never'}</td></tr>`).join('')}
+      </tbody></table>`
+    : '<div class="empty-state" style="padding:16px">Nobody is enrolled for this town.</div>');
+  const log = w.adminLog || [];
+  document.getElementById('water-adminlog').innerHTML = err || (log.length ? `
+    <table class="dt">
+      <thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
+      <tbody>${log.map(l => `
+        <tr><td class="dim" style="white-space:nowrap">${fmtDayFull(l.at)}</td>
+        <td>${esc(l.actor_name || l.actor_email || 'someone')}${l.actor_kind === 'product_admin' ? ' <span class="dim">(CivicScope)</span>' : ''}</td>
+        <td>${esc(l.summary)}</td></tr>`).join('')}
+      </tbody></table>`
+    : '<div class="empty-state" style="padding:16px">No changes yet.</div>');
 }
 
 function renderWaterMonths(w) {

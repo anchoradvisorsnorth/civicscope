@@ -421,6 +421,24 @@ export default async function handler(req, res) {
         sb(`water_operators?supply_id=eq.${sid}&or=(pin_hash.not.is.null,pin.not.is.null)&select=id`),
       ]);
 
+      /* 2026-11-18 — the town's PEOPLE and the town admins' change record, read-only here. Who may
+         sign in to this town's office pages (`app_users`) and who is a town admin was reachable only
+         by script; a town admin's changes are written to `water_admin_log` by api/water-town.js.
+         The owner sees both on the Water tab; changing either is done on the town's own admin page,
+         signed in, so the change is attributed to a person. Read apart from the block above and
+         reported as an error of its own: a failure here must not blank the plant's operating state,
+         and must not read as "nobody is enrolled" either. */
+      let people = []; let adminLog = []; let peopleError = null;
+      try {
+        [people, adminLog] = await Promise.all([
+          sb(`app_users?water_wssn=eq.${encodeURIComponent(supply.wssn)}`
+            + '&select=id,email,name,role,active,town_admin,last_seen_at,sign_in_count&order=role,email'),
+          sb(`water_admin_log?supply_id=eq.${sid}&select=at,actor_name,actor_email,actor_kind,summary&order=at.desc&limit=30`),
+        ]);
+      } catch (e) {
+        peopleError = String((e && e.message) || e).slice(0, 200);
+      }
+
       const withPin = new Set((opsWithPin || []).map((o) => o.id));
       const live = readings.filter((r) => !r.superseded_at);
       const bySource = {};
@@ -481,6 +499,9 @@ export default async function handler(req, res) {
         months,
         filings,
         reminders,
+        people,
+        adminLog,
+        peopleError,
       });
     }
 
