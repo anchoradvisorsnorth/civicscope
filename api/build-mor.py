@@ -284,6 +284,150 @@ WRITE_FEED_STRENGTHS = True
 STRENGTH_CELLS = {'chlorine': (5, 3), 'phosphate': (5, 8), 'fluoride': (5, 13), 'ph_adjust': (5, 18)}
 ORTHO_CELL = (5, 11)
 BACTI_LAB_CELL = (1, 7)
+
+# --- THE REST OF A TOWN'S DETAILS ON THE STATE BLANK (2026-11-17, state blank completion) ----------
+# The first customer's own blank carries town details pre-typed in cells build() never wrote, so a
+# report from the shared state blank left them empty. Each one is now written, for kind 'state'
+# ONLY, from the town's own data, and read back from the saved file. What each cell means was read
+# off the printed form's own labels (the label each value sits beside):
+#   EntryPoint H2  under "Entry Point (e.g. Well 1 & 2)": the entry point's EGLE tag, which is
+#                  water_entry_points.code (migration 010: "EGLE entry point tag").
+#   EntryPoint F5 / L5 / P5 / U5  right of the "NSF Max Dose:" labels at D5 / I5 / N5 / S5, one per
+#                  application block (chlorine, phosphate, fluoride, pH adjust): the feed's
+#                  water_feeds.nsf_max_dose. All four cells carry the same "0.00" boxed style. The
+#                  first customer's blank holds TEXT there, the number, a space and the unit
+#                  ("<number> mg/L"), so that is what is written. No formula reads any of the four.
+EP_CODE_CELL = (1, 7)
+MAX_DOSE_CELLS = {'chlorine': (4, 5), 'phosphate': (4, 11), 'fluoride': (4, 15), 'ph_adjust': (4, 20)}
+MAX_DOSE_UNIT = 'mg/L'
+# A STRENGTH FOR A FEED THE ENTRY POINT DOES NOT HAVE. The first customer's blank holds 0 in N6 and
+# S6 (fluoride, pH adjust) on every EntryPoint tab: that town feeds neither. The only formulas that
+# read them are their own block's, e.g. O9 = IF(OR(N9="",N$6="",B9="",B9=0),"",N9*N$6), and with no
+# such feed N9 is always empty, so 0 and blank compute the same "" — 0 is not needed by a formula; it
+# is what the form says for "no such feed", so the state path writes it too. Only on a tab an entry
+# point uses, only in the four STRENGTH_CELLS (the ortho factor L6 is left empty without phosphate:
+# the first customer's blank has no case of that), and a strength of 0 on a feed that EXISTS is still
+# refused by _fraction().
+ABSENT_FEED_STRENGTH = 0.0
+# Distribution A7:A37, "Site Address or Identifier": the site of each sample written on that row. The
+# first customer's blank pre-types its one sampling site on all 31 rows whether or not a sample is
+# taken; the state path writes the site only on rows that carry a sample and leaves the rest empty.
+DIST_SITE_COL = 0
+# Bacti & Cl Res: each value sits LEFT of its label.
+#   A4  "Routine samples required"                  <- water_supplies.bacti_routine_required (migration 105)
+#   A6  "Routine samples positive"                  <- COUNTED: routine samples whose result is positive
+#   E5  "Repeat samples total coliform positive"    <- COUNTED: repeat samples whose result is positive
+#   E6  "Analytical Method"                         <- water_supplies.bacti_method (migration 105)
+# (A5 "Routine samples taken" and E4 "Repeat samples taken" are the form's own COUNTA formulas.)
+BACTI_REQUIRED_CELL = (3, 0)
+BACTI_ROUTINE_POSITIVE_CELL = (5, 0)
+BACTI_REPEAT_POSITIVE_CELL = (4, 4)
+BACTI_METHOD_CELL = (5, 4)
+_COVER_CELL_KINDS = {
+    'supply_name': 'supply name', 'wssn': 'water system number (WSSN)',
+    'oic_name': "operator-in-charge's name", 'classification': 'system classification',
+    'month_label': 'reporting month', 'oic_cert': "operator's certification level",
+    'county': 'county', 'year_cell': 'reporting year', 'comment_left': 'comments',
+    'comment_right': 'comments', 'signed_by': 'certification line (signer name)',
+    'submitted_date': 'date submitted', 'submitted_to': 'send-completed-report-to mailbox',
+}
+_FEED_LABEL = {'chlorine': 'chlorine', 'phosphate': 'phosphate', 'fluoride': 'fluoride', 'ph_adjust': 'pH-adjustment chemical'}
+
+
+def town_cell_kinds(name):
+    """{(row, col): what it holds} — every cell of tab `name` that carries ONE TOWN's details on that
+    town's own blank: what the shared state blank must leave empty, what build() writes onto it for
+    kind 'state', and what scripts/derive-state-template.py blanks. The single list of them."""
+    out = {}
+    if name == 'Cover':
+        out = {rc: _COVER_CELL_KINDS.get(f, f) for f, rc in X_COVER_CELLS.items()}
+    elif name.startswith('EntryPoint'):
+        for k, rc in STRENGTH_CELLS.items():
+            out[rc] = f'{_FEED_LABEL[k]} strength'
+        out[ORTHO_CELL] = 'phosphate ortho factor'
+        out[EP_CODE_CELL] = 'entry point identifier (EGLE tag)'
+        for k, rc in MAX_DOSE_CELLS.items():
+            out[rc] = f'NSF maximum dose of the {_FEED_LABEL[k]} product in use'
+    elif name == 'Distribution':
+        for r in range(DIST_ROW0, DIST_ROW0 + DIST_ROWS):
+            out[(r, DIST_SITE_COL)] = 'distribution sampling site'
+    elif name == BACTI_SHEET:
+        out[BACTI_LAB_CELL] = 'laboratory name'
+        out[BACTI_REQUIRED_CELL] = "routine samples required by the supply's sampling schedule"
+        out[BACTI_ROUTINE_POSITIVE_CELL] = 'monthly count (routine samples positive)'
+        out[BACTI_REPEAT_POSITIVE_CELL] = 'monthly count (repeat samples total coliform positive)'
+        out[BACTI_METHOD_CELL] = 'laboratory analytical method'
+    return out
+
+
+# A BACTI RESULT IS ONE OF THREE THINGS, AND A FOURTH IS REFUSED (state blank only, 2026-11-17).
+# Two vocabularies reach this column. The form's own results key: ND = total coliform not detected;
+# "TC+, EC-" and "EC+" = total coliform present. The crew tablet's Result choice
+# (civicscope-water/index.html #bResult) stores the words `absent` and `present`. The first version
+# of this rule counted everything that was not exactly ND as positive, so four clean samples entered
+# on the tablet as `absent` would have been filed as four positives. A count that goes to the state
+# is never guessed: a result that is neither a listed word nor the form's key is refused by name
+# (bacti_result_class -> None).
+BACTI_NEGATIVE_WORDS = ('nd', 'n/d', 'absent', 'negative', 'neg', 'not detected')
+BACTI_POSITIVE_WORDS = ('present', 'positive', 'pos', 'detected')
+# The form's key, and nothing else: one or more of TC+ TC- EC+ EC-, optionally separated by a comma,
+# slash, semicolon or ampersand. A plus sign anywhere else ("ND (no TC+)") is NOT read as a detection.
+_BACTI_KEY_SHAPE = re.compile(r'(?:tc|ec) ?[+-](?: ?[,/;&]? ?(?:tc|ec) ?[+-])*')
+_BACTI_KEY_TOKEN = re.compile(r'(tc|ec) ?([+-])')
+
+
+def bacti_result_class(result):
+    """'pending' (no result yet), 'negative', 'positive', or None when the text is neither.
+    Leading/trailing blanks, repeated blanks and letter case are ignored. In the form's key, TC+ or
+    EC+ is positive (E. coli is a coliform); TC- with no plus is negative; EC- alone says nothing
+    about total coliform and is unrecognised, as is a key that gives one organism both signs."""
+    if result is None:
+        return 'pending'
+    if not isinstance(result, str):
+        return None
+    s = ' '.join(result.split()).lower()
+    if s == '':
+        return 'pending'
+    if s in BACTI_NEGATIVE_WORDS:
+        return 'negative'
+    if s in BACTI_POSITIVE_WORDS:
+        return 'positive'
+    if _BACTI_KEY_SHAPE.fullmatch(s):
+        signs = {}
+        for name, sign in _BACTI_KEY_TOKEN.findall(s):
+            signs.setdefault(name, set()).add(sign)
+        if any(len(v) > 1 for v in signs.values()):
+            return None
+        if any('+' in v for v in signs.values()):
+            return 'positive'
+        if 'tc' in signs:
+            return 'negative'
+    return None
+
+
+def bacti_positive(result):
+    """Is a bacti lab result POSITIVE? False for a negative or a pending result. A result that is
+    neither recognised word is refused here, so no caller can count it either way by accident."""
+    cls = bacti_result_class(result)
+    if cls is None:
+        raise Refuse(409, f'a bacti result of {result!r} is neither a negative (ND, Absent or TC-) nor a positive '
+                          '(Present, TC+ or EC+); the workbook was not generated.')
+    return cls == 'positive'
+
+
+def _max_dose_text(v, what):
+    """A water_feeds.nsf_max_dose as the form's text ("<number> mg/L"); None when the feed has none."""
+    if v is None or (isinstance(v, str) and not v.strip()):
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        f = None
+    if f is None or f != f or f <= 0 or f == float('inf') or isinstance(v, bool):
+        # (not "on the admin page": /admin never edits water_feeds — a standing rule)
+        raise Refuse(409, f'{what} is {v!r}; it must be a positive number of mg/L. It is part of this supply\'s '
+                          'chemical feed setup, which CivicScope support corrects; the workbook was not generated.')
+    return f'{_cover_text(f)} {MAX_DOSE_UNIT}'
 # THE RECOGNISED FORM — read from scripts/fixtures/mor-formulas.json (the first customer's map,
 # extracted from EGLE's Class D workbook). The identity test asserts these still match the fixture.
 REFERENCE_TABS = ('Instructions', 'Cover', 'Pumpage', 'EntryPoint1', 'EntryPoint2', 'EntryPoint3',
@@ -502,8 +646,10 @@ def _fraction(v, what):
     except (TypeError, ValueError):
         f = None
     if f is None or f != f or not 0 < f <= 1:
+        # (not "on the admin page": /admin never edits water_feeds — a standing rule)
         raise Refuse(409, f'{what} is {v!r}; the state form needs a fraction between 0 and 1 '
-                          '(0.125 for 12.5%). Correct it on the admin page; the workbook was not generated.')
+                          '(0.125 for 12.5%). It is part of this supply\'s chemical feed setup, which CivicScope '
+                          'support corrects; the workbook was not generated.')
     return f
 
 
@@ -788,15 +934,21 @@ def build(data, raw_template, formulas, manifest=None):
     # Row 6 is blanked on every EntryPoint tab first, so a kind this entry point does not feed can
     # never show a strength. Only feeds that are active, or that carry a reading this month, count;
     # two of them of one kind with different strengths have one cell between them and refuse.
+    # AND THE TAB'S OTHER TOWN CELLS (2026-11-17, state blank completion): H2, the entry point's EGLE
+    # tag, and row 5's "NSF Max Dose" cells (MAX_DOSE_CELLS), blanked first on every EntryPoint tab
+    # like row 6 and written from the same feeds. A tab no entry point uses this month stays empty.
     strengths_written, strength_cells = {}, []
-    if kind == 'state' and WRITE_FEED_STRENGTHS:
-        row6 = list(STRENGTH_CELLS.values()) + [ORTHO_CELL]
+    absent_strengths, ep_text_cells, ep_written = {}, [], {}
+    if kind == 'state':
+        row6 = list(STRENGTH_CELLS.values()) + [ORTHO_CELL] if WRITE_FEED_STRENGTHS else []
+        ep_town = [EP_CODE_CELL] + list(MAX_DOSE_CELLS.values())
         for name in [s for s in rb.sheet_names() if s.startswith('EntryPoint')]:
             rs = rb.sheet_by_name(name)
-            for r, c in row6:
+            what = town_cell_kinds(name)
+            for r, c in row6 + ep_town:
                 if r >= rs.nrows or c >= rs.ncols:
-                    raise Refuse(409, f'{name} has no cell {xlrd.formula.colname(c)}{r + 1} for a chemical '
-                                      'strength; this is not the recognised state form. The workbook was not generated.')
+                    raise Refuse(409, f'{name} has no cell {xlrd.formula.colname(c)}{r + 1} for the {what[(r, c)]}; '
+                                      'this is not the recognised state form. The workbook was not generated.')
                 wb.get_sheet(sheet_idx[name]).row(r).set_cell_blank(c, style_at(name, r, c))
         for ep, sheet, well, feed_kind, rows in plan:
             if sheet is None:
@@ -809,6 +961,30 @@ def build(data, raw_template, formulas, manifest=None):
                     continue
                 if f.get('kind') in STRENGTH_CELLS:
                     per_kind.setdefault(f['kind'], []).append(f)
+            texts = {}
+            code = _cover_text(ep.get('code'))
+            if code:
+                texts[EP_CODE_CELL] = code
+            for k, feeds in per_kind.items():
+                doses = {_max_dose_text(f.get('nsf_max_dose'), f'{ep_label(ep)}\'s {k} NSF maximum dose') for f in feeds} - {None}
+                if len(doses) > 1:
+                    raise Refuse(409, f'{ep_label(ep)} has {k} feeds with different NSF maximum doses '
+                                      f'({", ".join(sorted(doses))}); the state form has one cell for it. '
+                                      'The workbook was not generated.')
+                if doses:
+                    texts[MAX_DOSE_CELLS[k]] = doses.pop()
+            for (r, c), v in texts.items():
+                put(sheet, r, c, v)
+                ep_text_cells.append((sheet, r, c, v))
+            if texts:
+                ep_written[sheet] = {f'{xlrd.formula.colname(c)}{r + 1}': v for (r, c), v in texts.items()}
+            if not WRITE_FEED_STRENGTHS:
+                continue
+            for k, (r, c) in STRENGTH_CELLS.items():
+                if k not in per_kind:
+                    put(sheet, r, c, ABSENT_FEED_STRENGTH)
+                    strength_cells.append((sheet, r, c, ABSENT_FEED_STRENGTH))
+                    absent_strengths.setdefault(sheet, []).append(f'{xlrd.formula.colname(c)}{r + 1}')
             cells = {}
             for k, feeds in per_kind.items():
                 vals = {_fraction(f.get('avail_fraction'), f'{ep_label(ep)}\'s {k} strength') for f in feeds}
@@ -851,18 +1027,84 @@ def build(data, raw_template, formulas, manifest=None):
             cover_written['signed_by'] = signer
 
     clear_block('Distribution', DIST_ROW0, DIST_ROWS, DIST_COLS)
+    # STATE BLANK: column A, "Site Address or Identifier", is each sample's own site (DIST_SITE_COL).
+    # Cleared on all 31 rows first; a row with no sample stays empty.
+    dist_site_cells = []
+    if kind == 'state':
+        clear_block('Distribution', DIST_ROW0, DIST_ROWS, (DIST_SITE_COL,))
+        site_names = {x.get('id'): x.get('name') for x in (data.get('sites') or []) if isinstance(x, dict)}
     for i, s in enumerate(sorted(data['dist'], key=lambda x: x['sample_date'])):
         if i >= DIST_ROWS:
             raise Refuse(409, f"{len(data['dist'])} distribution samples will not fit the state "
                               f'form, which has room for {DIST_ROWS}. File a supplemental sheet.')
         r0 = DIST_ROW0 + i
         d = s['sample_date']
+        if kind == 'state':
+            # water_dist_samples.site_name is NOT NULL (migration 010); the site id is the fallback.
+            site = _cover_text(s.get('site_name')) or _cover_text(site_names.get(s.get('site_id')))
+            if not site:
+                raise Refuse(409, f'the distribution sample of {d} names no sampling site, and the state form '
+                                  'prints the site on its row; the workbook was not generated.')
+            put('Distribution', r0, DIST_SITE_COL, site)
+            dist_site_cells.append(('Distribution', r0, DIST_SITE_COL, site))
         put('Distribution', r0, 1, f'{int(d[5:7])}/{int(d[8:10])}/{d[:4]}')
         put('Distribution', r0, 2, s.get('free'))
         put('Distribution', r0, 3, s.get('total'))
         put('Distribution', r0, 4, s.get('ortho'))
 
     bacti_written = write_bacti(data)
+
+    # STATE BLANK: the Bacti tab's town details and its two positive counts (BACTI_*_CELL). Each is
+    # blanked first; the two town details are written only when the supply has them set, and the
+    # counts are always written (0 when nothing is positive, as the first customer's blank holds).
+    # The counts use bacti_result_class() over the samples write_bacti placed: routine-kind into A6,
+    # repeat-kind into E5; 'other' samples count in neither (and their result is never judged).
+    bacti_cells = []
+    if kind == 'state':
+        bsh0 = rb.sheet_by_name(BACTI_SHEET) if BACTI_SHEET in sheet_idx else None
+        if bsh0 is None:
+            raise Refuse(409, f'this template has no {BACTI_SHEET} tab; the workbook was not generated.')
+        bwhat = town_cell_kinds(BACTI_SHEET)
+        for rc in (BACTI_REQUIRED_CELL, BACTI_ROUTINE_POSITIVE_CELL, BACTI_REPEAT_POSITIVE_CELL, BACTI_METHOD_CELL):
+            if rc[0] >= bsh0.nrows or rc[1] >= bsh0.ncols:
+                raise Refuse(409, f'{BACTI_SHEET} has no cell {xlrd.formula.colname(rc[1])}{rc[0] + 1} for the '
+                                  f'{bwhat[rc]}; this is not the recognised state form. The workbook was not generated.')
+            wb.get_sheet(sheet_idx[BACTI_SHEET]).row(rc[0]).set_cell_blank(rc[1], style_at(BACTI_SHEET, *rc))
+        req = supply.get('bacti_routine_required')
+        if req is not None and not (isinstance(req, str) and not req.strip()):
+            try:
+                reqf = None if isinstance(req, bool) else float(req)
+            except (TypeError, ValueError):
+                reqf = None
+            # (the range test comes first: it is False for NaN and infinity, so int() is safe after it)
+            if reqf is None or not 0 <= reqf <= 31 or reqf != int(reqf):
+                raise Refuse(409, f'this supply\'s routine samples required is {req!r}; it must be a whole number '
+                                  'from 0 to 31. Correct it on the admin page; the workbook was not generated.')
+            bacti_cells.append((BACTI_SHEET, *BACTI_REQUIRED_CELL, float(int(reqf))))
+        method = _cover_text(supply.get('bacti_method'))
+        if method:
+            bacti_cells.append((BACTI_SHEET, *BACTI_METHOD_CELL, method))
+        positives = {'routine': 0, 'repeat': 0}
+        for smp in data.get('bacti') or []:
+            k = str(smp.get('sample_kind') or 'routine').lower()
+            if k not in positives:
+                continue
+            # A result this code cannot read is refused BY NAME: which sample, where, and what it says.
+            # It is corrected where results are entered (the review page), not here and not on /admin.
+            cls = bacti_result_class(smp.get('result'))
+            if cls is None:
+                where = _cover_text(smp.get('site_name')) or 'no site named'
+                raise Refuse(409, f"the {k} bacti sample of {smp.get('collected_date')} ({where}) has the result "
+                                  f"{smp.get('result')!r}, which is neither a negative (ND, Absent or TC-) nor a positive "
+                                  '(Present, TC+ or EC+). The state form counts '
+                                  'positive samples, so the count cannot be filled. Correct the result on the review '
+                                  'page; the workbook was not generated.')
+            if cls == 'positive':
+                positives[k] += 1
+        bacti_cells.append((BACTI_SHEET, *BACTI_ROUTINE_POSITIVE_CELL, float(positives['routine'])))
+        bacti_cells.append((BACTI_SHEET, *BACTI_REPEAT_POSITIVE_CELL, float(positives['repeat'])))
+        for name, r, c, v in bacti_cells:
+            put(name, r, c, v)
 
     apply_print_setup(wb, rb.sheet_names(), page_setup, print_areas)     # her blank's page setup and the Bacti print area
     out = io.BytesIO()
@@ -958,13 +1200,27 @@ def build(data, raw_template, formulas, manifest=None):
             got = bsh.cell_value(r, c) if r < bsh.nrows and c < bsh.ncols else ''
             if not isinstance(got, float) or abs(got - v) > 1e-12:
                 bad.append(f'{sheet}!{xlrd.formula.colname(c)}{r + 1} reads {got!r}, not {v!r}')
+        # the entry point tags and maximum doses, the distribution sites and the Bacti details: a
+        # text cell must read back as the same text, a number as the same number
+        for sheet, r, c, v in ep_text_cells + dist_site_cells + bacti_cells:
+            bsh = back_bk.sheet_by_name(sheet)
+            got = bsh.cell_value(r, c) if r < bsh.nrows and c < bsh.ncols else ''
+            same = (isinstance(got, float) and abs(got - v) <= 1e-12) if isinstance(v, float) \
+                else (isinstance(got, str) and _cover_text(got) == v)
+            if not same:
+                bad.append(f'{sheet}!{xlrd.formula.colname(c)}{r + 1} reads {got!r}, not {v!r}')
         if not got_wssn or _wssn_digits(got_wssn) != _wssn_digits(want_wssn):
             bad.append(f'the Cover WSSN reads {got_wssn!r}, not {want_wssn!r}')
         if bad:
-            raise Refuse(409, 'the report cover did not save as written: ' + '; '.join(bad[:6])
+            raise Refuse(409, 'the report\'s town details did not save as written: ' + '; '.join(bad[:6])
                               + '. The workbook was not returned.')
         kind_stats = {'template_kind': 'state', 'cover_written': sorted(cover_written),
-                      'strengths_written': strengths_written}
+                      'strengths_written': strengths_written,
+                      # 2026-11-17, state blank completion: the rest of the town's details
+                      'absent_feed_strengths': absent_strengths,
+                      'entry_point_details_written': ep_written,
+                      'distribution_sites_written': len(dist_site_cells),
+                      'bacti_details_written': {f'{xlrd.formula.colname(c)}{r + 1}': v for _, r, c, v in bacti_cells}}
     elif kind == 'supply':
         if not got_wssn:
             raise Refuse(409, 'this supply\'s own blank has no water system number on its Cover. A town\'s '
@@ -1599,14 +1855,12 @@ def _input_cells(name):
 
 
 def _identity_cells(name):
-    """Cells that legitimately differ between one supply's blank and another's."""
-    if name == 'Cover':
-        return set(X_COVER_CELLS.values())
-    if name.startswith('EntryPoint'):
-        return set(STRENGTH_CELLS.values()) | {ORTHO_CELL}
-    if name == BACTI_SHEET:
-        return {BACTI_LAB_CELL}
-    return set()
+    """Cells that legitimately differ between one supply's blank and another's: town_cell_kinds().
+    (2026-11-17: now also EntryPoint H2 and the four NSF maximum-dose cells, Distribution A7:A37, and
+    Bacti A4 / A6 / E5 / E6 — kept OUT of _input_cells on purpose, because a town's own blank
+    (kind 'supply') may legitimately carry them pre-typed; only a STATE blank must leave them empty,
+    which validate_template checks for that kind.)"""
+    return set(town_cell_kinds(name))
 
 
 def _label_map(sh, name, formulas):
@@ -1641,9 +1895,11 @@ def _restorable(formulas, names):
 def fingerprint(bk, formulas):
     """A compact description of a form, stored in the manifest so a later registration (or a
     person) can tell whether two blanks are the same printed form. Version 2 (NT-3) adds
-    `formula_map_sha256`, so the fingerprint covers every formula EXPRESSION, not only the counts."""
+    `formula_map_sha256`, so the fingerprint covers every formula EXPRESSION, not only the counts.
+    Version 3 (2026-11-17, state blank completion): the label hashes leave out the town cells added to
+    town_cell_kinds() that day, so a v3 label hash is not comparable with a v2 one."""
     import hashlib
-    fp = {'version': 2, 'tabs': bk.sheet_names(), 'formula_cells': {}, 'merged': {}, 'labels': {},
+    fp = {'version': 3,'tabs': bk.sheet_names(), 'formula_cells': {}, 'merged': {}, 'labels': {},
           'formula_map_sha256': formula_map_sha256(formulas)}
     for name in bk.sheet_names():
         sh = bk.sheet_by_name(name)
@@ -1852,6 +2108,18 @@ def validate_template(raw, formulas, kind, wssn=None, reference_raw=None):
                 r, c = BACTI_LAB_CELL
                 if r < sh.nrows and c < sh.ncols and _cover_text(sh.cell_value(r, c)):
                     fails.append(f'{BACTI_SHEET}!H2 names a laboratory; the shared state blank must leave it empty')
+            # (2026-11-17) every other town cell build() now writes for kind 'state'
+            done = set(STRENGTH_CELLS.values()) | {ORTHO_CELL}
+            for t in [s for s in names if s.startswith('EntryPoint') or s in ('Distribution', BACTI_SHEET)]:
+                sh = bk.sheet_by_name(t)
+                kinds = town_cell_kinds(t)
+                filled = [(r, c) for (r, c) in sorted(kinds)
+                          if not (t.startswith('EntryPoint') and (r, c) in done) and (t, r, c) != (BACTI_SHEET, *BACTI_LAB_CELL)
+                          and r < sh.nrows and c < sh.ncols and _cover_text(sh.cell_value(r, c))]
+                if filled:
+                    r, c = filled[0]
+                    fails.append(f'{t}: {len(filled)} town cell(s) are filled (first {xlrd.formula.colname(c)}{r + 1}, '
+                                 f'the {kinds[(r, c)]}); the shared state blank must leave them empty')
         else:
             if not cover('wssn'):
                 fails.append(f"{ref('wssn')} is empty; a town's own blank must name the town")
