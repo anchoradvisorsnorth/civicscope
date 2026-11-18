@@ -65,7 +65,15 @@ const OPS_CODE = process.env.WATER_OPS_CODE || '';
 // `ryc-invoice-scans`.
 const MOR_BUCKET = 'water-mor-filings';
 
-export const VER = '1.15.0-waterops';
+export const VER = '1.16.0-waterops';
+/* 1.16.0 (2026-11-17, Well Testing new-town build, parts B and C): a month now CLOSES by itself —
+   the one rule is the SQL function `water_month_closed` (migration 101), asked through
+   `monthClosedState()`; every "is this month filed, so demand a sign-in" decision here asks it, and
+   fails closed. `month` gains `closed {...}`, `filings` gains `closed_months`, and
+   `withdraw_generation` refuses the last workbook of a month closed by generation. PIN at the well
+   is a per-supply setting (`water_supplies.require_pin`, default off): `pinCheck()` guards the three
+   submits, new `check_pin` (open) and `set_operator_pin` (owner) actions, PINs stored hashed via
+   lib/pin.js, and no response ever carries a PIN, a hash or the failure counter. */
 /* 1.15.0 (2026-11-17, the two Well Testing reviews of that date): request dates and ids are
    validated at the boundary before any query (isIsoDate / isUuid — preview's reading_date,
    profile's date, submit_reading's operator_id were interpolated raw); a write dated after the
@@ -203,6 +211,8 @@ export { derive, normalOf, outOfFamily, DOSE_OUT_OF_FAMILY };
    arithmetic: two copies of "is this browser signed in" drift, and the one that drifts is the one
    nobody is watching. */
 import { sessionOf } from '../lib/session.js';
+// PIN hashing and checking — the one copy (2026-11-17, part B)
+import { hashPin, verifyPin, isPinFormat } from '../lib/pin.js';
 
 // ---------------------------------------------------------------------------------------------
 // Supabase
@@ -581,6 +591,127 @@ async function signedInUser(req) {
     if (u && u.google_sub && s.sub && u.google_sub !== s.sub) return null;
     return u;
   } catch { return null; }
+}
+
+/* ⛔ IS THIS MONTH CLOSED — ASKED, NEVER WORKED OUT HERE (2026-11-17, part C). "Mark as filed" is
+   gone: a month closes when a live filing is recorded for it, OR it has a generated workbook that
+   is not withdrawn and the plant's own date is past the 10th of the following month. That rule has
+   ONE home, the SQL function `water_month_closed` (migration 101), which the two write functions
+   also call under their lock. This file asks it with a GET (PostgREST serves a `stable` function on
+   GET, and `sb()` retries GETs) and never re-implements the date rule.
+   ⛔ IT FAILS CLOSED. Anything other than a boolean answer is 'unknown', and every caller treats
+   'unknown' as closed — the same posture the old filings gate had. Returns 'open' | 'closed' | 'unknown'.
+   `supplyId` is always a value read back from the database, never the request's text. */
+async function monthClosedState(supplyId, y, m) {
+  try {
+    const v = await sb(`rpc/water_month_closed?p_supply=${encodeURIComponent(supplyId)}&p_year=${Number(y)}&p_month=${Number(m)}`);
+    if (v === true) return 'closed';
+    if (v === false) return 'open';
+    return 'unknown';
+  } catch { return 'unknown'; }
+}
+const monthClosed = async (supplyId, y, m) => (await monthClosedState(supplyId, y, m)) !== 'open';
+
+/* ── PIN AT THE WELL, AS A PER-SUPPLY SETTING (2026-11-17, part B) ─────────────────────────────
+   `water_supplies.require_pin` is OFF by default and OFF for the live supply. Off means EXACTLY the
+   behaviour before this build: no operator, no PIN, or an operator with no PIN is accepted, and the
+   one rule `submit_reading` always had stays — a PIN that IS supplied for an operator who has one
+   must be right. On means every crew write names an ACTIVE operator of THIS supply and carries the
+   PIN; five misses in a row lock that operator out for fifteen minutes. The ops code and a signed-in
+   office user for the supply are exempt: backfills and office corrections do not type a PIN.
+   ⛔ The operator row is read by NAMED columns and never leaves this function except as `{ id,
+   initials }` use inside the write; no response carries a PIN, a hash or the counter. */
+const PIN_OP_COLS = 'id,supply_id,name,initials,active,pin,pin_hash,pin_failed_count,pin_locked_until,pin_version';
+const pinNo = (msg) => ({ status: 403, body: { error: 'pin', needsPin: true, saved: false, msg } });
+const pinLocked = (until) => ({ status: 403, body: {
+  error: 'pin_locked', needsPin: true, saved: false, locked_until: until,
+  msg: 'Too many wrong PINs for this operator. Nothing was saved. Try again in 15 minutes, or ask the office to reset the PIN.',
+} });
+const storedPin = (op) => (op && (op.pin_hash || op.pin)) || null;
+
+/* The strict check, for a supply with the setting ON. Returns `{ operator }` or `{ stop }`. Used by
+   the three submits and by `check_pin`, so the two can never disagree.
+   ⛔ ONE ATTEMPT, ONE DATABASE DECISION (review finding NT-1, migration 103). The PIN is checked here
+   (scrypt — the database cannot), but whether the attempt is ACCEPTED is decided only by
+   `rpc/water_pin_attempt`, which takes the operator's row lock, counts the attempt and answers in
+   one step. Simultaneous guesses queue on that lock and every one is counted; a right PIN that
+   arrives after the lockout is refused as locked; a PIN reset between our read and the attempt
+   answers `stale`, and we read again and check against the NEW PIN (at most twice more). Any answer
+   other than `ok` — `gone`, an error status, a network failure — is a refusal: a PIN is never
+   accepted when its attempt could not be recorded. */
+const PIN_ATTEMPT_TRIES = 3;                 // the first read, plus at most two re-reads after `stale`
+const pinCannotCheck = () => pinNo('Could not check the PIN. Nothing was saved. Try again.');
+async function pinVerifyStrict(p, body) {
+  const opId = body.operator_id == null ? '' : String(body.operator_id);
+  if (!isUuid(opId)) return { stop: pinNo('Pick your name and enter your PIN. Nothing was saved.') };
+  const given = body.pin == null ? '' : String(body.pin);
+  for (let attempt = 0; attempt < PIN_ATTEMPT_TRIES; attempt++) {
+    const rows = await sb(`water_operators?id=eq.${opId}&supply_id=eq.${p.supply.id}&select=${PIN_OP_COLS}&limit=1`);
+    const op = rows && rows[0];
+    if (!op || op.active === false || op.supply_id !== p.supply.id) {
+      return { stop: pinNo('That operator is not active on this water supply. Pick your name again. Nothing was saved.') };
+    }
+    /* A lockout already on the row is answered without a database round trip; nothing is counted
+       or reset by it. (The function would answer `locked` too.) */
+    if (op.pin_locked_until && Date.parse(op.pin_locked_until) > Date.now()) {
+      return { stop: pinLocked(new Date(Date.parse(op.pin_locked_until)).toISOString()) };
+    }
+    if (!given) return { stop: pinNo('Enter your PIN. Nothing was saved.') };
+    if (!storedPin(op)) return { stop: pinNo('No PIN is set for you yet. Ask the office to set one. Nothing was saved.') };
+    const pinOk = verifyPin(given, storedPin(op));
+    let a = null;
+    try {
+      a = await sb('rpc/water_pin_attempt', {
+        method: 'POST',
+        body: JSON.stringify({ p_operator: op.id, p_ok: pinOk, p_seen_version: Number(op.pin_version) || 0 }),
+      });
+    } catch { return { stop: pinCannotCheck() }; }
+    const result = a && typeof a === 'object' ? a.result : null;
+    if (result === 'ok') return pinOk ? { operator: op } : { stop: pinCannotCheck() };
+    if (result === 'refused') return { stop: pinNo('Wrong PIN. Nothing was saved.') };
+    if (result === 'locked') {
+      const t = Date.parse(a.locked_until);
+      if (!Number.isFinite(t)) return { stop: pinCannotCheck() };
+      return { stop: pinLocked(new Date(t).toISOString()) };
+    }
+    if (result === 'stale') continue;        // the PIN changed under us: read it again and re-check
+    return { stop: pinCannotCheck() };        // `gone`, or anything unrecognised
+  }
+  return { stop: pinCannotCheck() };          // stale three times running
+}
+
+/* The one gate the three submits call, BEFORE any write and before any derive work. Returns
+   `{ operator }` (the named operator when `submit_reading` looked one up, else null) or `{ stop }`. */
+async function pinCheck({ req, p, body, action, codeOk, wssn, actor }) {
+  const hasOp = Boolean(body.operator_id);   // the same truthiness test submit_reading always used
+  let operator = null;
+  // submit_reading has always looked its operator up (404 when not this supply's) — unchanged
+  const lookup = async () => {
+    if (action !== 'submit_reading' || !hasOp) return null;
+    const ops = await sb(`water_operators?id=eq.${body.operator_id}&supply_id=eq.${p.supply.id}&select=${PIN_OP_COLS}`);
+    const op = ops && ops[0];
+    if (!op) return { stop: { status: 404, body: { error: 'unknown operator' } } };
+    operator = op;
+    return null;
+  };
+  // today's one PIN rule on submit_reading: a PIN supplied for an operator who has one must be right
+  const legacy = () => (action === 'submit_reading' && operator && storedPin(operator)
+    && body.pin != null && body.pin !== '' && !verifyPin(String(body.pin), storedPin(operator))
+    ? { stop: { status: 403, body: { error: 'Wrong PIN.' } } } : null);
+
+  if (p.supply.require_pin !== true) {
+    const s = await lookup(); if (s) return s;
+    return legacy() || { operator };
+  }
+  let who = actor;
+  if (!codeOk && !who) who = await signedInUser(req);
+  if (codeOk || (who && (who.role === 'admin' || who.water_wssn === wssn))) {
+    const s = await lookup(); if (s) return s;
+    return legacy() || { operator };
+  }
+  const strict = await pinVerifyStrict(p, body);
+  if (strict.stop) return strict;
+  return { operator: action === 'submit_reading' ? strict.operator : null };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -985,6 +1116,10 @@ export default async function handler(req, res) {
      attention list is a judgement about the record, made by a person who can be named. */
   // `withdraw_generation` (2026-10-08): taking a generated workbook off the month's list is office work too
   const OFFICE_WRITES = new Set(['record_filing', 'dismiss_item', 'withdraw_generation']);
+  /* `check_pin` (2026-11-17, part B) is open like the crew writes it serves: the tablet asks "is this
+     PIN right" before it sends a queued round. It answers nothing else, and a miss counts toward the
+     same lockout a submit does, so it is not a free guessing oracle. */
+  const OPEN_CHECKS = new Set(['check_pin']);
   const wssn = String(body.wssn || '').trim();
   if (!wssn) return bad(res, 400, 'wssn required');
 
@@ -1040,18 +1175,22 @@ export default async function handler(req, res) {
           + '&superseded_at=is.null&select=reading_date&order=reading_date.asc&limit=1');
         if (nxt && nxt[0]) months.add(String(nxt[0].reading_date).slice(0, 7));
       }
+      /* 2026-11-17 (part C): "filed" is now "closed", and the shared rule decides it — a live
+         filing, or a generated workbook once the plant's date is past the 10th of the next month.
+         An answer that is not a boolean is unknown, and unknown is closed. */
       for (const ym of months) {
         const y = Number(ym.slice(0, 4)), mo = Number(ym.slice(5, 7));
-        const filed = await sb(`water_mor_filings?supply_id=eq.${sup[0].id}&report_year=eq.${y}`
-          + `&report_month=eq.${mo}&superseded_at=is.null&select=id&limit=1`);
-        if (filed && filed[0]) intoFiledMonth = true;
+        const st = await monthClosedState(sup[0].id, y, mo);
+        if (st === 'closed') intoFiledMonth = true;
+        else if (st === 'unknown') filedStateUnknown = true;
       }
     } catch { filedStateUnknown = true; }
   }
 
   const needsOffice = OFFICE_WRITES.has(action)
     || (OPERATOR_WRITES.has(action) && (isCorrection || intoFiledMonth || filedStateUnknown));
-  const needsAdmin = !READ_ONLY.has(action) && !OPERATOR_WRITES.has(action) && !OFFICE_WRITES.has(action);
+  const needsAdmin = !READ_ONLY.has(action) && !OPERATOR_WRITES.has(action) && !OFFICE_WRITES.has(action)
+    && !OPEN_CHECKS.has(action);
 
   /* Resolved once, and only when a decision actually depends on it — a crew tablet submitting a
      round must not pay for a Supabase read that can only ever return null for it. */
@@ -1073,9 +1212,9 @@ export default async function handler(req, res) {
         error: actor
           ? 'Your sign-in is not enrolled for this water supply.'
           : (filedStateUnknown
-              ? 'Could not confirm whether that month has been filed with EGLE, so the write needs you to be signed in. Try again in a moment.'
+              ? 'Could not confirm whether that month is closed, so the write needs you to be signed in. Try again in a moment.'
               : intoFiledMonth
-              ? 'That month — or the day this one recomputes — has already been filed with EGLE. Changing what sits behind a submitted report needs you to be signed in.'
+              ? 'That month — or the day this one recomputes — is closed: its report has been generated or filed with EGLE. Changing what sits behind that report needs you to be signed in.'
               : isCorrection
               ? 'Correcting a recorded day needs you to be signed in — it supersedes a record behind a report signed under 1976 PA 399.'
               : action === 'dismiss_item'
@@ -1109,6 +1248,7 @@ export default async function handler(req, res) {
             classification: p.supply.classification, oic_name: p.supply.oic_name,
             min_free_cl: p.supply.min_free_cl, active: p.supply.active,
             timezone: p.supply.timezone || 'America/Detroit',   // the tablet dates the round by the PLANT's clock
+            require_pin: p.supply.require_pin === true,        // part B: the tablet asks for a PIN only when on
           },
           entryPoints: p.entryPoints,
           sites: p.sites,
@@ -1142,11 +1282,14 @@ export default async function handler(req, res) {
         const ep = p.entryPoints.find((e) => e.id === body.entry_point_id);
         if (!ep) return bad(res, 404, 'unknown entry point');
 
-        let operator = null;
-        if (body.operator_id) {
-          const ops = await sb(`water_operators?id=eq.${body.operator_id}&supply_id=eq.${p.supply.id}&select=*`);
-          operator = ops && ops[0];
-          if (!operator) return bad(res, 404, 'unknown operator');
+        /* 2026-11-17 (part B): the operator lookup and the PIN rule now live in `pinCheck()`, shared
+           with submit_dist and submit_bacti. With the supply's setting off it does exactly what the
+           block below always did (named columns instead of `select=*`, and the PIN compared through
+           lib/pin.js against `pin_hash` when present, else the old plain value). */
+        const pc = await pinCheck({ req, p, body, action, codeOk, wssn, actor });
+        if (pc.stop) return res.status(pc.stop.status).json(pc.stop.body);
+        const operator = pc.operator || null;
+        {
           /* ⛔ THE FIELD ROUND NO LONGER ASKS FOR A PIN (Keith 2026-08-19: "each inspector should
              just need to add their initials one time before submitting"), so one must not be
              demanded here either. This line would otherwise have broken the product for exactly
@@ -1158,10 +1301,7 @@ export default async function handler(req, res) {
              they took the reading — the same guarantee the paper's "Done by" column gives — and
              what makes the record trustworthy is her review and signature under 1976 PA 399.
              A PIN is still honoured when one is actually supplied, so a caller that wants to prove
-             identity still can. */
-          if (operator.pin && body.pin != null && body.pin !== '' && String(body.pin) !== String(operator.pin)) {
-            return bad(res, 403, 'Wrong PIN.');
-          }
+             identity still can. (2026-11-17: and a supply may now turn PINs on — see pinCheck.) */
         }
 
         const date = String(body.reading_date || '').slice(0, 10);
@@ -1349,7 +1489,7 @@ export default async function handler(req, res) {
               if (actor && (actor.role === 'admin' || actor.water_wssn === wssn)) continue;
             }
             return res.status(403).json({
-              error: 'A month this write would change has been filed with EGLE since it was checked. Changing what sits behind a submitted report needs you to be signed in.',
+              error: 'A month this write would change has closed since it was checked (its report has been generated or filed with EGLE). Changing what sits behind that report needs you to be signed in.',
               needsSignIn: !actor, saved: false, detail: detail.slice(0, 200),
             });
           }
@@ -1380,6 +1520,8 @@ export default async function handler(req, res) {
       case 'submit_dist': {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
+        // part B: the supply's PIN setting, before any write (off = no check at all, as before)
+        { const pc = await pinCheck({ req, p, body, action, codeOk, wssn, actor }); if (pc.stop) return res.status(pc.stop.status).json(pc.stop.body); }
         const i = body.input || {};
         const nums = {};
         for (const k of ['free', 'total', 'ortho', 'fluoride']) {
@@ -1464,7 +1606,7 @@ export default async function handler(req, res) {
         } catch (e) {
           const detail = String((e && e.message) || e);
           if (/filed_period/.test(detail)) {
-            return res.status(403).json({ error: 'That month has been filed with EGLE since it was checked. Changing what sits behind a submitted report needs you to be signed in.', needsSignIn: !actor, saved: false });
+            return res.status(403).json({ error: 'That month has closed since it was checked (its report has been generated or filed with EGLE). Changing what sits behind that report needs you to be signed in.', needsSignIn: !actor, saved: false });
           }
           throw e;
         }
@@ -1476,6 +1618,8 @@ export default async function handler(req, res) {
       case 'submit_bacti': {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
+        // part B: the supply's PIN setting, before any write (off = no check at all, as before)
+        { const pc = await pinCheck({ req, p, body, action, codeOk, wssn, actor }); if (pc.stop) return res.status(pc.stop.status).json(pc.stop.body); }
         const i = body.input || {};
         const bf = SAMPLE_NUM(i.free, 'free'), bt = SAMPLE_NUM(i.total, 'total');
         if (bf.err || bt.err) return res.status(422).json({ error: 'validation', errors: [bf.err || bt.err] });
@@ -1579,7 +1723,7 @@ export default async function handler(req, res) {
         } catch (e) {
           const detail = String((e && e.message) || e);
           if (/filed_period/.test(detail)) {
-            return res.status(403).json({ error: 'That month has been filed with EGLE since it was checked. Changing what sits behind a submitted report needs you to be signed in.', needsSignIn: !actor, saved: false });
+            return res.status(403).json({ error: 'That month has closed since it was checked (its report has been generated or filed with EGLE). Changing what sits behind that report needs you to be signed in.', needsSignIn: !actor, saved: false });
           }
           throw e;
         }
@@ -1684,9 +1828,43 @@ export default async function handler(req, res) {
           )) || [];
         } catch { dismissals = []; }
 
+        /* ── IS THIS MONTH CLOSED (2026-11-17, part C). The page displays this; it never works it
+           out. `closed` is the shared rule's answer (unknown counts as closed, as everywhere), and
+           always true when a live filing is on record. `reason` says which half of the rule closed
+           it. When it is the generated workbook, `diff` compares what we hold now with what that
+           workbook says — the same diffFiling the filed card uses, against the newest live
+           generation's stored `filed` blob, which is read here and never sent. */
+        /* A rule that could not be READ still counts as closed for every write decision — but the
+           page must not then tell the operator-in-charge "Closed — report generated" about a month
+           that may have nothing generated. `unknown:true` with `reason:null` says exactly what is
+           known: treat it as closed, and say the check could not be made. */
+        const ruleState = await monthClosedState(p.supply.id, y, m);
+        const ruleUnknown = !filing && ruleState === 'unknown';
+        const isClosed = Boolean(filing) || ruleState !== 'open';
+        const reason = filing ? 'filed' : (ruleState === 'closed' ? 'generated' : null);
+        const newestGen = generations[0] || null;
+        let genDiff = null;
+        if (reason === 'generated' && newestGen) {
+          try {
+            const gb = await sb(`water_mor_generations?id=eq.${newestGen.id}&supply_id=eq.${p.supply.id}&select=filed&limit=1`);
+            genDiff = diffFiling({
+              filed: (gb && gb[0] && gb[0].filed) || {}, entryPoints: monthEps, readings, dist, bacti,
+            });
+          } catch { genDiff = null; }
+        }
+        const nY = m === 12 ? y + 1 : y, nM = m === 12 ? 1 : m + 1;
+        const closed = {
+          closed: isClosed,
+          reason,
+          generated_at: newestGen ? newestGen.generated_at : null,
+          closes_on: `${nY}-${String(nM).padStart(2, '0')}-11`,
+          diff: genDiff,
+          ...(ruleUnknown ? { unknown: true } : {}),
+        };
+
         return res.status(200).json({
           ver: VER, supply: p.supply, entryPoints: monthEps, sites: p.sites,
-          year: y, month: m, readings, dist, bacti, filing: filedCard, generations, dismissals,
+          year: y, month: m, readings, dist, bacti, filing: filedCard, generations, dismissals, closed,
         });
       }
 
@@ -1750,7 +1928,31 @@ export default async function handler(req, res) {
           `water_mor_filings?supply_id=eq.${p.supply.id}&superseded_at=is.null` +
             `&select=*&order=report_year.desc,report_month.desc`
         );
-        return res.status(200).json({ ver: VER, filings: (rows || []).map(filingCard) });
+        /* `closed_months` (2026-11-17, part C): every month of the year asked for (`year`, default
+           the plant's current year) that is closed, and why. A month with a live filing is 'filed'.
+           Only a month with a live generated workbook can otherwise be closed, so only those are put
+           to the shared rule — never re-derived here. If the generations cannot be read, every month
+           of the year up to now is asked instead, so a read failure cannot hide a closed month. */
+        const todayP = plantToday(p.supply.timezone);
+        const curY = Number(todayP.slice(0, 4)), curM = Number(todayP.slice(5, 7));
+        const yq = Number(body.year);
+        const cy = Number.isInteger(yq) && yq > 2000 && yq < 2200 ? yq : curY;
+        const filedM = new Set((rows || []).filter((f) => Number(f.report_year) === cy).map((f) => Number(f.report_month)));
+        let candidates;
+        try {
+          const g = await sb(`water_mor_generations?supply_id=eq.${p.supply.id}&report_year=eq.${cy}&withdrawn_at=is.null&select=report_month&limit=500`);
+          candidates = [...new Set((g || []).map((x) => Number(x.report_month)))];
+        } catch {
+          const last = cy < curY ? 12 : (cy === curY ? curM : 0);
+          candidates = Array.from({ length: last }, (_, k) => k + 1);
+        }
+        const closedMonths = [...filedM].map((mm) => ({ year: cy, month: mm, reason: 'filed' }));
+        for (const mm of candidates) {
+          if (!(mm >= 1 && mm <= 12) || filedM.has(mm)) continue;
+          if (await monthClosed(p.supply.id, cy, mm)) closedMonths.push({ year: cy, month: mm, reason: 'generated' });
+        }
+        closedMonths.sort((a, b) => b.month - a.month);
+        return res.status(200).json({ ver: VER, filings: (rows || []).map(filingCard), closed_months: closedMonths });
       }
 
       // ---- hand back the exact workbook that was submitted --------------------------------------
@@ -1824,15 +2026,31 @@ export default async function handler(req, res) {
         if (!p) return bad(res, 404, 'unknown supply');
         const id = String(body.generation_id || '');
         if (!isUuid(id)) return bad(res, 400, 'generation_id required');
-        const rows = await sb(`water_mor_generations?id=eq.${id}&supply_id=eq.${p.supply.id}&select=id,filing_id,withdrawn_at&limit=1`);
-        const g = rows && rows[0];
-        if (!g) return bad(res, 404, 'no such workbook for this supply');
-        if (g.filing_id) return res.status(409).json({ error: 'filed', msg: 'That workbook is the one recorded as filed with EGLE, so it stays on the list.' });
-        if (g.withdrawn_at) return res.status(200).json({ ok: true, already: true });
+        /* ⛔ THE LAST WORKBOOK OF A MONTH CLOSED BY GENERATION STAYS (2026-11-17, part C). That
+           workbook is what closed the month; withdrawing it would quietly reopen a period whose
+           report has gone out. Another live workbook for the month, a live filing, or a month the
+           rule says is still open — any of those, and the withdrawal goes ahead.
+           ⛔ ONE DATABASE CALL (review finding NT-2, migration 101). The check and the withdrawal are
+           `rpc/water_withdraw_generation`, under the same supply lock the write functions take, so
+           two tabs withdrawing the month's last two workbooks at once cannot both pass the check.
+           A failed call is reported as a failure — nothing is assumed withdrawn. */
         const who = actor ? (actor.name || actor.email) : 'script';
-        await sb(`water_mor_generations?id=eq.${id}&withdrawn_at=is.null`, { method: 'PATCH', headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({ withdrawn_at: new Date().toISOString(), withdrawn_by: who, withdrawn_reason: String(body.reason || '').slice(0, 300) || null }) });
-        return res.status(200).json({ ok: true });
+        let w = null;
+        try {
+          w = await sb('rpc/water_withdraw_generation', {
+            method: 'POST',
+            body: JSON.stringify({ p_supply: p.supply.id, p_generation: id, p_by: who,
+                                   p_reason: String(body.reason || '').slice(0, 300) || null }),
+          });
+        } catch { return res.status(502).json({ error: 'could not remove the workbook; nothing was changed. Try again.' }); }
+        switch (w && typeof w === 'object' ? w.result : null) {
+          case 'withdrawn': return res.status(200).json({ ok: true });
+          case 'already': return res.status(200).json({ ok: true, already: true });
+          case 'not_found': return bad(res, 404, 'no such workbook for this supply');
+          case 'filed': return res.status(409).json({ error: 'filed', msg: 'That workbook is the one recorded as filed with EGLE, so it stays on the list.' });
+          case 'closed': return res.status(409).json({ error: 'closed', msg: 'That month is closed, and this is its only generated workbook, so it stays on the list.' });
+          default: return res.status(502).json({ error: 'could not remove the workbook; nothing was changed. Try again.' });
+        }
       }
 
       case 'generation_workbook': {
@@ -2115,17 +2333,49 @@ export default async function handler(req, res) {
         const p = await loadProfile(wssn);
         if (!p) return bad(res, 404, 'unknown supply');
         if (!/^\d{4}$/.test(String(body.pin || ''))) return bad(res, 400, 'pin must be 4 digits');
-        const ins = await sb('water_operators', {
+        // 2026-11-17 (part B): the PIN is stored hashed in `pin_hash`; the plain column is no longer written
+        const ins = await sb('water_operators?select=id,name,initials', {
           method: 'POST', headers: { Prefer: 'return=representation' },
           body: JSON.stringify([{
             supply_id: p.supply.id,
             name: String(body.name || '').trim(),
             initials: String(body.initials || '').trim().toUpperCase(),
-            pin: String(body.pin),
+            pin_hash: hashPin(String(body.pin)),
             is_oic: Boolean(body.is_oic),
           }]),
         });
         return res.status(200).json({ ok: true, id: ins[0].id, name: ins[0].name, initials: ins[0].initials });
+      }
+
+      /* ---- is this operator's PIN right (2026-11-17, part B; open) -------------------------------
+         The tablet asks before it sends a queued round on a supply with PINs on. Same check, same
+         lockout as a submit — it is `pinVerifyStrict`, not a copy of it. It always checks the PIN
+         it is given: an ops code or an office sign-in does not turn a question into a yes. */
+      case 'check_pin': {
+        const p = await loadProfile(wssn);
+        if (!p) return bad(res, 404, 'unknown supply');
+        if (p.supply.require_pin !== true) return res.status(200).json({ ok: true, required: false });
+        const r = await pinVerifyStrict(p, body);
+        if (r.stop) return res.status(r.stop.status).json(r.stop.body);
+        return res.status(200).json({ ok: true });
+      }
+
+      /* ---- set or reset one operator's PIN (2026-11-17, part B; owner only — ops code or admin) --
+         Stores a hash, clears the failure counter and any lockout, and clears the old plain column
+         so no readable PIN is left beside the hash. The PIN is never echoed. */
+      case 'set_operator_pin': {
+        const p = await loadProfile(wssn);
+        if (!p) return bad(res, 404, 'unknown supply');
+        const opId = String(body.operator_id || '');
+        if (!isUuid(opId)) return bad(res, 400, 'operator_id required');
+        const pinTxt = typeof body.pin === 'number' ? String(body.pin) : body.pin;
+        if (!isPinFormat(pinTxt)) return bad(res, 400, 'pin must be 4 to 8 digits');
+        const upd = await sb(`water_operators?id=eq.${opId}&supply_id=eq.${p.supply.id}&select=id`, {
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ pin_hash: hashPin(String(pinTxt)), pin: null, pin_failed_count: 0, pin_locked_until: null }),
+        });
+        if (!(upd && upd[0])) return bad(res, 404, 'unknown operator');
+        return res.status(200).json({ ok: true });
       }
 
       case 'set_active': {

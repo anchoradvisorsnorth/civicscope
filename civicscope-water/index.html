@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.5.0-water
+  civicscope-water — the tablet that replaces the clipboard at a water plant.  v1.6.0-water
+
+  v1.6.0 (2026-11-17, new-town build B): PIN at the well is a per-town setting
+  (`profile.supply.require_pin`, default off). OFF: nothing here changes — no PIN field, no `pin`
+  in any request, nothing new stored. ON: the name screen asks for a 4-8 digit PIN and checks it
+  (`check_pin`); the PIN is held IN MEMORY ONLY (never localStorage, never the queue) and is added
+  to submit_reading / submit_dist / submit_bacti as they are sent. A 403 `needsPin` keeps the form
+  or the queued record and asks again. A queued record whose operator's PIN is not in memory stays
+  queued, the bar names whose PIN it is waiting for, and it is not retried until that PIN is given.
 
   v1.5.0 (2026-11-17, Claude review A3 + Codex findings 3 and 7): the well form sends what was
   typed, so derive.js refuses "19,5", "0x4F6", a space or a negative instead of storing a blank or
@@ -93,6 +101,11 @@
   .hide{display:none}
   .refill{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:14px;color:#334155}
   .refill input[type=checkbox]{width:22px;height:22px}
+  /* the PIN prompt (only ever opened when the town has PIN at the well switched on) */
+  .pinask{position:fixed;left:0;right:0;top:0;bottom:0;background:rgba(15,23,42,.55);z-index:40;
+          display:flex;align-items:center;justify-content:center;padding:16px}
+  .pinask.hide{display:none}
+  .pinask .card{width:100%;max-width:420px;margin:0}
 </style>
 </head>
 <body>
@@ -142,6 +155,13 @@
     <h2>Who's taking the readings?</h2>
     <label for="opSel">Your name <span style="color:var(--err)">*</span></label>
     <select id="opSel"></select>
+    <!-- PIN AT THE WELL — a per-town setting (2026-11-17). Hidden, and never read, unless the
+         town's profile says `require_pin: true`. Held in memory only, like the name. -->
+    <div id="pinWrap" class="hide">
+      <label for="pinIn">Your PIN <span style="color:var(--err)">*</span></label>
+      <input id="pinIn" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <p class="muted" id="pinNote">4 to 8 digits.</p>
+    </div>
     <p class="muted">Required. Your initials go on everything you submit today and stay in the
       corner of the screen — tap them any time to hand the round to someone else.</p>
     <div id="whoMsg"></div>
@@ -228,6 +248,21 @@
 
 <div id="queueBar" class="queue hide"></div>
 
+<!-- Asks for one operator's PIN again: after the server refused it, or for a record queued
+     without one. Only reachable when the town has PIN at the well switched on. -->
+<div id="pinAsk" class="pinask hide" role="dialog" aria-modal="true" aria-labelledby="pinAskTitle">
+  <div class="card">
+    <h2 id="pinAskTitle">Enter your PIN</h2>
+    <div id="pinAskMsg"></div>
+    <label for="pinAskIn">PIN</label>
+    <input id="pinAskIn" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+    <div class="row" style="margin-top:16px">
+      <button class="ghost" id="pinAskCancel">Not now</button>
+      <button class="primary" id="pinAskOk" disabled>OK</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { derive } from '/civicscope-water/derive.js';
 
@@ -263,6 +298,60 @@ const numErr = (raw, label) => {
   return null;
 };
 const fmt = (v,d=2) => (v==null||!isFinite(v) ? '—' : Number(v).toFixed(d));
+
+// ---- PIN at the well (a per-town setting, 2026-11-17) ------------------------------------------
+/* ⛔ THE PIN LIVES IN THESE TWO MODULE VARIABLES AND NOWHERE ELSE. Not on `S` (S is filled from
+   localStorage on load), not in any queued payload, not in the saved profile. It is added to a
+   request body only at the moment of sending (withPin). With the setting off, PINS stays empty and
+   no request carries a `pin` key. */
+const PINS = new Map();       // operator_id -> PIN typed this visit
+const PINWAIT = new Set();    // operator_ids the server has said need a PIN (even if the cached profile says off)
+const PIN_RE = /^\d{4,8}$/;
+const pinOn = () => Boolean(S.profile && S.profile.supply && S.profile.supply.require_pin === true);
+const needsPinFor = (opId) => (pinOn() || PINWAIT.has(opId)) && !PINS.has(opId);
+const withPin = (payload) => { const p = PINS.get(payload && payload.operator_id); return p ? { ...payload, pin: p } : payload; };
+const isPinRefusal = (e) => Boolean(e && e.status === 403 && e.payload && e.payload.needsPin);
+// the server's own words, plus the unlock time when it is a lock-out
+function pinMsgText(body){
+  let t = (body && body.msg) || 'That PIN was not accepted.';
+  if (body && body.error === 'pin_locked' && body.locked_until) {
+    const d = new Date(body.locked_until);
+    if (!isNaN(d)) t += ` (unlocks at ${d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone: TZ() })})`;
+  }
+  return t;
+}
+let PIN_ASK = null;
+function askPin(opId, initials, msg, then){
+  PIN_ASK = { opId, then };
+  $('pinAskTitle').textContent = `PIN for ${initials || 'this operator'}`;
+  $('pinAskMsg').innerHTML = msg ? `<div class="msg err">${esc(msg)}</div>` : '';
+  $('pinAskIn').value = ''; $('pinAskOk').disabled = true;
+  $('pinAsk').classList.remove('hide'); $('pinAskIn').focus();
+}
+function closePinAsk(){ PIN_ASK = null; $('pinAskIn').value = ''; $('pinAsk').classList.add('hide'); }
+$('pinAskIn').oninput = () => { $('pinAskOk').disabled = !PIN_RE.test($('pinAskIn').value.trim()); };
+$('pinAskOk').onclick = () => {
+  const pin = $('pinAskIn').value.trim();
+  if (!PIN_RE.test(pin) || !PIN_ASK) return;
+  const a = PIN_ASK; closePinAsk();
+  PINS.set(a.opId, pin);
+  paintQueue();
+  if (a.then) a.then();
+};
+$('pinAskCancel').onclick = () => { closePinAsk(); paintQueue(); };
+/* A submit refused for its PIN: forget the PIN that failed (so nothing resends it on a timer) and
+   ask again; `retry` presses the same Submit once a new PIN is typed. The form is left as it is. */
+function pinRefused(opId, initials, body, retry){
+  PINS.delete(opId); PINWAIT.add(opId);
+  askPin(opId, initials, pinMsgText(body), retry);
+}
+/* Before sending under the current operator: true when a PIN is not needed or is in memory;
+   otherwise asks for it and returns false. */
+function pinReady(retry){
+  if (!S.op || !needsPinFor(S.op.id)) return true;
+  askPin(S.op.id, S.op.initials, '', retry);
+  return false;
+}
 
 // ---- persistence ----------------------------------------------------------------------------
 // No access code is stored, because none is asked for. The crew never log in.
@@ -311,12 +400,32 @@ function paintQueue(){
   if(!S.queue.length && !rej){ bar.classList.add('hide'); return; }
   bar.classList.remove('hide');
   const parts = [];
-  if(S.queue.length) parts.push(`${S.queue.length} record${S.queue.length>1?'s':''} waiting to send — tap to retry`);
+  // records held for a PIN this visit does not have (PIN at the well on): named by whose PIN it is
+  const waits = pinWaits();
+  const held = waits.reduce((a, w) => a + w.count, 0);
+  const sendable = S.queue.length - held;
+  if(sendable) parts.push(`${sendable} record${sendable>1?'s':''} waiting to send — tap to retry`);
+  for(const w of waits) parts.push(`${w.count} record${w.count>1?'s':''} waiting for ${w.initials}'s PIN — tap to enter it`);
   // the reason varies (already on file, a refused value, a future date) — the tap shows each one's own
   if(rej) parts.push(`⚠ ${rej} could not be sent. Tap to see why.`);
   bar.textContent = parts.join('  ·  ');
 }
-$('queueBar').onclick = () => { if((S.rejected||[]).length) showRejected(); else flush(); };
+// queued records that cannot be sent until their operator's PIN is typed, grouped by operator
+function pinWaits(){
+  const by = new Map();
+  for(const q of S.queue){
+    const opId = q.payload && q.payload.operator_id;
+    if(!needsPinFor(opId)) continue;
+    const w = by.get(opId) || { opId, initials: (q.payload && q.payload.operator_initials) || 'the operator', count: 0 };
+    w.count++; by.set(opId, w);
+  }
+  return [...by.values()];
+}
+$('queueBar').onclick = () => {
+  const w = pinWaits()[0];
+  if(w){ askPin(w.opId, w.initials, `Records queued by ${w.initials} are waiting for ${w.initials}'s PIN.`, flush); return; }
+  if((S.rejected||[]).length) showRejected(); else flush();
+};
 
 /* ⛔ A FIELD OBSERVATION IS NEVER SILENTLY DISCARDED (Codex finding 5, 2026-09-02).
    This loop treated every 409 and 422 as disposable — `continue`, then rebuild the queue from the
@@ -346,13 +455,25 @@ async function flush(){
   FLUSHING = true;
   try{
   const still=[]; S.rejected = S.rejected || [];
+  let pinAsk = null;
   for(const item of S.queue){
+    const opId = item.payload && item.payload.operator_id;
+    /* PIN at the well on, and this visit has no PIN for the person who queued it (the tab was
+       reloaded, or someone else queued it): it STAYS queued and is not sent — no retry loop, never
+       the rejected list. The bar says whose PIN it is waiting for. */
+    if(needsPinFor(opId)){ still.push(item); continue; }
     try{
-      const r = await api(item.action, item.payload);
+      const r = await api(item.action, withPin(item.payload));
       // 207: it committed, but something downstream did not. Do NOT re-queue — it is saved.
       if(r && r.ok === false) S.rejected.push({...item, reason: r.msg || 'saved with a warning'});
     }
     catch(e){
+      // refused for its PIN: not a rejected record. Kept queued, the PIN forgotten, asked again.
+      if(isPinRefusal(e)){
+        PINS.delete(opId); PINWAIT.add(opId); still.push(item);
+        pinAsk = pinAsk || { opId, initials: item.payload.operator_initials, body: e.payload };
+        continue;
+      }
       if(e.status===422||e.status===409){
         S.rejected.push({...item, reason: (e.payload && (e.payload.msg || (e.payload.errors||[])[0]?.msg)) || ('http '+e.status)});
         continue;
@@ -369,6 +490,7 @@ async function flush(){
   }
   S.queue = still; save(); paintQueue();
   if(!still.length) refreshRound();
+  if(pinAsk && !PIN_ASK) askPin(pinAsk.opId, pinAsk.initials, pinMsgText(pinAsk.body), flush);
   } finally { FLUSHING = false; }
 }
 window.addEventListener('online', flush);
@@ -415,6 +537,7 @@ async function boot(){
        wanted a name. */
     S.op = null;
     $('whoChip').textContent = 'who?'; $('whoChip').classList.remove('hide');
+    paintPinField(stale);
     $('scrWho').classList.remove('hide');
     if(stale){ $('whoMsg').innerHTML = `<div class="msg warn">${esc(stale)}</div>`; }
   }catch(e){
@@ -428,13 +551,27 @@ async function boot(){
 
 // Required means the button cannot be pressed until a name is chosen. A disabled control that
 // explains itself beats an enabled one that refuses.
-$('opSel').onchange = () => { $('btnWho').disabled = !$('opSel').value; $('whoMsg').innerHTML = ''; };
+// With PIN at the well on, the button also waits for a 4-8 digit PIN. Off, this is exactly the name check.
+const paintWhoBtn = () => { $('btnWho').disabled = !$('opSel').value || (pinOn() && !PIN_RE.test($('pinIn').value.trim())); };
+$('opSel').onchange = () => { paintWhoBtn(); $('whoMsg').innerHTML = ''; };
+$('pinIn').oninput = () => { paintWhoBtn(); };
+// The PIN field shows only when the town has the setting on. With no signal the saved profile is
+// what says so, and the PIN cannot be checked until the records are sent — the screen says that.
+function paintPinField(offline){
+  $('pinWrap').classList.toggle('hide', !pinOn());
+  $('pinIn').value = '';
+  $('pinNote').textContent = offline && pinOn()
+    ? 'No signal: your PIN cannot be checked now. It is checked when the records are sent.'
+    : '4 to 8 digits.';
+}
 
 // The chip is the only place initials live. Tap it any time to hand the round to someone else.
 /* Handing the round over blanks the field again rather than showing the outgoing person's name.
    Pre-selecting whoever is being replaced is precisely the wrong default on the one screen whose
    whole job is to stop the record inheriting the last person who used the tablet. */
 $('whoChip').onclick = () => {
+  // a handover forgets every PIN typed this visit; the next person types their own
+  PINS.clear(); $('pinIn').value = ''; $('pinWrap').classList.toggle('hide', !pinOn());
   $('opSel').value = ''; $('btnWho').disabled = true; $('whoMsg').innerHTML = '';
   $('app').classList.add('hide'); $('scrWho').classList.remove('hide');
 };
@@ -452,6 +589,20 @@ $('btnWho').onclick = async () => {
   const id = $('opSel').value;
   const op = (S.profile.operators||[]).find(o=>o.id===id);
   if(!op){ $('whoMsg').innerHTML = '<div class="msg err">Choose your name to start the round.</div>'; return; }
+  /* PIN AT THE WELL (only when the town has it on). Checked with the server now; a wrong PIN or a
+     lock-out keeps this screen with the server's words. No signal: go on — the PIN is checked when
+     the records are sent. The digits are cleared from the field either way. */
+  if(pinOn()){
+    const pin = $('pinIn').value.trim();
+    if(!PIN_RE.test(pin)){ $('whoMsg').innerHTML = '<div class="msg err">Type your PIN (4 to 8 digits).</div>'; return; }
+    $('btnWho').disabled = true;
+    let refused = null;
+    try{ await api('check_pin', { operator_id: id, pin }); }
+    catch(e){ if(isPinRefusal(e)) refused = e.payload; }
+    $('pinIn').value = '';
+    if(refused){ $('whoMsg').innerHTML = `<div class="msg err">${esc(pinMsgText(refused))}</div>`; paintWhoBtn(); return; }
+    PINS.set(id, pin);
+  }
   /* No PIN. The Well and Pump Record has a "Done by" column holding initials and nothing else, and
      the PIN this replaced was enforced for exactly one of four operators.
      ⚠ Because nothing proves who is holding the tablet, the initials are never hidden: the chip
@@ -464,6 +615,8 @@ $('btnWho').onclick = async () => {
   $('whoMsg').innerHTML = '';
   $('scrWho').classList.add('hide'); $('app').classList.remove('hide');
   showTab(location.hash.slice(1) || 'round', { push: false });
+  // records this person queued earlier were waiting for this PIN
+  if(PINS.has(id) && S.queue.length) flush();
 };
 
 // ---- screen ↔ URL -----------------------------------------------------------------------------
@@ -715,13 +868,15 @@ async function openEntry(ep){
     const out = recompute(); if(!out.ok) return;
     // Initials go on the record, so they are asked for once — here, not at a login screen.
     if(!needOperator()) return;
+    if(!pinReady(() => $('e_submit').click())) return;
+    // stored and queued WITHOUT the PIN; withPin() adds it only to the request being sent
     const payload = {
       entry_point_id: ep.id, reading_date: date, reading_time: $('e_time').value,
       operator_id: S.op.id, operator_initials: S.op.initials, input: collect(),
     };
     $('e_submit').disabled = true; $('e_submit').textContent = 'Sending…';
     try{
-      const r = await api('submit_reading', payload);
+      const r = await api('submit_reading', withPin(payload));
       /* ⛔ A 2xx IS NOT "EVERYTHING WORKED" (Codex finding 1, 2026-09-02). The server answers 207
          when the reading committed but the following day could not be fully recomputed against it.
          Closing the form on that told the operator his round was clean while the record behind the
@@ -738,6 +893,8 @@ async function openEntry(ep){
         // a 422 carries its reason in errors[0].msg, not msg — without this the operator saw only "validation"
         $('e_msg').innerHTML = `<div class="msg err">${esc((e.payload&&(e.payload.msg||(e.payload.errors||[])[0]?.msg))||e.message)}</div>`;
         $('e_submit').disabled = false; $('e_submit').textContent = 'Submit '+ep.label;
+        // refused for its PIN: the form stays as typed and the PIN is asked for again
+        if(isPinRefusal(e)) pinRefused(payload.operator_id, payload.operator_initials, e.payload, () => $('e_submit').click());
       }else{
         enqueue('submit_reading', payload);
         sec.classList.add('hide'); $('tabRound').classList.remove('hide'); refreshRound();
@@ -792,6 +949,7 @@ $('btnBacti').onclick = async () => {
     $('bMsg').innerHTML = '<div class="msg err">No site of this type is on the sampling plan.</div>';
     return;
   }
+  if(!pinReady(() => $('btnBacti').click())) return;
   const payload = {
     site_id: $('bSite').value,
     // the picker says "Special / well"; the record's kind is `other` (R2-9) — never a value the API refuses
@@ -804,12 +962,16 @@ $('btnBacti').onclick = async () => {
   };
   $('bMsg').innerHTML='';
   try{
-    const r = await api('submit_bacti', payload);
+    const r = await api('submit_bacti', withPin(payload));
     $('bMsg').innerHTML = '<div class="msg ok">Bacti sample recorded.</div>' +
       (r.flags||[]).map(f=>`<div class="msg warn">${esc(f.msg)}</div>`).join('');
     $('bFree').value=$('bTotal').value=''; $('bResult').value='';
   }catch(e){
-    if(e.status===422||e.status===409){
+    if(isPinRefusal(e)){
+      // not queued, not rejected: the sample stays on the form and the PIN is asked for again
+      $('bMsg').innerHTML = `<div class="msg err">${esc(pinMsgText(e.payload))}</div>`;
+      pinRefused(payload.operator_id, payload.operator_initials, e.payload, () => $('btnBacti').click());
+    }else if(e.status===422||e.status===409){
       $('bMsg').innerHTML = `<div class="msg err">${esc((e.payload&&(e.payload.msg||(e.payload.errors||[])[0]?.msg))||e.message)}</div>`;
     }else{ enqueue('submit_bacti', payload); $('bMsg').innerHTML='<div class="msg warn">No signal — held on this tablet.</div>'; }
   }
@@ -824,6 +986,7 @@ $('btnDist').onclick = async () => {
       || (dFreeT && dTotalT && Number(dFreeT) > Number(dTotalT)
           ? `Free (${dFreeT}) cannot exceed total (${dTotalT}) — free chlorine is part of the total. Re-read one of them.` : null);
     if(err){ $('dMsg').innerHTML = `<div class="msg err">${esc(err)}</div>`; return; } }
+  if(!pinReady(() => $('btnDist').click())) return;
   const payload = {
     site_id: $('dSite').value, sample_date: $('dDate').value, sample_time: nowTime(),
     operator_id: S.op.id, operator_initials: S.op.initials,
@@ -831,12 +994,15 @@ $('btnDist').onclick = async () => {
   };
   $('dMsg').innerHTML='';
   try{
-    const r = await api('submit_dist', payload);
+    const r = await api('submit_dist', withPin(payload));
     $('dMsg').innerHTML = '<div class="msg ok">Sample recorded.</div>' +
       (r.flags||[]).map(f=>`<div class="msg warn">${esc(f.msg)}</div>`).join('');
     $('dFree').value=$('dTotal').value=$('dOrtho').value='';
   }catch(e){
-    if(e.status===422||e.status===409){
+    if(isPinRefusal(e)){
+      $('dMsg').innerHTML = `<div class="msg err">${esc(pinMsgText(e.payload))}</div>`;
+      pinRefused(payload.operator_id, payload.operator_initials, e.payload, () => $('btnDist').click());
+    }else if(e.status===422||e.status===409){
       $('dMsg').innerHTML = `<div class="msg err">${esc((e.payload&&(e.payload.msg||(e.payload.errors||[])[0]?.msg))||e.message)}</div>`;
     }else{ enqueue('submit_dist', payload); $('dMsg').innerHTML='<div class="msg warn">No signal — held on this tablet.</div>'; }
   }

@@ -36,7 +36,11 @@ export const config = { maxDuration: 30 };
 // 1.1.1-morremind (2026-11-17): a dry run writes nothing (the abandoned-claim recovery is reported,
 // not performed); one supply's exception is recorded in its own result and the others still run;
 // an unset CRON_SECRET refuses every request instead of accepting "Bearer undefined".
-export const VER = '1.1.1-morremind';
+// 1.2.0-morremind (2026-11-17, Well Testing new-town build, part C): a month that already has a
+// generated workbook that is not withdrawn gets no reminder, exactly as a filed month gets none —
+// the report has been made; nagging about it is noise. Dry run still writes nothing; one supply's
+// failure is still its own result.
+export const VER = '1.2.0-morremind';
 
 const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
@@ -185,6 +189,11 @@ export default async function handler(req, res) {
       const filed = await sb(`water_mor_filings?supply_id=eq.${supply.id}&report_year=eq.${y}` +
         `&report_month=eq.${m}&superseded_at=is.null&select=id,submitted_date&limit=1`);
       if (filed && filed[0]) { out.push({ ...step, skipped: 'already filed', submitted: filed[0].submitted_date }); continue; }
+
+      // Already generated (a live, non-withdrawn workbook)? Same answer: the report exists (2026-11-17).
+      const generated = await sb(`water_mor_generations?supply_id=eq.${supply.id}&report_year=eq.${y}` +
+        `&report_month=eq.${m}&withdrawn_at=is.null&select=id,generated_at&order=generated_at.desc&limit=1`);
+      if (generated && generated[0]) { out.push({ ...step, skipped: 'already generated', generated_at: generated[0].generated_at }); continue; }
 
       if (!force) {
         const already = await sb(`water_mor_reminders?supply_id=eq.${supply.id}&report_year=eq.${y}` +

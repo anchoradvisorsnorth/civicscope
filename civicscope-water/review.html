@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.13.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.14.0-oic
+
+  v1.14.0 (2026-11-17) — "Mark as filed" is gone (Keith: the OIC will not mark reports as filed).
+  A month CLOSES by itself — the server answers `month.closed`, the page only displays it: closed
+  by a recorded filing shows as filed did; closed by generation shows "Closed — report generated
+  {date}" and, when the records have moved since, what the generated report says against them;
+  generated but not yet closed shows "this month closes {Mon} 11". The page opens on last month
+  until last month is CLOSED. A refused Remove (last workbook of a closed month) shows the reason.
 
   v1.13.0 (2026-11-17) — Codex round 1 (R1-1..R1-3): the well editor sends numbers as typed and
   refuses non-numbers on the page, so "abc" can no longer clear a recorded value; every month is
@@ -341,13 +348,7 @@ const post = async (b) => {
   return j;
 };
 const fmtWhen = (iso) => { try { return new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }); } catch { return String(iso); } };
-const fileToB64 = (file) => new Promise((ok, no) => {
-  const fr = new FileReader();
-  fr.onload = () => ok(String(fr.result).split(',')[1] || '');
-  fr.onerror = () => no(new Error('could not read that file'));
-  fr.readAsDataURL(file);
-});
-/* The month currently on screen. generateMor() and the filing form need to re-read it after they
+/* The month currently on screen. generateMor() and Remove need to re-read it after they
    change what is on record, without re-rendering the whole page. */
 let CUR = null;
 
@@ -401,6 +402,64 @@ function daysAgo(iso) {
    IS on record even while she is looking at a month that is not — "nothing for August" and
    "nothing, ever" are very different answers and the page has to be able to tell them apart. */
 let FILINGS = [];   // null once a read FAILED — "unknown", never shown as "nothing on file"
+/* Months the server says are closed for this supply (`filings.closed_months`, v1.14.0) — shown in the
+   history list next to the filings; [] when the server does not send it or the read failed. */
+let CLOSED_MONTHS = [];
+const readFilings = () => post({ action: 'filings' })
+  .then((r) => ({ filings: r.filings || [], closed: Array.isArray(r.closed_months) ? r.closed_months : [] }))
+  .catch(() => null);
+/* Last calendar month's own read, kept so the "report due now" banner can say whether it is closed. */
+let PREV_MO = null;
+/* ── CLOSED (v1.14.0). The server decides whether a month is closed (`month.closed`:
+   { closed, reason:'filed'|'generated'|null, generated_at, closes_on, diff }) and this page only
+   displays the answer — it never re-implements the rule. With no `closed` in the answer (an older
+   server), the page falls back to what it did before: filed or not, from the filing records. */
+const closedOf = (mo) => (mo && mo.closed && typeof mo.closed === 'object') ? mo.closed : null;
+const inList = (list, y, m) => (list || []).some((f) => Number(f.year) === y && Number(f.month) === m);
+const plantDate = (iso) => {
+  try { return usDate(new Date(iso).toLocaleDateString('en-CA', { timeZone: PLANT_TZ })); } catch { return ''; }
+};
+function closeState(mo, y, m) {
+  const cl = closedOf(mo);
+  const gens = (mo && mo.generations) || [];
+  const filed = Boolean(mo && mo.filing) || (cl ? Boolean(cl.closed) && cl.reason === 'filed' : inList(FILINGS, y, m));
+  const closed = filed || Boolean(cl && cl.closed);
+  const genAt = (cl && cl.generated_at) || (gens[0] && gens[0].generated_at) || null;
+  // `unknown`: the server could not read the closed rule. It is treated as closed for editing, and
+  // the page says the check could not be made — never "Closed — report generated" on a guess.
+  const unknown = !filed && Boolean(cl && cl.unknown);
+  const kind = filed ? 'filed' : unknown ? 'unknown' : closed ? 'generated' : genAt ? 'pending' : 'none';
+  const genDate = genAt ? plantDate(genAt) : '';
+  const nY = m === 12 ? y + 1 : y, nM = m === 12 ? 1 : m + 1;
+  const closesOn = cl && /^\d{4}-\d{2}-\d{2}$/.test(String(cl.closes_on || '')) ? cl.closes_on : dayISO(nY, nM, 11);
+  const closesLabel = `${MN[Number(closesOn.slice(5, 7))]} ${Number(closesOn.slice(8, 10))}`;
+  const ptd = plantToday();
+  const dueISO = dayISO(nY, nM, 10);
+  const inProgress = (ptd.y === y && ptd.m === m);
+  const notStarted = (y > ptd.y) || (y === ptd.y && m > ptd.m);
+  const UNKNOWN_TEXT = 'Could not check whether this month is closed — reload the page to try again';
+  const status = kind === 'filed' ? 'recorded as filed — see “Past reports” below'
+    : kind === 'unknown' ? UNKNOWN_TEXT
+    : kind === 'generated' ? `Closed — report generated ${genDate}`.trim()
+    : kind === 'pending' ? `Report generated ${genDate} — this month closes ${closesLabel}`
+    : inProgress ? `still in progress (today is ${usDate(ptd.iso)}) — due ${MN[nM]} 10`
+    : notStarted ? 'not started'
+    : ptd.iso > dueISO ? `<span style="color:var(--err);font-weight:600">overdue — was due ${MN[nM]} 10, ${nY}</span>`
+    : `<b>due ${MN[nM]} 10</b>`;
+  const line = kind === 'filed' ? 'Recorded as filed with EGLE'
+    : kind === 'unknown' ? UNKNOWN_TEXT
+    : kind === 'generated' ? `Closed — report generated ${genDate}`.trim()
+    : kind === 'pending' ? `Report generated ${genDate} — this month closes ${closesLabel}`
+    : 'Report not yet generated';
+  return { kind, closed, filed, cl, genDate, closesOn, closesLabel, status, line, tickOk: kind !== 'none' && kind !== 'unknown' };
+}
+/* Repaint only the closed / due wording after a generate or a Remove — the rest of the page stays. */
+function paintClose(mo, y, m) {
+  const cs = closeState(mo, y, m);
+  for (const el of document.querySelectorAll('[data-cs="status"]')) el.innerHTML = cs.status;
+  for (const el of document.querySelectorAll('[data-cs="tick"]')) el.innerHTML = cs.tickOk ? '<span class="ok">✓</span>' : '<span class="no">!</span>';
+  for (const el of document.querySelectorAll('[data-cs="line"]')) el.innerHTML = cs.line;
+}
 
 /* ⛔ THESE THREE REQUESTS USED TO RUN ONE AFTER THE OTHER, and the page opened on an empty
    skeleton for about three seconds while they did (reported by Keith, 2026-08-25, opening Well
@@ -447,7 +506,7 @@ async function loadFor(today) {
     post({ action: 'month', year: cy, month: cm }),
     post({ action: 'month', year: py, month: pm }),
     /* null = COULD NOT READ, which is not the same as "none on file" (finding 12) */
-    post({ action: 'filings' }).then((r) => r.filings || []).catch(() => null),
+    readFilings(),
     /* ⚠ The deep-linked month is a FOURTH read, not a substitute for this month. The headline and
        the three wells answer "is the round being walked right now"; the month sections answer
        "what does July hold". Letting ?m= displace the current month would make the reminder's own
@@ -455,18 +514,24 @@ async function loadFor(today) {
        with the question the banner is asking. */
     (y === cy && m === cm) ? null : post({ action: 'month', year: y, month: m }),
   ]);
-  FILINGS = filings;
+  FILINGS = filings ? filings.filings : null;
+  CLOSED_MONTHS = filings ? filings.closed : [];
+  PREV_MO = { y: py, m: pm, mo: prev };
   /* ⛔ THE MONTH SHE IS WORKING ON IS USUALLY LAST MONTH (Keith, 2026-10-07: "we are running in the
      rears - sept report is due by october 10"). The page opened on the calendar month, so on
      October 7th it offered October's report — three weeks from existing — while September's was the
-     one due in three days. With no month named in the link, open on last month for as long as its
-     report is not recorded as filed; once it is, the current month. The three wells and the banner
-     above still read the live month: they answer "is the round being walked", not "what is due". */
+     one due in three days. With no month named in the link, open on last month for as long as it
+     is not CLOSED (v1.14.0 — the server's answer; before, "recorded as filed"); once it is, the
+     current month. The three wells and the banner above still read the live month: they answer
+     "is the round being walked", not "what is due". */
   let ty = y, tm = m, tgt = target || cur;
   if (!want) {
-    // last month's OWN read says whether it is filed — it does not depend on the list read
-    const prevFiled = Boolean(prev && prev.filing) || (filings || []).some((f) => f.year === py && f.month === pm);
-    if (!prevFiled) { ty = py; tm = pm; tgt = prev; }
+    // last month's OWN read says whether it is closed — it does not depend on the list read. With no
+    // `closed` in that answer, fall back to filed-or-not, exactly as before.
+    const pcl = closedOf(prev);
+    const prevClosed = pcl ? Boolean(pcl.closed) || Boolean(prev.filing)
+      : Boolean(prev && prev.filing) || inList(FILINGS, py, pm);
+    if (!prevClosed) { ty = py; tm = pm; tgt = prev; }
   }
   return { cur, prev, y: ty, m: tm, cy, cm, target: tgt, deepLinked: linked };
 }
@@ -930,21 +995,23 @@ function renderMonth(mo, y, m, eps) {
   const otherN = bacti.length - reportable.length;
   const pendingN = reportable.filter((b) => !b.result).length;
   const ptd = plantToday();
-  const dueY = m === 12 ? y + 1 : y, dueM = m === 12 ? 1 : m + 1;
-  const dueISO = dayISO(dueY, dueM, 10);
-  const filedNow = Boolean(mo.filing) || (FILINGS || []).some((f) => f.year === y && f.month === m);
+  /* v1.14.0: filed / closed / generated / due — one place (closeState), the server's `closed` answer */
+  const cs = closeState(mo, y, m);
+  const status = cs.status;
   const inProgress = (ptd.y === y && ptd.m === m);
   const notStarted = (y > ptd.y) || (y === ptd.y && m > ptd.m);
   const py2 = m === 1 ? y - 1 : y, pm2 = m === 1 ? 12 : m - 1;
-  // unknown filing history → no "due now" claim at all, rather than a confident wrong one
-  const prevUnfiled = FILINGS !== null && !FILINGS.some((f) => f.year === py2 && f.month === pm2);
-  const status = filedNow ? 'recorded as filed — see “Past reports” below'
-    : inProgress ? `still in progress (today is ${usDate(ptd.iso)}) — due ${MN[dueM]} 10`
-    : notStarted ? 'not started'
-    : ptd.iso > dueISO ? `<span style="color:var(--err);font-weight:600">overdue — was due ${MN[dueM]} 10, ${dueY}</span>`
-    : `<b>due ${MN[dueM]} 10</b>`;
+  /* Last month's state, from its own read when it carries `closed`. Without that, as before:
+     unknown filing history → no "due now" claim at all, rather than a confident wrong one. */
+  const prevMo = PREV_MO && PREV_MO.y === py2 && PREV_MO.m === pm2 && closedOf(PREV_MO.mo) ? PREV_MO.mo : null;
+  const prevCs = prevMo ? closeState(prevMo, py2, pm2) : null;
+  const prevUnfiled = prevCs ? prevCs.kind === 'none'
+    : FILINGS !== null && !FILINGS.some((f) => f.year === py2 && f.month === pm2) && !inList(CLOSED_MONTHS, py2, pm2);
   const dueNow = inProgress && prevUnfiled
     ? `<div class="banner warn" style="margin:0 0 12px">The report due now is <b>${MN[pm2]} ${py2}</b> (due ${MN[m]} 10). `
+      + `<a href="#" onclick="goMonth(${py2},${pm2});return false">Open ${MN[pm2]}</a>.</div>`
+    : inProgress && prevCs && prevCs.kind === 'pending'
+    ? `<div class="banner ok" style="margin:0 0 12px">The <b>${MN[pm2]} ${py2}</b> report was generated ${prevCs.genDate} — that month closes ${prevCs.closesLabel}. `
       + `<a href="#" onclick="goMonth(${py2},${pm2});return false">Open ${MN[pm2]}</a>.</div>` : '';
   /* ── the report view's header card: which report, when it is due, and what it still lacks */
   const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
@@ -975,9 +1042,9 @@ function renderMonth(mo, y, m, eps) {
   /* Not signed in: say so at the top of the workspace, not only in small grey lines beside each
      control. Everything here reads without a sign-in; nothing here can be CHANGED without one. */
   const signedOutBanner = ME ? '' : `<div class="banner warn" style="margin:0 0 12px"><b>You are not signed in</b>`
-    + `You can read this report, but adding bacti or distribution samples, entering a missing day and recording the filing need you to be signed in. `
+    + `You can read this report, but adding bacti or distribution samples, entering a missing day and correcting a recorded day need you to be signed in. `
     + `Sign-ins last 30 days. <a class="btn" style="margin-left:6px" href="${esc(signInHref())}">Sign in</a></div>`;
-  $('ready').innerHTML = signedOutBanner + `<div style="font-size:18px"><b>The ${MN[m]} ${y} report</b> — ${status}</div>`
+  $('ready').innerHTML = signedOutBanner + `<div style="font-size:18px"><b>The ${MN[m]} ${y} report</b> — <span data-cs="status">${status}</span></div>`
     + `<div class="chk">`
     + `${tick(!gaps.length)}<div><b>${readings.length} of ${expected}</b> well-days recorded${gaps.length ? ` — missing ${gaps.join(' · ')}${gapHint}` : ''}</div>`
     + `${tick(dist > 0)}<div><b>${dist}</b> distribution sample${dist === 1 ? '' : 's'}</div>`
@@ -985,9 +1052,9 @@ function renderMonth(mo, y, m, eps) {
     + `${!reportable.length ? ' — <b>add them in step 1</b> before generating'
         : pendingN ? ` — <b>${pendingN} still ${pendingN === 1 ? 'has' : 'have'} no lab result</b> (step 1)` : ''}</div>`
     + `${tick(!liveAttn)}<div><b>${liveAttn}</b> item${liveAttn === 1 ? '' : 's'} still needing attention${liveAttn ? ` — <a href="#" data-attn-open="1">review them here</a> <span class="muted">(optional — they don't stop you generating)</span>` : ''}</div>`
-    + `${tick(filedNow)}<div>${filedNow ? 'Recorded as filed with EGLE' : 'Not yet recorded as filed'}</div>`
+    + `<span data-cs="tick">${tick(cs.tickOk)}</span><div data-cs="line">${cs.line}</div>`
     + `</div>`;
-  $('reportTeaser').innerHTML = `The <b>${MN[m]} ${y}</b> report — ${status}. `
+  $('reportTeaser').innerHTML = `The <b>${MN[m]} ${y}</b> report — <span data-cs="status">${status}</span>. `
     + `<a class="btn" style="margin-left:8px" href="${viewHref('report', y, m)}">Open the monthly report →</a>`;
   $('navOther').href = VIEW === 'report' ? viewHref('review', y, m) : viewHref('report', y, m);
 
@@ -999,8 +1066,8 @@ function renderMonth(mo, y, m, eps) {
           + `<span class="muted" id="genNote" style="margin-left:12px"></span><br><br>`
           + `It is filled from exactly the records above — every figure derived once, when the reading was `
           + `stored, so the workbook and this screen cannot disagree. <b>Open it, add your Cover comments and `
-          + `sign it before sending.</b> Every workbook generated here is kept under “Past reports” below; `
-          + `once it has gone to EGLE, use <b>Mark as filed</b> there to record the date it went.`
+          + `sign it before sending.</b> Every workbook generated here is kept under “Past reports” below. `
+          + `Once a workbook has been generated, the month closes by itself on ${cs.closesLabel}.`
           + (reportable.length ? '' : `<br><br>⚠ <b>No routine bacti samples are on file for ${MN[m]}</b> — the Bacti &amp; Cl Res tab will go to EGLE empty.`)
         : `Nothing is recorded for ${MN[m]} ${y}, so there is no report to generate. If the round is being `
           + `walked, it is being written somewhere other than here.`);
@@ -1044,10 +1111,13 @@ window.generateMor = async (y, m) => {
     if (CUR && CUR.y === y && CUR.m === m) {
       try {
         const fresh = await post({ action: 'month', year: y, month: m });
-        CUR.mo.generations = fresh.generations || [];
-        CUR.mo.filing = fresh.filing || null;
-        if (FILINGS === null) FILINGS = await post({ action: 'filings' }).then((r) => r.filings || []).catch(() => null);
+        refreshClose(fresh);
+        if (FILINGS === null) {
+          const fl = await readFilings();
+          if (fl) { FILINGS = fl.filings; CLOSED_MONTHS = fl.closed; }
+        }
         renderFiled(CUR.mo, y, m);
+        paintClose(CUR.mo, y, m);
       } catch { /* the panel keeps what it had; the note above already said what happened */ }
     }
   } catch (e) {
@@ -1085,21 +1155,47 @@ window.generateMor = async (y, m) => {
 function renderFiled(mo, y, m) {
   const f = mo.filing;
   const gens = mo.generations || [];
-  /* The cross-month list failing to load is not a reason to hide THIS month's filing, generations
-     and Mark as filed — those came from this month's own read (Codex round 2, R2-6). Only the list
+  /* The cross-month list failing to load is not a reason to hide THIS month's filing and
+     generations — those came from this month's own read (Codex round 2, R2-6). Only the list
      is replaced by a warning. */
   const unknown = FILINGS === null;
   const listWarn = `<div class="banner warn" style="margin-top:12px"><b>Could not load the filing history</b>`
     + `The list of other months on file did not load. This month's own record above is unaffected. `
     + `<a href="#" onclick="location.reload();return false">Reload to try again</a>.</div>`;
-  const chips = unknown ? listWarn : FILINGS.length
+  // months the server says closed by generation (v1.14.0) — listed after the filings, no workbook link
+  const genClosed = unknown ? [] : (CLOSED_MONTHS || [])
+    .filter((x) => x && x.reason !== 'filed' && !inList(FILINGS, Number(x.year), Number(x.month)))
+    .map((x) => ({ year: Number(x.year), month: Number(x.month) }))
+    .filter((x) => x.month >= 1 && x.month <= 12);
+  const chips = unknown ? listWarn : (FILINGS.length || genClosed.length)
     ? `<div class="chips">` + FILINGS.map((x) =>
         `<span class="chip${x.year === y && x.month === m ? ' on' : ''}" onclick="goMonth(${x.year},${x.month})"
                title="${x.submitted_date ? 'submitted ' + esc(usDate(x.submitted_date)) : 'no submission date on the Cover'}"
-          >${MN[x.month]} ${x.year}</span>`).join('') + `</div>` : '';
+          >${MN[x.month]} ${x.year}</span>`).join('')
+      + genClosed.map((x) =>
+        `<span class="chip${x.year === y && x.month === m ? ' on' : ''}" onclick="goMonth(${x.year},${x.month})"
+               title="closed by itself after a workbook was generated — no filing recorded"
+          >${MN[x.month]} ${x.year} — closed — generated</span>`).join('') + `</div>` : '';
+
+  const cs = closeState(mo, y, m);
+  /* ── CLOSED BY GENERATION (v1.14.0). No filing is recorded, so there is no "what went" to show —
+     but the newest generated workbook's own figures ARE stored, and the server compares them with
+     the records held now (`closed.diff`, the same diffFiling). A correction made after the month
+     closed shows here, as a difference from what the generated report says. */
+  if (!f && cs.kind === 'generated') {
+    const gd = cs.cl && cs.cl.diff;
+    $('filed').innerHTML = `<div class="card">
+        <b style="font-size:17px">${MN[m]} ${y}: ${esc(cs.line)}</b>
+        <div class="muted" style="margin-top:3px">No filing is recorded for this month; it closed by itself once a workbook had been generated and ${esc(usDate(cs.closesOn))} came.</div>
+        ${gd ? diffVerdict(gd, true) : ''}
+        ${chips}
+      </div>`
+      + renderGenerated(gens, y, m, null, cs);
+    return;
+  }
 
   if (!f) {
-    $('filed').innerHTML = renderGenerated(gens, y, m, null)
+    $('filed').innerHTML = renderGenerated(gens, y, m, null, cs)
       + `<div class="note"${gens.length ? ' style="margin-top:12px"' : ''}>`
       + (unknown
           ? `<b>No report is on record as filed for ${MN[m]} ${y}.</b>`
@@ -1115,36 +1211,12 @@ function renderFiled(mo, y, m) {
     return;
   }
 
-  const d = f.diff || {}, c = d.counts || {};
   const when = f.submitted_date
     ? `submitted <b>${esc(usDate(f.submitted_date))}</b>`
     : `<b>no submission date</b> was filled in on the Cover tab`;
   const kb = f.workbook_bytes ? ` · ${Math.round(f.workbook_bytes / 1024).toLocaleString()} KB` : '';
 
-  let verdict;
-  if (d.matches) {
-    verdict = `<div class="banner ok" style="margin:14px 0 0"><b>Still matches these records</b>`
-      + `Every metered day, every chemical weight, and the sample counts in the filed report agree with what is held here.</div>`;
-  } else {
-    const bits = [];
-    if (c.pumpage_differs) bits.push(`${c.pumpage_differs} day${c.pumpage_differs === 1 ? '' : 's'} differ on metered gallons`);
-    if (c.ours_only) bits.push(`${c.ours_only} day${c.ours_only === 1 ? '' : 's'} recorded here that the report shows nothing for`);
-    if (c.filed_only) bits.push(`${c.filed_only} day${c.filed_only === 1 ? '' : 's'} filed with no reading on file`);
-    if (c.chemical_differs) bits.push(`${c.chemical_differs} chemical weight${c.chemical_differs === 1 ? '' : 's'} differ`);
-    if (c.mapping_conflicts) bits.push(`${c.mapping_conflicts} EntryPoint tab${c.mapping_conflicts === 1 ? '' : 's'} appear${c.mapping_conflicts === 1 ? 's' : ''} to carry a different well than this supply files there`);
-    if (c.dist_filed !== c.dist_ours) bits.push(`${c.dist_filed} distribution sample${c.dist_filed === 1 ? '' : 's'} filed against ${c.dist_ours} held`);
-    if (c.bacti_filed !== c.bacti_ours) bits.push(`${c.bacti_filed} bacti sample${c.bacti_filed === 1 ? '' : 's'} filed against ${c.bacti_ours} held`);
-    const rows = (d.rows || []).map((r) => `<tr>
-        <td class="l">${r.day}</td><td class="l">${esc(r.ep)}</td>
-        <td class="l">${esc(r.field === 'million_gallons' ? 'metered MG' : r.field.replace('_lbs', ' lbs'))}</td>
-        <td>${r.filed == null ? '—' : esc(String(r.filed))}</td>
-        <td>${r.ours == null ? '—' : esc(String(r.ours))}</td></tr>`).join('');
-    verdict = `<div class="banner warn" style="margin:14px 0 0"><b>What was sent and what is held differ</b>${esc(bits.join(' · '))}.
-        These are findings, not errors on this screen — the report went to EGLE with the figures in the "Filed" column.</div>`
-      + (rows ? `<div class="card scroll" style="margin-top:10px"><table>
-          <thead><tr><th class="l">Day</th><th class="l">Where</th><th class="l">What</th><th>Filed</th><th>Held here</th></tr></thead>
-          <tbody>${rows}</tbody></table></div>` : '');
-  }
+  const verdict = diffVerdict(f.diff || {}, false);
 
   $('filed').innerHTML = `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
@@ -1163,21 +1235,74 @@ function renderFiled(mo, y, m) {
     </div>`;
 }
 
+/* The comparison's RESULT, as computed by the API (`diffFiling`) — never recomputed here. For a filed
+   month it is "what was sent vs what is held"; for a month closed by generation (v1.14.0, gen=true)
+   it is "what the generated report says vs what the records hold now". */
+function diffVerdict(d, gen) {
+  d = d || {};
+  const c = d.counts || {};
+  const inRep = gen ? 'in the report' : 'filed';
+  if (d.matches) {
+    return `<div class="banner ok" style="margin:14px 0 0"><b>Still matches these records</b>`
+      + (gen ? `Every metered day, every chemical weight, and the sample counts in the generated report agree with what the records hold now.</div>`
+             : `Every metered day, every chemical weight, and the sample counts in the filed report agree with what is held here.</div>`);
+  }
+  const bits = [];
+  if (c.pumpage_differs) bits.push(`${c.pumpage_differs} day${c.pumpage_differs === 1 ? '' : 's'} differ on metered gallons`);
+  if (c.ours_only) bits.push(`${c.ours_only} day${c.ours_only === 1 ? '' : 's'} recorded here that the report shows nothing for`);
+  if (c.filed_only) bits.push(`${c.filed_only} day${c.filed_only === 1 ? '' : 's'} ${inRep} with no reading on file`);
+  if (c.chemical_differs) bits.push(`${c.chemical_differs} chemical weight${c.chemical_differs === 1 ? '' : 's'} differ`);
+  if (c.mapping_conflicts) bits.push(`${c.mapping_conflicts} EntryPoint tab${c.mapping_conflicts === 1 ? '' : 's'} appear${c.mapping_conflicts === 1 ? 's' : ''} to carry a different well than this supply files there`);
+  if (c.dist_filed !== c.dist_ours) bits.push(`${c.dist_filed} distribution sample${c.dist_filed === 1 ? '' : 's'} ${inRep} against ${c.dist_ours} held`);
+  if (c.bacti_filed !== c.bacti_ours) bits.push(`${c.bacti_filed} bacti sample${c.bacti_filed === 1 ? '' : 's'} ${inRep} against ${c.bacti_ours} held`);
+  const rows = (d.rows || []).map((r) => `<tr>
+        <td class="l">${r.day}</td><td class="l">${esc(r.ep)}</td>
+        <td class="l">${esc(r.field === 'million_gallons' ? 'metered MG' : r.field.replace('_lbs', ' lbs'))}</td>
+        <td>${r.filed == null ? '—' : esc(String(r.filed))}</td>
+        <td>${r.ours == null ? '—' : esc(String(r.ours))}</td></tr>`).join('');
+  return (gen
+      ? `<div class="banner warn" style="margin:14px 0 0"><b>What the generated report says and what the records hold now differ</b>${esc(bits.join(' · '))}.
+        These are findings, not errors on this screen — the generated report carries the figures in the "Generated report" column; a correction made after the month closed shows here.</div>`
+      : `<div class="banner warn" style="margin:14px 0 0"><b>What was sent and what is held differ</b>${esc(bits.join(' · '))}.
+        These are findings, not errors on this screen — the report went to EGLE with the figures in the "Filed" column.</div>`)
+    + (rows ? `<div class="card scroll" style="margin-top:10px"><table>
+          <thead><tr><th class="l">Day</th><th class="l">Where</th><th class="l">What</th><th>${gen ? 'Generated report' : 'Filed'}</th><th>${gen ? 'Held now' : 'Held here'}</th></tr></thead>
+          <tbody>${rows}</tbody></table></div>` : '');
+}
+
+/* After a generate or a Remove, take the month's fresh read: its generations, filing and closed
+   answer — and last month's too, when that is the month being changed. */
+function refreshClose(fresh) {
+  if (!CUR || !fresh) return;
+  CUR.mo.generations = fresh.generations || [];
+  CUR.mo.filing = fresh.filing || null;
+  CUR.mo.closed = fresh.closed;
+  if (PREV_MO && PREV_MO.y === CUR.y && PREV_MO.m === CUR.m) PREV_MO.mo = CUR.mo;
+}
+
 /* ── GENERATED, and whether it went. Newest generation leads; the rest are a line of dates. When
    the month is already filed this collapses to one sentence — the story is "generated here on the
    9th, filed on the 10th", not a second card competing with the filing. */
 window.withdrawGeneration = async (id) => {
   if (!confirm('Remove this workbook from the list? The record that it was generated is kept.')) return;
+  /* The server refuses (409) to withdraw the LAST workbook of a month closed by generation, with a
+     sentence saying why; post() throws that sentence and it is shown as it came (v1.14.0). */
   try {
     await post({ action: 'withdraw_generation', generation_id: id });
     if (CUR) {
+      const at = { y: CUR.y, m: CUR.m };
       CUR.mo.generations = (CUR.mo.generations || []).filter((g) => g.id !== id);
-      renderFiled(CUR.mo, CUR.y, CUR.m);
+      // withdrawing can change whether the month is generated / closes — take the server's fresh answer
+      try {
+        const fresh = await post({ action: 'month', year: at.y, month: at.m });
+        if (CUR && CUR.y === at.y && CUR.m === at.m) refreshClose(fresh);
+      } catch { /* keep the local list; the closed wording stays as it was */ }
+      if (CUR && CUR.y === at.y && CUR.m === at.m) { renderFiled(CUR.mo, CUR.y, CUR.m); paintClose(CUR.mo, CUR.y, CUR.m); }
     }
   } catch (e) { alert(`Could not remove that workbook — ${e.message}`); }
 };
 
-function renderGenerated(gens, y, m, filing) {
+function renderGenerated(gens, y, m, filing, cs) {
   if (!gens.length) return '';
   const g = gens[0], s = g.stats || {};
   const who = (x) => x.generated_by ? `by <b>${esc(x.generated_by)}</b>`
@@ -1205,16 +1330,16 @@ function renderGenerated(gens, y, m, filing) {
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" style="background:#fff;color:var(--navy)" id="gwb-${x.id}" onclick="openGeneration('${x.id}')">Open this workbook</button>
-          <button class="btn" onclick="markFiledForm('${x.id}',${y},${m})">Mark as filed</button>
           ${ME ? `<button class="editbtn" onclick="withdrawGeneration('${x.id}')">Remove</button>` : ''}
         </div>
-      </div>
-      <div id="mf-${x.id}"></div>`;
+      </div>`;
   };
+  // v1.14.0: no "not yet recorded as filed" — the month closes by itself (the server's answer)
+  const tail = cs && cs.closed ? 'the month is closed' : `this month closes ${cs ? cs.closesLabel : `${MN[m === 12 ? 1 : m + 1]} 11`}`;
   if (gens.length > 1) {
     return `<div class="card">
-      <b style="font-size:17px">${MN[m]} ${y} was generated ${gens.length} times — not yet recorded as filed</b>
-      <div class="muted" style="margin:3px 0 4px">Open the one you want to send, then Mark as filed. Remove any you do not need.</div>
+      <b style="font-size:17px">${MN[m]} ${y} was generated ${gens.length} times — ${tail}</b>
+      <div class="muted" style="margin:3px 0 4px">Open the one you want to send. Remove any you do not need.</div>
       ${gens.map(genRow).join('')}
       ${s.bacti ? '' : `<div class="banner warn" style="margin:12px 0 0;font-size:13.5px"><b style="font-size:14px">The newest workbook carries no bacti samples</b>If the lab results came back after it was generated, add them to the month and generate it again before sending.</div>`}
     </div>`;
@@ -1223,18 +1348,16 @@ function renderGenerated(gens, y, m, filing) {
   return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
         <div>
-          <b style="font-size:17px">${MN[m]} ${y} was generated — not yet recorded as filed</b>
+          <b style="font-size:17px">${MN[m]} ${y} was generated — ${tail}</b>
           <div class="muted" style="margin-top:3px">${line(g)} — ${s.well_days ?? '?'} well-day${s.well_days === 1 ? '' : 's'}, `
             + `${s.distribution ?? '?'} distribution, ${s.bacti ?? '?'} bacti${earlier.length ? ` · generated ${gens.length} times` : ''}</div>
           <div class="muted" style="margin-top:2px">${esc(g.workbook_name)}${kb}</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" style="background:#fff;color:var(--navy)" id="gwb-${g.id}" onclick="openGeneration('${g.id}')">Open this workbook</button>
-          <button class="btn" onclick="markFiledForm('${g.id}',${y},${m})">Mark as filed</button>
           ${ME ? `<button class="editbtn" onclick="withdrawGeneration('${g.id}')">Remove</button>` : ''}
         </div>
       </div>
-      <div id="mf-${g.id}"></div>
       ${earlier.length ? `<div class="muted" style="margin-top:10px">Earlier: ${earlier.map(line).join(' · ')}</div>` : ''}
       ${s.bacti ? '' : `<div class="banner warn" style="margin:12px 0 0;font-size:13.5px"><b style="font-size:14px">This workbook carries no bacti samples</b>If the lab results came back after it was generated, add them to the month and generate it again before sending.</div>`}
     </div>`;
@@ -1254,79 +1377,8 @@ window.openGeneration = async (id) => {
   }
 };
 
-/* ── MARK AS FILED. Recording a filing asserts that a report was submitted to the State of
-   Michigan, so it is an office write: a signed-in person enrolled for this supply. The form asks
-   for exactly what the generated workbook cannot know — the date it went and the comments she
-   wrote on the Cover — and, optionally, the file she actually sent. If she sent the generated
-   workbook as it was, the product already holds those bytes and does not ask for them back. */
-window.markFiledForm = (id, y, m) => {
-  const box = $(`mf-${id}`);
-  if (!box) return;
-  if (!ME) {
-    box.innerHTML = `<div class="ed"><b>Recording a filing needs you to be signed in</b> — it records that a report went to `
-      + `the State of Michigan under your certification. <a href="/centreville">Sign in on the village hub</a>, then come back to this month.</div>`;
-    return;
-  }
-  /* ⛔ EVERY ID BELOW CARRIES THIS GENERATION'S ID (Codex R1-3, 2026-11-17). Two open forms used to
-     share mfDate / mfFile / mfAttest, and recordFiling read them with a global lookup — so the
-     second form's button recorded the FIRST form's date, file and attestation against the second
-     workbook. Each form now owns its fields, its button and its message. */
-  const sfx = esc(id);
-  box.innerHTML = `<div class="ed">
-      <h4>Record that ${MN[m]} ${y} went to EGLE</h4>
-      <div class="grid">
-        <div><label for="mfDate-${sfx}">Date it was sent</label><input type="date" id="mfDate-${sfx}" value="${todayISO()}" max="${todayISO()}"></div>
-        <div><label for="mfComments-${sfx}">Your comments to EGLE, as written on the Cover</label><input class="wide" id="mfComments-${sfx}" placeholder="optional"></div>
-      </div>
-      <div style="margin-top:10px"><label for="mfFile-${sfx}">The workbook you sent — only if you changed it in Excel (comments, signature)</label>
-        <input type="file" id="mfFile-${sfx}" accept=".xls,application/vnd.ms-excel"></div>
-      <div class="muted" style="margin-top:6px;font-size:12.5px">Leave the file empty if you sent the generated workbook as it was — it is already held here. `
-        + `If you upload the file, its Cover tab is read here and must be this supply's ${MN[m]} ${y} report; the date and comments come from the Cover where it has them.</div>
-      <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:13.5px;color:#334155">
-        <input type="checkbox" id="mfAttest-${sfx}" style="margin-top:3px">
-        <span>I signed the Cover as Operator-In-Charge and sent this report to EGLE. (Recorded under your sign-in — the product cannot know this from the file.)</span>
-      </label>
-      <div class="act">
-        <button class="go" id="mfGo-${sfx}" onclick="recordFiling('${id}',${y},${m})">Record the filing</button>
-        <button class="editbtn" onclick="document.getElementById('mf-${id}').innerHTML=''">Cancel</button>
-        <span class="msg" id="mfMsg-${sfx}"></span>
-      </div>
-    </div>`;
-};
-
-window.recordFiling = async (id, y, m) => {
-  // only THIS generation's form: its own fields, button, message and attestation (R1-3)
-  const box = $(`mf-${id}`);
-  const own = (name) => (box ? box.querySelector(`#${CSS.escape(`${name}-${id}`)}`) : null);
-  const btn = own('mfGo'), msg = own('mfMsg');
-  if (!btn || !msg) return;
-  const date = ((own('mfDate') || {}).value || '').trim();
-  const comments = ((own('mfComments') || {}).value || '').trim();
-  const fileEl = own('mfFile');
-  const file = fileEl && fileEl.files && fileEl.files[0];
-  const attested = Boolean(own('mfAttest') && own('mfAttest').checked);
-  if (!date) { msg.className = 'msg err'; msg.textContent = 'The date it was sent is required.'; return; }
-  if (!attested) { msg.className = 'msg err'; msg.textContent = 'Tick the box to confirm you signed and sent it — that is the fact being recorded.'; return; }
-  btn.disabled = true; msg.className = 'msg'; msg.textContent = file ? 'Sending the workbook you sent…' : 'Recording…';
-  try {
-    /* ⛔ THE PAGE SENDS BYTES AND WHAT SHE TYPED — NEVER "WHAT THE FILE SAYS". The server reads an
-       uploaded workbook with the generator's own extractor, checks its Cover names this supply and
-       this period, and refuses a typed date that contradicts a dated Cover (Codex finding 8). A
-       page that extracted for itself and handed back the result was a page asserting facts about a
-       compliance record from the browser. */
-    const payload = {
-      action: 'record_filing', year: y, month: m, generation_id: id, source: 'product',
-      cover: { submitted_date: date, comments: comments || null, attested },
-    };
-    if (file) { payload.workbook_b64 = await fileToB64(file); payload.workbook_name = file.name; }
-    await post(payload);
-    msg.className = 'msg ok'; msg.textContent = 'Recorded. Reloading…';
-    setTimeout(() => location.reload(), 700);
-  } catch (e) {
-    msg.className = 'msg err'; msg.textContent = String(e.message || e);
-    btn.disabled = false;
-  }
-};
+/* (v1.14.0) The Mark-as-filed form and recordFiling are gone: no control on this page sends
+   record_filing. The action stays on the server for the history import only. */
 
 /* The workbook lives in a private bucket and is fetched through a signed URL that expires in
    fifteen minutes, so the link cannot be minted until she asks for it. Assigning it to

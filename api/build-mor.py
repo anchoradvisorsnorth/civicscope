@@ -253,6 +253,48 @@ X_COVER_CELLS = {
     'submitted_to': (42, 4),
 }
 
+# --- TEMPLATE KINDS (2026-11-17, new-town build) ------------------------------------------------
+# A template's manifest may carry `kind`. ABSENT = the legacy path: the first customer's own blank,
+# filled exactly as before this change, byte for byte (scripts/verify-mor-build-identity.py proves
+# it against the pre-change file). The two new kinds:
+#   'state'  — EGLE's shared, clean blank. Its Cover identity cells are EMPTY; build() writes the
+#              supply's own details onto it, and each entry point's chemical strengths onto row 6.
+#   'supply' — a town's own uploaded blank, identity pre-printed. Nothing extra is written; its
+#              Cover must name the town, and any field that differs from the stored supply record
+#              is reported (stats.cover_differences), not refused.
+TEMPLATE_KINDS = ('state', 'supply')
+# The shared state blank's storage key. Reported (never required) by the selftest.
+STATE_TEMPLATE_KEY = os.environ.get('MOR_STATE_TEMPLATE_KEY') or 'egle-state'
+# Cover field (X_COVER_CELLS) <- water_supplies column. The certification line (signed_by <-
+# cover_signed_by) is handled apart: written only when the supply has it set.
+COVER_FROM_SUPPLY = (('supply_name', 'name'), ('wssn', 'wssn'), ('oic_name', 'oic_name'),
+                     ('classification', 'classification'), ('oic_cert', 'oic_cert'),
+                     ('county', 'county'), ('submitted_to', 'report_to_email'))
+COVER_REQUIRED = (('name', 'supply name'), ('wssn', 'water system number (WSSN)'),
+                  ('oic_name', "operator-in-charge's name"))
+# CHEMICAL STRENGTH, EntryPoint row 6 (0-based row 5). Each strength sits above its own feed's
+# data column (FEED_COL): D6 chlorine, I6 phosphate, N6 fluoride, S6 pH adjustment; L6 is the
+# phosphate's ortho factor. The form's formulas read them as FRACTIONS, never percent:
+# E9 = D9*D$6 (pounds of solution -> pounds available) and F9 = E9/C9 with C9 = B9*8.34, which is
+# derive.js's `solution_lbs * avail_fraction / (million_gallons * 8.34)`; L9 = K9*$L$6 is
+# `dose * ortho_factor`. migrations/010_water_ops.sql records the first customer's own cells:
+# D6 = 0.125 (12.5% hypochlorite), I6 = 0.25, L6 = 0.1 — the same numbers as water_feeds.
+# Set False to leave row 6 exactly as the state blank holds it.
+WRITE_FEED_STRENGTHS = True
+STRENGTH_CELLS = {'chlorine': (5, 3), 'phosphate': (5, 8), 'fluoride': (5, 13), 'ph_adjust': (5, 18)}
+ORTHO_CELL = (5, 11)
+BACTI_LAB_CELL = (1, 7)
+# THE RECOGNISED FORM — read from scripts/fixtures/mor-formulas.json (the first customer's map,
+# extracted from EGLE's Class D workbook). The identity test asserts these still match the fixture.
+REFERENCE_TABS = ('Instructions', 'Cover', 'Pumpage', 'EntryPoint1', 'EntryPoint2', 'EntryPoint3',
+                  'EP Summary', 'Distribution', 'Bacti & Cl Res')
+REFERENCE_FORMULA_CELLS = {'Instructions': 0, 'Cover': 0, 'Pumpage': 66, 'EntryPoint1': 361,
+                           'EntryPoint2': 361, 'EntryPoint3': 361, 'EP Summary': 800,
+                           'Distribution': 29, 'Bacti & Cl Res': 12}
+# EGLE's own file ships two formulas already broken (#REF!, EP Summary X1:X2); they cannot be
+# restored and never were. Every other formula must restore.
+REFERENCE_FORMULAS_RESTORABLE = 1988
+
 
 class Refuse(Exception):
     """A refusal with a status code. Never a stack trace to the operator."""
@@ -344,9 +386,12 @@ PAGE_SETUP = {
 PRINT_AREAS = {'Bacti & Cl Res': (0, 56, 0, 12)}      # 0-based rows 0..56, cols 0..12  ->  A1:M57
 
 
-def apply_print_setup(wb, sheet_names):
+def apply_print_setup(wb, sheet_names, page_setup=None, print_areas=None):
+    """`page_setup` / `print_areas` come from a kinded template's manifest; None = the constants
+    above, which is the legacy path exactly as it was."""
+    page_setup = PAGE_SETUP if page_setup is None else page_setup
     for i, name in enumerate(sheet_names):
-        cfg = PAGE_SETUP.get(name)
+        cfg = page_setup.get(name)
         if not cfg:
             continue
         portrait, fit, scale = cfg
@@ -365,15 +410,16 @@ def apply_print_setup(wb, sheet_names):
         ws.top_margin = ws.bottom_margin = 0.75
         ws.print_centered_horz = False
         ws.print_centered_vert = False
-    _install_print_areas(wb, sheet_names)
+    _install_print_areas(wb, sheet_names, print_areas)
 
 
-def _install_print_areas(wb, sheet_names):
+def _install_print_areas(wb, sheet_names, print_areas=None):
     """xlwt cannot write defined names, and a print area IS one (built-in name 0x06, Print_Area). This
     appends the NAME records after the EXTERNSHEET record, inside the globals block xlwt is already
     measuring — so the BOUNDSHEET stream offsets it computes afterwards stay correct. Each area needs an
     EXTERNSHEET entry for its sheet; one is added if no formula happens to reference that sheet."""
-    wanted = [(sheet_names.index(n), area) for n, area in PRINT_AREAS.items() if n in sheet_names]
+    print_areas = PRINT_AREAS if print_areas is None else print_areas
+    wanted = [(sheet_names.index(n), area) for n, area in print_areas.items() if n in sheet_names]
     if not wanted:
         return
     from xlwt.Workbook import Workbook as _WB
@@ -401,7 +447,67 @@ def _install_print_areas(wb, sheet_names):
     wb._print_area_restore = (_WB, orig)
 
 
-def build(data, raw_template, formulas):
+def _cover_text(v):
+    """A Cover value as text: '' for nothing, a whole-number float without its '.0'."""
+    if v is None or isinstance(v, bool):
+        return ''
+    if isinstance(v, float):
+        return str(int(v)) if v.is_integer() else str(v)
+    return str(v).strip()
+
+
+def _wssn_digits(v):
+    """WSSNs compared on digits with leading zeros dropped (a numeric cell reads 1310 for 01310)."""
+    return re.sub(r'\D', '', _cover_text(v)).lstrip('0')
+
+
+def _same_text(a, b):
+    return ' '.join(_cover_text(a).split()).casefold() == ' '.join(_cover_text(b).split()).casefold()
+
+
+def _manifest_print_setup(manifest):
+    """(page_setup, print_areas) from a kinded manifest's `print_setup`, shaped like PAGE_SETUP /
+    PRINT_AREAS; (None, None) when it has none (the constants then apply). A malformed one refuses:
+    a workbook printed on the wrong paper is a smaller fault than a guessed layout going unnoticed."""
+    ps = (manifest or {}).get('print_setup')
+    if ps is None:
+        return None, None
+    bad = Refuse(409, 'this template\'s manifest carries a print_setup that is not in the expected shape '
+                      '({"page_setup": {tab: [portrait, fit_to_page, scale]}, "print_areas": {tab: '
+                      '[first_row, last_row, first_col, last_col]}}); re-register it with '
+                      'scripts/upload-mor-template.mjs. The workbook was not generated.')
+    if not isinstance(ps, dict) or not isinstance(ps.get('page_setup'), dict) \
+            or not isinstance(ps.get('print_areas'), dict):
+        raise bad
+    page, areas = {}, {}
+    for name, cfg in ps['page_setup'].items():
+        if not (isinstance(cfg, (list, tuple)) and len(cfg) == 3 and isinstance(cfg[0], bool)
+                and isinstance(cfg[1], bool) and isinstance(cfg[2], int) and not isinstance(cfg[2], bool)
+                and 10 <= cfg[2] <= 400):
+            raise bad
+        page[str(name)] = (cfg[0], cfg[1], cfg[2])
+    for name, a in ps['print_areas'].items():
+        if not (isinstance(a, (list, tuple)) and len(a) == 4
+                and all(isinstance(x, int) and not isinstance(x, bool) and x >= 0 for x in a)
+                and a[0] <= a[1] <= 65535 and a[2] <= a[3] <= 255):
+            raise bad
+        areas[str(name)] = tuple(a)
+    return page, areas
+
+
+def _fraction(v, what):
+    """A strength as the fraction the form multiplies by (0.125, never 12.5)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        f = None
+    if f is None or f != f or not 0 < f <= 1:
+        raise Refuse(409, f'{what} is {v!r}; the state form needs a fraction between 0 and 1 '
+                          '(0.125 for 12.5%). Correct it on the admin page; the workbook was not generated.')
+    return f
+
+
+def build(data, raw_template, formulas, manifest=None):
     plain = decrypt(raw_template)
     tmp = tempfile.NamedTemporaryFile(suffix='.xls', delete=False)
     try:
@@ -418,6 +524,40 @@ def build(data, raw_template, formulas):
             pass
 
     sheet_idx = {n: i for i, n in enumerate(rb.sheet_names())}
+
+    # THE TEMPLATE'S KIND (2026-11-17). None = legacy: every line below that tests `kind` is
+    # skipped and the output is byte-identical to the code before this change.
+    kind = (manifest or {}).get('kind')
+    if kind is not None and kind not in TEMPLATE_KINDS:
+        raise Refuse(409, f'this template\'s manifest names kind {kind!r}, which the generator does not know '
+                          f'(expected one of {", ".join(TEMPLATE_KINDS)}); the workbook was not generated.')
+    # NT-3: the formula map fetched with a kinded template must be the one it was registered with.
+    # A map swapped in storage afterwards would install its formulas in every report. The kind-less
+    # legacy template never reaches this line.
+    want_fmh = (manifest or {}).get('formula_map_sha256') if kind is not None else None
+    if want_fmh:
+        got_fmh = formula_map_sha256(formulas if isinstance(formulas, dict) else {})
+        if got_fmh != want_fmh:
+            raise Refuse(409, 'this template\'s formula map is not the one it was registered with (its hash '
+                              f'{got_fmh[:12]} does not match the manifest\'s {str(want_fmh)[:12]}). Re-register the '
+                              'template with scripts/upload-mor-template.mjs; the workbook was not generated.')
+    supply = data.get('supply') or {}
+    page_setup = print_areas = None
+    if kind is not None:
+        page_setup, print_areas = _manifest_print_setup(manifest)
+        if 'Cover' not in sheet_idx:
+            raise Refuse(409, 'this template has no Cover tab; the workbook was not generated.')
+    if kind == 'state':
+        missing = [label for col, label in COVER_REQUIRED if not _cover_text(supply.get(col))]
+        if missing:
+            raise Refuse(409, 'the report cover cannot be filled: this supply\'s record has no '
+                              + ', no '.join(missing) + '. Add it on the admin page; the workbook was not generated.')
+        cv0 = rb.sheet_by_name('Cover')
+        wr0, wc0 = X_COVER_CELLS['wssn']
+        pre = cv0.cell_value(wr0, wc0) if wr0 < cv0.nrows and wc0 < cv0.ncols else ''
+        if _cover_text(pre):
+            raise Refuse(409, f'the shared blank must not carry a water system number, but its Cover reads '
+                              f'WSSN {_cover_text(pre)}. Re-register a clean state blank; the workbook was not generated.')
 
     def style_at(name, r, c):
         return styles[rb.sheet_by_name(name).cell_xf_index(r, c)]
@@ -644,10 +784,71 @@ def build(data, raw_template, formulas):
                     wrote = True
             well_days += 1 if wrote else 0
 
+    # STATE BLANK: each entry point's chemical strengths onto its tab's row 6 (see STRENGTH_CELLS).
+    # Row 6 is blanked on every EntryPoint tab first, so a kind this entry point does not feed can
+    # never show a strength. Only feeds that are active, or that carry a reading this month, count;
+    # two of them of one kind with different strengths have one cell between them and refuse.
+    strengths_written, strength_cells = {}, []
+    if kind == 'state' and WRITE_FEED_STRENGTHS:
+        row6 = list(STRENGTH_CELLS.values()) + [ORTHO_CELL]
+        for name in [s for s in rb.sheet_names() if s.startswith('EntryPoint')]:
+            rs = rb.sheet_by_name(name)
+            for r, c in row6:
+                if r >= rs.nrows or c >= rs.ncols:
+                    raise Refuse(409, f'{name} has no cell {xlrd.formula.colname(c)}{r + 1} for a chemical '
+                                      'strength; this is not the recognised state form. The workbook was not generated.')
+                wb.get_sheet(sheet_idx[name]).row(r).set_cell_blank(c, style_at(name, r, c))
+        for ep, sheet, well, feed_kind, rows in plan:
+            if sheet is None:
+                continue
+            used = {fr.get('feed_id') for row in rows.values() for fr in row.get('feeds', [])
+                    if fr.get('solution_lbs') is not None}
+            per_kind = {}
+            for f in ep.get('feeds', []):
+                if f.get('active') is False and f.get('id') not in used:
+                    continue
+                if f.get('kind') in STRENGTH_CELLS:
+                    per_kind.setdefault(f['kind'], []).append(f)
+            cells = {}
+            for k, feeds in per_kind.items():
+                vals = {_fraction(f.get('avail_fraction'), f'{ep_label(ep)}\'s {k} strength') for f in feeds}
+                if len(vals) > 1:
+                    raise Refuse(409, f'{ep_label(ep)} has {k} feeds of different strengths '
+                                      f'({", ".join(str(v) for v in sorted(vals))}); the state form has one '
+                                      f'strength cell for {k}. The workbook was not generated.')
+                cells[STRENGTH_CELLS[k]] = vals.pop()
+                if k == 'phosphate':
+                    orth = {_fraction(f.get('ortho_factor'), f'{ep_label(ep)}\'s phosphate ortho factor')
+                            for f in feeds if f.get('ortho_factor') is not None}
+                    if len(orth) > 1:
+                        raise Refuse(409, f'{ep_label(ep)} has phosphate feeds with different ortho factors; '
+                                          'the state form has one cell for it. The workbook was not generated.')
+                    if orth:
+                        cells[ORTHO_CELL] = orth.pop()
+            for (r, c), v in cells.items():
+                put(sheet, r, c, v)
+                strength_cells.append((sheet, r, c, v))
+            if cells:
+                strengths_written[sheet] = {f'{xlrd.formula.colname(c)}{r + 1}': v for (r, c), v in cells.items()}
+
     # The reporting period. Written before the data so a refusal later cannot leave a workbook
     # that is correctly filled and wrongly labelled.
     put('Cover', COVER_MONTH[0], COVER_MONTH[1], MONTHS[data['month']][:3])
     put('Cover', COVER_YEAR[0], COVER_YEAR[1], data['year'])
+
+    # STATE BLANK: whose report it is, from the supply's own record. Optional fields with no value
+    # stay as the clean blank has them (empty). The certification line only when it is set.
+    cover_written = {}
+    if kind == 'state':
+        for field, col in COVER_FROM_SUPPLY:
+            v = _cover_text(supply.get(col))
+            if v:
+                put('Cover', X_COVER_CELLS[field][0], X_COVER_CELLS[field][1], v)
+                cover_written[field] = v
+        signer = _cover_text(supply.get('cover_signed_by'))
+        if signer:
+            put('Cover', X_COVER_CELLS['signed_by'][0], X_COVER_CELLS['signed_by'][1], signer)
+            cover_written['signed_by'] = signer
 
     clear_block('Distribution', DIST_ROW0, DIST_ROWS, DIST_COLS)
     for i, s in enumerate(sorted(data['dist'], key=lambda x: x['sample_date'])):
@@ -663,7 +864,7 @@ def build(data, raw_template, formulas):
 
     bacti_written = write_bacti(data)
 
-    apply_print_setup(wb, rb.sheet_names())     # her blank's page setup and the Bacti print area
+    apply_print_setup(wb, rb.sheet_names(), page_setup, print_areas)     # her blank's page setup and the Bacti print area
     out = io.BytesIO()
     try:
         wb.save(out)
@@ -742,10 +943,45 @@ def build(data, raw_template, formulas):
                           f'{want_wssn}; the workbook was not returned. The supply\'s MOR template '
                           'belongs to another supply.')
 
+    # KINDED TEMPLATES: the same doctrine — what reached the saved file, not what was intended.
+    kind_stats = {}
+    if kind == 'state':
+        bad = []
+        bcv = back_bk.sheet_by_name('Cover')
+        for field, v in cover_written.items():
+            r, c = X_COVER_CELLS[field]
+            got = bcv.cell_value(r, c) if r < bcv.nrows and c < bcv.ncols else ''
+            if _cover_text(got) != v:
+                bad.append(f'Cover {xlrd.formula.colname(c)}{r + 1} ({field}) reads {_cover_text(got)!r}, not {v!r}')
+        for sheet, r, c, v in strength_cells:
+            bsh = back_bk.sheet_by_name(sheet)
+            got = bsh.cell_value(r, c) if r < bsh.nrows and c < bsh.ncols else ''
+            if not isinstance(got, float) or abs(got - v) > 1e-12:
+                bad.append(f'{sheet}!{xlrd.formula.colname(c)}{r + 1} reads {got!r}, not {v!r}')
+        if not got_wssn or _wssn_digits(got_wssn) != _wssn_digits(want_wssn):
+            bad.append(f'the Cover WSSN reads {got_wssn!r}, not {want_wssn!r}')
+        if bad:
+            raise Refuse(409, 'the report cover did not save as written: ' + '; '.join(bad[:6])
+                              + '. The workbook was not returned.')
+        kind_stats = {'template_kind': 'state', 'cover_written': sorted(cover_written),
+                      'strengths_written': strengths_written}
+    elif kind == 'supply':
+        if not got_wssn:
+            raise Refuse(409, 'this supply\'s own blank has no water system number on its Cover. A town\'s '
+                              'own blank must name the town; re-register it. The workbook was not returned.')
+        cover = _extract_cover(back_bk)
+        pairs = [(f, col) for f, col in COVER_FROM_SUPPLY if f != 'wssn']
+        if _cover_text(supply.get('cover_signed_by')):
+            pairs.append(('signed_by', 'cover_signed_by'))
+        diffs = [{'field': f, 'cover': cover.get(f), 'supply': _cover_text(supply.get(col))}
+                 for f, col in pairs
+                 if _cover_text(supply.get(col)) and not _same_text(cover.get(f), supply.get(col))]
+        kind_stats = {'template_kind': 'supply', 'cover_differences': diffs}
+
     # stats report what REACHED THE WORKBOOK, not what was fetched. Reporting len(data['bacti'])
     #    while writing none of it is what let the omission run unnoticed: review.html prints this
     #    count beside the download, so the product asserted '2 bacti' about a file containing zero.
-    return out.getvalue(), {'formulas_restored': restored, 'formulas_skipped': skipped,
+    stats = {'formulas_restored': restored, 'formulas_skipped': skipped,
                             'cover_month': got_month, 'cover_year': got_year,
                             'cover_wssn': got_wssn,
                             # readings that put at least one value into the workbook (2026-11-17)
@@ -756,6 +992,8 @@ def build(data, raw_template, formulas):
                             # well / raw-water samples, written to the form's Other block (2026-10-08)
                             'bacti_other': bacti_written['other'],
                             'bacti_other_excluded': 0}
+    stats.update(kind_stats)       # empty on the legacy path: its stats are exactly as before
+    return out.getvalue(), stats
 
 
 # ---------------------------------------------------------------------------------------------
@@ -803,7 +1041,33 @@ def selftest():
                           'month, not a blank form. Re-upload EGLE\'s blank with scripts/upload-mor-template.mjs')
     out.update({'ok': True, 'template': manifest['key'], 'sheets': len(sheets),
                 'formula_cells': cells, 'decrypted': True, 'input_cells_blank': True})
+    out['state_template'] = _selftest_state()
     return out
+
+
+def _selftest_state():
+    """REPORTED, NEVER FAILED ON (2026-11-17): is the shared state blank registered, and is it
+    usable? The release check asserts only the legacy template above, so a town still waiting for
+    the state blank cannot break a release."""
+    rep = {'key': STATE_TEMPLATE_KEY, 'present': False}
+    try:
+        raw, formulas, manifest = fetch_template(STATE_TEMPLATE_KEY)
+    except Exception as e:
+        rep['why'] = getattr(e, 'message', None) or type(e).__name__
+        return rep
+    rep['present'] = True
+    try:
+        rep['kind'] = manifest.get('kind')
+        bk = xlrd.open_workbook(file_contents=decrypt(raw))
+        cv = bk.sheet_by_name('Cover')
+        r, c = X_COVER_CELLS['wssn']
+        rep['cover_wssn_blank'] = not _cover_text(cv.cell_value(r, c) if r < cv.nrows and c < cv.ncols else '')
+        rep['formula_cells'] = sum(len(v or {}) for v in formulas.values())
+        rep['usable'] = rep['kind'] == 'state' and rep['cover_wssn_blank'] and rep['formula_cells'] >= 1000
+    except Exception as e:
+        rep['usable'] = False
+        rep['why'] = f'{type(e).__name__}: {e}'[:200]
+    return rep
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1158,8 +1422,8 @@ def generate(body, cookie=None):
         raise Refuse(409, f'{MONTHS[month]} {year} has no readings on file — there is nothing to '
                           'report. If the round was walked, it was written somewhere other than here.')
 
-    raw, formulas, _ = fetch_template(supply.get('mor_template') or 'egle-class-d')
-    xls, stats = build(data, raw, formulas)
+    raw, formulas, manifest = fetch_template(supply.get('mor_template') or 'egle-class-d')
+    xls, stats = build(data, raw, formulas, manifest)     # a manifest with no `kind` = the legacy path
     name = f'{supply["name"]} MOR - {MONTHS[month]} {year}.xls'
 
     # What the workbook SAYS, read back through the same extractor an uploaded one goes through.
@@ -1171,6 +1435,505 @@ def generate(body, cookie=None):
         filed = {'error': f'{type(e).__name__}: {e}'[:200]}
     stats.update(record_generation(wssn, year, month, xls, name, stats, filed, cookie))
     return xls, name, stats
+
+
+# ---------------------------------------------------------------------------------------------
+# registering a template — checked LOCALLY, never over HTTP (2026-11-17)
+# ---------------------------------------------------------------------------------------------
+# This route has no privileged action today (generate, extract and selftest are all open), so the
+# validator is NOT an HTTP action: it is a pure function, run on the owner's own machine by
+# scripts/upload-mor-template.mjs as `pytools api/build-mor.py validate-template ...` before
+# anything is uploaded. Nothing here reads the network.
+#
+# THE FORMULA MAP'S EXPRESSIONS, NOT ONLY ITS COUNTS (2026-11-17, review finding NT-3). Until now a
+# map with the right number of formulas per tab passed even if one Total read SUM(B8:H8) where the
+# form says SUM(B8:I8), and build() installed that wrong total into every report for the town. Now:
+#   - the upload script reads the map out of the candidate workbook itself (SheetJS) and refuses a
+#     supplied --formulas that differs from it;
+#   - validate_template compares every expression with the RECOGNISED FORM's map (the fixture the
+#     generator's cell layout was built against) and every address with the workbook's own BIFF
+#     FORMULA records;
+#   - the manifest carries `formula_map_sha256` (also inside the fingerprint), and build() refuses a
+#     kinded template whose fetched map no longer hashes to it.
+# The normalisation is defined once in words in scripts/extract-mor-formulas.mjs `normaliseFormula`
+# and implemented identically here; the upload script cross-checks the two hashes on every run.
+RECOGNISED_FORMULA_MAP = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'scripts',
+                                      'fixtures', 'mor-formulas.json')
+_FORMULA_PUNCT = frozenset('(),;+-*/^&=<>%:')
+_FORMULA_KEY = re.compile(r'^(0|[1-9][0-9]*),(0|[1-9][0-9]*)$')
+
+
+def normalise_formula(f):
+    """Drop leading whitespace and then one '='; outside "..." and '...' upper-case a-z and drop
+    whitespace at either end or beside ( ) , ; + - * / ^ & = < > % : (else keep one space: the
+    intersection operator). Quoted text is kept byte for byte. Identical to
+    extract-mor-formulas.mjs `normaliseFormula`."""
+    s = str(f).lstrip(' \t\r\n')
+    if s.startswith('='):
+        s = s[1:]
+    out, quote, pending_space = [], None, False
+    for ch in s:
+        if quote:
+            out.append(ch)
+            if ch == quote:
+                quote = None
+            continue
+        if ch in ' \t\r\n':
+            pending_space = True
+            continue
+        if pending_space:
+            if out and out[-1] not in _FORMULA_PUNCT and ch not in _FORMULA_PUNCT:
+                out.append(' ')
+            pending_space = False
+        if ch in '"\'':
+            quote = ch
+            out.append(ch)
+            continue
+        out.append(ch.upper() if 'a' <= ch <= 'z' else ch)
+    return ''.join(out)
+
+
+def _rc(k):
+    m = _FORMULA_KEY.match(str(k))
+    return (int(m.group(1)), int(m.group(2))) if m else (float('inf'), float('inf'))
+
+
+def _a1(k):
+    r, c = _rc(k)
+    return f'{xlrd.formula.colname(c)}{r + 1}' if r != float('inf') else repr(k)
+
+
+def formula_map_canonical(m):
+    """JSON of [[sheet, [[row, col, normalised], ...]], ...]: sheets sorted, cells by row then col.
+    Byte-identical to extract-mor-formulas.mjs `formulaMapCanonical` for a well-formed map."""
+    sheets = []
+    for name in sorted(m):
+        cells = [[*_rc(k), normalise_formula(f)] for k, f in (m[name] or {}).items()]
+        cells.sort(key=lambda x: (x[0], x[1]))
+        sheets.append([name, cells])
+    return json.dumps(sheets, separators=(',', ':'), ensure_ascii=False)
+
+
+def formula_map_sha256(m):
+    import hashlib
+    return hashlib.sha256(formula_map_canonical(m).encode('utf-8')).hexdigest()
+
+
+def diff_formula_maps(a, b):
+    """Every disagreement after normalise_formula: a sheet in only one map, a cell in only one, or a
+    cell whose expressions differ. [{'sheet', 'key', 'cell', 'a', 'b'}], sorted."""
+    out = []
+    for name in sorted(set(a) | set(b)):
+        if name not in a or name not in b:
+            out.append({'sheet': name, 'key': None, 'cell': None,
+                        'a': 'sheet present' if name in a else None, 'b': 'sheet present' if name in b else None})
+            continue
+        ca, cb = a[name] or {}, b[name] or {}
+        for k in sorted(set(ca) | set(cb), key=lambda k: (*_rc(k), str(k))):
+            fa, fb = ca.get(k), cb.get(k)
+            if fa is None or fb is None or normalise_formula(fa) != normalise_formula(fb):
+                out.append({'sheet': name, 'key': k, 'cell': _a1(k), 'a': fa, 'b': fb})
+    return out
+
+
+def describe_formula_diffs(diffs, a_label, b_label, limit=10):
+    show = lambda v: '(none)' if v is None else json.dumps(v)
+    lines = [(f'sheet "{d["sheet"]}": {a_label} {"has it" if d["a"] else "lacks it"}, '
+              f'{b_label} {"has it" if d["b"] else "lacks it"}') if d['key'] is None else
+             f'{d["sheet"]}!{d["cell"]} ({d["key"]}): {a_label} {show(d["a"])}, {b_label} {show(d["b"])}'
+             for d in diffs[:limit]]
+    if len(diffs) > limit:
+        lines.append(f'... and {len(diffs) - limit} more')
+    return lines
+
+
+def _recognised_formula_map():
+    with open(RECOGNISED_FORMULA_MAP, encoding='utf-8') as fh:
+        return json.load(fh)
+
+
+def formula_addresses(plain):
+    """{sheet: {'row,col', ...}} — every cell holding a FORMULA record (0x0006) in the workbook's own
+    BIFF stream. xlrd cannot read formulas, but the records still say WHERE they are."""
+    import olefile
+    ole = olefile.OleFileIO(io.BytesIO(plain))
+    data = ole.openstream('Workbook' if ole.exists('Workbook') else 'Book').read()
+
+    def records(pos):
+        while pos + 4 <= len(data):
+            rid, ln = struct.unpack_from('<HH', data, pos)
+            yield rid, data[pos + 4:pos + 4 + ln]
+            pos += 4 + ln
+            if rid == 0x000A:
+                return
+
+    sheets = []
+    for rid, body in records(0):
+        if rid == 0x0085:
+            off, cch, flag = struct.unpack_from('<I', body, 0)[0], body[6], body[7]
+            nm = body[8:8 + cch * 2].decode('utf-16-le') if flag & 1 else body[8:8 + cch].decode('latin-1')
+            sheets.append((nm, off))
+    out = {}
+    for nm, off in sheets:
+        out[nm] = {'%d,%d' % struct.unpack_from('<HH', body, 0)
+                   for rid, body in records(off) if rid == 0x0006 and len(body) >= 4}
+    return out
+
+
+def _input_cells(name):
+    """Every data-entry cell build() writes or clears on this tab."""
+    cells = set()
+
+    def block(r0, n, cols):
+        cells.update((r, c) for r in range(r0, r0 + n) for c in cols)
+    if name == 'Pumpage':
+        block(PUMPAGE_ROW0, 31, range(1, 9))
+    elif name.startswith('EntryPoint'):
+        block(EP_ROW0, 31, (1, 3, 6, 7, 8, 12))
+    elif name == 'Distribution':
+        block(DIST_ROW0, DIST_ROWS, DIST_COLS)
+    elif name == BACTI_SHEET:
+        for r0, n in (BACTI_ROUTINE, BACTI_REPEAT, BACTI_OTHER):
+            block(r0, n, BACTI_COLS)
+    return cells
+
+
+def _identity_cells(name):
+    """Cells that legitimately differ between one supply's blank and another's."""
+    if name == 'Cover':
+        return set(X_COVER_CELLS.values())
+    if name.startswith('EntryPoint'):
+        return set(STRENGTH_CELLS.values()) | {ORTHO_CELL}
+    if name == BACTI_SHEET:
+        return {BACTI_LAB_CELL}
+    return set()
+
+
+def _label_map(sh, name, formulas):
+    """The printed form: every non-empty cell that is not data entry, not identity, not a formula."""
+    skip = _input_cells(name) | _identity_cells(name)
+    have = formulas.get(name) or {}
+    out = {}
+    for r in range(sh.nrows):
+        for c in range(sh.ncols):
+            if (r, c) in skip or f'{r},{c}' in have:
+                continue
+            t = ' '.join(_cover_text(sh.cell_value(r, c)).split())
+            if t:
+                out[f'{r},{c}'] = t
+    return out
+
+
+def _restorable(formulas, names):
+    restored, skipped = 0, []
+    for name, cells in formulas.items():
+        if name not in names:
+            continue
+        for keyrc, f in (cells or {}).items():
+            try:
+                xlwt.Formula(f)
+                restored += 1
+            except Exception:
+                skipped.append([name, keyrc, f])
+    return restored, skipped
+
+
+def fingerprint(bk, formulas):
+    """A compact description of a form, stored in the manifest so a later registration (or a
+    person) can tell whether two blanks are the same printed form. Version 2 (NT-3) adds
+    `formula_map_sha256`, so the fingerprint covers every formula EXPRESSION, not only the counts."""
+    import hashlib
+    fp = {'version': 2, 'tabs': bk.sheet_names(), 'formula_cells': {}, 'merged': {}, 'labels': {},
+          'formula_map_sha256': formula_map_sha256(formulas)}
+    for name in bk.sheet_names():
+        sh = bk.sheet_by_name(name)
+        fp['formula_cells'][name] = len(formulas.get(name) or {})
+        merged = sorted(list(m) for m in sh.merged_cells)
+        fp['merged'][name] = {'ranges': len(merged),
+                              'sha256': hashlib.sha256(json.dumps(merged).encode()).hexdigest()}
+        lab = _label_map(sh, name, formulas)
+        fp['labels'][name] = {'cells': len(lab),
+                              'sha256': hashlib.sha256(json.dumps(sorted(lab.items())).encode()).hexdigest()}
+    fp['formulas_restorable'] = _restorable(formulas, bk.sheet_names())[0]
+    return fp
+
+
+def read_print_setup(plain):
+    """Page setup read back out of the workbook's own BIFF records — the records apply_print_setup
+    writes: SETUP (0x00A1: orientation and scale), WSBOOL (0x0081: fit to page) and the built-in
+    Print_Area NAME (0x0018). xlrd does not expose these. Returns the PAGE_SETUP / PRINT_AREAS
+    shape plus `unreadable` (tabs whose SETUP record says its values are not valid)."""
+    import olefile
+    ole = olefile.OleFileIO(io.BytesIO(plain))
+    data = ole.openstream('Workbook' if ole.exists('Workbook') else 'Book').read()
+
+    def records(pos):
+        while pos + 4 <= len(data):
+            rid, ln = struct.unpack_from('<HH', data, pos)
+            yield rid, data[pos + 4:pos + 4 + ln]
+            pos += 4 + ln
+            if rid == 0x000A:            # EOF of this substream
+                return
+
+    sheets, areas_by_index = [], {}
+    for rid, body in records(0):
+        if rid == 0x0085:                # BOUNDSHEET: stream offset, name
+            off, cch, flag = struct.unpack_from('<I', body, 0)[0], body[6], body[7]
+            nm = body[8:8 + cch * 2].decode('utf-16-le') if flag & 1 else body[8:8 + cch].decode('latin-1')
+            sheets.append((nm, off))
+        elif rid == 0x0018 and len(body) >= 15:      # NAME
+            grbit, _key, cch, cce, _ixals, itab = struct.unpack_from('<HBBHHH', body, 0)
+            if not grbit & 0x0020 or cch != 1:
+                continue
+            p = 14
+            wide = body[p] & 1
+            p += 1
+            code = struct.unpack_from('<H', body, p)[0] if wide else body[p]
+            p += 2 if wide else 1
+            fm = body[p:p + cce]
+            if code == 0x06 and itab and len(fm) >= 11 and fm[0] in (0x3B, 0x5B, 0x7B):
+                _t, _ixti, r0, r1, c0, c1 = struct.unpack_from('<BHHHHH', fm, 0)
+                areas_by_index[itab - 1] = [r0, r1, c0 & 0x3FFF, c1 & 0x3FFF]
+    page, areas, unreadable = {}, {}, []
+    for i, (nm, off) in enumerate(sheets):
+        fit = portrait = scale = None
+        nopls = False
+        for rid, body in records(off):
+            if rid == 0x0081 and len(body) >= 2:
+                fit = bool(struct.unpack_from('<H', body, 0)[0] & 0x0100)
+            elif rid == 0x00A1 and len(body) >= 12:
+                _paper, scale, _start, _fw, _fh, g = struct.unpack_from('<HHHHHH', body, 0)
+                portrait, nopls = bool(g & 0x02), bool(g & 0x04)
+        if fit is None or portrait is None or nopls:
+            unreadable.append(nm)
+        else:
+            page[nm] = [portrait, fit, scale]
+        if i in areas_by_index:
+            areas[nm] = areas_by_index[i]
+    return {'page_setup': page, 'print_areas': areas, 'unreadable': unreadable}
+
+
+def validate_template(raw, formulas, kind, wssn=None, reference_raw=None):
+    """Is this workbook a blank of the recognised EGLE form, fit to register as `kind`?
+    Returns {'ok', 'failures': [...], 'warnings': [...], 'fingerprint', 'print_setup', ...}."""
+    fails, warns = [], []
+    res = {'ok': False, 'kind': kind, 'failures': fails, 'warnings': warns}
+    if kind not in TEMPLATE_KINDS:
+        fails.append(f'kind must be one of {", ".join(TEMPLATE_KINDS)}, not {kind!r}')
+        return res
+    if kind == 'supply' and not _wssn_digits(wssn):
+        fails.append("a town's own blank (kind=supply) is registered with that town's WSSN; none was given")
+    if not isinstance(formulas, dict) or not all(isinstance(v, dict) or v is None for v in formulas.values()):
+        fails.append('the formula map is not a {tab: {"row,col": formula}} object')
+        return res
+    malformed = [f'{t}!{k}' for t, cells in formulas.items() for k, f in (cells or {}).items()
+                 if not _FORMULA_KEY.match(str(k)) or not isinstance(f, str)]
+    if malformed:
+        fails.append('the formula map has cells that are not "row,col": "<formula text>": ' + ', '.join(malformed[:10]))
+        return res
+    plain = decrypt(raw)
+    res['encrypted'] = plain is not raw
+    try:
+        bk = xlrd.open_workbook(file_contents=plain, formatting_info=True)
+    except Exception as e:
+        fails.append(f'the workbook does not open as an Excel 97-2003 file ({type(e).__name__}: {e})')
+        return res
+    names = bk.sheet_names()
+
+    # 1. the tabs: every one the generator writes, none the form lacks, in the form's order
+    missing = [t for t in REFERENCE_TABS if t not in names]
+    extra = [t for t in names if t not in REFERENCE_TABS]
+    if missing:
+        fails.append(f'tab(s) missing: {", ".join(missing)}')
+    if extra:
+        fails.append(f'tab(s) the recognised form does not have: {", ".join(extra)}')
+    if not missing and not extra and tuple(names) != REFERENCE_TABS:
+        fails.append('the tabs are in a different order from the recognised form')
+
+    # 2. the formula map belongs to this form, and every formula in it can be restored
+    if set(formulas) != set(names):
+        fails.append(f'the formula map names tabs {sorted(formulas)}, the workbook has {names}')
+    for t in REFERENCE_TABS:
+        n = len(formulas.get(t) or {})
+        if n != REFERENCE_FORMULA_CELLS[t]:
+            fails.append(f'{t}: the formula map has {n} formulas; the recognised form has {REFERENCE_FORMULA_CELLS[t]}')
+    restored, skipped = _restorable(formulas, names)
+    res.update({'formula_cells': sum(len(v or {}) for v in formulas.values()),
+                'formulas_restored': restored, 'formulas_unrestorable': skipped})
+    broken = [s for s in skipped if '#REF!' not in s[2]]
+    if broken:
+        fails.append(f'{len(broken)} formula(s) cannot be restored and are not EGLE\'s own #REF! cells: '
+                     + ', '.join(f'{s[0]}!{s[1]}' for s in broken[:5]))
+    if restored != REFERENCE_FORMULAS_RESTORABLE:
+        fails.append(f'{restored} formulas restore; the recognised form restores {REFERENCE_FORMULAS_RESTORABLE}')
+
+    # 2b. (NT-3) every EXPRESSION is the recognised form's, cell for cell, after normalise_formula.
+    #     build() writes data into fixed cells and relies on these formulas reading them, so a
+    #     different form revision is refused here; handling one is the owner's decision.
+    try:
+        recognised = _recognised_formula_map()
+    except Exception as e:
+        recognised = None
+        fails.append(f"the recognised form's formula map could not be read ({type(e).__name__}: {RECOGNISED_FORMULA_MAP})")
+    if recognised is not None:
+        d = diff_formula_maps(recognised, formulas)
+        if d:
+            fails.append(f'{len(d)} formula cell(s) differ from the recognised form: '
+                         + '; '.join(describe_formula_diffs(d, 'recognised form', 'this map')))
+
+    # 2c. (NT-3) every ADDRESS in the map is a formula cell of THIS workbook, and every formula cell
+    #     of this workbook is in the map (its own BIFF FORMULA records; xlrd cannot read the text).
+    try:
+        have = formula_addresses(plain)
+    except Exception as e:
+        have = None
+        fails.append(f"the workbook's formula cells could not be read ({type(e).__name__}: {e})")
+    if have is not None:
+        wrong = []
+        for t in names:
+            m, w = set((formulas.get(t) or {}).keys()), have.get(t, set())
+            for k in sorted(m ^ w, key=_rc):
+                wrong.append(f'{t}!{_a1(k)} ({k}) ' + ('the map has a formula, the workbook has none' if k in m
+                                                       else 'the workbook has a formula, the map has none'))
+        if wrong:
+            fails.append(f"{len(wrong)} formula address(es) disagree with this workbook's own formula cells: "
+                         + '; '.join(wrong[:10]) + (f'; ... and {len(wrong) - 10} more' if len(wrong) > 10 else ''))
+    res['formula_map_sha256'] = formula_map_sha256(formulas)
+
+    # 3. the day labels every reading is placed by
+    day_tabs = [('Pumpage', PUMPAGE_ROW0)] + [(t, EP_ROW0) for t in names if t.startswith('EntryPoint')]
+    for t, row0 in day_tabs:
+        if t not in names:
+            continue
+        sh = bk.sheet_by_name(t)
+        wrong = [r + 1 for i, r in enumerate(range(row0, row0 + 31))
+                 if not (r < sh.nrows and _num(sh.cell_value(r, 0)) == i + 1)]
+        if wrong:
+            fails.append(f'{t}: column A must number the days 1-31 from row {row0 + 1}; '
+                         f'row(s) {", ".join(map(str, wrong[:5]))} do not')
+
+    # 4. a blank is blank
+    for t in names:
+        sh = bk.sheet_by_name(t)
+        filled = [(r, c) for (r, c) in sorted(_input_cells(t))
+                  if r < sh.nrows and c < sh.ncols and _cover_text(sh.cell_value(r, c))]
+        if filled:
+            r, c = filled[0]
+            fails.append(f'{t}: {len(filled)} data-entry cell(s) are filled (first {xlrd.formula.colname(c)}{r + 1}); '
+                         'a template must be a blank form')
+
+    # 5. the Cover, by kind
+    if 'Cover' in names:
+        cv = bk.sheet_by_name('Cover')
+
+        def cover(field):
+            r, c = X_COVER_CELLS[field]
+            return _cover_text(cv.cell_value(r, c)) if r < cv.nrows and c < cv.ncols else ''
+
+        def ref(field):
+            r, c = X_COVER_CELLS[field]
+            return f'Cover {xlrd.formula.colname(c)}{r + 1}'
+        for field in ('comment_left', 'comment_right', 'submitted_date'):
+            if cover(field):
+                fails.append(f'{ref(field)} ({field}) reads {cover(field)!r}; it must be empty on a blank')
+        if kind == 'state':
+            for field in ('supply_name', 'wssn', 'oic_name', 'classification', 'oic_cert', 'county',
+                          'submitted_to', 'signed_by'):
+                if cover(field):
+                    fails.append(f'{ref(field)} ({field}) reads {cover(field)!r}; the shared state blank must leave it empty')
+            for t in [s for s in names if s.startswith('EntryPoint')]:
+                sh = bk.sheet_by_name(t)
+                for r, c in sorted(set(STRENGTH_CELLS.values()) | {ORTHO_CELL}):
+                    if r < sh.nrows and c < sh.ncols and _cover_text(sh.cell_value(r, c)):
+                        fails.append(f'{t}!{xlrd.formula.colname(c)}{r + 1} carries a chemical strength; '
+                                     'the shared state blank must leave row 6 empty')
+            if BACTI_SHEET in names:
+                sh = bk.sheet_by_name(BACTI_SHEET)
+                r, c = BACTI_LAB_CELL
+                if r < sh.nrows and c < sh.ncols and _cover_text(sh.cell_value(r, c)):
+                    fails.append(f'{BACTI_SHEET}!H2 names a laboratory; the shared state blank must leave it empty')
+        else:
+            if not cover('wssn'):
+                fails.append(f"{ref('wssn')} is empty; a town's own blank must name the town")
+            elif _wssn_digits(wssn) and _wssn_digits(cover('wssn')) != _wssn_digits(wssn):
+                fails.append(f"{ref('wssn')} reads {cover('wssn')}, not {wssn}; this blank belongs to another supply")
+            if not cover('supply_name'):
+                warns.append(f"{ref('supply_name')} (supply name) is empty on a town's own blank")
+
+    # 6. the printed form itself, against a reference blank of the recognised form
+    res['fingerprint'] = fingerprint(bk, formulas)
+    if reference_raw is None:
+        fails.append('no reference workbook was given: the label cells and merged ranges could not be '
+                     'compared with the recognised form')
+    else:
+        try:
+            rbk = xlrd.open_workbook(file_contents=decrypt(reference_raw), formatting_info=True)
+        except Exception as e:
+            fails.append(f'the reference workbook does not open ({type(e).__name__})')
+            rbk = None
+        if rbk is not None:
+            for t in [s for s in REFERENCE_TABS if s in names and s in rbk.sheet_names()]:
+                a, b = _label_map(rbk.sheet_by_name(t), t, formulas), _label_map(bk.sheet_by_name(t), t, formulas)
+                diff = sorted(set(a) ^ set(b) | {k for k in set(a) & set(b) if a[k] != b[k]},
+                              key=lambda k: tuple(map(int, k.split(','))))
+                if diff:
+                    r, c = map(int, diff[0].split(','))
+                    fails.append(f'{t}: {len(diff)} printed label cell(s) differ from the recognised form '
+                                 f'(first {xlrd.formula.colname(c)}{r + 1}: form {a.get(diff[0])!r}, '
+                                 f'this file {b.get(diff[0])!r})')
+                ma = sorted(tuple(m) for m in rbk.sheet_by_name(t).merged_cells)
+                mb = sorted(tuple(m) for m in bk.sheet_by_name(t).merged_cells)
+                if ma != mb:
+                    fails.append(f'{t}: merged ranges differ from the recognised form '
+                                 f'({len(ma)} there, {len(mb)} here; {len(set(ma) ^ set(mb))} differ)')
+
+    # 7. the page setup, carried into the manifest
+    try:
+        res['print_setup'] = read_print_setup(plain)
+        if res['print_setup']['unreadable']:
+            warns.append('page setup could not be read for: ' + ', '.join(res['print_setup']['unreadable']))
+    except Exception as e:
+        res['print_setup'] = None
+        warns.append(f'page setup could not be read ({type(e).__name__}); pass --print-setup')
+    res['ok'] = not fails
+    return res
+
+
+def _main(argv):
+    import argparse
+    p = argparse.ArgumentParser(prog='build-mor.py')
+    sub = p.add_subparsers(dest='cmd', required=True)
+    v = sub.add_parser('validate-template', help='check a blank before registering it (local only)')
+    v.add_argument('--template', required=True)
+    v.add_argument('--formulas', required=True)
+    v.add_argument('--kind', required=True)
+    v.add_argument('--wssn')
+    v.add_argument('--reference')
+    # NT-3: SheetJS cannot remove EGLE's RC4 encryption, so the upload script has the workbook
+    # decrypted here (the same decrypt() build() uses; a lossless step) before reading its formulas.
+    dc = sub.add_parser('decrypt', help='write the decrypted bytes of a workbook (local only)')
+    dc.add_argument('--template', required=True)
+    dc.add_argument('--out', required=True)
+    a = p.parse_args(argv)
+    if a.cmd == 'decrypt':
+        with open(a.template, 'rb') as fh:
+            raw = fh.read()
+        plain = decrypt(raw)
+        with open(a.out, 'wb') as fh:
+            fh.write(plain)
+        print(json.dumps({'ok': True, 'encrypted': plain is not raw, 'bytes': len(plain)}))
+        return 0
+    with open(a.template, 'rb') as fh:
+        raw = fh.read()
+    with open(a.formulas, encoding='utf-8') as fh:
+        formulas = json.load(fh)
+    ref = None
+    if a.reference:
+        with open(a.reference, 'rb') as fh:
+            ref = fh.read()
+    res = validate_template(raw, formulas, a.kind, a.wssn, ref)
+    print(json.dumps(res))
+    return 0 if res['ok'] else 1
 
 
 class handler(BaseHTTPRequestHandler):
@@ -1218,3 +1981,8 @@ class handler(BaseHTTPRequestHandler):
             self._send(e.status, {'error': e.message})
         except Exception as e:
             self._send(500, {'error': f'{type(e).__name__}: {e}'})
+
+
+if __name__ == '__main__':
+    import sys
+    sys.exit(_main(sys.argv[1:]))
