@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.14.0-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.14.1-oic
+
+  v1.14.1 (2026-11-18) — the green "Up to date" sentence says WHEN each well was read. It read
+  "All 3 wells reporting — last reading 11/18/2026 (today)" with one well read today and two last
+  read yesterday. Now: "1 of 3 wells read today (11/18/2026); Well 1 and Well 4 last read
+  yesterday." / "All 3 wells read today (…)." / "All 3 wells last read yesterday (…); none read
+  yet today." The "not running" banner carries the same sentence. What counts as behind (a newest
+  reading 2 or more days old) is unchanged — wording only.
 
   v1.14.0 (2026-11-17) — "Mark as filed" is gone (Keith: the OIC will not mark reports as filed).
   A month CLOSES by itself — the server answers `month.closed`, the page only displays it: closed
@@ -601,6 +608,30 @@ function render({ cur, prev, y, m, target, deepLinked }) {
   const idle = eps.map((ep) => ({ label: ep.label, run: idleRun(ep) }))
                   .filter((w) => w.run && w.run.days >= 2);
 
+  /* ⛔ "REPORTING" DID NOT SAY WHEN (Keith, 2026-11-18). A well is current when its newest reading
+     is today's or yesterday's — the allowance that keeps this banner from going red every morning
+     before the round is walked. But the green sentence read "All 3 wells reporting — last reading
+     11/18/2026 (today)" with ONE well read today and two last read yesterday: "all three" beside
+     the newest date from ANY well said every well had been read today. Keith, looking at exactly
+     that: "the page reports three wells reporting today but it looks like only well 3 has been
+     reported today". The sentence now counts the wells read today and names the ones whose newest
+     reading is yesterday's. It is only shown when no well is behind, so every well is at 0 or 1
+     days. What counts as behind (2 days or more) is unchanged. */
+  const gapOf = (ep) => { const r = latestFor(ep); return r ? daysAgo(r.reading_date) : null; };
+  const readToday = eps.filter((ep) => { const g = gapOf(ep); return g !== null && g <= 0; });
+  const readYday = eps.filter((ep) => gapOf(ep) === 1);
+  const labelList = (ws) => { const n = ws.map((w) => esc(w.label));
+    return n.length <= 2 ? n.join(' and ') : `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`; };
+  const allWells = eps.length === 1 ? esc(eps[0].label) : eps.length === 2 ? 'Both wells' : `All ${eps.length} wells`;
+  /* The date in the sentence is the newest reading among the wells it counts. `newest` also holds a
+     retired well's readings, and a retired well read today beside three active wells last read
+     yesterday would print "last read yesterday" with today's date. */
+  const roundDate = eps.map((ep) => latestFor(ep)).filter(Boolean).map((r) => r.reading_date).sort().pop() || newest;
+  const roundLine = !eps.length ? `Last reading ${esc(usDate(newest))}.`
+    : !readToday.length ? `${allWells} last read yesterday (${esc(usDate(roundDate))}); ${eps.length === 1 ? 'not' : 'none'} read yet today.`
+    : !readYday.length ? `${allWells} read today (${esc(usDate(roundDate))}).`
+    : `${readToday.length} of ${eps.length} wells read today (${esc(usDate(roundDate))}); ${labelList(readYday)} last read yesterday.`;
+
   let top = '';
   if (!newest) {
     top = `<div class="banner err"><b>No readings on file at all</b>Nothing has been recorded for this supply.</div>`;
@@ -613,11 +644,11 @@ function render({ cur, prev, y, m, target, deepLinked }) {
         + `Every day a well is missed is a day that has to be re-entered before the month can be filed.</div>`;
   } else if (idle.length) {
     top = `<div class="banner warn"><b>Up to date — but ${idle.length === 1 ? esc(idle[0].label) + ' is' : idle.length + ' wells are'} not running</b>`
-        + `All ${eps.length} wells were visited — last reading ${esc(usDate(newest))}${gap === 1 ? ' (yesterday)' : ' (today)'}. `
+        + `${roundLine} `
         + idle.map((w) => `${esc(w.label)}: ${idleText(w.run)}.`).join(' ')
         + ` If the well is meant to be off, nothing is wrong; if it is not, the meter has not moved.</div>`;
   } else {
-    top = `<div class="banner ok"><b>Up to date</b>All ${eps.length} wells reporting — last reading ${esc(usDate(newest))}${gap === 1 ? ' (yesterday)' : ' (today)'}.</div>`;
+    top = `<div class="banner ok"><b>Up to date</b>${roundLine}</div>`;
   }
   $('top').innerHTML = top;
 
