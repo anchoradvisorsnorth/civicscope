@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<!--
+  civicscope-water/admin.html — WELL TESTING, town settings.  v1.0.0-townadmin
+
+  The page a town's own admin (a village office person) uses to manage a few settings for THEIR
+  town only: the details printed on the monthly report, the PIN at the well, the crew on the
+  tablet, and who can sign in to the office pages. Served at /water/admin?wssn=<supply number>
+  (01310 when the link carries none, as /water/review does).
+
+  Everything is read from and written through POST /api/water-town. The server decides every
+  permission; this page only uses the flags it answers (can_edit, can_set_admin, productAdmin) to
+  decide which buttons to draw. After any successful write the page asks for the whole state again
+  and redraws from that answer — it never patches the screen by hand. Nobody is ever deleted:
+  operators retire, sign-ins turn off.
+
+  A PIN is typed into a password field, sent once, and the field is emptied after every attempt.
+  It is never shown, stored by this page or put in a URL.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Town settings</title>
+<style>
+  :root{
+    --navy:#0f2942; --ink:#0f172a; --mut:#64748b; --line:#dbe3ec; --bg:#f1f5f9; --card:#fff;
+    --ok:#0f766e; --okbg:#f0fdfa; --warn:#b45309; --warnbg:#fffbeb; --err:#b91c1c; --errbg:#fef2f2;
+    --accent:#c2410c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{background:var(--navy);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:14px}
+  header h1{font-size:17px;margin:0;font-weight:600}
+  header .sub{font-size:12.5px;opacity:.72;font-weight:400;display:block;margin-top:2px}
+  header a{color:#cbd5e1;font-size:13px;text-decoration:none;border:1px solid rgba(255,255,255,.28);
+           border-radius:8px;padding:6px 12px;white-space:nowrap}
+  header a:hover{background:rgba(255,255,255,.1);color:#fff}
+  header .who{font-size:12.5px;color:#cbd5e1;white-space:nowrap}
+  header .who b{color:#fff;font-weight:600}
+  main{max-width:1100px;margin:0 auto;padding:20px 24px 60px}
+  h2{font-size:15px;margin:0 0 6px;color:#334155;letter-spacing:.2px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:0 0 16px;min-width:0}
+  .card > .hint{margin:0 0 12px}
+  .banner{border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:15px}
+  .banner.ok{background:var(--okbg);border:1px solid #99f6e4;color:var(--ok)}
+  .banner.warn{background:var(--warnbg);border:1px solid #fcd34d;color:var(--warn)}
+  .banner.err{background:var(--errbg);border:1px solid #fecaca;color:var(--err)}
+  .banner b{display:block;font-size:16px;margin-bottom:3px}
+  .banner a{color:inherit;font-weight:600}
+  .panel{max-width:640px;margin:30px auto;padding:22px}
+  .panel h2{font-size:17px;color:var(--ink);margin-bottom:10px}
+  .panel p{margin:0 0 12px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{border-bottom:1px solid var(--line);padding:8px 9px;text-align:left;vertical-align:middle}
+  th{background:#eef2f7;font-size:11.5px;font-weight:600;color:#334155;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  td.acts{text-align:right;white-space:normal}
+  td.acts .dbtn{margin:2px 0 2px 4px}
+  td.wrap{white-space:normal;line-height:1.4}
+  td.nw{white-space:nowrap}
+  tr.off td{color:#94a3b8}
+  .tag{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .tag.ok{background:#ccfbf1;color:var(--ok)} .tag.warn{background:#fef3c7;color:var(--warn)}
+  .tag.err{background:#fee2e2;color:var(--err)} .tag.info{background:#e0e7ff;color:#3730a3}
+  .tag.off{background:#e2e8f0;color:#475569}
+  .you{color:var(--mut);font-weight:400}
+  .muted{color:var(--mut);font-size:13.5px}
+  .scroll{overflow-x:auto}
+  .note{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:13px 15px;font-size:13.5px;color:#475569}
+  .btn{display:inline-block;border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:8px;
+       padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer;text-decoration:none;font-family:inherit}
+  .btn:hover{background:#173c5e}
+  .btn[disabled]{opacity:.55;cursor:default}
+  .dbtn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:5px 10px;font-size:12.5px;color:#334155;
+        cursor:pointer;font-family:inherit;min-height:32px;white-space:nowrap}
+  .dbtn:hover{border-color:var(--navy);color:var(--navy)}
+  .dbtn[disabled]{opacity:.5;cursor:default}
+  /* forms */
+  .fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px 16px}
+  .f label{display:block;font-size:12.5px;color:#475569;margin:0 0 3px;font-weight:600}
+  .f input,.f select{width:100%;padding:8px 10px;font-size:14px;border:1px solid #cbd5e1;border-radius:8px;
+                     background:#fff;font-family:inherit;color:var(--ink)}
+  .f input:focus,.f select:focus,.pinbox input:focus{outline:2px solid #93c5fd;outline-offset:0;border-color:#60a5fa}
+  .act{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+  .msg{font-size:13px}
+  .msg:empty{display:none}
+  .fhint{display:block;font-size:12px;color:var(--mut);margin-top:3px}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .msg.err{color:var(--err)} .msg.ok{color:#15803d} .msg.warn{color:var(--warn);font-weight:600}
+  .sub3{font-size:13.5px;font-weight:600;color:#334155;margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
+  .pinbox{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#f8fafc;border:1px solid #cbd5e1;
+          border-radius:8px;padding:10px 12px}
+  .pinbox label{font-size:12.5px;font-weight:600;color:#475569}
+  .pinbox input{width:130px;padding:7px 9px;font-size:14px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit}
+  .pinstate{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .pinstate .big{font-size:20px;font-weight:700}
+  .pinstate .big.on{color:var(--ok)} .pinstate .big.off{color:#475569}
+  @media(max-width:640px){
+    header{padding:12px 14px;flex-wrap:wrap;row-gap:8px;column-gap:10px}
+    header > div:first-child{flex:1 1 100% !important;min-width:0}
+    header h1{overflow-wrap:anywhere}
+    header .who{white-space:normal;flex:1;min-width:0;overflow-wrap:anywhere}
+    header > a{padding:6px 10px}
+    main{padding:14px 12px 50px}
+    .card{padding:14px}
+    /* Tables become one block per row on a phone: each cell carries its own label. */
+    table.stack thead{display:none}
+    table.stack, table.stack tbody, table.stack tr, table.stack td{display:block;width:100%}
+    table.stack tr{border-bottom:1px solid var(--line);padding:8px 0}
+    table.stack tr:last-child{border-bottom:0}
+    table.stack td{border:0;padding:3px 2px;display:flex;justify-content:space-between;gap:12px;text-align:right;
+                   white-space:normal;overflow-wrap:anywhere}
+    table.stack td::before{content:attr(data-l);color:var(--mut);font-size:12.5px;text-align:left;flex:0 0 auto}
+    table.stack td.first{font-weight:600;font-size:14.5px}
+    table.stack td.first::before{content:none}
+    table.stack td.first{justify-content:flex-start;text-align:left}
+    table.stack td.acts{justify-content:flex-start;flex-wrap:wrap;gap:6px;padding-top:6px}
+    table.stack td.acts::before{content:none}
+    table.stack td.acts .dbtn{margin:0}
+    table.stack td.acts:empty{display:none}
+    table.stack tr.pinrow td{display:block;text-align:left}
+    table.stack tr.pinrow td::before{content:none}
+    .pinbox input{flex:1 1 120px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div style="flex:1">
+    <h1 id="hdrTitle">Town settings</h1>
+    <span class="sub" id="hdrSub">loading…</span>
+  </div>
+  <span class="who" id="who"></span>
+  <a id="backLink" href="#">← Daily review</a>
+</header>
+
+<main>
+  <div id="top"><div class="banner" style="background:#f8fafc;border:1px solid #e2e8f0;color:#475569">
+    <b>Loading the town’s settings…</b></div></div>
+  <div id="sections" hidden></div>
+</main>
+
+<script type="module">
+const WSSN = new URLSearchParams(location.search).get('wssn') || '01310';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const REVIEW_HREF = `/water/review?wssn=${encodeURIComponent(WSSN)}`;
+$('backLink').href = REVIEW_HREF;
+
+/* Dates are SHOWN month/day/year, as on the daily review. Timestamps are turned into the
+   browser's own local day first, so a sign-in late in the evening is not shown as tomorrow. */
+const usDate = (iso) => {
+  const s = String(iso == null ? '' : iso);
+  const x = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return x ? `${Number(x[2])}/${Number(x[3])}/${x[1]}` : s;
+};
+const pad = (n) => String(n).padStart(2, '0');
+const localIso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function whenDay(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? '' : usDate(localIso(d));
+}
+function whenFull(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const h = d.getHours();
+  return `${usDate(localIso(d))} ${h % 12 || 12}:${pad(d.getMinutes())} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+let WHO = null;      // the whoami answer
+let ST = null;       // the last state answer
+let FLASH = [];      // messages to show beside a control after the next redraw: [{id, text, kind}]
+let OPEN_PIN = null; // the operator whose "Set PIN" box is open
+
+/* ---------- talking to the server ---------- */
+async function call(action, extra = {}) {
+  let res;
+  try {
+    res = await fetch('/api/water-town', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, wssn: WSSN, ...extra }),
+    });
+  } catch {
+    return { status: 0, ok: false, body: null, noAnswer: true, error: 'Could not reach CivicScope. Check the internet connection and try again.' };
+  }
+  let body = null;
+  try { body = await res.json(); } catch {}
+  if (!body || typeof body !== 'object') {
+    return { status: res.status, ok: false, body: null, noAnswer: true, error: `Something went wrong (the server answered ${res.status}). Please try again in a minute.` };
+  }
+  if (res.ok && body.ok) return { status: res.status, ok: true, body };
+  return { status: res.status, ok: false, body,
+    error: body.error ? String(body.error) : `Something went wrong (the server answered ${res.status}). Please try again in a minute.` };
+}
+
+/* A 401 means the sign-in has run out; a 403 marked notAdmin means this person is not (or no
+   longer) a town admin. Either swaps the whole page for the matching panel. When it was a WRITE
+   that was turned away, the panel also says the change did not go through. */
+function authSwap(r, wasWrite = false) {
+  if (r.status === 401) { showSignIn(wasWrite); return true; }
+  if (r.status === 403 && r.body && r.body.notAdmin) { showNotAdmin(wasWrite); return true; }
+  return false;
+}
+const NOT_SAVED = '<p class="banner warn" id="notSavedNote" style="margin:0 0 12px">Your last change was not saved.</p>';
+
+/* ---------- panels ---------- */
+function panel(html) {
+  $('sections').hidden = true;
+  $('sections').innerHTML = '';
+  $('top').innerHTML = html;
+}
+function errorBanner(text) {
+  panel(`<div class="banner err"><b>This page could not be opened</b>${esc(text)}</div>`);
+}
+function paintHeader(townName, personText) {
+  $('hdrTitle').textContent = townName ? `${townName} — Town settings` : 'Town settings';
+  $('hdrSub').textContent = `WSSN ${WSSN}`;
+  document.title = townName ? `Town settings — ${townName}` : 'Town settings';
+  $('who').innerHTML = personText ? `Signed in as <b>${esc(personText)}</b>` : '';
+}
+/* The town page link comes from the server. It is used only when it is a plain path on THIS
+   site: one leading slash, then letters, digits and . _ ~ / - only (no backslash, no control
+   characters, no "//other.site"), and the browser agrees it resolves to this origin. */
+function safeHub() {
+  const hub = WHO && typeof WHO.hub === 'string' ? WHO.hub : '';
+  if (!/^\/[A-Za-z0-9][A-Za-z0-9._~\/-]*$/.test(hub)) return '';
+  try { if (new URL(hub, location.origin).origin !== location.origin) return ''; } catch { return ''; }
+  return hub;
+}
+function showSignIn(wasWrite = false) {
+  paintHeader(WHO && WHO.town, '');
+  const hub = safeHub();
+  const href = hub ? `${hub}?next=${encodeURIComponent(location.pathname + location.search)}` : '';
+  panel(`<div class="card panel" id="signInPanel">
+    ${wasWrite ? NOT_SAVED : ''}
+    <h2>Sign in to manage this town's settings.</h2>
+    ${href ? `<p><a class="btn" id="hubLink" href="${esc(href)}">Go to the town page to sign in</a></p>
+    <p class="muted">Once you are signed in, you can come back to this page.</p>`
+    : `<p class="muted" id="noHubNote">Sign in on your town's CivicScope page, then come back to this address.</p>`}
+  </div>`);
+}
+function showNotAdmin(wasWrite = false) {
+  const u = (WHO && WHO.user) || (ST && ST.me) || {};
+  const person = u.name || u.email || 'someone';
+  const town = (WHO && WHO.town) || (ST && ST.town && ST.town.name) || 'this town';
+  paintHeader(WHO && WHO.town, u.name || u.email || '');
+  panel(`<div class="card panel" id="notAdminPanel">
+    ${wasWrite ? NOT_SAVED : ''}
+    <h2>You are not a town admin here</h2>
+    <p>You are signed in as ${esc(person)}, but you are not a town admin for ${esc(town)}. Ask CivicScope (<a href="mailto:info@civicscope.io">info@civicscope.io</a>) if you need access.</p>
+    <p><a class="btn" href="${esc(REVIEW_HREF)}">← Go to the daily review</a></p>
+  </div>`);
+}
+
+/* ---------- loading ---------- */
+async function start() {
+  const r = await call('whoami');
+  if (!r.ok) {
+    if (r.status === 401) { WHO = r.body || null; return showSignIn(); }
+    return errorBanner(r.error);
+  }
+  WHO = r.body;
+  if (!WHO.signedIn) return showSignIn();
+  if (!WHO.townAdmin) return showNotAdmin();
+  await loadState();
+}
+
+/* `savedMsgId`: this read follows a save that went through. If the read then fails for any reason
+   other than sign-in, the screen is left as it is and the card that was saved from says so —
+   the whole page is never replaced over a change that was in fact saved. */
+async function loadState(savedMsgId = null) {
+  const r = await call('state');
+  if (!r.ok) {
+    if (authSwap(r)) return false;
+    if (savedMsgId) {
+      FLASH = [];
+      setMsg(savedMsgId, 'Your change was saved, but the page could not refresh. Reload the page.', 'warn');
+      return false;
+    }
+    errorBanner(r.error);
+    return false;
+  }
+  ST = r.body;
+  draw();
+  return true;
+}
+
+/* ---------- drawing ---------- */
+const FIELDS = [
+  ['oic_name', 'Operator in charge'],
+  ['oic_cert', 'Certification'],
+  ['cover_signed_by', 'Signed by'],
+  ['report_to_email', 'Report is sent to'],
+  ['bacti_routine_required', 'Routine bacti samples required each month'],
+  ['bacti_method', 'Lab method'],
+];
+const ROLE = { oic: 'Operator in charge', staff: 'Office staff', admin: 'CivicScope' };
+
+function isLocked(o) {
+  if (!o.locked_until) return false;
+  const t = new Date(o.locked_until);
+  return !isNaN(t) && t.getTime() > Date.now();
+}
+function pinStatus(o) {
+  if (isLocked(o)) return `<span class="tag err">Locked until ${esc(whenFull(o.locked_until))}</span>`;
+  return o.has_pin ? '<span class="tag ok">Set</span>' : '<span class="tag off">Not set</span>';
+}
+
+function draw() {
+  const t = ST.town || {}, s = ST.settings || {}, me = ST.me || {};
+  paintHeader(t.name, (me.name || me.email || '') + (me.productAdmin ? ' (CivicScope)' : ''));
+  $('top').innerHTML = '';
+  const requirePin = s.require_pin === true;
+
+  const fieldHtml = FIELDS.map(([k, label]) => {
+    const v = s[k] == null ? '' : String(s[k]);
+    const extra = k === 'bacti_routine_required' ? ' inputmode="numeric" maxlength="3" placeholder="0 to 31"'
+      : k === 'report_to_email' ? ' inputmode="email" autocomplete="off"' : ' autocomplete="off"';
+    const hint = k === 'report_to_email'
+      ? `<span class="fhint" id="set_${k}_hint">For more than one address, separate them with a comma.</span>` : '';
+    return `<div class="f"><label for="set_${k}">${esc(label)}</label>
+      <input type="text" id="set_${k}" data-key="${k}" value="${esc(v)}"${extra}${hint ? ` aria-describedby="set_${k}_hint"` : ''}>${hint}</div>`;
+  }).join('');
+
+  const ops = ST.operators || [];
+  let anyLocked = false;
+  const opRows = ops.map((o) => {
+    if (isLocked(o)) anyLocked = true;
+    const n = esc(o.name);
+    /* A town that requires a PIN never lets an operator on the tablet list lose theirs (the
+       server refuses it), so the button is not offered there. */
+    const canClear = o.has_pin && !(requirePin && o.active);
+    const acts = [
+      `<button type="button" class="dbtn" data-op-pin="${esc(o.id)}" aria-label="Set PIN for ${n}">Set PIN</button>`,
+      canClear ? `<button type="button" class="dbtn" data-op-clear="${esc(o.id)}" aria-label="Clear PIN for ${n}">Clear PIN</button>` : '',
+      o.active ? `<button type="button" class="dbtn" data-op-retire="${esc(o.id)}" aria-label="Retire ${n}">Retire</button>`
+               : `<button type="button" class="dbtn" data-op-back="${esc(o.id)}" aria-label="Bring back ${n}">Bring back</button>`,
+    ].join('');
+    const row = `<tr class="${o.active ? '' : 'off'}" data-op-row="${esc(o.id)}">
+      <td class="first wrap" data-l="Name">${esc(o.name)}${o.is_oic ? ' <span class="tag info">Operator in charge</span>' : ''}</td>
+      <td data-l="Initials">${esc(o.initials)}</td>
+      <td data-l="PIN">${pinStatus(o)}</td>
+      <td data-l="Status">${o.active ? 'On the tablet' : 'Retired'}</td>
+      <td class="acts">${acts}</td></tr>`;
+    return row;
+  }).join('');
+
+  const people = ST.people || [];
+  const pRows = people.map((p) => {
+    const who = p.name ? esc(p.name) : '—';
+    const n = esc(p.name || p.email);
+    const acts = [
+      p.can_edit ? (p.active
+        ? `<button type="button" class="dbtn" data-p-off="${esc(p.id)}" aria-label="Turn off sign-in for ${n}">Turn off</button>`
+        : `<button type="button" class="dbtn" data-p-on="${esc(p.id)}" aria-label="Turn sign-in back on for ${n}">Turn back on</button>`) : '',
+      p.can_set_admin ? (p.town_admin
+        ? `<button type="button" class="dbtn" data-p-unadmin="${esc(p.id)}" aria-label="Remove ${n} as a town admin">Remove town admin</button>`
+        : `<button type="button" class="dbtn" data-p-admin="${esc(p.id)}" aria-label="Make ${n} a town admin">Make town admin</button>`) : '',
+    ].join('');
+    return `<tr class="${p.active ? '' : 'off'}" data-p-row="${esc(p.id)}">
+      <td class="first wrap" data-l="Name">${who}${p.is_me ? ' <span class="you">(you)</span>' : ''}</td>
+      <td class="wrap" data-l="Email">${esc(p.email)}</td>
+      <td data-l="Role">${esc(ROLE[p.role] || p.role)}</td>
+      <td data-l="Town admin">${p.town_admin ? 'Yes' : ''}</td>
+      <td data-l="Status">${p.active ? 'Can sign in' : 'Turned off'}</td>
+      <td class="nw" data-l="Last sign-in">${p.last_seen_at ? esc(whenDay(p.last_seen_at)) : 'Never'}</td>
+      <td class="acts">${acts}</td></tr>`;
+  }).join('');
+
+  const log = ST.log || [];
+  const logHtml = log.length ? `<table class="stack"><thead><tr><th>When</th><th>Who</th><th>What changed</th></tr></thead><tbody>
+    ${log.map((e) => `<tr><td class="nw" data-l="When">${esc(whenFull(e.at))}</td><td class="wrap" data-l="Who">${esc(e.who)}</td>
+      <td class="wrap" data-l="What">${esc(e.summary)}</td></tr>`).join('')}</tbody></table>`
+    : '<p class="muted" style="margin:0">No changes recorded yet.</p>';
+
+  $('sections').innerHTML = `
+  <section class="card" id="secReport">
+    <h2>Monthly report details</h2>
+    <p class="muted hint">These are printed on the monthly report for towns that use the standard state form. If your town uses its own report form, they are already printed on that form and changing them here does not change the report.</p>
+    <div class="fields">${fieldHtml}</div>
+    <div class="act"><button type="button" class="btn" id="saveReport">Save</button><span class="msg" aria-live="polite" id="reportMsg"></span></div>
+  </section>
+
+  <section class="card" id="secPin">
+    <h2>PIN at the well</h2>
+    <div class="pinstate">
+      <span class="big ${requirePin ? 'on' : 'off'}" id="pinOnOff">${requirePin ? 'On' : 'Off'}</span>
+      <button type="button" class="btn" id="pinToggle">${requirePin ? 'Turn off' : 'Turn on'}</button>
+    </div>
+    <p class="muted" style="margin:8px 0 0">When this is on, the tablet asks each operator for their PIN before a round is saved.</p>
+    <div class="act" style="margin-top:6px"><span class="msg" aria-live="polite" id="pinCardMsg"></span></div>
+  </section>
+
+  <section class="card" id="secOps">
+    <h2>Operators</h2>
+    <p class="muted hint">The crew who take readings at the wells.</p>
+    ${ops.length ? `<table class="stack"><thead><tr><th>Name</th><th>Initials</th><th>PIN</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>${opRows}</tbody></table>` : '<p class="muted">No operators yet.</p>'}
+    ${anyLocked ? '<p class="muted" id="lockNote" style="margin:8px 0 0">A locked operator can try again after that time. Setting a new PIN unlocks them straight away.</p>' : ''}
+    <div class="act" style="margin-top:6px"><span class="msg" aria-live="polite" id="opMsg"></span></div>
+    <div class="sub3">Add an operator</div>
+    <div class="fields">
+      <div class="f"><label for="opName">Name</label><input type="text" id="opName" autocomplete="off"></div>
+      <div class="f"><label for="opInit">Initials</label><input type="text" id="opInit" maxlength="4" autocomplete="off"></div>
+      <div class="f"><label for="opPin">${requirePin ? 'PIN' : 'PIN (optional)'}</label>
+        <input type="password" id="opPin" inputmode="numeric" autocomplete="new-password" maxlength="8"></div>
+    </div>
+    <div class="act"><button type="button" class="btn" id="opAdd">Add operator</button><span class="msg" aria-live="polite" id="opAddMsg"></span></div>
+    <p class="muted" style="margin:12px 0 0">Nobody is ever deleted. Retiring an operator keeps their initials on past readings.</p>
+  </section>
+
+  <section class="card" id="secPeople">
+    <h2>Office sign-ins</h2>
+    <p class="muted hint">Who can sign in to the office pages for this town.</p>
+    ${people.length ? `<table class="stack"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Town admin</th><th>Status</th><th>Last sign-in</th><th><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>${pRows}</tbody></table>` : '<p class="muted">Nobody yet.</p>'}
+    <div class="act" style="margin-top:6px"><span class="msg" aria-live="polite" id="pMsg"></span></div>
+    <div class="sub3">Add a person</div>
+    <div class="fields">
+      <div class="f"><label for="pName">Name</label><input type="text" id="pName" autocomplete="off"></div>
+      <div class="f"><label for="pEmail">Email</label><input type="text" id="pEmail" inputmode="email" autocomplete="off"></div>
+      <div class="f"><label for="pRole">Role</label><select id="pRole">
+        <option value="staff">Office staff</option><option value="oic">Operator in charge</option></select></div>
+    </div>
+    <p class="muted" style="margin:8px 0 0">They sign in with Google using exactly this address.</p>
+    <div class="act"><button type="button" class="btn" id="pAdd">Add person</button><span class="msg" aria-live="polite" id="pAddMsg"></span></div>
+  </section>
+
+  <section class="card" id="secLog">
+    <h2>Recent changes</h2>
+    ${logHtml}
+  </section>
+
+  <section class="card" id="secManaged">
+    <h2>Managed by CivicScope</h2>
+    <p class="muted" style="margin:0">Wells, chemical strengths and maximum doses, sampling sites, the report form and making a town live are set up by CivicScope. To change one, email <a href="mailto:info@civicscope.io">info@civicscope.io</a>.</p>
+  </section>`;
+  $('sections').hidden = false;
+
+  for (const f of FLASH) setMsg(f.id, f.text, f.kind);
+  FLASH = [];
+  wire();
+}
+
+function setMsg(id, text, kind) {
+  const el = $(id);
+  if (!el) return;
+  el.className = `msg ${kind || ''}`;
+  el.textContent = text || '';
+}
+
+/* ---------- writing ---------- */
+/* One write: the button is disabled while it runs; a refusal is shown beside the control; a
+   success reloads the whole state and redraws, then shows `okText` (or the "could not be added
+   to the change record" notice) in the same place. */
+async function write(action, body, btn, msgId, okText = 'Saved.', doneId = msgId) {
+  if (btn) btn.disabled = true;
+  setMsg(msgId, '');
+  const r = await call(action, body);
+  if (!r.ok) {
+    if (btn) btn.disabled = false;
+    if (authSwap(r, true)) return false;
+    // no answer at all (connection dropped, or a server page that is not ours): the change may
+    // or may not have gone through, so say exactly that. What was typed stays on the screen.
+    setMsg(msgId, r.noAnswer ? 'Your change may not have been saved. Reload the page and check before trying again.' : r.error, 'err');
+    return false;
+  }
+  FLASH = [r.body.logged === false
+    ? { id: doneId, text: 'Saved. The change could not be added to the change record — please tell CivicScope.', kind: 'warn' }
+    : { id: doneId, text: okText, kind: 'ok' }];
+  const drawn = await loadState(doneId);
+  if (!drawn && btn) btn.disabled = false;
+  if (drawn) OPEN_PIN = null;
+  return true;
+}
+
+const opById = (id) => (ST.operators || []).find((o) => String(o.id) === String(id));
+const pById = (id) => (ST.people || []).find((p) => String(p.id) === String(id));
+const PIN_RE = /^\d{4,8}$/;
+
+function wire() {
+  // 1. Monthly report details — send only what changed.
+  $('saveReport').addEventListener('click', (ev) => {
+    const s = ST.settings || {};
+    const changes = {};
+    for (const [k] of FIELDS) {
+      const typed = $(`set_${k}`).value.trim();
+      if (k === 'bacti_routine_required') {
+        let v = null;
+        if (typed !== '') {
+          if (!/^\d+$/.test(typed) || Number(typed) > 31) {
+            setMsg('reportMsg', 'Enter a whole number from 0 to 31, or leave it empty. Nothing was saved.', 'err');
+            return;
+          }
+          v = Number(typed);
+        }
+        const was = s[k] == null || s[k] === '' ? null : Number(s[k]);
+        if (v !== was) changes[k] = v;
+      } else {
+        const v = typed === '' ? null : typed;
+        const was = s[k] == null || String(s[k]).trim() === '' ? null : String(s[k]).trim();
+        if (v !== was) changes[k] = v;
+      }
+    }
+    if (!Object.keys(changes).length) { setMsg('reportMsg', 'Nothing to save.', ''); return; }
+    write('save_settings', { changes }, ev.currentTarget, 'reportMsg');
+  });
+
+  // 2. PIN at the well.
+  $('pinToggle').addEventListener('click', (ev) => {
+    const on = !((ST.settings || {}).require_pin === true);
+    const q = on ? 'Turn the PIN at the well on? Every operator will need their PIN to save a round.' : 'Turn the PIN at the well off?';
+    if (!confirm(q)) return;
+    write('save_settings', { changes: { require_pin: on } }, ev.currentTarget, 'pinCardMsg',
+      on ? 'The PIN at the well is on.' : 'The PIN at the well is off.');
+  });
+
+  // 3. Operators.
+  const sec = $('secOps');
+  sec.querySelectorAll('[data-op-pin]').forEach((b) => b.addEventListener('click', () => {
+    const o = opById(b.dataset.opPin); if (!o) return;
+    openPinBox(o, b.closest('tr'));
+  }));
+  sec.querySelectorAll('[data-op-clear]').forEach((b) => b.addEventListener('click', () => {
+    const o = opById(b.dataset.opClear); if (!o) return;
+    if (!confirm(`Clear ${o.name}'s PIN?`)) return;
+    write('set_operator', { operator_id: o.id, pin: null }, b, 'opMsg', `${o.name}'s PIN was cleared.`);
+  }));
+  sec.querySelectorAll('[data-op-retire]').forEach((b) => b.addEventListener('click', () => {
+    const o = opById(b.dataset.opRetire); if (!o) return;
+    if (!confirm(`Retire ${o.name}? They come off the tablet list. Their past readings keep their initials.`)) return;
+    write('set_operator', { operator_id: o.id, active: false }, b, 'opMsg', `${o.name} was retired.`);
+  }));
+  sec.querySelectorAll('[data-op-back]').forEach((b) => b.addEventListener('click', () => {
+    const o = opById(b.dataset.opBack); if (!o) return;
+    write('set_operator', { operator_id: o.id, active: true }, b, 'opMsg', `${o.name} is back on the tablet.`);
+  }));
+  $('opAdd').addEventListener('click', (ev) => {
+    const name = $('opName').value.trim();
+    const initials = $('opInit').value.trim().toUpperCase();
+    const pinEl = $('opPin');
+    const pin = pinEl.value.trim();
+    const requirePin = (ST.settings || {}).require_pin === true;
+    if (!name) return setMsg('opAddMsg', 'Enter the operator’s name.', 'err');
+    if (!/^[A-Z]{1,4}$/.test(initials)) return setMsg('opAddMsg', 'Initials are 1 to 4 letters.', 'err');
+    if (pin && !PIN_RE.test(pin)) return setMsg('opAddMsg', 'A PIN is 4 to 8 digits.', 'err');
+    if (!pin && requirePin) return setMsg('opAddMsg', 'This town requires a PIN at the well, so a new operator needs one.', 'err');
+    const body = { name, initials };
+    if (pin) body.pin = pin;
+    pinEl.value = '';                           // the PIN leaves the screen once it is sent
+    write('add_operator', body, ev.currentTarget, 'opAddMsg', `${name} was added.`);
+  });
+
+  // 4. Office sign-ins.
+  const ps = $('secPeople');
+  const label = (p) => p.name || p.email;
+  ps.querySelectorAll('[data-p-off]').forEach((b) => b.addEventListener('click', () => {
+    const p = pById(b.dataset.pOff); if (!p) return;
+    if (!confirm(`Turn off sign-in for ${label(p)}?`)) return;
+    write('set_person', { person_id: p.id, active: false }, b, 'pMsg', `Sign-in turned off for ${label(p)}.`);
+  }));
+  ps.querySelectorAll('[data-p-on]').forEach((b) => b.addEventListener('click', () => {
+    const p = pById(b.dataset.pOn); if (!p) return;
+    write('set_person', { person_id: p.id, active: true }, b, 'pMsg', `Sign-in turned back on for ${label(p)}.`);
+  }));
+  ps.querySelectorAll('[data-p-admin]').forEach((b) => b.addEventListener('click', () => {
+    const p = pById(b.dataset.pAdmin); if (!p) return;
+    if (!confirm(`Make ${label(p)} a town admin? They will be able to change these settings.`)) return;
+    write('set_person', { person_id: p.id, town_admin: true }, b, 'pMsg', `${label(p)} is now a town admin.`);
+  }));
+  ps.querySelectorAll('[data-p-unadmin]').forEach((b) => b.addEventListener('click', () => {
+    const p = pById(b.dataset.pUnadmin); if (!p) return;
+    if (!confirm(`Remove ${label(p)} as a town admin?`)) return;
+    write('set_person', { person_id: p.id, town_admin: false }, b, 'pMsg', `${label(p)} is no longer a town admin.`);
+  }));
+  $('pAdd').addEventListener('click', (ev) => {
+    const name = $('pName').value.trim();
+    const email = $('pEmail').value.trim();
+    const role = $('pRole').value === 'oic' ? 'oic' : 'staff';
+    if (!name) return setMsg('pAddMsg', 'Enter the person’s name.', 'err');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setMsg('pAddMsg', 'Enter a full email address, like name@example.com.', 'err');
+    write('add_person', { email, name, role }, ev.currentTarget, 'pAddMsg', `${name} was added.`);
+  });
+}
+
+/* The "Set PIN" box opens in place under that operator's row — no redraw, so nothing typed
+   elsewhere on the page is lost. Only one is open at a time. */
+function closePinBox() {
+  const inp = $('pinInput'); if (inp) inp.value = '';
+  document.querySelectorAll('tr.pinrow').forEach((r) => r.remove());
+  OPEN_PIN = null;
+}
+function openPinBox(o, tr) {
+  closePinBox();
+  OPEN_PIN = o.id;
+  const row = document.createElement('tr');
+  row.className = 'pinrow';
+  row.innerHTML = `<td colspan="5"><div class="pinbox">
+      <label for="pinInput">New PIN for ${esc(o.name)}</label>
+      <input type="password" id="pinInput" inputmode="numeric" autocomplete="new-password" maxlength="8">
+      <button type="button" class="dbtn" id="pinSave">Save</button>
+      <button type="button" class="dbtn" id="pinCancel">Cancel</button>
+      <span class="msg" aria-live="polite" id="pinMsg"></span>
+    </div></td>`;
+  tr.after(row);
+  const inp = $('pinInput'), save = $('pinSave');
+  const doSave = () => {
+    if (save.disabled) return;                  // a save is already on its way: Enter again does nothing
+    const pin = inp.value.trim();
+    inp.value = '';                             // emptied after every attempt
+    if (!PIN_RE.test(pin)) { setMsg('pinMsg', 'A PIN is 4 to 8 digits.', 'err'); inp.focus(); return; }
+    // on success the box closes with the redraw, so the confirmation goes under the operators table
+    write('set_operator', { operator_id: o.id, pin }, save, 'pinMsg', `${o.name}'s PIN was saved.`, 'opMsg');
+  };
+  save.addEventListener('click', doSave);
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSave(); if (e.key === 'Escape') closePinBox(); });
+  $('pinCancel').addEventListener('click', closePinBox);
+  inp.focus();
+}
+
+start();
+</script>
+</body>
+</html>

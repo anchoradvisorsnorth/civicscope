@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <!--
-  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.14.1-oic
+  civicscope-water/review.html — WELL TESTING, the Operator-In-Charge's side.  v1.14.2-oic
+
+  v1.14.2 (2026-11-18) — a "Town settings" link in the header, drawn only when api/water-town.js
+  says the signed-in person is a town admin for this town (or CivicScope). It opens the town's own
+  admin page (/water/admin). Nobody else sees any change.
 
   v1.14.1 (2026-11-18) — the green "Up to date" sentence says WHEN each well was read. It read
   "All 3 wells reporting — last reading 11/18/2026 (today)" with one well read today and two last
@@ -267,6 +271,8 @@
   <span class="who" id="who"></span>
   <a id="navOther" href="#" style="background:rgba(255,255,255,.12);color:#fff;font-weight:600">Monthly report →</a>
   <a href="/water">Enter readings →</a>
+  <!-- v1.14.2: drawn only for a town admin (or CivicScope) — api/water-town.js decides, see paintWho() -->
+  <a id="navTown" href="/water/admin" style="display:none">Town settings</a>
 </header>
 
 <main>
@@ -1974,6 +1980,18 @@ async function paintWho() {
     w.innerHTML = (me.user.picture ? `<img src="${esc(me.user.picture)}" alt="">` : '')
       + `<span><b>${esc(me.user.name || me.user.email)}</b></span>`;
     w.title = `Signed in as ${me.user.email}`;
+    /* v1.14.2 — the way in to the town's own settings page, shown only to somebody the server says
+       is a town admin for THIS town. Asked apart from everything else and never waited on: if the
+       question fails or the answer is no, the link simply stays hidden and the page is as it was. */
+    fetch('/api/water-town', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'whoami', wssn: WSSN }),
+    }).then((r) => (r.ok ? r.json() : null)).then((t) => {
+      if (!t || t.townAdmin !== true) return;
+      const a = $('navTown');
+      a.href = `/water/admin?wssn=${encodeURIComponent(WSSN)}`;
+      a.style.display = '';
+    }).catch(() => {});
   } else if (me && me.configured) {
     /* The hub owns the sign-in button; sending her there keeps ONE place that knows how to do it.
        Two copies of a sign-in flow is two things to keep working. */
