@@ -10,7 +10,7 @@
 const CODE = () => process.env.FOOTBALL_POOL_CODE;
 // Bump on every change to this file — GET ?ver=1 returns it, so the LIVE function build is verifiable
 // (the Vercel webhook has served stale function builds before; see CLAUDE.md deploy gotcha 2026-07-16).
-const VER = '3.22.0-titles-everywhere';  // the slate-lock email titles games the way the pages do (words, AP rank, ESPN link); commish.html joined the same helper
+const VER = '3.23.0-monday-games';  // Monday games allowed (Mike, 2026-11-23); a week with a Monday game announces Tuesday 07:30 ET (Keith)
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -620,13 +620,20 @@ export default async function handler(req, res) {
      hand-built fixture with no usable kickoff has nothing to wait for and announces at once.
      `notify:true` on finalize_week is still the deliberate "send it now". Tests: the sandbox
      fixtures are dated 2030, so a finalize there is HELD until 2030-09-16T11:30Z — the gate
-     asserts exactly that, then moves the dates into the past and proves the release. */
+     asserts exactly that, then moves the dates into the past and proves the release.
+     MONDAY GAMES (Mike, 2026-11-23: "open the NFL to all games each week for the rest of the
+     season"; Keith: "include Monday games, announce Tuesday 7:30"). The Tue–Sun rule is gone, so a
+     week can end on Monday Night Football. Its release is 07:30 ET on the TUESDAY after — the old
+     arithmetic resolved a Monday game to that same Monday morning, already past by the final
+     whistle, which would have texted the crew around midnight. The VM's extra half-hour runs
+     (`30 11,12 * * 1,2`) land it on 07:30 Tuesday as they do Monday. */
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const releaseAt = (wk) => {
     const kicks = (wk.games || []).map(g => Date.parse(g.date)).filter(n => !isNaN(n));
     if (!kicks.length) return null;
     const last = etParts(new Date(Math.max(...kicks)));
-    const ahead = (1 - DOW.indexOf(last.weekday) + 7) % 7;   // days to Monday; a Monday game → that same morning (already past by the final whistle)
+    const dow = DOW.indexOf(last.weekday);
+    const ahead = dow === 1 ? 1 : (1 - dow + 7) % 7;   // days to the release morning: Monday, or Tuesday when the week ends on a Monday game
     const mon = new Date(Date.UTC(last.y, last.m - 1, last.day + ahead));
     return etToUtc(mon.getUTCFullYear(), mon.getUTCMonth() + 1, mon.getUTCDate(), 7, 30);
   };
@@ -1710,7 +1717,7 @@ export default async function handler(req, res) {
           const { scored, announce, told, held, releaseAt: releaseIso } = await applyFinalize(slug, wk, results, req.body.notify === true);
           return res.status(200).json({
             slug, finalized: true, weeklyWinner: wk.weeklyWinner, points: scored.points, announced: announce, ...told,
-            ...(held ? { held: true, releaseAt: releaseIso, hint: 'the winner text + email go out Monday 07:30 ET; pass notify:true to send now' } : {}),
+            ...(held ? { held: true, releaseAt: releaseIso, hint: 'the winner text + email go out at releaseAt (07:30 ET Monday, or Tuesday when the week has a Monday game); pass notify:true to send now' } : {}),
             ...(fetchNotes && fetchNotes.length ? { notes: fetchNotes } : {}),
             ...(claimed && claimed !== scored.winner
               ? { note: `ignored the submitted winner "${claimed}" — the frozen picks and lines score to "${scored.winner}"` }

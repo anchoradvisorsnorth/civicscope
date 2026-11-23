@@ -680,13 +680,13 @@ async function loadGames(league){
         favAbbrev:odds?odds.favAbbrev:null,line:odds?odds.line:null,spreadText:odds?odds.spreadText:null,
         overUnder:odds?odds.overUnder:null,manual:false};
     });
-    // Weekly competition runs Tue–Sun — the group never bets Monday games. Gate them out.
-    // Evaluate day-of-week in EASTERN time: night games cross the UTC date line (Sun-night ET
-    // reads Monday UTC; Mon-night ET reads Tuesday UTC), so a UTC check would drop SNF + keep MNF.
-    const etDay=d=>new Date(d).toLocaleDateString('en-US',{timeZone:'America/New_York',weekday:'long'});
+    /* MONDAY GAMES ARE IN (Mike, 2026-11-23: "open the NFL to all games each week for the rest of
+       the season"; Keith approved). This used to drop every Monday game ("the group never bets
+       Monday games", Tue–Sun). The filter is gone; a week ending on Monday Night Football scores
+       when that game ends and announces the winner Tuesday 07:30 ET (api/football-pool.js
+       releaseAt). `before`/`dropped` stay at zero so the status line below needs no surgery. */
     const before=evs.length;
-    evs=evs.filter(g=>etDay(g.date)!=='Monday');
-    const dropped=before-evs.length;
+    const dropped=0;
     loaded=loaded.filter(g=>g.league!==league).concat(evs);
     /* An empty result is a real answer and must say so. "0 games loaded" reads like a dud click;
        what the commissioner needs to know is WHAT WAS ASKED FOR, so he can tell a wrong week from
@@ -704,7 +704,6 @@ async function loadGames(league){
     if(!evs.length){
       document.getElementById('loadstat').innerHTML=
         `<b style="color:#b42318">ESPN returned no ${league.toUpperCase()} games</b> for ${asked}, ${season}`
-        +(before?` (${before} came back but all were Monday games, which this pool excludes)`:'')
         +`. Check the week number and Type, or try an adjacent week.`;
     } else {
       document.getElementById('loadstat').innerHTML=evs.length+' '+league.toUpperCase()+' '+asked+' games loaded'+(span?' · <b>'+span+'</b>':'')+' ('+evs.filter(g=>g.line!=null).length+' with live spreads'+(evs.filter(g=>g.line==null).length?', '+evs.filter(g=>g.line==null).length+' unpriced — use PK':'')+')'+(dropped?' · '+dropped+' Monday game'+(dropped>1?'s':'')+' excluded (Tue–Sun only)':'')+'.';
