@@ -660,11 +660,9 @@ async function loadGames(league){
       derived=true; espnLabel=r.label;
       if(r.week!==askedWeek){ askedWeek=r.week; j=await(await fetch(espnUrl(askedWeek),{cache:'no-store'})).json(); }
     }
-    /* `let`, not `const` — the Monday-exclusion filter below REASSIGNS this. As a const it threw
-       "Assignment to constant variable" on every single load, so "Load NFL games" had been dead
-       since that filter was added: the try/catch turned a hard bug into the mild-looking
-       "Load failed: …" line, and nobody read it closely. */
-    let evs=(j.events||[]).map(e=>{
+    /* (History: a Monday-exclusion filter used to REASSIGN this, and as a const it threw on every
+       load — the try/catch hid it as "Load failed: …". The filter is gone since 2026-11-23.) */
+    const evs=(j.events||[]).map(e=>{
       const c=e.competitions[0];
       const home=c.competitors.find(x=>x.homeAway==='home'), away=c.competitors.find(x=>x.homeAway==='away');
       const odds=parseOdds(c);
@@ -684,9 +682,7 @@ async function loadGames(league){
        the season"; Keith approved). This used to drop every Monday game ("the group never bets
        Monday games", Tue–Sun). The filter is gone; a week ending on Monday Night Football scores
        when that game ends and announces the winner Tuesday 07:30 ET (api/football-pool.js
-       releaseAt). `before`/`dropped` stay at zero so the status line below needs no surgery. */
-    const before=evs.length;
-    const dropped=0;
+       releaseAt). */
     loaded=loaded.filter(g=>g.league!==league).concat(evs);
     /* An empty result is a real answer and must say so. "0 games loaded" reads like a dud click;
        what the commissioner needs to know is WHAT WAS ASKED FOR, so he can tell a wrong week from
@@ -706,7 +702,7 @@ async function loadGames(league){
         `<b style="color:#b42318">ESPN returned no ${league.toUpperCase()} games</b> for ${asked}, ${season}`
         +`. Check the week number and Type, or try an adjacent week.`;
     } else {
-      document.getElementById('loadstat').innerHTML=evs.length+' '+league.toUpperCase()+' '+asked+' games loaded'+(span?' · <b>'+span+'</b>':'')+' ('+evs.filter(g=>g.line!=null).length+' with live spreads'+(evs.filter(g=>g.line==null).length?', '+evs.filter(g=>g.line==null).length+' unpriced — use PK':'')+')'+(dropped?' · '+dropped+' Monday game'+(dropped>1?'s':'')+' excluded (Tue–Sun only)':'')+'.';
+      document.getElementById('loadstat').innerHTML=evs.length+' '+league.toUpperCase()+' '+asked+' games loaded'+(span?' · <b>'+span+'</b>':'')+' ('+evs.filter(g=>g.line!=null).length+' with live spreads'+(evs.filter(g=>g.line==null).length?', '+evs.filter(g=>g.line==null).length+' unpriced — use PK':'')+')'+'.';
     }
     viewLeague=league;
     renderLoaded();
@@ -1263,7 +1259,8 @@ function weekFromCalendar(j,stype,at){
     return {week:m?m[1]:String(hit.value),label:lab};
   }catch(e){return null;}
 }
-/* THE COMING WEEKEND, IN EASTERN TIME. The pool's week is Tue–Sun and it is played on the next
+/* THE COMING WEEKEND, IN EASTERN TIME. The pool's week runs to Sunday (or Monday night, since
+   2026-11-23) and it is played on the next
    Saturday (college) and Sunday (NFL) on or after today. Anchored on the Sunday: the Saturday is
    the day before it, so a page opened ON a Saturday or Sunday still names that same weekend.
    Returned as noon-ET instants, which sit safely inside ESPN's week ranges (they roll at 07:00Z). */
@@ -1319,7 +1316,8 @@ async function boot(){
   else{
     builderOpen=true;                               // nothing to show: the builder IS the page
     /* EVERY WEEK IS FINISHED → THE NEXT ONE IS THE PAGE (Mike, 2026-09-15: "can you make it open
-       the new week on Tuesday morning?"). Weeks finalize themselves Monday morning, so from then
+       the new week on Tuesday morning?"). Weeks finalize themselves at the last final whistle (Sunday
+       night, or Monday night when the slate carries a Monday game), so from then
        on the page boots onto the week after the last one built — "Week 3 · 2026-w03 · not built
        yet", Save and Lock live — instead of the defaults, which spelled a finished week and hid
        both buttons. Regular season only, and only once a regular week exists to count from. */
